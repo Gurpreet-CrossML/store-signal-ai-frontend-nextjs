@@ -123,7 +123,7 @@ export function NavUser() {
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                            onSelect={() => {
+                            onClick={() => {
                                 signOut({ callbackUrl: "/login" });
                             }}
                         >

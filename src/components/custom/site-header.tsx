@@ -10,7 +10,7 @@ export function SiteHeader() {
     const pathname = usePathname();
     const mainNav = sidebarMenus.navMain;
 
-    function findTitleFromPath(pathname: string) {
+    function findTitleFromPath(pathname: string | null) {
         const found = mainNav.find((item) => item.url === pathname);
         return found ? found.title : pathname;
     }

@@ -7,8 +7,8 @@ import { createAPIUrl } from "@/lib/config";
 
 declare module "next-auth" {
     interface User {
-        access_token?: string;
-        refresh_token?: string;
+        token?: string;
+        refresh?: string;
         email?: string;
         username?: string;
         name?: string;
@@ -133,9 +133,9 @@ export const authOptions: AuthOptions = {
         async jwt({ token, user }) {
             // On initial login
             if (user) {
-                token.access_token = user.access_token;
-                token.refresh_token = user.refresh_token;
-                token.accessTokenExpires = getTokenExpiry(user.access_token);
+                token.access_token = user.token;
+                token.refresh_token = user.refresh;
+                token.accessTokenExpires = getTokenExpiry(user.token);
 
                 token.email = user.email;
                 token.username = user.username;

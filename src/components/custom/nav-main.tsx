@@ -3,6 +3,15 @@
 import { type Icon } from "@tabler/icons-react"
 
 import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import {
     SidebarGroup,
     SidebarGroupContent,
     SidebarMenu,
@@ -12,6 +21,44 @@ import {
 import { cn } from "@/lib/utils"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
+import { useAppDispatch, useAppSelector } from "@/redux/hooks"
+import { GetStores } from "@/redux/api-slice/stores-slice"
+import { useEffect } from "react"
+
+function StoreSelector() {
+
+    const dispatch = useAppDispatch();
+
+    const { GetStoresListData } = useAppSelector(
+        (state) => state.GetStoresReducer.GetStoresState
+    );
+
+    useEffect(() => {
+        if (!GetStoresListData.length) {
+            dispatch(
+                GetStores({})
+            )
+        }
+    }, [GetStoresListData, dispatch]);
+
+    return (
+        <Select>
+            <SelectTrigger className="w-full mb-2">
+                <SelectValue placeholder="Select a Store" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectGroup>
+                    <SelectLabel>Stores</SelectLabel>
+                    {GetStoresListData.map((store) => (
+                        <SelectItem key={store.id} value={store.id}>
+                            {store.name}
+                        </SelectItem>
+                    ))}
+                </SelectGroup>
+            </SelectContent>
+        </Select>
+    )
+}
 
 export function NavMain({
     items,
@@ -28,6 +75,7 @@ export function NavMain({
     return (
         <SidebarGroup>
             <SidebarGroupContent className="flex flex-col gap-2">
+                <StoreSelector />
                 <SidebarMenu>
                     {items.map((item) => (
                         <SidebarMenuItem key={item.title}>

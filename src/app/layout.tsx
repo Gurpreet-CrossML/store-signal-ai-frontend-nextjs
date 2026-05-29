@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import MainLayout from "@/app/main-layout";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/app/Sessionproviders";
+import StoreProvider from "@/redux/store-provider";
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -39,12 +40,14 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning className="min-h-full flex flex-col">
         <Providers>
-          <TooltipProvider>
-            <MainLayout>
-              {children}
-            </MainLayout>
-          </TooltipProvider>
-          <Toaster theme="light" />
+          <StoreProvider>
+            <TooltipProvider>
+              <MainLayout>
+                {children}
+              </MainLayout>
+            </TooltipProvider>
+            <Toaster theme="light" />
+          </StoreProvider>
         </Providers>
       </body>
     </html>
