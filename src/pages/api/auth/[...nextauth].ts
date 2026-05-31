@@ -3,7 +3,7 @@ import NextAuth from "next-auth/next";
 import type { AuthOptions } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import jwt from "jsonwebtoken";
-import { createAPIUrl } from "@/lib/config";
+import { ENDPOINTS } from "@/lib/config";
 
 declare module "next-auth" {
     interface User {
@@ -45,36 +45,36 @@ function getTokenExpiry(token?: string): number | undefined {
 }
 
 // Refresh access token function
-async function refreshAccessToken(token: JWT): Promise<JWT> {
-    try {
-        const url = createAPIUrl("/auth/refresh-token/");
-        const res = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                refresh_token: token.refresh_token,
-            }),
-        });
+// async function refreshAccessToken(token: JWT): Promise<JWT> {
+//     try {
+//         const url = ENDPOINTS.login();
+//         const res = await fetch(url, {
+//             method: "POST",
+//             headers: {
+//                 "Content-Type": "application/json",
+//             },
+//             body: JSON.stringify({
+//                 refresh_token: token.refresh_token,
+//             }),
+//         });
 
-        if (!res.ok) {
-            console.error("Failed to refresh access token:", res.statusText);
-            return {};
-        }
+//         if (!res.ok) {
+//             console.error("Failed to refresh access token:", res.statusText);
+//             return {};
+//         }
 
-        const data = await res.json();
+//         const data = await res.json();
 
-        return {
-            ...token,
-            access_token: data?.data?.token,
-            accessTokenExpires: getTokenExpiry(data?.data?.token),
-        };
-    } catch (error) {
-        console.error("Error refreshing access token:", error);
-        return {};
-    }
-}
+//         return {
+//             ...token,
+//             access_token: data?.data?.token,
+//             accessTokenExpires: getTokenExpiry(data?.data?.token),
+//         };
+//     } catch (error) {
+//         console.error("Error refreshing access token:", error);
+//         return {};
+//     }
+// }
 
 export const authOptions: AuthOptions = {
     secret: process.env.NEXTAUTH_SECRET,
@@ -93,7 +93,7 @@ export const authOptions: AuthOptions = {
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-                const res = await fetch(createAPIUrl("/auth/login/"), {
+                const res = await fetch(ENDPOINTS.login(), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(credentials),
@@ -144,7 +144,7 @@ export const authOptions: AuthOptions = {
 
             // If token expired, refresh it
             if (token.accessTokenExpires && Date.now() > token.accessTokenExpires) {
-                token = await refreshAccessToken(token);
+                // token = await refreshAccessToken(token);
             }
 
             return token;

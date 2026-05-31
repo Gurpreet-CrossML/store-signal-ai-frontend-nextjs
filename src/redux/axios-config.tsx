@@ -1,5 +1,4 @@
 import { createAPIUrl } from "@/lib/config";
-import { navigate } from "@/hooks/navigate";
 import axios from "axios";
 import { getSession, signOut } from "next-auth/react";
 

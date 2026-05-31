@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/app/Sessionproviders";
 import StoreProvider from "@/redux/store-provider";
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
+const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

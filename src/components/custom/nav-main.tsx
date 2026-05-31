@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAppDispatch, useAppSelector } from "@/redux/hooks"
-import { GetStores } from "@/redux/api-slice/stores-slice"
+import { GetStores, setSelectedStore, SELECTED_STORE_KEY } from "@/redux/api-slice/stores-slice"
 import { useEffect } from "react"
 
 function StoreSelector() {
@@ -32,17 +32,38 @@ function StoreSelector() {
     const { GetStoresListData } = useAppSelector(
         (state) => state.GetStoresReducer.GetStoresState
     );
+    const selectedStore = useAppSelector(
+        (state) => state.GetStoresReducer.selectedStore
+    );
 
+    // Fetch the store list once.
     useEffect(() => {
         if (!GetStoresListData.length) {
-            dispatch(
-                GetStores({})
-            )
+            dispatch(GetStores({}));
         }
-    }, [GetStoresListData, dispatch]);
+    }, [GetStoresListData.length, dispatch]);
+
+    // Hydrate the selection from localStorage once the list is available.
+    // Falls back to the first store if nothing is stored or the stored code
+    // is no longer valid (e.g. the store was removed).
+    useEffect(() => {
+        if (!GetStoresListData.length || selectedStore) return;
+
+        const stored =
+            typeof window !== "undefined"
+                ? localStorage.getItem(SELECTED_STORE_KEY)
+                : null;
+        const isValid = !!stored && GetStoresListData.some((s) => s.code === stored);
+
+        dispatch(setSelectedStore(isValid ? stored! : GetStoresListData[0].code));
+    }, [GetStoresListData, selectedStore, dispatch]);
+
+    const handelChange = (value: string) => {
+        dispatch(setSelectedStore(value));
+    }
 
     return (
-        <Select>
+        <Select value={selectedStore} onValueChange={handelChange}>
             <SelectTrigger className="w-full mb-2">
                 <SelectValue placeholder="Select a Store" />
             </SelectTrigger>
@@ -50,7 +71,7 @@ function StoreSelector() {
                 <SelectGroup>
                     <SelectLabel>Stores</SelectLabel>
                     {GetStoresListData.map((store) => (
-                        <SelectItem key={store.id} value={store.id}>
+                        <SelectItem key={store.id} value={store.code}>
                             {store.name}
                         </SelectItem>
                     ))}
