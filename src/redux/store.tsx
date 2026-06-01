@@ -2,12 +2,14 @@ import { configureStore } from "@reduxjs/toolkit";
 import StoresSlice from "@/redux/api-slice/stores-slice";
 import DashboardSlice from "@/redux/api-slice/dashboard-slice";
 import ThreadSlice from "@/redux/api-slice/thread-slice";
+import KnowledgeSlice from "@/redux/api-slice/knowledge-slice";
 
 const store = configureStore({
   reducer: {
     GetStoresReducer: StoresSlice,
     GetDashboardReducer: DashboardSlice,
-    GetThreadReducer: ThreadSlice
+    GetThreadReducer: ThreadSlice,
+    GetKnowledgeReducer: KnowledgeSlice
   },
 });
 
