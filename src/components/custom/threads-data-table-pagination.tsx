@@ -22,18 +22,20 @@ export const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
   totalCount: number;
+  noun?: string;
 }
 
 export function DataTablePagination<TData>({
   table,
   totalCount,
+  noun = "thread",
 }: DataTablePaginationProps<TData>) {
   const { pageIndex, pageSize } = table.getState().pagination;
 
   return (
     <div className="flex flex-col gap-4 px-2 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="text-sm text-muted-foreground">
-        {totalCount} {totalCount === 1 ? "thread" : "threads"} total
+        {totalCount} {totalCount === 1 ? noun : `${noun}s`} total
       </div>
 
       <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:gap-6">

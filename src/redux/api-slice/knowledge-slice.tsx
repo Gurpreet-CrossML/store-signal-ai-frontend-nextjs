@@ -26,6 +26,26 @@ export type FetchStoreFaqsResponse = {
     results: StoreFaq[];
 }
 
+export type StoreDocumentStatus = "pending" | "in-progress" | "completed" | "failed";
+
+export type StoreDocument = {
+    id: number;
+    name: string;
+    type: string;
+    status: StoreDocumentStatus;
+    size: number;
+    error: string | null;
+    created_at: string;
+    updated_at: string;
+};
+
+export type FetchStoreLibraryResponse = {
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: StoreDocument[];
+}
+
 
 export const FetchStoreFaqs = createAsyncThunk(
     "FetchStoreFaqs",
@@ -131,6 +151,64 @@ export const DeleteStoreFaq = createAsyncThunk(
     }
 );
 
+export const FetchLibraryDocuments = createAsyncThunk(
+    "FetchLibraryDocuments",
+    async ({ store_code }: { store_code: string }, thunkAPI) => {
+        try {
+            const response = await axiosInstance.get(
+                `${ENDPOINTS.fetchLibraryDocuments()}?store_code=${store_code}`
+            );
+            const data = response.data.data;
+
+            return data;
+        } catch (error) {
+            const response = isAxiosError(error) ? error.response : undefined;
+            const data = response?.data;
+
+            toast.error("Uh oh! Something went wrong.", {
+                description:
+                    data?.message || "Unable to fetch the library documents, please try again later.",
+            });
+
+            return thunkAPI.rejectWithValue(data || "Something went wrong");
+        }
+    }
+);
+
+export const UploadLibraryDocument = createAsyncThunk(
+    "UploadLibraryDocument",
+    async ({ store_code, file, fileType }: { store_code: string, file: File, fileType: string }, thunkAPI) => {
+        try {
+            const formData = new FormData()
+            formData.append("path", file)
+            formData.append("type", fileType)
+            formData.append("size", parseInt(file.size.toString()).toString())
+            formData.append("name", file.name)
+
+            const response = await axiosInstance.post(`${ENDPOINTS.uploadLibraryDocument()}?store_code=${store_code}`, formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            });
+            const data = response.data.data;
+
+            toast.success(response?.data?.message || "Document uploaded successfully!");
+
+            return data;
+        } catch (error) {
+            const response = isAxiosError(error) ? error.response : undefined;
+            const data = response?.data;
+
+            toast.error("Uh oh! Something went wrong.", {
+                description:
+                    data?.message || "Unable to upload the document, please try again later.",
+            });
+
+            return thunkAPI.rejectWithValue(data || "Something went wrong");
+        }
+    }
+);
+
 const KnowledgeSlice = createSlice({
     name: "Knowledge",
     initialState: {
@@ -154,6 +232,17 @@ const KnowledgeSlice = createSlice({
             DeleteStoreFaqIsLoading: false,
             DeleteStoreFaqIsSuccess: false,
             DeleteStoreFaqIsError: null as null | string | object,
+        },
+        FetchLibraryDocumentsState: {
+            FetchLibraryDocumentsIsLoading: false,
+            FetchLibraryDocumentsIsSuccess: false,
+            FetchLibraryDocumentsIsError: null as null | string | object,
+            FetchLibraryDocumentsListData: {} as FetchStoreLibraryResponse,
+        },
+        UploadLibraryDocumentState: {
+            UploadLibraryDocumentIsLoading: false,
+            UploadLibraryDocumentIsSuccess: false,
+            UploadLibraryDocumentIsError: null as null | string | object,
         },
     },
     reducers: {},
@@ -219,6 +308,37 @@ const KnowledgeSlice = createSlice({
                 state.DeleteStoreFaqState.DeleteStoreFaqIsLoading = false;
                 state.DeleteStoreFaqState.DeleteStoreFaqIsSuccess = false;
                 state.DeleteStoreFaqState.DeleteStoreFaqIsError = action.payload || "Something went wrong";
+            })
+            // FetchLibraryDocuments
+            .addCase(FetchLibraryDocuments.pending, (state) => {
+                state.FetchLibraryDocumentsState.FetchLibraryDocumentsIsLoading = true;
+                state.FetchLibraryDocumentsState.FetchLibraryDocumentsIsSuccess = false;
+                state.FetchLibraryDocumentsState.FetchLibraryDocumentsIsError = null;
+            })
+            .addCase(FetchLibraryDocuments.fulfilled, (state, action) => {
+                state.FetchLibraryDocumentsState.FetchLibraryDocumentsIsLoading = false;
+                state.FetchLibraryDocumentsState.FetchLibraryDocumentsIsSuccess = true;
+                state.FetchLibraryDocumentsState.FetchLibraryDocumentsListData = action.payload;
+            })
+            .addCase(FetchLibraryDocuments.rejected, (state, action) => {
+                state.FetchLibraryDocumentsState.FetchLibraryDocumentsIsLoading = false;
+                state.FetchLibraryDocumentsState.FetchLibraryDocumentsIsSuccess = false;
+                state.FetchLibraryDocumentsState.FetchLibraryDocumentsIsError = action.payload || "Something went wrong";
+            })
+            // UploadLibraryDocument
+            .addCase(UploadLibraryDocument.pending, (state) => {
+                state.UploadLibraryDocumentState.UploadLibraryDocumentIsLoading = true;
+                state.UploadLibraryDocumentState.UploadLibraryDocumentIsSuccess = false;
+                state.UploadLibraryDocumentState.UploadLibraryDocumentIsError = null;
+            })
+            .addCase(UploadLibraryDocument.fulfilled, (state) => {
+                state.UploadLibraryDocumentState.UploadLibraryDocumentIsLoading = false;
+                state.UploadLibraryDocumentState.UploadLibraryDocumentIsSuccess = true;
+            })
+            .addCase(UploadLibraryDocument.rejected, (state, action) => {
+                state.UploadLibraryDocumentState.UploadLibraryDocumentIsLoading = false;
+                state.UploadLibraryDocumentState.UploadLibraryDocumentIsSuccess = false;
+                state.UploadLibraryDocumentState.UploadLibraryDocumentIsError = action.payload || "Something went wrong";
             });
     },
 });

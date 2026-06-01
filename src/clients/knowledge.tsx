@@ -1,6 +1,7 @@
 "use client"
 
 import StoreFaqTabContent from "@/components/custom/store-faq-tab-content"
+import StoreDocumentTabContent from "@/components/custom/store-document-tab-content"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function Knowledge() {
@@ -19,7 +20,7 @@ export default function Knowledge() {
                     comming soon...
                 </TabsContent>
                 <TabsContent value="documents">
-                    comming soon...
+                    <StoreDocumentTabContent />
                 </TabsContent>
             </Tabs>
         </div>
