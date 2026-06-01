@@ -4,15 +4,15 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } f
 import { CartDataResponse, FetchAIInsight, FetchCart, FetchConversationSummary, FetchThreadDetails, FetchUserMetadata, Thread, UserMetadata } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect } from "react";
-import MessagePan from "./message-pan";
-import { Badge } from "../ui/badge";
+import MessagePan from "@/components/custom/message-pan";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { IconBrain, IconBrandGoogleMaps, IconBrowser, IconCheck, IconDeviceDesktop, IconDeviceLaptop, IconNetwork, IconShoppingBag, IconTimeDuration0, IconUser, IconX } from "@tabler/icons-react";
 import { Card, CardContent, CardDescription, CardTitle } from "../ui/card";
 import { formatDateTime, getDuration } from "@/lib/helpers";
-import { Progress } from "../ui/progress";
-import { Field, FieldLabel } from "../ui/field";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 
 function ThreadSummaryCard({ summary }: { summary: string }) {
