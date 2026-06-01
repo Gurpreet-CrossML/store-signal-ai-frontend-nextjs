@@ -114,17 +114,17 @@ export default function Dashboard() {
   const sentimentPieChartData = [
     {
       sentiment: "positive",
-      score: FetchFeedbackInsightsData?.feedback_distribution?.positive?.value,
+      score: FetchFeedbackInsightsData?.feedback_distribution?.positive?.value || 0,
       fill: "var(--color-positive)",
     },
     {
       sentiment: "neutral",
-      score: FetchFeedbackInsightsData?.feedback_distribution?.neutral?.value,
+      score: FetchFeedbackInsightsData?.feedback_distribution?.neutral?.value || 0,
       fill: "var(--color-neutral)",
     },
     {
       sentiment: "negative",
-      score: FetchFeedbackInsightsData?.feedback_distribution?.negative?.value,
+      score: FetchFeedbackInsightsData?.feedback_distribution?.negative?.value || 0,
       fill: "var(--color-negative)",
     },
   ];

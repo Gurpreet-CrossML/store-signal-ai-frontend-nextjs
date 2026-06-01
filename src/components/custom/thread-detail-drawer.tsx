@@ -1,7 +1,7 @@
 "use client";
 
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { CartDataResponse, FetchAIInsight, FetchCart, FetchConversationSummary, FetchThreadDetails, FetchUserMetadata, Thread } from "@/redux/api-slice/thread-slice";
+import { CartDataResponse, FetchAIInsight, FetchCart, FetchConversationSummary, FetchThreadDetails, FetchUserMetadata, Thread, UserMetadata } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect } from "react";
 import MessagePan from "./message-pan";
@@ -255,9 +255,10 @@ export default function ThreadDetailDrawer({
                             <Badge className="font-normal">
                                 {FetchThreadDetailsData?.is_active ? "Active" : "Closed"}
                             </Badge>
-                            <Badge className="font-normal"
+                            <Badge
                                 className={
                                     cn(
+                                        "font-normal",
                                         FetchThreadDetailsData?.verdict?.verdict == "resolved"
                                             ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300" :
                                             "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"

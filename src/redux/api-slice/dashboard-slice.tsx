@@ -8,6 +8,33 @@ type GetArgs = {
     storeCode: string;
 };
 
+export type FeedbackInsightsResponse = {
+    avg_handle_time: { value: number };
+    csat_score: { percentage: number };
+    feedback_distribution: {
+        positive: { value: number };
+        neutral: { value: number };
+        negative: { value: number };
+    };
+};
+
+export type EngagementResponse = {
+    total_threads: number;
+    sessions_resolved: number;
+    avg_response_time_seconds: number;
+};
+
+export type OperationalEfficiencyResponse = {
+    bot_resolution_rate: { percentage: number };
+    escalation_rate: { percentage: number };
+};
+
+export type ConversionRateResponse = {
+    percentage: number;
+    converted_count: number;
+    total_count: number;
+};
+
 export const FetchFeedbackInsights = createAsyncThunk(
     "FetchFeedbackInsights", 
     async (args: { storeCode: string }, thunkAPI) => {
@@ -176,7 +203,7 @@ const DashboardSlice = createSlice({
             FetchFeedbackInsightsIsLoading: false,
             FetchFeedbackInsightsIsSuccess: false,
             FetchFeedbackInsightsIsError: null as null | string | object,
-            FetchFeedbackInsightsData: null as null | object,
+            FetchFeedbackInsightsData: null as null | FeedbackInsightsResponse,
         },
         FetchConversationDataState: {
             FetchConversationDataIsLoading: false,
@@ -188,13 +215,13 @@ const DashboardSlice = createSlice({
             FetchEngagementDataIsLoading: false,
             FetchEngagementDataIsSuccess: false,
             FetchEngagementDataIsError: null as null | string | object,
-            FetchEngagementData: null as null | object,
+            FetchEngagementData: null as null | EngagementResponse,
         },
         FetchOperationalEfficiencyDataState: {
             FetchOperationalEfficiencyDataIsLoading: false,
             FetchOperationalEfficiencyDataIsSuccess: false,
             FetchOperationalEfficiencyDataIsError: null as null | string | object,
-            FetchOperationalEfficiencyData: null as null | object,
+            FetchOperationalEfficiencyData: null as null | OperationalEfficiencyResponse,
         },
         FetchUserMatrixState: {
             FetchUserMatrixIsLoading: false,
@@ -206,7 +233,7 @@ const DashboardSlice = createSlice({
             FetchConversionRateDataIsLoading: false,
             FetchConversionRateDataIsSuccess: false,
             FetchConversionRateDataIsError: null as null | string | object,
-            FetchConversionRateData: null as null | object,
+            FetchConversionRateData: null as null | ConversionRateResponse,
         },
         FetchQueryCategoryInsightsState: {
             FetchQueryCategoryInsightsIsLoading: false,
