@@ -18,6 +18,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DataTablePagination } from "@/components/custom/threads-data-table-pagination";
+import ThreadDetailDrawer from "./thread-detail-drawer";
+import { useState } from "react";
+import { Thread } from "@/redux/api-slice/thread-slice";
 
 interface ThreadsDataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -50,6 +53,9 @@ export function ThreadsDataTable<TData, TValue>({
     manualPagination: true,
   });
 
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
+
   return (
     <div className="space-y-2">
       <div className="overflow-hidden rounded-xl border border-border/50">
@@ -62,9 +68,9 @@ export function ThreadsDataTable<TData, TValue>({
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -82,9 +88,18 @@ export function ThreadsDataTable<TData, TValue>({
               </TableRow>
             ) : table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow
+                  key={row.id}
+                  onClick={() => {
+                    setSelectedThread(row.original as Thread);
+                    setDrawerOpen(true);
+                  }}
+                  className="cursor-pointer hover:bg-accent/50 data-[state=selected]:bg-accent"
+                >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id}
+                      className={cell.column.id === "last_message" ? "max-w-[180px] truncate" : ""}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
@@ -108,6 +123,12 @@ export function ThreadsDataTable<TData, TValue>({
       </div>
 
       <DataTablePagination table={table} totalCount={totalCount} />
+      <ThreadDetailDrawer
+        open={drawerOpen}
+        setOpen={setDrawerOpen}
+        thread={selectedThread}
+        onClose={() => setDrawerOpen(false)}
+      />
     </div>
   );
 }

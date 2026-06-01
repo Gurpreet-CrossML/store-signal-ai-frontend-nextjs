@@ -10,18 +10,83 @@ type GetThreadsArgs = {
     limit?: number;
 };
 
+export type Customer = {
+    name: string;
+    email: string;
+}
+
 export type Thread = {
     id: string;
     name: string | null;
+    customer: Customer | null;
     is_active: boolean;
     total_messages: number;
     created_at: string;
     ended_at: string | null;
-    // email?: string | null;
-    // store?: string | { name: string };
-    // tags?: string[];
-    // last_message?: string | null;
+    tags?: string[];
+    last_message?: string | null;
 };
+
+export type ThreadMessage = {
+    role: string,
+    message: string,
+    products_data?: ProductData[] | null;
+    created_at: string;
+}
+
+export type ProductVariant = {
+    variant_id: string;
+    title: string;
+    price: {
+        amount: string;
+        currency: string;
+    };
+    options: { name: string; value: string }[];
+    available_for_sale: boolean;
+    compare_at_price: string | null;
+    discount: string | null;
+};
+
+export type ProductData = {
+    id: string;
+    name: string;
+    image: string;
+    description: string;
+    price: string;
+    product_url: string;
+    available_for_sale: boolean;
+    variants?: ProductVariant[];
+}
+
+export type ThreadVerdict = {
+    confidence: number;
+    created_at: string;
+    query_summaries: string[];
+    reason: string;
+    resolved_count: number;
+    total_queries: number;
+    unresolved_count: number;
+    verdict: string;
+}
+
+export type ThreadDetails = {
+    id: string;
+    name: string | null;
+    store: number;
+    customer_name: string | null;
+    customer_email: string | null;
+    is_active: boolean;
+    total_messages: number;
+    created_at: string;
+    ended_at: string | null;
+    messages: ThreadMessage[];
+    verdict: ThreadVerdict;
+    followup_level: number;
+};
+
+export type ThreadSummary = {
+    conversation_summary: string;
+}
 
 // DRF-style paginated envelope.
 export type ThreadsResponse = {
@@ -65,6 +130,17 @@ export type CartDataResponse = {
     }[];
 }
 
+export type UserMetadata = {
+    thread_id: string;
+    customer_name: string;
+    geo_location: string;
+    ip_address: string;
+    device_type: string;
+    browser: string;
+    os: string;
+}
+
+
 export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
     "Threads",
     async ({ store_code = "", page = 1, limit = 10 }: GetThreadsArgs = {}, thunkAPI) => {
@@ -84,6 +160,32 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
             toast.error("Uh oh! Something went wrong.", {
                 description:
                     data?.message || "Unable to fetch the threads, please try again later.",
+            });
+
+            return thunkAPI.rejectWithValue(data || "Something went wrong");
+        }
+    }
+);
+
+export const FetchThreadDetails = createAsyncThunk(
+    "ThreadDetails",
+    async (threadId: string, thunkAPI) => {
+        try {
+            const response = await axiosInstance.get(
+                ENDPOINTS.fetchThreadDetails(threadId)
+            );
+            const data = response.data.data;
+
+            toast.success(response?.data?.message || "Thread details fetched successfully!");
+
+            return data;
+        } catch (error) {
+            const response = isAxiosError(error) ? error.response : undefined;
+            const data = response?.data;
+
+            toast.error("Uh oh! Something went wrong.", {
+                description:
+                    data?.message || "Unable to fetch the thread details, please try again later.",
             });
 
             return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -136,32 +238,6 @@ export const FetchConversationSummary = createAsyncThunk(
             toast.error("Uh oh! Something went wrong.", {
                 description:
                     data?.message || "Unable to fetch the conversation summary, please try again later.",
-            });
-
-            return thunkAPI.rejectWithValue(data || "Something went wrong");
-        }
-    }
-);
-
-export const FetchSessionDetail = createAsyncThunk(
-    "SessionDetail",
-    async (threadId: string, thunkAPI) => {
-        try {
-            const response = await axiosInstance.get(
-                ENDPOINTS.fetchSessionDetail(threadId)
-            );
-            const data = response.data.data;
-
-            toast.success(response?.data?.message || "Session detail fetched successfully!");
-
-            return data;
-        } catch (error) {
-            const response = isAxiosError(error) ? error.response : undefined;
-            const data = response?.data;
-
-            toast.error("Uh oh! Something went wrong.", {
-                description:
-                    data?.message || "Unable to fetch the session detail, please try again later.",
             });
 
             return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -247,7 +323,7 @@ export const FetchAIInsight = createAsyncThunk(
     }
 );
 
-export const FetchCartData = createAsyncThunk(
+export const FetchCart = createAsyncThunk(
     "CartData",
     async (threadId: string, thunkAPI) => {
         try {
@@ -313,23 +389,23 @@ const ThreadSlice = createSlice({
                 results: [],
             } as ThreadsResponse,
         },
+        FetchThreadDetailsState: {
+            FetchThreadDetailsIsLoading: false,
+            FetchThreadDetailsIsSuccess: false,
+            FetchThreadDetailsIsError: null as null | string | object | unknown,
+            FetchThreadDetailsData: {} as ThreadDetails,
+        },
         FetchUserMetadataState: {
             FetchUserMetadataIsLoading: false,
             FetchUserMetadataIsSuccess: false,
             FetchUserMetadataIsError: null as null | string | object | unknown,
-            FetchUserMetadata: {} as Record<string, any>,
+            FetchUserMetadataData: {} as UserMetadata,
         },
         FetchConversationSummaryState: {
             FetchConversationSummaryIsLoading: false,
             FetchConversationSummaryIsSuccess: false,
             FetchConversationSummaryIsError: null as null | string | object | unknown,
-            FetchConversationSummary: {} as Record<string, any>,
-        },
-        FetchSessionDetailState: {
-            FetchSessionDetailIsLoading: false,
-            FetchSessionDetailIsSuccess: false,
-            FetchSessionDetailIsError: null as null | string | object | unknown,
-            FetchSessionDetail: {} as Record<string, any>,
+            FetchConversationSummaryData: {} as ThreadSummary,
         },
         FetchFeedbackSequenceState: {
             FetchFeedbackSequenceIsLoading: false,
@@ -381,14 +457,29 @@ const ThreadSlice = createSlice({
                 state.FetchThreadsState.FetchThreadsIsError = action.payload;
                 state.FetchThreadsState.FetchThreadsIsSuccess = false;
             })
-                .addCase(FetchUserMetadata.pending, (state) => {
+            .addCase(FetchThreadDetails.pending, (state) => {
+                state.FetchThreadDetailsState.FetchThreadDetailsIsLoading = true;
+                state.FetchThreadDetailsState.FetchThreadDetailsIsError = null;
+                state.FetchThreadDetailsState.FetchThreadDetailsIsSuccess = false;
+            })
+            .addCase(FetchThreadDetails.fulfilled, (state, action) => {
+                state.FetchThreadDetailsState.FetchThreadDetailsIsLoading = false;
+                state.FetchThreadDetailsState.FetchThreadDetailsData = action.payload;
+                state.FetchThreadDetailsState.FetchThreadDetailsIsSuccess = true;
+            })
+            .addCase(FetchThreadDetails.rejected, (state, action) => {
+                state.FetchThreadDetailsState.FetchThreadDetailsIsLoading = false;
+                state.FetchThreadDetailsState.FetchThreadDetailsIsError = action.payload;
+                state.FetchThreadDetailsState.FetchThreadDetailsIsSuccess = false;
+            })
+            .addCase(FetchUserMetadata.pending, (state) => {
                 state.FetchUserMetadataState.FetchUserMetadataIsLoading = true;
                 state.FetchUserMetadataState.FetchUserMetadataIsError = null;
                 state.FetchUserMetadataState.FetchUserMetadataIsSuccess = false;
             })
             .addCase(FetchUserMetadata.fulfilled, (state, action) => {
                 state.FetchUserMetadataState.FetchUserMetadataIsLoading = false;
-                state.FetchUserMetadataState.FetchUserMetadata = action.payload;
+                state.FetchUserMetadataState.FetchUserMetadataData = action.payload;
                 state.FetchUserMetadataState.FetchUserMetadataIsSuccess = true;
             })
             .addCase(FetchUserMetadata.rejected, (state, action) => {
@@ -403,28 +494,13 @@ const ThreadSlice = createSlice({
             })
             .addCase(FetchConversationSummary.fulfilled, (state, action) => {
                 state.FetchConversationSummaryState.FetchConversationSummaryIsLoading = false;
-                state.FetchConversationSummaryState.FetchConversationSummary = action.payload;
+                state.FetchConversationSummaryState.FetchConversationSummaryData = action.payload;
                 state.FetchConversationSummaryState.FetchConversationSummaryIsSuccess = true;
             })
             .addCase(FetchConversationSummary.rejected, (state, action) => {
                 state.FetchConversationSummaryState.FetchConversationSummaryIsLoading = false;
                 state.FetchConversationSummaryState.FetchConversationSummaryIsError = action.payload;
                 state.FetchConversationSummaryState.FetchConversationSummaryIsSuccess = false;
-            })
-            .addCase(FetchSessionDetail.pending, (state) => {
-                state.FetchSessionDetailState.FetchSessionDetailIsLoading = true;
-                state.FetchSessionDetailState.FetchSessionDetailIsError = null;
-                state.FetchSessionDetailState.FetchSessionDetailIsSuccess = false;
-            })
-            .addCase(FetchSessionDetail.fulfilled, (state, action) => {
-                state.FetchSessionDetailState.FetchSessionDetailIsLoading = false;
-                state.FetchSessionDetailState.FetchSessionDetail = action.payload;
-                state.FetchSessionDetailState.FetchSessionDetailIsSuccess = true;
-            })
-            .addCase(FetchSessionDetail.rejected, (state, action) => {
-                state.FetchSessionDetailState.FetchSessionDetailIsLoading = false;
-                state.FetchSessionDetailState.FetchSessionDetailIsError = action.payload;
-                state.FetchSessionDetailState.FetchSessionDetailIsSuccess = false;
             })
             .addCase(FetchFeedbackSequence.pending, (state) => {
                 state.FetchFeedbackSequenceState.FetchFeedbackSequenceIsLoading = true;
@@ -471,17 +547,17 @@ const ThreadSlice = createSlice({
                 state.FetchAIInsightState.FetchAIInsightIsError = action.payload;
                 state.FetchAIInsightState.FetchAIInsightIsSuccess = false;
             })
-            .addCase(FetchCartData.pending, (state) => {
+            .addCase(FetchCart.pending, (state) => {
                 state.FetchCartDataState.FetchCartDataIsLoading = true;
                 state.FetchCartDataState.FetchCartDataIsError = null;
                 state.FetchCartDataState.FetchCartDataIsSuccess = false;
             })
-            .addCase(FetchCartData.fulfilled, (state, action) => {
+            .addCase(FetchCart.fulfilled, (state, action) => {
                 state.FetchCartDataState.FetchCartDataIsLoading = false;
                 state.FetchCartDataState.FetchCartData = action.payload;
                 state.FetchCartDataState.FetchCartDataIsSuccess = true;
             })
-            .addCase(FetchCartData.rejected, (state, action) => {
+            .addCase(FetchCart.rejected, (state, action) => {
                 state.FetchCartDataState.FetchCartDataIsLoading = false;
                 state.FetchCartDataState.FetchCartDataIsError = action.payload;
                 state.FetchCartDataState.FetchCartDataIsSuccess = false;

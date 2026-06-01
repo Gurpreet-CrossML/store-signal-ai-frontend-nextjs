@@ -23,9 +23,9 @@ export const ENDPOINTS = {
     
     // Thread-level Analytics
     fetchThreads: () => "/analytics/threads/",
+    fetchThreadDetails: (threadId: string) => `/analytics/threads/${threadId}/`,
     fetchUserMetadata: (threadId: string) => `/analytics/threads/${threadId}/user-metadata/`,
     fetchConversationSummary: (threadId: string) => `/analytics/threads/${threadId}/summary/`,
-    fetchSessionDetail: (threadId: string) => `/analytics/threads/${threadId}/`,
     fetchFeedbackSequence: (threadId: string) => `/analytics/threads/${threadId}/feedback-sequence/`,
     fetchTags: (threadId: string) => `/analytics/threads/${threadId}/tags/`,
     fetchAIInsight: (threadId: string) => `/analytics/threads/${threadId}/ai-insights/`,

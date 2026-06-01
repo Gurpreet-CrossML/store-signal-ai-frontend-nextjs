@@ -1,10 +1,21 @@
 "use client";
 
-import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { Badge } from "@/components/ui/badge";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { Thread } from "@/redux/api-slice/thread-slice";
+import Markdown from 'react-markdown';
 
 // Absolute, localized date-time e.g. "May 30, 2026, 2:14 PM".
 function formatDateTime(value: string | null | undefined): string {
@@ -27,50 +38,51 @@ function formatDateTime(value: string | null | undefined): string {
 const MAX_VISIBLE_TAGS = 2;
 
 export function TagsCell({ tags }: { tags: string[] }) {
-  const [expanded, setExpanded] = useState(false);
-
   if (!tags || tags.length === 0) {
     return <span className="text-muted-foreground">—</span>;
   }
 
-  const visible = expanded ? tags : tags.slice(0, MAX_VISIBLE_TAGS);
-  const hiddenCount = tags.length - MAX_VISIBLE_TAGS;
+  const visible = tags.slice(0, MAX_VISIBLE_TAGS);
+  const hidden = tags.slice(MAX_VISIBLE_TAGS);
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {visible.map((tag) => (
-        <Badge key={tag} variant="secondary" className="font-normal">
-          {tag}
-        </Badge>
-      ))}
+    <TooltipProvider>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {visible.map((tag) => (
+          <Tooltip key={tag}>
+            <TooltipTrigger asChild>
+              <Badge variant="secondary" className="font-normal">
+                {tag}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>{tag}</TooltipContent>
+          </Tooltip>
+        ))}
 
-      {!expanded && hiddenCount > 0 && (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="cursor-pointer"
-        >
-          <Badge
-            variant="outline"
-            className="font-normal hover:bg-accent"
-          >
-            +{hiddenCount} more
-          </Badge>
-        </button>
-      )}
-
-      {expanded && tags.length > MAX_VISIBLE_TAGS && (
-        <button
-          type="button"
-          onClick={() => setExpanded(false)}
-          className="cursor-pointer"
-        >
-          <Badge variant="outline" className="font-normal hover:bg-accent">
-            Show less
-          </Badge>
-        </button>
-      )}
-    </div>
+        {hidden.length > 0 && (
+          <HoverCard>
+            <HoverCardTrigger asChild>
+              <Badge
+                variant="outline"
+                className="cursor-default font-normal hover:bg-accent"
+              >
+                +{hidden.length} more
+              </Badge>
+            </HoverCardTrigger>
+            <HoverCardContent
+              align="start"
+              className="flex w-auto max-w-xs flex-wrap gap-1.5"
+            >
+              {hidden.map((tag) => (
+                <Badge key={tag} variant="secondary" className="font-normal">
+                  {tag}
+                </Badge>
+              ))}
+            </HoverCardContent>
+          </HoverCard>
+        )}
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -83,7 +95,7 @@ export const threadsColumns: ColumnDef<Thread>[] = [
       const id = row.original.id;
       return (
         <span className="font-mono text-xs text-muted-foreground" title={id}>
-          {id.slice(0, 8)}
+          {id}
         </span>
       );
     },
@@ -94,48 +106,30 @@ export const threadsColumns: ColumnDef<Thread>[] = [
     accessorKey: "name",
     header: "Customer",
     cell: ({ row }) => {
-      const name = row.original.name;
+      const customer = row.original.customer;
       return (
         <div className="flex flex-col">
           <span className="font-medium text-foreground">
-            {name || "Anonymous"}
+            {customer?.name || "Anonymous"}
           </span>
-          {/*
-            Email sub-text — NOT yet returned by the API.
-            Uncomment once `email` is present on the Thread type.
-
+          {
+            customer?.email &&
             <span className="text-xs text-muted-foreground">
-              {row.original.email || "—"}
+              {customer?.email || "—"}
             </span>
-          */}
+          }
+
         </div>
       );
     },
   },
 
-  /*
-  // Store — NOT yet returned by the API. Uncomment when available.
-  {
-    accessorKey: "store",
-    header: "Store",
-    cell: ({ row }) => {
-      const store = row.original.store;
-      const label = typeof store === "string" ? store : store?.name;
-      return <span className="text-foreground">{label || "—"}</span>;
-    },
-  },
-  */
-
-  /*
-  // Tags — NOT yet returned by the API. Uncomment when `tags: string[]` exists.
-  // Uses the TagsCell above (badges, max 2 visible, "+N more" to expand).
   {
     accessorKey: "tags",
     header: "Tags",
     enableSorting: false,
     cell: ({ row }) => <TagsCell tags={row.original.tags ?? []} />,
   },
-  */
 
   // Status — active thread vs closed.
   {
@@ -162,18 +156,18 @@ export const threadsColumns: ColumnDef<Thread>[] = [
     ),
   },
 
-  /*
-  // Last Message — NOT yet returned by the API. Uncomment when available.
+  // Last Message — what the last message was in the thread.
   {
     accessorKey: "last_message",
     header: "Last Message",
     cell: ({ row }) => (
-      <span className="text-muted-foreground">
-        {formatDateTime(row.original.last_message)}
+      <span className="text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+        <Markdown>
+          {row.original.last_message || "—"}
+        </Markdown>
       </span>
     ),
   },
-  */
 
   // Started At — when the thread was created.
   {
