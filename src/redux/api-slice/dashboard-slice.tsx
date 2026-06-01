@@ -16,6 +16,10 @@ export type FeedbackInsightsResponse = {
         neutral: { value: number };
         negative: { value: number };
     };
+    performance_overview: {
+        metric: string;
+        value: number;
+    }[];
 };
 
 export type EngagementResponse = {
@@ -33,6 +37,23 @@ export type ConversionRateResponse = {
     percentage: number;
     converted_count: number;
     total_count: number;
+};
+
+export type UserMatrixResponse = {
+    guest_user: number;
+    signed_user: number;
+};
+
+export type ConversationHistoryPoint = {
+    label: string;
+    value: number;
+};
+
+export type ConversationHistoryResponse = {
+    granularity: string;
+    from_dt: string;
+    to_dt: string;
+    points: ConversationHistoryPoint[];
 };
 
 export const FetchFeedbackInsights = createAsyncThunk(
@@ -196,6 +217,29 @@ export const FetchQueryCategoryInsights = createAsyncThunk(
     }
 });
 
+export const FetchConversationHistory = createAsyncThunk(
+    "FetchConversationHistory", 
+    async (args: { storeCode: string, from?: string, to?: string, granularity?: string, aggregated?: boolean }, thunkAPI) => {
+    try {
+        const response = await axiosInstance.get(`${ENDPOINTS.fetchConversationHistory()}?store_code=${args.storeCode}&from=${args.from}&to=${args.to}&granularity=${args.granularity}&aggregated=${args.aggregated}`);
+        const data = response.data.data;
+
+        toast.success(response?.data?.message || "Conversation history fetched successfully!");
+
+        return data;
+    } catch (error) {
+        const response = isAxiosError(error) ? error.response : undefined;
+        const data = response?.data;
+
+        toast.error("Uh oh! Something went wrong.", {
+            description:
+                data?.message || "Unable to fetch conversation history, please try again later.",
+        });
+
+        return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+});
+
 const DashboardSlice = createSlice({
     name: "Dashboard",
     initialState: {
@@ -227,7 +271,7 @@ const DashboardSlice = createSlice({
             FetchUserMatrixIsLoading: false,
             FetchUserMatrixIsSuccess: false,
             FetchUserMatrixIsError: null as null | string | object,
-            FetchUserMatrixData: null as null | object,
+            FetchUserMatrixData: null as null | UserMatrixResponse,
         },
         FetchConversionRateDataState: {
             FetchConversionRateDataIsLoading: false,
@@ -240,6 +284,12 @@ const DashboardSlice = createSlice({
             FetchQueryCategoryInsightsIsSuccess: false,
             FetchQueryCategoryInsightsIsError: null as null | string | object,
             FetchQueryCategoryInsightsData: null as null | object,
+        },
+        FetchConversationHistoryState: {
+            FetchConversationHistoryIsLoading: false,
+            FetchConversationHistoryIsSuccess: false,
+            FetchConversationHistoryIsError: null as null | string | object,
+            FetchConversationHistoryData: null as null | ConversationHistoryResponse,
         },
     },
     reducers: {},
@@ -356,6 +406,22 @@ const DashboardSlice = createSlice({
                 state.FetchQueryCategoryInsightsState.FetchQueryCategoryInsightsIsLoading = false;
                 state.FetchQueryCategoryInsightsState.FetchQueryCategoryInsightsIsSuccess = false;
                 state.FetchQueryCategoryInsightsState.FetchQueryCategoryInsightsIsError = action.payload || "Something went wrong";
+            })
+            // Conversation History
+            .addCase(FetchConversationHistory.pending, (state) => {
+                state.FetchConversationHistoryState.FetchConversationHistoryIsLoading = true;
+                state.FetchConversationHistoryState.FetchConversationHistoryIsSuccess = false;
+                state.FetchConversationHistoryState.FetchConversationHistoryIsError = null;
+            })
+            .addCase(FetchConversationHistory.fulfilled, (state, action) => {
+                state.FetchConversationHistoryState.FetchConversationHistoryIsLoading = false;
+                state.FetchConversationHistoryState.FetchConversationHistoryIsSuccess = true;
+                state.FetchConversationHistoryState.FetchConversationHistoryData = action.payload;
+            })
+            .addCase(FetchConversationHistory.rejected, (state, action) => {
+                state.FetchConversationHistoryState.FetchConversationHistoryIsLoading = false;
+                state.FetchConversationHistoryState.FetchConversationHistoryIsSuccess = false;
+                state.FetchConversationHistoryState.FetchConversationHistoryIsError = action.payload || "Something went wrong";
             });
     },
 });

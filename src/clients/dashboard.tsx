@@ -1,18 +1,51 @@
 "use client";
 
+import { CustomerInteractionLineChart, type Granularity } from "@/components/custom/customer-interaction-line-chart";
+import { GuestVsSignedUserRadialChart } from "@/components/custom/guest-vs-signed-user-radial-chart";
+import { PerformanceRadialChart } from "@/components/custom/performance-radial-char";
 import { SentimentsPieChart } from "@/components/custom/sentiments-pie-chat";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   FetchFeedbackInsights,
   FetchConversation,
-  FetchEngagement, 
-  FetchOperationalEfficiency, 
-  FetchUserMatrix, 
-  FetchConversionRate, 
-  FetchQueryCategoryInsights 
+  FetchEngagement,
+  FetchOperationalEfficiency,
+  FetchUserMatrix,
+  FetchConversionRate,
+  FetchQueryCategoryInsights,
+  FetchConversationHistory
 } from "@/redux/api-slice/dashboard-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { useEffect } from "react";
+import { IconInfoCircle } from "@tabler/icons-react";
+import { useEffect, useState } from "react";
 
+
+const toISODate = (date: Date) => date.toISOString().slice(0, 10);
+
+// Default date range per granularity, anchored to today.
+const defaultRange = (granularity: Granularity) => {
+  const to = new Date();
+  const from = new Date();
+  if (granularity === "hourly") {
+    from.setDate(to.getDate() - 7);
+  } else if (granularity === "weekly") {
+    from.setDate(to.getDate() - 28);
+  } else {
+    from.setMonth(0, 1);
+  }
+  return { from: toISODate(from), to: toISODate(to) };
+};
+
+const InfoIcon = ({ text }: { text: string }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <IconInfoCircle className="w-4 h-4 text-muted-foreground cursor-pointer" />
+    </TooltipTrigger>
+    <TooltipContent>
+      <p>{text}</p>
+    </TooltipContent>
+  </Tooltip>
+);
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();
@@ -48,7 +81,21 @@ export default function Dashboard() {
     (state) => state.GetDashboardReducer.FetchQueryCategoryInsightsState
   );
 
-  
+  const { FetchConversationHistoryData, FetchConversationHistoryIsLoading } = useAppSelector(
+    (state) => state.GetDashboardReducer.FetchConversationHistoryState
+  );
+
+  const [granularity, setGranularity] = useState<Granularity>("hourly");
+  const [from, setFrom] = useState(() => defaultRange("hourly").from);
+  const [to, setTo] = useState(() => defaultRange("hourly").to);
+
+  const handleGranularityChange = (next: Granularity) => {
+    setGranularity(next);
+    const range = defaultRange(next);
+    setFrom(range.from);
+    setTo(range.to);
+  };
+
   useEffect(() => {
     if (!storeCode) return;
     dispatch(FetchFeedbackInsights({ storeCode }));
@@ -60,7 +107,28 @@ export default function Dashboard() {
     dispatch(FetchQueryCategoryInsights({ storeCode }));
   }, [dispatch, storeCode]);
 
+  useEffect(() => {
+    if (!storeCode || !from || !to) return;
+    dispatch(FetchConversationHistory({ storeCode, from, to, granularity, aggregated: true }));
+  }, [dispatch, storeCode, from, to, granularity]);
+
   const performanceSummaryMetrics = [
+    {
+      label: "CSAT Score",
+      value: `${FetchFeedbackInsightsData?.csat_score?.percentage || 0}%`,
+      infoText:
+        "Shows how satisfied customers were after interacting with the chatbot, based on submitted feedback and ratings.",
+      status: "Customer Satisfaction",
+      statusVariant: "info" as const,
+    },
+    {
+      label: "Conversion Rate",
+      value: `${FetchConversionRateData?.percentage || 0}%`,
+      infoText:
+        "Percentage of chatbot sessions where the user clicked a checkout link, out of all sessions in the selected period.",
+      status: `${FetchConversionRateData?.converted_count || 0} of ${FetchConversionRateData?.total_count || 0} sessions`,
+      statusVariant: "info" as const,
+    },
     {
       label: "Total Sessions",
       value: FetchEngagementData?.total_threads?.toLocaleString() || "0",
@@ -128,7 +196,45 @@ export default function Dashboard() {
       fill: "var(--color-negative)",
     },
   ];
-  
+
+  const performanceRadialChartData = [
+    {
+      metric: "responseTime",
+      value: FetchFeedbackInsightsData?.performance_overview?.find((item) => item.metric === "Response Time")?.value || 0,
+      fill: "var(--color-responseTime)",
+    },
+    {
+      metric: "resolutionRate",
+      value: FetchFeedbackInsightsData?.performance_overview?.find((item) => item.metric === "Resolution Rate")?.value || 0,
+      fill: "var(--color-resolutionRate)",
+    },
+    {
+      metric: "firstContact",
+      value: FetchFeedbackInsightsData?.performance_overview?.find((item) => item.metric === "First Contact")?.value || 0,
+      fill: "var(--color-firstContact)",
+    },
+    {
+      metric: "satisfaction",
+      value: FetchFeedbackInsightsData?.performance_overview?.find((item) => item.metric === "Satisfaction")?.value || 0,
+      fill: "var(--color-satisfaction)",
+    },
+    {
+      metric: "effortScore",
+      value: FetchFeedbackInsightsData?.performance_overview?.find((item) => item.metric === "Effort Score")?.value || 0,
+      fill: "var(--color-effortScore)",
+    },
+  ];
+
+  const userActivityChartData = [
+    {
+      month: "january",
+      guest: FetchUserMatrixData?.guest_user || 0,
+      signed: FetchUserMatrixData?.signed_user || 0,
+    }
+  ]
+
+  const conversationHistoryChartData = FetchConversationHistoryData?.points ?? [];
+
   return (
     <>
       <div className="px-6 py-2">
@@ -136,36 +242,6 @@ export default function Dashboard() {
           Performance Summary
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm leading-none text-muted-foreground">
-                CSAT Score
-              </span>
-              {/* <InfoIcon text="Shows how satisfied customers were after interacting with the chatbot, based on submitted feedback and ratings." /> */}
-            </div>
-            <p className="text-3xl font-bold text-foreground tracking-tight">
-              {`${FetchFeedbackInsightsData?.csat_score?.percentage || 0}%`}
-            </p>
-            <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-primary/10 text-primary">
-              Customer Satisfaction
-            </span>
-          </div>
-          {/* Conversion Rate  */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm leading-none text-muted-foreground">
-                Conversion Rate
-              </span>
-              {/* <InfoIcon text="Percentage of chatbot sessions where the user clicked a checkout link, out of all sessions in the selected period." /> */}
-            </div>
-            <p className="text-3xl font-bold text-foreground tracking-tight">
-              {`${FetchConversionRateData?.percentage || 0}%`}
-            </p>
-            <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-primary/20 text-primary">
-              {FetchConversionRateData?.converted_count || 0} of{" "}
-              {FetchConversionRateData?.total_count || 0} sessions
-            </span>
-          </div>
           {performanceSummaryMetrics.map((metric) => {
             const statusColors = {
               success: "bg-success/20 text-success",
@@ -179,7 +255,7 @@ export default function Dashboard() {
                   <span className="text-sm leading-none text-muted-foreground">
                     {metric.label}
                   </span>
-                  {/* <InfoIcon text={metric.infoText} /> */}
+                  <InfoIcon text={metric.infoText} />
                 </div>
                 <p className="text-3xl font-bold text-foreground tracking-tight">
                   {metric.value}
@@ -196,6 +272,20 @@ export default function Dashboard() {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-6 py-4">
         <SentimentsPieChart data={sentimentPieChartData} />
+        <PerformanceRadialChart chartData={performanceRadialChartData} />
+        <GuestVsSignedUserRadialChart chartData={userActivityChartData} />
+      </div>
+      <div className="px-6 py-4">
+        <CustomerInteractionLineChart
+          chartData={conversationHistoryChartData}
+          loading={FetchConversationHistoryIsLoading}
+          granularity={granularity}
+          onGranularityChange={handleGranularityChange}
+          from={from}
+          to={to}
+          onFromChange={setFrom}
+          onToChange={setTo}
+        />
       </div>
     </>
   )

@@ -20,6 +20,7 @@ export const ENDPOINTS = {
     fetchUserMatrix: () => "/analytics/user-matrix/",
     fetchConversaionRateData: () => "/analytics/conversion-rate/",
     fetchQueryCategoryInsights: () => "/analytics/query-category-insights/",
+    fetchConversationHistory: () => "/analytics/chat-history/",
     
     // Thread-level Analytics
     fetchThreads: () => "/analytics/threads/",
