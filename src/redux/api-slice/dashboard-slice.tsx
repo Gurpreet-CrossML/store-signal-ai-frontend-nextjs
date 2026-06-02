@@ -4,10 +4,6 @@ import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
 
-type GetArgs = {
-    storeCode: string;
-};
-
 export type FeedbackInsightsResponse = {
     avg_handle_time: { value: number };
     csat_score: { percentage: number };
