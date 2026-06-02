@@ -16,6 +16,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { Spinner } from "@/components/ui/spinner";
 import { DataTablePagination } from "@/components/custom/threads-data-table-pagination";
 
 interface StoreDocumentDataTableProps<TData, TValue> {
@@ -60,11 +61,11 @@ export function StoreDocumentDataTable<TData, TValue>({
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell
-                                    colSpan={columns.length}
-                                    className="h-24 text-center text-muted-foreground"
-                                >
-                                    Loading documents…
+                                <TableCell colSpan={columns.length} className="h-24">
+                                    <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                                        <Spinner />
+                                        Loading documents…
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ) : table.getRowModel().rows.length ? (

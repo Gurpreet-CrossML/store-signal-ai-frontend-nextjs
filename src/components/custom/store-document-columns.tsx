@@ -7,10 +7,10 @@ import {
     IconClock,
     IconFileTypeDocx,
     IconFileTypePdf,
-    IconLoader2,
 } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Spinner } from "@/components/ui/spinner";
 import type {
     StoreDocument,
     StoreDocumentStatus,
@@ -55,7 +55,7 @@ const STATUS_CONFIG: Record<
     },
     "in-progress": {
         label: "In Progress",
-        icon: <IconLoader2 className="size-3.5 animate-spin" />,
+        icon: <Spinner className="size-3.5" />,
         variant: "secondary",
     },
     completed: {

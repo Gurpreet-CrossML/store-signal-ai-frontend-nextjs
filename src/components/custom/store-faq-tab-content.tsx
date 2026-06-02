@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import {
-    IconLoader2,
     IconMessageQuestion,
     IconPencil,
     IconPlus,
@@ -28,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
     DeleteStoreFaq,
@@ -243,7 +243,7 @@ export default function StoreFaqTabContent() {
                         >
                             {DeleteStoreFaqIsLoading ? (
                                 <>
-                                    <IconLoader2 className="animate-spin" />
+                                    <Spinner data-icon="inline-start" />
                                     Deleting...
                                 </>
                             ) : (

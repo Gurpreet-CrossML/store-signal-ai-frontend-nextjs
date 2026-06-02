@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { IconAlertCircle, IconCloudUpload, IconLoader2 } from "@tabler/icons-react";
+import { IconAlertCircle, IconCloudUpload } from "@tabler/icons-react";
 
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { UploadLibraryDocument } from "@/redux/api-slice/knowledge-slice";
 
@@ -82,7 +83,7 @@ export default function DropZone({ storeCode, onUploaded }: DropZoneProps) {
                 )}
             >
                 {UploadLibraryDocumentIsLoading ? (
-                    <IconLoader2 className="size-7 animate-spin text-primary" />
+                    <Spinner className="size-7 text-primary" />
                 ) : (
                     <IconCloudUpload
                         className={cn("size-7", dragOver ? "text-primary" : "text-muted-foreground")}

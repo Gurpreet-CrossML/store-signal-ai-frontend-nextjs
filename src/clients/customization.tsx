@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
     CreateWidgetCustomization,
@@ -342,6 +343,7 @@ export default function Customization() {
 
                 <div className="sticky bottom-0 z-10 flex justify-end border-t border-border bg-background py-3">
                     <Button type="button" size="lg" onClick={handleSaveAll} disabled={savingAll}>
+                        {savingAll && <Spinner data-icon="inline-start" />}
                         {savingAll ? "Saving..." : "Save Changes"}
                     </Button>
                 </div>

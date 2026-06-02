@@ -13,29 +13,43 @@ import { formatDateTime, getDuration } from "@/lib/helpers";
 import { Progress } from "@/components/ui/progress";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Spinner } from "@/components/ui/spinner";
 
+/** Centered spinner used while a card's data is still being fetched. */
+function CardLoadingState() {
+    return (
+        <div className="flex items-center justify-center py-6 text-muted-foreground">
+            <Spinner className="size-5" />
+        </div>
+    )
+}
 
-function ThreadSummaryCard({ summary }: { summary: string }) {
+function ThreadSummaryCard({ summary, loading }: { summary: string; loading?: boolean }) {
     return (
         <Card>
             <CardContent>
                 <CardTitle>
                     AI Summary
                 </CardTitle>
-                <CardDescription>
-                    {summary || "No summary available."}
-                </CardDescription>
+                {loading ? (
+                    <CardLoadingState />
+                ) : (
+                    <CardDescription>
+                        {summary || "No summary available."}
+                    </CardDescription>
+                )}
             </CardContent>
         </Card>
     )
 }
 
-function ThreadAIInsightCard({ nextActionableItems, resolutionSuccessRate, reasonForScore, overperformingCases, underperformingCases }: {
+function ThreadAIInsightCard({ nextActionableItems, resolutionSuccessRate, reasonForScore, overperformingCases, underperformingCases, loading }: {
     nextActionableItems: string[];
     resolutionSuccessRate: string;
     reasonForScore: string;
     overperformingCases: string[];
     underperformingCases: string[];
+    loading?: boolean;
 }) {
     return (
         <Card>
@@ -44,6 +58,7 @@ function ThreadAIInsightCard({ nextActionableItems, resolutionSuccessRate, reaso
                     <IconBrain className="size-4" />
                     AI Insights
                 </CardTitle>
+                {loading ? <CardLoadingState /> : (
                 <div className="flex flex-col gap-4">
                     {
                         nextActionableItems?.length > 0 && <div
@@ -102,12 +117,13 @@ function ThreadAIInsightCard({ nextActionableItems, resolutionSuccessRate, reaso
                         </ul>
                     </div>
                 </div>
+                )}
             </CardContent>
         </Card >
     )
 }
 
-function CartDetailsCard({ cartData }: { cartData: CartDataResponse | null }) {
+function CartDetailsCard({ cartData, loading }: { cartData: CartDataResponse | null; loading?: boolean }) {
     return (
         <Card>
             <CardContent className="space-y-4">
@@ -116,6 +132,9 @@ function CartDetailsCard({ cartData }: { cartData: CartDataResponse | null }) {
                     Cart Details
                 </CardTitle>
                 {
+                    loading ?
+                        <CardLoadingState />
+                    :
                     !cartData?.updated_cart_data ?
                         <p className="text-sm text-muted-foreground italic">
                             No cart data available.
@@ -147,7 +166,7 @@ function CartDetailsCard({ cartData }: { cartData: CartDataResponse | null }) {
     )
 }
 
-function UserMetadataCard({ userMetadata }: { userMetadata: UserMetadata | null }) {
+function UserMetadataCard({ userMetadata, loading }: { userMetadata: UserMetadata | null; loading?: boolean }) {
     return (
         <Card>
             <CardContent className="space-y-4">
@@ -155,6 +174,7 @@ function UserMetadataCard({ userMetadata }: { userMetadata: UserMetadata | null 
                     <IconUser className="size-4" />
                     User Metadata
                 </CardTitle>
+                {loading ? <CardLoadingState /> : (
                 <div className="flex flex-col gap-4">
                     <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
                         <IconBrandGoogleMaps className="size-5 inline text-primary" /> {userMetadata?.geo_location || "Unknown Location"}
@@ -172,6 +192,7 @@ function UserMetadataCard({ userMetadata }: { userMetadata: UserMetadata | null 
                         <IconDeviceDesktop className="size-5 inline text-primary" /> {userMetadata?.os || "Unknown OS"}
                     </span>
                 </div>
+                )}
             </CardContent>
         </Card>
     )
@@ -344,22 +365,33 @@ export default function ThreadDetailDrawer({
                 <div className="grid grid-cols-1 lg:grid-cols-2 p-4 pb-0 h-full overflow-hidden">
                     <div className="flex flex-col h-full overflow-hidden border-0 border-r-1 border-r-border/50">
                         <h3 className="text-lg font-semibold mb-2">Messages</h3>
-                        <MessagePan messages={FetchThreadDetailsData?.messages || []} />
+                        {FetchThreadDetailsIsLoading ? (
+                            <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
+                                <Spinner className="size-5" />
+                                Loading messages…
+                            </div>
+                        ) : (
+                            <MessagePan messages={FetchThreadDetailsData?.messages || []} />
+                        )}
                     </div>
 
                     <div className="flex flex-col h-full overflow-hidden px-4 gap-2">
                         <h3 className="text-lg font-semibold mb-2">Thread Details</h3>
                         <div className="h-full space-y-4 p-2 overflow-y-auto">
-                            <ThreadSummaryCard summary={FetchConversationSummaryData?.conversation_summary || ""} />
+                            <ThreadSummaryCard
+                                summary={FetchConversationSummaryData?.conversation_summary || ""}
+                                loading={FetchConversationSummaryIsLoading}
+                            />
                             <ThreadAIInsightCard
                                 nextActionableItems={FetchAIInsightData?.next_actionable_items || ["Support Team: Investigate and fix the cart quantity update logic for 'Valeria Engineered Wood Bed - King'."]}
                                 resolutionSuccessRate={FetchAIInsightData?.resolution_success_rate || "0"}
                                 reasonForScore={FetchAIInsightData?.reason_for_score || ""}
                                 overperformingCases={FetchAIInsightData?.overperforming_cases || []}
                                 underperformingCases={FetchAIInsightData?.underperforming_cases || []}
+                                loading={FetchAIInsightIsLoading}
                             />
-                            <CartDetailsCard cartData={FetchCartData} />
-                            <UserMetadataCard userMetadata={FetchUserMetadataData} />
+                            <CartDetailsCard cartData={FetchCartData} loading={FetchCartDataIsLoading} />
+                            <UserMetadataCard userMetadata={FetchUserMetadataData} loading={FetchUserMetadataIsLoading} />
                         </div>
                     </div>
                 </div>

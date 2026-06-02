@@ -4,9 +4,10 @@ import { useFormik } from "formik";
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import z from "zod";
-import { IconDeviceFloppy, IconLoader2 } from "@tabler/icons-react";
+import { IconDeviceFloppy } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -162,7 +163,7 @@ export default function StoreFaqForm({
                         <Button type="submit" disabled={isSaving || !formik.dirty}>
                             {isSaving ? (
                                 <>
-                                    <IconLoader2 className="animate-spin" />
+                                    <Spinner data-icon="inline-start" />
                                     {isEditing ? "Updating..." : "Saving..."}
                                 </>
                             ) : (

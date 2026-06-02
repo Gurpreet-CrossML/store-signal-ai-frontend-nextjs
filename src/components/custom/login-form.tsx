@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import {
     Field,
     FieldGroup,
@@ -123,6 +124,7 @@ export function LoginForm({
                         disabled={isLoading}
                         type="submit"
                     >
+                        {isLoading && <Spinner data-icon="inline-start" />}
                         {isLoading ? "Logging in..." : "Login"}
                     </Button>
                 </Field>

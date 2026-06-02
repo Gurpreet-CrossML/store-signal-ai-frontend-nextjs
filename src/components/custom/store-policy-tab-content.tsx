@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import {
     IconDeviceFloppy,
     IconExternalLink,
-    IconLoader2,
     IconPlus,
     IconShield,
     IconTrash,
@@ -14,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import {
     Select,
     SelectContent,
@@ -173,7 +173,7 @@ export default function StorePolicyTabContent() {
                 >
                     {CreateStorePolicyIsLoading ? (
                         <>
-                            <IconLoader2 className="animate-spin" />
+                            <Spinner data-icon="inline-start" />
                             Saving...
                         </>
                     ) : (

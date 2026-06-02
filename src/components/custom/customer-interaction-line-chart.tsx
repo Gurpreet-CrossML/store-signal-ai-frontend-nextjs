@@ -23,6 +23,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { Spinner } from "@/components/ui/spinner"
 
 export const description = "Customer interaction analytics line chart"
 
@@ -115,7 +116,8 @@ export function CustomerInteractionLineChart({
             </CardHeader>
             <CardContent className="flex-1">
                 {loading ? (
-                    <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+                    <div className="flex h-[300px] items-center justify-center gap-2 text-muted-foreground">
+                        <Spinner className="size-5" />
                         Loading…
                     </div>
                 ) : chartData.length > 0 ? (
