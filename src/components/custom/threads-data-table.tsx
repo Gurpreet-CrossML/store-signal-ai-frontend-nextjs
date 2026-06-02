@@ -41,16 +41,14 @@ export function ThreadsDataTable<TData, TValue>({
   onPaginationChange,
   isLoading = false,
 }: ThreadsDataTableProps<TData, TValue>) {
-  const pageCount = Math.ceil(totalCount / pagination.pageSize) || 0;
-
   const table = useReactTable({
     data,
     columns,
-    pageCount,
     state: { pagination },
     onPaginationChange,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
+    rowCount: totalCount,
   });
 
   const [drawerOpen, setDrawerOpen] = useState(false);

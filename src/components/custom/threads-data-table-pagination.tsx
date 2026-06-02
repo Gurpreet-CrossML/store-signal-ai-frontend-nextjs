@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
+export const PAGE_SIZE_OPTIONS = [10, 15, 20, 25, 50];
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
@@ -31,6 +31,7 @@ export function DataTablePagination<TData>({
   noun = "thread",
 }: DataTablePaginationProps<TData>) {
   const { pageIndex, pageSize } = table.getState().pagination;
+  const pageCount = table.getPageCount();
 
   return (
     <div className="flex flex-col gap-4 px-2 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -40,7 +41,7 @@ export function DataTablePagination<TData>({
 
       <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:gap-6">
         {/* Page size selector */}
-        {/* <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <p className="text-sm font-medium whitespace-nowrap">Rows per page</p>
           <Select
             value={`${pageSize}`}
@@ -57,11 +58,11 @@ export function DataTablePagination<TData>({
               ))}
             </SelectContent>
           </Select>
-        </div> */}
+        </div>
 
         {/* Page indicator */}
         <div className="flex items-center justify-center text-sm font-medium whitespace-nowrap">
-          Page {pageIndex + 1} of {table.getPageCount() || 1}
+          Page {pageIndex + 1} of {pageCount || 1}
         </div>
 
         {/* Navigation */}
@@ -100,7 +101,7 @@ export function DataTablePagination<TData>({
             variant="outline"
             size="icon"
             className="hidden h-8 w-8 lg:flex"
-            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+            onClick={() => table.setPageIndex(pageCount - 1)}
             disabled={!table.getCanNextPage()}
             aria-label="Go to last page"
           >
