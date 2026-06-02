@@ -131,3 +131,25 @@
     @apply font-sans;
   }
 }
+
+div.editor-container__editor>ol,
+div.editor-container__editor>ul,
+div.editor-container__editor>menu,
+div.editor-container__editor ol,
+div.editor-container__editor ul,
+div.editor-container__editor menu {
+  list-style: revert;
+  margin: revert;
+  padding: revert;
+}
+
+div#markdown-answers>ol,
+div#markdown-answers>ul,
+div#markdown-answers>menu,
+div#markdown-answers ol,
+div#markdown-answers ul,
+div#markdown-answers menu {
+  list-style: revert;
+  margin: revert;
+  padding: revert;
+}

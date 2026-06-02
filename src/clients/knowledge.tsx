@@ -1,6 +1,7 @@
 "use client"
 
 import StoreFaqTabContent from "@/components/custom/store-faq-tab-content"
+import StorePolicyTabContent from "@/components/custom/store-policy-tab-content"
 import StoreDocumentTabContent from "@/components/custom/store-document-tab-content"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -17,7 +18,7 @@ export default function Knowledge() {
                     <StoreFaqTabContent />
                 </TabsContent>
                 <TabsContent value="policies">
-                    comming soon...
+                    <StorePolicyTabContent />
                 </TabsContent>
                 <TabsContent value="documents">
                     <StoreDocumentTabContent />

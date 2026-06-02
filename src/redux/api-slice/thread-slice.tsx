@@ -4,10 +4,21 @@ import { ENDPOINTS } from "@/lib/config";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 
+type ThreadFilters = {
+    from?: string;
+    to?: string;
+    search?: string;
+    is_active?: boolean;
+    user_type?: string;
+    has_ticket?: boolean;
+    has_feedback?: boolean;
+}
+
 type GetThreadsArgs = {
     store_code?: string;
     page?: number;
     limit?: number;
+    filters?: ThreadFilters;
 };
 
 export type Customer = {
@@ -143,10 +154,14 @@ export type UserMetadata = {
 
 export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
     "Threads",
-    async ({ store_code = "", page = 1, limit = 10 }: GetThreadsArgs = {}, thunkAPI) => {
+    async ({ store_code = "", page = 1, limit = 10, filters = {} }: GetThreadsArgs = {}, thunkAPI) => {
         try {
+            const filteration = "&" + Object.entries(filters)
+                .map(([key, value]) => `${key}=${value}`)
+                .join("&");
+
             const response = await axiosInstance.get(
-                `${ENDPOINTS.fetchThreads()}?store_code=${store_code}&page=${page}&page_size=${limit}`
+                `${ENDPOINTS.fetchThreads()}?store_code=${store_code}&page=${page}&page_size=${limit}${filteration !== "&" ? filteration : ""}`
             );
             const data = response.data.data;
 

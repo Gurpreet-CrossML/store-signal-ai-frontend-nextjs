@@ -1,8 +1,9 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { axiosInstance } from "../axios-config";
+import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
+import { Store } from "@/redux/api-slice/stores-slice";
 
 type GetStoreFaqsArgs = {
     store_code?: string;
@@ -46,6 +47,16 @@ export type FetchStoreLibraryResponse = {
     results: StoreDocument[];
 }
 
+export type StorePolicy = {
+    id: number;
+    store: Store;
+    link_type: string;
+    url: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+};
+
 
 export const FetchStoreFaqs = createAsyncThunk(
     "FetchStoreFaqs",
@@ -56,6 +67,7 @@ export const FetchStoreFaqs = createAsyncThunk(
             );
             const data = response.data.data;
 
+            toast.success(response?.data?.message || "FAQs fetched successfully!");
             return data;
         } catch (error) {
             const response = isAxiosError(error) ? error.response : undefined;
@@ -160,6 +172,7 @@ export const FetchLibraryDocuments = createAsyncThunk(
             );
             const data = response.data.data;
 
+            toast.success(response?.data?.message || "Library documents fetched successfully!");
             return data;
         } catch (error) {
             const response = isAxiosError(error) ? error.response : undefined;
@@ -209,6 +222,86 @@ export const UploadLibraryDocument = createAsyncThunk(
     }
 );
 
+export const FetchStorePolicies = createAsyncThunk(
+    "FetchStorePolicies",
+    async ({ store_code }: { store_code: string }, thunkAPI) => {
+        try {
+            const response = await axiosInstance.get(
+                `${ENDPOINTS.fetchScrapeLink()}?store_code=${store_code}`
+            );
+            const data = response.data.data;
+
+            toast.success(response?.data?.message || "Store policies fetched successfully!");
+            return data;
+        } catch (error) {
+            const response = isAxiosError(error) ? error.response : undefined;
+            const data = response?.data;
+
+            toast.error("Uh oh! Something went wrong.", {
+                description:
+                    data?.message || "Unable to fetch the store policies, please try again later.",
+            });
+
+            return thunkAPI.rejectWithValue(data || "Something went wrong");
+        }
+    }
+);
+
+export const CreateStorePolicy = createAsyncThunk(
+    "CreateStorePolicy",
+    async ({ store_code, url, type }: { store_code: string; url: string; type: string }, thunkAPI) => {
+        try {
+            const response = await axiosInstance.post(`${ENDPOINTS.createScrapeLink()}?store_code=${store_code}`, {
+                url,
+                link_type: type,
+                store: store_code,
+            });
+            const data = response.data.data;
+
+            toast.success(response?.data?.message || "Store policy created successfully!");
+
+            return data;
+        } catch (error) {
+            const response = isAxiosError(error) ? error.response : undefined;
+            const data = response?.data;
+
+            toast.error("Uh oh! Something went wrong.", {
+                description:
+                    data?.message || "Unable to create the store policy, please try again later.",
+            });
+
+            return thunkAPI.rejectWithValue(data || "Something went wrong");
+        }
+    }
+);
+
+
+export const FetchStorePolicyType = createAsyncThunk(
+    "FetchStorePolicyType",
+    async (_, thunkAPI) => {
+        try {
+            const response = await axiosInstance.get(
+                `${ENDPOINTS.fetchScrapeLinkTypes()}`
+            )
+            const data = response.data.data;
+
+            toast.success(response?.data?.message || "Store policy types fetched successfully!");
+            return data;
+        } catch (error) {
+            const response = isAxiosError(error) ? error.response : undefined;
+            const data = response?.data;
+
+            toast.error("Uh oh! Something went wrong.", {
+                description:
+                    data?.message || "Unable to fetch the store policy types, please try again later.",
+            });
+
+            return thunkAPI.rejectWithValue(data || "Something went wrong");
+        }
+    }
+);
+
+
 const KnowledgeSlice = createSlice({
     name: "Knowledge",
     initialState: {
@@ -243,6 +336,23 @@ const KnowledgeSlice = createSlice({
             UploadLibraryDocumentIsLoading: false,
             UploadLibraryDocumentIsSuccess: false,
             UploadLibraryDocumentIsError: null as null | string | object,
+        },
+        FetchStorePoliciesState: {
+            FetchStorePoliciesIsLoading: false,
+            FetchStorePoliciesIsSuccess: false,
+            FetchStorePoliciesIsError: null as null | string | object,
+            FetchStorePoliciesListData: [] as StorePolicy[],
+        },
+        CreateStorePolicyState: {
+            CreateStorePolicyIsLoading: false,
+            CreateStorePolicyIsSuccess: false,
+            CreateStorePolicyIsError: null as null | string | object,
+        },
+        FetchStorePolicyTypeState: {
+            FetchStorePolicyTypeIsLoading: false,
+            FetchStorePolicyTypeIsSuccess: false,
+            FetchStorePolicyTypeIsError: null as null | string | object,
+            FetchStorePolicyTypeListData: {} as Record<string, string>
         },
     },
     reducers: {},
@@ -339,6 +449,53 @@ const KnowledgeSlice = createSlice({
                 state.UploadLibraryDocumentState.UploadLibraryDocumentIsLoading = false;
                 state.UploadLibraryDocumentState.UploadLibraryDocumentIsSuccess = false;
                 state.UploadLibraryDocumentState.UploadLibraryDocumentIsError = action.payload || "Something went wrong";
+            })
+            // FetchStorePolicies
+            .addCase(FetchStorePolicies.pending, (state) => {
+                state.FetchStorePoliciesState.FetchStorePoliciesIsLoading = true;
+                state.FetchStorePoliciesState.FetchStorePoliciesIsSuccess = false;
+                state.FetchStorePoliciesState.FetchStorePoliciesIsError = null;
+            })
+            .addCase(FetchStorePolicies.fulfilled, (state, action) => {
+                state.FetchStorePoliciesState.FetchStorePoliciesIsLoading = false;
+                state.FetchStorePoliciesState.FetchStorePoliciesIsSuccess = true;
+                state.FetchStorePoliciesState.FetchStorePoliciesListData = action.payload;
+            })
+            .addCase(FetchStorePolicies.rejected, (state, action) => {
+                state.FetchStorePoliciesState.FetchStorePoliciesIsLoading = false;
+                state.FetchStorePoliciesState.FetchStorePoliciesIsSuccess = false;
+                state.FetchStorePoliciesState.FetchStorePoliciesIsError = action.payload || "Something went wrong";
+            })
+            // CreateStorePolicy
+            .addCase(CreateStorePolicy.pending, (state) => {
+                state.CreateStorePolicyState.CreateStorePolicyIsLoading = true;
+                state.CreateStorePolicyState.CreateStorePolicyIsSuccess = false;
+                state.CreateStorePolicyState.CreateStorePolicyIsError = null;
+            })
+            .addCase(CreateStorePolicy.fulfilled, (state) => {
+                state.CreateStorePolicyState.CreateStorePolicyIsLoading = false;
+                state.CreateStorePolicyState.CreateStorePolicyIsSuccess = true;
+            })
+            .addCase(CreateStorePolicy.rejected, (state, action) => {
+                state.CreateStorePolicyState.CreateStorePolicyIsLoading = false;
+                state.CreateStorePolicyState.CreateStorePolicyIsSuccess = false;
+                state.CreateStorePolicyState.CreateStorePolicyIsError = action.payload || "Something went wrong";
+            })
+            // FetchStorePolicyType
+            .addCase(FetchStorePolicyType.pending, (state) => {
+                state.FetchStorePolicyTypeState.FetchStorePolicyTypeIsLoading = true;
+                state.FetchStorePolicyTypeState.FetchStorePolicyTypeIsSuccess = false;
+                state.FetchStorePolicyTypeState.FetchStorePolicyTypeIsError = null;
+            })
+            .addCase(FetchStorePolicyType.fulfilled, (state, action) => {
+                state.FetchStorePolicyTypeState.FetchStorePolicyTypeIsLoading = false;
+                state.FetchStorePolicyTypeState.FetchStorePolicyTypeIsSuccess = true;
+                state.FetchStorePolicyTypeState.FetchStorePolicyTypeListData = action.payload;
+            })
+            .addCase(FetchStorePolicyType.rejected, (state, action) => {
+                state.FetchStorePolicyTypeState.FetchStorePolicyTypeIsLoading = false;
+                state.FetchStorePolicyTypeState.FetchStorePolicyTypeIsSuccess = false;
+                state.FetchStorePolicyTypeState.FetchStorePolicyTypeIsError = action.payload || "Something went wrong";
             });
     },
 });

@@ -131,7 +131,13 @@ export default function StoreFaqTabContent() {
                     ))}
                 </div>
             ) : faqs.length > 0 ? (
-                <Accordion type="single" collapsible className="gap-2">
+                <Accordion
+                    key={faqs[0]?.id}
+                    type="single"
+                    collapsible
+                    defaultValue={String(faqs[0]?.id)}
+                    className="gap-2"
+                >
                     {faqs.map((faq) => (
                         <AccordionItem
                             key={faq.id}

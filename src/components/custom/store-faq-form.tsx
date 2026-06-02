@@ -2,6 +2,7 @@
 
 import { useFormik } from "formik";
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import z from "zod";
 import { IconDeviceFloppy, IconLoader2 } from "@tabler/icons-react";
 
@@ -16,13 +17,17 @@ import {
     SheetHeader,
     SheetTitle,
 } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
     CreateStoreFaq,
     UpdateStoreFaq,
     type StoreFaq,
 } from "@/redux/api-slice/knowledge-slice";
+
+// CKEditor touches the DOM at import time, so load it client-side only.
+const CKEditorTextArea = dynamic(() => import("./ckeditor-text-area"), {
+    ssr: false,
+});
 
 const validationSchema = z.object({
     question: z.string().trim().min(1, "Question is required"),
@@ -135,20 +140,17 @@ export default function StoreFaqForm({
 
                         <Field>
                             <FieldLabel htmlFor="answer">Answer</FieldLabel>
-                            <textarea
+                            <CKEditorTextArea
                                 id="answer"
-                                name="answer"
-                                rows={8}
                                 placeholder="Our return policy is 30 days with a receipt."
-                                aria-invalid={Boolean(formik.touched.answer && formik.errors.answer)}
-                                onChange={formik.handleChange}
-                                onBlur={formik.handleBlur}
                                 value={formik.values.answer}
-                                className={cn(
-                                    "w-full resize-y rounded-none border border-input bg-transparent px-2.5 py-1.5 text-xs outline-none transition-colors",
-                                    "placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
-                                    "aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 dark:bg-input/30"
-                                )}
+                                useMarkdown
+                                onChange={(value) => {
+                                    formik.setFieldValue("answer", value);
+                                    if (!formik.touched.answer) {
+                                        formik.setFieldTouched("answer", true, false);
+                                    }
+                                }}
                             />
                             {formik.touched.answer && formik.errors.answer && (
                                 <p className="text-xs text-destructive">{formik.errors.answer}</p>

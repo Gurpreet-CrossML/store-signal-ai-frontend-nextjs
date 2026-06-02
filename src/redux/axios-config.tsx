@@ -37,8 +37,7 @@ axiosInstance.interceptors.response.use(
     (error) => {
 
         if (error.status === 401) {
-            // signOut();
-            // navigate("/login");
+            signOut({ callbackUrl: "/login" });
         }
 
         return Promise.reject(error);

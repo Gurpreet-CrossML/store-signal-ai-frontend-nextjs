@@ -43,7 +43,7 @@ export const ENDPOINTS = {
     createStoreFaq: () => `/knowledge/store-faqs/`,
     updateStoreFaq: (id: number) => `/knowledge/store-faqs/${id}/`,
     deleteStoreFaq: (id: number) => `/knowledge/store-faqs/${id}/`,
-    fetchScrapeLinkTypes: () => `/knowledge/scrape-links/types/`,
+    fetchScrapeLinkTypes: () => `/knowledge/scrape-links/types`,
     createScrapeLink: () => `/knowledge/scrape-links/`,
     fetchScrapeLink: () => `/knowledge/scrape-links/`,
 }
