@@ -2,6 +2,7 @@ import { ProductData, ThreadMessage } from "@/redux/api-slice/thread-slice";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ReactMarkdown from "react-markdown";
 import { formatDateTime } from "@/lib/helpers";
+import OrderBillCard from "@/components/custom/order-bill-card";
 
 export default function MessagePan({
     messages
@@ -25,31 +26,28 @@ export default function MessagePan({
                                 <div className={`p-3 text-sm break-words ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary border border-border rounded-tl-none"}`}>
                                     {message.role === "assistant" ? (
                                         (() => {
-                                            // if (message.orderDetail?.items?.length > 0) {
-                                            //     return (
-                                            //         <>
-                                            //             <ReactMarkdown>{message.content}</ReactMarkdown>
-                                            //             <div className="mt-3">
-                                            //                 <OrderBillCard order={message.orderDetail} />
-                                            //             </div>
-                                            //         </>
-                                            //     );
-                                            // }
-                                            // const parsedOrder = parseOrderMessage(message.content);
-                                            // if (parsedOrder?.items?.length > 0) {
-                                            //     return <OrderBillCard order={parsedOrder} />;
-                                            // }
-                                            // Strategy 3: plain markdown fallback
+                                            if (message?.json_content?.order_details && message.json_content.order_details?.items?.length > 0) {
+                                                return (
+                                                    <>
+                                                        <ReactMarkdown>{message.message}</ReactMarkdown>
+                                                        <div className="mt-3">
+                                                            <OrderBillCard order={message.json_content.order_details} />
+                                                        </div>
+                                                    </>
+                                                );
+                                            }
+                                            
+                                            // Strategy 2: plain markdown fallback
                                             return <ReactMarkdown>{message.message}</ReactMarkdown>;
                                         })()
                                     ) : (
                                         <span className="whitespace-pre-wrap">{message.message}</span>
                                     )}
                                 </div>
-                                {message.role === "assistant" && message.products_data && message.products_data.length > 0 && (
+                                {message.role === "assistant" && message?.json_content?.products && message.json_content.products.length > 0 && (
                                     <div className="flex justify-start mt-2">
                                         <div className="flex flex-wrap gap-2 w-full">
-                                            {message.products_data.map((product: ProductData, idx: number) => {
+                                            {message.json_content.products.map((product: ProductData, idx: number) => {
                                                 return (
                                                     <a key={idx} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-2.5 border border-border bg-background hover:bg-muted/50 transition-colors no-underline w-[240px] flex-shrink-0">
                                                         {product.image

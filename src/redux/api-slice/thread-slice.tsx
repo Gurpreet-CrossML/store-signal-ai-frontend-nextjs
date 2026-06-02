@@ -38,10 +38,48 @@ export type Thread = {
     last_message?: string | null;
 };
 
+export type OrderItem = {
+    line_item_id: string;
+    name: string;
+    price: string;
+    product_id: number;
+    quantity: number;
+    variant_id: number;
+}
+export type OrderDetail = {
+    order_id: string | number;
+    order_url: string;
+    financial_status: string;
+    fulfillment_status: string;
+    is_cancelable: boolean;
+    is_returnable: boolean;
+    cancel_reason: string | null;
+    cancel_message: string | null;
+    cancelled_at: string | null;
+    return_message: string | null;
+    discount: string;
+    discount_codes: string[];
+    subtotal: string;
+    tax: string;
+    total: string;
+    email: string;
+    note: string | null;
+    payment_gateways: string[];
+    items: OrderItem[];
+}
+
+export type ThreadJsonContent = {
+    products?: ProductData[];
+    order_details?: OrderDetail;
+    order_id?: string;
+    order_verification_step?: string;
+    suggestions?: string[];
+}
+
 export type ThreadMessage = {
     role: string,
     message: string,
-    products_data?: ProductData[] | null;
+    json_content?: ThreadJsonContent;
     created_at: string;
 }
 
