@@ -130,29 +130,6 @@
   html {
     @apply font-sans;
   }
-
-  /*
-   * System-wide smooth scrolling.
-   *
-   * Applies eased scrolling to the document and every nested scroll container
-   * (drawers, the chat message pane, the customization live preview, the
-   * sidebar and Radix scroll areas) for anchor jumps and programmatic
-   * scrollIntoView/scrollTo calls. Wheel/trackpad scrolling stays native.
-   *
-   * Gated behind `prefers-reduced-motion` so users who opt out of motion get
-   * instant scrolling — a WCAG-friendly default.
-   */
-  @media (prefers-reduced-motion: no-preference) {
-    html {
-      scroll-behavior: smooth;
-      /* Keep anchored targets clear of the sticky site header. */
-      scroll-padding-top: var(--header-height, 0px);
-    }
-
-    * {
-      scroll-behavior: smooth;
-    }
-  }
 }
 
 div.editor-container__editor>ol,
