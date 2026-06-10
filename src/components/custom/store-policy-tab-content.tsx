@@ -12,7 +12,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
     Select,
@@ -192,10 +191,9 @@ export default function StorePolicyTabContent() {
             )}
 
             {FetchStorePoliciesIsLoading ? (
-                <div className="flex flex-col gap-2">
-                    {Array.from({ length: 3 }).map((_, index) => (
-                        <Skeleton key={index} className="h-24 w-full" />
-                    ))}
+                <div className="flex items-center justify-center py-10 gap-2">
+                    <Spinner className="size-6" />
+                    Loading Policies...
                 </div>
             ) : (
                 <div className="flex flex-col gap-3">

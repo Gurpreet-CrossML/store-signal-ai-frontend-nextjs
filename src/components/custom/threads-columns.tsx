@@ -161,7 +161,7 @@ export const threadsColumns: ColumnDef<Thread>[] = [
     accessorKey: "last_message",
     header: "Last Message",
     cell: ({ row }) => (
-      <span className="text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+      <span className="text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis *:truncate">
         <Markdown>
           {row.original.last_message || "—"}
         </Markdown>

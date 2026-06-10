@@ -26,7 +26,6 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
@@ -125,10 +124,9 @@ export default function StoreFaqTabContent() {
             </div>
 
             {FetchStoreFaqsIsLoading ? (
-                <div className="flex flex-col gap-2">
-                    {Array.from({ length: 4 }).map((_, index) => (
-                        <Skeleton key={index} className="h-10 w-full" />
-                    ))}
+                <div className="flex items-center justify-center py-10 gap-2">
+                    <Spinner className="size-6" />
+                    Loading Quick Q&As...
                 </div>
             ) : faqs.length > 0 ? (
                 <Accordion

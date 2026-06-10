@@ -59,64 +59,64 @@ function ThreadAIInsightCard({ nextActionableItems, resolutionSuccessRate, reaso
                     AI Insights
                 </CardTitle>
                 {loading ? <CardLoadingState /> : (
-                <div className="flex flex-col gap-4">
-                    {
-                        nextActionableItems?.length > 0 && <div
-                            className="bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 p-4"
-                        >
-                            <span>Next Actionable Items</span>
-                            <ul className="mt-1 flex flex-col gap-2">
-                                {nextActionableItems?.map((item, index) => (
-                                    <li key={index} className="flex gap-2 text-sm">
-                                        <span className="bg-amber-700 dark:bg-amber-950 p-1" />{item}
-                                    </li>
-                                )) || (
-                                        <p className="text-sm text-muted-foreground italic">
-                                            No data available.
-                                        </p>
-                                    )}
-                            </ul>
+                    <div className="flex flex-col gap-4">
+                        {
+                            nextActionableItems?.length > 0 && <div
+                                className="bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 p-4"
+                            >
+                                <span>Next Actionable Items</span>
+                                <ul className="mt-1 flex flex-col gap-2">
+                                    {nextActionableItems?.map((item, index) => (
+                                        <li key={index} className="flex gap-2 text-sm">
+                                            <span className="bg-amber-700 dark:bg-amber-950 p-1" />{item}
+                                        </li>
+                                    )) || (
+                                            <p className="text-sm text-muted-foreground italic">
+                                                No data available.
+                                            </p>
+                                        )}
+                                </ul>
+                            </div>
+                        }
+                        <Field className="w-full">
+                            <FieldLabel htmlFor="progress-upload">
+                                <span>Resolution Success Rate</span>
+                                <span className="ml-auto">{resolutionSuccessRate || 0}%</span>
+                            </FieldLabel>
+                            <Progress value={parseInt(resolutionSuccessRate || "0")} id="progress-upload" />
+                        </Field>
+
+                        <div>
+                            <span>Score Rationale</span>
+                            <p className="text-sm text-muted-foreground mt-1 italic">
+                                {reasonForScore || "No insights available."}
+                            </p>
                         </div>
-                    }
-                    <Field className="w-full">
-                        <FieldLabel htmlFor="progress-upload">
-                            <span>Resolution Success Rate</span>
-                            <span className="ml-auto">{resolutionSuccessRate || 0}%</span>
-                        </FieldLabel>
-                        <Progress value={parseInt(resolutionSuccessRate || "0")} id="progress-upload" />
-                    </Field>
 
-                    <div>
-                        <span>Score Rationale</span>
-                        <p className="text-sm text-muted-foreground mt-1 italic">
-                            {reasonForScore || "No insights available."}
-                        </p>
-                    </div>
-
-                    <div>
-                        <span>Performing Matrix</span>
-                        <ul className="mt-1 flex flex-col gap-2">
-                            {overperformingCases?.map((item, index) => (
-                                <li key={index} className="flex gap-2 text-sm">
-                                    <span className="bg-green-700 dark:bg-green-950 p-1" />{item}
-                                </li>
-                            )) || (
+                        <div>
+                            <span>Performing Matrix</span>
+                            {
+                                overperformingCases && underperformingCases && overperformingCases?.length === 0 && underperformingCases?.length === 0 ? (
                                     <p className="text-sm text-muted-foreground italic">
-                                        No data available.
+                                        No Matrix available.
                                     </p>
-                                )}
-                            {underperformingCases?.map((item, index) => (
-                                <li key={index} className="flex gap-2 text-sm">
-                                    <span className="bg-red-700 dark:bg-red-950 p-1" />{item}
-                                </li>
-                            )) || (
-                                    <p className="text-sm text-muted-foreground italic">
-                                        No data available.
-                                    </p>
-                                )}
-                        </ul>
+                                ) : (
+                                    <ul className="mt-1 flex flex-col gap-2">
+                                        {overperformingCases?.map((item, index) => (
+                                            <li key={index} className="flex gap-2 text-sm">
+                                                <span className="bg-green-700 dark:bg-green-950 p-1" />{item}
+                                            </li>
+                                        ))}
+                                        {underperformingCases?.map((item, index) => (
+                                            <li key={index} className="flex gap-2 text-sm">
+                                                <span className="bg-red-700 dark:bg-red-950 p-1" />{item}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )
+                            }
+                        </div>
                     </div>
-                </div>
                 )}
             </CardContent>
         </Card >
@@ -134,32 +134,32 @@ function CartDetailsCard({ cartData, loading }: { cartData: CartDataResponse | n
                 {
                     loading ?
                         <CardLoadingState />
-                    :
-                    !cartData?.updated_cart_data ?
-                        <p className="text-sm text-muted-foreground italic">
-                            No cart data available.
-                        </p>
                         :
-                        cartData?.updated_cart_data?.map((item: CartDataResponse["updated_cart_data"][number], index: number) => (
-                            <div key={index} className="flex items-center gap-2 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <Avatar>
-                                        {item.product_image
-                                            ? <AvatarImage src={item.product_image} alt={item.name} className="h-full w-full object-contain" />
-                                            : <AvatarFallback className="bg-muted text-muted-foreground text-xs">N/A</AvatarFallback>
-                                        }
-                                    </Avatar>
-                                    <span className="flex flex-col items-start gap-2">
-                                        <span>{item.name}</span>
-                                        <span className="text-muted-foreground text-xs">Qty: {item.qty}</span>
-                                    </span>
+                        !cartData?.updated_cart_data ?
+                            <p className="text-sm text-muted-foreground italic">
+                                No cart data available.
+                            </p>
+                            :
+                            cartData?.updated_cart_data?.map((item: CartDataResponse["updated_cart_data"][number], index: number) => (
+                                <div key={index} className="flex items-center gap-2 text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <Avatar>
+                                            {item.product_image
+                                                ? <AvatarImage src={item.product_image} alt={item.name} className="h-full w-full object-contain" />
+                                                : <AvatarFallback className="bg-muted text-muted-foreground text-xs">N/A</AvatarFallback>
+                                            }
+                                        </Avatar>
+                                        <span className="flex flex-col items-start gap-2">
+                                            <span>{item.name}</span>
+                                            <span className="text-muted-foreground text-xs">Qty: {item.qty}</span>
+                                        </span>
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">{new Intl.NumberFormat('en-US', {
+                                        style: 'currency',
+                                        currency: item.currency,
+                                    }).format(parseFloat(item.price || "0"))}</span>
                                 </div>
-                                <span className="text-xs text-muted-foreground">{new Intl.NumberFormat('en-US', {
-                                    style: 'currency',
-                                    currency: item.currency,
-                                }).format(parseFloat(item.price || "0"))}</span>
-                            </div>
-                        ))
+                            ))
                 }
             </CardContent>
         </Card>
@@ -175,23 +175,23 @@ function UserMetadataCard({ userMetadata, loading }: { userMetadata: UserMetadat
                     User Metadata
                 </CardTitle>
                 {loading ? <CardLoadingState /> : (
-                <div className="flex flex-col gap-4">
-                    <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
-                        <IconBrandGoogleMaps className="size-5 inline text-primary" /> {userMetadata?.geo_location || "Unknown Location"}
-                    </span>
-                    <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
-                        <IconNetwork className="size-5 inline text-primary" /> {userMetadata?.ip_address || "Unknown IP Address"}
-                    </span>
-                    <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
-                        <IconDeviceLaptop className="size-5 inline text-primary" /> {userMetadata?.device_type || "Unknown Device"}
-                    </span>
-                    <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
-                        <IconBrowser className="size-5 inline text-primary" /> {userMetadata?.browser || "Unknown Browser"}
-                    </span>
-                    <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
-                        <IconDeviceDesktop className="size-5 inline text-primary" /> {userMetadata?.os || "Unknown OS"}
-                    </span>
-                </div>
+                    <div className="flex flex-col gap-4">
+                        <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
+                            <IconBrandGoogleMaps className="size-5 inline text-primary" /> {userMetadata?.geo_location || "Unknown Location"}
+                        </span>
+                        <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
+                            <IconNetwork className="size-5 inline text-primary" /> {userMetadata?.ip_address || "Unknown IP Address"}
+                        </span>
+                        <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
+                            <IconDeviceLaptop className="size-5 inline text-primary" /> {userMetadata?.device_type || "Unknown Device"}
+                        </span>
+                        <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
+                            <IconBrowser className="size-5 inline text-primary" /> {userMetadata?.browser || "Unknown Browser"}
+                        </span>
+                        <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
+                            <IconDeviceDesktop className="size-5 inline text-primary" /> {userMetadata?.os || "Unknown OS"}
+                        </span>
+                    </div>
                 )}
             </CardContent>
         </Card>
