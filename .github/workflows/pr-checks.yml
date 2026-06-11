@@ -32,5 +32,5 @@ jobs:
       - name: Run TypeScript (type check)
         run: npx tsc --noEmit
 
-      - name: Run Vite build (compile check)
+      - name: Run Next.js build (compile check)
         run: npm run build
