@@ -1363,7 +1363,7 @@ function aggregateChatMessages(
         const buckets = new Map<string, number>();
         const sp = istParts(startDt);
         // cursor = start.date(); rewind to Monday
-        let cursor = new Date(Date.UTC(sp.y, sp.mo - 1, sp.d));
+        const cursor = new Date(Date.UTC(sp.y, sp.mo - 1, sp.d));
         const wd = istWeekday(sp.y, sp.mo - 1 + 1, sp.d);
         cursor.setUTCDate(cursor.getUTCDate() - wd);
         const ep = istParts(endDt);

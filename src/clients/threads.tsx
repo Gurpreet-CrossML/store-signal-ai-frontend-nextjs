@@ -34,14 +34,10 @@ export default function Threads() {
   // Debounce the free-text search so we don't refetch on every keystroke.
   const debouncedSearch = useDebounce(filters.search.trim());
 
-  // Reset to the first page whenever the store changes.
-  useEffect(() => {
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [storeCode]);
-
-  // Reset to the first page whenever any active filter changes (render-phase, so
-  // the fetch effect below always sees page 0 for a new filter set).
+  // Reset to the first page whenever the store or any active filter changes
+  // (render-phase, so the fetch effect below always sees page 0 for a new set).
   const filterSignature = JSON.stringify([
+    storeCode,
     debouncedSearch,
     filters.is_active,
     filters.user_type,

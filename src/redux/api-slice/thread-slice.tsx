@@ -449,7 +449,7 @@ const ThreadSlice = createSlice({
             FetchFeedbackSequenceIsLoading: false,
             FetchFeedbackSequenceIsSuccess: false,
             FetchFeedbackSequenceIsError: null as null | string | object | unknown,
-            FetchFeedbackSequence: {} as Record<string, any>,
+            FetchFeedbackSequence: {} as Record<string, unknown>,
         },
         FetchTagsState: {
             FetchTagsIsLoading: false,
@@ -473,7 +473,7 @@ const ThreadSlice = createSlice({
             FetchFreshdeskTicketIdIsLoading: false,
             FetchFreshdeskTicketIdIsSuccess: false,
             FetchFreshdeskTicketIdIsError: null as null | string | object | unknown,
-            FetchFreshdeskTicketId: {} as Record<string, any>,
+            FetchFreshdeskTicketId: {} as Record<string, unknown>,
         },
 
     },

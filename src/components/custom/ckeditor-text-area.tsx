@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 import { ClassicEditor, Autosave, Essentials, Paragraph, Bold, Italic, Heading, List, Markdown, type EditorConfig } from 'ckeditor5';
 
@@ -6,6 +6,9 @@ import 'ckeditor5/ckeditor5.css';
 import '@/app/globals.css';
 
 const LICENSE_KEY = 'GPL';
+
+// CKEditor touches `window`, so it can only render once mounted on the client.
+const emptySubscribe = () => () => {};
 
 type CKEditorTextAreaProps = {
     id?: string;
@@ -16,12 +19,7 @@ type CKEditorTextAreaProps = {
 };
 
 const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({ id, placeholder, value, onChange, useMarkdown }) => {
-    const [isLayoutReady, setIsLayoutReady] = useState(false);
-
-    useEffect(() => {
-        setIsLayoutReady(true);
-        return () => setIsLayoutReady(false);
-    }, []);
+    const isLayoutReady = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
     const { editorConfig } = useMemo(() => {
         if (!isLayoutReady) {
@@ -84,7 +82,7 @@ const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({ id, placeholder, va
                 }
             }
         };
-    }, [isLayoutReady]);
+    }, [isLayoutReady, placeholder, useMarkdown]);
 
     return (
         <div className='w-full h-full flex flex-col'>
