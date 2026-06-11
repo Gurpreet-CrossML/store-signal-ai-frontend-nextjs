@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/app/Sessionproviders";
 import StoreProvider from "@/redux/store-provider";
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,7 +25,8 @@ export const metadata: Metadata = {
     template: "%s | Store Signals AI Analytics",
     default: "Store Signals AI Analytics",
   },
-  description: "Store Signals AI Analytics is a master dashboard for all your store's analytics needs. It provides insights into sales, customer behavior, and inventory management, helping you make informed decisions to grow your business.",
+  description:
+    "Store Signals AI Analytics is a master dashboard for all your store's analytics needs. It provides insights into sales, customer behavior, and inventory management, helping you make informed decisions to grow your business.",
 };
 
 export default function RootLayout({
@@ -36,16 +37,21 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
+      className={cn(
+        "h-full",
+        "antialiased",
+        geistSans.variable,
+        geistMono.variable,
+        "font-sans",
+        inter.variable,
+      )}
       data-scroll-behavior="smooth"
     >
       <body suppressHydrationWarning className="min-h-full flex flex-col">
         <Providers>
           <StoreProvider>
             <TooltipProvider>
-              <MainLayout>
-                {children}
-              </MainLayout>
+              <MainLayout>{children}</MainLayout>
             </TooltipProvider>
             <Toaster theme="light" />
           </StoreProvider>

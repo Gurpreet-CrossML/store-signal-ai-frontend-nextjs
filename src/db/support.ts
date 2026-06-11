@@ -11,24 +11,24 @@ import { desc, eq } from "drizzle-orm";
  * `platform`/`status` are not in the serializer's field list).
  */
 export async function list_thread_tickets(thread_id: string) {
-    const tickets = await db
-        .select({
-            id: supportTicket.id,
-            thread: supportTicket.threadId,
-            customer: supportTicket.customerId,
-            ticket_id: supportTicket.ticketId,
-            subject: supportTicket.subject,
-            description: supportTicket.description,
-            requester_id: supportTicket.requesterId,
-            email_config_id: supportTicket.emailConfigId,
-            platform_created_at: supportTicket.platformCreatedAt,
-            platform_updated_at: supportTicket.platformUpdatedAt,
-            created_at: supportTicket.createdAt,
-            updated_at: supportTicket.updatedAt,
-        })
-        .from(supportTicket)
-        .where(eq(supportTicket.threadId, thread_id))
-        .orderBy(desc(supportTicket.createdAt));
+  const tickets = await db
+    .select({
+      id: supportTicket.id,
+      thread: supportTicket.threadId,
+      customer: supportTicket.customerId,
+      ticket_id: supportTicket.ticketId,
+      subject: supportTicket.subject,
+      description: supportTicket.description,
+      requester_id: supportTicket.requesterId,
+      email_config_id: supportTicket.emailConfigId,
+      platform_created_at: supportTicket.platformCreatedAt,
+      platform_updated_at: supportTicket.platformUpdatedAt,
+      created_at: supportTicket.createdAt,
+      updated_at: supportTicket.updatedAt,
+    })
+    .from(supportTicket)
+    .where(eq(supportTicket.threadId, thread_id))
+    .orderBy(desc(supportTicket.createdAt));
 
-    return tickets;
+  return tickets;
 }

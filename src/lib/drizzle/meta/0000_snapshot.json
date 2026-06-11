@@ -91,10 +91,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "django_content_type_app_label_model_76bd3d3b_uniq": {
-          "columns": [
-            "app_label",
-            "model"
-          ],
+          "columns": ["app_label", "model"],
           "nullsNotDistinct": false,
           "name": "django_content_type_app_label_model_76bd3d3b_uniq"
         }
@@ -167,12 +164,8 @@
           "tableFrom": "auth_permission",
           "tableTo": "django_content_type",
           "schemaTo": "public",
-          "columnsFrom": [
-            "content_type_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["content_type_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -180,10 +173,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "auth_permission_content_type_id_codename_01ab375a_uniq": {
-          "columns": [
-            "content_type_id",
-            "codename"
-          ],
+          "columns": ["content_type_id", "codename"],
           "nullsNotDistinct": false,
           "name": "auth_permission_content_type_id_codename_01ab375a_uniq"
         }
@@ -242,9 +232,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "auth_group_name_key": {
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "nullsNotDistinct": false,
           "name": "auth_group_name_key"
         }
@@ -327,12 +315,8 @@
           "tableFrom": "auth_group_permissions",
           "tableTo": "auth_group",
           "schemaTo": "public",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["group_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -341,12 +325,8 @@
           "tableFrom": "auth_group_permissions",
           "tableTo": "auth_permission",
           "schemaTo": "public",
-          "columnsFrom": [
-            "permission_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["permission_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -354,10 +334,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "auth_group_permissions_group_id_permission_id_0cd325b0_uniq": {
-          "columns": [
-            "group_id",
-            "permission_id"
-          ],
+          "columns": ["group_id", "permission_id"],
           "nullsNotDistinct": false,
           "name": "auth_group_permissions_group_id_permission_id_0cd325b0_uniq"
         }
@@ -470,9 +447,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "auth_user_username_key": {
-          "columns": [
-            "username"
-          ],
+          "columns": ["username"],
           "nullsNotDistinct": false,
           "name": "auth_user_username_key"
         }
@@ -555,12 +530,8 @@
           "tableFrom": "auth_user_groups",
           "tableTo": "auth_user",
           "schemaTo": "public",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -569,12 +540,8 @@
           "tableFrom": "auth_user_groups",
           "tableTo": "auth_group",
           "schemaTo": "public",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["group_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -582,10 +549,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "auth_user_groups_user_id_group_id_94350c0c_uniq": {
-          "columns": [
-            "user_id",
-            "group_id"
-          ],
+          "columns": ["user_id", "group_id"],
           "nullsNotDistinct": false,
           "name": "auth_user_groups_user_id_group_id_94350c0c_uniq"
         }
@@ -668,12 +632,8 @@
           "tableFrom": "auth_user_user_permissions",
           "tableTo": "auth_user",
           "schemaTo": "public",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -682,12 +642,8 @@
           "tableFrom": "auth_user_user_permissions",
           "tableTo": "auth_permission",
           "schemaTo": "public",
-          "columnsFrom": [
-            "permission_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["permission_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -695,10 +651,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "auth_user_user_permissions_user_id_permission_id_14a6b632_uniq": {
-          "columns": [
-            "user_id",
-            "permission_id"
-          ],
+          "columns": ["user_id", "permission_id"],
           "nullsNotDistinct": false,
           "name": "auth_user_user_permissions_user_id_permission_id_14a6b632_uniq"
         }
@@ -811,12 +764,8 @@
           "tableFrom": "django_admin_log",
           "tableTo": "django_content_type",
           "schemaTo": "public",
-          "columnsFrom": [
-            "content_type_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["content_type_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -825,12 +774,8 @@
           "tableFrom": "django_admin_log",
           "tableTo": "auth_user",
           "schemaTo": "public",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -942,16 +887,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "store_name_key": {
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "nullsNotDistinct": false,
           "name": "store_name_key"
         },
         "store_code_key": {
-          "columns": [
-            "code"
-          ],
+          "columns": ["code"],
           "nullsNotDistinct": false,
           "name": "store_code_key"
         }
@@ -1043,12 +984,8 @@
           "tableFrom": "chatbot_widget_customization",
           "tableTo": "store",
           "schemaTo": "public",
-          "columnsFrom": [
-            "store_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["store_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1056,9 +993,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "chatbot_widget_customization_store_id_key": {
-          "columns": [
-            "store_id"
-          ],
+          "columns": ["store_id"],
           "nullsNotDistinct": false,
           "name": "chatbot_widget_customization_store_id_key"
         }
@@ -1141,12 +1076,8 @@
           "tableFrom": "chatbot_widget_customization_quick_actions",
           "tableTo": "chatbot_widget_customization",
           "schemaTo": "public",
-          "columnsFrom": [
-            "chatbotwidgetcustomization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["chatbotwidgetcustomization_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1155,12 +1086,8 @@
           "tableFrom": "chatbot_widget_customization_quick_actions",
           "tableTo": "quick_action",
           "schemaTo": "public",
-          "columnsFrom": [
-            "quickaction_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["quickaction_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1168,10 +1095,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "chatbot_widget_customiza_chatbotwidgetcustomizati_56a32df7_uniq": {
-          "columns": [
-            "chatbotwidgetcustomization_id",
-            "quickaction_id"
-          ],
+          "columns": ["chatbotwidgetcustomization_id", "quickaction_id"],
           "nullsNotDistinct": false,
           "name": "chatbot_widget_customiza_chatbotwidgetcustomizati_56a32df7_uniq"
         }
@@ -1322,12 +1246,8 @@
           "tableFrom": "quick_link",
           "tableTo": "chatbot_widget_customization",
           "schemaTo": "public",
-          "columnsFrom": [
-            "widget_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["widget_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1420,12 +1340,8 @@
           "tableFrom": "store_credentials",
           "tableTo": "store",
           "schemaTo": "public",
-          "columnsFrom": [
-            "store_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["store_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1433,9 +1349,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "store_credentials_store_id_key": {
-          "columns": [
-            "store_id"
-          ],
+          "columns": ["store_id"],
           "nullsNotDistinct": false,
           "name": "store_credentials_store_id_key"
         }
@@ -1520,12 +1434,8 @@
           "tableFrom": "store_faqs",
           "tableTo": "store",
           "schemaTo": "public",
-          "columnsFrom": [
-            "store_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["store_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1792,12 +1702,8 @@
           "tableFrom": "chat_address",
           "tableTo": "chat_customer",
           "schemaTo": "public",
-          "columnsFrom": [
-            "customer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["customer_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1907,12 +1813,8 @@
           "tableFrom": "chat_thread",
           "tableTo": "chat_customer",
           "schemaTo": "public",
-          "columnsFrom": [
-            "customer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["customer_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1921,12 +1823,8 @@
           "tableFrom": "chat_thread",
           "tableTo": "store",
           "schemaTo": "public",
-          "columnsFrom": [
-            "store_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["store_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2064,12 +1962,8 @@
           "tableFrom": "chatbot_feedback",
           "tableTo": "chat_history",
           "schemaTo": "public",
-          "columnsFrom": [
-            "chat_message_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["chat_message_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2078,12 +1972,8 @@
           "tableFrom": "chatbot_feedback",
           "tableTo": "chat_thread",
           "schemaTo": "public",
-          "columnsFrom": [
-            "thread_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["thread_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2176,12 +2066,8 @@
           "tableFrom": "chat_botevent",
           "tableTo": "chat_thread",
           "schemaTo": "public",
-          "columnsFrom": [
-            "thread_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["thread_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2356,12 +2242,8 @@
           "tableFrom": "chat_history",
           "tableTo": "chat_thread",
           "schemaTo": "public",
-          "columnsFrom": [
-            "thread_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["thread_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2461,12 +2343,8 @@
           "tableFrom": "ai_insights",
           "tableTo": "chat_thread",
           "schemaTo": "public",
-          "columnsFrom": [
-            "thread_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["thread_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2474,9 +2352,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "ai_insights_thread_id_key": {
-          "columns": [
-            "thread_id"
-          ],
+          "columns": ["thread_id"],
           "nullsNotDistinct": false,
           "name": "ai_insights_thread_id_key"
         }
@@ -2574,12 +2450,8 @@
           "tableFrom": "sentiment_analysis",
           "tableTo": "chat_thread",
           "schemaTo": "public",
-          "columnsFrom": [
-            "thread_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["thread_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2587,9 +2459,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "sentiment_analysis_thread_id_key": {
-          "columns": [
-            "thread_id"
-          ],
+          "columns": ["thread_id"],
           "nullsNotDistinct": false,
           "name": "sentiment_analysis_thread_id_key"
         }
@@ -2710,12 +2580,8 @@
           "tableFrom": "session_resolution_verdict",
           "tableTo": "store",
           "schemaTo": "public",
-          "columnsFrom": [
-            "store_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["store_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2724,12 +2590,8 @@
           "tableFrom": "session_resolution_verdict",
           "tableTo": "chat_thread",
           "schemaTo": "public",
-          "columnsFrom": [
-            "thread_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["thread_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2737,9 +2599,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "session_resolution_verdict_thread_id_key": {
-          "columns": [
-            "thread_id"
-          ],
+          "columns": ["thread_id"],
           "nullsNotDistinct": false,
           "name": "session_resolution_verdict_thread_id_key"
         }
@@ -2843,12 +2703,8 @@
           "tableFrom": "user_metadata",
           "tableTo": "chat_thread",
           "schemaTo": "public",
-          "columnsFrom": [
-            "thread_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["thread_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2856,9 +2712,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "user_metadata_thread_id_key": {
-          "columns": [
-            "thread_id"
-          ],
+          "columns": ["thread_id"],
           "nullsNotDistinct": false,
           "name": "user_metadata_thread_id_key"
         }
@@ -3132,12 +2986,8 @@
           "tableFrom": "support_ticket",
           "tableTo": "chat_customer",
           "schemaTo": "public",
-          "columnsFrom": [
-            "customer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["customer_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3146,12 +2996,8 @@
           "tableFrom": "support_ticket",
           "tableTo": "store",
           "schemaTo": "public",
-          "columnsFrom": [
-            "store_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["store_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3160,12 +3006,8 @@
           "tableFrom": "support_ticket",
           "tableTo": "chat_thread",
           "schemaTo": "public",
-          "columnsFrom": [
-            "thread_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["thread_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3173,9 +3015,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "support_ticket_ticket_id_key": {
-          "columns": [
-            "ticket_id"
-          ],
+          "columns": ["ticket_id"],
           "nullsNotDistinct": false,
           "name": "support_ticket_ticket_id_key"
         }
@@ -3265,12 +3105,8 @@
           "tableFrom": "_scrapeLinkslinks",
           "tableTo": "store",
           "schemaTo": "public",
-          "columnsFrom": [
-            "store_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["store_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3375,12 +3211,8 @@
           "tableFrom": "knowledge_storelibrarydocument",
           "tableTo": "store",
           "schemaTo": "public",
-          "columnsFrom": [
-            "store_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["store_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }

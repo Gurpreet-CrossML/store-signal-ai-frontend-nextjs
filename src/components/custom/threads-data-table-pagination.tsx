@@ -31,18 +31,20 @@ export function DataTablePagination<TData>({
   totalCount,
   noun = "thread",
 }: DataTablePaginationProps<TData>) {
-  const [{ pageIndex, pageSize }, setPagination] = useState(table.getState().pagination);
+  const [{ pageIndex, pageSize }, setPagination] = useState(
+    table.getState().pagination,
+  );
   const pageCount = table.getPageCount();
 
   const handlePageSizeChange = (newPageSize: number) => {
     table.setPageSize(newPageSize);
     setPagination((prev) => ({ ...prev, pageSize: newPageSize }));
-  }
+  };
 
   const handlePageIndexChange = (newPageIndex: number) => {
     table.setPageIndex(newPageIndex);
     setPagination((prev) => ({ ...prev, pageIndex: newPageIndex }));
-  }
+  };
 
   return (
     <div className="flex flex-col gap-4 px-2 py-3 sm:flex-row sm:items-center sm:justify-between">

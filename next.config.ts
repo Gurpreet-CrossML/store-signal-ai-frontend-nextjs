@@ -8,10 +8,10 @@ const nextConfig: NextConfig = {
     dangerouslyAllowLocalIP: true,
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'storesignal.ai',
-        port: '',
-        pathname: '/wp-content/**',
+        protocol: "https",
+        hostname: "storesignal.ai",
+        port: "",
+        pathname: "/wp-content/**",
       },
     ],
   },

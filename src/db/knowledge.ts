@@ -1,9 +1,9 @@
 import { db } from "@/lib/db";
 import {
-    store,
-    storeFaqs,
-    knowledgeStorelibrarydocument,
-    scrapeLinkslinks,
+  store,
+  storeFaqs,
+  knowledgeStorelibrarydocument,
+  scrapeLinkslinks,
 } from "@/lib/drizzle/schema";
 import { and, desc, eq, ilike } from "drizzle-orm";
 
@@ -21,26 +21,28 @@ import { and, desc, eq, ilike } from "drizzle-orm";
  */
 
 export type StoreRow = {
-    id: number;
-    code: string;
-    name: string;
-    platform: string;
+  id: number;
+  code: string;
+  name: string;
+  platform: string;
 };
 
 /** Store.objects.filter(code=store_code).first() */
-export async function get_store_by_code(store_code: string): Promise<StoreRow | null> {
-    const rows = await db
-        .select({
-            id: store.id,
-            code: store.code,
-            name: store.name,
-            platform: store.platform,
-        })
-        .from(store)
-        .where(eq(store.code, store_code))
-        .limit(1);
+export async function get_store_by_code(
+  store_code: string,
+): Promise<StoreRow | null> {
+  const rows = await db
+    .select({
+      id: store.id,
+      code: store.code,
+      name: store.name,
+      platform: store.platform,
+    })
+    .from(store)
+    .where(eq(store.code, store_code))
+    .limit(1);
 
-    return rows[0] ?? null;
+  return rows[0] ?? null;
 }
 
 /* ------------------------------------------------------------------ *
@@ -50,12 +52,12 @@ export async function get_store_by_code(store_code: string): Promise<StoreRow | 
  * ------------------------------------------------------------------ */
 
 export type StoreFaqRow = {
-    id: number;
-    store: string;
-    question: string;
-    answer: string;
-    created_at: string;
-    updated_at: string;
+  id: number;
+  store: string;
+  question: string;
+  answer: string;
+  created_at: string;
+  updated_at: string;
 };
 
 /**
@@ -67,27 +69,30 @@ export type StoreFaqRow = {
  * way the existing threads route does, via Paginator).
  */
 export async function list_store_faqs(
-    store_id: number,
-    store_code: string,
-    search?: string,
+  store_id: number,
+  store_code: string,
+  search?: string,
 ): Promise<StoreFaqRow[]> {
-    const where = search
-        ? and(eq(storeFaqs.storeId, store_id), ilike(storeFaqs.question, `%${search}%`))
-        : eq(storeFaqs.storeId, store_id);
+  const where = search
+    ? and(
+        eq(storeFaqs.storeId, store_id),
+        ilike(storeFaqs.question, `%${search}%`),
+      )
+    : eq(storeFaqs.storeId, store_id);
 
-    const rows = await db
-        .select({
-            id: storeFaqs.id,
-            question: storeFaqs.question,
-            answer: storeFaqs.answer,
-            created_at: storeFaqs.createdAt,
-            updated_at: storeFaqs.updatedAt,
-        })
-        .from(storeFaqs)
-        .where(where)
-        .orderBy(desc(storeFaqs.createdAt));
+  const rows = await db
+    .select({
+      id: storeFaqs.id,
+      question: storeFaqs.question,
+      answer: storeFaqs.answer,
+      created_at: storeFaqs.createdAt,
+      updated_at: storeFaqs.updatedAt,
+    })
+    .from(storeFaqs)
+    .where(where)
+    .orderBy(desc(storeFaqs.createdAt));
 
-    return rows.map((r) => ({ ...r, store: store_code }));
+  return rows.map((r) => ({ ...r, store: store_code }));
 }
 
 /* ------------------------------------------------------------------ *
@@ -96,14 +101,14 @@ export async function list_store_faqs(
  * ------------------------------------------------------------------ */
 
 export type LibraryDocumentRow = {
-    id: number;
-    name: string;
-    type: string;
-    size: number;
-    status: string;
-    path: string;
-    created_at: string;
-    updated_at: string;
+  id: number;
+  name: string;
+  type: string;
+  size: number;
+  status: string;
+  path: string;
+  created_at: string;
+  updated_at: string;
 };
 
 /**
@@ -112,22 +117,22 @@ export type LibraryDocumentRow = {
  * (no SearchFilter on the list view; returns all rows for in-memory pagination)
  */
 export async function list_library_documents(
-    store_id: number,
+  store_id: number,
 ): Promise<LibraryDocumentRow[]> {
-    return db
-        .select({
-            id: knowledgeStorelibrarydocument.id,
-            name: knowledgeStorelibrarydocument.name,
-            type: knowledgeStorelibrarydocument.type,
-            size: knowledgeStorelibrarydocument.size,
-            status: knowledgeStorelibrarydocument.status,
-            path: knowledgeStorelibrarydocument.path,
-            created_at: knowledgeStorelibrarydocument.createdAt,
-            updated_at: knowledgeStorelibrarydocument.updatedAt,
-        })
-        .from(knowledgeStorelibrarydocument)
-        .where(eq(knowledgeStorelibrarydocument.storeId, store_id))
-        .orderBy(desc(knowledgeStorelibrarydocument.createdAt));
+  return db
+    .select({
+      id: knowledgeStorelibrarydocument.id,
+      name: knowledgeStorelibrarydocument.name,
+      type: knowledgeStorelibrarydocument.type,
+      size: knowledgeStorelibrarydocument.size,
+      status: knowledgeStorelibrarydocument.status,
+      path: knowledgeStorelibrarydocument.path,
+      created_at: knowledgeStorelibrarydocument.createdAt,
+      updated_at: knowledgeStorelibrarydocument.updatedAt,
+    })
+    .from(knowledgeStorelibrarydocument)
+    .where(eq(knowledgeStorelibrarydocument.storeId, store_id))
+    .orderBy(desc(knowledgeStorelibrarydocument.createdAt));
 }
 
 /* ------------------------------------------------------------------ *
@@ -138,13 +143,13 @@ export async function list_library_documents(
  * ------------------------------------------------------------------ */
 
 export type ScrapeLinkRow = {
-    id: number;
-    store: { id: number; code: string; name: string; platform: string };
-    link_type: string;
-    url: string;
-    status: string;
-    created_at: string;
-    updated_at: string;
+  id: number;
+  store: { id: number; code: string; name: string; platform: string };
+  link_type: string;
+  url: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
 };
 
 /**
@@ -154,27 +159,27 @@ export type ScrapeLinkRow = {
  * NOT paginated.
  */
 export async function list_scrape_links(
-    storeRow: StoreRow,
+  storeRow: StoreRow,
 ): Promise<ScrapeLinkRow[]> {
-    const rows = await db
-        .select({
-            id: scrapeLinkslinks.id,
-            link_type: scrapeLinkslinks.linkType,
-            url: scrapeLinkslinks.url,
-            status: scrapeLinkslinks.status,
-            created_at: scrapeLinkslinks.createdAt,
-            updated_at: scrapeLinkslinks.updatedAt,
-        })
-        .from(scrapeLinkslinks)
-        .where(eq(scrapeLinkslinks.storeId, storeRow.id));
+  const rows = await db
+    .select({
+      id: scrapeLinkslinks.id,
+      link_type: scrapeLinkslinks.linkType,
+      url: scrapeLinkslinks.url,
+      status: scrapeLinkslinks.status,
+      created_at: scrapeLinkslinks.createdAt,
+      updated_at: scrapeLinkslinks.updatedAt,
+    })
+    .from(scrapeLinkslinks)
+    .where(eq(scrapeLinkslinks.storeId, storeRow.id));
 
-    return rows.map((r) => ({
-        ...r,
-        store: {
-            id: storeRow.id,
-            code: storeRow.code,
-            name: storeRow.name,
-            platform: storeRow.platform,
-        },
-    }));
+  return rows.map((r) => ({
+    ...r,
+    store: {
+      id: storeRow.id,
+      code: storeRow.code,
+      name: storeRow.name,
+      platform: storeRow.platform,
+    },
+  }));
 }

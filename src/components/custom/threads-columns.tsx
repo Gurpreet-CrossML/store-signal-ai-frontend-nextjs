@@ -15,7 +15,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { Thread } from "@/redux/api-slice/thread-slice";
-import Markdown from 'react-markdown';
+import Markdown from "react-markdown";
 
 // Absolute, localized date-time e.g. "May 30, 2026, 2:14 PM".
 function formatDateTime(value: string | null | undefined): string {
@@ -112,13 +112,11 @@ export const threadsColumns: ColumnDef<Thread>[] = [
           <span className="font-medium text-foreground">
             {customer?.name || "Anonymous"}
           </span>
-          {
-            customer?.email &&
+          {customer?.email && (
             <span className="text-xs text-muted-foreground">
               {customer?.email || "—"}
             </span>
-          }
-
+          )}
         </div>
       );
     },
@@ -162,9 +160,7 @@ export const threadsColumns: ColumnDef<Thread>[] = [
     header: "Last Message",
     cell: ({ row }) => (
       <span className="text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis *:truncate">
-        <Markdown>
-          {row.original.last_message || "—"}
-        </Markdown>
+        <Markdown>{row.original.last_message || "—"}</Markdown>
       </span>
     ),
   },

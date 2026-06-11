@@ -8,12 +8,12 @@ import { asc } from "drizzle-orm";
  * serialized with StoreListSerializer fields (id, name, code).
  */
 export async function list_stores() {
-    return db
-        .select({
-            id: store.id,
-            name: store.name,
-            code: store.code,
-        })
-        .from(store)
-        .orderBy(asc(store.name));
+  return db
+    .select({
+      id: store.id,
+      name: store.name,
+      code: store.code,
+    })
+    .from(store)
+    .orderBy(asc(store.name));
 }

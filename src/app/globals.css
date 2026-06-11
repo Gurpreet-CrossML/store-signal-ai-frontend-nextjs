@@ -124,7 +124,8 @@
   body {
     @apply bg-background text-foreground;
   }
-  button:not(:disabled), [role="button"]:not(:disabled) {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
     cursor: pointer;
   }
   html {
@@ -132,9 +133,9 @@
   }
 }
 
-div.editor-container__editor>ol,
-div.editor-container__editor>ul,
-div.editor-container__editor>menu,
+div.editor-container__editor > ol,
+div.editor-container__editor > ul,
+div.editor-container__editor > menu,
 div.editor-container__editor ol,
 div.editor-container__editor ul,
 div.editor-container__editor menu {
@@ -143,9 +144,9 @@ div.editor-container__editor menu {
   padding: revert;
 }
 
-div#markdown-answers>ol,
-div#markdown-answers>ul,
-div#markdown-answers>menu,
+div#markdown-answers > ol,
+div#markdown-answers > ul,
+div#markdown-answers > menu,
 div#markdown-answers ol,
 div#markdown-answers ul,
 div#markdown-answers menu {

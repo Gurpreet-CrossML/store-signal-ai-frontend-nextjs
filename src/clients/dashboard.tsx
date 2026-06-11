@@ -1,10 +1,17 @@
 "use client";
 
-import { CustomerInteractionLineChart, type Granularity } from "@/components/custom/customer-interaction-line-chart";
+import {
+  CustomerInteractionLineChart,
+  type Granularity,
+} from "@/components/custom/customer-interaction-line-chart";
 import { GuestVsSignedUserRadialChart } from "@/components/custom/guest-vs-signed-user-radial-chart";
 import { PerformanceRadialChart } from "@/components/custom/performance-radial-char";
 import { SentimentsPieChart } from "@/components/custom/sentiments-pie-chat";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   FetchFeedbackInsights,
   FetchConversation,
@@ -13,12 +20,11 @@ import {
   FetchUserMatrix,
   FetchConversionRate,
   FetchQueryCategoryInsights,
-  FetchConversationHistory
+  FetchConversationHistory,
 } from "@/redux/api-slice/dashboard-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-
 
 const toISODate = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -50,40 +56,50 @@ const InfoIcon = ({ text }: { text: string }) => (
 export default function Dashboard() {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
-    (state) => state.GetStoresReducer.selectedStore
+    (state) => state.GetStoresReducer.selectedStore,
   );
 
-  const { FetchFeedbackInsightsData, FetchFeedbackInsightsIsLoading } = useAppSelector(
-    (state) => state.GetDashboardReducer.FetchFeedbackInsightsState
-  );
+  const { FetchFeedbackInsightsData, FetchFeedbackInsightsIsLoading } =
+    useAppSelector(
+      (state) => state.GetDashboardReducer.FetchFeedbackInsightsState,
+    );
 
-  const { FetchConversationData, FetchConversationDataIsLoading } = useAppSelector(
-    (state) => state.GetDashboardReducer.FetchConversationDataState
-  );
+  const { FetchConversationData, FetchConversationDataIsLoading } =
+    useAppSelector(
+      (state) => state.GetDashboardReducer.FetchConversationDataState,
+    );
 
   const { FetchEngagementData, FetchEngagementDataIsLoading } = useAppSelector(
-    (state) => state.GetDashboardReducer.FetchEngagementDataState
+    (state) => state.GetDashboardReducer.FetchEngagementDataState,
   );
 
-  const { FetchOperationalEfficiencyData, FetchOperationalEfficiencyDataIsLoading } = useAppSelector(
-    (state) => state.GetDashboardReducer.FetchOperationalEfficiencyDataState
+  const {
+    FetchOperationalEfficiencyData,
+    FetchOperationalEfficiencyDataIsLoading,
+  } = useAppSelector(
+    (state) => state.GetDashboardReducer.FetchOperationalEfficiencyDataState,
   );
 
   const { FetchUserMatrixData, FetchUserMatrixIsLoading } = useAppSelector(
-    (state) => state.GetDashboardReducer.FetchUserMatrixState
+    (state) => state.GetDashboardReducer.FetchUserMatrixState,
   );
 
-  const { FetchConversionRateData, FetchConversionRateDataIsLoading } = useAppSelector(
-    (state) => state.GetDashboardReducer.FetchConversionRateDataState
+  const { FetchConversionRateData, FetchConversionRateDataIsLoading } =
+    useAppSelector(
+      (state) => state.GetDashboardReducer.FetchConversionRateDataState,
+    );
+
+  const {
+    FetchQueryCategoryInsightsData,
+    FetchQueryCategoryInsightsIsLoading,
+  } = useAppSelector(
+    (state) => state.GetDashboardReducer.FetchQueryCategoryInsightsState,
   );
 
-  const { FetchQueryCategoryInsightsData, FetchQueryCategoryInsightsIsLoading } = useAppSelector(
-    (state) => state.GetDashboardReducer.FetchQueryCategoryInsightsState
-  );
-
-  const { FetchConversationHistoryData, FetchConversationHistoryIsLoading } = useAppSelector(
-    (state) => state.GetDashboardReducer.FetchConversationHistoryState
-  );
+  const { FetchConversationHistoryData, FetchConversationHistoryIsLoading } =
+    useAppSelector(
+      (state) => state.GetDashboardReducer.FetchConversationHistoryState,
+    );
 
   const [granularity, setGranularity] = useState<Granularity>("hourly");
   const [from, setFrom] = useState(() => defaultRange("hourly").from);
@@ -109,7 +125,15 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!storeCode || !from || !to) return;
-    dispatch(FetchConversationHistory({ storeCode, from, to, granularity, aggregated: true }));
+    dispatch(
+      FetchConversationHistory({
+        storeCode,
+        from,
+        to,
+        granularity,
+        aggregated: true,
+      }),
+    );
   }, [dispatch, storeCode, from, to, granularity]);
 
   const performanceSummaryMetrics = [
@@ -182,17 +206,20 @@ export default function Dashboard() {
   const sentimentPieChartData = [
     {
       sentiment: "positive",
-      score: FetchFeedbackInsightsData?.feedback_distribution?.positive?.value || 0,
+      score:
+        FetchFeedbackInsightsData?.feedback_distribution?.positive?.value || 0,
       fill: "var(--color-positive)",
     },
     {
       sentiment: "neutral",
-      score: FetchFeedbackInsightsData?.feedback_distribution?.neutral?.value || 0,
+      score:
+        FetchFeedbackInsightsData?.feedback_distribution?.neutral?.value || 0,
       fill: "var(--color-neutral)",
     },
     {
       sentiment: "negative",
-      score: FetchFeedbackInsightsData?.feedback_distribution?.negative?.value || 0,
+      score:
+        FetchFeedbackInsightsData?.feedback_distribution?.negative?.value || 0,
       fill: "var(--color-negative)",
     },
   ];
@@ -200,27 +227,42 @@ export default function Dashboard() {
   const performanceRadialChartData = [
     {
       metric: "responseTime",
-      value: FetchFeedbackInsightsData?.performance_overview?.find((item) => item.metric === "Response Time")?.value || 0,
+      value:
+        FetchFeedbackInsightsData?.performance_overview?.find(
+          (item) => item.metric === "Response Time",
+        )?.value || 0,
       fill: "var(--color-responseTime)",
     },
     {
       metric: "resolutionRate",
-      value: FetchFeedbackInsightsData?.performance_overview?.find((item) => item.metric === "Resolution Rate")?.value || 0,
+      value:
+        FetchFeedbackInsightsData?.performance_overview?.find(
+          (item) => item.metric === "Resolution Rate",
+        )?.value || 0,
       fill: "var(--color-resolutionRate)",
     },
     {
       metric: "firstContact",
-      value: FetchFeedbackInsightsData?.performance_overview?.find((item) => item.metric === "First Contact")?.value || 0,
+      value:
+        FetchFeedbackInsightsData?.performance_overview?.find(
+          (item) => item.metric === "First Contact",
+        )?.value || 0,
       fill: "var(--color-firstContact)",
     },
     {
       metric: "satisfaction",
-      value: FetchFeedbackInsightsData?.performance_overview?.find((item) => item.metric === "Satisfaction")?.value || 0,
+      value:
+        FetchFeedbackInsightsData?.performance_overview?.find(
+          (item) => item.metric === "Satisfaction",
+        )?.value || 0,
       fill: "var(--color-satisfaction)",
     },
     {
       metric: "effortScore",
-      value: FetchFeedbackInsightsData?.performance_overview?.find((item) => item.metric === "Effort Score")?.value || 0,
+      value:
+        FetchFeedbackInsightsData?.performance_overview?.find(
+          (item) => item.metric === "Effort Score",
+        )?.value || 0,
       fill: "var(--color-effortScore)",
     },
   ];
@@ -230,10 +272,11 @@ export default function Dashboard() {
       month: "january",
       guest: FetchUserMatrixData?.guest_user || 0,
       signed: FetchUserMatrixData?.signed_user || 0,
-    }
-  ]
+    },
+  ];
 
-  const conversationHistoryChartData = FetchConversationHistoryData?.points ?? [];
+  const conversationHistoryChartData =
+    FetchConversationHistoryData?.points ?? [];
 
   return (
     <>
@@ -288,5 +331,5 @@ export default function Dashboard() {
         />
       </div>
     </>
-  )
+  );
 }

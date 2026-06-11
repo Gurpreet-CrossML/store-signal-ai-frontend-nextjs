@@ -67,9 +67,9 @@ export function ThreadsDataTable<TData, TValue>({
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -96,12 +96,17 @@ export function ThreadsDataTable<TData, TValue>({
                   className="cursor-pointer hover:bg-accent/50 data-[state=selected]:bg-accent"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}
-                      className={cell.column.id === "last_message" ? "max-w-[180px] truncate" : ""}
+                    <TableCell
+                      key={cell.id}
+                      className={
+                        cell.column.id === "last_message"
+                          ? "max-w-[180px] truncate"
+                          : ""
+                      }
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext()
+                        cell.getContext(),
                       )}
                     </TableCell>
                   ))}

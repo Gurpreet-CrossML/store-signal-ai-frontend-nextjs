@@ -9,28 +9,28 @@ import type { NextApiRequest, NextApiResponse } from "next";
  * thread" with data {} (HTTP 200), mirroring the Django view.
  */
 export default async function handler(
-    req: NextApiRequest,
-    res: NextApiResponse<APIResponse>,
+  req: NextApiRequest,
+  res: NextApiResponse<APIResponse>,
 ) {
-    if (req.method !== "GET") {
-        return res
-            .status(405)
-            .json(createAPIResponse(false, "Method Not Allowed", null));
-    }
-
-    const { thread_id } = req.query;
-
-    const data = await get_ai_insights(thread_id as string);
-
-    if (!data) {
-        return res
-            .status(200)
-            .json(
-                createAPIResponse(true, "No AI Insights found for this thread", {}),
-            );
-    }
-
+  if (req.method !== "GET") {
     return res
-        .status(200)
-        .json(createAPIResponse(true, "AI Insights retrieved successfully", data));
+      .status(405)
+      .json(createAPIResponse(false, "Method Not Allowed", null));
+  }
+
+  const { thread_id } = req.query;
+
+  const data = await get_ai_insights(thread_id as string);
+
+  if (!data) {
+    return res
+      .status(200)
+      .json(
+        createAPIResponse(true, "No AI Insights found for this thread", {}),
+      );
+  }
+
+  return res
+    .status(200)
+    .json(createAPIResponse(true, "AI Insights retrieved successfully", data));
 }
