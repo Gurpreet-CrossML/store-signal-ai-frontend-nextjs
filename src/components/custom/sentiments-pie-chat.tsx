@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Label, Pie, PieChart } from "recharts"
+import * as React from "react";
+import { Label, Pie, PieChart } from "recharts";
 
 import {
   Card,
@@ -9,7 +9,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   ChartContainer,
   ChartLegend,
@@ -17,9 +17,10 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from "@/components/ui/chart"
+} from "@/components/ui/chart";
 
-export const description = "A pie chart showing the distribution of customer feedback sentiments (positive, neutral, negative) based on the FetchFeedbackInsights API data."
+export const description =
+  "A pie chart showing the distribution of customer feedback sentiments (positive, neutral, negative) based on the FetchFeedbackInsights API data.";
 
 const chartConfig = {
   positive: {
@@ -34,11 +35,13 @@ const chartConfig = {
     label: "Negative",
     color: "hsl(0, 84%, 60%)",
   },
-} satisfies ChartConfig
+} satisfies ChartConfig;
 
-export function SentimentsPieChart(
-  { data }: { data: { sentiment: string, score: number, fill: string }[] }
-) {
+export function SentimentsPieChart({
+  data,
+}: {
+  data: { sentiment: string; score: number; fill: string }[];
+}) {
   return (
     <Card className="flex flex-col">
       <CardHeader className="items-center pb-0">
@@ -70,5 +73,5 @@ export function SentimentsPieChart(
         </ChartContainer>
       </CardContent>
     </Card>
-  )
+  );
 }

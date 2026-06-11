@@ -16,11 +16,11 @@ import ThreadFilteration, {
 export default function Threads() {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
-    (state) => state.GetStoresReducer.selectedStore
+    (state) => state.GetStoresReducer.selectedStore,
   );
 
   const { FetchThreadsListData, FetchThreadsIsLoading } = useAppSelector(
-    (state) => state.GetThreadReducer.FetchThreadsState
+    (state) => state.GetThreadReducer.FetchThreadsState,
   );
 
   // Controlled, server-side pagination. Defaults to 15 rows per page.
@@ -29,26 +29,25 @@ export default function Threads() {
     pageSize: 15,
   });
 
-  const [filters, setFilters] = useState<ThreadFilterState>(DEFAULT_THREAD_FILTERS);
+  const [filters, setFilters] = useState<ThreadFilterState>(
+    DEFAULT_THREAD_FILTERS,
+  );
 
   // Debounce the free-text search so we don't refetch on every keystroke.
   const debouncedSearch = useDebounce(filters.search.trim());
 
-  // Reset to the first page whenever the store changes.
-  useEffect(() => {
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [storeCode]);
-
-  // Reset to the first page whenever any active filter changes (render-phase, so
-  // the fetch effect below always sees page 0 for a new filter set).
+  // Reset to the first page whenever the store or any active filter changes
+  // (render-phase, so the fetch effect below always sees page 0 for a new set).
   const filterSignature = JSON.stringify([
+    storeCode,
     debouncedSearch,
     filters.is_active,
     filters.user_type,
     filters.has_ticket,
     filters.has_feedback,
   ]);
-  const [prevFilterSignature, setPrevFilterSignature] = useState(filterSignature);
+  const [prevFilterSignature, setPrevFilterSignature] =
+    useState(filterSignature);
   if (filterSignature !== prevFilterSignature) {
     setPrevFilterSignature(filterSignature);
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
@@ -71,7 +70,7 @@ export default function Threads() {
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
         filters: activeFilters,
-      })
+      }),
     );
   }, [
     dispatch,
@@ -87,7 +86,7 @@ export default function Threads() {
 
   const rows = useMemo(
     () => FetchThreadsListData?.results ?? [],
-    [FetchThreadsListData]
+    [FetchThreadsListData],
   );
 
   return (

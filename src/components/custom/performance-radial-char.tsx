@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { LabelList, RadialBar, RadialBarChart } from "recharts"
+import { LabelList, RadialBar, RadialBarChart } from "recharts";
 
 import {
   Card,
@@ -8,15 +8,15 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from "@/components/ui/chart"
+} from "@/components/ui/chart";
 
-export const description = ""
+export const description = "";
 
 const chartConfig = {
   responseTime: {
@@ -39,9 +39,13 @@ const chartConfig = {
     label: "Effort Score",
     color: "var(--chart-5)",
   },
-} satisfies ChartConfig
+} satisfies ChartConfig;
 
-export function PerformanceRadialChart({ chartData }: { chartData: { metric: string, value: number, fill: string }[] }) {
+export function PerformanceRadialChart({
+  chartData,
+}: {
+  chartData: { metric: string; value: number; fill: string }[];
+}) {
   return (
     <Card className="flex flex-col">
       <CardHeader className="items-center pb-0">
@@ -76,5 +80,5 @@ export function PerformanceRadialChart({ chartData }: { chartData: { metric: str
         </ChartContainer>
       </CardContent>
     </Card>
-  )
+  );
 }

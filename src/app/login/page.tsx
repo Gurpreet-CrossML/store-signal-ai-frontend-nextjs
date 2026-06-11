@@ -1,13 +1,13 @@
 import Login from "@/clients/login";
 
 export const metadata = {
-    title: "Login",
+  title: "Login",
 };
 
 export default function Page() {
-    return (
-        <>
-            <Login />
-        </>
-    );
+  return (
+    <>
+      <Login />
+    </>
+  );
 }

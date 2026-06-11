@@ -11,179 +11,193 @@ import { Spinner } from "@/components/ui/spinner";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetFooter,
-    SheetHeader,
-    SheetTitle,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
 } from "@/components/ui/sheet";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
-    CreateStoreFaq,
-    UpdateStoreFaq,
-    type StoreFaq,
+  CreateStoreFaq,
+  UpdateStoreFaq,
+  type StoreFaq,
 } from "@/redux/api-slice/knowledge-slice";
 
 // CKEditor touches the DOM at import time, so load it client-side only.
 const CKEditorTextArea = dynamic(() => import("./ckeditor-text-area"), {
-    ssr: false,
+  ssr: false,
 });
 
 const validationSchema = z.object({
-    question: z.string().trim().min(1, "Question is required"),
-    answer: z.string().trim().min(1, "Answer is required"),
+  question: z.string().trim().min(1, "Question is required"),
+  answer: z.string().trim().min(1, "Answer is required"),
 });
 
 type StoreFaqFormProps = {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    storeCode: string;
-    faq?: StoreFaq | null;
-    onSaved: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  storeCode: string;
+  faq?: StoreFaq | null;
+  onSaved: () => void;
 };
 
 export default function StoreFaqForm({
-    open,
-    onOpenChange,
-    storeCode,
-    faq,
-    onSaved,
+  open,
+  onOpenChange,
+  storeCode,
+  faq,
+  onSaved,
 }: StoreFaqFormProps) {
-    const dispatch = useAppDispatch();
-    const isEditing = Boolean(faq?.id);
+  const dispatch = useAppDispatch();
+  const isEditing = Boolean(faq?.id);
 
-    const { CreateStoreFaqIsLoading } = useAppSelector(
-        (state) => state.GetKnowledgeReducer.CreateStoreFaqState
-    );
-    const { UpdateStoreFaqIsLoading } = useAppSelector(
-        (state) => state.GetKnowledgeReducer.UpdateStoreFaqState
-    );
-    const isSaving = CreateStoreFaqIsLoading || UpdateStoreFaqIsLoading;
+  const { CreateStoreFaqIsLoading } = useAppSelector(
+    (state) => state.GetKnowledgeReducer.CreateStoreFaqState,
+  );
+  const { UpdateStoreFaqIsLoading } = useAppSelector(
+    (state) => state.GetKnowledgeReducer.UpdateStoreFaqState,
+  );
+  const isSaving = CreateStoreFaqIsLoading || UpdateStoreFaqIsLoading;
 
-    const formik = useFormik({
-        enableReinitialize: true,
-        initialValues: {
-            question: faq?.question ?? "",
-            answer: faq?.answer ?? "",
-        },
-        validate: (values) => {
-            const result = validationSchema.safeParse(values);
-            if (result.success) return {};
-            return Object.fromEntries(
-                result.error.issues.map((issue) => [issue.path.join("."), issue.message])
-            );
-        },
-        onSubmit: async (values) => {
-            const result = isEditing
-                ? await dispatch(
-                      UpdateStoreFaq({
-                          store_code: storeCode,
-                          id: faq!.id,
-                          question: values.question,
-                          answer: values.answer,
-                      })
-                  )
-                : await dispatch(
-                      CreateStoreFaq({
-                          store_code: storeCode,
-                          question: values.question,
-                          answer: values.answer,
-                      })
-                  );
+  const formik = useFormik({
+    enableReinitialize: true,
+    initialValues: {
+      question: faq?.question ?? "",
+      answer: faq?.answer ?? "",
+    },
+    validate: (values) => {
+      const result = validationSchema.safeParse(values);
+      if (result.success) return {};
+      return Object.fromEntries(
+        result.error.issues.map((issue) => [
+          issue.path.join("."),
+          issue.message,
+        ]),
+      );
+    },
+    onSubmit: async (values) => {
+      const result = isEditing
+        ? await dispatch(
+            UpdateStoreFaq({
+              store_code: storeCode,
+              id: faq!.id,
+              question: values.question,
+              answer: values.answer,
+            }),
+          )
+        : await dispatch(
+            CreateStoreFaq({
+              store_code: storeCode,
+              question: values.question,
+              answer: values.answer,
+            }),
+          );
 
-            const succeeded = isEditing
-                ? UpdateStoreFaq.fulfilled.match(result)
-                : CreateStoreFaq.fulfilled.match(result);
+      const succeeded = isEditing
+        ? UpdateStoreFaq.fulfilled.match(result)
+        : CreateStoreFaq.fulfilled.match(result);
 
-            if (succeeded) {
-                onSaved();
-                onOpenChange(false);
-            }
-        },
-    });
+      if (succeeded) {
+        onSaved();
+        onOpenChange(false);
+      }
+    },
+  });
 
-    useEffect(() => {
-        if (open) formik.resetForm();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, faq?.id]);
+  useEffect(() => {
+    if (open) formik.resetForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, faq?.id]);
 
-    return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="gap-0 sm:max-w-md">
-                <SheetHeader>
-                    <SheetTitle>{isEditing ? "Edit Quick Q&A" : "Add Quick Q&A"}</SheetTitle>
-                    <SheetDescription>
-                        {isEditing
-                            ? "Update the question and answer your chatbot uses to respond."
-                            : "Add a quick question and answer to help your chatbot respond faster."}
-                    </SheetDescription>
-                </SheetHeader>
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="gap-0 sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>
+            {isEditing ? "Edit Quick Q&A" : "Add Quick Q&A"}
+          </SheetTitle>
+          <SheetDescription>
+            {isEditing
+              ? "Update the question and answer your chatbot uses to respond."
+              : "Add a quick question and answer to help your chatbot respond faster."}
+          </SheetDescription>
+        </SheetHeader>
 
-                <form onSubmit={formik.handleSubmit} className="flex min-h-0 flex-1 flex-col">
-                    <FieldGroup className="flex-1 overflow-y-auto px-4">
-                        <Field>
-                            <FieldLabel htmlFor="question">Question</FieldLabel>
-                            <Input
-                                id="question"
-                                name="question"
-                                placeholder="What is your return policy?"
-                                autoComplete="off"
-                                aria-invalid={Boolean(formik.touched.question && formik.errors.question)}
-                                onChange={formik.handleChange}
-                                onBlur={formik.handleBlur}
-                                value={formik.values.question}
-                            />
-                            {formik.touched.question && formik.errors.question && (
-                                <p className="text-xs text-destructive">{formik.errors.question}</p>
-                            )}
-                        </Field>
+        <form
+          onSubmit={formik.handleSubmit}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <FieldGroup className="flex-1 overflow-y-auto px-4">
+            <Field>
+              <FieldLabel htmlFor="question">Question</FieldLabel>
+              <Input
+                id="question"
+                name="question"
+                placeholder="What is your return policy?"
+                autoComplete="off"
+                aria-invalid={Boolean(
+                  formik.touched.question && formik.errors.question,
+                )}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                value={formik.values.question}
+              />
+              {formik.touched.question && formik.errors.question && (
+                <p className="text-xs text-destructive">
+                  {formik.errors.question}
+                </p>
+              )}
+            </Field>
 
-                        <Field>
-                            <FieldLabel htmlFor="answer">Answer</FieldLabel>
-                            <CKEditorTextArea
-                                id="answer"
-                                placeholder="Our return policy is 30 days with a receipt."
-                                value={formik.values.answer}
-                                useMarkdown
-                                onChange={(value) => {
-                                    formik.setFieldValue("answer", value);
-                                    if (!formik.touched.answer) {
-                                        formik.setFieldTouched("answer", true, false);
-                                    }
-                                }}
-                            />
-                            {formik.touched.answer && formik.errors.answer && (
-                                <p className="text-xs text-destructive">{formik.errors.answer}</p>
-                            )}
-                        </Field>
-                    </FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="answer">Answer</FieldLabel>
+              <CKEditorTextArea
+                id="answer"
+                placeholder="Our return policy is 30 days with a receipt."
+                value={formik.values.answer}
+                useMarkdown
+                onChange={(value) => {
+                  formik.setFieldValue("answer", value);
+                  if (!formik.touched.answer) {
+                    formik.setFieldTouched("answer", true, false);
+                  }
+                }}
+              />
+              {formik.touched.answer && formik.errors.answer && (
+                <p className="text-xs text-destructive">
+                  {formik.errors.answer}
+                </p>
+              )}
+            </Field>
+          </FieldGroup>
 
-                    <SheetFooter>
-                        <Button type="submit" disabled={isSaving || !formik.dirty}>
-                            {isSaving ? (
-                                <>
-                                    <Spinner data-icon="inline-start" />
-                                    {isEditing ? "Updating..." : "Saving..."}
-                                </>
-                            ) : (
-                                <>
-                                    <IconDeviceFloppy />
-                                    {isEditing ? "Update" : "Save"}
-                                </>
-                            )}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={isSaving}
-                            onClick={() => onOpenChange(false)}
-                        >
-                            Cancel
-                        </Button>
-                    </SheetFooter>
-                </form>
-            </SheetContent>
-        </Sheet>
-    );
+          <SheetFooter>
+            <Button type="submit" disabled={isSaving || !formik.dirty}>
+              {isSaving ? (
+                <>
+                  <Spinner data-icon="inline-start" />
+                  {isEditing ? "Updating..." : "Saving..."}
+                </>
+              ) : (
+                <>
+                  <IconDeviceFloppy />
+                  {isEditing ? "Update" : "Save"}
+                </>
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
 }
