@@ -81,7 +81,7 @@ export default function CustomizationLivePreview({
                                         <IconX className="size-5 text-slate-400" />
                                     </div>
 
-                                    <div className="max-h-[65vh] space-y-4 overflow-y-auto p-4">
+                                    <div className="max-h-[65vh] h-[60vh]! space-y-4 overflow-y-auto p-4">
                                         <p className="px-2 text-sm font-medium text-slate-800">{welcomeMessage}</p>
 
                                         {actionButtons.length > 0 && (
@@ -155,14 +155,13 @@ export default function CustomizationLivePreview({
                                             <p className="text-sm font-semibold text-slate-900">Your Support Team</p>
                                         </div>
                                         <div className="flex items-center gap-1 text-slate-600">
-                                            <span className="inline-flex size-9 items-center justify-center rounded-full transition hover:bg-slate-100"><IconPlus className="size-4" /></span>
                                             <span className="inline-flex size-9 items-center justify-center rounded-full transition hover:bg-slate-100"><IconVolume className="size-4" /></span>
                                             <span className="inline-flex size-9 items-center justify-center rounded-full transition hover:bg-slate-100"><IconMaximize className="size-4" /></span>
                                             <span className="inline-flex size-9 items-center justify-center rounded-full transition hover:bg-slate-100"><IconX className="size-4" /></span>
                                         </div>
                                     </div>
 
-                                    <div className="flex max-h-[65vh] flex-col overflow-hidden">
+                                    <div className="flex max-h-[65vh] h-[60vh]! flex-col overflow-hidden">
                                         <div className="flex-1 overflow-y-auto bg-white p-4">
                                             <div
                                                 className="w-fit max-w-[86%] rounded-2xl px-4 py-2 text-sm text-slate-900"
@@ -191,7 +190,7 @@ export default function CustomizationLivePreview({
                                         </div>
 
                                         <div className="bg-white p-3">
-                                            <div className="rounded-3xl border-2 border-slate-900 bg-white px-4 pt-3 pb-2">
+                                            <div className="rounded-3xl border border-slate-300 bg-white px-4 pt-3 pb-2">
                                                 <input
                                                     type="text"
                                                     placeholder="Message..."

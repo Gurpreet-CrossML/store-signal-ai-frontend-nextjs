@@ -67,7 +67,6 @@ export const FetchStoreFaqs = createAsyncThunk(
             );
             const data = response.data.data;
 
-            toast.success(response?.data?.message || "FAQs fetched successfully!");
             return data;
         } catch (error) {
             const response = isAxiosError(error) ? error.response : undefined;
@@ -172,7 +171,6 @@ export const FetchLibraryDocuments = createAsyncThunk(
             );
             const data = response.data.data;
 
-            toast.success(response?.data?.message || "Library documents fetched successfully!");
             return data;
         } catch (error) {
             const response = isAxiosError(error) ? error.response : undefined;
@@ -231,7 +229,6 @@ export const FetchStorePolicies = createAsyncThunk(
             );
             const data = response.data.data;
 
-            toast.success(response?.data?.message || "Store policies fetched successfully!");
             return data;
         } catch (error) {
             const response = isAxiosError(error) ? error.response : undefined;
@@ -285,7 +282,6 @@ export const FetchStorePolicyType = createAsyncThunk(
             )
             const data = response.data.data;
 
-            toast.success(response?.data?.message || "Store policy types fetched successfully!");
             return data;
         } catch (error) {
             const response = isAxiosError(error) ? error.response : undefined;

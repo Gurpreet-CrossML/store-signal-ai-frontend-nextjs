@@ -1,13 +1,22 @@
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000";
+const DJANGO_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000";
+const LOCAL_BASE_URL = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
 
-export function createAPIUrl(path?: string) {
-    const baseUrl = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
+export type APITarget = "django" | "local";
+
+/**
+ * Build an API URL against the requested backend.
+ *  - target "django": the Django backend.
+ *  - target "local" (default): this Next.js app's own /api routes.
+ */
+export function createAPIUrl(path?: string, target: APITarget = "local") {
+    const rawBase = target === "django" ? DJANGO_BASE_URL : LOCAL_BASE_URL;
+    const baseUrl = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
     const formattedPath = path ? (path.startsWith("/") ? path : `/${path}`) : "";
     return `${baseUrl}/api${formattedPath}`;
 }
 
 export const ENDPOINTS = {
-    login: () => createAPIUrl("/auth/login/"),
+    login: () => createAPIUrl("/auth/login/", "django"),
 
     // Store Management
     fetchStoresList: () => "/store/list/",
@@ -21,7 +30,7 @@ export const ENDPOINTS = {
     fetchConversaionRateData: () => "/analytics/conversion-rate/",
     fetchQueryCategoryInsights: () => "/analytics/query-category-insights/",
     fetchConversationHistory: () => "/analytics/chat-history/",
-    
+
     // Thread-level Analytics
     fetchThreads: () => "/analytics/threads/",
     fetchThreadDetails: (threadId: string) => `/analytics/threads/${threadId}/`,
@@ -46,4 +55,26 @@ export const ENDPOINTS = {
     fetchScrapeLinkTypes: () => `/knowledge/scrape-links/types`,
     createScrapeLink: () => `/knowledge/scrape-links/`,
     fetchScrapeLink: () => `/knowledge/scrape-links/`,
+}
+
+// Default page size, mirroring DRF's PageNumberPagination.page_size.
+export const DEFAULT_API_PAGE_SIZE = 15;
+
+// Define a type for paginated API responses
+export type PaginationResponse = {
+    count: number;
+    next?: string | null;
+    previous?: string | null;
+    results?: object[];
+}
+
+export type ErrorResponse = {
+    error: string;
+}
+
+// Define a common type for API responses
+export type APIResponse = {
+    success: boolean;
+    message?: string;
+    data?: object | object[] | PaginationResponse | ErrorResponse | null;
 }

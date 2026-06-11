@@ -203,8 +203,6 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
             );
             const data = response.data.data;
 
-            toast.success(response?.data?.message || "Threads fetched successfully!");
-
             return data;
         } catch (error) {
             const response = isAxiosError(error) ? error.response : undefined;
@@ -228,8 +226,6 @@ export const FetchThreadDetails = createAsyncThunk(
                 ENDPOINTS.fetchThreadDetails(threadId)
             );
             const data = response.data.data;
-
-            toast.success(response?.data?.message || "Thread details fetched successfully!");
 
             return data;
         } catch (error) {
@@ -255,8 +251,6 @@ export const FetchUserMetadata = createAsyncThunk(
             );
             const data = response.data.data;
 
-            toast.success(response?.data?.message || "User metadata fetched successfully!");
-
             return data;
         } catch (error) {
             const response = isAxiosError(error) ? error.response : undefined;
@@ -280,8 +274,6 @@ export const FetchConversationSummary = createAsyncThunk(
                 ENDPOINTS.fetchConversationSummary(threadId)
             );
             const data = response.data.data;
-
-            toast.success(response?.data?.message || "Conversation summary fetched successfully!");
 
             return data;
         } catch (error) {
@@ -307,8 +299,6 @@ export const FetchFeedbackSequence = createAsyncThunk(
             );
             const data = response.data.data;
 
-            toast.success(response?.data?.message || "Feedback sequence fetched successfully!");
-
             return data;
         } catch (error) {
             const response = isAxiosError(error) ? error.response : undefined;
@@ -332,8 +322,6 @@ export const FetchTags = createAsyncThunk(
                 ENDPOINTS.fetchTags(threadId)
             );
             const data = response.data.data;
-
-            toast.success(response?.data?.message || "Tags fetched successfully!");
 
             return data;
         } catch (error) {
@@ -359,8 +347,6 @@ export const FetchAIInsight = createAsyncThunk(
             );
             const data = response.data.data;
 
-            toast.success(response?.data?.message || "AI insights fetched successfully!");
-
             return data;
         } catch (error) {
             const response = isAxiosError(error) ? error.response : undefined;
@@ -385,17 +371,18 @@ export const FetchCart = createAsyncThunk(
             );
             const data = response.data.data;
 
-            toast.success(response?.data?.message || "Cart data fetched successfully!");
-
             return data;
         } catch (error) {
             const response = isAxiosError(error) ? error.response : undefined;
             const data = response?.data;
 
-            toast.error("Uh oh! Something went wrong.", {
-                description:
-                    data?.message || "Unable to fetch the cart data, please try again later.",
-            });
+            // A 404 simply means no cart data exists for this thread — not an error worth surfacing.
+            if (response?.status !== 404) {
+                toast.error("Uh oh! Something went wrong.", {
+                    description:
+                        data?.message || "Unable to fetch the cart data, please try again later.",
+                });
+            }
 
             return thunkAPI.rejectWithValue(data || "Something went wrong");
         }
@@ -410,8 +397,6 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
                 ENDPOINTS.fetchFreshdeskTicketId(threadId)
             );
             const data = response.data.data;
-
-            toast.success(response?.data?.message || "Freshdesk ticket ID fetched successfully!");
 
             return data;
         } catch (error) {

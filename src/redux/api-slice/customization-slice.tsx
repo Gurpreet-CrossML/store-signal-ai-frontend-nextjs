@@ -59,7 +59,11 @@ export const FetchWidgetCustomization = createAsyncThunk(
     "customization/fetchWidgetCustomization",
     async (storeId: number, thunkAPI) => {
         try {
-            const response = await axiosInstance.get(`${ENDPOINTS.widgetCustomization(storeId)}`);
+            // Widget customization is not ported to the Next.js API — read it
+            // from the Django backend.
+            const response = await axiosInstance.get(`${ENDPOINTS.widgetCustomization(storeId)}`, {
+                useBackend: true,
+            });
             const data = response.data.data;
 
             return data;

@@ -59,8 +59,6 @@ export const FetchFeedbackInsights = createAsyncThunk(
         const response = await axiosInstance.get(`${ENDPOINTS.fetchFeedbackInsights()}?store_code=${args.storeCode}`);
         const data = response.data.data;
 
-        toast.success(response?.data?.message || "Feedback insights fetched successfully!");
-
         return data;
     } catch (error) {
         const response = isAxiosError(error) ? error.response : undefined;
@@ -81,8 +79,6 @@ export const FetchConversation = createAsyncThunk(
     try {
         const response = await axiosInstance.get(`${ENDPOINTS.fetchConversationData()}?store_code=${args.storeCode}`);
         const data = response.data.data;
-
-        toast.success(response?.data?.message || "Conversation data fetched successfully!");
 
         return data;
     } catch (error) {
@@ -105,8 +101,6 @@ export const FetchEngagement = createAsyncThunk(
         const response = await axiosInstance.get(`${ENDPOINTS.fetchEngagementData()}?store_code=${args.storeCode}`);
         const data = response.data.data;
 
-        toast.success(response?.data?.message || "Engagement data fetched successfully!");
-
         return data;
     } catch (error) {
         const response = isAxiosError(error) ? error.response : undefined;
@@ -127,8 +121,6 @@ export const FetchOperationalEfficiency = createAsyncThunk(
     try {
         const response = await axiosInstance.get(`${ENDPOINTS.fetchOperationalEfficiencyData()}?store_code=${args.storeCode}`);
         const data = response.data.data;
-
-        toast.success(response?.data?.message || "Operational efficiency data fetched successfully!");
 
         return data;
     } catch (error) {
@@ -151,8 +143,6 @@ export const FetchUserMatrix = createAsyncThunk(
         const response = await axiosInstance.get(`${ENDPOINTS.fetchUserMatrix()}?store_code=${args.storeCode}`);
         const data = response.data.data;
 
-        toast.success(response?.data?.message || "User matrix data fetched successfully!");
-
         return data;
     } catch (error) {
         const response = isAxiosError(error) ? error.response : undefined;
@@ -173,8 +163,6 @@ export const FetchConversionRate = createAsyncThunk(
     try {
         const response = await axiosInstance.get(`${ENDPOINTS.fetchConversaionRateData()}?store_code=${args.storeCode}`);
         const data = response.data.data;
-
-        toast.success(response?.data?.message || "Conversion rate data fetched successfully!");
 
         return data;
     } catch (error) {
@@ -197,8 +185,6 @@ export const FetchQueryCategoryInsights = createAsyncThunk(
         const response = await axiosInstance.get(`${ENDPOINTS.fetchQueryCategoryInsights()}?store_code=${args.storeCode}`);
         const data = response.data.data;
 
-        toast.success(response?.data?.message || "Query category insights fetched successfully!");
-
         return data;
     } catch (error) {
         const response = isAxiosError(error) ? error.response : undefined;
@@ -219,8 +205,6 @@ export const FetchConversationHistory = createAsyncThunk(
     try {
         const response = await axiosInstance.get(`${ENDPOINTS.fetchConversationHistory()}?store_code=${args.storeCode}&from=${args.from}&to=${args.to}&granularity=${args.granularity}&aggregated=${args.aggregated}`);
         const data = response.data.data;
-
-        toast.success(response?.data?.message || "Conversation history fetched successfully!");
 
         return data;
     } catch (error) {
