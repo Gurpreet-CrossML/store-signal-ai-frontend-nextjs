@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "fetch-rds-ca": "curl -fsSL https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o global-bundle.pem",
+    "postinstall": "npm run fetch-rds-ca"
   },
   "dependencies": {
     "@ckeditor/ckeditor5-react": "^11.1.2",
