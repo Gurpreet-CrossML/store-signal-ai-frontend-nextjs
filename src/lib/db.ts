@@ -18,7 +18,9 @@ export const db = drizzle({
   connection: {
     connectionString: databaseUrl.toString(),
     ssl: {
-      ca: fs.readFileSync(path.join(process.cwd(), "global-bundle.pem")).toString(),
+      ca: fs
+        .readFileSync(path.join(process.cwd(), "global-bundle.pem"))
+        .toString(),
       rejectUnauthorized: true,
       checkServerIdentity: () => undefined,
     },
