@@ -1,18 +1,26 @@
 "use server";
 
 import { drizzle } from "drizzle-orm/node-postgres";
+import fs from "fs";
+import path from "path";
 
-// The current pg-connection-string treats sslmode=require/prefer as `verify-full`,
-// which breaks managed Postgres like Neon with UNABLE_TO_GET_ISSUER_CERT_LOCALLY in
-// runtimes that can't resolve the issuer cert — even though these modes historically
-// meant "encrypt, but don't verify the cert". Map them back to `no-verify` to restore
-// that behaviour, while leaving `disable` (plain TCP) and the explicit verify-ca/
-// verify-full modes untouched, so each host's sslmode in DATABASE_URL still wins.
+// The database is an Amazon RDS instance reached through an nginx TCP passthrough,
+// so it presents RDS's own certificate (CN: *.rds.amazonaws.com) — which never
+// matches the proxy host we connect through (store-signal-api.crossml.in). We
+// verify the cert chain against Amazon's RDS CA bundle (proves it's a genuine RDS
+// cert and blocks MITM) but skip the hostname check, which can't pass through the
+// proxy. sslmode is stripped from the URL because pg lets the connection string's
+// sslmode override — and discard — this ssl config.
 const databaseUrl = new URL(process.env.DATABASE_URL!);
-const sslmode = databaseUrl.searchParams.get("sslmode");
-if (sslmode === "require" || sslmode === "prefer") {
-  databaseUrl.searchParams.set("sslmode", "no-verify");
-}
+databaseUrl.searchParams.delete("sslmode");
 
-// Initialize Drizzle ORM with PostgreSQL connection
-export const db = drizzle({ connection: databaseUrl.toString() });
+export const db = drizzle({
+  connection: {
+    connectionString: databaseUrl.toString(),
+    ssl: {
+      ca: fs.readFileSync(path.join(process.cwd(), "global-bundle.pem")).toString(),
+      rejectUnauthorized: true,
+      checkServerIdentity: () => undefined,
+    },
+  },
+});
