@@ -59,10 +59,9 @@ export default function Dashboard() {
     (state) => state.GetStoresReducer.selectedStore,
   );
 
-  const { FetchFeedbackInsightsData } =
-    useAppSelector(
-      (state) => state.GetDashboardReducer.FetchFeedbackInsightsState,
-    );
+  const { FetchFeedbackInsightsData } = useAppSelector(
+    (state) => state.GetDashboardReducer.FetchFeedbackInsightsState,
+  );
 
   // const { FetchConversationData } =
   //   useAppSelector(
@@ -73,9 +72,7 @@ export default function Dashboard() {
     (state) => state.GetDashboardReducer.FetchEngagementDataState,
   );
 
-  const {
-    FetchOperationalEfficiencyData,
-  } = useAppSelector(
+  const { FetchOperationalEfficiencyData } = useAppSelector(
     (state) => state.GetDashboardReducer.FetchOperationalEfficiencyDataState,
   );
 
@@ -83,10 +80,9 @@ export default function Dashboard() {
     (state) => state.GetDashboardReducer.FetchUserMatrixState,
   );
 
-  const { FetchConversionRateData } =
-    useAppSelector(
-      (state) => state.GetDashboardReducer.FetchConversionRateDataState,
-    );
+  const { FetchConversionRateData } = useAppSelector(
+    (state) => state.GetDashboardReducer.FetchConversionRateDataState,
+  );
 
   // const {
   //   FetchQueryCategoryInsightsData,
