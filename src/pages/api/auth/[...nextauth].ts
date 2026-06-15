@@ -1,7 +1,6 @@
 import CredentialsProvider from "next-auth/providers/credentials";
 import NextAuth from "next-auth/next";
 import type { AuthOptions } from "next-auth";
-import type { JWT } from "next-auth/jwt";
 import jwt from "jsonwebtoken";
 import { ENDPOINTS } from "@/lib/config";
 
