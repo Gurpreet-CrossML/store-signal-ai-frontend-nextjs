@@ -215,6 +215,21 @@ export type UserMetadata = {
   os: string;
 };
 
+export type ThreadTicketData = {
+  id: number;
+  thread: string;
+  customer: number;
+  ticket_id: number;
+  subject: string;
+  description: string;
+  requester_id: number;
+  email_config_id: number | null;
+  platform_created_at: string | null;
+  platform_updated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
   "Threads",
   async (
@@ -514,7 +529,7 @@ const ThreadSlice = createSlice({
       FetchFreshdeskTicketIdIsLoading: false,
       FetchFreshdeskTicketIdIsSuccess: false,
       FetchFreshdeskTicketIdIsError: null as null | string | object | unknown,
-      FetchFreshdeskTicketId: {} as Record<string, unknown>,
+      FetchFreshdeskTicketIdData: [] as ThreadTicketData[],
     },
   },
   reducers: {},
@@ -653,7 +668,7 @@ const ThreadSlice = createSlice({
       })
       .addCase(FetchFreshdeskTicketId.fulfilled, (state, action) => {
         state.FetchFreshdeskTicketIdState.FetchFreshdeskTicketIdIsLoading = false;
-        state.FetchFreshdeskTicketIdState.FetchFreshdeskTicketId =
+        state.FetchFreshdeskTicketIdState.FetchFreshdeskTicketIdData =
           action.payload;
         state.FetchFreshdeskTicketIdState.FetchFreshdeskTicketIdIsSuccess = true;
       })

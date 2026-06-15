@@ -13,9 +13,11 @@ import {
   FetchCart,
   FetchConversationSummary,
   FetchFeedbackSequence,
+  FetchFreshdeskTicketId,
   FetchThreadDetails,
   FetchUserMetadata,
   Thread,
+  ThreadTicketData,
   UserMetadata,
 } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -32,6 +34,7 @@ import {
   IconDeviceLaptop,
   IconNetwork,
   IconShoppingBag,
+  IconTicket,
   IconTimeDuration0,
   IconUser,
   IconX,
@@ -40,6 +43,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { formatDateTime, getDuration } from "@/lib/helpers";
@@ -48,7 +52,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { FEEDBACK_RATINGS } from "@/lib/config";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 /** Centered spinner used while a card's data is still being fetched. */
 function CardLoadingState() {
@@ -192,7 +196,7 @@ function CartDetailsCard({
         </CardTitle>
         {loading ? (
           <CardLoadingState />
-        ) : !cartData?.updated_cart_data ? (
+        ) : !Object.values(cartData?.updated_cart_data || {}).length ? (
           <p className="text-sm text-muted-foreground italic">
             No cart data available.
           </p>
@@ -284,6 +288,65 @@ function UserMetadataCard({
   );
 }
 
+function FreshdeskTicketCard({
+  ticketData,
+  loading,
+}: {
+  ticketData: ThreadTicketData[] | null;
+  loading?: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <IconTicket className="size-4" />
+          Freshdesk Ticket
+        </CardTitle>
+      </CardHeader>
+      {loading ? (
+        <CardLoadingState />
+      ) : ticketData?.length == 0 ? (
+        <CardContent>
+          <p className="text-sm text-muted-foreground italic">
+            No Ticket data available.
+          </p>
+        </CardContent>
+      ) : (
+        <CardContent className="space-y-2">
+          {ticketData.map(
+            (ticket: ThreadTicketData, index: number) => (
+              <Card key={index}>
+                <CardContent className="space-y-2">
+                  <CardTitle>
+                    Ticket TCK-{ticket.ticket_id}
+                  </CardTitle>
+                  <CardTitle className="flex items-start justify-between gap-2 pb-2 border-b">
+                    {ticket.subject}
+                    <Badge>
+                      Open
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription className="space-y-1 border-b pb-2">
+                    {ticket.description || "No description available."}
+                  </CardDescription>
+                  <CardDescription className="text-xs">
+                    Created: {formatDateTime(ticket.created_at) || "Unknown creation date"}
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            ),
+          ) || (
+              <p className="text-sm text-muted-foreground italic">
+                No Freshdesk ticket data available.
+              </p>
+            )}
+        </CardContent>
+      )
+      }
+    </Card>
+  );
+}
+
 export default function ThreadDetailDrawer({
   open,
   setOpen,
@@ -318,6 +381,9 @@ export default function ThreadDetailDrawer({
   const { FetchFeedbackSequenceData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchFeedbackSequenceState,
   );
+  const { FetchFreshdeskTicketIdData } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
+  );
 
   useEffect(() => {
     if (!open) return; // Only fetch when the drawer is opened
@@ -329,6 +395,7 @@ export default function ThreadDetailDrawer({
     dispatch(FetchCart(thread?.id || ""));
     dispatch(FetchUserMetadata(thread?.id || ""));
     dispatch(FetchFeedbackSequence(thread?.id || ""));
+    dispatch(FetchFreshdeskTicketId(thread?.id || ""));
   }, [dispatch, storeCode, thread?.id, open]);
 
   return (
@@ -482,6 +549,10 @@ export default function ThreadDetailDrawer({
                   FetchAIInsightData?.underperforming_cases || []
                 }
                 loading={FetchAIInsightIsLoading}
+              />
+              <FreshdeskTicketCard
+                ticketData={FetchFreshdeskTicketIdData || []}
+                loading={FetchThreadDetailsIsLoading}
               />
               <CartDetailsCard
                 cartData={FetchCartData}
