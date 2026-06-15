@@ -32,6 +32,7 @@ import {
   IconCheck,
   IconDeviceDesktop,
   IconDeviceLaptop,
+  IconLocationPin,
   IconNetwork,
   IconShoppingBag,
   IconTicket,
@@ -126,10 +127,10 @@ function ThreadAIInsightCard({
                       {item}
                     </li>
                   )) || (
-                    <p className="text-sm text-muted-foreground italic">
-                      No data available.
-                    </p>
-                  )}
+                      <p className="text-sm text-muted-foreground italic">
+                        No data available.
+                      </p>
+                    )}
                 </ul>
               </div>
             )}
@@ -154,9 +155,9 @@ function ThreadAIInsightCard({
             <div>
               <span>Performing Matrix</span>
               {overperformingCases &&
-              underperformingCases &&
-              overperformingCases?.length === 0 &&
-              underperformingCases?.length === 0 ? (
+                underperformingCases &&
+                overperformingCases?.length === 0 &&
+                underperformingCases?.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">
                   No Matrix available.
                 </p>
@@ -265,26 +266,56 @@ function UserMetadataCard({
           <CardLoadingState />
         ) : (
           <div className="flex flex-col gap-4">
-            <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
-              <IconBrandGoogleMaps className="size-5 inline text-primary" />{" "}
-              {userMetadata?.geo_location || "Unknown Location"}
-            </span>
-            <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
-              <IconNetwork className="size-5 inline text-primary" />{" "}
-              {userMetadata?.ip_address || "Unknown IP Address"}
-            </span>
-            <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
-              <IconDeviceLaptop className="size-5 inline text-primary" />{" "}
-              {userMetadata?.device_type || "Unknown Device"}
-            </span>
-            <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
-              <IconBrowser className="size-5 inline text-primary" />{" "}
-              {userMetadata?.browser || "Unknown Browser"}
-            </span>
-            <span className="flex items-center gap-2 text-sm text-muted-foreground border border-border p-2">
-              <IconDeviceDesktop className="size-5 inline text-primary" />{" "}
-              {userMetadata?.os || "Unknown OS"}
-            </span>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground border bg-primary/5 border-primary/20 p-2">
+              <span className="bg-primary/20 p-1">
+                <IconLocationPin className="size-5 inline text-primary" />
+              </span>
+              Location
+
+              <span className="ml-auto">
+                {userMetadata?.geo_location || "Unknown Location"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground border bg-primary/5 border-primary/20 p-2">
+              <span className="bg-primary/20 p-1">
+                <IconNetwork className="size-5 inline text-primary" />
+              </span>
+              IP Address
+
+              <span className="ml-auto">
+                {userMetadata?.ip_address || "Unknown IP Address"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground border bg-primary/5 border-primary/20 p-2">
+              <span className="bg-primary/20 p-1">
+                <IconDeviceLaptop className="size-5 inline text-primary" />
+              </span>
+              Device
+
+              <span className="ml-auto">
+                {userMetadata?.device_type || "Unknown Device"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground border bg-primary/5 border-primary/20 p-2">
+              <span className="bg-primary/20 p-1">
+                <IconBrowser className="size-5 inline text-primary" />
+              </span>
+              Browser
+
+              <span className="ml-auto">
+                {userMetadata?.browser || "Unknown Browser"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground border bg-primary/5 border-primary/20 p-2">
+              <span className="bg-primary/20 p-1">
+                <IconDeviceDesktop className="size-5 inline text-primary" />
+              </span>
+              OS
+
+              <span className="ml-auto">
+                {userMetadata?.os || "Unknown OS"}
+              </span>
+            </div>
           </div>
         )}
       </CardContent>
@@ -335,10 +366,10 @@ function FreshdeskTicketCard({
               </CardContent>
             </Card>
           )) || (
-            <p className="text-sm text-muted-foreground italic">
-              No Freshdesk ticket data available.
-            </p>
-          )}
+              <p className="text-sm text-muted-foreground italic">
+                No Freshdesk ticket data available.
+              </p>
+            )}
         </CardContent>
       )}
     </Card>
