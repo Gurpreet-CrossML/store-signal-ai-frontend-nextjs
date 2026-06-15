@@ -5,9 +5,9 @@ import { IconBook } from "@tabler/icons-react";
 
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { FetchLibraryDocuments } from "@/redux/api-slice/knowledge-slice";
-import DropZone from "./drop-zone";
-import { StoreDocumentDataTable } from "./store-document-data-table";
-import { storeDocumentColumns } from "./store-document-columns";
+import DropZone from "@/components/custom/drop-zone";
+import { StoreDocumentDataTable } from "@/components/custom/store-document-data-table";
+import { storeDocumentColumns } from "@/components/custom/store-document-columns";
 
 export default function StoreDocumentTabContent() {
   const dispatch = useAppDispatch();

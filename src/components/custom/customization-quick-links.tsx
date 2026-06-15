@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isValidUrl } from "@/lib/url";
-import type { QuickLinkItem } from "./customization-types";
+import type { QuickLinkItem } from "@/components/custom/customization-types";
 
 type CustomizationQuickLinksProps = {
   quickLinks: QuickLinkItem[];

@@ -4,7 +4,7 @@ import { IconPalette } from "@tabler/icons-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { ColorKey } from "./customization-types";
+import type { ColorKey } from "@/components/custom/customization-types";
 
 type CustomizationThemeProps = {
   themeColor: string;

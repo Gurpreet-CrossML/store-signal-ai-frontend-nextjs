@@ -33,7 +33,7 @@ import {
   FetchStoreFaqs,
   type StoreFaq,
 } from "@/redux/api-slice/knowledge-slice";
-import StoreFaqForm from "./store-faq-form";
+import StoreFaqForm from "@/components/custom/store-faq-form";
 
 const PAGE_SIZE = 15;
 

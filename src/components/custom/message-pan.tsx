@@ -1,8 +1,20 @@
-import { ProductData, ThreadMessage } from "@/redux/api-slice/thread-slice";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  CartItem,
+  ProductData,
+  ThreadMessage,
+} from "@/redux/api-slice/thread-slice";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ReactMarkdown from "react-markdown";
 import { formatDateTime } from "@/lib/helpers";
 import OrderBillCard from "@/components/custom/order-bill-card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { IconShoppingBag } from "@tabler/icons-react";
 
 export default function MessagePan({
   messages,
@@ -109,6 +121,63 @@ export default function MessagePan({
                         )}
                       </div>
                     </div>
+                  )}
+                {message.role === "assistant" &&
+                  message?.json_content?.cart_details &&
+                  message.json_content.cart_details.items.length > 0 && (
+                    <Card className="mt-2 px-0">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <IconShoppingBag className="size-4" />
+                          Cart Details
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="flex flex-col gap-3">
+                        {message.json_content.cart_details.items.map(
+                          (item: CartItem, idx: number) => {
+                            return (
+                              <div
+                                key={idx}
+                                className="flex items-start justify-between gap-3 text-sm"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Avatar>
+                                    {item.image ? (
+                                      <AvatarImage
+                                        src={item.image}
+                                        alt={item.name}
+                                        className="h-full w-full object-contain"
+                                      />
+                                    ) : (
+                                      <AvatarFallback className="bg-muted text-muted-foreground text-xs">
+                                        N/A
+                                      </AvatarFallback>
+                                    )}
+                                  </Avatar>
+                                  <span className="flex flex-col items-start">
+                                    <span>{item.name}</span>
+                                    <span className="text-muted-foreground text-xs">
+                                      Qty: {item.quantity}
+                                    </span>
+                                  </span>
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  {item.price}
+                                </span>
+                              </div>
+                            );
+                          },
+                        )}
+                      </CardContent>
+                      <CardFooter>
+                        <div className="flex justify-between w-full">
+                          Grand Total:{" "}
+                          <span className="text-sm font-semibold text-primary">
+                            {message.json_content.cart_details.sub_total}
+                          </span>
+                        </div>
+                      </CardFooter>
+                    </Card>
                   )}
               </div>
               {message.role === "user" && (

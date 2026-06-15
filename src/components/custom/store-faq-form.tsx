@@ -26,9 +26,12 @@ import {
 } from "@/redux/api-slice/knowledge-slice";
 
 // CKEditor touches the DOM at import time, so load it client-side only.
-const CKEditorTextArea = dynamic(() => import("./ckeditor-text-area"), {
-  ssr: false,
-});
+const CKEditorTextArea = dynamic(
+  () => import("@/components/custom/ckeditor-text-area"),
+  {
+    ssr: false,
+  },
+);
 
 const validationSchema = z.object({
   question: z.string().trim().min(1, "Question is required"),

@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Spinner } from "@/components/ui/spinner";
 import { DataTablePagination } from "@/components/custom/threads-data-table-pagination";
-import ThreadDetailDrawer from "./thread-detail-drawer";
+import ThreadDetailDrawer from "@/components/custom/thread-detail-drawer";
 import { useState } from "react";
 import { Thread } from "@/redux/api-slice/thread-slice";
 
