@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { FEEDBACK_RATING_VALUES } from "@/lib/config";
 import {
   chatThread,
   chatCustomer,
@@ -38,6 +39,7 @@ export type ListThreadsFilters = {
   user_type?: string;
   has_ticket?: string;
   has_feedback?: string;
+  feedback_rating?: string; // very_bad | bad | neutral | good | excellent
 };
 
 const UUID_RE =
@@ -156,7 +158,18 @@ export async function list_threads(
     );
   }
 
-  if (filters.has_feedback === "true") {
+  // A rating narrows has_feedback to a specific rating; otherwise has_feedback
+  // is the plain existence check.
+  if (
+    filters.feedback_rating &&
+    (FEEDBACK_RATING_VALUES as readonly string[]).includes(
+      filters.feedback_rating,
+    )
+  ) {
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM ${chatbotFeedback} WHERE ${chatbotFeedback.threadId} = ${chatThread.id} AND ${chatbotFeedback.rating} = ${filters.feedback_rating})`,
+    );
+  } else if (filters.has_feedback === "true") {
     conditions.push(
       sql`EXISTS (SELECT 1 FROM ${chatbotFeedback} WHERE ${chatbotFeedback.threadId} = ${chatThread.id})`,
     );
@@ -548,20 +561,38 @@ export async function get_conversation_summary(
   return { conversation_summary: summary };
 }
 
+export type FeedbackEntry = {
+  id: number;
+  rating: string;
+  feedback_message: string | null;
+  created_at: string;
+};
+
 /**
  * Port of FeedbackSequenceSerializer.
  *
- * FIDELITY-GAP: The Django serializer queries ChatbotFeedback.feedback_sequence,
+ * The Django serializer originally exposed ChatbotFeedback.feedback_sequence,
  * but that column was DROPPED from chatbot_feedback in chat migration 0004
- * (RemoveField feedback_sequence) and is absent from the Drizzle schema. In the
- * current backend this query would raise a FieldError at runtime. We cannot
- * replicate a non-existent column, so we return null (the serializer's allow_null
- * default / "no rows" result). See report.
+ * (RemoveField feedback_sequence). A thread has a single feedback entry, so we
+ * return that entry's details for the UI (rating, message, timestamp), or null
+ * when no feedback was submitted.
  */
 export async function get_feedback_sequence(
-  _thread_id: string,
-): Promise<{ feedback_sequence: number | null }> {
-  return { feedback_sequence: null };
+  thread_id: string,
+): Promise<{ feedback: FeedbackEntry | null }> {
+  const rows = await db
+    .select({
+      id: chatbotFeedback.id,
+      rating: chatbotFeedback.rating,
+      feedback_message: chatbotFeedback.feedbackMessage,
+      created_at: chatbotFeedback.createdAt,
+    })
+    .from(chatbotFeedback)
+    .where(eq(chatbotFeedback.threadId, thread_id))
+    .orderBy(desc(chatbotFeedback.createdAt))
+    .limit(1);
+
+  return { feedback: rows[0] ?? null };
 }
 
 /**

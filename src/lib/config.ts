@@ -68,6 +68,20 @@ export const ENDPOINTS = {
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
 export const DEFAULT_API_PAGE_SIZE = 15;
 
+// Chatbot feedback rating choices, mirroring the backend RATING_CHOICES.
+export const FEEDBACK_RATINGS = [
+  { value: "very_bad", label: "😞 Very Bad" },
+  { value: "bad", label: "😕 Bad" },
+  { value: "neutral", label: "😐 Neutral" },
+  { value: "good", label: "😊 Good" },
+  { value: "excellent", label: "😄 Excellent" },
+] as const;
+
+export type FeedbackRatingValue = (typeof FEEDBACK_RATINGS)[number]["value"];
+
+export const FEEDBACK_RATING_VALUES: readonly FeedbackRatingValue[] =
+  FEEDBACK_RATINGS.map((r) => r.value);
+
 // Define a type for paginated API responses
 export type PaginationResponse = {
   count: number;

@@ -16,19 +16,27 @@ export default async function handler(
 
   const { store_code, from, to } = req.query;
 
-  const data = await get_query_category_insights({
-    store_code: store_code as string | undefined,
-    from: from as string | undefined,
-    to: to as string | undefined,
-  });
+  try {
+    const data = await get_query_category_insights({
+      store_code: store_code as string | undefined,
+      from: from as string | undefined,
+      to: to as string | undefined,
+    });
 
-  return res
-    .status(200)
-    .json(
-      createAPIResponse(
-        true,
-        "Query category insights retrieved successfully.",
-        data,
-      ),
-    );
+    return res
+      .status(200)
+      .json(
+        createAPIResponse(
+          true,
+          "Query category insights retrieved successfully.",
+          data,
+        ),
+      );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[analytics/query-category-insights] failed:", e);
+    return res
+      .status(500)
+      .json(createAPIResponse(false, `Internal server error - ${msg}`, null));
+  }
 }
