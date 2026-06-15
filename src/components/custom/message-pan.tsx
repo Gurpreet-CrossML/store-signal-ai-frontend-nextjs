@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { IconShoppingBag } from "@tabler/icons-react";
+import Image from "next/image";
 
 export default function MessagePan({
   messages,
@@ -92,9 +93,11 @@ export default function MessagePan({
                                 className="flex items-center gap-3 p-2.5 border border-border bg-background hover:bg-muted/50 transition-colors no-underline w-[240px] flex-shrink-0"
                               >
                                 {product.image ? (
-                                  <img
+                                  <Image
                                     src={product.image}
                                     alt={product.name}
+                                    width={48}
+                                    height={48}
                                     className="h-12 w-12 object-contain flex-shrink-0 bg-muted"
                                   />
                                 ) : (

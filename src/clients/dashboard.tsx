@@ -59,42 +59,41 @@ export default function Dashboard() {
     (state) => state.GetStoresReducer.selectedStore,
   );
 
-  const { FetchFeedbackInsightsData, FetchFeedbackInsightsIsLoading } =
+  const { FetchFeedbackInsightsData } =
     useAppSelector(
       (state) => state.GetDashboardReducer.FetchFeedbackInsightsState,
     );
 
-  const { FetchConversationData, FetchConversationDataIsLoading } =
-    useAppSelector(
-      (state) => state.GetDashboardReducer.FetchConversationDataState,
-    );
+  // const { FetchConversationData } =
+  //   useAppSelector(
+  //     (state) => state.GetDashboardReducer.FetchConversationDataState,
+  //   );
 
-  const { FetchEngagementData, FetchEngagementDataIsLoading } = useAppSelector(
+  const { FetchEngagementData } = useAppSelector(
     (state) => state.GetDashboardReducer.FetchEngagementDataState,
   );
 
   const {
     FetchOperationalEfficiencyData,
-    FetchOperationalEfficiencyDataIsLoading,
   } = useAppSelector(
     (state) => state.GetDashboardReducer.FetchOperationalEfficiencyDataState,
   );
 
-  const { FetchUserMatrixData, FetchUserMatrixIsLoading } = useAppSelector(
+  const { FetchUserMatrixData } = useAppSelector(
     (state) => state.GetDashboardReducer.FetchUserMatrixState,
   );
 
-  const { FetchConversionRateData, FetchConversionRateDataIsLoading } =
+  const { FetchConversionRateData } =
     useAppSelector(
       (state) => state.GetDashboardReducer.FetchConversionRateDataState,
     );
 
-  const {
-    FetchQueryCategoryInsightsData,
-    FetchQueryCategoryInsightsIsLoading,
-  } = useAppSelector(
-    (state) => state.GetDashboardReducer.FetchQueryCategoryInsightsState,
-  );
+  // const {
+  //   FetchQueryCategoryInsightsData,
+  //   FetchQueryCategoryInsightsIsLoading,
+  // } = useAppSelector(
+  //   (state) => state.GetDashboardReducer.FetchQueryCategoryInsightsState,
+  // );
 
   const { FetchConversationHistoryData, FetchConversationHistoryIsLoading } =
     useAppSelector(
