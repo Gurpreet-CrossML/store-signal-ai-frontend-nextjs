@@ -228,7 +228,7 @@ export type ThreadTicketData = {
   platform_updated_at: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
 export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
   "Threads",
