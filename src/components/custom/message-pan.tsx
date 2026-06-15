@@ -32,7 +32,7 @@ export default function MessagePan({
           >
             <div className="flex gap-2.5 max-w-[82%]">
               {message.role === "assistant" && (
-                <Avatar className="h-7 w-7 flex-shrink-0 mt-1">
+                <Avatar className="h-7 w-7 shrink-0 mt-1">
                   <AvatarFallback className="bg-accent text-accent-foreground text-xs">
                     A
                   </AvatarFallback>
@@ -50,7 +50,7 @@ export default function MessagePan({
                   </span>
                 </div>
                 <div
-                  className={`p-3 text-sm break-words ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary border border-border rounded-tl-none"}`}
+                  className={`p-3 text-sm wrap-break-word ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary border border-border rounded-tl-none"}`}
                 >
                   {message.role === "assistant" ? (
                     (() => {
@@ -91,7 +91,7 @@ export default function MessagePan({
                                 key={idx}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-3 p-2.5 border border-border bg-background hover:bg-muted/50 transition-colors no-underline w-[240px] flex-shrink-0"
+                                className="flex items-center gap-3 p-2.5 border border-border bg-background hover:bg-muted/50 transition-colors no-underline w-[240px] shrink-0"
                               >
                                 {product.image ? (
                                   <Image
@@ -99,10 +99,10 @@ export default function MessagePan({
                                     alt={product.name}
                                     width={48}
                                     height={48}
-                                    className="h-12 w-12 object-contain flex-shrink-0 bg-muted"
+                                    className="h-12 w-12 object-contain shrink-0 bg-muted"
                                   />
                                 ) : (
-                                  <div className="h-12 w-12 rounded bg-muted flex-shrink-0 flex items-center justify-center text-muted-foreground text-[10px]">
+                                  <div className="h-12 w-12 rounded bg-muted shrink-0 flex items-center justify-center text-muted-foreground text-[10px]">
                                     No img
                                   </div>
                                 )}
@@ -115,7 +115,7 @@ export default function MessagePan({
                                   </p>
                                 </div>
                                 {product.price && (
-                                  <span className="text-xs font-semibold text-primary flex-shrink-0">
+                                  <span className="text-xs font-semibold text-primary shrink-0">
                                     {product.price}
                                   </span>
                                 )}
@@ -203,7 +203,7 @@ export default function MessagePan({
                 }
               </div>
               {message.role === "user" && (
-                <Avatar className="h-7 w-7 flex-shrink-0 mt-1">
+                <Avatar className="h-7 w-7 shrink-0 mt-1">
                   <AvatarFallback className="bg-primary/10 text-primary text-xs">
                     U
                   </AvatarFallback>
