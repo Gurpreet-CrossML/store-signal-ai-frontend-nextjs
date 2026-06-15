@@ -126,10 +126,10 @@ function ThreadAIInsightCard({
                       {item}
                     </li>
                   )) || (
-                      <p className="text-sm text-muted-foreground italic">
-                        No data available.
-                      </p>
-                    )}
+                    <p className="text-sm text-muted-foreground italic">
+                      No data available.
+                    </p>
+                  )}
                 </ul>
               </div>
             )}
@@ -154,9 +154,9 @@ function ThreadAIInsightCard({
             <div>
               <span>Performing Matrix</span>
               {overperformingCases &&
-                underperformingCases &&
-                overperformingCases?.length === 0 &&
-                underperformingCases?.length === 0 ? (
+              underperformingCases &&
+              overperformingCases?.length === 0 &&
+              underperformingCases?.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">
                   No Matrix available.
                 </p>
@@ -270,7 +270,6 @@ function UserMetadataCard({
                 <IconLocationPin className="size-5 inline text-primary" />
               </span>
               Location
-
               <span className="ml-auto">
                 {userMetadata?.geo_location || "Unknown Location"}
               </span>
@@ -280,7 +279,6 @@ function UserMetadataCard({
                 <IconNetwork className="size-5 inline text-primary" />
               </span>
               IP Address
-
               <span className="ml-auto">
                 {userMetadata?.ip_address || "Unknown IP Address"}
               </span>
@@ -290,7 +288,6 @@ function UserMetadataCard({
                 <IconDeviceLaptop className="size-5 inline text-primary" />
               </span>
               Device
-
               <span className="ml-auto">
                 {userMetadata?.device_type || "Unknown Device"}
               </span>
@@ -300,7 +297,6 @@ function UserMetadataCard({
                 <IconBrowser className="size-5 inline text-primary" />
               </span>
               Browser
-
               <span className="ml-auto">
                 {userMetadata?.browser || "Unknown Browser"}
               </span>
@@ -310,7 +306,6 @@ function UserMetadataCard({
                 <IconDeviceDesktop className="size-5 inline text-primary" />
               </span>
               OS
-
               <span className="ml-auto">
                 {userMetadata?.os || "Unknown OS"}
               </span>
@@ -365,10 +360,10 @@ function FreshdeskTicketCard({
               </CardContent>
             </Card>
           )) || (
-              <p className="text-sm text-muted-foreground italic">
-                No Freshdesk ticket data available.
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground italic">
+              No Freshdesk ticket data available.
+            </p>
+          )}
         </CardContent>
       )}
     </Card>
