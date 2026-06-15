@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { ActionButton } from "./customization-types";
+import type { ActionButton } from "@/components/custom/customization-types";
 
 type CustomizationActionButtonsProps = {
   actionButtons: ActionButton[];

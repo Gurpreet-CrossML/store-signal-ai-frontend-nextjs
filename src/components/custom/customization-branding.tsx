@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const CKEditorTextArea = dynamic(() => import("./ckeditor-text-area"), {
+const CKEditorTextArea = dynamic(() => import("@/components/custom/ckeditor-text-area"), {
   ssr: false,
 });
 

@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { axiosInstance } from "../axios-config";
+import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
@@ -68,9 +68,23 @@ export type OrderDetail = {
   items: OrderItem[];
 };
 
+export type CartItem = {
+  name: string;
+  image: string;
+  price: string;
+  quantity: number;
+  product_id: number;
+};
+
+export type CartDetails = {
+  items: CartItem[];
+  sub_total: string;
+};
+
 export type ThreadJsonContent = {
   products?: ProductData[];
   order_details?: OrderDetail;
+  cart_details?: CartDetails;
   order_id?: string;
   order_verification_step?: string;
   suggestions?: string[];
@@ -464,7 +478,7 @@ const ThreadSlice = createSlice({
       FetchFeedbackSequenceIsLoading: false,
       FetchFeedbackSequenceIsSuccess: false,
       FetchFeedbackSequenceIsError: null as null | string | object | unknown,
-      FetchFeedbackSequence: {} as Record<string, unknown>,
+      FetchFeedbackSequenceData: {} as Record<string, unknown>,
     },
     FetchTagsState: {
       FetchTagsIsLoading: false,
@@ -565,7 +579,7 @@ const ThreadSlice = createSlice({
       })
       .addCase(FetchFeedbackSequence.fulfilled, (state, action) => {
         state.FetchFeedbackSequenceState.FetchFeedbackSequenceIsLoading = false;
-        state.FetchFeedbackSequenceState.FetchFeedbackSequence = action.payload;
+        state.FetchFeedbackSequenceState.FetchFeedbackSequenceData = action.payload;
         state.FetchFeedbackSequenceState.FetchFeedbackSequenceIsSuccess = true;
       })
       .addCase(FetchFeedbackSequence.rejected, (state, action) => {

@@ -13,7 +13,6 @@ import {
   IconMicrophone,
   IconMoodSmile,
   IconPaperclip,
-  IconPlus,
   IconSend,
   IconVolume,
   IconX,
@@ -27,7 +26,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { isValidUrl, normalizeUrl } from "@/lib/url";
-import type { ActionButton, QuickLinkItem } from "./customization-types";
+import type { ActionButton, QuickLinkItem } from "@/components/custom/customization-types";
 
 type CustomizationLivePreviewProps = {
   storeLabel: string;
