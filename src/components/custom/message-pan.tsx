@@ -1,9 +1,19 @@
-import { CartItem, ProductData, ThreadMessage } from "@/redux/api-slice/thread-slice";
+import {
+  CartItem,
+  ProductData,
+  ThreadMessage,
+} from "@/redux/api-slice/thread-slice";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ReactMarkdown from "react-markdown";
 import { formatDateTime } from "@/lib/helpers";
 import OrderBillCard from "@/components/custom/order-bill-card";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { IconShoppingBag } from "@tabler/icons-react";
 
 export default function MessagePan({
@@ -111,10 +121,8 @@ export default function MessagePan({
                         )}
                       </div>
                     </div>
-                  )
-                }
-                {
-                  message.role === "assistant" &&
+                  )}
+                {message.role === "assistant" &&
                   message?.json_content?.cart_details &&
                   message.json_content.cart_details.items.length > 0 && (
                     <Card className="mt-2 px-0">
@@ -128,7 +136,10 @@ export default function MessagePan({
                         {message.json_content.cart_details.items.map(
                           (item: CartItem, idx: number) => {
                             return (
-                              <div key={idx} className="flex items-start justify-between gap-3 text-sm">
+                              <div
+                                key={idx}
+                                className="flex items-start justify-between gap-3 text-sm"
+                              >
                                 <div className="flex items-center gap-2">
                                   <Avatar>
                                     {item.image ? (
@@ -167,8 +178,7 @@ export default function MessagePan({
                         </div>
                       </CardFooter>
                     </Card>
-                  )
-                }
+                  )}
               </div>
               {message.role === "user" && (
                 <Avatar className="h-7 w-7 flex-shrink-0 mt-1">

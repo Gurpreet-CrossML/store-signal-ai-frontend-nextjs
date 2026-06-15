@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const CKEditorTextArea = dynamic(() => import("@/components/custom/ckeditor-text-area"), {
-  ssr: false,
-});
+const CKEditorTextArea = dynamic(
+  () => import("@/components/custom/ckeditor-text-area"),
+  {
+    ssr: false,
+  },
+);
 
 const WELCOME_LIMIT = 500;
 const GREETING_LIMIT = 180;

@@ -579,7 +579,8 @@ const ThreadSlice = createSlice({
       })
       .addCase(FetchFeedbackSequence.fulfilled, (state, action) => {
         state.FetchFeedbackSequenceState.FetchFeedbackSequenceIsLoading = false;
-        state.FetchFeedbackSequenceState.FetchFeedbackSequenceData = action.payload;
+        state.FetchFeedbackSequenceState.FetchFeedbackSequenceData =
+          action.payload;
         state.FetchFeedbackSequenceState.FetchFeedbackSequenceIsSuccess = true;
       })
       .addCase(FetchFeedbackSequence.rejected, (state, action) => {

@@ -26,7 +26,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { isValidUrl, normalizeUrl } from "@/lib/url";
-import type { ActionButton, QuickLinkItem } from "@/components/custom/customization-types";
+import type {
+  ActionButton,
+  QuickLinkItem,
+} from "@/components/custom/customization-types";
 
 type CustomizationLivePreviewProps = {
   storeLabel: string;
