@@ -26,7 +26,11 @@ export default async function handler(
     return res
       .status(200)
       .json(
-        createAPIResponse(true, "Conversion data retreived successfully.", data),
+        createAPIResponse(
+          true,
+          "Conversion data retreived successfully.",
+          data,
+        ),
       );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

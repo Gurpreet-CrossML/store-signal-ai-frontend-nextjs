@@ -52,7 +52,11 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { FEEDBACK_RATINGS } from "@/lib/config";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 /** Centered spinner used while a card's data is still being fetched. */
 function CardLoadingState() {
@@ -122,10 +126,10 @@ function ThreadAIInsightCard({
                       {item}
                     </li>
                   )) || (
-                      <p className="text-sm text-muted-foreground italic">
-                        No data available.
-                      </p>
-                    )}
+                    <p className="text-sm text-muted-foreground italic">
+                      No data available.
+                    </p>
+                  )}
                 </ul>
               </div>
             )}
@@ -150,9 +154,9 @@ function ThreadAIInsightCard({
             <div>
               <span>Performing Matrix</span>
               {overperformingCases &&
-                underperformingCases &&
-                overperformingCases?.length === 0 &&
-                underperformingCases?.length === 0 ? (
+              underperformingCases &&
+              overperformingCases?.length === 0 &&
+              underperformingCases?.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">
                   No Matrix available.
                 </p>
@@ -313,36 +317,30 @@ function FreshdeskTicketCard({
         </CardContent>
       ) : (
         <CardContent className="space-y-2">
-          {ticketData.map(
-            (ticket: ThreadTicketData, index: number) => (
-              <Card key={index}>
-                <CardContent className="space-y-2">
-                  <CardTitle>
-                    Ticket TCK-{ticket.ticket_id}
-                  </CardTitle>
-                  <CardTitle className="flex items-start justify-between gap-2 pb-2 border-b">
-                    {ticket.subject}
-                    <Badge>
-                      Open
-                    </Badge>
-                  </CardTitle>
-                  <CardDescription className="space-y-1 border-b pb-2">
-                    {ticket.description || "No description available."}
-                  </CardDescription>
-                  <CardDescription className="text-xs">
-                    Created: {formatDateTime(ticket.created_at) || "Unknown creation date"}
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            ),
-          ) || (
-              <p className="text-sm text-muted-foreground italic">
-                No Freshdesk ticket data available.
-              </p>
-            )}
+          {ticketData?.map((ticket: ThreadTicketData, index: number) => (
+            <Card key={index}>
+              <CardContent className="space-y-2">
+                <CardTitle>Ticket TCK-{ticket.ticket_id}</CardTitle>
+                <CardTitle className="flex items-start justify-between gap-2 pb-2 border-b">
+                  {ticket.subject}
+                  <Badge>Open</Badge>
+                </CardTitle>
+                <CardDescription className="space-y-1 border-b pb-2">
+                  {ticket.description || "No description available."}
+                </CardDescription>
+                <CardDescription className="text-xs">
+                  Created:{" "}
+                  {formatDateTime(ticket.created_at) || "Unknown creation date"}
+                </CardDescription>
+              </CardContent>
+            </Card>
+          )) || (
+            <p className="text-sm text-muted-foreground italic">
+              No Freshdesk ticket data available.
+            </p>
+          )}
         </CardContent>
-      )
-      }
+      )}
     </Card>
   );
 }
@@ -438,11 +436,11 @@ export default function ThreadDetailDrawer({
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      {FetchFeedbackSequenceData.feedback?.feedback_message || "No feedback message provided."}
+                      {FetchFeedbackSequenceData.feedback?.feedback_message ||
+                        "No feedback message provided."}
                     </p>
                   </TooltipContent>
                 </Tooltip>
-
               )}
             </DrawerTitle>
             <DrawerDescription>{thread?.id}</DrawerDescription>
