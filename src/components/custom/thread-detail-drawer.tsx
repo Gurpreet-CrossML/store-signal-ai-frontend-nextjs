@@ -398,9 +398,9 @@ export default function ThreadDetailDrawer({
 
   return (
     <Drawer open={open} onOpenChange={setOpen} direction="right">
-      <DrawerContent className="!max-w-[100%] !w-[60%] overflow-hidden py-2">
+      <DrawerContent className="max-w-full! w-[60%]! overflow-hidden py-2">
         <DrawerHeader className="flex-row justify-between">
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 max-w-1/3">
             <DrawerTitle className="flex items-center gap-2">
               {thread?.name || "Thread"}
               <Badge className="font-normal">
@@ -444,7 +444,7 @@ export default function ThreadDetailDrawer({
               )}
             </DrawerTitle>
             <DrawerDescription>{thread?.id}</DrawerDescription>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex flex-wrap items-center gap-2 mt-2">
               {thread?.tags?.map((tag) => (
                 <Badge key={tag} variant="secondary" className="font-normal">
                   {tag}
