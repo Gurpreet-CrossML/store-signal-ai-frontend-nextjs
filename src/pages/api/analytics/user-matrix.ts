@@ -16,13 +16,23 @@ export default async function handler(
 
   const { store_code, from, to } = req.query;
 
-  const data = await get_user_matrix({
-    store_code: store_code as string | undefined,
-    from: from as string | undefined,
-    to: to as string | undefined,
-  });
+  try {
+    const data = await get_user_matrix({
+      store_code: store_code as string | undefined,
+      from: from as string | undefined,
+      to: to as string | undefined,
+    });
 
-  return res
-    .status(200)
-    .json(createAPIResponse(true, "User Matrix retrieved successfully", data));
+    return res
+      .status(200)
+      .json(
+        createAPIResponse(true, "User Matrix retrieved successfully", data),
+      );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[analytics/user-matrix] failed:", e);
+    return res
+      .status(500)
+      .json(createAPIResponse(false, `Internal server error - ${msg}`, null));
+  }
 }
