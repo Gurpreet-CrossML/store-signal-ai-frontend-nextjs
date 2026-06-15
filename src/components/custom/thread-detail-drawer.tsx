@@ -12,6 +12,7 @@ import {
   FetchAIInsight,
   FetchCart,
   FetchConversationSummary,
+  FetchFeedbackSequence,
   FetchThreadDetails,
   FetchUserMetadata,
   Thread,
@@ -35,12 +36,19 @@ import {
   IconUser,
   IconX,
 } from "@tabler/icons-react";
-import { Card, CardContent, CardDescription, CardTitle } from "../ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardTitle,
+} from "@/components/ui/card";
 import { formatDateTime, getDuration } from "@/lib/helpers";
 import { Progress } from "@/components/ui/progress";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
+import { FEEDBACK_RATINGS } from "@/lib/config";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 /** Centered spinner used while a card's data is still being fetched. */
 function CardLoadingState() {
@@ -110,10 +118,10 @@ function ThreadAIInsightCard({
                       {item}
                     </li>
                   )) || (
-                    <p className="text-sm text-muted-foreground italic">
-                      No data available.
-                    </p>
-                  )}
+                      <p className="text-sm text-muted-foreground italic">
+                        No data available.
+                      </p>
+                    )}
                 </ul>
               </div>
             )}
@@ -138,9 +146,9 @@ function ThreadAIInsightCard({
             <div>
               <span>Performing Matrix</span>
               {overperformingCases &&
-              underperformingCases &&
-              overperformingCases?.length === 0 &&
-              underperformingCases?.length === 0 ? (
+                underperformingCases &&
+                overperformingCases?.length === 0 &&
+                underperformingCases?.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">
                   No Matrix available.
                 </p>
@@ -307,6 +315,9 @@ export default function ThreadDetailDrawer({
   const { FetchUserMetadataData, FetchUserMetadataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchUserMetadataState,
   );
+  const { FetchFeedbackSequenceData } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchFeedbackSequenceState,
+  );
 
   useEffect(() => {
     if (!open) return; // Only fetch when the drawer is opened
@@ -317,6 +328,7 @@ export default function ThreadDetailDrawer({
     dispatch(FetchAIInsight(thread?.id || ""));
     dispatch(FetchCart(thread?.id || ""));
     dispatch(FetchUserMetadata(thread?.id || ""));
+    dispatch(FetchFeedbackSequence(thread?.id || ""));
   }, [dispatch, storeCode, thread?.id, open]);
 
   return (
@@ -346,6 +358,25 @@ export default function ThreadDetailDrawer({
                   ? "Resolved"
                   : "Unresolved"}
               </Badge>
+              {FetchFeedbackSequenceData?.feedback && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge className="font-normal">
+                      {FEEDBACK_RATINGS.find(
+                        (rating) =>
+                          rating.value ===
+                          FetchFeedbackSequenceData.feedback?.rating,
+                      )?.label ?? "No Feedback"}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {FetchFeedbackSequenceData.feedback?.feedback_message || "No feedback message provided."}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+
+              )}
             </DrawerTitle>
             <DrawerDescription>{thread?.id}</DrawerDescription>
             <div className="flex items-center gap-2 mt-2">

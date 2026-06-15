@@ -7,8 +7,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
  * GET /analytics/threads/{thread_id}/feedback-sequence/  ->
  * FeedbackSequenceAPIView.
  *
- * FIDELITY-GAP: the underlying ChatbotFeedback.feedback_sequence column was
- * removed in chat migration 0004, so this always returns null. See db function.
+ * Returns the thread's chatbot feedback (rating, message, timestamp), or null
+ * when none was submitted. See get_feedback_sequence.
  */
 export default async function handler(
   req: NextApiRequest,

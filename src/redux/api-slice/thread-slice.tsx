@@ -12,6 +12,18 @@ type ThreadFilters = {
   user_type?: string;
   has_ticket?: boolean;
   has_feedback?: boolean;
+  feedback_rating?: string;
+};
+
+export type FeedbackEntry = {
+  id: number;
+  rating: string;
+  feedback_message: string | null;
+  created_at: string;
+};
+
+export type FeedbackSequenceData = {
+  feedback: FeedbackEntry | null;
 };
 
 type GetThreadsArgs = {
@@ -478,7 +490,7 @@ const ThreadSlice = createSlice({
       FetchFeedbackSequenceIsLoading: false,
       FetchFeedbackSequenceIsSuccess: false,
       FetchFeedbackSequenceIsError: null as null | string | object | unknown,
-      FetchFeedbackSequenceData: {} as Record<string, unknown>,
+      FetchFeedbackSequenceData: { feedback: null } as FeedbackSequenceData,
     },
     FetchTagsState: {
       FetchTagsIsLoading: false,

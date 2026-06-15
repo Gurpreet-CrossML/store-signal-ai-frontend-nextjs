@@ -14,6 +14,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { FEEDBACK_RATINGS, type FeedbackRatingValue } from "@/lib/config";
+
+export type FeedbackRating = "" | FeedbackRatingValue;
 
 export type ThreadFilterState = {
   search: string;
@@ -21,6 +24,7 @@ export type ThreadFilterState = {
   user_type: "" | "guest" | "logged_in";
   has_ticket: boolean;
   has_feedback: boolean;
+  feedback_rating: FeedbackRating;
 };
 
 export const DEFAULT_THREAD_FILTERS: ThreadFilterState = {
@@ -29,6 +33,7 @@ export const DEFAULT_THREAD_FILTERS: ThreadFilterState = {
   user_type: "",
   has_ticket: false,
   has_feedback: false,
+  feedback_rating: "",
 };
 
 type ThreadFilterationProps = {
@@ -44,7 +49,7 @@ function FilterChip({
   onClick,
 }: {
   active: boolean;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   label: string;
   onClick: () => void;
 }) {
@@ -73,7 +78,22 @@ export default function ThreadFilteration({
     filters.is_active !== "" ||
     filters.user_type !== "" ||
     filters.has_ticket ||
-    filters.has_feedback;
+    filters.has_feedback ||
+    filters.feedback_rating !== "";
+
+  const toggleFeedback = () =>
+    onChange({
+      ...filters,
+      has_feedback: !filters.has_feedback,
+      // Rating only applies while feedback is on; clear it when toggling off.
+      feedback_rating: filters.has_feedback ? "" : filters.feedback_rating,
+    });
+
+  const toggleRating = (value: Exclude<FeedbackRating, "">) =>
+    onChange({
+      ...filters,
+      feedback_rating: filters.feedback_rating === value ? "" : value,
+    });
 
   const toggleActive = (value: "true" | "false") =>
     onChange({
@@ -141,10 +161,22 @@ export default function ThreadFilteration({
         active={filters.has_feedback}
         icon={<IconMessageCircle />}
         label="Feedback"
-        onClick={() =>
-          onChange({ ...filters, has_feedback: !filters.has_feedback })
-        }
+        onClick={toggleFeedback}
       />
+
+      {filters.has_feedback && (
+        <>
+          <Separator orientation="vertical" className="h-5" />
+          {FEEDBACK_RATINGS.map((rating) => (
+            <FilterChip
+              key={rating.value}
+              active={filters.feedback_rating === rating.value}
+              label={rating.label}
+              onClick={() => toggleRating(rating.value)}
+            />
+          ))}
+        </>
+      )}
 
       {hasActiveFilters && (
         <Button

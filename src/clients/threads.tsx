@@ -45,6 +45,7 @@ export default function Threads() {
     filters.user_type,
     filters.has_ticket,
     filters.has_feedback,
+    filters.feedback_rating,
   ]);
   const [prevFilterSignature, setPrevFilterSignature] =
     useState(filterSignature);
@@ -63,6 +64,9 @@ export default function Threads() {
       ...(filters.user_type ? { user_type: filters.user_type } : {}),
       ...(filters.has_ticket ? { has_ticket: true } : {}),
       ...(filters.has_feedback ? { has_feedback: true } : {}),
+      ...(filters.feedback_rating
+        ? { feedback_rating: filters.feedback_rating }
+        : {}),
     };
     dispatch(
       FetchThreads({
@@ -82,6 +86,7 @@ export default function Threads() {
     filters.user_type,
     filters.has_ticket,
     filters.has_feedback,
+    filters.feedback_rating,
   ]);
 
   const rows = useMemo(

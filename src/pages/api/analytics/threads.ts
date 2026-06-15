@@ -7,7 +7,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
  * GET /analytics/threads/  ->  ThreadListAPIView (analytics/views.py)
  *
  * Query params: store_code, page, page_size, from, to, search, is_active,
- * user_type, has_ticket, has_feedback.
+ * user_type, has_ticket, has_feedback, feedback_rating.
  *
  * Paginated (DRF PageNumberPagination, default page_size=15). When there are no
  * results, Django sets response_data=None which create_api_response renders as
@@ -37,6 +37,7 @@ export default async function handler(
     user_type: getStr(q.user_type),
     has_ticket: getStr(q.has_ticket),
     has_feedback: getStr(q.has_feedback),
+    feedback_rating: getStr(q.feedback_rating),
   };
 
   const pageParam = getStr(q.page);
