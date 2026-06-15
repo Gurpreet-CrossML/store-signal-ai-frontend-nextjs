@@ -27,7 +27,6 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   IconBrain,
-  IconBrandGoogleMaps,
   IconBrowser,
   IconCheck,
   IconDeviceDesktop,
