@@ -317,7 +317,7 @@ function FreshdeskTicketCard({
         </CardContent>
       ) : (
         <CardContent className="space-y-2">
-          {ticketData.map((ticket: ThreadTicketData, index: number) => (
+          {ticketData?.map((ticket: ThreadTicketData, index: number) => (
             <Card key={index}>
               <CardContent className="space-y-2">
                 <CardTitle>Ticket TCK-{ticket.ticket_id}</CardTitle>
