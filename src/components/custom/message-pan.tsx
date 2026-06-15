@@ -189,18 +189,20 @@ export default function MessagePan({
                   message.json_content.suggestions.length > 0 && (
                     <div className="flex justify-start mt-2">
                       <div className="flex flex-wrap gap-2">
-                        {message.json_content.suggestions.map((s: string, idx: number) => (
-                          <Button
-                            key={idx}
-                            variant="outline"
-                            className="text-xs hover:bg-primary/25 hover:text-primary hover:border-primary">
-                            {s}
-                          </Button>
-                        ))}
+                        {message.json_content.suggestions.map(
+                          (s: string, idx: number) => (
+                            <Button
+                              key={idx}
+                              variant="outline"
+                              className="text-xs hover:bg-primary/25 hover:text-primary hover:border-primary"
+                            >
+                              {s}
+                            </Button>
+                          ),
+                        )}
                       </div>
                     </div>
-                  )
-                }
+                  )}
               </div>
               {message.role === "user" && (
                 <Avatar className="h-7 w-7 shrink-0 mt-1">
