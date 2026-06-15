@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { IconShoppingBag } from "@tabler/icons-react";
 import Image from "next/image";
+import { Button } from "../ui/button";
 
 export default function MessagePan({
   messages,
@@ -182,6 +183,24 @@ export default function MessagePan({
                       </CardFooter>
                     </Card>
                   )}
+
+                {message.role === "assistant" &&
+                  message.json_content?.suggestions &&
+                  message.json_content.suggestions.length > 0 && (
+                    <div className="flex justify-start mt-2">
+                      <div className="flex flex-wrap gap-2">
+                        {message.json_content.suggestions.map((s: string, idx: number) => (
+                          <Button
+                            key={idx}
+                            variant="outline"
+                            className="text-xs hover:bg-primary/25 hover:text-primary hover:border-primary">
+                            {s}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                }
               </div>
               {message.role === "user" && (
                 <Avatar className="h-7 w-7 flex-shrink-0 mt-1">
@@ -192,16 +211,6 @@ export default function MessagePan({
               )}
             </div>
           </div>
-
-          {/* {message.role === "assistant" && message.suggestions?.length > 0 && (
-                        <div className="flex justify-start ml-12">
-                            <div className="flex flex-wrap gap-2 max-w-[82%]">
-                                {message.suggestions.map((s: string, idx: number) => (
-                                    <button key={idx} onClick={() => handleSuggestionClick(s)} className="text-xs px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors cursor-pointer">{s}</button>
-                                ))}
-                            </div>
-                        </div>
-                    )} */}
         </div>
       ))}
     </div>
