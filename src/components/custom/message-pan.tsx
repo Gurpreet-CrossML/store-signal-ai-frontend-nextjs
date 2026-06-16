@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/card";
 import { IconShoppingBag } from "@tabler/icons-react";
 import Image from "next/image";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
+import HoverZoomImage from "@/components/custom/hover-zoom-image";
 
 export default function MessagePan({
   messages,
@@ -126,6 +127,7 @@ export default function MessagePan({
                       </div>
                     </div>
                   )}
+
                 {message.role === "assistant" &&
                   message?.json_content?.cart_details &&
                   message.json_content.cart_details.items.length > 0 && (
@@ -203,6 +205,29 @@ export default function MessagePan({
                       </div>
                     </div>
                   )}
+
+                {message.role === "user" && message.image_url && (
+                  <div className="mt-2">
+                    {Array.isArray(message.image_url) ? (
+                      <div className="flex gap-2">
+                        {message.image_url.map((url, idx) => (
+                          <HoverZoomImage
+                            key={idx}
+                            src={url}
+                            alt={`User uploaded ${idx + 1}`}
+                            className="h-14 w-14 object-contain shrink-0 bg-muted"
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <HoverZoomImage
+                        src={message.image_url}
+                        alt="User uploaded"
+                        className="h-14 w-14 object-contain shrink-0 bg-muted"
+                      />
+                    )}
+                  </div>
+                )}
               </div>
               {message.role === "user" && (
                 <Avatar className="h-7 w-7 shrink-0 mt-1">
