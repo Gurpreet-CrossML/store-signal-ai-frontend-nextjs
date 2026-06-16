@@ -374,11 +374,17 @@ export default function ThreadDetailDrawer({
   open,
   setOpen,
   thread,
+  threadId,
   onClose,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
   thread: Thread | null;
+  /**
+   * Id of the thread to show. Falls back to this when the full `thread` object
+   * isn't on the loaded page yet (e.g. a freshly opened shared/deep link).
+   */
+  threadId?: string | null;
   onClose: () => void;
 }) {
   const dispatch = useAppDispatch();
@@ -408,18 +414,22 @@ export default function ThreadDetailDrawer({
     (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
   );
 
+  // Prefer the id from the loaded row, but fall back to the deep-linked id so
+  // the drawer still loads when opened directly from a shared URL.
+  const activeThreadId = thread?.id || threadId || "";
+
   useEffect(() => {
     if (!open) return; // Only fetch when the drawer is opened
     if (!storeCode) return;
-    dispatch(FetchThreadDetails(thread?.id || ""));
-    dispatch(FetchConversationSummary(thread?.id || ""));
-    dispatch(FetchAIInsight(thread?.id || ""));
-    dispatch(FetchAIInsight(thread?.id || ""));
-    dispatch(FetchCart(thread?.id || ""));
-    dispatch(FetchUserMetadata(thread?.id || ""));
-    dispatch(FetchFeedbackSequence(thread?.id || ""));
-    dispatch(FetchFreshdeskTicketId(thread?.id || ""));
-  }, [dispatch, storeCode, thread?.id, open]);
+    if (!activeThreadId) return;
+    dispatch(FetchThreadDetails(activeThreadId));
+    dispatch(FetchConversationSummary(activeThreadId));
+    dispatch(FetchAIInsight(activeThreadId));
+    dispatch(FetchCart(activeThreadId));
+    dispatch(FetchUserMetadata(activeThreadId));
+    dispatch(FetchFeedbackSequence(activeThreadId));
+    dispatch(FetchFreshdeskTicketId(activeThreadId));
+  }, [dispatch, storeCode, activeThreadId, open]);
 
   return (
     <Drawer open={open} onOpenChange={setOpen} direction="right">
@@ -427,7 +437,7 @@ export default function ThreadDetailDrawer({
         <DrawerHeader className="flex-row justify-between">
           <div className="flex flex-col gap-2 max-w-1/3">
             <DrawerTitle className="flex items-center gap-2">
-              {thread?.name || "Thread"}
+              {thread?.name || FetchThreadDetailsData?.name || "Thread"}
               <Badge className="font-normal">
                 {FetchThreadDetailsData?.is_active ? "Active" : "Closed"}
               </Badge>
@@ -468,7 +478,7 @@ export default function ThreadDetailDrawer({
                 </Tooltip>
               )}
             </DrawerTitle>
-            <DrawerDescription>{thread?.id}</DrawerDescription>
+            <DrawerDescription>{activeThreadId}</DrawerDescription>
             <div className="flex flex-wrap items-center gap-2 mt-2">
               {thread?.tags?.map((tag) => (
                 <Badge key={tag} variant="secondary" className="font-normal">
@@ -521,11 +531,16 @@ export default function ThreadDetailDrawer({
                   Customer Info
                 </CardTitle>
                 <CardDescription className="flex flex-col">
-                  {thread?.customer?.name || "Anonymous"}
-                  {thread?.customer?.email && (
+                  {thread?.customer?.name ||
+                    FetchThreadDetailsData?.customer_name ||
+                    "Anonymous"}
+                  {(thread?.customer?.email ||
+                    FetchThreadDetailsData?.customer_email) && (
                     <>
                       <br />
-                      {thread?.customer?.email || "-"}
+                      {thread?.customer?.email ||
+                        FetchThreadDetailsData?.customer_email ||
+                        "-"}
                     </>
                   )}
                 </CardDescription>
