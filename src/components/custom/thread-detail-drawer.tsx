@@ -57,6 +57,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Skeleton } from "../ui/skeleton";
 
 /** Centered spinner used while a card's data is still being fetched. */
 function CardLoadingState() {
@@ -126,10 +127,10 @@ function ThreadAIInsightCard({
                       {item}
                     </li>
                   )) || (
-                    <p className="text-sm text-muted-foreground italic">
-                      No data available.
-                    </p>
-                  )}
+                      <p className="text-sm text-muted-foreground italic">
+                        No data available.
+                      </p>
+                    )}
                 </ul>
               </div>
             )}
@@ -154,9 +155,9 @@ function ThreadAIInsightCard({
             <div>
               <span>Performing Matrix</span>
               {overperformingCases &&
-              underperformingCases &&
-              overperformingCases?.length === 0 &&
-              underperformingCases?.length === 0 ? (
+                underperformingCases &&
+                overperformingCases?.length === 0 &&
+                underperformingCases?.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">
                   No Matrix available.
                 </p>
@@ -360,10 +361,10 @@ function FreshdeskTicketCard({
               </CardContent>
             </Card>
           )) || (
-            <p className="text-sm text-muted-foreground italic">
-              No Freshdesk ticket data available.
-            </p>
-          )}
+              <p className="text-sm text-muted-foreground italic">
+                No Freshdesk ticket data available.
+              </p>
+            )}
         </CardContent>
       )}
     </Card>
@@ -407,7 +408,7 @@ export default function ThreadDetailDrawer({
   const { FetchUserMetadataData, FetchUserMetadataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchUserMetadataState,
   );
-  const { FetchFeedbackSequenceData } = useAppSelector(
+  const { FetchFeedbackSequenceData, FetchFeedbackSequenceIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchFeedbackSequenceState,
   );
   const { FetchFreshdeskTicketIdData } = useAppSelector(
@@ -438,27 +439,38 @@ export default function ThreadDetailDrawer({
           <div className="flex flex-col gap-2 max-w-1/3">
             <DrawerTitle className="flex items-center gap-2">
               {thread?.name || FetchThreadDetailsData?.name || "Thread"}
-              <Badge className="font-normal">
-                {FetchThreadDetailsData?.is_active ? "Active" : "Closed"}
-              </Badge>
-              <Badge
-                className={cn(
-                  "font-normal",
-                  FetchThreadDetailsData?.verdict?.verdict == "resolved"
-                    ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
-                    : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
-                )}
-              >
-                {FetchThreadDetailsData?.verdict?.verdict == "resolved" ? (
-                  <IconCheck data-icon="inline-start" />
+              {
+                FetchThreadDetailsIsLoading ? (
+                  <Skeleton className="w-18 h-5" />
                 ) : (
-                  <IconX data-icon="inline-start" />
+                  <Badge className="font-normal">
+                    {FetchThreadDetailsData?.is_active ? "Active" : "Closed"}
+                  </Badge>
                 )}
-                {FetchThreadDetailsData?.verdict?.verdict == "resolved"
-                  ? "Resolved"
-                  : "Unresolved"}
-              </Badge>
-              {FetchFeedbackSequenceData?.feedback && (
+              {FetchThreadDetailsIsLoading ? (
+                <Skeleton className="w-22 h-5" />
+              ) : (
+                <Badge
+                  className={cn(
+                    "font-normal",
+                    FetchThreadDetailsData?.verdict?.verdict == "resolved"
+                      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+                  )}
+                >
+                  {FetchThreadDetailsData?.verdict?.verdict == "resolved" ? (
+                    <IconCheck data-icon="inline-start" />
+                  ) : (
+                    <IconX data-icon="inline-start" />
+                  )}
+                  {FetchThreadDetailsData?.verdict?.verdict == "resolved"
+                    ? "Resolved"
+                    : "Unresolved"}
+                </Badge>
+              )}
+              {FetchFeedbackSequenceIsLoading ? (
+                <Skeleton className="w-22 h-5" />
+              ) : FetchFeedbackSequenceData?.feedback && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Badge className="font-normal">
@@ -495,7 +507,13 @@ export default function ThreadDetailDrawer({
                   Started at
                 </CardTitle>
                 <CardDescription className="flex flex-col">
-                  {formatDateTime(FetchThreadDetailsData?.created_at || "-")}
+                  {
+                    FetchThreadDetailsIsLoading ? (
+                      <Skeleton className="w-28 h-5" />
+                    ) : (
+                      formatDateTime(FetchThreadDetailsData?.created_at || "-")
+                    )
+                  }
                 </CardDescription>
               </CardContent>
             </Card>
@@ -506,7 +524,13 @@ export default function ThreadDetailDrawer({
                   Closed at
                 </CardTitle>
                 <CardDescription className="flex flex-col">
-                  {formatDateTime(FetchThreadDetailsData?.ended_at || "-")}
+                  {
+                    FetchThreadDetailsIsLoading ? (
+                      <Skeleton className="w-28 h-5" />
+                    ) : (
+                      formatDateTime(FetchThreadDetailsData?.ended_at || "-")
+                    )
+                  }
                 </CardDescription>
               </CardContent>
             </Card>
@@ -517,10 +541,16 @@ export default function ThreadDetailDrawer({
                   Duration
                 </CardTitle>
                 <CardDescription className="flex flex-col">
-                  {getDuration(
-                    FetchThreadDetailsData?.created_at,
-                    FetchThreadDetailsData?.ended_at,
-                  ) || "-"}
+                  {
+                    FetchThreadDetailsIsLoading ? (
+                      <Skeleton className="w-28 h-5" />
+                    ) : (
+                      getDuration(
+                        FetchThreadDetailsData?.created_at,
+                        FetchThreadDetailsData?.ended_at,
+                      ) || "-"
+                    )
+                  }
                 </CardDescription>
               </CardContent>
             </Card>
@@ -531,16 +561,23 @@ export default function ThreadDetailDrawer({
                   Customer Info
                 </CardTitle>
                 <CardDescription className="flex flex-col">
-                  {thread?.customer?.name ||
-                    FetchThreadDetailsData?.customer_name ||
-                    "Anonymous"}
-                  {(thread?.customer?.email ||
-                    FetchThreadDetailsData?.customer_email) && (
+                  {FetchThreadDetailsIsLoading ? (
+                    <Skeleton className="w-28 h-5" />
+                  ) : (
                     <>
-                      <br />
-                      {thread?.customer?.email ||
-                        FetchThreadDetailsData?.customer_email ||
-                        "-"}
+                      {thread?.customer?.name ||
+                        FetchThreadDetailsData?.customer_name ||
+                        "Anonymous"}
+
+                      {(thread?.customer?.email ||
+                        FetchThreadDetailsData?.customer_email) && (
+                          <>
+                            <br />
+                            {thread?.customer?.email ||
+                              FetchThreadDetailsData?.customer_email ||
+                              "-"}
+                          </>
+                        )}
                     </>
                   )}
                 </CardDescription>

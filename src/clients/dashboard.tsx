@@ -12,6 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { custructTimeInHumanReadableFormat } from "@/lib/helpers";
 import {
   FetchFeedbackInsights,
   FetchConversation,
@@ -174,7 +175,7 @@ export default function Dashboard() {
     },
     {
       label: "Avg Handle Time",
-      value: `${FetchFeedbackInsightsData?.avg_handle_time?.value || 0}m`,
+      value: `${custructTimeInHumanReadableFormat(FetchFeedbackInsightsData?.avg_handle_time?.value || 0, FetchFeedbackInsightsData?.avg_handle_time?.unit)}`,
       infoText:
         "Shows the average time taken to handle a conversation from start to finish, including resolution.",
       status: "Per Session",

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
 
 export type FeedbackInsightsResponse = {
-  avg_handle_time: { value: number };
+  avg_handle_time: { value: number, unit: "seconds" | "minutes" };
   csat_score: { percentage: number };
   feedback_distribution: {
     positive: { value: number };
