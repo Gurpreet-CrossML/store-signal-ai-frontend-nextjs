@@ -492,8 +492,8 @@ export default function ThreadDetailDrawer({
             </DrawerTitle>
             <DrawerDescription>{activeThreadId}</DrawerDescription>
             <div className="flex flex-wrap items-center gap-2 mt-2">
-              {thread?.tags?.map((tag) => (
-                <Badge key={tag} variant="secondary" className="font-normal">
+              {thread?.tags?.map((tag, idx) => (
+                <Badge key={idx} variant="secondary" className="font-normal">
                   {tag}
                 </Badge>
               ))}

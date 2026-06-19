@@ -100,6 +100,12 @@ export default function MessagePan({
                                     alt={product.name}
                                     width={48}
                                     height={48}
+                                    // Product images come from arbitrary, untrusted
+                                    // store hostnames (Magento/Shopify/etc.) we can't
+                                    // enumerate. unoptimized renders a direct <img> so
+                                    // we skip the remotePatterns allowlist and avoid
+                                    // proxying third-party bandwidth through our optimizer.
+                                    unoptimized
                                     className="h-12 w-12 object-contain shrink-0 bg-muted"
                                   />
                                 ) : (
