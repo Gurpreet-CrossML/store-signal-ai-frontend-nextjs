@@ -21,6 +21,11 @@ export const sidebarMenus = {
       icon: IconMessage2,
     },
     {
+      title: "Tickets",
+      url: "/tickets",
+      icon: IconHelp,
+    },
+    {
       title: "Knowledge",
       url: "/knowledge",
       icon: IconBooks,

@@ -48,6 +48,8 @@ export const ENDPOINTS = {
     `/analytics/threads/${threadId}/cart-data/`,
   fetchFreshdeskTicketId: (threadId: string) =>
     `/support/threads/${threadId}/tickets/`,
+  fetchTickets: () => "/support/tickets/",
+  fetchTicketDetails: (ticketId: number) => `/support/tickets/${ticketId}/`,
 
   // Chatbot Customization
   widgetCustomization: (storeId: number) =>
