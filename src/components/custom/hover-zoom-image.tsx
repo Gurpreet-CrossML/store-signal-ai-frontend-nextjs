@@ -60,8 +60,7 @@ export default function HoverZoomImage({
   // viewport doesn't have room on the right.
   const panelStyle: React.CSSProperties | null = rect
     ? (() => {
-        const hasRoomRight =
-          window.innerWidth - rect.right > panelSize + 16;
+        const hasRoomRight = window.innerWidth - rect.right > panelSize + 16;
         const left = hasRoomRight
           ? rect.right + 12
           : rect.left - panelSize - 12;

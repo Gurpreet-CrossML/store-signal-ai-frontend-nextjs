@@ -127,10 +127,10 @@ function ThreadAIInsightCard({
                       {item}
                     </li>
                   )) || (
-                      <p className="text-sm text-muted-foreground italic">
-                        No data available.
-                      </p>
-                    )}
+                    <p className="text-sm text-muted-foreground italic">
+                      No data available.
+                    </p>
+                  )}
                 </ul>
               </div>
             )}
@@ -155,9 +155,9 @@ function ThreadAIInsightCard({
             <div>
               <span>Performing Matrix</span>
               {overperformingCases &&
-                underperformingCases &&
-                overperformingCases?.length === 0 &&
-                underperformingCases?.length === 0 ? (
+              underperformingCases &&
+              overperformingCases?.length === 0 &&
+              underperformingCases?.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">
                   No Matrix available.
                 </p>
@@ -361,10 +361,10 @@ function FreshdeskTicketCard({
               </CardContent>
             </Card>
           )) || (
-              <p className="text-sm text-muted-foreground italic">
-                No Freshdesk ticket data available.
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground italic">
+              No Freshdesk ticket data available.
+            </p>
+          )}
         </CardContent>
       )}
     </Card>
@@ -408,9 +408,10 @@ export default function ThreadDetailDrawer({
   const { FetchUserMetadataData, FetchUserMetadataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchUserMetadataState,
   );
-  const { FetchFeedbackSequenceData, FetchFeedbackSequenceIsLoading } = useAppSelector(
-    (state) => state.GetThreadReducer.FetchFeedbackSequenceState,
-  );
+  const { FetchFeedbackSequenceData, FetchFeedbackSequenceIsLoading } =
+    useAppSelector(
+      (state) => state.GetThreadReducer.FetchFeedbackSequenceState,
+    );
   const { FetchFreshdeskTicketIdData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
   );
@@ -439,14 +440,13 @@ export default function ThreadDetailDrawer({
           <div className="flex flex-col gap-2 max-w-1/3">
             <DrawerTitle className="flex items-center gap-2">
               {thread?.name || FetchThreadDetailsData?.name || "Thread"}
-              {
-                FetchThreadDetailsIsLoading ? (
-                  <Skeleton className="w-18 h-5" />
-                ) : (
-                  <Badge className="font-normal">
-                    {FetchThreadDetailsData?.is_active ? "Active" : "Closed"}
-                  </Badge>
-                )}
+              {FetchThreadDetailsIsLoading ? (
+                <Skeleton className="w-18 h-5" />
+              ) : (
+                <Badge className="font-normal">
+                  {FetchThreadDetailsData?.is_active ? "Active" : "Closed"}
+                </Badge>
+              )}
               {FetchThreadDetailsIsLoading ? (
                 <Skeleton className="w-22 h-5" />
               ) : (
@@ -470,24 +470,26 @@ export default function ThreadDetailDrawer({
               )}
               {FetchFeedbackSequenceIsLoading ? (
                 <Skeleton className="w-22 h-5" />
-              ) : FetchFeedbackSequenceData?.feedback && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge className="font-normal">
-                      {FEEDBACK_RATINGS.find(
-                        (rating) =>
-                          rating.value ===
-                          FetchFeedbackSequenceData.feedback?.rating,
-                      )?.label ?? "No Feedback"}
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {FetchFeedbackSequenceData.feedback?.feedback_message ||
-                        "No feedback message provided."}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
+              ) : (
+                FetchFeedbackSequenceData?.feedback && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge className="font-normal">
+                        {FEEDBACK_RATINGS.find(
+                          (rating) =>
+                            rating.value ===
+                            FetchFeedbackSequenceData.feedback?.rating,
+                        )?.label ?? "No Feedback"}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        {FetchFeedbackSequenceData.feedback?.feedback_message ||
+                          "No feedback message provided."}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                )
               )}
             </DrawerTitle>
             <DrawerDescription>{activeThreadId}</DrawerDescription>
@@ -507,13 +509,11 @@ export default function ThreadDetailDrawer({
                   Started at
                 </CardTitle>
                 <CardDescription className="flex flex-col">
-                  {
-                    FetchThreadDetailsIsLoading ? (
-                      <Skeleton className="w-28 h-5" />
-                    ) : (
-                      formatDateTime(FetchThreadDetailsData?.created_at || "-")
-                    )
-                  }
+                  {FetchThreadDetailsIsLoading ? (
+                    <Skeleton className="w-28 h-5" />
+                  ) : (
+                    formatDateTime(FetchThreadDetailsData?.created_at || "-")
+                  )}
                 </CardDescription>
               </CardContent>
             </Card>
@@ -524,13 +524,11 @@ export default function ThreadDetailDrawer({
                   Closed at
                 </CardTitle>
                 <CardDescription className="flex flex-col">
-                  {
-                    FetchThreadDetailsIsLoading ? (
-                      <Skeleton className="w-28 h-5" />
-                    ) : (
-                      formatDateTime(FetchThreadDetailsData?.ended_at || "-")
-                    )
-                  }
+                  {FetchThreadDetailsIsLoading ? (
+                    <Skeleton className="w-28 h-5" />
+                  ) : (
+                    formatDateTime(FetchThreadDetailsData?.ended_at || "-")
+                  )}
                 </CardDescription>
               </CardContent>
             </Card>
@@ -541,16 +539,14 @@ export default function ThreadDetailDrawer({
                   Duration
                 </CardTitle>
                 <CardDescription className="flex flex-col">
-                  {
-                    FetchThreadDetailsIsLoading ? (
-                      <Skeleton className="w-28 h-5" />
-                    ) : (
-                      getDuration(
-                        FetchThreadDetailsData?.created_at,
-                        FetchThreadDetailsData?.ended_at,
-                      ) || "-"
-                    )
-                  }
+                  {FetchThreadDetailsIsLoading ? (
+                    <Skeleton className="w-28 h-5" />
+                  ) : (
+                    getDuration(
+                      FetchThreadDetailsData?.created_at,
+                      FetchThreadDetailsData?.ended_at,
+                    ) || "-"
+                  )}
                 </CardDescription>
               </CardContent>
             </Card>
@@ -571,13 +567,13 @@ export default function ThreadDetailDrawer({
 
                       {(thread?.customer?.email ||
                         FetchThreadDetailsData?.customer_email) && (
-                          <>
-                            <br />
-                            {thread?.customer?.email ||
-                              FetchThreadDetailsData?.customer_email ||
-                              "-"}
-                          </>
-                        )}
+                        <>
+                          <br />
+                          {thread?.customer?.email ||
+                            FetchThreadDetailsData?.customer_email ||
+                            "-"}
+                        </>
+                      )}
                     </>
                   )}
                 </CardDescription>
