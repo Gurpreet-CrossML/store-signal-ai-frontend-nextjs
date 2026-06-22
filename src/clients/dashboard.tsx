@@ -13,13 +13,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  FetchFeedbackInsights,
-  FetchConversation,
-  FetchEngagement,
-  FetchOperationalEfficiency,
-  FetchUserMatrix,
-  FetchConversionRate,
-  FetchQueryCategoryInsights,
+  FetchDashboard,
   FetchConversationHistory,
 } from "@/redux/api-slice/dashboard-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -109,13 +103,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!storeCode) return;
-    dispatch(FetchFeedbackInsights({ storeCode }));
-    dispatch(FetchConversation({ storeCode }));
-    dispatch(FetchEngagement({ storeCode }));
-    dispatch(FetchOperationalEfficiency({ storeCode }));
-    dispatch(FetchUserMatrix({ storeCode }));
-    dispatch(FetchConversionRate({ storeCode }));
-    dispatch(FetchQueryCategoryInsights({ storeCode }));
+    // One consolidated request for all five summary widgets (feedback insights,
+    // engagement, operational efficiency, user matrix, conversion rate) — see
+    // /api/analytics/dashboard. Conversation history stays separate as it has
+    // its own date-range controls.
+    dispatch(FetchDashboard({ storeCode }));
   }, [dispatch, storeCode]);
 
   useEffect(() => {

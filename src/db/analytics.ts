@@ -1,4 +1,11 @@
-import { db } from "@/lib/db";
+import {
+  getDb,
+  runSequentially,
+  currentCompany,
+  resolveStoreScope,
+} from "@/lib/tenant-context";
+import { storeIdScope, threadIdScope } from "@/db/access";
+import { getCached, setCached } from "@/lib/dashboard-cache";
 import {
   chatThread,
   chatHistory,
@@ -114,17 +121,15 @@ export async function get_conversion_analytics(params: {
   from?: string;
   to?: string;
 }) {
+  const db = getDb();
   const endDate = parseQueryDate(params.to, istToday());
   const startDate = parseQueryDate(params.from, addDays(endDate, -30));
 
   const threadFilters = [
     localDateRange(sql`${chatThread.createdAt}`, startDate, endDate),
   ];
-  if (params.store_code) {
-    threadFilters.push(
-      sql`${chatThread.storeId} IN (SELECT id FROM store WHERE code = ${params.store_code})`,
-    );
-  }
+  const storeScope = storeIdScope(chatThread.storeId, params.store_code);
+  if (storeScope) threadFilters.push(storeScope);
   const threadWhere = and(...threadFilters)!;
 
   // total_threads
@@ -263,17 +268,15 @@ export async function get_feedback_insights(params: {
   from?: string;
   to?: string;
 }) {
+  const db = getDb();
   const endDate = parseQueryDate(params.to, istToday());
   const startDate = parseQueryDate(params.from, addDays(endDate, -30));
 
   const threadFilters = [
     localDateRange(sql`${chatThread.createdAt}`, startDate, endDate),
   ];
-  if (params.store_code) {
-    threadFilters.push(
-      sql`${chatThread.storeId} IN (SELECT id FROM store WHERE code = ${params.store_code})`,
-    );
-  }
+  const storeScope = storeIdScope(chatThread.storeId, params.store_code);
+  if (storeScope) threadFilters.push(storeScope);
   const threadWhere = and(...threadFilters)!;
   const threadSubquery = sql`(SELECT id FROM chat_thread WHERE ${threadWhere})`;
 
@@ -291,7 +294,7 @@ export async function get_feedback_insights(params: {
     ahtRows,
     analyses,
     ticketThreadRows,
-  ] = await Promise.all([
+  ] = await runSequentially([
     db
       .select({ total: sql<number>`count(*)::int` })
       .from(chatThread)
@@ -495,17 +498,15 @@ export async function get_user_matrix(params: {
   from?: string;
   to?: string;
 }) {
+  const db = getDb();
   const endDate = parseQueryDate(params.to, istToday());
   const startDate = parseQueryDate(params.from, addDays(endDate, -30));
 
   const filters = [
     localDateRange(sql`${chatThread.createdAt}`, startDate, endDate),
   ];
-  if (params.store_code) {
-    filters.push(
-      sql`${chatThread.storeId} IN (SELECT id FROM store WHERE code = ${params.store_code})`,
-    );
-  }
+  const storeScope = storeIdScope(chatThread.storeId, params.store_code);
+  if (storeScope) filters.push(storeScope);
 
   const [row] = await db
     .select({
@@ -530,17 +531,15 @@ export async function get_conversion_rate(params: {
   from?: string;
   to?: string;
 }) {
+  const db = getDb();
   const endDate = parseQueryDate(params.to, istToday());
   const startDate = parseQueryDate(params.from, addDays(endDate, -30));
 
   const filters = [
     localDateRange(sql`${chatThread.createdAt}`, startDate, endDate),
   ];
-  if (params.store_code) {
-    filters.push(
-      sql`${chatThread.storeId} IN (SELECT id FROM store WHERE code = ${params.store_code})`,
-    );
-  }
+  const storeScope = storeIdScope(chatThread.storeId, params.store_code);
+  if (storeScope) filters.push(storeScope);
   const threadWhere = and(...filters)!;
 
   const [{ total }] = await db
@@ -586,6 +585,7 @@ export async function get_query_category_insights(params: {
   from?: string;
   to?: string;
 }) {
+  const db = getDb();
   const endDate = parseQueryDate(params.to, istToday());
   const startDate = parseQueryDate(params.from, addDays(endDate, -30));
 
@@ -594,11 +594,8 @@ export async function get_query_category_insights(params: {
     localDateRange(sql`${chatThread.createdAt}`, startDate, endDate),
     eq(chatThread.isActive, false),
   ];
-  if (params.store_code) {
-    filters.push(
-      sql`${chatThread.storeId} IN (SELECT id FROM store WHERE code = ${params.store_code})`,
-    );
-  }
+  const storeScope = storeIdScope(chatThread.storeId, params.store_code);
+  if (storeScope) filters.push(storeScope);
   const threadWhere = and(...filters)!;
 
   const analyses = await db
@@ -685,17 +682,15 @@ export async function get_engagements(params: {
   from?: string;
   to?: string;
 }) {
+  const db = getDb();
   const endDate = parseQueryDate(params.to, istToday());
   const startDate = parseQueryDate(params.from, addDays(endDate, -30));
 
   const threadFilters = [
     localDateRange(sql`${chatThread.createdAt}`, startDate, endDate),
   ];
-  if (params.store_code) {
-    threadFilters.push(
-      sql`${chatThread.storeId} IN (SELECT id FROM store WHERE code = ${params.store_code})`,
-    );
-  }
+  const storeScope = storeIdScope(chatThread.storeId, params.store_code);
+  if (storeScope) threadFilters.push(storeScope);
   const threadWhere = and(...threadFilters)!;
   const threadSubquery = sql`(SELECT id FROM chat_thread WHERE ${threadWhere})`;
 
@@ -715,7 +710,7 @@ export async function get_engagements(params: {
     botHourRows,
     humanHourRows,
     trendRows,
-  ] = await Promise.all([
+  ] = await runSequentially([
     // total threads
     db
       .select({ total: sql<number>`count(*)::int` })
@@ -991,6 +986,7 @@ export async function get_operational_efficiency(params: {
   from?: string;
   to?: string;
 }) {
+  const db = getDb();
   const endDate = parseQueryDate(params.to, istToday());
   const startDate = parseQueryDate(params.from, addDays(endDate, -30));
 
@@ -999,11 +995,8 @@ export async function get_operational_efficiency(params: {
       localDateRange(sql`${chatThread.createdAt}`, start, end),
       eq(chatThread.isActive, false),
     ];
-    if (params.store_code) {
-      f.push(
-        sql`${chatThread.storeId} IN (SELECT id FROM store WHERE code = ${params.store_code})`,
-      );
-    }
+    const storeScope = storeIdScope(chatThread.storeId, params.store_code);
+    if (storeScope) f.push(storeScope);
     return and(...f)!;
   };
 
@@ -1390,6 +1383,7 @@ export async function get_chat_history_aggregated(params: {
   to_dt: string;
   points: Array<{ label: string; value: number }>;
 }> {
+  const db = getDb();
   const granularity = params.granularity ?? "hourly";
   if (!["hourly", "weekly", "monthly"].includes(granularity)) {
     throw new Error("granularity must be 'hourly', 'weekly', or 'monthly'");
@@ -1406,11 +1400,8 @@ export async function get_chat_history_aggregated(params: {
     lte(chatHistory.createdAt, end.toISOString()),
     eq(chatHistory.role, "user"),
   ];
-  if (params.store_code) {
-    conds.push(
-      sql`${chatHistory.threadId} IN (SELECT t.id FROM chat_thread t JOIN store s ON t.store_id = s.id WHERE s.code = ${params.store_code})`,
-    );
-  }
+  const storeScope = threadIdScope(chatHistory.threadId, params.store_code);
+  if (storeScope) conds.push(storeScope);
   if (params.query) {
     conds.push(sql`${chatHistory.message} ILIKE ${"%" + params.query + "%"}`);
   }
@@ -1551,6 +1542,7 @@ export async function get_chat_history_raw(params: {
   daterange?: string;
   query?: string;
 }) {
+  const db = getDb();
   // Raw mode uses parse_and_validate_daterange(daterange) — the legacy single-string
   // path with smart hourly default (1 week) when none provided.
   let start: Date;
@@ -1569,11 +1561,8 @@ export async function get_chat_history_raw(params: {
     gte(chatHistory.createdAt, start.toISOString()),
     lte(chatHistory.createdAt, end.toISOString()),
   ];
-  if (params.store_code) {
-    conds.push(
-      sql`${chatHistory.threadId} IN (SELECT t.id FROM chat_thread t JOIN store s ON t.store_id = s.id WHERE s.code = ${params.store_code})`,
-    );
-  }
+  const storeScope = threadIdScope(chatHistory.threadId, params.store_code);
+  if (storeScope) conds.push(storeScope);
   if (params.query) {
     conds.push(sql`${chatHistory.message} ILIKE ${"%" + params.query + "%"}`);
   }
@@ -1649,4 +1638,58 @@ function parseLegacyDaterange(raw: string): { start: Date; end: Date } {
     ? toIst(endStr, true)
     : new Date(start.getTime() + 7 * 86400 * 1000);
   return { start, end };
+}
+
+// ===========================================================================
+// Consolidated dashboard summary  →  /analytics/dashboard
+// Runs the 5 summary serializers in ONE request/transaction instead of 5
+// separate API calls, behind a short TTL cache keyed by tenant + store + range.
+// Cuts the dashboard from ~6 requests (each its own tx + verify-token + many
+// queries) to 1, and to ~0 DB reads on cached repeat views.
+// ===========================================================================
+
+export type DashboardSummary = {
+  feedback_insights: Awaited<ReturnType<typeof get_feedback_insights>> | null;
+  engagements: Awaited<ReturnType<typeof get_engagements>> | null;
+  operational_efficiency: Awaited<
+    ReturnType<typeof get_operational_efficiency>
+  > | null;
+  user_matrix: Awaited<ReturnType<typeof get_user_matrix>> | null;
+  conversion_rate: Awaited<ReturnType<typeof get_conversion_rate>> | null;
+};
+
+const EMPTY_DASHBOARD: DashboardSummary = {
+  feedback_insights: null,
+  engagements: null,
+  operational_efficiency: null,
+  user_matrix: null,
+  conversion_rate: null,
+};
+
+export async function get_dashboard_summary(params: {
+  store_code?: string;
+  from?: string;
+  to?: string;
+}): Promise<DashboardSummary> {
+  // Per-store access gate (F3). A denied store returns the empty payload and is
+  // NOT cached, so an allowed user can never be served a denied user's slot.
+  const scope = resolveStoreScope(params.store_code);
+  const accessible = scope === null || scope.length > 0;
+  if (!accessible) return EMPTY_DASHBOARD;
+
+  // Tenant-prefixed cache key — never crosses companies.
+  const key = `${currentCompany()}:${params.store_code ?? ""}:${params.from ?? ""}:${params.to ?? ""}`;
+  const cached = getCached<DashboardSummary>(key);
+  if (cached) return cached;
+
+  // One connection, sequential (single tenant transaction — see tenant-context).
+  const result: DashboardSummary = {
+    feedback_insights: await get_feedback_insights(params),
+    engagements: await get_engagements(params),
+    operational_efficiency: await get_operational_efficiency(params),
+    user_matrix: await get_user_matrix(params),
+    conversion_rate: await get_conversion_rate(params),
+  };
+  setCached(key, result);
+  return result;
 }

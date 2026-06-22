@@ -1,13 +1,13 @@
 import { get_conversion_rate } from "@/db/analytics";
 import { APIResponse } from "@/lib/config";
-import { createAPIResponse } from "@/lib/helpers";
+import { createAPIResponse, handleApiError } from "@/lib/helpers";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withTenantRoute } from "@/lib/with-tenant-route";
 
 // Mirrors Django ConversionRateAPIView + ConversionRateSerializer.
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<APIResponse>,
-) {
+export default withTenantRoute(handler);
+
+async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {
     return res
       .status(405)
@@ -33,10 +33,6 @@ export default async function handler(
         ),
       );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error("[analytics/conversion-rate] failed:", e);
-    return res
-      .status(500)
-      .json(createAPIResponse(false, `Internal server error - ${msg}`, null));
+    return handleApiError(res, e, "analytics/conversion-rate");
   }
 }

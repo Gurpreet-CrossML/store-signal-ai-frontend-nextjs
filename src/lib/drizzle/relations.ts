@@ -4,17 +4,23 @@ import {
   authPermission,
   authGroup,
   authGroupPermissions,
+  company,
+  storeRegistry,
+  threadRegistry,
   authUser,
   authUserGroups,
   authUserUserPermissions,
   djangoAdminLog,
+  companyDomain,
+  companyMembership,
   store,
   chatbotWidgetCustomization,
   chatbotWidgetCustomizationQuickActions,
   quickAction,
+  storeAccess,
   quickLink,
-  storeCredentials,
   storeFaqs,
+  storeCredentials,
   chatCustomer,
   chatAddress,
   chatThread,
@@ -25,9 +31,10 @@ import {
   sentimentAnalysis,
   sessionResolutionVerdict,
   userMetadata,
-  supportTicket,
+  fraudFlag,
   scrapeLinkslinks,
   knowledgeStorelibrarydocument,
+  supportTicket,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -69,6 +76,27 @@ export const authGroupRelations = relations(authGroup, ({ many }) => ({
   authUserGroups: many(authUserGroups),
 }));
 
+export const storeRegistryRelations = relations(storeRegistry, ({ one }) => ({
+  company: one(company, {
+    fields: [storeRegistry.companyId],
+    references: [company.id],
+  }),
+}));
+
+export const companyRelations = relations(company, ({ many }) => ({
+  storeRegistries: many(storeRegistry),
+  threadRegistries: many(threadRegistry),
+  companyDomains: many(companyDomain),
+  companyMemberships: many(companyMembership),
+}));
+
+export const threadRegistryRelations = relations(threadRegistry, ({ one }) => ({
+  company: one(company, {
+    fields: [threadRegistry.companyId],
+    references: [company.id],
+  }),
+}));
+
 export const authUserGroupsRelations = relations(authUserGroups, ({ one }) => ({
   authUser: one(authUser, {
     fields: [authUserGroups.userId],
@@ -84,6 +112,13 @@ export const authUserRelations = relations(authUser, ({ many }) => ({
   authUserGroups: many(authUserGroups),
   authUserUserPermissions: many(authUserUserPermissions),
   djangoAdminLogs: many(djangoAdminLog),
+  companyMemberships: many(companyMembership),
+  storeAccesss_grantedById: many(storeAccess, {
+    relationName: "storeAccess_grantedById_authUser_id",
+  }),
+  storeAccesss_userId: many(storeAccess, {
+    relationName: "storeAccess_userId_authUser_id",
+  }),
 }));
 
 export const authUserUserPermissionsRelations = relations(
@@ -111,6 +146,27 @@ export const djangoAdminLogRelations = relations(djangoAdminLog, ({ one }) => ({
   }),
 }));
 
+export const companyDomainRelations = relations(companyDomain, ({ one }) => ({
+  company: one(company, {
+    fields: [companyDomain.tenantId],
+    references: [company.id],
+  }),
+}));
+
+export const companyMembershipRelations = relations(
+  companyMembership,
+  ({ one }) => ({
+    company: one(company, {
+      fields: [companyMembership.companyId],
+      references: [company.id],
+    }),
+    authUser: one(authUser, {
+      fields: [companyMembership.userId],
+      references: [authUser.id],
+    }),
+  }),
+);
+
 export const chatbotWidgetCustomizationRelations = relations(
   chatbotWidgetCustomization,
   ({ one, many }) => ({
@@ -118,7 +174,7 @@ export const chatbotWidgetCustomizationRelations = relations(
       fields: [chatbotWidgetCustomization.storeId],
       references: [store.id],
     }),
-    chatbotWidgetCustomizationQuickActions: many(
+    chatbotWidgetCustomizationQuickActionss: many(
       chatbotWidgetCustomizationQuickActions,
     ),
     quickLinks: many(quickLink),
@@ -127,13 +183,14 @@ export const chatbotWidgetCustomizationRelations = relations(
 
 export const storeRelations = relations(store, ({ many }) => ({
   chatbotWidgetCustomizations: many(chatbotWidgetCustomization),
-  storeCredentials: many(storeCredentials),
-  storeFaqs: many(storeFaqs),
+  storeAccesss: many(storeAccess),
+  storeFaqss: many(storeFaqs),
+  storeCredentialss: many(storeCredentials),
   chatThreads: many(chatThread),
   sessionResolutionVerdicts: many(sessionResolutionVerdict),
-  supportTickets: many(supportTicket),
-  scrapeLinkslinks: many(scrapeLinkslinks),
+  scrapeLinkslinkss: many(scrapeLinkslinks),
   knowledgeStorelibrarydocuments: many(knowledgeStorelibrarydocument),
+  supportTickets: many(supportTicket),
 }));
 
 export const chatbotWidgetCustomizationQuickActionsRelations = relations(
@@ -153,15 +210,39 @@ export const chatbotWidgetCustomizationQuickActionsRelations = relations(
 );
 
 export const quickActionRelations = relations(quickAction, ({ many }) => ({
-  chatbotWidgetCustomizationQuickActions: many(
+  chatbotWidgetCustomizationQuickActionss: many(
     chatbotWidgetCustomizationQuickActions,
   ),
+}));
+
+export const storeAccessRelations = relations(storeAccess, ({ one }) => ({
+  authUser_grantedById: one(authUser, {
+    fields: [storeAccess.grantedById],
+    references: [authUser.id],
+    relationName: "storeAccess_grantedById_authUser_id",
+  }),
+  store: one(store, {
+    fields: [storeAccess.storeId],
+    references: [store.id],
+  }),
+  authUser_userId: one(authUser, {
+    fields: [storeAccess.userId],
+    references: [authUser.id],
+    relationName: "storeAccess_userId_authUser_id",
+  }),
 }));
 
 export const quickLinkRelations = relations(quickLink, ({ one }) => ({
   chatbotWidgetCustomization: one(chatbotWidgetCustomization, {
     fields: [quickLink.widgetId],
     references: [chatbotWidgetCustomization.id],
+  }),
+}));
+
+export const storeFaqsRelations = relations(storeFaqs, ({ one }) => ({
+  store: one(store, {
+    fields: [storeFaqs.storeId],
+    references: [store.id],
   }),
 }));
 
@@ -175,13 +256,6 @@ export const storeCredentialsRelations = relations(
   }),
 );
 
-export const storeFaqsRelations = relations(storeFaqs, ({ one }) => ({
-  store: one(store, {
-    fields: [storeFaqs.storeId],
-    references: [store.id],
-  }),
-}));
-
 export const chatAddressRelations = relations(chatAddress, ({ one }) => ({
   chatCustomer: one(chatCustomer, {
     fields: [chatAddress.customerId],
@@ -190,7 +264,7 @@ export const chatAddressRelations = relations(chatAddress, ({ one }) => ({
 }));
 
 export const chatCustomerRelations = relations(chatCustomer, ({ many }) => ({
-  chatAddresses: many(chatAddress),
+  chatAddresss: many(chatAddress),
   chatThreads: many(chatThread),
   supportTickets: many(supportTicket),
 }));
@@ -206,11 +280,12 @@ export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
   }),
   chatbotFeedbacks: many(chatbotFeedback),
   chatBotevents: many(chatBotevent),
-  chatHistories: many(chatHistory),
-  aiInsights: many(aiInsights),
-  sentimentAnalyses: many(sentimentAnalysis),
+  aiInsightss: many(aiInsights),
+  sentimentAnalysiss: many(sentimentAnalysis),
   sessionResolutionVerdicts: many(sessionResolutionVerdict),
-  userMetadata: many(userMetadata),
+  userMetadatas: many(userMetadata),
+  chatHistorys: many(chatHistory),
+  fraudFlags: many(fraudFlag),
   supportTickets: many(supportTicket),
 }));
 
@@ -234,6 +309,7 @@ export const chatHistoryRelations = relations(chatHistory, ({ one, many }) => ({
     fields: [chatHistory.threadId],
     references: [chatThread.id],
   }),
+  fraudFlags: many(fraudFlag),
 }));
 
 export const chatBoteventRelations = relations(chatBotevent, ({ one }) => ({
@@ -281,17 +357,13 @@ export const userMetadataRelations = relations(userMetadata, ({ one }) => ({
   }),
 }));
 
-export const supportTicketRelations = relations(supportTicket, ({ one }) => ({
-  chatCustomer: one(chatCustomer, {
-    fields: [supportTicket.customerId],
-    references: [chatCustomer.id],
-  }),
-  store: one(store, {
-    fields: [supportTicket.storeId],
-    references: [store.id],
+export const fraudFlagRelations = relations(fraudFlag, ({ one }) => ({
+  chatHistory: one(chatHistory, {
+    fields: [fraudFlag.chatMessageId],
+    references: [chatHistory.id],
   }),
   chatThread: one(chatThread, {
-    fields: [supportTicket.threadId],
+    fields: [fraudFlag.threadId],
     references: [chatThread.id],
   }),
 }));
@@ -315,3 +387,18 @@ export const knowledgeStorelibrarydocumentRelations = relations(
     }),
   }),
 );
+
+export const supportTicketRelations = relations(supportTicket, ({ one }) => ({
+  chatCustomer: one(chatCustomer, {
+    fields: [supportTicket.customerId],
+    references: [chatCustomer.id],
+  }),
+  store: one(store, {
+    fields: [supportTicket.storeId],
+    references: [store.id],
+  }),
+  chatThread: one(chatThread, {
+    fields: [supportTicket.threadId],
+    references: [chatThread.id],
+  }),
+}));

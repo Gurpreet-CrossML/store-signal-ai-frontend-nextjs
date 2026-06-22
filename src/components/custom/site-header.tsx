@@ -4,13 +4,18 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
 import { sidebarMenus } from "@/lib/sidebar-navs";
+import { useSession } from "next-auth/react";
 
 export function SiteHeader() {
   const pathname = usePathname();
-  const mainNav = sidebarMenus.navMain;
+  const { data: session } = useSession();
+  // Company admins (is_staff) get the admin nav (company settings + staff mgmt).
+  const navMain = session?.user?.is_staff
+    ? [...sidebarMenus.navMain, ...sidebarMenus.navAdmin]
+    : sidebarMenus.navMain;
 
   function findTitleFromPath(pathname: string | null) {
-    const found = mainNav.find((item) => item.url === pathname);
+    const found = navMain.find((item) => item.url === pathname);
     return found ? found.title : pathname;
   }
 

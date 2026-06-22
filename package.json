@@ -7,8 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --env-file-if-exists=.env node_modules/.bin/vitest run",
+    "test:watch": "node --env-file-if-exists=.env node_modules/.bin/vitest",
     "fetch-rds-ca": "curl -fsSL https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o global-bundle.pem",
-    "postinstall": "npm run fetch-rds-ca"
+    "postinstall": "npm run fetch-rds-ca",
+    "db:sync": "node --env-file-if-exists=.env --import tsx scripts/db-sync.ts",
+    "db:check": "node --env-file-if-exists=.env --import tsx scripts/db-check.ts",
+    "db:inspect": "node --env-file-if-exists=.env --import tsx scripts/inspect-schemas.ts",
+    "db:smoke": "node --env-file-if-exists=.env --import tsx scripts/smoke-tenant.ts"
   },
   "dependencies": {
     "@ckeditor/ckeditor5-react": "^11.1.2",
@@ -54,6 +60,7 @@
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.9"
   }
 }

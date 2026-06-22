@@ -2,6 +2,7 @@ import { get_thread_details } from "@/db/threads";
 import { APIResponse } from "@/lib/config";
 import { createAPIResponse } from "@/lib/helpers";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withTenantRoute } from "@/lib/with-tenant-route";
 
 /**
  * GET /analytics/threads/{thread_id}/  ->  ThreadChatsAPIView (analytics/views.py)
@@ -9,10 +10,9 @@ import type { NextApiRequest, NextApiResponse } from "next";
  * Optional query param `limit`: when a positive integer, returns the latest
  * `limit` messages (ordered -created_at); otherwise all messages (created_at).
  */
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<APIResponse>,
-) {
+export default withTenantRoute(handler);
+
+async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {
     return res
       .status(405)

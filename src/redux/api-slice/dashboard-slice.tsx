@@ -261,6 +261,39 @@ export const FetchConversationHistory = createAsyncThunk(
   },
 );
 
+// Consolidated dashboard payload (one request) — fanned out into the existing
+// per-widget state below so the dashboard selectors don't change.
+type DashboardSummaryResponse = {
+  feedback_insights: FeedbackInsightsResponse | null;
+  engagements: EngagementResponse | null;
+  operational_efficiency: OperationalEfficiencyResponse | null;
+  user_matrix: UserMatrixResponse | null;
+  conversion_rate: ConversionRateResponse | null;
+};
+
+export const FetchDashboard = createAsyncThunk(
+  "FetchDashboard",
+  async (args: { storeCode: string }, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchDashboard()}?store_code=${args.storeCode}`,
+      );
+      return response.data.data as DashboardSummaryResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch dashboard data, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 const DashboardSlice = createSlice({
   name: "Dashboard",
   initialState: {
@@ -461,6 +494,49 @@ const DashboardSlice = createSlice({
         state.FetchConversationHistoryState.FetchConversationHistoryIsSuccess = false;
         state.FetchConversationHistoryState.FetchConversationHistoryIsError =
           action.payload || "Something went wrong";
+      })
+      // Consolidated dashboard: one request fans out into all five widget states.
+      .addCase(FetchDashboard.pending, (state) => {
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsLoading = true;
+        state.FetchEngagementDataState.FetchEngagementDataIsLoading = true;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsLoading = true;
+        state.FetchUserMatrixState.FetchUserMatrixIsLoading = true;
+        state.FetchConversionRateDataState.FetchConversionRateDataIsLoading = true;
+      })
+      .addCase(FetchDashboard.fulfilled, (state, action) => {
+        const d = action.payload;
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsLoading = false;
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsSuccess = true;
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsData =
+          d.feedback_insights;
+        state.FetchEngagementDataState.FetchEngagementDataIsLoading = false;
+        state.FetchEngagementDataState.FetchEngagementDataIsSuccess = true;
+        state.FetchEngagementDataState.FetchEngagementData = d.engagements;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsLoading = false;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsSuccess = true;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyData =
+          d.operational_efficiency;
+        state.FetchUserMatrixState.FetchUserMatrixIsLoading = false;
+        state.FetchUserMatrixState.FetchUserMatrixIsSuccess = true;
+        state.FetchUserMatrixState.FetchUserMatrixData = d.user_matrix;
+        state.FetchConversionRateDataState.FetchConversionRateDataIsLoading = false;
+        state.FetchConversionRateDataState.FetchConversionRateDataIsSuccess = true;
+        state.FetchConversionRateDataState.FetchConversionRateData =
+          d.conversion_rate;
+      })
+      .addCase(FetchDashboard.rejected, (state, action) => {
+        const err = action.payload || "Something went wrong";
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsLoading = false;
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsError = err;
+        state.FetchEngagementDataState.FetchEngagementDataIsLoading = false;
+        state.FetchEngagementDataState.FetchEngagementDataIsError = err;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsLoading = false;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsError =
+          err;
+        state.FetchUserMatrixState.FetchUserMatrixIsLoading = false;
+        state.FetchUserMatrixState.FetchUserMatrixIsError = err;
+        state.FetchConversionRateDataState.FetchConversionRateDataIsLoading = false;
+        state.FetchConversionRateDataState.FetchConversionRateDataIsError = err;
       });
   },
 });

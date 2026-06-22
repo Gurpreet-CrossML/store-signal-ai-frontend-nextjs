@@ -3,8 +3,9 @@ import {
   get_chat_history_raw,
 } from "@/db/analytics";
 import { APIResponse } from "@/lib/config";
-import { createAPIResponse } from "@/lib/helpers";
+import { createAPIResponse, handleApiError } from "@/lib/helpers";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withTenantRoute } from "@/lib/with-tenant-route";
 
 /**
  * Mirrors Django ChatHistoryAPIView.
@@ -13,13 +14,12 @@ import type { NextApiRequest, NextApiResponse } from "next";
  *  - aggregated=true → ChatLoadAnalyticsSerializer ("Chat load analytics retrieved successfully")
  *  - otherwise (raw) → ChatHistorySerializer(many) ("History retrieved successfully")
  *
- * Both branches wrap in try/except returning 500 with message
- * "Internal server error - <e>" and data [] (matching Django).
+ * Both branches return a generic 500 on error (the raw cause is logged
+ * server-side, never sent to the client — see handleApiError).
  */
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<APIResponse>,
-) {
+export default withTenantRoute(handler);
+
+async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {
     return res
       .status(405)
@@ -49,10 +49,7 @@ export default async function handler(
           ),
         );
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      return res
-        .status(500)
-        .json(createAPIResponse(false, `Internal server error - ${msg}`, []));
+      return handleApiError(res, e, "analytics/chat-history");
     }
   }
 
@@ -67,9 +64,6 @@ export default async function handler(
       .status(200)
       .json(createAPIResponse(true, "History retrieved successfully", data));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res
-      .status(500)
-      .json(createAPIResponse(false, `Internal server error - ${msg}`, []));
+    return handleApiError(res, e, "analytics/chat-history");
   }
 }

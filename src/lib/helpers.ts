@@ -1,3 +1,5 @@
+import type { NextApiResponse } from "next";
+
 import { APIResponse, ErrorResponse, PaginationResponse } from "@/lib/config";
 
 export const formatDateTime = (dateInput: string | null) => {
@@ -49,4 +51,23 @@ export const createAPIResponse = (
   data: object | object[] | PaginationResponse | ErrorResponse | null = null,
 ): APIResponse => {
   return { success, message, data };
+};
+
+/**
+ * Log an unexpected API error server-side and return a generic 500 to the
+ * client. DB/driver errors (Drizzle/pg) embed the SQL text and bind params in
+ * their message — that MUST NOT reach the client (information disclosure). The
+ * full error is logged here; the client only ever sees "Internal server error".
+ */
+export const handleApiError = (
+  res: NextApiResponse,
+  err: unknown,
+  context: string = "api",
+): void => {
+  console.error(`[${context}] request failed:`, err);
+  if (!res.headersSent) {
+    res
+      .status(500)
+      .json(createAPIResponse(false, "Internal server error", null));
+  }
 };
