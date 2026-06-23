@@ -43,9 +43,6 @@ export default function Customization() {
   const stores = useAppSelector(
     (state) => state.GetStoresReducer.GetStoresState.GetStoresListData,
   );
-  // const { FetchWidgetCustomizationIsLoading } = useAppSelector(
-  //     (state) => state.GetCustomizationReducer.FetchWidgetCustomizationState
-  // );
 
   const store = stores.find((item) => item.code === storeCode);
   const storeId = store ? Number(store.id) : null;
@@ -53,7 +50,6 @@ export default function Customization() {
 
   const [widgetExists, setWidgetExists] = useState(false);
   const [savingAll, setSavingAll] = useState(false);
-  // const [hydrated, setHydrated] = useState(false);
 
   const [themeColor, setThemeColor] = useState(DEFAULT_PRIMARY);
   const [themeHexInput, setThemeHexInput] = useState(DEFAULT_PRIMARY);
@@ -149,14 +145,12 @@ export default function Customization() {
   useEffect(() => {
     if (storeId == null) return;
     let active = true;
-    // setHydrated(false);
     (async () => {
       const result = await dispatch(FetchWidgetCustomization(storeId));
       if (!active) return;
       if (FetchWidgetCustomization.fulfilled.match(result)) {
         populate(result.payload as WidgetCustomizationDataResponse | null);
       }
-      // setHydrated(true);
     })();
     return () => {
       active = false;

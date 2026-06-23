@@ -57,11 +57,6 @@ export default function Dashboard() {
     (state) => state.GetDashboardReducer.FetchFeedbackInsightsState,
   );
 
-  // const { FetchConversationData } =
-  //   useAppSelector(
-  //     (state) => state.GetDashboardReducer.FetchConversationDataState,
-  //   );
-
   const { FetchEngagementData } = useAppSelector(
     (state) => state.GetDashboardReducer.FetchEngagementDataState,
   );
@@ -77,13 +72,6 @@ export default function Dashboard() {
   const { FetchConversionRateData } = useAppSelector(
     (state) => state.GetDashboardReducer.FetchConversionRateDataState,
   );
-
-  // const {
-  //   FetchQueryCategoryInsightsData,
-  //   FetchQueryCategoryInsightsIsLoading,
-  // } = useAppSelector(
-  //   (state) => state.GetDashboardReducer.FetchQueryCategoryInsightsState,
-  // );
 
   const { FetchConversationHistoryData, FetchConversationHistoryIsLoading } =
     useAppSelector(

@@ -16,8 +16,6 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 
-export const description = "";
-
 const chartConfig = {
   responseTime: {
     label: "Response Time",
