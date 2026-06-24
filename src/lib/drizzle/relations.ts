@@ -2,13 +2,13 @@ import { relations } from "drizzle-orm/relations";
 import {
   djangoContentType,
   authPermission,
-  authGroup,
   authGroupPermissions,
+  authGroup,
   company,
   storeRegistry,
   threadRegistry,
-  authUser,
   authUserGroups,
+  authUser,
   authUserUserPermissions,
   djangoAdminLog,
   companyDomain,
@@ -35,6 +35,7 @@ import {
   scrapeLinkslinks,
   knowledgeStorelibrarydocument,
   supportTicket,
+  storeIntegration,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -60,13 +61,13 @@ export const djangoContentTypeRelations = relations(
 export const authGroupPermissionsRelations = relations(
   authGroupPermissions,
   ({ one }) => ({
-    authGroup: one(authGroup, {
-      fields: [authGroupPermissions.groupId],
-      references: [authGroup.id],
-    }),
     authPermission: one(authPermission, {
       fields: [authGroupPermissions.permissionId],
       references: [authPermission.id],
+    }),
+    authGroup: one(authGroup, {
+      fields: [authGroupPermissions.groupId],
+      references: [authGroup.id],
     }),
   }),
 );
@@ -98,13 +99,13 @@ export const threadRegistryRelations = relations(threadRegistry, ({ one }) => ({
 }));
 
 export const authUserGroupsRelations = relations(authUserGroups, ({ one }) => ({
-  authUser: one(authUser, {
-    fields: [authUserGroups.userId],
-    references: [authUser.id],
-  }),
   authGroup: one(authGroup, {
     fields: [authUserGroups.groupId],
     references: [authGroup.id],
+  }),
+  authUser: one(authUser, {
+    fields: [authUserGroups.userId],
+    references: [authUser.id],
   }),
 }));
 
@@ -124,13 +125,13 @@ export const authUserRelations = relations(authUser, ({ many }) => ({
 export const authUserUserPermissionsRelations = relations(
   authUserUserPermissions,
   ({ one }) => ({
-    authUser: one(authUser, {
-      fields: [authUserUserPermissions.userId],
-      references: [authUser.id],
-    }),
     authPermission: one(authPermission, {
       fields: [authUserUserPermissions.permissionId],
       references: [authPermission.id],
+    }),
+    authUser: one(authUser, {
+      fields: [authUserUserPermissions.userId],
+      references: [authUser.id],
     }),
   }),
 );
@@ -191,6 +192,7 @@ export const storeRelations = relations(store, ({ many }) => ({
   scrapeLinkslinkss: many(scrapeLinkslinks),
   knowledgeStorelibrarydocuments: many(knowledgeStorelibrarydocument),
   supportTickets: many(supportTicket),
+  storeIntegrations: many(storeIntegration),
 }));
 
 export const chatbotWidgetCustomizationQuickActionsRelations = relations(
@@ -402,3 +404,13 @@ export const supportTicketRelations = relations(supportTicket, ({ one }) => ({
     references: [chatThread.id],
   }),
 }));
+
+export const storeIntegrationRelations = relations(
+  storeIntegration,
+  ({ one }) => ({
+    store: one(store, {
+      fields: [storeIntegration.storeId],
+      references: [store.id],
+    }),
+  }),
+);

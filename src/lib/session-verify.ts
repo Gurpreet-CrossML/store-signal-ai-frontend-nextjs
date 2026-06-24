@@ -86,7 +86,10 @@ async function verifyAndCache(accessToken: string): Promise<boolean> {
  * the existing token claims (a Django hiccup must not strip a live session of
  * its tenant).
  */
-const identityCache = new Map<string, { identity: Identity; expires: number }>();
+const identityCache = new Map<
+  string,
+  { identity: Identity; expires: number }
+>();
 const identityInFlight = new Map<string, Promise<Identity | null>>();
 
 export async function refreshIdentity(

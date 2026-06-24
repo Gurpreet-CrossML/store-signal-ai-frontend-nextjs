@@ -124,16 +124,16 @@ so **tenant isolation is enforced in Node**:
 
 ## Tech Stack
 
-| Layer            | Technology                                                       |
-|------------------|------------------------------------------------------------------|
-| Framework        | Next.js 16 (App Router pages + Pages-router API), React 19        |
-| Language         | TypeScript 5                                                     |
-| Auth             | NextAuth v4 (JWT strategy), `jsonwebtoken`                        |
-| Data plane       | Drizzle ORM over `node-postgres` (`pg`)                          |
-| Database         | PostgreSQL (RDS), schema-per-tenant (`django-tenants` upstream)   |
-| State / data     | Redux Toolkit, Axios                                             |
-| UI               | Tailwind CSS 4, Radix UI / shadcn, Recharts                      |
-| Tooling          | drizzle-kit (introspect), ESLint, Vitest, tsx                    |
+| Layer        | Technology                                                      |
+| ------------ | --------------------------------------------------------------- |
+| Framework    | Next.js 16 (App Router pages + Pages-router API), React 19      |
+| Language     | TypeScript 5                                                    |
+| Auth         | NextAuth v4 (JWT strategy), `jsonwebtoken`                      |
+| Data plane   | Drizzle ORM over `node-postgres` (`pg`)                         |
+| Database     | PostgreSQL (RDS), schema-per-tenant (`django-tenants` upstream) |
+| State / data | Redux Toolkit, Axios                                            |
+| UI           | Tailwind CSS 4, Radix UI / shadcn, Recharts                     |
+| Tooling      | drizzle-kit (introspect), ESLint, Vitest, tsx                   |
 
 ## Project Structure
 
@@ -217,17 +217,17 @@ Login is handled by NextAuth's Credentials provider against Django's
 
 ## Available Scripts
 
-| Script              | Purpose                                                       |
-|---------------------|---------------------------------------------------------------|
-| `npm run dev`       | Start the dev server                                          |
-| `npm run build`     | Production build                                              |
-| `npm run start`     | Serve the production build                                    |
-| `npm run lint`      | ESLint                                                        |
-| `npm run test`      | Vitest (cross-tenant isolation tests self-skip without `DATABASE_URL`) |
-| `npm run db:sync`   | Introspect the live DB and regenerate the Drizzle schema      |
-| `npm run db:check`  | Verify the committed schema matches the live DB (drift check) |
-| `npm run db:inspect`| Inspect available schemas                                     |
-| `npm run db:smoke`  | Smoke-test tenant schema activation                          |
+| Script               | Purpose                                                                |
+| -------------------- | ---------------------------------------------------------------------- |
+| `npm run dev`        | Start the dev server                                                   |
+| `npm run build`      | Production build                                                       |
+| `npm run start`      | Serve the production build                                             |
+| `npm run lint`       | ESLint                                                                 |
+| `npm run test`       | Vitest (cross-tenant isolation tests self-skip without `DATABASE_URL`) |
+| `npm run db:sync`    | Introspect the live DB and regenerate the Drizzle schema               |
+| `npm run db:check`   | Verify the committed schema matches the live DB (drift check)          |
+| `npm run db:inspect` | Inspect available schemas                                              |
+| `npm run db:smoke`   | Smoke-test tenant schema activation                                    |
 
 ## Drizzle Schema Sync
 
