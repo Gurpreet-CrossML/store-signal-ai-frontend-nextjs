@@ -50,3 +50,27 @@ export const createAPIResponse = (
 ): APIResponse => {
   return { success, message, data };
 };
+
+/* Utility function to convert time values into a human-readable format. 
+It takes a numeric value and its corresponding unit (either "seconds" or "minutes") and formats it accordingly. 
+For example, 
+if the input is 90 seconds, it will return "1m 30s". 
+If the input is 120 minutes, it will return "2h". 
+This function is particularly useful for displaying average handle times in a more user-friendly way on the dashboard. */
+export const custructTimeInHumanReadableFormat = (
+  value: number,
+  unit: "seconds" | "minutes" | undefined,
+) => {
+  if (unit === "seconds") {
+    if (value < 60) return `${value}s`;
+    const minutes = Math.floor(value / 60);
+    const seconds = Math.round(value % 60);
+    return `${minutes}m${seconds > 0 ? ` ${seconds}s` : ""}`;
+  } else if (unit === "minutes") {
+    if (value < 60) return `${value}m`;
+    const hours = Math.floor(value / 60);
+    const minutes = Math.round(value % 60);
+    return `${hours}h${minutes > 0 ? ` ${minutes}m` : ""}`;
+  }
+  return `${value}m`;
+};
