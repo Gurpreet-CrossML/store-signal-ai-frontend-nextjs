@@ -18,14 +18,24 @@ import { IconShoppingBag } from "@tabler/icons-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
+import { useEffect, useRef } from "react";
 
 export default function MessagePan({
   messages,
 }: {
   messages: ThreadMessage[];
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    containerRef.current.scrollTop =
+      containerRef.current.scrollHeight;
+  }, [messages]);
+
   return (
-    <div className="h-full space-y-4 p-2 overflow-y-auto">
+    <div className="h-full space-y-4 p-2 overflow-y-auto" ref={containerRef}>
       {messages?.map((message: ThreadMessage, index: number) => (
         <div key={index} className="space-y-2 pb-2">
           <div

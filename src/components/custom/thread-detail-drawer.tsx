@@ -19,9 +19,10 @@ import {
   Thread,
   ThreadTicketData,
   UserMetadata,
+  ThreadMessage,
 } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import MessagePan from "@/components/custom/message-pan";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { formatDateTime, getDuration } from "@/lib/helpers";
 import { Progress } from "@/components/ui/progress";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -416,6 +419,24 @@ export default function ThreadDetailDrawer({
     (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
   );
 
+  const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
+  const wsRef = useRef(null);
+  const [isAgentConnected, setIsAgentConnected] = useState(false);
+  const [transitionState, setTransitionState] = useState<
+    "idle" | "taking_over" | "returning_to_ai"
+  >("idle");
+  const [agentMessage, setAgentMessage] = useState("");
+  const QUICK_EMOJIS = [
+    "😀",
+    "😊",
+    "👍",
+    "🙏",
+    "🎉",
+    "❤️",
+    "👀",
+    "🤝",
+  ];
+
   // Prefer the id from the loaded row, but fall back to the deep-linked id so
   // the drawer still loads when opened directly from a shared URL.
   const activeThreadId = thread?.id || threadId || "";
@@ -431,7 +452,111 @@ export default function ThreadDetailDrawer({
     dispatch(FetchUserMetadata(activeThreadId));
     dispatch(FetchFeedbackSequence(activeThreadId));
     dispatch(FetchFreshdeskTicketId(activeThreadId));
+
+    if (FetchThreadDetailsData?.messages){
+      setThreadMessages(FetchThreadDetailsData?.messages);
+    }
   }, [dispatch, storeCode, activeThreadId, open]);
+
+  useEffect(()=>{
+    if (!threadId){
+      console.log("Thread ID not found!");
+      return;
+    }
+
+    // Websocket connetion
+    const ws = new WebSocket(
+      `ws://localhost:8000/ws/chat/${threadId}/?role=agent`
+    );
+
+    ws.onopen = () => {
+      console.log("Agent connected");
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      console.log("Received:", data);
+
+      if (!data?.success || !data?.final_update) {
+        return;
+      }
+
+      setThreadMessages((prev) => [
+        ...prev,
+        {
+          id: data?.final_update?.id,
+          role: data?.final_update?.role,
+          message: data?.final_update?.message,
+          json_content: data?.final_update?.json_content || {},
+          created_at: new Date().toISOString(),
+        },
+      ]);
+    };
+
+    ws.onclose = () => {
+      console.log("Agent disconnected");
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error", error);
+    };
+
+    return () => {
+      console.log("Closing websocket...");
+      ws.close();
+    };
+  }, [threadId]);
+
+  const handleTakeOver = async () => {
+    try {
+      setTransitionState("taking_over");
+
+      setTimeout(()=>{
+        setIsAgentConnected(true);
+        setTransitionState("idle");
+      }, 3000);
+      // API call
+      // await takeOverThread(threadId);
+
+      // Open websocket
+      // connectAgentSocket();
+
+    } catch (error) {
+      console.error(error);
+    } finally {
+    }
+  };
+
+  const handleReturnToAI = async () => {
+    try {
+      setTransitionState("returning_to_ai");
+      setTimeout(()=>{
+        setIsAgentConnected(false);
+        setTransitionState("idle");
+      }, 3000);
+
+    } catch (error) {
+      console.error(error);
+    } finally {
+    }
+  };
+
+  const handleSendAgentMessage = () => {
+    const message = agentMessage.trim();
+
+    if (!message || !wsRef.current) {
+      return;
+    }
+
+    // wsRef.current.send(
+    //   JSON.stringify({
+    //     message,
+    //   })
+    // );
+
+    setAgentMessage("");
+  };
 
   return (
     <Drawer open={open} onOpenChange={setOpen} direction="right">
@@ -582,7 +707,7 @@ export default function ThreadDetailDrawer({
           </div>
         </DrawerHeader>
         <div className="grid grid-cols-1 lg:grid-cols-2 p-4 pb-0 h-full overflow-hidden">
-          <div className="flex flex-col h-full overflow-hidden border-0 border-r-1 border-r-border/50">
+          <div className="relative flex flex-col h-full overflow-hidden border-0 border-r border-r-border/50">
             <h3 className="text-lg font-semibold mb-2">Messages</h3>
             {FetchThreadDetailsIsLoading ? (
               <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
@@ -590,7 +715,92 @@ export default function ThreadDetailDrawer({
                 Loading messages…
               </div>
             ) : (
-              <MessagePan messages={FetchThreadDetailsData?.messages || []} />
+              <>
+                <MessagePan messages={threadMessages || []} />
+                <div className="border-t p-3">
+                  <div className="border-t p-3">
+                  {!isAgentConnected ? (
+                    <Button
+                      className="w-full"
+                      onClick={handleTakeOver}
+                      disabled={transitionState !== "idle"}
+                    >
+                      Take Over Chat
+                    </Button>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-1">
+                        {QUICK_EMOJIS.map((emoji) => (
+                          <Button
+                            key={emoji}
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-base"
+                            onClick={() =>
+                              setAgentMessage((prev) => `${prev}${emoji}`)
+                            }
+                          >
+                            {emoji}
+                          </Button>
+                        ))}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Type a reply..."
+                          value={agentMessage}
+                          onChange={(e) => setAgentMessage(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSendAgentMessage();
+                            }
+                          }}
+                        />
+
+                        <Button
+                          onClick={handleSendAgentMessage}
+                          disabled={!agentMessage.trim()}
+                        >
+                          Send
+                        </Button>
+                      </div>
+
+                      <Button
+                        variant="destructive"
+                        className="w-full"
+                        onClick={handleReturnToAI}
+                      >
+                        Return To AI
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              </>
+            )}
+
+            {transitionState !== "idle" && (
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-3 rounded-lg border bg-background p-6 shadow-lg min-w-[280px]">
+                  <Spinner className="size-6" />
+
+                  <div className="text-center">
+                    <p className="font-medium">
+                      {transitionState === "taking_over"
+                        ? "Connecting..."
+                        : "Returning to AI..."}
+                    </p>
+
+                    <p className="text-sm text-muted-foreground">
+                      {transitionState === "taking_over"
+                        ? "Taking over this conversation"
+                        : "Handing conversation back to AI assistant"}
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
