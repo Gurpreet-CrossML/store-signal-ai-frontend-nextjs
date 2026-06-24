@@ -498,10 +498,22 @@ const DashboardSlice = createSlice({
       // Consolidated dashboard: one request fans out into all five widget states.
       .addCase(FetchDashboard.pending, (state) => {
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsLoading = true;
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsSuccess = false;
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsError = null;
         state.FetchEngagementDataState.FetchEngagementDataIsLoading = true;
+        state.FetchEngagementDataState.FetchEngagementDataIsSuccess = false;
+        state.FetchEngagementDataState.FetchEngagementDataIsError = null;
         state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsLoading = true;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsSuccess = false;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsError =
+          null;
         state.FetchUserMatrixState.FetchUserMatrixIsLoading = true;
+        state.FetchUserMatrixState.FetchUserMatrixIsSuccess = false;
+        state.FetchUserMatrixState.FetchUserMatrixIsError = null;
         state.FetchConversionRateDataState.FetchConversionRateDataIsLoading = true;
+        state.FetchConversionRateDataState.FetchConversionRateDataIsSuccess = false;
+        state.FetchConversionRateDataState.FetchConversionRateDataIsError =
+          null;
       })
       .addCase(FetchDashboard.fulfilled, (state, action) => {
         const d = action.payload;

@@ -76,7 +76,10 @@ export const UpdateCompanyProfile = createAsyncThunk(
       // logo (File) OR removing the current one (logo === null → send an empty
       // value so the backend clears the FileField). Otherwise a plain JSON patch
       // of the text fields, leaving the logo untouched.
-      if (logo instanceof File || logo === null) {
+      if (
+        (typeof File !== "undefined" && logo instanceof File) ||
+        logo === null
+      ) {
         const fd = new FormData();
         Object.entries(fields).forEach(([k, v]) => {
           if (v !== undefined && v !== null) fd.append(k, String(v));
