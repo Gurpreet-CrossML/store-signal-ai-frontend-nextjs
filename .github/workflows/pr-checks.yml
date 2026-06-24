@@ -3,7 +3,7 @@ name: PR Checks
 on:
   pull_request:
     branches:
-      - main
+      - pre-dev
 
 jobs:
   lint-and-typecheck:

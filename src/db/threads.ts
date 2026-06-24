@@ -300,9 +300,11 @@ export async function list_threads(
 }
 
 type ThreadMessage = {
+  id: string | number;
   role: string;
   message: string;
   json_content: unknown;
+  image_url: unknown;
   created_at: string;
 };
 
@@ -391,9 +393,11 @@ export async function get_thread_details(
 
   const messageRows = await db
     .select({
+      id: chatHistory.id,
       role: chatHistory.role,
       message: chatHistory.message,
       json_content: chatHistory.jsonContent,
+      image_url: chatHistory.imageUrl,
       created_at: chatHistory.createdAt,
     })
     .from(chatHistory)
@@ -404,9 +408,11 @@ export async function get_thread_details(
     .limit(limit != null ? limit : Number.MAX_SAFE_INTEGER);
 
   const messages: ThreadMessage[] = messageRows.map((m) => ({
+    id: m.id,
     role: m.role,
     message: m.message,
     json_content: m.json_content,
+    image_url: m.image_url,
     created_at: m.created_at,
   }));
 

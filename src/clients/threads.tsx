@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { PaginationState } from "@tanstack/react-table";
 
 import { FetchThreads } from "@/redux/api-slice/thread-slice";
@@ -15,6 +16,9 @@ import ThreadFilteration, {
 
 export default function Threads() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -23,11 +27,58 @@ export default function Threads() {
     (state) => state.GetThreadReducer.FetchThreadsState,
   );
 
-  // Controlled, server-side pagination. Defaults to 15 rows per page.
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: 15,
+  // `useSearchParams`/`usePathname` are typed as nullable for migration compat;
+  // normalise to stable, non-null values.
+  const queryString = searchParams?.toString() ?? "";
+  const basePath = pathname ?? "/threads";
+
+  // The currently opened thread (drawer) is driven by the `?thread=` query
+  // param so a specific thread can be deep-linked / shared.
+  const selectedThreadId = searchParams?.get("thread") ?? null;
+
+  // Controlled, server-side pagination. Defaults to 15 rows per page. The
+  // active page is mirrored in the `?page=` query param (1-indexed) so a shared
+  // link lands on the same page the thread lives on.
+  const [pagination, setPagination] = useState<PaginationState>(() => {
+    const pageParam = Number(searchParams?.get("page"));
+    const pageIndex = pageParam > 1 ? Math.floor(pageParam) - 1 : 0;
+    return { pageIndex, pageSize: 15 };
   });
+
+  // Keep the `?page=` param in sync with the active page. Guarded so it only
+  // writes when the value actually changes, which avoids a sync loop when other
+  // params (e.g. `thread`) change.
+  useEffect(() => {
+    const params = new URLSearchParams(queryString);
+    const desired =
+      pagination.pageIndex > 0 ? String(pagination.pageIndex + 1) : null;
+    if ((params.get("page") ?? null) === desired) return;
+    if (desired) params.set("page", desired);
+    else params.delete("page");
+    const query = params.toString();
+    router.replace(query ? `${basePath}?${query}` : basePath, {
+      scroll: false,
+    });
+  }, [pagination.pageIndex, queryString, basePath, router]);
+
+  const handleSelectThread = useCallback(
+    (threadId: string) => {
+      const params = new URLSearchParams(queryString);
+      params.set("thread", threadId);
+      // push so the browser back button closes the drawer.
+      router.push(`${basePath}?${params.toString()}`, { scroll: false });
+    },
+    [queryString, basePath, router],
+  );
+
+  const handleCloseThread = useCallback(() => {
+    const params = new URLSearchParams(queryString);
+    params.delete("thread");
+    const query = params.toString();
+    router.replace(query ? `${basePath}?${query}` : basePath, {
+      scroll: false,
+    });
+  }, [queryString, basePath, router]);
 
   const [filters, setFilters] = useState<ThreadFilterState>(
     DEFAULT_THREAD_FILTERS,
@@ -94,6 +145,17 @@ export default function Threads() {
     [FetchThreadsListData],
   );
 
+  // Resolve the full thread object for the open drawer from the loaded page.
+  // May be null briefly on a freshly-opened shared link until the page loads —
+  // the drawer falls back to fetching by id in that window.
+  const selectedThread = useMemo(
+    () =>
+      selectedThreadId
+        ? (rows.find((thread) => thread.id === selectedThreadId) ?? null)
+        : null,
+    [rows, selectedThreadId],
+  );
+
   return (
     <div className="flex flex-col gap-4 p-4">
       <ThreadFilteration
@@ -108,6 +170,10 @@ export default function Threads() {
         pagination={pagination}
         onPaginationChange={setPagination}
         isLoading={FetchThreadsIsLoading}
+        selectedThreadId={selectedThreadId}
+        selectedThread={selectedThread}
+        onSelectThread={handleSelectThread}
+        onCloseThread={handleCloseThread}
       />
     </div>
   );

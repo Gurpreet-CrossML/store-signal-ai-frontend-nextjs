@@ -106,6 +106,7 @@ export type ThreadMessage = {
   role: string;
   message: string;
   json_content?: ThreadJsonContent;
+  image_url?: string | string[] | null;
   created_at: string;
 };
 

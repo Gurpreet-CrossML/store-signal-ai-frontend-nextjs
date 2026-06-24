@@ -27,6 +27,12 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/s/files/**",
       },
+      {
+        protocol: "https",
+        hostname: "store-signals-ai-dev-s3.s3.amazonaws.com",
+        port: "",
+        pathname: "/support_attachments/**",
+      },
     ],
   },
 };
