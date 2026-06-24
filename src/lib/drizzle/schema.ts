@@ -831,6 +831,7 @@ export const chatHistory = pgTable(
     threadId: uuid("thread_id").notNull(),
     workflow: varchar({ length: 30 }),
     message: text().notNull(),
+    imageUrl: jsonb("image_url"),
   },
   (table) => [
     index("chat_histor_created_2850f7_idx").using(
@@ -1233,5 +1234,84 @@ export const djangoSession = pgTable(
       "btree",
       table.sessionKey.asc().nullsLast().op("varchar_pattern_ops"),
     ),
+  ],
+);
+
+export const supportTicketAttachment = pgTable(
+  "support_ticket_attachment",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "support_ticket_attachment_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    status: varchar({ length: 20 }).notNull(),
+    fileKey: varchar("file_key", { length: 1000 }),
+    originalFileName: varchar("original_file_name", { length: 255 }).notNull(),
+    contentType: varchar("content_type", { length: 100 }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    fileSize: bigint("file_size", { mode: "number" }),
+    uploadedByCustomer: boolean("uploaded_by_customer").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    threadId: uuid("thread_id").notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    ticketId: bigint("ticket_id", { mode: "number" }),
+  },
+  (table) => [
+    index("support_tic_created_2caaa6_idx").using(
+      "btree",
+      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
+    ),
+    index("support_tic_status_1e2e12_idx").using(
+      "btree",
+      table.status.asc().nullsLast().op("text_ops"),
+    ),
+    index("support_tic_thread__65f6a0_idx").using(
+      "btree",
+      table.threadId.asc().nullsLast().op("uuid_ops"),
+      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
+    ),
+    index("support_tic_thread__f7d931_idx").using(
+      "btree",
+      table.threadId.asc().nullsLast().op("uuid_ops"),
+    ),
+    index("support_tic_ticket__81dbb1_idx").using(
+      "btree",
+      table.ticketId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("support_tic_ticket__86c4bd_idx").using(
+      "btree",
+      table.ticketId.asc().nullsLast().op("int8_ops"),
+      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
+    ),
+    index("support_ticket_attachment_thread_id_5c94acfc").using(
+      "btree",
+      table.threadId.asc().nullsLast().op("uuid_ops"),
+    ),
+    index("support_ticket_attachment_ticket_id_c9b2a72e").using(
+      "btree",
+      table.ticketId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.threadId],
+      foreignColumns: [chatThread.id],
+      name: "support_ticket_attachment_thread_id_5c94acfc_fk_chat_thread_id",
+    }),
+    foreignKey({
+      columns: [table.ticketId],
+      foreignColumns: [supportTicket.id],
+      name: "support_ticket_attac_ticket_id_c9b2a72e_fk_support_t",
+    }),
   ],
 );

@@ -20,7 +20,6 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { DataTablePagination } from "@/components/custom/threads-data-table-pagination";
 import ThreadDetailDrawer from "@/components/custom/thread-detail-drawer";
-import { useState } from "react";
 import { Thread } from "@/redux/api-slice/thread-slice";
 
 interface ThreadsDataTableProps<TData, TValue> {
@@ -32,6 +31,14 @@ interface ThreadsDataTableProps<TData, TValue> {
   pagination: PaginationState;
   onPaginationChange: OnChangeFn<PaginationState>;
   isLoading?: boolean;
+  /** Id of the thread whose drawer is open (driven by the URL `?thread=`). */
+  selectedThreadId: string | null;
+  /** Full thread object for the open drawer, when present on the loaded page. */
+  selectedThread: Thread | null;
+  /** Open the drawer for a thread (writes `?thread=` to the URL). */
+  onSelectThread: (threadId: string) => void;
+  /** Close the drawer (clears `?thread=` from the URL). */
+  onCloseThread: () => void;
 }
 
 export function ThreadsDataTable<TData, TValue>({
@@ -41,6 +48,10 @@ export function ThreadsDataTable<TData, TValue>({
   pagination,
   onPaginationChange,
   isLoading = false,
+  selectedThreadId,
+  selectedThread,
+  onSelectThread,
+  onCloseThread,
 }: ThreadsDataTableProps<TData, TValue>) {
   const table = useReactTable({
     data,
@@ -51,9 +62,6 @@ export function ThreadsDataTable<TData, TValue>({
     manualPagination: true,
     rowCount: totalCount,
   });
-
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
 
   return (
     <div className="space-y-2">
@@ -89,10 +97,7 @@ export function ThreadsDataTable<TData, TValue>({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  onClick={() => {
-                    setSelectedThread(row.original as Thread);
-                    setDrawerOpen(true);
-                  }}
+                  onClick={() => onSelectThread((row.original as Thread).id)}
                   className="cursor-pointer hover:bg-accent/50 data-[state=selected]:bg-accent"
                 >
                   {row.getVisibleCells().map((cell) => (
@@ -128,10 +133,13 @@ export function ThreadsDataTable<TData, TValue>({
 
       <DataTablePagination table={table} totalCount={totalCount} />
       <ThreadDetailDrawer
-        open={drawerOpen}
-        setOpen={setDrawerOpen}
+        open={Boolean(selectedThreadId)}
+        setOpen={(open) => {
+          if (!open) onCloseThread();
+        }}
+        threadId={selectedThreadId}
         thread={selectedThread}
-        onClose={() => setDrawerOpen(false)}
+        onClose={onCloseThread}
       />
     </div>
   );

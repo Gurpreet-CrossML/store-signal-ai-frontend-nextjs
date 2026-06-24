@@ -28,6 +28,7 @@ import {
   supportTicket,
   scrapeLinkslinks,
   knowledgeStorelibrarydocument,
+  supportTicketAttachment,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -212,6 +213,7 @@ export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
   sessionResolutionVerdicts: many(sessionResolutionVerdict),
   userMetadata: many(userMetadata),
   supportTickets: many(supportTicket),
+  supportTicketAttachments: many(supportTicketAttachment),
 }));
 
 export const chatbotFeedbackRelations = relations(
@@ -281,20 +283,24 @@ export const userMetadataRelations = relations(userMetadata, ({ one }) => ({
   }),
 }));
 
-export const supportTicketRelations = relations(supportTicket, ({ one }) => ({
-  chatCustomer: one(chatCustomer, {
-    fields: [supportTicket.customerId],
-    references: [chatCustomer.id],
+export const supportTicketRelations = relations(
+  supportTicket,
+  ({ one, many }) => ({
+    chatCustomer: one(chatCustomer, {
+      fields: [supportTicket.customerId],
+      references: [chatCustomer.id],
+    }),
+    store: one(store, {
+      fields: [supportTicket.storeId],
+      references: [store.id],
+    }),
+    chatThread: one(chatThread, {
+      fields: [supportTicket.threadId],
+      references: [chatThread.id],
+    }),
+    supportTicketAttachments: many(supportTicketAttachment),
   }),
-  store: one(store, {
-    fields: [supportTicket.storeId],
-    references: [store.id],
-  }),
-  chatThread: one(chatThread, {
-    fields: [supportTicket.threadId],
-    references: [chatThread.id],
-  }),
-}));
+);
 
 export const scrapeLinkslinksRelations = relations(
   scrapeLinkslinks,
@@ -312,6 +318,20 @@ export const knowledgeStorelibrarydocumentRelations = relations(
     store: one(store, {
       fields: [knowledgeStorelibrarydocument.storeId],
       references: [store.id],
+    }),
+  }),
+);
+
+export const supportTicketAttachmentRelations = relations(
+  supportTicketAttachment,
+  ({ one }) => ({
+    chatThread: one(chatThread, {
+      fields: [supportTicketAttachment.threadId],
+      references: [chatThread.id],
+    }),
+    supportTicket: one(supportTicket, {
+      fields: [supportTicketAttachment.ticketId],
+      references: [supportTicket.id],
     }),
   }),
 );
