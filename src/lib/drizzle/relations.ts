@@ -23,9 +23,9 @@ import {
   storeCredentials,
   chatCustomer,
   chatAddress,
-  chatThread,
   chatHistory,
   chatbotFeedback,
+  chatThread,
   chatBotevent,
   aiInsights,
   sentimentAnalysis,
@@ -187,8 +187,8 @@ export const storeRelations = relations(store, ({ many }) => ({
   storeAccesss: many(storeAccess),
   storeFaqss: many(storeFaqs),
   storeCredentialss: many(storeCredentials),
-  chatThreads: many(chatThread),
   sessionResolutionVerdicts: many(sessionResolutionVerdict),
+  chatThreads: many(chatThread),
   scrapeLinkslinkss: many(scrapeLinkslinks),
   knowledgeStorelibrarydocuments: many(knowledgeStorelibrarydocument),
   supportTickets: many(supportTicket),
@@ -271,26 +271,6 @@ export const chatCustomerRelations = relations(chatCustomer, ({ many }) => ({
   supportTickets: many(supportTicket),
 }));
 
-export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
-  chatCustomer: one(chatCustomer, {
-    fields: [chatThread.customerId],
-    references: [chatCustomer.id],
-  }),
-  store: one(store, {
-    fields: [chatThread.storeId],
-    references: [store.id],
-  }),
-  chatbotFeedbacks: many(chatbotFeedback),
-  chatBotevents: many(chatBotevent),
-  aiInsightss: many(aiInsights),
-  sentimentAnalysiss: many(sentimentAnalysis),
-  sessionResolutionVerdicts: many(sessionResolutionVerdict),
-  userMetadatas: many(userMetadata),
-  chatHistorys: many(chatHistory),
-  fraudFlags: many(fraudFlag),
-  supportTickets: many(supportTicket),
-}));
-
 export const chatbotFeedbackRelations = relations(
   chatbotFeedback,
   ({ one }) => ({
@@ -312,6 +292,26 @@ export const chatHistoryRelations = relations(chatHistory, ({ one, many }) => ({
     references: [chatThread.id],
   }),
   fraudFlags: many(fraudFlag),
+}));
+
+export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
+  chatbotFeedbacks: many(chatbotFeedback),
+  chatBotevents: many(chatBotevent),
+  aiInsightss: many(aiInsights),
+  sentimentAnalysiss: many(sentimentAnalysis),
+  sessionResolutionVerdicts: many(sessionResolutionVerdict),
+  chatCustomer: one(chatCustomer, {
+    fields: [chatThread.customerId],
+    references: [chatCustomer.id],
+  }),
+  store: one(store, {
+    fields: [chatThread.storeId],
+    references: [store.id],
+  }),
+  userMetadatas: many(userMetadata),
+  chatHistorys: many(chatHistory),
+  fraudFlags: many(fraudFlag),
+  supportTickets: many(supportTicket),
 }));
 
 export const chatBoteventRelations = relations(chatBotevent, ({ one }) => ({
