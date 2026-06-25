@@ -61,6 +61,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Skeleton } from "../ui/skeleton";
+import { createWebSocketUrl } from "@/lib/config";
 
 /** Centered spinner used while a card's data is still being fetched. */
 function CardLoadingState() {
@@ -418,10 +419,11 @@ export default function ThreadDetailDrawer({
   const { FetchFreshdeskTicketIdData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
   );
-
-  const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
-  const wsRef = useRef(null);
+  const [threadMessages, setThreadMessages] = useState<
+    (ThreadMessage)[]
+  >([]);
   const [isAgentConnected, setIsAgentConnected] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
   const [transitionState, setTransitionState] = useState<
     "idle" | "taking_over" | "returning_to_ai"
   >("idle");
@@ -440,6 +442,10 @@ export default function ThreadDetailDrawer({
   // Prefer the id from the loaded row, but fall back to the deep-linked id so
   // the drawer still loads when opened directly from a shared URL.
   const activeThreadId = thread?.id || threadId || "";
+  const fetchedThreadMessages =
+    FetchThreadDetailsData?.id === activeThreadId
+      ? FetchThreadDetailsData?.messages || []
+      : [];
 
   useEffect(() => {
     if (!open) return; // Only fetch when the drawer is opened
@@ -453,21 +459,19 @@ export default function ThreadDetailDrawer({
     dispatch(FetchFeedbackSequence(activeThreadId));
     dispatch(FetchFreshdeskTicketId(activeThreadId));
 
-    if (FetchThreadDetailsData?.messages){
-      setThreadMessages(FetchThreadDetailsData?.messages);
-    }
+    setThreadMessages(fetchedThreadMessages)
   }, [dispatch, storeCode, activeThreadId, open]);
 
-  useEffect(()=>{
-    if (!threadId){
-      console.log("Thread ID not found!");
+  useEffect(() => {
+    if (!activeThreadId || !thread?.is_active) {
       return;
     }
 
-    // Websocket connetion
-    const ws = new WebSocket(
-      `ws://localhost:8000/ws/chat/${threadId}/?role=agent`
-    );
+    // Websocket connection
+    const url = createWebSocketUrl(`/chat/${activeThreadId}/?role=agent`)
+    const ws = new WebSocket(url);
+
+    wsRef.current = ws;
 
     ws.onopen = () => {
       console.log("Agent connected");
@@ -476,12 +480,22 @@ export default function ThreadDetailDrawer({
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
-      console.log("Received:", data);
-
-      if (!data?.success || !data?.final_update) {
+      if (!data?.success || data?.sender == "agent") {
         return;
       }
 
+      if (data?.success && data?.action_type === "connection"){
+        setIsAgentConnected(data?.chat_handler === "human")
+        return;
+      }
+
+      if (data?.success && data?.action_type === "handler_change"){
+        setIsAgentConnected(data?.chat_handler === "human")
+        setTransitionState("idle");
+        return;
+      }
+
+      if (data?.success && data?.action_type === "message" && data?.final_update)
       setThreadMessages((prev) => [
         ...prev,
         {
@@ -490,6 +504,7 @@ export default function ThreadDetailDrawer({
           message: data?.final_update?.message,
           json_content: data?.final_update?.json_content || {},
           created_at: new Date().toISOString(),
+          threadId: activeThreadId,
         },
       ]);
     };
@@ -505,40 +520,46 @@ export default function ThreadDetailDrawer({
     return () => {
       console.log("Closing websocket...");
       ws.close();
+      wsRef.current = null;
+      setAgentMessage("")
+      setIsAgentConnected(false);
+      setTransitionState("idle");
     };
-  }, [threadId]);
+  }, [activeThreadId]);
 
   const handleTakeOver = async () => {
+    if (!activeThreadId || !wsRef.current) {
+      return;
+    }
+
     try {
       setTransitionState("taking_over");
-
-      setTimeout(()=>{
-        setIsAgentConnected(true);
-        setTransitionState("idle");
-      }, 3000);
-      // API call
-      // await takeOverThread(threadId);
-
-      // Open websocket
-      // connectAgentSocket();
-
+      const message = JSON.stringify({
+        "action_type": "handler_change",
+        "chat_handler": "human"
+      });
+      wsRef.current.send(message);
     } catch (error) {
       console.error(error);
-    } finally {
+      setTransitionState("idle")
     }
   };
 
   const handleReturnToAI = async () => {
+    if (!activeThreadId || !wsRef.current) {
+      return;
+    }
+
     try {
       setTransitionState("returning_to_ai");
-      setTimeout(()=>{
-        setIsAgentConnected(false);
-        setTransitionState("idle");
-      }, 3000);
-
+      const message = JSON.stringify({
+        "action_type": "handler_change",
+        "chat_handler": "ai"
+      });
+      wsRef.current.send(message);
     } catch (error) {
       console.error(error);
-    } finally {
+      setTransitionState("idle")
     }
   };
 
@@ -549,11 +570,24 @@ export default function ThreadDetailDrawer({
       return;
     }
 
-    // wsRef.current.send(
-    //   JSON.stringify({
-    //     message,
-    //   })
-    // );
+    // Add immediately to UI
+    setThreadMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        role: "assistant",
+        message,
+        created_at: new Date().toISOString(),
+        threadId: activeThreadId,
+      },
+    ]);
+
+    // Send websocket message
+    wsRef.current.send(
+      JSON.stringify({
+        message,
+      }),
+    );
 
     setAgentMessage("");
   };
@@ -716,68 +750,90 @@ export default function ThreadDetailDrawer({
               </div>
             ) : (
               <>
-                <MessagePan messages={threadMessages || []} />
-                <div className="border-t p-3">
-                  <div className="border-t p-3">
-                  {!isAgentConnected ? (
-                    <Button
-                      className="w-full"
-                      onClick={handleTakeOver}
-                      disabled={transitionState !== "idle"}
-                    >
-                      Take Over Chat
-                    </Button>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="flex flex-wrap gap-1">
-                        {QUICK_EMOJIS.map((emoji) => (
+                {
+                  threadMessages && threadMessages?.length > 0 ?
+                  <>
+                    <MessagePan messages={threadMessages || []} />
+                    {
+                      thread?.is_active &&
+                      <div className="border-t p-3">
+                        <div className="border-t p-3">
+                        {!isAgentConnected ? (
                           <Button
-                            key={emoji}
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-base"
-                            onClick={() =>
-                              setAgentMessage((prev) => `${prev}${emoji}`)
+                            className="w-full"
+                            onClick={handleTakeOver}
+                            disabled={
+                              transitionState !== "idle"
                             }
                           >
-                            {emoji}
+                            Take Over Chat
                           </Button>
-                        ))}
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap gap-1">
+                              {QUICK_EMOJIS.map((emoji) => (
+                                <Button
+                                  key={emoji}
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-base"
+                                  onClick={() =>
+                                    setAgentMessage((prev) => `${prev}${emoji}`)
+                                  }
+                                >
+                                  {emoji}
+                                </Button>
+                              ))}
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Type a reply..."
+                                value={agentMessage}
+                                onChange={(e) => setAgentMessage(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSendAgentMessage();
+                                  }
+                                }}
+                              />
+
+                              <Button
+                                onClick={handleSendAgentMessage}
+                                disabled={!agentMessage.trim()}
+                              >
+                                Send
+                              </Button>
+                            </div>
+
+                            <Button
+                              variant="destructive"
+                              className="w-full"
+                              onClick={handleReturnToAI}
+                              disabled={transitionState !== "idle"}
+                            >
+                              Return To AI
+                            </Button>
+                          </div>
+                        )}
                       </div>
-
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Type a reply..."
-                          value={agentMessage}
-                          onChange={(e) => setAgentMessage(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              handleSendAgentMessage();
-                            }
-                          }}
-                        />
-
-                        <Button
-                          onClick={handleSendAgentMessage}
-                          disabled={!agentMessage.trim()}
-                        >
-                          Send
-                        </Button>
                       </div>
-
-                      <Button
-                        variant="destructive"
-                        className="w-full"
-                        onClick={handleReturnToAI}
-                      >
-                        Return To AI
-                      </Button>
+                    }
+                  </>
+                  :
+                  <div className="flex flex-1 items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        No messages found
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        This conversation has no messages yet.
+                      </p>
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
+                }
               </>
             )}
 

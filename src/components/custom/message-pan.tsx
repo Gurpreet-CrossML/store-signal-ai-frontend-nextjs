@@ -39,7 +39,7 @@ export default function MessagePan({
       {messages?.map((message: ThreadMessage, index: number) => (
         <div key={index} className="space-y-2 pb-2">
           <div
-            className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex ${message.role === "user" ? "justify-start" : "justify-end"}`}
           >
             <div className="flex gap-2.5 max-w-[82%]">
               {message.role === "assistant" && (
