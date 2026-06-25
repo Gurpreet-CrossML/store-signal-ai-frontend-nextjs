@@ -14,13 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import { custructTimeInHumanReadableFormat } from "@/lib/helpers";
 import {
-  FetchFeedbackInsights,
-  FetchConversation,
-  FetchEngagement,
-  FetchOperationalEfficiency,
-  FetchUserMatrix,
-  FetchConversionRate,
-  FetchQueryCategoryInsights,
+  FetchDashboard,
   FetchConversationHistory,
 } from "@/redux/api-slice/dashboard-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -64,11 +58,6 @@ export default function Dashboard() {
     (state) => state.GetDashboardReducer.FetchFeedbackInsightsState,
   );
 
-  // const { FetchConversationData } =
-  //   useAppSelector(
-  //     (state) => state.GetDashboardReducer.FetchConversationDataState,
-  //   );
-
   const { FetchEngagementData } = useAppSelector(
     (state) => state.GetDashboardReducer.FetchEngagementDataState,
   );
@@ -84,13 +73,6 @@ export default function Dashboard() {
   const { FetchConversionRateData } = useAppSelector(
     (state) => state.GetDashboardReducer.FetchConversionRateDataState,
   );
-
-  // const {
-  //   FetchQueryCategoryInsightsData,
-  //   FetchQueryCategoryInsightsIsLoading,
-  // } = useAppSelector(
-  //   (state) => state.GetDashboardReducer.FetchQueryCategoryInsightsState,
-  // );
 
   const { FetchConversationHistoryData, FetchConversationHistoryIsLoading } =
     useAppSelector(
@@ -110,13 +92,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!storeCode) return;
-    dispatch(FetchFeedbackInsights({ storeCode }));
-    dispatch(FetchConversation({ storeCode }));
-    dispatch(FetchEngagement({ storeCode }));
-    dispatch(FetchOperationalEfficiency({ storeCode }));
-    dispatch(FetchUserMatrix({ storeCode }));
-    dispatch(FetchConversionRate({ storeCode }));
-    dispatch(FetchQueryCategoryInsights({ storeCode }));
+    // One consolidated request for all five summary widgets (feedback insights,
+    // engagement, operational efficiency, user matrix, conversion rate) — see
+    // /api/analytics/dashboard. Conversation history stays separate as it has
+    // its own date-range controls.
+    dispatch(FetchDashboard({ storeCode }));
   }, [dispatch, storeCode]);
 
   useEffect(() => {

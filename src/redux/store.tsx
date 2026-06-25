@@ -4,6 +4,7 @@ import DashboardSlice from "@/redux/api-slice/dashboard-slice";
 import ThreadSlice from "@/redux/api-slice/thread-slice";
 import KnowledgeSlice from "@/redux/api-slice/knowledge-slice";
 import CustomizationSlice from "@/redux/api-slice/customization-slice";
+import TenancySlice from "@/redux/api-slice/tenancy-slice";
 
 const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ const store = configureStore({
     GetThreadReducer: ThreadSlice,
     GetKnowledgeReducer: KnowledgeSlice,
     GetCustomizationReducer: CustomizationSlice,
+    GetTenancyReducer: TenancySlice,
   },
 });
 

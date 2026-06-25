@@ -2,6 +2,7 @@ import { list_threads, ListThreadsFilters } from "@/db/threads";
 import { APIResponse, DEFAULT_API_PAGE_SIZE } from "@/lib/config";
 import { createAPIResponse, createPaginatedResponse } from "@/lib/helpers";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withTenantRoute } from "@/lib/with-tenant-route";
 
 /**
  * GET /analytics/threads/  ->  ThreadListAPIView (analytics/views.py)
@@ -14,10 +15,9 @@ import type { NextApiRequest, NextApiResponse } from "next";
  * [] for a list GET path; we mirror that by returning [] (not the paginated
  * envelope) in the empty case.
  */
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<APIResponse>,
-) {
+export default withTenantRoute(handler);
+
+async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {
     return res
       .status(405)

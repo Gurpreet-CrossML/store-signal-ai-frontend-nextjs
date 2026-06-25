@@ -18,9 +18,6 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 
-export const description =
-  "A pie chart showing the distribution of customer feedback sentiments (positive, neutral, negative) based on the FetchFeedbackInsights API data.";
-
 const chartConfig = {
   positive: {
     label: "Positive",

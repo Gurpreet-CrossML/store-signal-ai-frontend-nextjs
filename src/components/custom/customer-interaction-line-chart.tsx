@@ -25,8 +25,6 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 
-export const description = "Customer interaction analytics line chart";
-
 export type Granularity = "hourly" | "weekly" | "monthly";
 export type ChartPoint = { label: string; value: number };
 

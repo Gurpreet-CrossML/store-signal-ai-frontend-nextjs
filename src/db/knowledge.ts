@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { getDb, resolveStoreScope } from "@/lib/tenant-context";
 import {
   store,
   storeFaqs,
@@ -31,6 +31,11 @@ export type StoreRow = {
 export async function get_store_by_code(
   store_code: string,
 ): Promise<StoreRow | null> {
+  const db = getDb();
+  // F3: a staff user may only resolve stores they've been granted; deny others
+  // (returns null → the list endpoints yield an empty set, mirroring "no store").
+  const scope = resolveStoreScope(store_code);
+  if (scope !== null && !scope.includes(store_code)) return null;
   const rows = await db
     .select({
       id: store.id,
@@ -73,6 +78,7 @@ export async function list_store_faqs(
   store_code: string,
   search?: string,
 ): Promise<StoreFaqRow[]> {
+  const db = getDb();
   const where = search
     ? and(
         eq(storeFaqs.storeId, store_id),
@@ -119,6 +125,7 @@ export type LibraryDocumentRow = {
 export async function list_library_documents(
   store_id: number,
 ): Promise<LibraryDocumentRow[]> {
+  const db = getDb();
   return db
     .select({
       id: knowledgeStorelibrarydocument.id,
@@ -161,6 +168,7 @@ export type ScrapeLinkRow = {
 export async function list_scrape_links(
   storeRow: StoreRow,
 ): Promise<ScrapeLinkRow[]> {
+  const db = getDb();
   const rows = await db
     .select({
       id: scrapeLinkslinks.id,

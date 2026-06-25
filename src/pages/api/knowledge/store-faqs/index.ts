@@ -3,6 +3,7 @@ import { APIResponse, DEFAULT_API_PAGE_SIZE } from "@/lib/config";
 import { createAPIResponse } from "@/lib/helpers";
 import { InvalidPage, Paginator, paginateResponse } from "@/lib/pagination";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withTenantRoute } from "@/lib/with-tenant-route";
 
 /**
  * Port of Django `StoreFAQsAPIView` (knowledge/views.py) — GET only.
@@ -15,10 +16,9 @@ import type { NextApiRequest, NextApiResponse } from "next";
  * DRF PageNumberPagination does not read page_size from the query, so per-page
  * is fixed at 15 (DEFAULT_API_PAGE_SIZE).
  */
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<APIResponse>,
-) {
+export default withTenantRoute(handler);
+
+async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {
     return res
       .status(405)

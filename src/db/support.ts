@@ -1,6 +1,7 @@
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/tenant-context";
+import { scopedThreadFilter } from "@/db/access";
 import { supportTicket } from "@/lib/drizzle/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 
 /**
  * Port of Django `ThreadSupportTicketsAPIView.get_queryset`:
@@ -11,6 +12,7 @@ import { desc, eq } from "drizzle-orm";
  * `platform`/`status` are not in the serializer's field list).
  */
 export async function list_thread_tickets(thread_id: string) {
+  const db = getDb();
   const tickets = await db
     .select({
       id: supportTicket.id,
@@ -27,7 +29,7 @@ export async function list_thread_tickets(thread_id: string) {
       updated_at: supportTicket.updatedAt,
     })
     .from(supportTicket)
-    .where(eq(supportTicket.threadId, thread_id))
+    .where(scopedThreadFilter(supportTicket.threadId, thread_id))
     .orderBy(desc(supportTicket.createdAt));
 
   return tickets;

@@ -2,10 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getToken } from "next-auth/jwt";
 
+// Next.js 16 renamed Middleware → Proxy (see node_modules/next/dist/docs/.../proxy.md).
+// Proxy runs on the Node.js runtime and is meant for FAST, optimistic checks —
+// not slow data fetching or full session management. So this only does the
+// optimistic auth gate (is there a session at all?). The authoritative check
+// that the session is still valid server-side — i.e. the company-deactivation
+// cascade via Django verify-token — lives in the Node route layer
+// (src/lib/with-tenant-route.ts → src/lib/session-verify.ts), where a fetch is
+// appropriate and its result can be cached.
+
 // List of routes for unauthenticated users (auth pages)
 const authRoutes = ["/login"];
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const { pathname } = req.nextUrl;
 

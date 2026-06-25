@@ -1,4 +1,5 @@
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/tenant-context";
+import { storeIdScope, scopedThreadFilter } from "@/db/access";
 import { FEEDBACK_RATING_VALUES } from "@/lib/config";
 import {
   chatThread,
@@ -100,11 +101,11 @@ export async function list_threads(
   page: number,
   pageSize: number,
 ): Promise<{ count: number; results: ThreadListItem[] }> {
+  const db = getDb();
   const conditions: SQL[] = [];
 
-  if (filters.store_code) {
-    conditions.push(eq(store.code, filters.store_code));
-  }
+  const storeScope = storeIdScope(chatThread.storeId, filters.store_code);
+  if (storeScope) conditions.push(storeScope);
 
   if (filters.is_active) {
     conditions.push(
@@ -354,6 +355,7 @@ export async function get_thread_details(
   thread_id: string,
   limit: number | null,
 ): Promise<ThreadDetail> {
+  const db = getDb();
   const threadRows = await db
     .select({
       id: chatThread.id,
@@ -369,7 +371,7 @@ export async function get_thread_details(
     })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
-    .where(eq(chatThread.id, thread_id))
+    .where(scopedThreadFilter(chatThread.id, thread_id))
     .limit(1);
 
   if (threadRows.length === 0) {
@@ -483,6 +485,7 @@ export type AiInsightsData = {
 export async function get_ai_insights(
   thread_id: string,
 ): Promise<AiInsightsData | null> {
+  const db = getDb();
   const rows = await db
     .select({
       underperforming_cases: aiInsights.underperformingCases,
@@ -494,7 +497,7 @@ export async function get_ai_insights(
       next_actionable_items: aiInsights.nextActionableItems,
     })
     .from(aiInsights)
-    .where(eq(aiInsights.threadId, thread_id))
+    .where(scopedThreadFilter(aiInsights.threadId, thread_id))
     .limit(1);
 
   if (rows.length === 0) return null;
@@ -518,6 +521,7 @@ export type CartData = {
 export async function get_cart_data(
   thread_id: string,
 ): Promise<CartData | null> {
+  const db = getDb();
   const rows = await db
     .select({
       thread_id: userMetadata.threadId,
@@ -525,7 +529,7 @@ export async function get_cart_data(
       updated_cart_data: userMetadata.updatedCartData,
     })
     .from(userMetadata)
-    .where(eq(userMetadata.threadId, thread_id))
+    .where(scopedThreadFilter(userMetadata.threadId, thread_id))
     .limit(1);
 
   if (rows.length === 0) return null;
@@ -540,12 +544,13 @@ export async function get_cart_data(
 export async function get_conversation_summary(
   thread_id: string,
 ): Promise<{ conversation_summary: string }> {
+  const db = getDb();
   const FALLBACK = "No summary available for this conversation.";
 
   const threadRows = await db
     .select({ id: chatThread.id })
     .from(chatThread)
-    .where(eq(chatThread.id, thread_id))
+    .where(scopedThreadFilter(chatThread.id, thread_id))
     .limit(1);
 
   if (threadRows.length === 0) {
@@ -555,7 +560,7 @@ export async function get_conversation_summary(
   const rows = await db
     .select({ conversation_summary: chatbotFeedback.conversationSummary })
     .from(chatbotFeedback)
-    .where(eq(chatbotFeedback.threadId, thread_id))
+    .where(scopedThreadFilter(chatbotFeedback.threadId, thread_id))
     .orderBy(desc(chatbotFeedback.createdAt))
     .limit(1);
 
@@ -586,6 +591,7 @@ export type FeedbackEntry = {
 export async function get_feedback_sequence(
   thread_id: string,
 ): Promise<{ feedback: FeedbackEntry | null }> {
+  const db = getDb();
   const rows = await db
     .select({
       id: chatbotFeedback.id,
@@ -594,7 +600,7 @@ export async function get_feedback_sequence(
       created_at: chatbotFeedback.createdAt,
     })
     .from(chatbotFeedback)
-    .where(eq(chatbotFeedback.threadId, thread_id))
+    .where(scopedThreadFilter(chatbotFeedback.threadId, thread_id))
     .orderBy(desc(chatbotFeedback.createdAt))
     .limit(1);
 
@@ -608,10 +614,11 @@ export async function get_feedback_sequence(
 export async function get_thread_tags(
   thread_id: string,
 ): Promise<{ tags: string[] }> {
+  const db = getDb();
   const rows = await db
     .select({ tags: aiInsights.tags })
     .from(aiInsights)
-    .where(eq(aiInsights.threadId, thread_id))
+    .where(scopedThreadFilter(aiInsights.threadId, thread_id))
     .limit(1);
 
   const tags =
@@ -640,6 +647,7 @@ export type UserMetadataData = {
 export async function get_user_metadata(
   thread_id: string,
 ): Promise<UserMetadataData | null> {
+  const db = getDb();
   const rows = await db
     .select({
       id: userMetadata.id,
@@ -651,7 +659,7 @@ export async function get_user_metadata(
       os: userMetadata.os,
     })
     .from(userMetadata)
-    .where(eq(userMetadata.threadId, thread_id))
+    .where(scopedThreadFilter(userMetadata.threadId, thread_id))
     .orderBy(desc(userMetadata.createdAt))
     .limit(1);
 
