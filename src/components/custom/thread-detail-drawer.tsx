@@ -62,6 +62,8 @@ import {
 } from "@/components/ui/tooltip";
 import { Skeleton } from "../ui/skeleton";
 import { createWebSocketUrl } from "@/lib/config";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 /** Centered spinner used while a card's data is still being fetched. */
 function CardLoadingState() {
@@ -419,6 +421,8 @@ export default function ThreadDetailDrawer({
   const { FetchFreshdeskTicketIdData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
   );
+
+  const { data: session } = useSession();
   const [threadMessages, setThreadMessages] = useState<
     (ThreadMessage)[]
   >([]);
@@ -463,12 +467,12 @@ export default function ThreadDetailDrawer({
   }, [dispatch, storeCode, activeThreadId, open]);
 
   useEffect(() => {
-    if (!activeThreadId || !thread?.is_active) {
+    if (!activeThreadId || !thread?.is_active || !session?.user?.access_token) {
       return;
     }
 
     // Websocket connection
-    const url = createWebSocketUrl(`/chat/${activeThreadId}/?role=agent`)
+    const url = createWebSocketUrl(`/chat/${activeThreadId}/?role=agent&token=${session?.user?.access_token}`);
     const ws = new WebSocket(url);
 
     wsRef.current = ws;
@@ -479,6 +483,14 @@ export default function ThreadDetailDrawer({
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
+
+      if (!data?.success && data?.action_type === "handler_change"){
+        toast.error("Permission Issue!", {
+          description: data?.message || "",
+        });
+        setTransitionState("idle");
+        return;
+      }
 
       if (!data?.success || data?.sender == "agent") {
         return;
