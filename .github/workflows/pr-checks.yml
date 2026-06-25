@@ -3,7 +3,7 @@ name: PR Checks
 on:
   pull_request:
     branches:
-      - main
+      - pre-dev
 
 jobs:
   lint-and-typecheck:
@@ -31,6 +31,23 @@ jobs:
 
       - name: Run TypeScript (type check)
         run: npx tsc --noEmit
+
+      - name: Run tests (Vitest)
+        # Unit tests run with no DB; the cross-tenant integration tests self-skip
+        # unless DATABASE_URL is present (see src/db/__tests__/cross-tenant.test.ts).
+        run: npm run test
+
+      - name: Schema drift check (db:check)
+        # Proves the committed Drizzle schema still matches the live DB. Needs DB
+        # access, so it self-skips until a DATABASE_URL secret is configured.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -n "$DATABASE_URL" ]; then
+            npm run db:check
+          else
+            echo "Skipping db:check — no DATABASE_URL secret configured."
+          fi
 
       - name: Run Next.js build (compile check)
         run: npm run build

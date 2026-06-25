@@ -2,15 +2,15 @@ import { get_conversation_summary } from "@/db/threads";
 import { APIResponse } from "@/lib/config";
 import { createAPIResponse } from "@/lib/helpers";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withTenantRoute } from "@/lib/with-tenant-route";
 
 /**
  * GET /analytics/threads/{thread_id}/summary/  ->
  * ConversationSummaryByThreadAPIView.
  */
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<APIResponse>,
-) {
+export default withTenantRoute(handler);
+
+async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {
     return res
       .status(405)

@@ -1,7 +1,8 @@
 import { get_store_by_code, list_scrape_links } from "@/db/knowledge";
 import { APIResponse } from "@/lib/config";
-import { createAPIResponse } from "@/lib/helpers";
+import { createAPIResponse, handleApiError } from "@/lib/helpers";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withTenantRoute } from "@/lib/with-tenant-route";
 
 /**
  * Port of Django `ScrapeLinksAPIView` (knowledge/views.py) — GET only.
@@ -14,10 +15,9 @@ import type { NextApiRequest, NextApiResponse } from "next";
  * ScrapeLinksSerializer.to_representation nests `store` as
  * {id, code, name, platform}.
  */
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<APIResponse>,
-) {
+export default withTenantRoute(handler);
+
+async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {
     return res
       .status(405)
@@ -45,11 +45,6 @@ export default async function handler(
         createAPIResponse(true, "Policy links retrieved successfully", links),
       );
   } catch (e) {
-    // Django catches and returns 400 with data=[].
-    return res
-      .status(400)
-      .json(
-        createAPIResponse(false, `Internal server error - ${String(e)}`, []),
-      );
+    return handleApiError(res, e, "knowledge/scrape-links");
   }
 }

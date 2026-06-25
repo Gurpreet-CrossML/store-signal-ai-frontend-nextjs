@@ -19,50 +19,74 @@ export function createAPIUrl(path?: string, target: APITarget = "local") {
 export const ENDPOINTS = {
   login: () => createAPIUrl("/auth/login/", "django"),
 
+  // Auth/session (Django) — token lifecycle + identity.
+  refreshToken: () => createAPIUrl("/auth/token/refresh/", "django"),
+  verifyToken: () => createAPIUrl("/auth/token/verify/", "django"),
+  logout: () => createAPIUrl("/auth/logout/", "django"),
+  profile: () => createAPIUrl("/auth/profile/", "django"),
+
+  // Company & staff management (Django /api/tenancy/). These are Django-owned;
+  // GET calls must pass `useBackend: true` (writes auto-route to Django).
+  fetchCompanyProfile: () => "/tenancy/company/",
+  updateCompanyProfile: () => "/tenancy/company/",
+  fetchStaff: () => "/tenancy/staff/",
+  createStaff: () => "/tenancy/staff/",
+  updateStaff: (id: number) => `/tenancy/staff/${id}/`,
+  resetStaffPassword: (id: number) => `/tenancy/staff/${id}/reset-password/`,
+  // Per-store access grants for a staff user (Django; GET needs useBackend).
+  fetchStoreAccess: (userId: number) =>
+    `/tenancy/staff/${userId}/store-access/`,
+  updateStoreAccess: (userId: number, storeCode: string) =>
+    `/tenancy/staff/${userId}/store-access/${storeCode}/`,
+
   // Store Management
-  fetchStoresList: () => "/store/list/",
+  fetchStoresList: () => "/store/list",
 
-  // Dashboard Analytics
-  fetchFeedbackInsights: () => "/analytics/feedback-insights/",
-  fetchConversationData: () => "/analytics/conversion/",
-  fetchEngagementData: () => "/analytics/engagements/",
-  fetchOperationalEfficiencyData: () => "/analytics/operational-efficiency/",
-  fetchUserMatrix: () => "/analytics/user-matrix/",
-  fetchConversaionRateData: () => "/analytics/conversion-rate/",
-  fetchQueryCategoryInsights: () => "/analytics/query-category-insights/",
-  fetchConversationHistory: () => "/analytics/chat-history/",
+  // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
+  // Next.js issues a 308 redirect (an extra round-trip) before each call.
+  // fetchDashboard consolidates the 5 summary calls into one request.
+  fetchDashboard: () => "/analytics/dashboard",
+  fetchFeedbackInsights: () => "/analytics/feedback-insights",
+  fetchConversationData: () => "/analytics/conversion",
+  fetchEngagementData: () => "/analytics/engagements",
+  fetchOperationalEfficiencyData: () => "/analytics/operational-efficiency",
+  fetchUserMatrix: () => "/analytics/user-matrix",
+  fetchConversaionRateData: () => "/analytics/conversion-rate",
+  fetchQueryCategoryInsights: () => "/analytics/query-category-insights",
+  fetchConversationHistory: () => "/analytics/chat-history",
 
-  // Thread-level Analytics
-  fetchThreads: () => "/analytics/threads/",
-  fetchThreadDetails: (threadId: string) => `/analytics/threads/${threadId}/`,
+  // Thread-level Analytics (local GETs — no trailing slash).
+  fetchThreads: () => "/analytics/threads",
+  fetchThreadDetails: (threadId: string) => `/analytics/threads/${threadId}`,
   fetchUserMetadata: (threadId: string) =>
-    `/analytics/threads/${threadId}/user-metadata/`,
+    `/analytics/threads/${threadId}/user-metadata`,
   fetchConversationSummary: (threadId: string) =>
-    `/analytics/threads/${threadId}/summary/`,
+    `/analytics/threads/${threadId}/summary`,
   fetchFeedbackSequence: (threadId: string) =>
-    `/analytics/threads/${threadId}/feedback-sequence/`,
-  fetchTags: (threadId: string) => `/analytics/threads/${threadId}/tags/`,
+    `/analytics/threads/${threadId}/feedback-sequence`,
+  fetchTags: (threadId: string) => `/analytics/threads/${threadId}/tags`,
   fetchAIInsight: (threadId: string) =>
-    `/analytics/threads/${threadId}/ai-insights/`,
+    `/analytics/threads/${threadId}/ai-insights`,
   fetchCartData: (threadId: string) =>
-    `/analytics/threads/${threadId}/cart-data/`,
+    `/analytics/threads/${threadId}/cart-data`,
   fetchFreshdeskTicketId: (threadId: string) =>
-    `/support/threads/${threadId}/tickets/`,
+    `/support/threads/${threadId}/tickets`,
 
-  // Chatbot Customization
+  // Chatbot Customization (Django via useBackend — keep trailing slash).
   widgetCustomization: (storeId: number) =>
     `/store/widget-customization/${storeId}/`,
 
-  // Knowledge Base Management
-  fetchLibraryDocuments: () => `/knowledge/library-documents/`,
+  // Knowledge Base Management. Local GETs have no trailing slash; Django writes
+  // (upload/create/update/delete) keep theirs (DRF requires it).
+  fetchLibraryDocuments: () => `/knowledge/library-documents`,
   uploadLibraryDocument: () => `/knowledge/library-documents/`,
-  fetchStoreFaqs: () => `/knowledge/store-faqs/`,
+  fetchStoreFaqs: () => `/knowledge/store-faqs`,
   createStoreFaq: () => `/knowledge/store-faqs/`,
   updateStoreFaq: (id: number) => `/knowledge/store-faqs/${id}/`,
   deleteStoreFaq: (id: number) => `/knowledge/store-faqs/${id}/`,
   fetchScrapeLinkTypes: () => `/knowledge/scrape-links/types`,
   createScrapeLink: () => `/knowledge/scrape-links/`,
-  fetchScrapeLink: () => `/knowledge/scrape-links/`,
+  fetchScrapeLink: () => `/knowledge/scrape-links`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

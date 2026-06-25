@@ -2,11 +2,11 @@ import { list_thread_tickets } from "@/db/support";
 import { APIResponse } from "@/lib/config";
 import { createAPIResponse } from "@/lib/helpers";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withTenantRoute } from "@/lib/with-tenant-route";
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<APIResponse>,
-) {
+export default withTenantRoute(handler);
+
+async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {
     return res
       .status(405)

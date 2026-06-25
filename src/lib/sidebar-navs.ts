@@ -32,12 +32,16 @@ export const sidebarMenus = {
     },
   ],
 
-  navSecondary: [
+  // Company-admin only (is_staff). Gated in AppSidebar by the session role.
+  navAdmin: [
     {
       title: "Settings",
-      url: "#",
+      url: "/settings",
       icon: IconSettings,
     },
+  ],
+
+  navSecondary: [
     {
       title: "Get Help",
       url: "#",

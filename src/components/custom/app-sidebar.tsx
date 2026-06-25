@@ -17,8 +17,14 @@ import {
 import { sidebarMenus } from "@/lib/sidebar-navs";
 import Image from "next/image";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { data: session } = useSession();
+  // Company admins (is_staff) get the admin nav (company settings + staff mgmt).
+  const navMain = session?.user?.is_staff
+    ? [...sidebarMenus.navMain, ...sidebarMenus.navAdmin]
+    : sidebarMenus.navMain;
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -42,7 +48,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={sidebarMenus.navMain} />
+        <NavMain items={navMain} />
         <NavSecondary items={sidebarMenus.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

@@ -16,8 +16,6 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 
-export const description = "A radial chart with stacked sections";
-
 const chartConfig = {
   guest: {
     label: "Guest",
