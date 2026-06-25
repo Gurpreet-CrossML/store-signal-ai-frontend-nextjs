@@ -23,19 +23,14 @@ async function main() {
   run(["node_modules/.bin/eslint", "--fix", "src/lib/drizzle"]);
   // Format the generated files so they pass `prettier --check` like the rest of
   // the codebase (they are committed, not ignored). Runs last so prettier has
-  // the final say on style. Prettier isn't a pinned dependency here, so invoke
-  // it via npx — same as CI's `npx prettier --check .`. Pass explicit file
-  // paths: prettier 3.x does not format reliably when handed a bare directory.
-  execFileSync(
-    "npx",
-    [
-      "prettier",
-      "--write",
-      "src/lib/drizzle/schema.ts",
-      "src/lib/drizzle/relations.ts",
-    ],
-    { env, stdio: "inherit" },
-  );
+  // the final say on style. Pass explicit file paths: prettier 3.x does not
+  // format reliably when handed a bare directory.
+  run([
+    "node_modules/.bin/prettier",
+    "--write",
+    "src/lib/drizzle/schema.ts",
+    "src/lib/drizzle/relations.ts",
+  ]);
 }
 
 main().catch((err) => {
