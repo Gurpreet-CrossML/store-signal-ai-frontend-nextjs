@@ -211,7 +211,7 @@ function CartDetailsCard({
               item: CartDataResponse["updated_cart_data"][number],
               index: number,
             ) => (
-              <div key={index} className="flex items-center gap-2 text-sm">
+              <div key={index} className="flex items-center justify-between gap-2 text-sm">
                 <div className="flex items-center gap-2">
                   <Avatar>
                     {item.product_image ? (
@@ -234,10 +234,7 @@ function CartDetailsCard({
                   </span>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {new Intl.NumberFormat("en-US", {
-                    style: "currency",
-                    currency: item.currency,
-                  }).format(parseFloat(item.price || "0"))}
+                  {item.price || "N/A"}
                 </span>
               </div>
             ),

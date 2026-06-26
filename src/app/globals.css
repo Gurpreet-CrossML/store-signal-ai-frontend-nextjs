@@ -154,3 +154,31 @@ div#markdown-answers menu {
   margin: revert;
   padding: revert;
 }
+
+div#markdown-message-bubble > ol,
+div#markdown-message-bubble > ul,
+div#markdown-message-bubble > menu,
+div#markdown-message-bubble > h1,
+div#markdown-message-bubble > h2,
+div#markdown-message-bubble > h3,
+div#markdown-message-bubble > h4,
+div#markdown-message-bubble > h5,
+div#markdown-message-bubble > h6,
+div#markdown-message-bubble > a,
+div#markdown-message-bubble ol,
+div#markdown-message-bubble ul,
+div#markdown-message-bubble menu,
+div#markdown-message-bubble h1,
+div#markdown-message-bubble h2,
+div#markdown-message-bubble h3,
+div#markdown-message-bubble h4,
+div#markdown-message-bubble h5,
+div#markdown-message-bubble h6,
+div#markdown-message-bubble a {
+  list-style: revert;
+  margin: revert;
+  padding: revert;
+  font-size: revert;
+  font-weight: revert;
+  text-decoration: revert;
+}
