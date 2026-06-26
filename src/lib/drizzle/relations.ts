@@ -218,14 +218,14 @@ export const quickActionRelations = relations(quickAction, ({ many }) => ({
 }));
 
 export const storeAccessRelations = relations(storeAccess, ({ one }) => ({
+  store: one(store, {
+    fields: [storeAccess.storeId],
+    references: [store.id],
+  }),
   authUser_grantedById: one(authUser, {
     fields: [storeAccess.grantedById],
     references: [authUser.id],
     relationName: "storeAccess_grantedById_authUser_id",
-  }),
-  store: one(store, {
-    fields: [storeAccess.storeId],
-    references: [store.id],
   }),
   authUser_userId: one(authUser, {
     fields: [storeAccess.userId],
