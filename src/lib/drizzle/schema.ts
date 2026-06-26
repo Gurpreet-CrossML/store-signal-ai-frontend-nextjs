@@ -678,14 +678,14 @@ export const storeAccess = pgTable(
       table.userId.asc().nullsLast().op("int4_ops"),
     ),
     foreignKey({
-      columns: [table.grantedById],
-      foreignColumns: [authUser.id],
-      name: "store_access_granted_by_id_d401d2b2_fk_auth_user_id",
-    }),
-    foreignKey({
       columns: [table.storeId],
       foreignColumns: [store.id],
       name: "store_access_store_id_1ab4524d_fk_store_id",
+    }),
+    foreignKey({
+      columns: [table.grantedById],
+      foreignColumns: [authUser.id],
+      name: "store_access_granted_by_id_d401d2b2_fk_auth_user_id",
     }),
     foreignKey({
       columns: [table.userId],
@@ -1230,6 +1230,48 @@ export const userMetadata = pgTable(
   ],
 );
 
+export const store = pgTable(
+  "store",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "store_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    name: varchar({ length: 255 }).notNull(),
+    code: varchar({ length: 255 }).notNull(),
+    platform: varchar({ length: 20 }).notNull(),
+    url: varchar({ length: 200 }).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    defaultLanguage: varchar("default_language", { length: 20 }).notNull(),
+    widgetKey: text("widget_key").notNull(),
+    isFollowUpsAllowed: boolean("is_follow_ups_allowed").notNull(),
+  },
+  (table) => [
+    index("store_code_5512d74c_like").using(
+      "btree",
+      table.code.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("store_name_fb31a80d_like").using(
+      "btree",
+      table.name.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    unique("store_name_key").on(table.name),
+    unique("store_code_key").on(table.code),
+  ],
+);
+
 export const chatHistory = pgTable(
   "chat_history",
   {
@@ -1344,47 +1386,6 @@ export const fraudFlag = pgTable(
       foreignColumns: [chatThread.id],
       name: "fraud_flag_thread_id_f2c39240_fk_chat_thread_id",
     }),
-  ],
-);
-
-export const store = pgTable(
-  "store",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "store_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    name: varchar({ length: 255 }).notNull(),
-    code: varchar({ length: 255 }).notNull(),
-    platform: varchar({ length: 20 }).notNull(),
-    url: varchar({ length: 200 }).notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    defaultLanguage: varchar("default_language", { length: 20 }).notNull(),
-    widgetKey: text("widget_key").notNull(),
-  },
-  (table) => [
-    index("store_code_5512d74c_like").using(
-      "btree",
-      table.code.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("store_name_fb31a80d_like").using(
-      "btree",
-      table.name.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    unique("store_name_key").on(table.name),
-    unique("store_code_key").on(table.code),
   ],
 );
 

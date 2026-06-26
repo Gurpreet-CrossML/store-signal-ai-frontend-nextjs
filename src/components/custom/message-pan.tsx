@@ -50,43 +50,41 @@ export default function MessagePan({
                     {formatDateTime(message.created_at)}
                   </span>
                 </div>
-                {
-                  message.role === "user" && !message.message.trim() ? (
-                    <></>
-                  ) : (
-                    <div
-                      id="markdown-message-bubble"
-                      className={`p-3 text-sm wrap-break-word ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary border border-border rounded-tl-none"}`}
-                    >
-                      {message.role === "assistant" ? (
-                        (() => {
-                          if (
-                            message?.json_content?.order_details &&
-                            message.json_content.order_details?.items?.length > 0
-                          ) {
-                            return (
-                              <>
-                                <ReactMarkdown>{message.message}</ReactMarkdown>
-                                <div className="mt-3">
-                                  <OrderBillCard
-                                    order={message.json_content.order_details}
-                                  />
-                                </div>
-                              </>
-                            );
-                          }
+                {message.role === "user" && !message.message.trim() ? (
+                  <></>
+                ) : (
+                  <div
+                    id="markdown-message-bubble"
+                    className={`p-3 text-sm wrap-break-word ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary border border-border rounded-tl-none"}`}
+                  >
+                    {message.role === "assistant" ? (
+                      (() => {
+                        if (
+                          message?.json_content?.order_details &&
+                          message.json_content.order_details?.items?.length > 0
+                        ) {
+                          return (
+                            <>
+                              <ReactMarkdown>{message.message}</ReactMarkdown>
+                              <div className="mt-3">
+                                <OrderBillCard
+                                  order={message.json_content.order_details}
+                                />
+                              </div>
+                            </>
+                          );
+                        }
 
-                          // Strategy 2: plain markdown fallback
-                          return <ReactMarkdown>{message.message}</ReactMarkdown>;
-                        })()
-                      ) : (
-                        <span className="whitespace-pre-wrap">
-                          {message.message}
-                        </span>
-                      )}
-                    </div>
-                  )
-                }
+                        // Strategy 2: plain markdown fallback
+                        return <ReactMarkdown>{message.message}</ReactMarkdown>;
+                      })()
+                    ) : (
+                      <span className="whitespace-pre-wrap">
+                        {message.message}
+                      </span>
+                    )}
+                  </div>
+                )}
                 {message.role === "assistant" &&
                   message?.json_content?.products &&
                   message.json_content.products.length > 0 && (
