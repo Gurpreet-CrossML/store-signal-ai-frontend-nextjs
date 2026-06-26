@@ -605,9 +605,7 @@ export default function ThreadDetailDrawer({
               />
               <ThreadAIInsightCard
                 nextActionableItems={
-                  FetchAIInsightData?.next_actionable_items || [
-                    "Support Team: Investigate and fix the cart quantity update logic for 'Valeria Engineered Wood Bed - King'.",
-                  ]
+                  FetchAIInsightData?.next_actionable_items || []
                 }
                 resolutionSuccessRate={
                   FetchAIInsightData?.resolution_success_rate || "0"
