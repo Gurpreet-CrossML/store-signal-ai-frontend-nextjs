@@ -41,7 +41,6 @@ import {
   IconX,
   IconSend,
   IconRobot,
-  IconPhone,
 } from "@tabler/icons-react";
 import {
   Card,
