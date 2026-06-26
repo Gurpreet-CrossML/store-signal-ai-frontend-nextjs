@@ -158,11 +158,19 @@ export const threadsColumns: ColumnDef<Thread>[] = [
   {
     accessorKey: "last_message",
     header: "Last Message",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis *:truncate">
-        <Markdown>{row.original.last_message || "—"}</Markdown>
-      </span>
-    ),
+    cell: ({ row }) => {
+      let last_message = row.original.last_message;
+      const last_message_splits = last_message?.split("\n");
+      last_message = last_message_splits
+        ? last_message_splits[0]
+        : last_message;
+
+      return (
+        <span className="text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis *:truncate">
+          <Markdown>{last_message || "—"}</Markdown>
+        </span>
+      );
+    },
   },
 
   // Started At — when the thread was created.
