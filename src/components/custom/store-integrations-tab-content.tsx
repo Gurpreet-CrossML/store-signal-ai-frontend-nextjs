@@ -53,7 +53,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -175,7 +180,13 @@ const REQUIRED_FIELDS = {
   zendesk: ["api_url", "api_key", "username"],
   gorgias: ["api_url", "api_key", "username"],
   intercom: ["api_url", "access_token"],
-  zoho_desk: ["api_url", "username", "access_token", "client_id", "client_secret"],
+  zoho_desk: [
+    "api_url",
+    "username",
+    "access_token",
+    "client_id",
+    "client_secret",
+  ],
 } as const;
 
 const FIELD_LABELS: Record<string, string> = {
@@ -218,8 +229,7 @@ function normalizeIntegration(raw: unknown): IntegrationRecord | null {
     username: typeof record.username === "string" ? record.username : null,
     access_token:
       typeof record.access_token === "string" ? record.access_token : null,
-    client_id:
-      typeof record.client_id === "string" ? record.client_id : null,
+    client_id: typeof record.client_id === "string" ? record.client_id : null,
     client_secret:
       typeof record.client_secret === "string" ? record.client_secret : null,
   };
@@ -377,15 +387,25 @@ export default function StoreIntegrationsTabContent() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterState>("all");
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState<PlatformMeta | null>(null);
-  const [selectedIntegration, setSelectedIntegration] = useState<IntegrationRecord | null>(null);
+  const [selectedPlatform, setSelectedPlatform] = useState<PlatformMeta | null>(
+    null,
+  );
+  const [selectedIntegration, setSelectedIntegration] =
+    useState<IntegrationRecord | null>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
-  const [verificationState, setVerificationState] = useState<VerificationState>("idle");
-  const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
-  const [verifiedSignature, setVerifiedSignature] = useState<string | null>(null);
+  const [verificationState, setVerificationState] =
+    useState<VerificationState>("idle");
+  const [verificationMessage, setVerificationMessage] = useState<string | null>(
+    null,
+  );
+  const [verifiedSignature, setVerifiedSignature] = useState<string | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
   const [mutatingId, setMutatingId] = useState<number | null>(null);
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!storeList.length) {
@@ -593,10 +613,7 @@ export default function StoreIntegrationsTabContent() {
 
     try {
       await axiosInstance.delete(
-        ENDPOINTS.deleteStoreIntegration(
-          storeId,
-          confirmAction.integration.id,
-        ),
+        ENDPOINTS.deleteStoreIntegration(storeId, confirmAction.integration.id),
       );
       toast.success("Integration deleted.");
       setConfirmAction(null);
@@ -642,8 +659,9 @@ export default function StoreIntegrationsTabContent() {
     if (mutatingId === integration.id) return;
 
     if (checked) {
-      const currentActivePlatform =
-        activeIntegrationByCategory.get(integration.category)?.platform;
+      const currentActivePlatform = activeIntegrationByCategory.get(
+        integration.category,
+      )?.platform;
 
       setConfirmAction({
         type: "activate",
@@ -828,9 +846,7 @@ export default function StoreIntegrationsTabContent() {
                             variant="ghost"
                             size="icon-sm"
                             aria-label={`Open actions for ${platform.label}`}
-                            onClickCapture={(event) =>
-                              event.stopPropagation()
-                            }
+                            onClickCapture={(event) => event.stopPropagation()}
                           >
                             <IconDotsVertical />
                           </Button>
@@ -914,10 +930,7 @@ export default function StoreIntegrationsTabContent() {
                     disabled={!integration || isBusy}
                     label={`${platform.label} integration toggle`}
                     onCheckedChange={(checked) =>
-                      onToggleChange(
-                        integration as IntegrationRecord,
-                        checked,
-                      )
+                      onToggleChange(integration as IntegrationRecord, checked)
                     }
                   />
                 </CardFooter>
@@ -1033,7 +1046,9 @@ export default function StoreIntegrationsTabContent() {
                           Current State
                         </div>
                         <div className="mt-1 font-medium text-foreground">
-                          {selectedIntegration.is_active ? "Active" : "Inactive"}
+                          {selectedIntegration.is_active
+                            ? "Active"
+                            : "Inactive"}
                         </div>
                       </div>
                     </div>
@@ -1149,8 +1164,8 @@ export default function StoreIntegrationsTabContent() {
                 if (confirmAction.type === "delete") {
                   void handleDelete();
                 } else {
-                  void handleToggle(confirmAction.integration, true).then(
-                    () => setConfirmAction(null),
+                  void handleToggle(confirmAction.integration, true).then(() =>
+                    setConfirmAction(null),
                   );
                 }
               }}
