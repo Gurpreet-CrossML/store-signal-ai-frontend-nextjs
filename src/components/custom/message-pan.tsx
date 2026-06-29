@@ -44,9 +44,7 @@ export default function MessagePan({
   }, [messages]);
 
   return (
-    <div className="h-full space-y-4 p-2 overflow-y-auto"
-    ref={containerRef}
-    >
+    <div className="h-full space-y-4 p-2 overflow-y-auto" ref={containerRef}>
       {messages?.map((message: ThreadMessage, index: number) => (
         <div key={index} className="space-y-2 pb-2">
           <div

@@ -19,9 +19,7 @@ export function createAPIUrl(path?: string, target: APITarget = "local") {
 export function createWebSocketUrl(path?: string) {
   const baseUrl = DJANGO_BASE_URL.replace(/\/$/, "");
   const wsBaseUrl = baseUrl.replace(/^http/, "ws");
-  const formattedPath = path
-    ? path.startsWith("/") ? path : `/${path}`
-    : "";
+  const formattedPath = path ? (path.startsWith("/") ? path : `/${path}`) : "";
 
   return `${wsBaseUrl}/ws${formattedPath}`;
 }

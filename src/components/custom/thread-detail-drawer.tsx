@@ -423,9 +423,7 @@ export default function ThreadDetailDrawer({
   );
 
   const { data: session } = useSession();
-  const [threadMessages, setThreadMessages] = useState<
-    (ThreadMessage)[]
-  >([]);
+  const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
   const [isAgentConnected, setIsAgentConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const [transitionState, setTransitionState] = useState<
@@ -443,7 +441,9 @@ export default function ThreadDetailDrawer({
     if (!activeThreadId) return;
 
     const loadData = async () => {
-      const result = await dispatch(FetchThreadDetails(activeThreadId)).unwrap();
+      const result = await dispatch(
+        FetchThreadDetails(activeThreadId),
+      ).unwrap();
       setThreadMessages(result.messages ?? []);
 
       dispatch(FetchConversationSummary(activeThreadId));
@@ -463,7 +463,9 @@ export default function ThreadDetailDrawer({
     }
 
     // Websocket connection
-    const url = createWebSocketUrl(`/chat/${activeThreadId}/?role=agent&token=${session?.user?.access_token}`);
+    const url = createWebSocketUrl(
+      `/chat/${activeThreadId}/?role=agent&token=${session?.user?.access_token}`,
+    );
     const ws = new WebSocket(url);
 
     wsRef.current = ws;
@@ -475,7 +477,7 @@ export default function ThreadDetailDrawer({
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
-      if (!data?.success && data?.action_type === "handler_change"){
+      if (!data?.success && data?.action_type === "handler_change") {
         toast.error("Permission Issue!", {
           description: data?.message || "",
         });
@@ -487,18 +489,22 @@ export default function ThreadDetailDrawer({
         return;
       }
 
-      if (data?.success && data?.action_type === "connection"){
-        setIsAgentConnected(data?.chat_handler === "human")
+      if (data?.success && data?.action_type === "connection") {
+        setIsAgentConnected(data?.chat_handler === "human");
         return;
       }
 
-      if (data?.success && data?.action_type === "handler_change"){
-        setIsAgentConnected(data?.chat_handler === "human")
+      if (data?.success && data?.action_type === "handler_change") {
+        setIsAgentConnected(data?.chat_handler === "human");
         setTransitionState("idle");
         return;
       }
 
-      if (data?.success && data?.action_type === "message" && data?.final_update) {
+      if (
+        data?.success &&
+        data?.action_type === "message" &&
+        data?.final_update
+      ) {
         setThreadMessages((prev) => [
           ...prev,
           {
@@ -525,7 +531,7 @@ export default function ThreadDetailDrawer({
     return () => {
       ws.close();
       wsRef.current = null;
-      setAgentMessage("")
+      setAgentMessage("");
       setIsAgentConnected(false);
       setTransitionState("idle");
       setThreadMessages([]);
@@ -540,13 +546,13 @@ export default function ThreadDetailDrawer({
     try {
       setTransitionState("taking_over");
       const message = JSON.stringify({
-        "action_type": "handler_change",
-        "chat_handler": "human"
+        action_type: "handler_change",
+        chat_handler: "human",
       });
       wsRef.current.send(message);
     } catch (error) {
       console.error(error);
-      setTransitionState("idle")
+      setTransitionState("idle");
     }
   };
 
@@ -558,13 +564,13 @@ export default function ThreadDetailDrawer({
     try {
       setTransitionState("returning_to_ai");
       const message = JSON.stringify({
-        "action_type": "handler_change",
-        "chat_handler": "ai"
+        action_type: "handler_change",
+        chat_handler: "ai",
       });
       wsRef.current.send(message);
     } catch (error) {
       console.error(error);
-      setTransitionState("idle")
+      setTransitionState("idle");
     }
   };
 
@@ -584,7 +590,7 @@ export default function ThreadDetailDrawer({
         message,
         created_at: new Date().toISOString(),
         threadId: activeThreadId,
-        messaged_by: "You"
+        messaged_by: "You",
       },
     ]);
 
@@ -809,12 +815,13 @@ export default function ThreadDetailDrawer({
                           </div>
                         ) : (
                           <div className="p-4 space-y-3">
-
                             <div className="flex gap-2">
                               <Input
                                 placeholder="Type your message…"
                                 value={agentMessage}
-                                onChange={(e) => setAgentMessage(e.target.value)}
+                                onChange={(e) =>
+                                  setAgentMessage(e.target.value)
+                                }
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter" && !e.shiftKey) {
                                     e.preventDefault();
@@ -825,7 +832,10 @@ export default function ThreadDetailDrawer({
                               />
                               <Button
                                 onClick={handleSendAgentMessage}
-                                disabled={!agentMessage.trim() || transitionState !== "idle"}
+                                disabled={
+                                  !agentMessage.trim() ||
+                                  transitionState !== "idle"
+                                }
                                 className="h-10 w-10 p-0 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 title="Send message"
                               >
