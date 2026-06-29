@@ -467,7 +467,10 @@ export default function ThreadDetailDrawer({
     }
 
     // Websocket connection
-    const url = ENDPOINTS.chatSocket(activeThreadId, session?.user?.access_token);
+    const url = ENDPOINTS.chatSocket(
+      activeThreadId,
+      session?.user?.access_token,
+    );
     const ws = new WebSocket(url);
 
     wsRef.current = ws;

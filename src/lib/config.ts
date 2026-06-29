@@ -34,7 +34,8 @@ export const ENDPOINTS = {
   profile: () => createAPIUrl("/auth/profile/", "django"),
 
   // Chat Websocket (Django)
-  chatSocket: (threadId:string, token:string) => createWebSocketUrl(`/chat/${threadId}/?role=agent&token=${token}`),
+  chatSocket: (threadId: string, token: string) =>
+    createWebSocketUrl(`/chat/${threadId}/?role=agent&token=${token}`),
 
   // Company & staff management (Django /api/tenancy/). These are Django-owned;
   // GET calls must pass `useBackend: true` (writes auto-route to Django).
