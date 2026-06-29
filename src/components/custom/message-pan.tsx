@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import {
   CartItem,
   ProductData,
@@ -24,8 +25,26 @@ export default function MessagePan({
 }: {
   messages: ThreadMessage[];
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const scrollToBottom = () => {
+      if (containerRef.current) {
+        containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      }
+    };
+
+    // Scroll immediately
+    scrollToBottom();
+
+    // Also scroll after a brief delay to ensure DOM is fully updated
+    const timer = setTimeout(scrollToBottom, 100);
+
+    return () => clearTimeout(timer);
+  }, [messages]);
+
   return (
-    <div className="h-full space-y-4 p-2 overflow-y-auto">
+    <div className="h-full space-y-4 p-2 overflow-y-auto" ref={containerRef}>
       {messages?.map((message: ThreadMessage, index: number) => (
         <div key={index} className="space-y-2 pb-2">
           <div
@@ -44,7 +63,7 @@ export default function MessagePan({
                   className={`flex items-center gap-2 mb-1 ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <span className="text-xs font-medium text-foreground capitalize">
-                    {message.role}
+                    {message.messaged_by ? "Agent" : message.role}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {formatDateTime(message.created_at)}

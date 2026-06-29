@@ -19,9 +19,10 @@ import {
   Thread,
   ThreadTicketData,
   UserMetadata,
+  ThreadMessage,
 } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import MessagePan from "@/components/custom/message-pan";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,8 @@ import {
   IconTimeDuration0,
   IconUser,
   IconX,
+  IconSend,
+  IconRobot,
 } from "@tabler/icons-react";
 import {
   Card,
@@ -46,6 +49,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { formatDateTime, getDuration } from "@/lib/helpers";
 import { Progress } from "@/components/ui/progress";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -58,6 +63,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Skeleton } from "../ui/skeleton";
+import { createWebSocketUrl } from "@/lib/config";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 /** Centered spinner used while a card's data is still being fetched. */
 function CardLoadingState() {
@@ -416,6 +424,16 @@ export default function ThreadDetailDrawer({
     (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
   );
 
+  const { data: session } = useSession();
+  const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
+  const [isAgentConnected, setIsAgentConnected] = useState(false);
+  const [transitionState, setTransitionState] = useState<
+    "idle" | "taking_over" | "returning_to_ai"
+  >("idle");
+  const [agentMessage, setAgentMessage] = useState("");
+
+  const wsRef = useRef<WebSocket | null>(null);
+
   // Prefer the id from the loaded row, but fall back to the deep-linked id so
   // the drawer still loads when opened directly from a shared URL.
   const activeThreadId = thread?.id || threadId || "";
@@ -424,14 +442,170 @@ export default function ThreadDetailDrawer({
     if (!open) return; // Only fetch when the drawer is opened
     if (!storeCode) return;
     if (!activeThreadId) return;
-    dispatch(FetchThreadDetails(activeThreadId));
-    dispatch(FetchConversationSummary(activeThreadId));
-    dispatch(FetchAIInsight(activeThreadId));
-    dispatch(FetchCart(activeThreadId));
-    dispatch(FetchUserMetadata(activeThreadId));
-    dispatch(FetchFeedbackSequence(activeThreadId));
-    dispatch(FetchFreshdeskTicketId(activeThreadId));
+
+    const loadData = async () => {
+      const result = await dispatch(
+        FetchThreadDetails(activeThreadId),
+      ).unwrap();
+      setThreadMessages(result.messages ?? []);
+
+      dispatch(FetchConversationSummary(activeThreadId));
+      dispatch(FetchAIInsight(activeThreadId));
+      dispatch(FetchCart(activeThreadId));
+      dispatch(FetchUserMetadata(activeThreadId));
+      dispatch(FetchFeedbackSequence(activeThreadId));
+      dispatch(FetchFreshdeskTicketId(activeThreadId));
+    };
+
+    loadData();
   }, [dispatch, storeCode, activeThreadId, open]);
+
+  useEffect(() => {
+    if (!activeThreadId || !thread?.is_active || !session?.user?.access_token) {
+      return;
+    }
+
+    // Websocket connection
+    const url = createWebSocketUrl(
+      `/chat/${activeThreadId}/?role=agent&token=${session?.user?.access_token}`,
+    );
+    const ws = new WebSocket(url);
+
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.info("Agent connected");
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (!data?.success && data?.action_type === "handler_change") {
+        toast.error("Permission Issue!", {
+          description: data?.message || "",
+        });
+        setTransitionState("idle");
+        return;
+      }
+
+      if (!data?.success || data?.sender == "agent") {
+        return;
+      }
+
+      if (data?.success && data?.action_type === "connection") {
+        setIsAgentConnected(data?.chat_handler === "human");
+        return;
+      }
+
+      if (data?.success && data?.action_type === "handler_change") {
+        setIsAgentConnected(data?.chat_handler === "human");
+        setTransitionState("idle");
+        return;
+      }
+
+      if (
+        data?.success &&
+        data?.action_type === "message" &&
+        data?.final_update
+      ) {
+        setThreadMessages((prev) => [
+          ...prev,
+          {
+            id: data?.final_update?.id,
+            role: data?.final_update?.role,
+            message: data?.final_update?.message,
+            json_content: data?.final_update?.json_content || {},
+            created_at: new Date().toISOString(),
+            threadId: activeThreadId,
+            messaged_by: "",
+          },
+        ]);
+      }
+    };
+
+    ws.onclose = () => {
+      console.info("Agent disconnected");
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error", error);
+    };
+
+    return () => {
+      ws.close();
+      wsRef.current = null;
+      setAgentMessage("");
+      setIsAgentConnected(false);
+      setTransitionState("idle");
+      setThreadMessages([]);
+    };
+  }, [activeThreadId]);
+
+  const handleTakeOver = async () => {
+    if (!activeThreadId || !wsRef.current) {
+      return;
+    }
+
+    try {
+      setTransitionState("taking_over");
+      const message = JSON.stringify({
+        action_type: "handler_change",
+        chat_handler: "human",
+      });
+      wsRef.current.send(message);
+    } catch (error) {
+      console.error(error);
+      setTransitionState("idle");
+    }
+  };
+
+  const handleReturnToAI = async () => {
+    if (!activeThreadId || !wsRef.current) {
+      return;
+    }
+
+    try {
+      setTransitionState("returning_to_ai");
+      const message = JSON.stringify({
+        action_type: "handler_change",
+        chat_handler: "ai",
+      });
+      wsRef.current.send(message);
+    } catch (error) {
+      console.error(error);
+      setTransitionState("idle");
+    }
+  };
+
+  const handleSendAgentMessage = () => {
+    const message = agentMessage.trim();
+
+    if (!message || !wsRef.current) {
+      return;
+    }
+
+    // Add immediately to UI
+    setThreadMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        role: "assistant",
+        message,
+        created_at: new Date().toISOString(),
+        threadId: activeThreadId,
+        messaged_by: "You",
+      },
+    ]);
+
+    // Send websocket message
+    wsRef.current.send(
+      JSON.stringify({
+        message,
+      }),
+    );
+
+    setAgentMessage("");
+  };
 
   return (
     <Drawer open={open} onOpenChange={setOpen} direction="right">
@@ -582,15 +756,144 @@ export default function ThreadDetailDrawer({
           </div>
         </DrawerHeader>
         <div className="grid grid-cols-1 lg:grid-cols-2 p-4 pb-0 h-full overflow-hidden">
-          <div className="flex flex-col h-full overflow-hidden border-0 border-r-1 border-r-border/50">
-            <h3 className="text-lg font-semibold mb-2">Messages</h3>
+          <div className="relative flex flex-col h-full overflow-hidden border-0 border-r-1 border-r-border/50">
+            <div className="border-b border-gray-200 dark:border-slate-800 px-6 py-4 bg-gradient-to-r from-white dark:from-slate-900 to-gray-50 dark:to-slate-800/50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Messages
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {isAgentConnected ? "Connected with agent" : "AI Assistant"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isAgentConnected ? (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 rounded-full">
+                      <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                        Live
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                      <IconRobot className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                      <span className="text-xs font-medium text-blue-700 dark:text-blue-400">
+                        AI Mode
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {FetchThreadDetailsIsLoading ? (
-              <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
-                <Spinner className="size-5" />
-                Loading messages…
+              <div className="flex-1 flex items-center justify-center gap-3 text-gray-500 dark:text-gray-400">
+                <Spinner className="h-5 w-5" />
+                <span className="text-sm font-medium">Loading messages…</span>
               </div>
             ) : (
-              <MessagePan messages={FetchThreadDetailsData?.messages || []} />
+              <>
+                {threadMessages && threadMessages?.length > 0 ? (
+                  <>
+                    <div className="flex-1 overflow-y-auto">
+                      <MessagePan messages={threadMessages} />
+                    </div>
+
+                    {FetchThreadDetailsData?.is_active && (
+                      <div className="border-t border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                        {!isAgentConnected ? (
+                          /* AI Mode */
+                          <div className="p-4">
+                            <Button
+                              className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+                              onClick={handleTakeOver}
+                              disabled={transitionState !== "idle"}
+                            >
+                              Take Over Chat
+                            </Button>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">
+                              Help this customer directly
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="p-4 space-y-3">
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Type your message…"
+                                value={agentMessage}
+                                onChange={(e) =>
+                                  setAgentMessage(e.target.value)
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSendAgentMessage();
+                                  }
+                                }}
+                                className="flex-1 h-10 bg-gray-50 dark:bg-slate-800 border-gray-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                              />
+                              <Button
+                                onClick={handleSendAgentMessage}
+                                disabled={
+                                  !agentMessage.trim() ||
+                                  transitionState !== "idle"
+                                }
+                                className="h-10 w-10 p-0 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                title="Send message"
+                              >
+                                <IconSend className="h-4 w-4" />
+                              </Button>
+                            </div>
+
+                            <Button
+                              variant="outline"
+                              className="w-full h-10 border-gray-300 dark:border-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                              onClick={handleReturnToAI}
+                              disabled={transitionState !== "idle"}
+                            >
+                              Return to AI
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center px-6">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                        No messages found
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 max-w-xs">
+                        This conversation has no messages yet.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {transitionState !== "idle" && (
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-3 rounded-lg border bg-background p-6 shadow-lg min-w-[280px]">
+                  <Spinner className="size-6" />
+
+                  <div className="text-center">
+                    <p className="font-medium">
+                      {transitionState === "taking_over"
+                        ? "Connecting..."
+                        : "Returning to AI..."}
+                    </p>
+
+                    <p className="text-sm text-muted-foreground">
+                      {transitionState === "taking_over"
+                        ? "Taking over this conversation"
+                        : "Handing conversation back to AI assistant"}
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 

@@ -399,6 +399,7 @@ export async function get_thread_details(
       json_content: chatHistory.jsonContent,
       image_url: chatHistory.imageUrl,
       created_at: chatHistory.createdAt,
+      messaged_by: chatHistory.messagedById,
     })
     .from(chatHistory)
     .where(eq(chatHistory.threadId, thread_id))
@@ -414,6 +415,7 @@ export async function get_thread_details(
     json_content: m.json_content,
     image_url: m.image_url,
     created_at: m.created_at,
+    messaged_by: m.messaged_by,
   }));
 
   const verdictRows = await db
