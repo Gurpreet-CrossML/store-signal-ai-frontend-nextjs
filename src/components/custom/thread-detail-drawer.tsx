@@ -66,6 +66,7 @@ import { Skeleton } from "../ui/skeleton";
 import { createWebSocketUrl } from "@/lib/config";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+import { ENDPOINTS } from "@/lib/config";
 
 /** Centered spinner used while a card's data is still being fetched. */
 function CardLoadingState() {
@@ -466,9 +467,7 @@ export default function ThreadDetailDrawer({
     }
 
     // Websocket connection
-    const url = createWebSocketUrl(
-      `/chat/${activeThreadId}/?role=agent&token=${session?.user?.access_token}`,
-    );
+    const url = ENDPOINTS.chatSocket(activeThreadId, session?.user?.access_token);
     const ws = new WebSocket(url);
 
     wsRef.current = ws;
@@ -790,7 +789,7 @@ export default function ThreadDetailDrawer({
             {FetchThreadDetailsIsLoading ? (
               <div className="flex-1 flex items-center justify-center gap-3 text-gray-500 dark:text-gray-400">
                 <Spinner className="h-5 w-5" />
-                <span className="text-sm font-medium">Loading messages…</span>
+                Loading messages…
               </div>
             ) : (
               <>
