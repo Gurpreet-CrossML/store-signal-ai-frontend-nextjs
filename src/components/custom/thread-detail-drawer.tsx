@@ -441,18 +441,21 @@ export default function ThreadDetailDrawer({
     if (!open) return; // Only fetch when the drawer is opened
     if (!storeCode) return;
     if (!activeThreadId) return;
-    dispatch(FetchThreadDetails(activeThreadId));
-    dispatch(FetchConversationSummary(activeThreadId));
-    dispatch(FetchAIInsight(activeThreadId));
-    dispatch(FetchCart(activeThreadId));
-    dispatch(FetchUserMetadata(activeThreadId));
-    dispatch(FetchFeedbackSequence(activeThreadId));
-    dispatch(FetchFreshdeskTicketId(activeThreadId));
-  }, [dispatch, storeCode, activeThreadId, open]);
 
-  useEffect(()=>{
-    setThreadMessages(FetchThreadDetailsData?.messages)
-  }, [FetchThreadDetailsData?.messages])
+    const loadData = async () => {
+      const result = await dispatch(FetchThreadDetails(activeThreadId)).unwrap();
+      setThreadMessages(result.messages ?? []);
+
+      dispatch(FetchConversationSummary(activeThreadId));
+      dispatch(FetchAIInsight(activeThreadId));
+      dispatch(FetchCart(activeThreadId));
+      dispatch(FetchUserMetadata(activeThreadId));
+      dispatch(FetchFeedbackSequence(activeThreadId));
+      dispatch(FetchFreshdeskTicketId(activeThreadId));
+    };
+
+    loadData();
+  }, [dispatch, storeCode, activeThreadId, open]);
 
   useEffect(() => {
     if (!activeThreadId || !thread?.is_active || !session?.user?.access_token) {
