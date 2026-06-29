@@ -448,9 +448,11 @@ export default function ThreadDetailDrawer({
     dispatch(FetchUserMetadata(activeThreadId));
     dispatch(FetchFeedbackSequence(activeThreadId));
     dispatch(FetchFreshdeskTicketId(activeThreadId));
-
-    setThreadMessages(FetchThreadDetailsData?.messages)
   }, [dispatch, storeCode, activeThreadId, open]);
+
+  useEffect(()=>{
+    setThreadMessages(FetchThreadDetailsData?.messages)
+  }, [FetchThreadDetailsData?.messages])
 
   useEffect(() => {
     if (!activeThreadId || !thread?.is_active || !session?.user?.access_token) {
