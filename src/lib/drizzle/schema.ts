@@ -6,16 +6,16 @@ import {
   index,
   foreignKey,
   bigint,
-  check,
   timestamp,
   boolean,
-  uuid,
+  check,
   text,
   smallint,
+  uuid,
   jsonb,
-  numeric,
-  doublePrecision,
   uniqueIndex,
+  doublePrecision,
+  numeric,
   inet,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -68,8 +68,8 @@ export const authPermission = pgTable(
       name: "auth_permission_content_type_id_2f476e4b_fk_django_co",
     }),
     unique("auth_permission_content_type_id_codename_01ab375a_uniq").on(
-      table.codename,
       table.contentTypeId,
+      table.codename,
     ),
   ],
 );
@@ -121,64 +121,19 @@ export const authGroupPermissions = pgTable(
       table.permissionId.asc().nullsLast().op("int4_ops"),
     ),
     foreignKey({
-      columns: [table.permissionId],
-      foreignColumns: [authPermission.id],
-      name: "auth_group_permissio_permission_id_84c5c92e_fk_auth_perm",
-    }),
-    foreignKey({
       columns: [table.groupId],
       foreignColumns: [authGroup.id],
       name: "auth_group_permissions_group_id_b120cbf9_fk_auth_group_id",
+    }),
+    foreignKey({
+      columns: [table.permissionId],
+      foreignColumns: [authPermission.id],
+      name: "auth_group_permissio_permission_id_84c5c92e_fk_auth_perm",
     }),
     unique("auth_group_permissions_group_id_permission_id_0cd325b0_uniq").on(
       table.groupId,
       table.permissionId,
     ),
-  ],
-);
-
-export const storeRegistry = pgTable(
-  "store_registry",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "store_registry_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    code: varchar({ length: 255 }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    storePk: bigint("store_pk", { mode: "number" }).notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    companyId: bigint("company_id", { mode: "number" }).notNull(),
-  },
-  (table) => [
-    index("store_registry_code_63f1a96a_like").using(
-      "btree",
-      table.code.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("store_registry_company_id_8c6eaa64").using(
-      "btree",
-      table.companyId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.companyId],
-      foreignColumns: [company.id],
-      name: "store_registry_company_id_8c6eaa64_fk_company_id",
-    }),
-    unique("store_registry_code_key").on(table.code),
-    check("store_registry_store_pk_check", sql`store_pk >= 0`),
   ],
 );
 
@@ -216,40 +171,6 @@ export const authUser = pgTable(
   ],
 );
 
-export const threadRegistry = pgTable(
-  "thread_registry",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "thread_registry_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    threadId: uuid("thread_id").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    companyId: bigint("company_id", { mode: "number" }).notNull(),
-  },
-  (table) => [
-    index("thread_registry_company_id_7576e8a9").using(
-      "btree",
-      table.companyId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.companyId],
-      foreignColumns: [company.id],
-      name: "thread_registry_company_id_7576e8a9_fk_company_id",
-    }),
-    unique("thread_registry_thread_id_key").on(table.threadId),
-  ],
-);
-
 export const authUserGroups = pgTable(
   "auth_user_groups",
   {
@@ -275,18 +196,18 @@ export const authUserGroups = pgTable(
       table.userId.asc().nullsLast().op("int4_ops"),
     ),
     foreignKey({
-      columns: [table.groupId],
-      foreignColumns: [authGroup.id],
-      name: "auth_user_groups_group_id_97559544_fk_auth_group_id",
-    }),
-    foreignKey({
       columns: [table.userId],
       foreignColumns: [authUser.id],
       name: "auth_user_groups_user_id_6a12ed8b_fk_auth_user_id",
     }),
+    foreignKey({
+      columns: [table.groupId],
+      foreignColumns: [authGroup.id],
+      name: "auth_user_groups_group_id_97559544_fk_auth_group_id",
+    }),
     unique("auth_user_groups_user_id_group_id_94350c0c_uniq").on(
-      table.groupId,
       table.userId,
+      table.groupId,
     ),
   ],
 );
@@ -316,18 +237,18 @@ export const authUserUserPermissions = pgTable(
       table.userId.asc().nullsLast().op("int4_ops"),
     ),
     foreignKey({
-      columns: [table.permissionId],
-      foreignColumns: [authPermission.id],
-      name: "auth_user_user_permi_permission_id_1fbb5f2c_fk_auth_perm",
-    }),
-    foreignKey({
       columns: [table.userId],
       foreignColumns: [authUser.id],
       name: "auth_user_user_permissions_user_id_a95ead1b_fk_auth_user_id",
     }),
+    foreignKey({
+      columns: [table.permissionId],
+      foreignColumns: [authPermission.id],
+      name: "auth_user_user_permi_permission_id_1fbb5f2c_fk_auth_perm",
+    }),
     unique("auth_user_user_permissions_user_id_permission_id_14a6b632_uniq").on(
-      table.permissionId,
       table.userId,
+      table.permissionId,
     ),
   ],
 );
@@ -439,8 +360,8 @@ export const company = pgTable(
       "btree",
       table.schemaName.asc().nullsLast().op("varchar_pattern_ops"),
     ),
-    unique("company_name_key").on(table.name),
     unique("company_schema_name_key").on(table.schemaName),
+    unique("company_name_key").on(table.name),
   ],
 );
 
@@ -528,6 +449,85 @@ export const companyMembership = pgTable(
       name: "company_membership_user_id_21a9cb1c_fk_auth_user_id",
     }),
     unique("unique_user_company_membership").on(table.companyId, table.userId),
+  ],
+);
+
+export const storeRegistry = pgTable(
+  "store_registry",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "store_registry_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    code: varchar({ length: 255 }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storePk: bigint("store_pk", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    companyId: bigint("company_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("store_registry_code_63f1a96a_like").using(
+      "btree",
+      table.code.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("store_registry_company_id_8c6eaa64").using(
+      "btree",
+      table.companyId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.companyId],
+      foreignColumns: [company.id],
+      name: "store_registry_company_id_8c6eaa64_fk_company_id",
+    }),
+    unique("store_registry_code_key").on(table.code),
+    check("store_registry_store_pk_check", sql`store_pk >= 0`),
+  ],
+);
+
+export const threadRegistry = pgTable(
+  "thread_registry",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "thread_registry_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    threadId: uuid("thread_id").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    companyId: bigint("company_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("thread_registry_company_id_7576e8a9").using(
+      "btree",
+      table.companyId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.companyId],
+      foreignColumns: [company.id],
+      name: "thread_registry_company_id_7576e8a9_fk_company_id",
+    }),
+    unique("thread_registry_thread_id_key").on(table.threadId),
   ],
 );
 
@@ -638,64 +638,6 @@ export const quickAction = pgTable("quick_action", {
   }).notNull(),
 });
 
-export const storeAccess = pgTable(
-  "store_access",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "store_access_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    level: varchar({ length: 10 }).notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    grantedById: integer("granted_by_id"),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    storeId: bigint("store_id", { mode: "number" }).notNull(),
-    userId: integer("user_id").notNull(),
-  },
-  (table) => [
-    index("store_access_granted_by_id_d401d2b2").using(
-      "btree",
-      table.grantedById.asc().nullsLast().op("int4_ops"),
-    ),
-    index("store_access_store_id_1ab4524d").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("store_access_user_id_42bec867").using(
-      "btree",
-      table.userId.asc().nullsLast().op("int4_ops"),
-    ),
-    foreignKey({
-      columns: [table.grantedById],
-      foreignColumns: [authUser.id],
-      name: "store_access_granted_by_id_d401d2b2_fk_auth_user_id",
-    }),
-    foreignKey({
-      columns: [table.storeId],
-      foreignColumns: [store.id],
-      name: "store_access_store_id_1ab4524d_fk_store_id",
-    }),
-    foreignKey({
-      columns: [table.userId],
-      foreignColumns: [authUser.id],
-      name: "store_access_user_id_42bec867_fk_auth_user_id",
-    }),
-    unique("unique_user_store_access").on(table.storeId, table.userId),
-  ],
-);
-
 export const quickLink = pgTable(
   "quick_link",
   {
@@ -802,6 +744,48 @@ export const otpStore = pgTable("otp_store", {
     mode: "string",
   }).notNull(),
 });
+
+export const store = pgTable(
+  "store",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "store_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    name: varchar({ length: 255 }).notNull(),
+    code: varchar({ length: 255 }).notNull(),
+    platform: varchar({ length: 20 }).notNull(),
+    url: varchar({ length: 200 }).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    defaultLanguage: varchar("default_language", { length: 20 }).notNull(),
+    widgetKey: text("widget_key").notNull(),
+    isFollowUpsAllowed: boolean("is_follow_ups_allowed").notNull(),
+  },
+  (table) => [
+    index("store_code_5512d74c_like").using(
+      "btree",
+      table.code.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("store_name_fb31a80d_like").using(
+      "btree",
+      table.name.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    unique("store_name_key").on(table.name),
+    unique("store_code_key").on(table.code),
+  ],
+);
 
 export const storeCredentials = pgTable(
   "store_credentials",
@@ -999,6 +983,143 @@ export const chatBotevent = pgTable(
   ],
 );
 
+export const chatThread = pgTable(
+  "chat_thread",
+  {
+    id: uuid().primaryKey().notNull(),
+    name: varchar({ length: 255 }),
+    isActive: boolean("is_active").notNull(),
+    followupLevel: integer("followup_level").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true, mode: "string" }),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    customerId: bigint("customer_id", { mode: "number" }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+    externalId: varchar("external_id", { length: 255 }),
+    source: varchar({ length: 20 }).notNull(),
+    chatHandler: varchar("chat_handler", { length: 10 }).notNull(),
+  },
+  (table) => [
+    index("chat_thread_chat_handler_44f4c9ad").using(
+      "btree",
+      table.chatHandler.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_thread_chat_handler_44f4c9ad_like").using(
+      "btree",
+      table.chatHandler.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("chat_thread_customer_id_31f2879e").using(
+      "btree",
+      table.customerId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("chat_thread_external_id_781a6db4").using(
+      "btree",
+      table.externalId.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_thread_external_id_781a6db4_like").using(
+      "btree",
+      table.externalId.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("chat_thread_store_id_b856f451").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    uniqueIndex("uniq_store_external_thread")
+      .using(
+        "btree",
+        table.storeId.asc().nullsLast().op("text_ops"),
+        table.externalId.asc().nullsLast().op("text_ops"),
+      )
+      .where(sql`(external_id IS NOT NULL)`),
+    foreignKey({
+      columns: [table.customerId],
+      foreignColumns: [chatCustomer.id],
+      name: "chat_thread_customer_id_31f2879e_fk_chat_customer_id",
+    }),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "chat_thread_store_id_b856f451_fk_store_id",
+    }),
+  ],
+);
+
+export const chatHistory = pgTable(
+  "chat_history",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "chat_history_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    role: varchar({ length: 20 }).notNull(),
+    jsonContent: jsonb("json_content").notNull(),
+    messageType: varchar("message_type", { length: 30 }).notNull(),
+    responseTime: doublePrecision("response_time").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    threadId: uuid("thread_id").notNull(),
+    workflow: varchar({ length: 100 }),
+    message: text().notNull(),
+    imageUrl: jsonb("image_url"),
+    messagedById: integer("messaged_by_id"),
+  },
+  (table) => [
+    index("chat_histor_created_2850f7_idx").using(
+      "btree",
+      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
+    ),
+    index("chat_histor_message_aee83b_idx").using(
+      "btree",
+      table.messageType.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_histor_role_2d2777_idx").using(
+      "btree",
+      table.role.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_histor_thread__381e32_idx").using(
+      "btree",
+      table.threadId.asc().nullsLast().op("uuid_ops"),
+    ),
+    index("chat_history_messaged_by_id_3c647c76").using(
+      "btree",
+      table.messagedById.asc().nullsLast().op("int4_ops"),
+    ),
+    index("chat_history_thread_id_4bac8b19").using(
+      "btree",
+      table.threadId.asc().nullsLast().op("uuid_ops"),
+    ),
+    foreignKey({
+      columns: [table.threadId],
+      foreignColumns: [chatThread.id],
+      name: "chat_history_thread_id_4bac8b19_fk_chat_thread_id",
+    }),
+    foreignKey({
+      columns: [table.messagedById],
+      foreignColumns: [authUser.id],
+      name: "chat_history_messaged_by_id_3c647c76_fk_auth_user_id",
+    }),
+  ],
+);
+
 export const aiInsights = pgTable(
   "ai_insights",
   {
@@ -1130,66 +1251,6 @@ export const sessionResolutionVerdict = pgTable(
   ],
 );
 
-export const chatThread = pgTable(
-  "chat_thread",
-  {
-    id: uuid().primaryKey().notNull(),
-    name: varchar({ length: 255 }),
-    isActive: boolean("is_active").notNull(),
-    followupLevel: integer("followup_level").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    endedAt: timestamp("ended_at", { withTimezone: true, mode: "string" }),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    customerId: bigint("customer_id", { mode: "number" }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    storeId: bigint("store_id", { mode: "number" }).notNull(),
-    externalId: varchar("external_id", { length: 255 }),
-    source: varchar({ length: 20 }).notNull(),
-  },
-  (table) => [
-    index("chat_thread_customer_id_31f2879e").using(
-      "btree",
-      table.customerId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("chat_thread_external_id_781a6db4").using(
-      "btree",
-      table.externalId.asc().nullsLast().op("text_ops"),
-    ),
-    index("chat_thread_external_id_781a6db4_like").using(
-      "btree",
-      table.externalId.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("chat_thread_store_id_b856f451").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-    ),
-    uniqueIndex("uniq_store_external_thread")
-      .using(
-        "btree",
-        table.storeId.asc().nullsLast().op("text_ops"),
-        table.externalId.asc().nullsLast().op("int8_ops"),
-      )
-      .where(sql`(external_id IS NOT NULL)`),
-    foreignKey({
-      columns: [table.customerId],
-      foreignColumns: [chatCustomer.id],
-      name: "chat_thread_customer_id_31f2879e_fk_chat_customer_id",
-    }),
-    foreignKey({
-      columns: [table.storeId],
-      foreignColumns: [store.id],
-      name: "chat_thread_store_id_b856f451_fk_store_id",
-    }),
-  ],
-);
-
 export const userMetadata = pgTable(
   "user_metadata",
   {
@@ -1230,22 +1291,19 @@ export const userMetadata = pgTable(
   ],
 );
 
-export const chatHistory = pgTable(
-  "chat_history",
+export const storeAccess = pgTable(
+  "store_access",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "chat_history_id_seq",
+      name: "store_access_id_seq",
       startWith: 1,
       increment: 1,
       minValue: 1,
       maxValue: 9223372036854775807,
       cache: 1,
     }),
-    role: varchar({ length: 20 }).notNull(),
-    jsonContent: jsonb("json_content").notNull(),
-    messageType: varchar("message_type", { length: 30 }).notNull(),
-    responseTime: doublePrecision("response_time").notNull(),
+    level: varchar({ length: 10 }).notNull(),
     createdAt: timestamp("created_at", {
       withTimezone: true,
       mode: "string",
@@ -1254,37 +1312,40 @@ export const chatHistory = pgTable(
       withTimezone: true,
       mode: "string",
     }).notNull(),
-    threadId: uuid("thread_id").notNull(),
-    workflow: varchar({ length: 100 }),
-    message: text().notNull(),
-    imageUrl: jsonb("image_url"),
+    grantedById: integer("granted_by_id"),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+    userId: integer("user_id").notNull(),
   },
   (table) => [
-    index("chat_histor_created_2850f7_idx").using(
+    index("store_access_granted_by_id_d401d2b2").using(
       "btree",
-      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
+      table.grantedById.asc().nullsLast().op("int4_ops"),
     ),
-    index("chat_histor_message_aee83b_idx").using(
+    index("store_access_store_id_1ab4524d").using(
       "btree",
-      table.messageType.asc().nullsLast().op("text_ops"),
+      table.storeId.asc().nullsLast().op("int8_ops"),
     ),
-    index("chat_histor_role_2d2777_idx").using(
+    index("store_access_user_id_42bec867").using(
       "btree",
-      table.role.asc().nullsLast().op("text_ops"),
-    ),
-    index("chat_histor_thread__381e32_idx").using(
-      "btree",
-      table.threadId.asc().nullsLast().op("uuid_ops"),
-    ),
-    index("chat_history_thread_id_4bac8b19").using(
-      "btree",
-      table.threadId.asc().nullsLast().op("uuid_ops"),
+      table.userId.asc().nullsLast().op("int4_ops"),
     ),
     foreignKey({
-      columns: [table.threadId],
-      foreignColumns: [chatThread.id],
-      name: "chat_history_thread_id_4bac8b19_fk_chat_thread_id",
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "store_access_store_id_1ab4524d_fk_store_id",
     }),
+    foreignKey({
+      columns: [table.grantedById],
+      foreignColumns: [authUser.id],
+      name: "store_access_granted_by_id_d401d2b2_fk_auth_user_id",
+    }),
+    foreignKey({
+      columns: [table.userId],
+      foreignColumns: [authUser.id],
+      name: "store_access_user_id_42bec867_fk_auth_user_id",
+    }),
+    unique("unique_user_store_access").on(table.storeId, table.userId),
   ],
 );
 
@@ -1344,47 +1405,6 @@ export const fraudFlag = pgTable(
       foreignColumns: [chatThread.id],
       name: "fraud_flag_thread_id_f2c39240_fk_chat_thread_id",
     }),
-  ],
-);
-
-export const store = pgTable(
-  "store",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "store_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    name: varchar({ length: 255 }).notNull(),
-    code: varchar({ length: 255 }).notNull(),
-    platform: varchar({ length: 20 }).notNull(),
-    url: varchar({ length: 200 }).notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    defaultLanguage: varchar("default_language", { length: 20 }).notNull(),
-    widgetKey: text("widget_key").notNull(),
-  },
-  (table) => [
-    index("store_code_5512d74c_like").using(
-      "btree",
-      table.code.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("store_name_fb31a80d_like").using(
-      "btree",
-      table.name.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    unique("store_name_key").on(table.name),
-    unique("store_code_key").on(table.code),
   ],
 );
 
@@ -1466,6 +1486,59 @@ export const knowledgeStorelibrarydocument = pgTable(
       name: "knowledge_storelibrarydocument_store_id_032910f7_fk_store_id",
     }),
     check("knowledge_storelibrarydocument_size_check", sql`size >= 0`),
+  ],
+);
+
+export const storeIntegration = pgTable(
+  "store_integration",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "store_integration_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    platform: varchar({ length: 20 }).notNull(),
+    category: varchar({ length: 20 }).notNull(),
+    isActive: boolean("is_active").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    apiUrl: varchar("api_url", { length: 200 }),
+    apiKey: text("api_key"),
+    username: text(),
+    accessToken: text("access_token"),
+    phoneNumberId: text("phone_number_id"),
+    botToken: text("bot_token"),
+    signingSecret: text("signing_secret"),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+    clientId: text("client_id"),
+    refreshToken: text("refresh_token"),
+    clientSecret: text("client_secret"),
+  },
+  (table) => [
+    index("store_integration_store_id_38acbb75").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "store_integration_store_id_38acbb75_fk_store_id",
+    }),
+    unique("store_integration_store_id_platform_5936fd5b_uniq").on(
+      table.platform,
+      table.storeId,
+    ),
   ],
 );
 
@@ -1572,58 +1645,5 @@ export const supportTicket = pgTable(
       name: "support_ticket_thread_id_2978cb77_fk_chat_thread_id",
     }),
     unique("support_ticket_ticket_id_key").on(table.ticketId),
-  ],
-);
-
-export const storeIntegration = pgTable(
-  "store_integration",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "store_integration_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    platform: varchar({ length: 20 }).notNull(),
-    category: varchar({ length: 20 }).notNull(),
-    isActive: boolean("is_active").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    apiUrl: varchar("api_url", { length: 200 }),
-    apiKey: text("api_key"),
-    username: text(),
-    accessToken: text("access_token"),
-    phoneNumberId: text("phone_number_id"),
-    botToken: text("bot_token"),
-    signingSecret: text("signing_secret"),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    storeId: bigint("store_id", { mode: "number" }).notNull(),
-    clientId: text("client_id"),
-    refreshToken: text("refresh_token"),
-    clientSecret: text("client_secret"),
-  },
-  (table) => [
-    index("store_integration_store_id_38acbb75").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.storeId],
-      foreignColumns: [store.id],
-      name: "store_integration_store_id_38acbb75_fk_store_id",
-    }),
-    unique("store_integration_store_id_platform_5936fd5b_uniq").on(
-      table.platform,
-      table.storeId,
-    ),
   ],
 );
