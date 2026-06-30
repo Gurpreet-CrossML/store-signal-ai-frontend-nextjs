@@ -1,33 +1,8 @@
 "use client";
 
-import { ENDPOINTS, createAPIUrl } from "@/lib/config";
+import { ENDPOINTS } from "@/lib/config";
 import type { AxiosResponse } from "axios";
 import { axiosInstance } from "@/redux/axios-config";
-
-export type IntegrationCategory = "support" | "chat" | string;
-
-export type CoreIntegration = {
-  id: number;
-  name: string;
-  logo: string | null;
-  logo_url: string | null;
-  description: string;
-  is_active: boolean;
-  category: {
-    id: number | null;
-    category: IntegrationCategory;
-  };
-  category_label: string,
-  steps_for_creds: string;
-  scope: string | string[] | null;
-};
-
-export type IntegrationAttribute = {
-  code: string;
-  display_name: string;
-  type: "text" | "url" | string;
-  is_required: boolean;
-};
 
 type ApiEnvelope<T> = {
   data?: T;
@@ -44,43 +19,6 @@ function unwrapResponse<T>(response: AxiosResponse<ApiEnvelope<T> | T>): T {
   }
 
   return (payload as T) ?? (null as T);
-}
-
-export async function fetchCoreIntegrations() {
-  const response = await axiosInstance.get(
-    createAPIUrl("/core/integrations/", "django"),
-    {
-      useBackend: true,
-    },
-  );
-
-  return unwrapResponse<CoreIntegration[]>(response);
-}
-
-export async function fetchIntegrationAttributes(
-  integrationId: number,
-): Promise<IntegrationAttribute[]> {
-  const response = await axiosInstance.get(
-    createAPIUrl(`/core/integrations/${integrationId}/attributes/`, "django"),
-    {
-      useBackend: true,
-      requireAuth: true,
-    },
-  );
-
-  return unwrapResponse<IntegrationAttribute[]>(response);
-}
-
-export async function fetchStoreIntegrations(storeId: number) {
-  const response = await axiosInstance.get(
-    ENDPOINTS.fetchStoreIntegrations(storeId),
-    {
-      useBackend: true,
-      requireAuth: true,
-    },
-  );
-
-  return unwrapResponse<unknown[]>(response);
 }
 
 export async function testStoreIntegrationConnection(
@@ -102,6 +40,11 @@ export async function testStoreIntegrationConnection(
 
   return unwrapResponse<unknown>(response);
 }
+
+export type {
+  CoreIntegration,
+  IntegrationAttribute,
+} from "@/lib/integration-types";
 
 export async function connectStoreIntegration(
   storeId: number,

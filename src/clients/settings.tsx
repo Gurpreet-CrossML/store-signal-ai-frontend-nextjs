@@ -14,8 +14,13 @@ import { IconLock } from "@tabler/icons-react";
 import CompanyProfileForm from "@/components/custom/company-profile-form";
 import StoreIntegrationsTabContent from "@/components/custom/store-integrations-tab-content";
 import StaffManagement from "@/components/custom/staff-management";
+import type { IntegrationCatalogItem } from "@/lib/integration-types";
 
-export default function Settings() {
+type SettingsProps = {
+  initialIntegrations: IntegrationCatalogItem[];
+};
+
+export default function Settings({ initialIntegrations }: SettingsProps) {
   const { data: session, status } = useSession();
 
   // Company settings + staff management are company-admin (is_staff) only.
@@ -51,7 +56,9 @@ export default function Settings() {
           <CompanyProfileForm />
         </TabsContent>
         <TabsContent value="integrations">
-          <StoreIntegrationsTabContent />
+          <StoreIntegrationsTabContent
+            initialIntegrations={initialIntegrations}
+          />
         </TabsContent>
         <TabsContent value="staff">
           <StaffManagement />

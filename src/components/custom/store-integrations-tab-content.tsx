@@ -32,23 +32,22 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { GetStores } from "@/redux/api-slice/stores-slice";
 import {
   connectStoreIntegration,
-  fetchCoreIntegrations,
-  fetchIntegrationAttributes,
   testStoreIntegrationConnection,
-  type CoreIntegration,
-  type IntegrationAttribute,
-  type IntegrationCategory,
 } from "@/lib/integrations-api";
+import type {
+  CoreIntegration,
+  IntegrationAttribute,
+  IntegrationCategory,
+} from "@/lib/integration-types";
+import type { IntegrationCatalogItem } from "@/lib/integration-types";
 
 type StepId = 0 | 1 | 2;
-type LoadState = "idle" | "loading" | "success" | "error";
 
 function getErrorMessage(error: unknown) {
   if (isAxiosError(error)) {
@@ -73,39 +72,6 @@ function categoryStyles(category: IntegrationCategory) {
   return category === "chat"
     ? "border-violet-500/30 bg-violet-500/15 text-violet-700 dark:text-violet-300"
     : "border-sky-500/30 bg-sky-500/15 text-sky-700 dark:text-sky-300";
-}
-
-function normalizeAttributes(raw: unknown): IntegrationAttribute[] {
-  if (!Array.isArray(raw)) return [];
-
-  return raw.map((item, index) => {
-    const record =
-      item && typeof item === "object" ? (item as Record<string, unknown>) : {};
-    const code =
-      typeof record.code === "string" && record.code.trim()
-        ? record.code
-        : typeof record.key === "string" && record.key.trim()
-          ? record.key
-          : typeof record.name === "string" && record.name.trim()
-            ? record.name
-            : `field_${index + 1}`;
-    const displayName =
-      typeof record.display_name === "string" && record.display_name.trim()
-        ? record.display_name
-        : typeof record.name === "string" && record.name.trim()
-          ? record.name
-          : `Field ${index + 1}`;
-
-    return {
-      code: String(code),
-      display_name: displayName,
-      type:
-        typeof record.type === "string" && record.type.trim()
-          ? record.type.toLowerCase()
-          : "text",
-      is_required: Boolean(record.is_required),
-    };
-  });
 }
 
 function LogoMark({ integration }: { integration: CoreIntegration }) {
@@ -210,40 +176,13 @@ function Stepper({ step }: { step: StepId }) {
   );
 }
 
-function LoadingGrid() {
-  return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <Card
-          key={index}
-          size="sm"
-          className="gap-5 border-border/60 bg-card/80 shadow-none"
-        >
-          <CardHeader className="gap-4 pb-0">
-            <div className="flex items-start gap-3">
-              <Skeleton className="size-11 rounded-lg" />
-              <div className="min-w-0 flex-1 space-y-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-44" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-5/6" />
-          </CardContent>
-          <CardFooter className="flex items-center justify-between pt-1">
-            <Skeleton className="h-5 w-20 rounded-full" />
-            <Skeleton className="h-8 w-14 rounded-full" />
-          </CardFooter>
-        </Card>
-      ))}
-    </div>
-  );
-}
+type StoreIntegrationsTabContentProps = {
+  initialIntegrations: IntegrationCatalogItem[];
+};
 
-export default function StoreIntegrationsTabContent() {
+export default function StoreIntegrationsTabContent({
+  initialIntegrations,
+}: StoreIntegrationsTabContentProps) {
   const dispatch = useAppDispatch();
   const selectedStoreCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -258,9 +197,9 @@ export default function StoreIntegrationsTabContent() {
   );
   const storeId = store ? Number(store.id) : null;
 
-  const [loadState, setLoadState] = useState<LoadState>("loading");
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [integrations, setIntegrations] = useState<CoreIntegration[]>([]);
+  const [integrations] = useState<IntegrationCatalogItem[]>(
+    () => initialIntegrations,
+  );
 
   const [selectedIntegration, setSelectedIntegration] =
     useState<CoreIntegration | null>(null);
@@ -269,11 +208,6 @@ export default function StoreIntegrationsTabContent() {
   const [savedIds, setSavedIds] = useState<Record<number, boolean>>({});
 
   const [attributes, setAttributes] = useState<IntegrationAttribute[]>([]);
-  const [attributesForId, setAttributesForId] = useState<number | null>(null);
-  const [attributesLoadingId, setAttributesLoadingId] = useState<
-    number | null
-  >(null);
-  const [attributesError, setAttributesError] = useState<string | null>(null);
   const [attributeValues, setAttributeValues] = useState<
     Record<string, string>
   >({});
@@ -290,27 +224,6 @@ export default function StoreIntegrationsTabContent() {
     }
   }, [dispatch, storeList.length]);
 
-  const loadIntegrations = async () => {
-    setLoadState("loading");
-    setLoadError(null);
-
-    try {
-      const data = await fetchCoreIntegrations();
-      setIntegrations(Array.isArray(data) ? data : []);
-      setLoadState("success");
-    } catch (error) {
-      setLoadError(getErrorMessage(error));
-      setLoadState("error");
-    }
-  };
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadIntegrations();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
-
   const closePanel = (keepEnabled: boolean) => {
     if (selectedIntegration && !keepEnabled && !savedIds[selectedIntegration.id]) {
       setEnabledIds((current) => ({
@@ -322,9 +235,6 @@ export default function StoreIntegrationsTabContent() {
     setSelectedIntegration(null);
     setStep(0);
     setAttributes([]);
-    setAttributesForId(null);
-    setAttributesLoadingId(null);
-    setAttributesError(null);
     setAttributeValues({});
     setTestState("idle");
     setTestMessage(null);
@@ -346,61 +256,12 @@ export default function StoreIntegrationsTabContent() {
 
     setSelectedIntegration(integration);
     setStep(0);
-    setAttributes([]);
-    setAttributesForId(null);
-    setAttributesLoadingId(null);
-    setAttributesError(null);
+    setAttributes(integration.attributes ?? []);
     setAttributeValues({});
     setTestState("idle");
     setTestMessage(null);
     setSaving(false);
   };
-
-  useEffect(() => {
-    if (!selectedIntegration || step < 1) return;
-    if (
-      attributesForId === selectedIntegration.id ||
-      attributesLoadingId === selectedIntegration.id
-    ) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      let active = true;
-      setAttributesLoadingId(selectedIntegration.id);
-      setAttributesError(null);
-
-      (async () => {
-        try {
-          const raw = await fetchIntegrationAttributes(selectedIntegration.id);
-          if (!active) return;
-          const normalized = normalizeAttributes(raw);
-          setAttributes(normalized);
-          setAttributesForId(selectedIntegration.id);
-          setAttributeValues((current) => {
-            const next = { ...current };
-            for (const attribute of normalized) {
-              if (!(attribute.code in next)) {
-                next[attribute.code] = "";
-              }
-            }
-            return next;
-          });
-        } catch (error) {
-          if (!active) return;
-          setAttributesError(getErrorMessage(error));
-        } finally {
-          if (active) setAttributesLoadingId(null);
-        }
-      })();
-
-      return () => {
-        active = false;
-      };
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [attributesForId, attributesLoadingId, selectedIntegration, step]);
 
   const handleToggle = (integration: CoreIntegration, checked: boolean) => {
     if (checked) {
@@ -476,20 +337,6 @@ export default function StoreIntegrationsTabContent() {
     ? Boolean(savedIds[selectedIntegration.id])
     : false;
 
-  if (loadState === "loading" && !integrations.length) {
-    return (
-      <div className="flex flex-col gap-4 py-4">
-        <div className="space-y-2">
-          <h2 className="font-heading text-xl font-medium">Integrations</h2>
-          <p className="text-sm text-muted-foreground">
-            Browse available integrations and enable one to configure it.
-          </p>
-        </div>
-        <LoadingGrid />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-4 py-4">
       <div className="flex items-start justify-between gap-4">
@@ -516,22 +363,7 @@ export default function StoreIntegrationsTabContent() {
         </div>
       )}
 
-      {loadState === "error" && loadError && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {loadError}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="ml-3 h-auto px-0 text-destructive hover:bg-transparent hover:text-destructive"
-            onClick={() => void loadIntegrations()}
-          >
-            Retry
-          </Button>
-        </div>
-      )}
-
-      {integrations.length === 0 && loadState !== "loading" ? (
+      {integrations.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-10 text-center text-sm text-muted-foreground">
           No integrations were returned by the backend yet.
         </div>
@@ -680,30 +512,6 @@ export default function StoreIntegrationsTabContent() {
 
                 {selectedIntegration && step === 1 && (
                   <div className="space-y-4">
-                    {attributesLoadingId === selectedIntegration.id &&
-                      !attributes.length &&
-                      !attributesError && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Spinner className="size-4" />
-                          Loading credential fields...
-                        </div>
-                      )}
-
-                    {attributesError && (
-                      <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                        {attributesError}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="ml-3 h-auto px-0 text-destructive hover:bg-transparent hover:text-destructive"
-                          onClick={() => setAttributesForId(null)}
-                        >
-                          Retry
-                        </Button>
-                      </div>
-                    )}
-
                     <div className="space-y-4">
                       {attributes.map((attribute) => {
                         const fieldType =
@@ -731,15 +539,13 @@ export default function StoreIntegrationsTabContent() {
                             />
                           </Field>
                         );
-                      })}
+                        })}
 
-                      {attributesLoadingId !== selectedIntegration.id &&
-                        !attributesError &&
-                        attributes.length === 0 && (
-                          <div className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-                            No attributes were returned for this integration.
-                          </div>
-                        )}
+                      {attributes.length === 0 && (
+                        <div className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+                          No attributes were returned for this integration.
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -756,7 +562,6 @@ export default function StoreIntegrationsTabContent() {
                           type="button"
                           onClick={() => void handleTestConnection()}
                           disabled={
-                            attributesError !== null ||
                             selectedIntegration == null ||
                             storeId == null ||
                             testState === "loading"
