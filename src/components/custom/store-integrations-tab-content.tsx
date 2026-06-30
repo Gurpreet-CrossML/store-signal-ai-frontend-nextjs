@@ -590,11 +590,11 @@ export default function StoreIntegrationsTabContent() {
                   <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
                     <div className="uppercase tracking-wide">Scope</div>
                     <div className="mt-1 line-clamp-2 text-foreground">
-{integration.scope
-  ? Array.isArray(integration.scope)
-    ? integration.scope.join(", ")
-    : integration.scope.split(",").map((s) => s.trim()).join(", ")
-  : "No scope details provided."}
+                    {integration.scope
+                      ? Array.isArray(integration.scope)
+                        ? integration.scope.join(", ")
+                        : integration.scope.split(",").map((s) => s.trim()).join(", ")
+                      : "No scope details provided."}
                     </div>
                   </div>
                 </CardContent>

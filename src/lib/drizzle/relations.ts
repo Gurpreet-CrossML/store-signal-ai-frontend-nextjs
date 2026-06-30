@@ -100,6 +100,7 @@ export const authUserRelations = relations(authUser, ({ many }) => ({
   authUserUserPermissions: many(authUserUserPermissions),
   djangoAdminLogs: many(djangoAdminLog),
   companyMemberships: many(companyMembership),
+  chatHistorys: many(chatHistory),
   storeAccesss_grantedById: many(storeAccess, {
     relationName: "storeAccess_grantedById_authUser_id",
   }),
@@ -198,8 +199,8 @@ export const storeRelations = relations(store, ({ many }) => ({
   storeAccesss: many(storeAccess),
   scrapeLinkslinkss: many(scrapeLinkslinks),
   knowledgeStorelibrarydocuments: many(knowledgeStorelibrarydocument),
-  supportTickets: many(supportTicket),
   storeIntegrations: many(storeIntegration),
+  supportTickets: many(supportTicket),
 }));
 
 export const chatbotWidgetCustomizationQuickActionsRelations = relations(
@@ -281,13 +282,16 @@ export const chatHistoryRelations = relations(chatHistory, ({ one, many }) => ({
     fields: [chatHistory.threadId],
     references: [chatThread.id],
   }),
+  authUser: one(authUser, {
+    fields: [chatHistory.messagedById],
+    references: [authUser.id],
+  }),
   fraudFlags: many(fraudFlag),
 }));
 
 export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
   chatbotFeedbacks: many(chatbotFeedback),
   chatBotevents: many(chatBotevent),
-  chatHistorys: many(chatHistory),
   chatCustomer: one(chatCustomer, {
     fields: [chatThread.customerId],
     references: [chatCustomer.id],
@@ -296,6 +300,7 @@ export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
     fields: [chatThread.storeId],
     references: [store.id],
   }),
+  chatHistorys: many(chatHistory),
   aiInsightss: many(aiInsights),
   sentimentAnalysiss: many(sentimentAnalysis),
   sessionResolutionVerdicts: many(sessionResolutionVerdict),
@@ -392,6 +397,16 @@ export const knowledgeStorelibrarydocumentRelations = relations(
   ({ one }) => ({
     store: one(store, {
       fields: [knowledgeStorelibrarydocument.storeId],
+      references: [store.id],
+    }),
+  }),
+);
+
+export const storeIntegrationRelations = relations(
+  storeIntegration,
+  ({ one }) => ({
+    store: one(store, {
+      fields: [storeIntegration.storeId],
       references: [store.id],
     }),
   }),

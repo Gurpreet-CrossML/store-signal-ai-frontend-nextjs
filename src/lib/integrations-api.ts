@@ -57,7 +57,9 @@ export async function fetchCoreIntegrations() {
   return unwrapResponse<CoreIntegration[]>(response);
 }
 
-export async function fetchIntegrationAttributes(integrationId: number) {
+export async function fetchIntegrationAttributes(
+  integrationId: number,
+): Promise<IntegrationAttribute[]> {
   const response = await axiosInstance.get(
     createAPIUrl(`/core/integrations/${integrationId}/attributes/`, "django"),
     {
@@ -66,7 +68,7 @@ export async function fetchIntegrationAttributes(integrationId: number) {
     },
   );
 
-  return unwrapResponse<unknown[]>(response);
+  return unwrapResponse<IntegrationAttribute[]>(response);
 }
 
 export async function fetchStoreIntegrations(storeId: number) {

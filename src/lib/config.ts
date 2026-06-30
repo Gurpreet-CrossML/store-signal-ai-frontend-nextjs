@@ -16,6 +16,14 @@ export function createAPIUrl(path?: string, target: APITarget = "local") {
   return `${baseUrl}/api${formattedPath}`;
 }
 
+export function createWebSocketUrl(path?: string) {
+  const baseUrl = DJANGO_BASE_URL.replace(/\/$/, "");
+  const wsBaseUrl = baseUrl.replace(/^http/, "ws");
+  const formattedPath = path ? (path.startsWith("/") ? path : `/${path}`) : "";
+
+  return `${wsBaseUrl}/ws${formattedPath}`;
+}
+
 export const ENDPOINTS = {
   login: () => createAPIUrl("/auth/login/", "django"),
 
@@ -24,6 +32,10 @@ export const ENDPOINTS = {
   verifyToken: () => createAPIUrl("/auth/token/verify/", "django"),
   logout: () => createAPIUrl("/auth/logout/", "django"),
   profile: () => createAPIUrl("/auth/profile/", "django"),
+
+  // Chat Websocket (Django)
+  chatSocket: (threadId: string, token: string) =>
+    createWebSocketUrl(`/chat/${threadId}/?role=agent&token=${token}`),
 
   // Company & staff management (Django /api/tenancy/). These are Django-owned;
   // GET calls must pass `useBackend: true` (writes auto-route to Django).

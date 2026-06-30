@@ -108,6 +108,7 @@ export type ThreadMessage = {
   json_content?: ThreadJsonContent;
   image_url?: string | string[] | null;
   created_at: string;
+  messaged_by: string;
 };
 
 export type ProductVariant = {
