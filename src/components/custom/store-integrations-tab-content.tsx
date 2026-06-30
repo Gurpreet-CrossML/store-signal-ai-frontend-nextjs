@@ -1,19 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ComponentType } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { KeyboardEvent } from "react";
 import { isAxiosError } from "axios";
 import {
+  IconArrowLeft,
+  IconArrowRight,
   IconCheck,
-  IconDotsVertical,
-  IconHeadset,
-  IconMessageChatbot,
-  IconPencil,
-  IconSearch,
-  IconSettingsCog,
-  IconTrash,
-  IconBrandSlack,
-  IconBrandWhatsapp,
+  IconChevronRight,
   IconX,
 } from "@tabler/icons-react";
 import { toast } from "sonner";
@@ -21,7 +15,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
@@ -32,254 +25,103 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { ENDPOINTS } from "@/lib/config";
-import { axiosInstance } from "@/redux/axios-config";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { GetStores } from "@/redux/api-slice/stores-slice";
+import {
+  connectStoreIntegration,
+  fetchCoreIntegrations,
+  fetchIntegrationAttributes,
+  testStoreIntegrationConnection,
+  type CoreIntegration,
+  type IntegrationAttribute,
+  type IntegrationCategory,
+} from "@/lib/integrations-api";
 
-type PlatformCategory = "support" | "chat";
-type FilterState = "all" | "available" | "connected";
-type VerificationState = "idle" | "loading" | "success" | "error";
+type StepId = 0 | 1 | 2;
+type LoadState = "idle" | "loading" | "success" | "error";
 
-type PlatformKey =
-  | "freshdesk"
-  | "zendesk"
-  | "gorgias"
-  | "intercom"
-  | "zoho_desk"
-  | "whatsapp"
-  | "slack";
-
-type PlatformMeta = {
-  key: PlatformKey;
-  category: PlatformCategory;
-  label: string;
-  description: string;
-  icon: ComponentType<{ className?: string }>;
-  accent: string;
-};
-
-type IntegrationRecord = {
-  id: number;
-  platform: PlatformKey;
-  category: PlatformCategory;
-  is_active: boolean;
-  api_url?: string | null;
-  api_key?: string | null;
-  username?: string | null;
-  access_token?: string | null;
-  client_id?: string | null;
-  client_secret?: string | null;
-};
-
-type ConfirmAction =
-  | {
-      type: "delete";
-      integration: IntegrationRecord;
-    }
-  | {
-      type: "activate";
-      integration: IntegrationRecord;
-      nextActive: boolean;
-      currentActivePlatform?: string;
-    };
-
-const PLATFORMS: PlatformMeta[] = [
-  {
-    key: "freshdesk",
-    category: "support",
-    label: "Freshdesk",
-    description: "Connect Freshdesk tickets to your store support workflow.",
-    icon: IconHeadset,
-    accent: "bg-sky-500/15 text-sky-600 dark:text-sky-300",
-  },
-  {
-    key: "zendesk",
-    category: "support",
-    label: "Zendesk",
-    description: "Sync Zendesk support activity with this store.",
-    icon: IconHeadset,
-    accent: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
-  },
-  {
-    key: "gorgias",
-    category: "support",
-    label: "Gorgias",
-    description: "Keep Gorgias conversations in step with store support.",
-    icon: IconHeadset,
-    accent: "bg-teal-500/15 text-teal-700 dark:text-teal-300",
-  },
-  {
-    key: "intercom",
-    category: "support",
-    label: "Intercom",
-    description: "Link Intercom so support agents stay in one place.",
-    icon: IconMessageChatbot,
-    accent: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  },
-  {
-    key: "zoho_desk",
-    category: "support",
-    label: "Zoho Desk",
-    description: "Bring Zoho Desk into the store support loop.",
-    icon: IconHeadset,
-    accent: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-  },
-  {
-    key: "whatsapp",
-    category: "chat",
-    label: "WhatsApp",
-    description: "Route WhatsApp conversations to the selected store.",
-    icon: IconBrandWhatsapp,
-    accent: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  },
-  {
-    key: "slack",
-    category: "chat",
-    label: "Slack",
-    description: "Push store notifications and updates into Slack.",
-    icon: IconBrandSlack,
-    accent: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
-  },
-];
-
-const REQUIRED_FIELDS = {
-  freshdesk: ["api_url", "api_key"],
-  zendesk: ["api_url", "api_key", "username"],
-  gorgias: ["api_url", "api_key", "username"],
-  intercom: ["api_url", "access_token"],
-  zoho_desk: [
-    "api_url",
-    "username",
-    "access_token",
-    "client_id",
-    "client_secret",
-  ],
-} as const;
-
-const FIELD_LABELS: Record<string, string> = {
-  api_url: "API URL",
-  api_key: "API Key",
-  username: "Username",
-  access_token: "Access Token",
-  client_id: "Client ID",
-  client_secret: "Client Secret",
-};
-
-function platformFields(platform: PlatformKey): string[] {
-  return [...(REQUIRED_FIELDS[platform as keyof typeof REQUIRED_FIELDS] ?? [])];
-}
-
-function getFieldLabel(field: string) {
-  return (
-    FIELD_LABELS[field] ??
-    field.replaceAll("_", " ").replace(/\b\w/g, (v) => v.toUpperCase())
-  );
-}
-
-function normalizeIntegration(raw: unknown): IntegrationRecord | null {
-  if (!raw || typeof raw !== "object") return null;
-  const record = raw as Record<string, unknown>;
-  const platform = record.platform;
-  const category = record.category;
-
-  if (typeof platform !== "string" || typeof category !== "string") {
-    return null;
-  }
-
-  return {
-    id: Number(record.id),
-    platform: platform as PlatformKey,
-    category: category as PlatformCategory,
-    is_active: Boolean(record.is_active),
-    api_url: typeof record.api_url === "string" ? record.api_url : null,
-    api_key: typeof record.api_key === "string" ? record.api_key : null,
-    username: typeof record.username === "string" ? record.username : null,
-    access_token:
-      typeof record.access_token === "string" ? record.access_token : null,
-    client_id: typeof record.client_id === "string" ? record.client_id : null,
-    client_secret:
-      typeof record.client_secret === "string" ? record.client_secret : null,
-  };
-}
-
-function extractMessage(error: unknown): string {
+function getErrorMessage(error: unknown) {
   if (isAxiosError(error)) {
-    const data = error.response?.data as
+    const responseMessage = error.response?.data as
       | { message?: string; detail?: string; error?: string }
       | undefined;
+
     return (
-      data?.message ||
-      data?.detail ||
-      data?.error ||
+      responseMessage?.message ||
+      responseMessage?.detail ||
+      responseMessage?.error ||
       error.message ||
       "Something went wrong."
     );
   }
-  if (error instanceof Error) {
-    return error.message || "Something went wrong.";
-  }
+
+  if (error instanceof Error) return error.message || "Something went wrong.";
   return "Something went wrong.";
 }
 
-function buildPayload(
-  platform: PlatformMeta,
-  values: Record<string, string>,
-  isActive: boolean,
-) {
-  const payload: Record<string, string | boolean> = {
-    platform: platform.key,
-    category: platform.category,
-    is_active: isActive,
-  };
-  for (const field of platformFields(platform.key)) {
-    payload[field] = values[field] ?? "";
-  }
-  return payload;
+function categoryStyles(category: IntegrationCategory) {
+  return category === "chat"
+    ? "border-violet-500/30 bg-violet-500/15 text-violet-700 dark:text-violet-300"
+    : "border-sky-500/30 bg-sky-500/15 text-sky-700 dark:text-sky-300";
 }
 
-function PlatformIcon({ meta }: { meta: PlatformMeta }) {
-  const Icon = meta.icon;
+function normalizeAttributes(raw: unknown): IntegrationAttribute[] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw.map((item, index) => {
+    const record =
+      item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+    const code =
+      typeof record.code === "string" && record.code.trim()
+        ? record.code
+        : typeof record.key === "string" && record.key.trim()
+          ? record.key
+          : typeof record.name === "string" && record.name.trim()
+            ? record.name
+            : `field_${index + 1}`;
+    const displayName =
+      typeof record.display_name === "string" && record.display_name.trim()
+        ? record.display_name
+        : typeof record.name === "string" && record.name.trim()
+          ? record.name
+          : `Field ${index + 1}`;
+
+    return {
+      code: String(code),
+      display_name: displayName,
+      type:
+        typeof record.type === "string" && record.type.trim()
+          ? record.type.toLowerCase()
+          : "text",
+      is_required: Boolean(record.is_required),
+    };
+  });
+}
+
+function LogoMark({ integration }: { integration: CoreIntegration }) {
+  if (integration.logo_url) {
+    return (
+      <img
+        src={integration.logo_url}
+        alt={`${integration.name} logo`}
+        className="size-11 rounded-lg bg-background object-contain p-1 ring-1 ring-border/60"
+      />
+    );
+  }
+
   return (
-    <div
-      className={cn(
-        "flex size-10 shrink-0 items-center justify-center rounded-lg",
-        meta.accent,
-      )}
-    >
-      <Icon className="size-5" />
+    <div className="flex size-11 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-foreground ring-1 ring-border/60">
+      {integration.name.slice(0, 1).toUpperCase()}
     </div>
   );
 }
@@ -287,8 +129,8 @@ function PlatformIcon({ meta }: { meta: PlatformMeta }) {
 function ToggleSwitch({
   checked,
   disabled,
-  onCheckedChange,
   label,
+  onCheckedChange,
 }: {
   checked: boolean;
   disabled?: boolean;
@@ -304,12 +146,13 @@ function ToggleSwitch({
       disabled={disabled}
       onClick={(event) => {
         event.stopPropagation();
+        if (disabled) return;
         onCheckedChange(!checked);
       }}
       className={cn(
         "relative inline-flex h-8 w-14 items-center rounded-full border transition-colors duration-200",
         checked
-          ? "border-emerald-500/30 bg-emerald-500/15"
+          ? "border-emerald-600/50 bg-emerald-600/30"
           : "border-border bg-muted/60",
         disabled && "cursor-not-allowed opacity-60",
       )}
@@ -330,6 +173,43 @@ function ToggleSwitch({
   );
 }
 
+function Stepper({ step }: { step: StepId }) {
+  const labels = ["Instructions", "Credentials", "Verify"] as const;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {labels.map((label, index) => {
+        const current = index as StepId;
+        const active = step === current;
+        const done = step > current;
+
+        return (
+          <div key={label} className="flex min-w-0 items-center gap-2">
+            <div
+              className={cn(
+                "flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors",
+                active
+                  ? "border-foreground/20 bg-foreground text-background"
+                  : done
+                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                    : "border-border bg-muted text-muted-foreground",
+              )}
+            >
+              <span className="flex size-4 items-center justify-center rounded-full bg-background/10 text-[11px]">
+                {index + 1}
+              </span>
+              <span className="truncate">{label}</span>
+            </div>
+            {index < labels.length - 1 && (
+              <IconChevronRight className="size-4 shrink-0 text-muted-foreground" />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function LoadingGrid() {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -337,27 +217,24 @@ function LoadingGrid() {
         <Card
           key={index}
           size="sm"
-          className="gap-5 border-border/60 bg-card/70 shadow-none"
+          className="gap-5 border-border/60 bg-card/80 shadow-none"
         >
           <CardHeader className="gap-4 pb-0">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <Skeleton className="size-10 rounded-lg" />
-                <div className="min-w-0 space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-44" />
-                </div>
+            <div className="flex items-start gap-3">
+              <Skeleton className="size-11 rounded-lg" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-44" />
               </div>
-              <Skeleton className="size-8 rounded-md" />
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-4 w-24" />
+          <CardContent className="space-y-3">
+            <Skeleton className="h-3 w-20" />
             <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-3/4" />
+            <Skeleton className="h-3 w-5/6" />
           </CardContent>
-          <CardFooter className="flex items-center justify-between gap-3 pt-1">
-            <Skeleton className="h-9 w-24" />
+          <CardFooter className="flex items-center justify-between pt-1">
+            <Skeleton className="h-5 w-20 rounded-full" />
             <Skeleton className="h-8 w-14 rounded-full" />
           </CardFooter>
         </Card>
@@ -368,7 +245,7 @@ function LoadingGrid() {
 
 export default function StoreIntegrationsTabContent() {
   const dispatch = useAppDispatch();
-  const storeCode = useAppSelector(
+  const selectedStoreCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
   const storeList = useAppSelector(
@@ -376,36 +253,36 @@ export default function StoreIntegrationsTabContent() {
   );
 
   const store = useMemo(
-    () => storeList.find((item) => item.code === storeCode) ?? null,
-    [storeCode, storeList],
+    () => storeList.find((item) => item.code === selectedStoreCode) ?? null,
+    [selectedStoreCode, storeList],
   );
   const storeId = store ? Number(store.id) : null;
 
-  const [loading, setLoading] = useState(false);
+  const [loadState, setLoadState] = useState<LoadState>("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [integrations, setIntegrations] = useState<IntegrationRecord[]>([]);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<FilterState>("all");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState<PlatformMeta | null>(
-    null,
-  );
+  const [integrations, setIntegrations] = useState<CoreIntegration[]>([]);
+
   const [selectedIntegration, setSelectedIntegration] =
-    useState<IntegrationRecord | null>(null);
-  const [formValues, setFormValues] = useState<Record<string, string>>({});
-  const [verificationState, setVerificationState] =
-    useState<VerificationState>("idle");
-  const [verificationMessage, setVerificationMessage] = useState<string | null>(
-    null,
-  );
-  const [verifiedSignature, setVerifiedSignature] = useState<string | null>(
-    null,
-  );
+    useState<CoreIntegration | null>(null);
+  const [step, setStep] = useState<StepId>(0);
+  const [enabledIds, setEnabledIds] = useState<Record<number, boolean>>({});
+  const [savedIds, setSavedIds] = useState<Record<number, boolean>>({});
+
+  const [attributes, setAttributes] = useState<IntegrationAttribute[]>([]);
+  const [attributesForId, setAttributesForId] = useState<number | null>(null);
+  const [attributesLoadingId, setAttributesLoadingId] = useState<
+    number | null
+  >(null);
+  const [attributesError, setAttributesError] = useState<string | null>(null);
+  const [attributeValues, setAttributeValues] = useState<
+    Record<string, string>
+  >({});
+
+  const [testState, setTestState] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [testMessage, setTestMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [mutatingId, setMutatingId] = useState<number | null>(null);
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
-    null,
-  );
 
   useEffect(() => {
     if (!storeList.length) {
@@ -413,281 +290,199 @@ export default function StoreIntegrationsTabContent() {
     }
   }, [dispatch, storeList.length]);
 
-  const loadIntegrations = useCallback(async () => {
-    await Promise.resolve();
-
-    if (!storeId) {
-      setIntegrations([]);
-      setLoadError(null);
-      return;
-    }
-
-    setLoading(true);
+  const loadIntegrations = async () => {
+    setLoadState("loading");
     setLoadError(null);
 
     try {
-      const response = await axiosInstance.get(
-        ENDPOINTS.fetchStoreIntegrations(storeId),
-        { useBackend: true },
-      );
-      const raw = response.data?.data;
-      const list = Array.isArray(raw)
-        ? raw
-            .map((item) => normalizeIntegration(item))
-            .filter((item): item is IntegrationRecord => Boolean(item))
-        : [];
-      setIntegrations(list);
+      const data = await fetchCoreIntegrations();
+      setIntegrations(Array.isArray(data) ? data : []);
+      setLoadState("success");
     } catch (error) {
-      setLoadError(extractMessage(error));
-    } finally {
-      setLoading(false);
+      setLoadError(getErrorMessage(error));
+      setLoadState("error");
     }
-  }, [storeId]);
+  };
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void loadIntegrations();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [loadIntegrations]);
+  }, []);
 
-  const integrationsByPlatform = useMemo(() => {
-    return new Map(integrations.map((item) => [item.platform, item]));
-  }, [integrations]);
-
-  const activeIntegrationByCategory = useMemo(() => {
-    const map = new Map<PlatformCategory, IntegrationRecord>();
-    for (const integration of integrations) {
-      if (integration.is_active) {
-        map.set(integration.category, integration);
-      }
+  const closePanel = (keepEnabled: boolean) => {
+    if (selectedIntegration && !keepEnabled && !savedIds[selectedIntegration.id]) {
+      setEnabledIds((current) => ({
+        ...current,
+        [selectedIntegration.id]: false,
+      }));
     }
-    return map;
-  }, [integrations]);
 
-  const cards = useMemo(
-    () =>
-      PLATFORMS.map((platform) => {
-        const integration = integrationsByPlatform.get(platform.key) ?? null;
-        return {
-          platform,
-          integration,
-          state: integration ? "connected" : "available",
-        } as const;
-      }),
-    [integrationsByPlatform],
-  );
-
-  const filteredCards = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return cards.filter((card) => {
-      const matchesSearch =
-        !term || card.platform.label.toLowerCase().includes(term);
-      const matchesFilter =
-        filter === "all" ||
-        (filter === "available" && !card.integration) ||
-        (filter === "connected" && Boolean(card.integration));
-      return matchesSearch && matchesFilter;
-    });
-  }, [cards, filter, search]);
-
-  const resetModal = () => {
-    setModalOpen(false);
-    setSelectedPlatform(null);
     setSelectedIntegration(null);
-    setFormValues({});
-    setVerificationState("idle");
-    setVerificationMessage(null);
-    setVerifiedSignature(null);
+    setStep(0);
+    setAttributes([]);
+    setAttributesForId(null);
+    setAttributesLoadingId(null);
+    setAttributesError(null);
+    setAttributeValues({});
+    setTestState("idle");
+    setTestMessage(null);
     setSaving(false);
   };
 
-  const openModal = (
-    platform: PlatformMeta,
-    integration: IntegrationRecord | null,
-  ) => {
-    const values: Record<string, string> = {};
-    for (const field of platformFields(platform.key)) {
-      values[field] =
-        (integration?.[field as keyof IntegrationRecord] as
-          | string
-          | null
-          | undefined) ?? "";
-    }
-    setSelectedPlatform(platform);
+  const openPanel = (integration: CoreIntegration) => {
+    setEnabledIds((current) => {
+      const next = { ...current };
+      if (selectedIntegration && selectedIntegration.id !== integration.id) {
+        const previousId = selectedIntegration.id;
+        if (!savedIds[previousId]) {
+          next[previousId] = false;
+        }
+      }
+      next[integration.id] = true;
+      return next;
+    });
+
     setSelectedIntegration(integration);
-    setFormValues(values);
-    setVerificationState("idle");
-    setVerificationMessage(null);
-    setVerifiedSignature(null);
-    setModalOpen(true);
+    setStep(0);
+    setAttributes([]);
+    setAttributesForId(null);
+    setAttributesLoadingId(null);
+    setAttributesError(null);
+    setAttributeValues({});
+    setTestState("idle");
+    setTestMessage(null);
+    setSaving(false);
   };
 
-  const updateField = (field: string, value: string) => {
-    setFormValues((current) => ({ ...current, [field]: value }));
-    setVerificationState("idle");
-    setVerificationMessage(null);
-    setVerifiedSignature(null);
-  };
-
-  const currentPayload = useMemo(() => {
-    if (!selectedPlatform) return null;
-    return buildPayload(
-      selectedPlatform,
-      formValues,
-      selectedIntegration?.is_active ?? false,
-    );
-  }, [formValues, selectedIntegration?.is_active, selectedPlatform]);
-
-  const currentSignature = useMemo(() => {
-    return currentPayload ? JSON.stringify(currentPayload) : null;
-  }, [currentPayload]);
-
-  const handleVerifyConnection = async () => {
-    if (!storeId || !selectedPlatform || !currentPayload) return;
-
-    const signature = JSON.stringify(currentPayload);
-    setVerificationState("loading");
-    setVerificationMessage(null);
-
-    try {
-      const response = await axiosInstance.post(
-        ENDPOINTS.testStoreIntegrationConnection(storeId),
-        currentPayload,
-      );
-      const message =
-        response.data?.message || "Connection verified successfully.";
-      setVerificationState("success");
-      setVerifiedSignature(signature);
-      setVerificationMessage(message);
-    } catch (error) {
-      setVerificationState("error");
-      setVerifiedSignature(null);
-      setVerificationMessage(extractMessage(error));
-    }
-  };
-
-  const handleSave = async () => {
-    if (!storeId || !selectedPlatform || !currentPayload) return;
+  useEffect(() => {
+    if (!selectedIntegration || step < 1) return;
     if (
-      verificationState !== "success" ||
-      verifiedSignature !== currentSignature
+      attributesForId === selectedIntegration.id ||
+      attributesLoadingId === selectedIntegration.id
     ) {
       return;
     }
 
+    const timer = window.setTimeout(() => {
+      let active = true;
+      setAttributesLoadingId(selectedIntegration.id);
+      setAttributesError(null);
+
+      (async () => {
+        try {
+          const raw = await fetchIntegrationAttributes(selectedIntegration.id);
+          if (!active) return;
+          const normalized = normalizeAttributes(raw);
+          setAttributes(normalized);
+          setAttributesForId(selectedIntegration.id);
+          setAttributeValues((current) => {
+            const next = { ...current };
+            for (const attribute of normalized) {
+              if (!(attribute.code in next)) {
+                next[attribute.code] = "";
+              }
+            }
+            return next;
+          });
+        } catch (error) {
+          if (!active) return;
+          setAttributesError(getErrorMessage(error));
+        } finally {
+          if (active) setAttributesLoadingId(null);
+        }
+      })();
+
+      return () => {
+        active = false;
+      };
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [attributesForId, attributesLoadingId, selectedIntegration, step]);
+
+  const handleToggle = (integration: CoreIntegration, checked: boolean) => {
+    if (checked) {
+      openPanel(integration);
+      return;
+    }
+
+    if (savedIds[integration.id]) {
+      return;
+    }
+
+    if (selectedIntegration?.id === integration.id) {
+      closePanel(false);
+      return;
+    }
+
+    setEnabledIds((current) => ({
+      ...current,
+      [integration.id]: false,
+    }));
+  };
+
+  const handleTestConnection = async () => {
+    if (!selectedIntegration || storeId == null) return;
+
+    setTestState("loading");
+    setTestMessage(null);
+
+    try {
+      const response = await testStoreIntegrationConnection(
+        storeId,
+        selectedIntegration.id,
+        attributeValues,
+      );
+      const message =
+        (response as { message?: string; detail?: string })?.message ||
+        (response as { message?: string; detail?: string })?.detail ||
+        "Connection verified successfully.";
+      setTestState("success");
+      setTestMessage(message);
+    } catch (error) {
+      setTestState("error");
+      setTestMessage(getErrorMessage(error));
+    }
+  };
+
+  const handleSave = async () => {
+    if (!selectedIntegration || storeId == null) return;
+    if (testState !== "success") return;
+
     setSaving(true);
 
     try {
-      const basePayload = {
-        ...currentPayload,
-        is_active: selectedIntegration?.is_active ?? false,
-      };
-
-      if (selectedIntegration) {
-        await axiosInstance.patch(
-          ENDPOINTS.updateStoreIntegration(storeId, selectedIntegration.id),
-          basePayload,
-        );
-      } else {
-        await axiosInstance.post(
-          ENDPOINTS.createStoreIntegration(storeId),
-          basePayload,
-        );
-      }
-
-      toast.success("Integration saved.");
-      resetModal();
-      await loadIntegrations();
+      await connectStoreIntegration(storeId, selectedIntegration.id, attributeValues);
+      setEnabledIds((current) => ({
+        ...current,
+        [selectedIntegration.id]: true,
+      }));
+      setSavedIds((current) => ({
+        ...current,
+        [selectedIntegration.id]: true,
+      }));
+      toast.success("Integration enabled");
+      closePanel(true);
     } catch (error) {
-      toast.error(extractMessage(error));
+      toast.error(getErrorMessage(error));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!storeId || !confirmAction || confirmAction.type !== "delete") return;
+  const currentSaved = selectedIntegration
+    ? Boolean(savedIds[selectedIntegration.id])
+    : false;
 
-    setMutatingId(confirmAction.integration.id);
-
-    try {
-      await axiosInstance.delete(
-        ENDPOINTS.deleteStoreIntegration(storeId, confirmAction.integration.id),
-      );
-      toast.success("Integration deleted.");
-      setConfirmAction(null);
-      if (
-        selectedIntegration?.id === confirmAction.integration.id &&
-        modalOpen
-      ) {
-        resetModal();
-      }
-      await loadIntegrations();
-    } catch (error) {
-      toast.error(extractMessage(error));
-    } finally {
-      setMutatingId(null);
-    }
-  };
-
-  const handleToggle = async (
-    integration: IntegrationRecord,
-    nextActive: boolean,
-  ) => {
-    if (!storeId) return;
-
-    setMutatingId(integration.id);
-
-    try {
-      await axiosInstance.patch(
-        ENDPOINTS.updateStoreIntegration(storeId, integration.id),
-        { is_active: nextActive },
-      );
-      toast.success(
-        nextActive ? "Integration activated." : "Integration deactivated.",
-      );
-      await loadIntegrations();
-    } catch (error) {
-      toast.error(extractMessage(error));
-    } finally {
-      setMutatingId(null);
-    }
-  };
-
-  const onToggleChange = (integration: IntegrationRecord, checked: boolean) => {
-    if (mutatingId === integration.id) return;
-
-    if (checked) {
-      const currentActivePlatform = activeIntegrationByCategory.get(
-        integration.category,
-      )?.platform;
-
-      setConfirmAction({
-        type: "activate",
-        integration,
-        nextActive: true,
-        currentActivePlatform,
-      });
-      return;
-    }
-
-    void handleToggle(integration, false);
-  };
-
-  const modalCanSave =
-    verificationState === "success" &&
-    verifiedSignature !== null &&
-    verifiedSignature === currentSignature &&
-    !saving;
-
-  if (loading && !integrations.length) {
+  if (loadState === "loading" && !integrations.length) {
     return (
       <div className="flex flex-col gap-4 py-4">
         <div className="space-y-2">
-          <h2 className="font-heading text-xl font-medium">All Integrations</h2>
+          <h2 className="font-heading text-xl font-medium">Integrations</h2>
           <p className="text-sm text-muted-foreground">
-            Connect your store to support and chat platforms.
+            Browse available integrations and enable one to configure it.
           </p>
         </div>
         <LoadingGrid />
@@ -695,79 +490,34 @@ export default function StoreIntegrationsTabContent() {
     );
   }
 
-  if (!store) {
-    return (
-      <div className="flex flex-col gap-4 py-4">
-        <div className="space-y-2">
-          <h2 className="font-heading text-xl font-medium">All Integrations</h2>
+  return (
+    <div className="flex flex-col gap-4 py-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h2 className="font-heading text-xl font-medium">Integrations</h2>
           <p className="text-sm text-muted-foreground">
-            Pick a store from the sidebar to manage integrations.
+            Browse available integrations and enable one to configure it.
           </p>
         </div>
-        <Empty>
-          <EmptyHeader>
-            <EmptyTitle>No store selected</EmptyTitle>
-            <EmptyDescription>
-              Use the store selector in the sidebar before configuring
-              integrations.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex w-full flex-col gap-4 py-4">
-      <div className="flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h2 className="font-heading text-xl font-medium">
-              All Integrations
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Manage store connections for support and chat platforms.
-            </p>
-          </div>
+        {store ? (
           <Badge variant="outline" className="shrink-0">
             {store.name}
           </Badge>
-        </div>
-
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative w-full max-w-md">
-            <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search integrations"
-              className="pl-9"
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["all", "All"],
-                ["available", "Available"],
-                ["connected", "Connected"],
-              ] as const
-            ).map(([value, label]) => (
-              <Button
-                key={value}
-                type="button"
-                variant={filter === value ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilter(value)}
-              >
-                {label}
-              </Button>
-            ))}
-          </div>
-        </div>
+        ) : (
+          <Badge variant="outline" className="shrink-0">
+            Select a store
+          </Badge>
+        )}
       </div>
 
-      {loadError && (
-        <div className="border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+      {!store && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+          Pick a store from the sidebar before you test or save an integration.
+        </div>
+      )}
+
+      {loadState === "error" && loadError && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {loadError}
           <Button
             type="button"
@@ -781,176 +531,94 @@ export default function StoreIntegrationsTabContent() {
         </div>
       )}
 
-      {loading ? (
-        <LoadingGrid />
-      ) : filteredCards.length === 0 ? (
-        <Empty>
-          <EmptyHeader>
-            <EmptyTitle>No integrations match</EmptyTitle>
-            <EmptyDescription>
-              Adjust the search or filter to see more platforms.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+      {integrations.length === 0 && loadState !== "loading" ? (
+        <div className="rounded-xl border border-dashed border-border px-6 py-10 text-center text-sm text-muted-foreground">
+          No integrations were returned by the backend yet.
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filteredCards.map(({ platform, integration, state }) => {
-            const isConnected = Boolean(integration);
-            const isActive = Boolean(integration?.is_active);
-            const currentActive = activeIntegrationByCategory.get(
-              platform.category,
-            );
-            const isBusy = mutatingId === integration?.id;
-            const badgeVariant = isConnected ? "default" : "outline";
-            const statusText = isConnected
-              ? isActive
-                ? "Active"
-                : "Inactive"
-              : "Available";
+          {integrations.map((integration) => {
+            const checked = Boolean(enabledIds[integration.id]);
+            const saved = Boolean(savedIds[integration.id]);
 
             return (
               <Card
-                key={platform.key}
+                key={integration.id}
                 size="sm"
                 role="button"
                 tabIndex={0}
-                aria-label={`Open ${platform.label} integration details`}
-                onClick={() => openModal(platform, integration)}
-                onKeyDown={(event) => {
+                onClick={() => openPanel(integration)}
+                onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    openModal(platform, integration);
+                    openPanel(integration);
                   }
                 }}
                 className="gap-5 border-border/60 bg-card/80 shadow-none transition-transform duration-150 hover:-translate-y-0.5 hover:border-border hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <CardHeader className="gap-4 pb-0">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <PlatformIcon meta={platform} />
-                      <div className="min-w-0 space-y-1">
+                  <div className="flex items-start gap-3">
+                    <LogoMark integration={integration} />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
                         <CardTitle className="truncate text-base">
-                          {platform.label}
+                          {integration.name}
                         </CardTitle>
-                        <CardDescription className="line-clamp-2 text-sm">
-                          {platform.description}
-                        </CardDescription>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "min-w-24 shrink-0 justify-center px-3 py-1 text-[11px] font-semibold capitalize tracking-wide",
+                            categoryStyles(integration.category.category),
+                          )}
+                          title={integration.category_label}
+                        >
+                          {integration.category_label || "uncategorized"}
+                        </Badge>
                       </div>
+                      <CardDescription className="line-clamp-2 text-sm">
+                        {integration.description}
+                      </CardDescription>
                     </div>
-
-                    <CardAction className="self-start">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Open actions for ${platform.label}`}
-                            onClickCapture={(event) => event.stopPropagation()}
-                          >
-                            <IconDotsVertical />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onSelect={(event) => {
-                              event.preventDefault();
-                              openModal(platform, integration);
-                            }}
-                          >
-                            <IconPencil />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            variant="destructive"
-                            disabled={!integration}
-                            onSelect={(event) => {
-                              event.preventDefault();
-                              if (integration) {
-                                setConfirmAction({
-                                  type: "delete",
-                                  integration,
-                                });
-                              }
-                            }}
-                          >
-                            <IconTrash />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </CardAction>
                   </div>
                 </CardHeader>
 
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <Badge variant={badgeVariant} className="capitalize">
-                      {state}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {statusText}
-                    </span>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                    <span>{saved ? "Enabled" : "Not enabled yet"}</span>
+                    <span>{integration.is_active ? "Active" : "Inactive"}</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
-                    <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-3">
-                      <div className="text-[11px] uppercase tracking-wide">
-                        Category
-                      </div>
-                      <div className="mt-1 font-medium text-foreground">
-                        {platform.category}
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-3">
-                      <div className="text-[11px] uppercase tracking-wide">
-                        Connection
-                      </div>
-                      <div className="mt-1 font-medium text-foreground">
-                        {integration ? "Saved" : "Not saved"}
-                      </div>
+                  <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
+                    <div className="uppercase tracking-wide">Scope</div>
+                    <div className="mt-1 line-clamp-2 text-foreground">
+{integration.scope
+  ? Array.isArray(integration.scope)
+    ? integration.scope.join(", ")
+    : integration.scope.split(",").map((s) => s.trim()).join(", ")
+  : "No scope details provided."}
                     </div>
                   </div>
                 </CardContent>
 
-                <CardFooter className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <CardFooter className="flex items-center justify-between gap-3 pt-1">
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={(event) => {
                       event.stopPropagation();
-                      openModal(platform, integration);
+                      openPanel(integration);
                     }}
                   >
-                    <IconSettingsCog />
-                    Details
+                    Configure
+                    <IconArrowRight />
                   </Button>
                   <ToggleSwitch
-                    checked={isActive}
-                    disabled={!integration || isBusy}
-                    label={`${platform.label} integration toggle`}
-                    onCheckedChange={(checked) =>
-                      onToggleChange(integration as IntegrationRecord, checked)
-                    }
+                    checked={checked}
+                    disabled={saved}
+                    label={`Enable ${integration.name}`}
+                    onCheckedChange={(next) => handleToggle(integration, next)}
                   />
                 </CardFooter>
-
-                {isBusy && (
-                  <div className="px-6 pb-4 text-xs text-muted-foreground">
-                    <Spinner className="mr-2 inline size-3.5" />
-                    Saving changes...
-                  </div>
-                )}
-                {!isConnected && (
-                  <div className="px-6 pb-4 text-xs text-muted-foreground">
-                    Available until credentials are saved and verified.
-                  </div>
-                )}
-                {isConnected && currentActive?.platform === platform.key && (
-                  <div className="px-6 pb-4 text-xs text-emerald-700 dark:text-emerald-300">
-                    Currently active in this category.
-                  </div>
-                )}
               </Card>
             );
           })}
@@ -958,232 +626,245 @@ export default function StoreIntegrationsTabContent() {
       )}
 
       <Dialog
-        open={modalOpen}
+        open={Boolean(selectedIntegration)}
         onOpenChange={(open) => {
-          if (!open) resetModal();
-          else setModalOpen(open);
+          if (!open) closePanel(false);
         }}
       >
-        <DialogContent className="overflow-hidden p-0 sm:max-w-3xl">
-          <div className="relative flex max-h-[85vh] flex-col">
-            <DialogHeader className="gap-2 border-b border-border/60 px-6 pb-4 pt-6 pr-14">
-              <DialogTitle className="flex items-center gap-3">
-                {selectedPlatform && <PlatformIcon meta={selectedPlatform} />}
-                <span>{selectedPlatform?.label ?? "Integration details"}</span>
-              </DialogTitle>
-              <DialogDescription>
-                {selectedPlatform?.description ??
-                  "Review credentials, verify the connection, and save the integration."}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="flex-1 overflow-y-auto px-6 py-5">
-              <div className="space-y-5">
-                {verificationState === "success" && verificationMessage && (
-                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
-                    <div className="flex items-start justify-between gap-3">
-                      <span>{verificationMessage}</span>
-                      <IconCheck className="mt-0.5 size-4 shrink-0" />
+        <DialogContent className="max-h-[calc(100vh-2rem)] gap-0 overflow-hidden p-0 sm:max-w-2xl">
+          <div className="flex max-h-[calc(100vh-2rem)] flex-col">
+            <DialogHeader className="border-b border-border/60 px-5 pb-3 pt-5 pr-16">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 items-start gap-3">
+                  {selectedIntegration ? <LogoMark integration={selectedIntegration} /> : null}
+                  <div className="min-w-0">
+                    <DialogTitle className="text-lg font-medium">
+                      {selectedIntegration?.name ?? "Integration"}
+                    </DialogTitle>
+                    <div className="text-sm text-muted-foreground">
+                      {selectedIntegration?.description ??
+                        "Choose credentials, test the connection, and save it to the store."}
                     </div>
                   </div>
-                )}
+                </div>
+              </div>
+            </DialogHeader>
 
-                {verificationState === "error" && verificationMessage && (
-                  <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="pr-2">{verificationMessage}</span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => void handleVerifyConnection()}
-                        disabled={saving}
-                      >
-                        Retry
+            <div className="border-b border-border/60 px-5 py-3">
+              <Stepper step={step} />
+            </div>
+
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="space-y-5 px-5 py-4">
+                {selectedIntegration && step === 0 && (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3.5">
+                      <div
+                        className="space-y-3 text-sm leading-6 text-muted-foreground [&_a]:text-primary [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_strong]:font-medium [&_ul]:list-disc [&_ul]:pl-5"
+                        dangerouslySetInnerHTML={{
+                          __html: selectedIntegration.steps_for_creds || "",
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm text-muted-foreground">
+                        Review the setup instructions before entering credentials.
+                      </div>
+                      <Button type="button" onClick={() => setStep(1)}>
+                        Next
+                        <IconArrowRight />
                       </Button>
                     </div>
                   </div>
                 )}
 
-                <div className="space-y-4">
-                  {selectedPlatform &&
-                  platformFields(selectedPlatform.key).length > 0 ? (
-                    platformFields(selectedPlatform.key).map((field) => (
-                      <Field key={field} className="space-y-2">
-                        <FieldLabel htmlFor={field}>
-                          {getFieldLabel(field)}
-                        </FieldLabel>
-                        <Input
-                          id={field}
-                          name={field}
-                          type="text"
-                          autoComplete="off"
-                          value={formValues[field] ?? ""}
-                          onChange={(event) =>
-                            updateField(field, event.target.value)
-                          }
-                        />
-                      </Field>
-                    ))
-                  ) : (
-                    <div className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-                      No credential fields are configured for this platform yet.
-                    </div>
-                  )}
+                {selectedIntegration && step === 1 && (
+                  <div className="space-y-4">
+                    {attributesLoadingId === selectedIntegration.id &&
+                      !attributes.length &&
+                      !attributesError && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Spinner className="size-4" />
+                          Loading credential fields...
+                        </div>
+                      )}
 
-                  {selectedIntegration && (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-xs">
-                        <div className="uppercase tracking-wide text-muted-foreground">
-                          Platform
-                        </div>
-                        <div className="mt-1 font-medium text-foreground">
-                          {selectedIntegration.platform}
-                        </div>
+                    {attributesError && (
+                      <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                        {attributesError}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="ml-3 h-auto px-0 text-destructive hover:bg-transparent hover:text-destructive"
+                          onClick={() => setAttributesForId(null)}
+                        >
+                          Retry
+                        </Button>
                       </div>
-                      <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-xs">
-                        <div className="uppercase tracking-wide text-muted-foreground">
-                          Current State
-                        </div>
-                        <div className="mt-1 font-medium text-foreground">
-                          {selectedIntegration.is_active
-                            ? "Active"
-                            : "Inactive"}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter className="border-t border-border/60 bg-background px-6 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void handleVerifyConnection()}
-                  disabled={
-                    verificationState === "loading" ||
-                    !selectedPlatform ||
-                    !storeId
-                  }
-                >
-                  {verificationState === "loading" ? (
-                    <>
-                      <Spinner data-icon="inline-start" />
-                      Verifying...
-                    </>
-                  ) : (
-                    <>
-                      <IconSettingsCog />
-                      {verificationState === "error"
-                        ? "Retry"
-                        : "Verify Connection"}
-                    </>
-                  )}
-                </Button>
-
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="ghost" onClick={resetModal}>
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => void handleSave()}
-                    disabled={!modalCanSave}
-                  >
-                    {saving ? (
-                      <>
-                        <Spinner data-icon="inline-start" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <IconCheck />
-                        Save
-                      </>
                     )}
-                  </Button>
-                </div>
+
+                    <div className="space-y-4">
+                      {attributes.map((attribute) => {
+                        const fieldType =
+                          attribute.type === "url" ? "url" : "text";
+                        return (
+                          <Field key={attribute.code} className="space-y-2">
+                            <FieldLabel htmlFor={attribute.code}>
+                              {attribute.display_name}
+                              {attribute.is_required ? (
+                                <span className="text-destructive">*</span>
+                              ) : null}
+                            </FieldLabel>
+                            <Input
+                              id={attribute.code}
+                              type={fieldType}
+                              value={attributeValues[attribute.code] ?? ""}
+                              onChange={(event) => {
+                                setAttributeValues((current) => ({
+                                  ...current,
+                                  [attribute.code]: event.target.value,
+                                }));
+                                setTestState("idle");
+                                setTestMessage(null);
+                              }}
+                            />
+                          </Field>
+                        );
+                      })}
+
+                      {attributesLoadingId !== selectedIntegration.id &&
+                        !attributesError &&
+                        attributes.length === 0 && (
+                          <div className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+                            No attributes were returned for this integration.
+                          </div>
+                        )}
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setStep(0)}
+                      >
+                        <IconArrowLeft />
+                        Back
+                      </Button>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <Button
+                          type="button"
+                          onClick={() => void handleTestConnection()}
+                          disabled={
+                            attributesError !== null ||
+                            selectedIntegration == null ||
+                            storeId == null ||
+                            testState === "loading"
+                          }
+                        >
+                          {testState === "loading" ? (
+                            <>
+                              <Spinner className="size-4" />
+                              Testing...
+                            </>
+                          ) : (
+                            <>
+                              Test Connection
+                              <IconChevronRight />
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => setStep(2)}
+                          disabled={testState !== "success"}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+
+                    {testMessage && (
+                      <div
+                        className={cn(
+                          "rounded-xl border px-4 py-3 text-sm",
+                          testState === "success"
+                            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                            : "border-destructive/20 bg-destructive/10 text-destructive",
+                        )}
+                      >
+                        {testMessage}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {selectedIntegration && step === 2 && (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+                      {testState === "success"
+                        ? "Connection verified successfully. Save the integration to enable it."
+                        : "Run the connection test from the Credentials step before saving."}
+                    </div>
+
+                    <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-4 text-sm">
+                      <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+                        Selected integration
+                      </div>
+                      <div className="font-medium text-foreground">
+                        {selectedIntegration.name}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setStep(1)}
+                      >
+                        <IconArrowLeft />
+                        Back
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => void handleSave()}
+                        disabled={testState !== "success" || saving || storeId == null}
+                      >
+                        {saving ? (
+                          <>
+                            <Spinner className="size-4" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            Save
+                            <IconCheck />
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {currentSaved && (
+                      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+                        This integration is already enabled for the current store.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Save stays disabled until the current credentials are verified.
-              </p>
-            </DialogFooter>
+            </ScrollArea>
+
+            <Separator />
+
+            <div className="border-t border-border/60 px-5 py-3 text-xs text-muted-foreground">
+              {storeId == null
+                ? "Select a store to test and save."
+                : `Store ${store?.name ?? storeId} will receive the integration when you save.`}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog
-        open={confirmAction !== null}
-        onOpenChange={(open) => {
-          if (!open) setConfirmAction(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmAction?.type === "delete"
-                ? "Delete integration?"
-                : "Activate integration?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmAction?.type === "delete" ? (
-                <>
-                  This will permanently remove the{" "}
-                  {confirmAction.integration.platform} integration.
-                </>
-              ) : (
-                <>
-                  This will deactivate the currently active{" "}
-                  {confirmAction?.integration.category} integration
-                  {confirmAction?.currentActivePlatform
-                    ? ` (${confirmAction.currentActivePlatform})`
-                    : ""}{" "}
-                  and activate {confirmAction?.integration.platform}. Continue?
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={mutatingId !== null}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className={
-                confirmAction?.type === "delete"
-                  ? "bg-destructive text-white hover:bg-destructive/90"
-                  : undefined
-              }
-              disabled={mutatingId !== null}
-              onClick={(event) => {
-                event.preventDefault();
-                if (!confirmAction) return;
-
-                if (confirmAction.type === "delete") {
-                  void handleDelete();
-                } else {
-                  void handleToggle(confirmAction.integration, true).then(() =>
-                    setConfirmAction(null),
-                  );
-                }
-              }}
-            >
-              {mutatingId ? (
-                <>
-                  <Spinner data-icon="inline-start" />
-                  Working...
-                </>
-              ) : confirmAction?.type === "delete" ? (
-                "Delete"
-              ) : (
-                "Continue"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

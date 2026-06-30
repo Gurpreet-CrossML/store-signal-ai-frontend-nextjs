@@ -7,6 +7,7 @@ import { getSession, signOut } from "next-auth/react";
 declare module "axios" {
   export interface AxiosRequestConfig {
     useBackend?: boolean;
+    requireAuth?: boolean;
   }
 }
 
@@ -16,6 +17,19 @@ const axiosInstance = axios.create({
   },
   timeout: 30000,
 });
+
+async function getRequestToken() {
+  if (typeof window !== "undefined") {
+    const localKeys = ["access_token", "token", "authToken"];
+    for (const key of localKeys) {
+      const value = window.localStorage.getItem(key);
+      if (value) return value;
+    }
+  }
+
+  const session = await getSession();
+  return session?.user?.access_token ?? null;
+}
 
 axiosInstance.interceptors.request.use(
   async (config) => {
@@ -27,13 +41,23 @@ axiosInstance.interceptors.request.use(
     config.baseURL = createAPIUrl(undefined, target);
 
     try {
-      const session = await getSession();
-      const token = session?.user?.access_token;
+      const token = await getRequestToken();
+      if (config.requireAuth) {
+        console.log("[axios] auth token present:", Boolean(token));
+        if (!token) {
+          throw new Error(
+            "Missing auth token. Please sign in again before managing integrations.",
+          );
+        }
+      }
 
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
+      if (config.requireAuth) {
+        return Promise.reject(error);
+      }
       console.error("Error retrieving session:", error);
     }
     return config;
@@ -48,7 +72,7 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.status === 401) {
+    if (error?.response?.status === 401) {
       signOut({ callbackUrl: "/login" });
     }
 
