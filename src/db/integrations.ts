@@ -123,5 +123,3 @@ export async function list_integrations_with_attributes(): Promise<
 }
 
 export type { CoreIntegration };
-
-

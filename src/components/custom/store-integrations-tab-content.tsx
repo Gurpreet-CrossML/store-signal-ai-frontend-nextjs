@@ -292,7 +292,11 @@ export default function StoreIntegrationsTabContent({
   const closePanel = (keepEnabled: boolean) => {
     prefillRequestRef.current += 1;
 
-    if (selectedIntegration && !keepEnabled && !savedIds[selectedIntegration.id]) {
+    if (
+      selectedIntegration &&
+      !keepEnabled &&
+      !savedIds[selectedIntegration.id]
+    ) {
       setEnabledIds((current) => ({
         ...current,
         [selectedIntegration.id]: false,
@@ -339,10 +343,7 @@ export default function StoreIntegrationsTabContent({
       storeIntegrationIds[integration.id] &&
       storeId != null
     ) {
-      fetchStoreIntegrationDetail(
-        storeId,
-        storeIntegrationIds[integration.id],
-      )
+      fetchStoreIntegrationDetail(storeId, storeIntegrationIds[integration.id])
         .then((data) => {
           if (prefillRequestRef.current !== requestId) return;
 
@@ -439,7 +440,7 @@ export default function StoreIntegrationsTabContent({
     ? Boolean(savedIds[selectedIntegration.id])
     : false;
   const currentStoreIntegrationId = selectedIntegration
-    ? storeIntegrationIds[selectedIntegration.id] ?? null
+    ? (storeIntegrationIds[selectedIntegration.id] ?? null)
     : null;
   void currentStoreIntegrationId;
 
@@ -528,11 +529,14 @@ export default function StoreIntegrationsTabContent({
                   <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
                     <div className="uppercase tracking-wide">Scope</div>
                     <div className="mt-1 line-clamp-2 text-foreground">
-                    {integration.scope
-                      ? Array.isArray(integration.scope)
-                        ? integration.scope.join(", ")
-                        : integration.scope.split(",").map((s) => s.trim()).join(", ")
-                      : "No scope details provided."}
+                      {integration.scope
+                        ? Array.isArray(integration.scope)
+                          ? integration.scope.join(", ")
+                          : integration.scope
+                              .split(",")
+                              .map((s) => s.trim())
+                              .join(", ")
+                        : "No scope details provided."}
                     </div>
                   </div>
                 </CardContent>
@@ -574,7 +578,9 @@ export default function StoreIntegrationsTabContent({
             <DialogHeader className="border-b border-border/60 px-5 pb-3 pt-5 pr-16">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex min-w-0 items-start gap-3">
-                  {selectedIntegration ? <LogoMark integration={selectedIntegration} /> : null}
+                  {selectedIntegration ? (
+                    <LogoMark integration={selectedIntegration} />
+                  ) : null}
                   <div className="min-w-0">
                     <DialogTitle className="text-lg font-medium">
                       {selectedIntegration?.name ?? "Integration"}
@@ -606,7 +612,8 @@ export default function StoreIntegrationsTabContent({
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <div className="text-sm text-muted-foreground">
-                        Review the setup instructions before entering credentials.
+                        Review the setup instructions before entering
+                        credentials.
                       </div>
                       <Button type="button" onClick={() => setStep(1)}>
                         Next
@@ -635,8 +642,7 @@ export default function StoreIntegrationsTabContent({
                               <Input
                                 id={attribute.code}
                                 type={
-                                  secretField &&
-                                  !visibleFields[attribute.code]
+                                  secretField && !visibleFields[attribute.code]
                                     ? "password"
                                     : fieldType
                                 }
@@ -661,7 +667,8 @@ export default function StoreIntegrationsTabContent({
                                     event.stopPropagation();
                                     setVisibleFields((current) => ({
                                       ...current,
-                                      [attribute.code]: !current[attribute.code],
+                                      [attribute.code]:
+                                        !current[attribute.code],
                                     }));
                                   }}
                                 >
@@ -768,7 +775,9 @@ export default function StoreIntegrationsTabContent({
                       <Button
                         type="button"
                         onClick={() => void handleSave()}
-                        disabled={testState !== "success" || saving || storeId == null}
+                        disabled={
+                          testState !== "success" || saving || storeId == null
+                        }
                       >
                         {saving ? (
                           <>
@@ -786,7 +795,8 @@ export default function StoreIntegrationsTabContent({
 
                     {currentSaved && (
                       <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
-                        This integration is already enabled for the current store.
+                        This integration is already enabled for the current
+                        store.
                       </div>
                     )}
                   </div>
