@@ -41,6 +41,36 @@ export async function testStoreIntegrationConnection(
   return unwrapResponse<unknown>(response);
 }
 
+export async function fetchStoreIntegrations(storeId: number) {
+  const response = await axiosInstance.get(
+    ENDPOINTS.fetchStoreIntegrations(storeId),
+    {
+      useBackend: true,
+      requireAuth: true,
+    },
+  );
+
+  return unwrapResponse<unknown>(response);
+}
+
+export async function fetchStoreIntegrationDetail(
+  storeId: number,
+  storeIntegrationRowId: number,
+) {
+  const response = await axiosInstance.get(
+    ENDPOINTS.updateStoreIntegration(storeId, storeIntegrationRowId),
+    {
+      useBackend: true,
+      requireAuth: true,
+    },
+  );
+
+  return unwrapResponse<{
+    id: number;
+    stored_attributes: { code: string; value: string }[];
+  }>(response);
+}
+
 export type {
   CoreIntegration,
   IntegrationAttribute,

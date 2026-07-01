@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { isAxiosError } from "axios";
 import {
@@ -38,6 +38,8 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { GetStores } from "@/redux/api-slice/stores-slice";
 import {
   connectStoreIntegration,
+  fetchStoreIntegrations,
+  fetchStoreIntegrationDetail,
   testStoreIntegrationConnection,
 } from "@/lib/integrations-api";
 import type {
@@ -48,6 +50,11 @@ import type {
 import type { IntegrationCatalogItem } from "@/lib/integration-types";
 
 type StepId = 0 | 1 | 2;
+
+type StoreIntegrationRecord = {
+  id: number;
+  integration: number;
+};
 
 function getErrorMessage(error: unknown) {
   if (isAxiosError(error)) {
@@ -72,6 +79,17 @@ function categoryStyles(category: IntegrationCategory) {
   return category === "chat"
     ? "border-violet-500/30 bg-violet-500/15 text-violet-700 dark:text-violet-300"
     : "border-sky-500/30 bg-sky-500/15 text-sky-700 dark:text-sky-300";
+}
+
+function isSecretField(attr: IntegrationAttribute): boolean {
+  const s = (attr.code + attr.display_name).toLowerCase();
+  return (
+    s.includes("key") ||
+    s.includes("token") ||
+    s.includes("secret") ||
+    s.includes("password") ||
+    s.includes("pass")
+  );
 }
 
 function LogoMark({ integration }: { integration: CoreIntegration }) {
@@ -206,17 +224,24 @@ export default function StoreIntegrationsTabContent({
   const [step, setStep] = useState<StepId>(0);
   const [enabledIds, setEnabledIds] = useState<Record<number, boolean>>({});
   const [savedIds, setSavedIds] = useState<Record<number, boolean>>({});
+  const [storeIntegrationIds, setStoreIntegrationIds] = useState<
+    Record<number, number>
+  >({});
 
   const [attributes, setAttributes] = useState<IntegrationAttribute[]>([]);
   const [attributeValues, setAttributeValues] = useState<
     Record<string, string>
   >({});
+  const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>(
+    {},
+  );
 
   const [testState, setTestState] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [testMessage, setTestMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const prefillRequestRef = useRef(0);
 
   useEffect(() => {
     if (!storeList.length) {
@@ -224,7 +249,49 @@ export default function StoreIntegrationsTabContent({
     }
   }, [dispatch, storeList.length]);
 
+  useEffect(() => {
+    if (storeId == null) {
+      queueMicrotask(() => {
+        setSavedIds({});
+        setEnabledIds({});
+        setStoreIntegrationIds({});
+      });
+      return;
+    }
+
+    let active = true;
+
+    void (async () => {
+      try {
+        const data = (await fetchStoreIntegrations(
+          storeId,
+        )) as StoreIntegrationRecord[];
+        if (!active) return;
+
+        const ids: Record<number, boolean> = {};
+        const rowIds: Record<number, number> = {};
+
+        for (const row of data) {
+          ids[row.integration] = true;
+          rowIds[row.integration] = row.id;
+        }
+
+        setSavedIds(ids);
+        setEnabledIds(ids);
+        setStoreIntegrationIds(rowIds);
+      } catch {
+        // Ignore hydration errors; toggles still work if the fetch fails.
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [storeId]);
+
   const closePanel = (keepEnabled: boolean) => {
+    prefillRequestRef.current += 1;
+
     if (selectedIntegration && !keepEnabled && !savedIds[selectedIntegration.id]) {
       setEnabledIds((current) => ({
         ...current,
@@ -236,6 +303,7 @@ export default function StoreIntegrationsTabContent({
     setStep(0);
     setAttributes([]);
     setAttributeValues({});
+    setVisibleFields({});
     setTestState("idle");
     setTestMessage(null);
     setSaving(false);
@@ -254,13 +322,38 @@ export default function StoreIntegrationsTabContent({
       return next;
     });
 
+    prefillRequestRef.current += 1;
+    const requestId = prefillRequestRef.current;
+
     setSelectedIntegration(integration);
     setStep(0);
     setAttributes(integration.attributes ?? []);
     setAttributeValues({});
+    setVisibleFields({});
     setTestState("idle");
     setTestMessage(null);
     setSaving(false);
+
+    if (
+      savedIds[integration.id] &&
+      storeIntegrationIds[integration.id] &&
+      storeId != null
+    ) {
+      fetchStoreIntegrationDetail(
+        storeId,
+        storeIntegrationIds[integration.id],
+      )
+        .then((data) => {
+          if (prefillRequestRef.current !== requestId) return;
+
+          const prefilled: Record<string, string> = {};
+          for (const attr of data.stored_attributes ?? []) {
+            prefilled[attr.code] = attr.value;
+          }
+          setAttributeValues(prefilled);
+        })
+        .catch(() => {});
+    }
   };
 
   const handleToggle = (integration: CoreIntegration, checked: boolean) => {
@@ -315,7 +408,12 @@ export default function StoreIntegrationsTabContent({
     setSaving(true);
 
     try {
-      await connectStoreIntegration(storeId, selectedIntegration.id, attributeValues);
+      const response = await connectStoreIntegration(
+        storeId,
+        selectedIntegration.id,
+        attributeValues,
+      );
+      const created = response as { id: number };
       setEnabledIds((current) => ({
         ...current,
         [selectedIntegration.id]: true,
@@ -323,6 +421,10 @@ export default function StoreIntegrationsTabContent({
       setSavedIds((current) => ({
         ...current,
         [selectedIntegration.id]: true,
+      }));
+      setStoreIntegrationIds((current) => ({
+        ...current,
+        [selectedIntegration.id]: created.id,
       }));
       toast.success("Integration enabled");
       closePanel(true);
@@ -336,6 +438,10 @@ export default function StoreIntegrationsTabContent({
   const currentSaved = selectedIntegration
     ? Boolean(savedIds[selectedIntegration.id])
     : false;
+  const currentStoreIntegrationId = selectedIntegration
+    ? storeIntegrationIds[selectedIntegration.id] ?? null
+    : null;
+  void currentStoreIntegrationId;
 
   return (
     <div className="flex flex-col gap-4 py-4">
@@ -516,6 +622,7 @@ export default function StoreIntegrationsTabContent({
                       {attributes.map((attribute) => {
                         const fieldType =
                           attribute.type === "url" ? "url" : "text";
+                        const secretField = isSecretField(attribute);
                         return (
                           <Field key={attribute.code} className="space-y-2">
                             <FieldLabel htmlFor={attribute.code}>
@@ -524,22 +631,49 @@ export default function StoreIntegrationsTabContent({
                                 <span className="text-destructive">*</span>
                               ) : null}
                             </FieldLabel>
-                            <Input
-                              id={attribute.code}
-                              type={fieldType}
-                              value={attributeValues[attribute.code] ?? ""}
-                              onChange={(event) => {
-                                setAttributeValues((current) => ({
-                                  ...current,
-                                  [attribute.code]: event.target.value,
-                                }));
-                                setTestState("idle");
-                                setTestMessage(null);
-                              }}
-                            />
+                            <div className="relative">
+                              <Input
+                                id={attribute.code}
+                                type={
+                                  secretField &&
+                                  !visibleFields[attribute.code]
+                                    ? "password"
+                                    : fieldType
+                                }
+                                className={secretField ? "pr-16" : undefined}
+                                value={attributeValues[attribute.code] ?? ""}
+                                onChange={(event) => {
+                                  setAttributeValues((current) => ({
+                                    ...current,
+                                    [attribute.code]: event.target.value,
+                                  }));
+                                  setTestState("idle");
+                                  setTestMessage(null);
+                                }}
+                              />
+                              {secretField && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute right-1 top-1/2 h-7 -translate-y-1/2 px-2 text-xs"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setVisibleFields((current) => ({
+                                      ...current,
+                                      [attribute.code]: !current[attribute.code],
+                                    }));
+                                  }}
+                                >
+                                  {visibleFields[attribute.code]
+                                    ? "Hide"
+                                    : "Show"}
+                                </Button>
+                              )}
+                            </div>
                           </Field>
                         );
-                        })}
+                      })}
 
                       {attributes.length === 0 && (
                         <div className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">

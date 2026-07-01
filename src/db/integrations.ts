@@ -1,10 +1,12 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { getDb } from "@/lib/tenant-context";
 import {
   integration,
   integrationAttribute,
   integrationCategory,
+  taggitTag,
+  taggitTaggeditem,
 } from "@/lib/drizzle/schema";
 import type {
   CoreIntegration,
@@ -43,6 +45,7 @@ export async function list_integrations_with_attributes(): Promise<
       attribute_display_name: integrationAttribute.displayName,
       attribute_type: integrationAttribute.type,
       attribute_is_required: integrationAttribute.isRequired,
+      tag_name: taggitTag.name,
     })
     .from(integration)
     .leftJoin(
@@ -53,9 +56,22 @@ export async function list_integrations_with_attributes(): Promise<
       integrationAttribute,
       eq(integrationAttribute.integrationId, integration.id),
     )
+    .leftJoin(
+      taggitTaggeditem,
+      and(
+        eq(taggitTaggeditem.objectId, integration.id),
+        eq(taggitTaggeditem.contentTypeId, 38),
+      ),
+    )
+    .leftJoin(taggitTag, eq(taggitTag.id, taggitTaggeditem.tagId))
     .orderBy(asc(integration.name), asc(integrationAttribute.displayName));
 
-  const byId = new Map<number, IntegrationCatalogItem>();
+  type IntegrationCatalogAccumulator = Omit<IntegrationCatalogItem, "scope"> & {
+    scope: string[];
+  };
+
+  const byId = new Map<number, IntegrationCatalogAccumulator>();
+  const addedAttributesById = new Map<number, Set<number>>();
 
   for (const row of rows) {
     const current = byId.get(row.integration_id);
@@ -73,25 +89,33 @@ export async function list_integrations_with_attributes(): Promise<
         },
         category_label: resolveCategoryLabel(row.category_name),
         steps_for_creds: row.integration_steps_for_creds,
-        scope: null,
+        scope: row.tag_name == null ? [] : [row.tag_name],
         attributes: [],
       });
+      addedAttributesById.set(row.integration_id, new Set<number>());
+    } else if (row.tag_name != null && !current.scope.includes(row.tag_name)) {
+      current.scope.push(row.tag_name);
     }
 
     if (row.attribute_id != null) {
-      const attribute: IntegrationAttribute = {
-        id: Number(row.attribute_id),
-        code: row.attribute_code ?? "",
-        display_name: row.attribute_display_name ?? "",
-        type: row.attribute_type ?? "text",
-        is_required: Boolean(row.attribute_is_required),
-      };
-      byId.get(row.integration_id)?.attributes.push(attribute);
+      const seenAttributes = addedAttributesById.get(row.integration_id);
+      if (seenAttributes && !seenAttributes.has(row.attribute_id)) {
+        seenAttributes.add(row.attribute_id);
+        const attribute: IntegrationAttribute = {
+          id: Number(row.attribute_id),
+          code: row.attribute_code ?? "",
+          display_name: row.attribute_display_name ?? "",
+          type: row.attribute_type ?? "text",
+          is_required: Boolean(row.attribute_is_required),
+        };
+        byId.get(row.integration_id)?.attributes.push(attribute);
+      }
     }
   }
 
   return Array.from(byId.values()).map((integrationItem) => ({
     ...integrationItem,
+    scope: integrationItem.scope.length === 0 ? null : integrationItem.scope,
     attributes: integrationItem.attributes.sort((a, b) =>
       a.display_name.localeCompare(b.display_name),
     ),
