@@ -53,6 +53,7 @@ export const ENDPOINTS = {
 
   // Store Management
   fetchStoresList: () => "/store/list",
+  fetchIntegrationsCatalog: () => "/store/integrations",
   fetchStoreIntegrations: (storeId: number) =>
     `/store/stores/${storeId}/integrations/`,
   createStoreIntegration: (storeId: number) =>

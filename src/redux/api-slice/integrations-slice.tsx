@@ -4,6 +4,7 @@ import type { AxiosResponse } from "axios";
 
 import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
+import type { IntegrationCatalogItem } from "@/lib/integration-types";
 
 type ApiEnvelope<T> = {
   data?: T;
@@ -75,7 +76,16 @@ export async function fetchStoreIntegrationDetail(
 export type {
   CoreIntegration,
   IntegrationAttribute,
+  IntegrationCatalogItem,
 } from "@/lib/integration-types";
+
+export async function fetchIntegrationsCatalog() {
+  const response = await axiosInstance.get(
+    ENDPOINTS.fetchIntegrationsCatalog(),
+  );
+
+  return unwrapResponse<IntegrationCatalogItem[]>(response);
+}
 
 export async function connectStoreIntegration(
   storeId: number,

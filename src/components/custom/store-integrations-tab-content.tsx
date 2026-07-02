@@ -39,6 +39,7 @@ import { GetStores } from "@/redux/api-slice/stores-slice";
 import {
   connectStoreIntegration,
   deleteStoreIntegration,
+  fetchIntegrationsCatalog,
   fetchStoreIntegrations,
   fetchStoreIntegrationDetail,
   testStoreIntegrationConnection,
@@ -46,9 +47,9 @@ import {
 import type {
   CoreIntegration,
   IntegrationAttribute,
+  IntegrationCatalogItem,
   IntegrationCategory,
 } from "@/lib/integration-types";
-import type { IntegrationCatalogItem } from "@/lib/integration-types";
 import { getIntegrationLogoUrl } from "@/lib/integration-logo";
 
 type StepId = 0 | 1 | 2;
@@ -198,13 +199,7 @@ function Stepper({ step }: { step: StepId }) {
   );
 }
 
-type StoreIntegrationsTabContentProps = {
-  initialIntegrations: IntegrationCatalogItem[];
-};
-
-export default function StoreIntegrationsTabContent({
-  initialIntegrations,
-}: StoreIntegrationsTabContentProps) {
+export default function StoreIntegrationsTabContent() {
   const dispatch = useAppDispatch();
   const selectedStoreCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -219,9 +214,10 @@ export default function StoreIntegrationsTabContent({
   );
   const storeId = store ? Number(store.id) : null;
 
-  const [integrations] = useState<IntegrationCatalogItem[]>(
-    () => initialIntegrations,
+  const [integrations, setIntegrations] = useState<IntegrationCatalogItem[]>(
+    [],
   );
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
 
   const [selectedIntegration, setSelectedIntegration] =
     useState<CoreIntegration | null>(null);
@@ -252,6 +248,28 @@ export default function StoreIntegrationsTabContent({
       dispatch(GetStores({}));
     }
   }, [dispatch, storeList.length]);
+
+  useEffect(() => {
+    let active = true;
+
+    void (async () => {
+      try {
+        const data =
+          (await fetchIntegrationsCatalog()) as IntegrationCatalogItem[];
+        if (!active) return;
+        setIntegrations(data);
+      } catch {
+        if (!active) return;
+        setIntegrations([]);
+      } finally {
+        if (active) setCatalogLoaded(true);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (storeId == null) {
@@ -499,7 +517,11 @@ export default function StoreIntegrationsTabContent({
         </div>
       )}
 
-      {integrations.length === 0 ? (
+      {!catalogLoaded ? (
+        <div className="rounded-xl border border-dashed border-border px-6 py-10 text-center text-sm text-muted-foreground">
+          Loading integrations...
+        </div>
+      ) : integrations.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-10 text-center text-sm text-muted-foreground">
           No integrations were returned by the backend yet.
         </div>
