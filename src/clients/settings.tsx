@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/empty";
 import { IconLock } from "@tabler/icons-react";
 import CompanyProfileForm from "@/components/custom/company-profile-form";
+import StoreIntegrationsTabContent from "@/components/custom/store-integrations-tab-content";
 import StaffManagement from "@/components/custom/staff-management";
 
 export default function Settings() {
@@ -43,10 +44,14 @@ export default function Settings() {
       <Tabs defaultValue="company" className="gap-4">
         <TabsList>
           <TabsTrigger value="company">Company</TabsTrigger>
+          <TabsTrigger value="integrations">Integrations</TabsTrigger>
           <TabsTrigger value="staff">Staff</TabsTrigger>
         </TabsList>
         <TabsContent value="company">
           <CompanyProfileForm />
+        </TabsContent>
+        <TabsContent value="integrations">
+          <StoreIntegrationsTabContent />
         </TabsContent>
         <TabsContent value="staff">
           <StaffManagement />

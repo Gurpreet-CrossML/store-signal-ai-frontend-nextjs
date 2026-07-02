@@ -53,6 +53,17 @@ export const ENDPOINTS = {
 
   // Store Management
   fetchStoresList: () => "/store/list",
+  fetchIntegrationsCatalog: () => "/store/integrations",
+  fetchStoreIntegrations: (storeId: number) =>
+    `/store/${storeId}/integrations/`,
+  createStoreIntegration: (storeId: number) =>
+    `/store/${storeId}/integrations/`,
+  updateStoreIntegration: (storeId: number, integrationId: number) =>
+    `/store/${storeId}/integrations/${integrationId}/`,
+  deleteStoreIntegration: (storeId: number, integrationId: number) =>
+    `/store/${storeId}/integrations/${integrationId}/`,
+  testStoreIntegrationConnection: (storeId: number) =>
+    `/store/${storeId}/integrations/test-connection/`,
 
   // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
   // Next.js issues a 308 redirect (an extra round-trip) before each call.
