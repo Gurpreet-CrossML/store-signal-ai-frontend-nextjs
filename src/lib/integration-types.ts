@@ -12,7 +12,6 @@ export type CoreIntegration = {
   id: number;
   name: string;
   logo: string | null;
-  logo_url: string | null;
   description: string;
   is_active: boolean;
   category: {

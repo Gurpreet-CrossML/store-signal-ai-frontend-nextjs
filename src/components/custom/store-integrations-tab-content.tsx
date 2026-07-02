@@ -38,16 +38,18 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { GetStores } from "@/redux/api-slice/stores-slice";
 import {
   connectStoreIntegration,
+  deleteStoreIntegration,
   fetchStoreIntegrations,
   fetchStoreIntegrationDetail,
   testStoreIntegrationConnection,
-} from "@/lib/integrations-api";
+} from "@/redux/api-slice/integrations-slice";
 import type {
   CoreIntegration,
   IntegrationAttribute,
   IntegrationCategory,
 } from "@/lib/integration-types";
 import type { IntegrationCatalogItem } from "@/lib/integration-types";
+import { getIntegrationLogoUrl } from "@/lib/integration-logo";
 
 type StepId = 0 | 1 | 2;
 
@@ -93,10 +95,12 @@ function isSecretField(attr: IntegrationAttribute): boolean {
 }
 
 function LogoMark({ integration }: { integration: CoreIntegration }) {
-  if (integration.logo_url) {
+  const logoUrl = getIntegrationLogoUrl(integration.logo);
+
+  if (logoUrl) {
     return (
       <img
-        src={integration.logo_url}
+        src={logoUrl}
         alt={`${integration.name} logo`}
         className="size-11 rounded-lg bg-background object-contain p-1 ring-1 ring-border/60"
       />
@@ -357,13 +361,38 @@ export default function StoreIntegrationsTabContent({
     }
   };
 
-  const handleToggle = (integration: CoreIntegration, checked: boolean) => {
+  const handleToggle = async (
+    integration: CoreIntegration,
+    checked: boolean,
+  ) => {
     if (checked) {
       openPanel(integration);
       return;
     }
 
     if (savedIds[integration.id]) {
+      const storeIntegrationId = storeIntegrationIds[integration.id];
+      if (storeId == null || storeIntegrationId == null) return;
+
+      try {
+        await deleteStoreIntegration(storeId, storeIntegrationId);
+        setEnabledIds((current) => ({
+          ...current,
+          [integration.id]: false,
+        }));
+        setSavedIds((current) => ({
+          ...current,
+          [integration.id]: false,
+        }));
+        setStoreIntegrationIds((current) => {
+          const next = { ...current };
+          delete next[integration.id];
+          return next;
+        });
+        toast.success("Integration disabled");
+      } catch (error) {
+        toast.error(getErrorMessage(error));
+      }
       return;
     }
 
@@ -556,9 +585,10 @@ export default function StoreIntegrationsTabContent({
                   </Button>
                   <ToggleSwitch
                     checked={checked}
-                    disabled={saved}
                     label={`Enable ${integration.name}`}
-                    onCheckedChange={(next) => handleToggle(integration, next)}
+                    onCheckedChange={(next) =>
+                      void handleToggle(integration, next)
+                    }
                   />
                 </CardFooter>
               </Card>

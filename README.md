@@ -184,6 +184,9 @@ NEXTAUTH_URL=http://localhost:3000
 # Django backend base URL (auth, provisioning, writes)
 NEXT_PUBLIC_BASE_URL=http://localhost:8000
 
+# S3 bucket that stores integration logos as relative keys
+NEXT_PUBLIC_INTEGRATION_LOGO_BUCKET=your-s3-bucket-name
+
 # Optional: base for this app's own /api routes (defaults to relative paths)
 NEXT_PUBLIC_FRONTEND_URL=
 

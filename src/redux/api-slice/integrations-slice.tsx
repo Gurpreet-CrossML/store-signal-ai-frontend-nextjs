@@ -1,8 +1,9 @@
 "use client";
 
-import { ENDPOINTS } from "@/lib/config";
 import type { AxiosResponse } from "axios";
+
 import { axiosInstance } from "@/redux/axios-config";
+import { ENDPOINTS } from "@/lib/config";
 
 type ApiEnvelope<T> = {
   data?: T;
@@ -82,7 +83,7 @@ export async function connectStoreIntegration(
   attributeValues?: Record<string, string>,
 ) {
   const payload: Record<string, unknown> = {
-    integration: integrationId,
+    integration_id: integrationId,
     store: storeId,
   };
   if (attributeValues) {
@@ -92,6 +93,21 @@ export async function connectStoreIntegration(
   const response = await axiosInstance.post(
     ENDPOINTS.createStoreIntegration(storeId),
     payload,
+    {
+      useBackend: true,
+      requireAuth: true,
+    },
+  );
+
+  return unwrapResponse<unknown>(response);
+}
+
+export async function deleteStoreIntegration(
+  storeId: number,
+  integrationId: number,
+) {
+  const response = await axiosInstance.delete(
+    ENDPOINTS.deleteStoreIntegration(storeId, integrationId),
     {
       useBackend: true,
       requireAuth: true,

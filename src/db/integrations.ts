@@ -29,7 +29,6 @@ export async function list_integrations_with_attributes(): Promise<
       integration_id: integration.id,
       integration_name: integration.name,
       integration_logo: integration.logo,
-      integration_logo_url: integration.logoUrl,
       integration_description: integration.description,
       integration_is_active: integration.isActive,
       integration_steps_for_creds: integration.stepsForCreds,
@@ -75,9 +74,6 @@ export async function list_integrations_with_attributes(): Promise<
         id: Number(row.integration_id),
         name: row.integration_name,
         logo: row.integration_logo,
-        logo_url: row.integration_logo_url?.trim()
-          ? row.integration_logo_url
-          : row.integration_logo,
         description: row.integration_description,
         is_active: Boolean(row.integration_is_active),
         category: {
