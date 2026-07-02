@@ -38,10 +38,10 @@ import {
   taggitTag,
   supportTicket,
   storeIntegration,
-  integrationCategory,
   integration,
   integrationAttribute,
   storeIntegrationAttribute,
+  integrationCategory,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -446,21 +446,6 @@ export const storeIntegrationRelations = relations(
   }),
 );
 
-export const integrationRelations = relations(integration, ({ one, many }) => ({
-  integrationCategory: one(integrationCategory, {
-    fields: [integration.categoryId],
-    references: [integrationCategory.id],
-  }),
-  integrationAttributes: many(integrationAttribute),
-}));
-
-export const integrationCategoryRelations = relations(
-  integrationCategory,
-  ({ many }) => ({
-    integrations: many(integration),
-  }),
-);
-
 export const integrationAttributeRelations = relations(
   integrationAttribute,
   ({ one, many }) => ({
@@ -471,6 +456,14 @@ export const integrationAttributeRelations = relations(
     storeIntegrationAttributes: many(storeIntegrationAttribute),
   }),
 );
+
+export const integrationRelations = relations(integration, ({ one, many }) => ({
+  integrationAttributes: many(integrationAttribute),
+  integrationCategory: one(integrationCategory, {
+    fields: [integration.categoryId],
+    references: [integrationCategory.id],
+  }),
+}));
 
 export const storeIntegrationAttributeRelations = relations(
   storeIntegrationAttribute,
@@ -483,5 +476,12 @@ export const storeIntegrationAttributeRelations = relations(
       fields: [storeIntegrationAttribute.storeIntegrationId],
       references: [storeIntegration.id],
     }),
+  }),
+);
+
+export const integrationCategoryRelations = relations(
+  integrationCategory,
+  ({ many }) => ({
+    integrations: many(integration),
   }),
 );
