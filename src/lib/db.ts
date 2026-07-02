@@ -26,7 +26,7 @@ function sslConfig(): PoolConfig["ssl"] {
     ca: fs
       .readFileSync(path.join(process.cwd(), "global-bundle.pem"))
       .toString(),
-    rejectUnauthorized: false,
+    rejectUnauthorized: true,
     checkServerIdentity: () => undefined,
   };
 }
