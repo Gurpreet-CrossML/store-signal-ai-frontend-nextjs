@@ -139,7 +139,6 @@ export function ThreadsDataTable<TData, TValue>({
         }}
         threadId={selectedThreadId}
         thread={selectedThread}
-        onClose={onCloseThread}
       />
     </div>
   );
