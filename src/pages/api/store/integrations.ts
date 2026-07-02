@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 import { list_integrations_with_attributes } from "@/db/integrations";
 import { APIResponse } from "@/lib/config";
-import { createAPIResponse } from "@/lib/helpers";
+import { createAPIResponse, handleApiError } from "@/lib/helpers";
 import { withTenantRoute } from "@/lib/with-tenant-route";
 
 /**
@@ -21,8 +21,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
       .json(createAPIResponse(false, "Method Not Allowed", null));
   }
 
-  const data = await list_integrations_with_attributes();
-  return res
-    .status(200)
-    .json(createAPIResponse(true, "Integrations catalog.", data));
+  try {
+    const data = await list_integrations_with_attributes();
+    return res
+      .status(200)
+      .json(createAPIResponse(true, "Integrations catalog.", data));
+  } catch (error) {
+    return handleApiError(res, error, "store/integrations");
+  }
 }

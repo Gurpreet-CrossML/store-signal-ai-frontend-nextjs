@@ -8,7 +8,6 @@ import {
   IconArrowRight,
   IconCheck,
   IconChevronRight,
-  IconX,
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 
@@ -51,6 +50,8 @@ import type {
   IntegrationCategory,
 } from "@/lib/integration-types";
 import { getIntegrationLogoUrl } from "@/lib/integration-logo";
+import { ToggleSwitch } from "@/components/custom/toggle-switch";
+import { Stepper } from "@/components/custom/stepper";
 
 type StepId = 0 | 1 | 2;
 
@@ -58,25 +59,6 @@ type StoreIntegrationRecord = {
   id: number;
   integration: number;
 };
-
-function getErrorMessage(error: unknown) {
-  if (isAxiosError(error)) {
-    const responseMessage = error.response?.data as
-      | { message?: string; detail?: string; error?: string }
-      | undefined;
-
-    return (
-      responseMessage?.message ||
-      responseMessage?.detail ||
-      responseMessage?.error ||
-      error.message ||
-      "Something went wrong."
-    );
-  }
-
-  if (error instanceof Error) return error.message || "Something went wrong.";
-  return "Something went wrong.";
-}
 
 function categoryStyles(category: IntegrationCategory) {
   return category === "chat"
@@ -111,90 +93,6 @@ function LogoMark({ integration }: { integration: CoreIntegration }) {
   return (
     <div className="flex size-11 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-foreground ring-1 ring-border/60">
       {integration.name.slice(0, 1).toUpperCase()}
-    </div>
-  );
-}
-
-function ToggleSwitch({
-  checked,
-  disabled,
-  label,
-  onCheckedChange,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  label: string;
-  onCheckedChange: (checked: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      onClick={(event) => {
-        event.stopPropagation();
-        if (disabled) return;
-        onCheckedChange(!checked);
-      }}
-      className={cn(
-        "relative inline-flex h-8 w-14 items-center rounded-full border transition-colors duration-200",
-        checked
-          ? "border-emerald-600/50 bg-emerald-600/30"
-          : "border-border bg-muted/60",
-        disabled && "cursor-not-allowed opacity-60",
-      )}
-    >
-      <span
-        className={cn(
-          "inline-flex size-6 items-center justify-center rounded-full bg-background shadow-sm transition-transform duration-200",
-          checked ? "translate-x-6" : "translate-x-1",
-        )}
-      >
-        {checked ? (
-          <IconCheck className="size-3.5 text-emerald-600" />
-        ) : (
-          <IconX className="size-3.5 text-muted-foreground" />
-        )}
-      </span>
-    </button>
-  );
-}
-
-function Stepper({ step }: { step: StepId }) {
-  const labels = ["Instructions", "Credentials", "Verify"] as const;
-
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      {labels.map((label, index) => {
-        const current = index as StepId;
-        const active = step === current;
-        const done = step > current;
-
-        return (
-          <div key={label} className="flex min-w-0 items-center gap-2">
-            <div
-              className={cn(
-                "flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors",
-                active
-                  ? "border-foreground/20 bg-foreground text-background"
-                  : done
-                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                    : "border-border bg-muted text-muted-foreground",
-              )}
-            >
-              <span className="flex size-4 items-center justify-center rounded-full bg-background/10 text-[11px]">
-                {index + 1}
-              </span>
-              <span className="truncate">{label}</span>
-            </div>
-            {index < labels.length - 1 && (
-              <IconChevronRight className="size-4 shrink-0 text-muted-foreground" />
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -409,7 +307,18 @@ export default function StoreIntegrationsTabContent() {
         });
         toast.success("Integration disabled");
       } catch (error) {
-        toast.error(getErrorMessage(error));
+        const responseMessage = isAxiosError(error)
+          ? (error.response?.data as
+              | { message?: string; detail?: string; error?: string }
+              | undefined)
+          : undefined;
+        toast.error(
+          responseMessage?.message ||
+            responseMessage?.detail ||
+            responseMessage?.error ||
+            (error instanceof Error ? error.message : "") ||
+            "Something went wrong.",
+        );
       }
       return;
     }
@@ -445,7 +354,18 @@ export default function StoreIntegrationsTabContent() {
       setTestMessage(message);
     } catch (error) {
       setTestState("error");
-      setTestMessage(getErrorMessage(error));
+      const responseMessage = isAxiosError(error)
+        ? (error.response?.data as
+            | { message?: string; detail?: string; error?: string }
+            | undefined)
+        : undefined;
+      setTestMessage(
+        responseMessage?.message ||
+          responseMessage?.detail ||
+          responseMessage?.error ||
+          (error instanceof Error ? error.message : "") ||
+          "Something went wrong.",
+      );
     }
   };
 
@@ -477,7 +397,18 @@ export default function StoreIntegrationsTabContent() {
       toast.success("Integration enabled");
       closePanel(true);
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      const responseMessage = isAxiosError(error)
+        ? (error.response?.data as
+            | { message?: string; detail?: string; error?: string }
+            | undefined)
+        : undefined;
+      toast.error(
+        responseMessage?.message ||
+          responseMessage?.detail ||
+          responseMessage?.error ||
+          (error instanceof Error ? error.message : "") ||
+          "Something went wrong.",
+      );
     } finally {
       setSaving(false);
     }
