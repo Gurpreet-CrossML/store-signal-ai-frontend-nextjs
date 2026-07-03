@@ -47,9 +47,7 @@ import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
-import {
-  CloseThread,
-} from "@/redux/api-slice/thread-slice";
+import { CloseThread } from "@/redux/api-slice/thread-slice";
 
 function formatRelativeTime(value: string | null | undefined) {
   if (!value) return "—";
@@ -773,13 +771,7 @@ export default function Support() {
                 onClick={handleConfirmClose}
                 disabled={CloseThreadIsLoading}
               >
-                {CloseThreadIsLoading ? (
-                  <>
-                    Closing...
-                  </>
-                ) : (
-                  "Close"
-                )}
+                {CloseThreadIsLoading ? <>Closing...</> : "Close"}
               </Button>
             </div>
           </div>

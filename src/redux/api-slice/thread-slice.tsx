@@ -475,7 +475,9 @@ export const CloseThread = createAsyncThunk(
   "CloseThread",
   async (threadId: string, thunkAPI) => {
     try {
-      const response = await axiosInstance.post(ENDPOINTS.closeThread(threadId));
+      const response = await axiosInstance.post(
+        ENDPOINTS.closeThread(threadId),
+      );
       const data = response.data.data;
 
       return data;
@@ -485,7 +487,8 @@ export const CloseThread = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
-          data?.message || "Unable to close the thread, please try again later.",
+          data?.message ||
+          "Unable to close the thread, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
