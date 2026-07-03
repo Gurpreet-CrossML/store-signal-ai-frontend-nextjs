@@ -471,6 +471,28 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
   },
 );
 
+export const CloseThread = createAsyncThunk(
+  "CloseThread",
+  async (threadId: string, thunkAPI) => {
+    try {
+      const response = await axiosInstance.post(ENDPOINTS.closeThread(threadId));
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message || "Unable to close the thread, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 const ThreadSlice = createSlice({
   name: "Thread",
   initialState: {
@@ -532,6 +554,11 @@ const ThreadSlice = createSlice({
       FetchFreshdeskTicketIdIsSuccess: false,
       FetchFreshdeskTicketIdIsError: null as null | string | object | unknown,
       FetchFreshdeskTicketIdData: [] as ThreadTicketData[],
+    },
+    CloseThreadState: {
+      CloseThreadIsLoading: false,
+      CloseThreadIsSuccess: false,
+      CloseThreadIsError: null as null | string | object | unknown,
     },
   },
   reducers: {},
@@ -679,6 +706,20 @@ const ThreadSlice = createSlice({
         state.FetchFreshdeskTicketIdState.FetchFreshdeskTicketIdIsError =
           action.payload;
         state.FetchFreshdeskTicketIdState.FetchFreshdeskTicketIdIsSuccess = false;
+      })
+      .addCase(CloseThread.pending, (state) => {
+        state.CloseThreadState.CloseThreadIsLoading = true;
+        state.CloseThreadState.CloseThreadIsError = null;
+        state.CloseThreadState.CloseThreadIsSuccess = false;
+      })
+      .addCase(CloseThread.fulfilled, (state) => {
+        state.CloseThreadState.CloseThreadIsLoading = false;
+        state.CloseThreadState.CloseThreadIsSuccess = true;
+      })
+      .addCase(CloseThread.rejected, (state, action) => {
+        state.CloseThreadState.CloseThreadIsLoading = false;
+        state.CloseThreadState.CloseThreadIsError = action.payload;
+        state.CloseThreadState.CloseThreadIsSuccess = false;
       });
   },
 });

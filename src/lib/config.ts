@@ -88,6 +88,9 @@ export const ENDPOINTS = {
   widgetCustomization: (storeId: number) =>
     `/store/widget-customization/${storeId}/`,
 
+  // Thread management (Django via useBackend — keep trailing slash).
+  closeThread: (threadId: string) => `/chat/thread/close/${threadId}/`,
+
   // Knowledge Base Management. Local GETs have no trailing slash; Django writes
   // (upload/create/update/delete) keep theirs (DRF requires it).
   fetchLibraryDocuments: () => `/knowledge/library-documents`,

@@ -47,6 +47,9 @@ import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
+import {
+  CloseThread,
+} from "@/redux/api-slice/thread-slice";
 
 function formatRelativeTime(value: string | null | undefined) {
   if (!value) return "—";
@@ -273,6 +276,9 @@ export default function Support() {
   const { FetchUserMetadataData, FetchUserMetadataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchUserMetadataState,
   );
+  const { CloseThreadIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.CloseThreadState,
+  );
 
   const threads = useMemo(
     () => FetchThreadsListData?.results ?? [],
@@ -341,10 +347,29 @@ export default function Support() {
     setIsCloseConfirmOpen(true);
   }, []);
 
-  const handleConfirmClose = useCallback(() => {
-    setSelectedThreadId(null);
-    setIsCloseConfirmOpen(false);
-  }, []);
+  const handleConfirmClose = useCallback(async () => {
+    try {
+      await dispatch(CloseThread(activeThreadId)).unwrap();
+      toast.success("Conversation closed successfully");
+      setSelectedThreadId(null);
+      setIsCloseConfirmOpen(false);
+
+      if (storeCode) {
+        dispatch(
+          FetchThreads({
+            store_code: storeCode,
+            page: 1,
+            limit: 50,
+            filters: { is_active: true },
+          }),
+        );
+      }
+    } catch (error) {
+      toast.error(
+        typeof error === "string" ? error : "Failed to close conversation",
+      );
+    }
+  }, [dispatch, activeThreadId]);
 
   const handleCancelClose = useCallback(() => {
     setIsCloseConfirmOpen(false);
@@ -739,11 +764,22 @@ export default function Support() {
                 type="button"
                 variant="outline"
                 onClick={handleCancelClose}
+                disabled={CloseThreadIsLoading}
               >
                 Cancel
               </Button>
-              <Button type="button" onClick={handleConfirmClose}>
-                Close
+              <Button
+                type="button"
+                onClick={handleConfirmClose}
+                disabled={CloseThreadIsLoading}
+              >
+                {CloseThreadIsLoading ? (
+                  <>
+                    Closing...
+                  </>
+                ) : (
+                  "Close"
+                )}
               </Button>
             </div>
           </div>
