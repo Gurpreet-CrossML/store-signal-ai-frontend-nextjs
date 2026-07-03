@@ -37,6 +37,10 @@ export const ENDPOINTS = {
   chatSocket: (threadId: string, token: string) =>
     createWebSocketUrl(`/chat/${threadId}/?role=agent&token=${token}`),
 
+  // Dashboard Websocket (Django)
+  dashboardSocket: (storeCode: string, token: string) =>
+    createWebSocketUrl(`/support/dashboard/${storeCode}/?token=${token}`),
+
   // Company & staff management (Django /api/tenancy/). These are Django-owned;
   // GET calls must pass `useBackend: true` (writes auto-route to Django).
   fetchCompanyProfile: () => "/tenancy/company/",
@@ -87,9 +91,6 @@ export const ENDPOINTS = {
   // Chatbot Customization (Django via useBackend — keep trailing slash).
   widgetCustomization: (storeId: number) =>
     `/store/widget-customization/${storeId}/`,
-
-  // Thread management (Django via useBackend — keep trailing slash).
-  closeThread: (threadId: string) => `/chat/thread/close/${threadId}/`,
 
   // Knowledge Base Management. Local GETs have no trailing slash; Django writes
   // (upload/create/update/delete) keep theirs (DRF requires it).

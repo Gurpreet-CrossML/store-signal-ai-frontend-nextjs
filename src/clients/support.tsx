@@ -37,9 +37,13 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  IconHeadset,
   IconMessage2,
   IconMoodSmile,
   IconPaperclip,
+  IconRobot,
+  IconSearch,
+  IconSend,
   IconUser,
   IconX,
 } from "@tabler/icons-react";
@@ -47,7 +51,18 @@ import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
-import { CloseThread } from "@/redux/api-slice/thread-slice";
+
+// Extends the shared Thread type with a local read-state flag. Ideally
+// `is_read` becomes a real field on Thread (and maybe comes from the API),
+// but until then we track it client-side, defaulting to true on load.
+type ThreadWithReadState = Thread & { is_read?: boolean };
+
+function normalizeThreads(threads: Thread[] | undefined) {
+  return (threads ?? []).map((thread) => ({
+    ...thread,
+    is_read: (thread as ThreadWithReadState).is_read ?? true,
+  }));
+}
 
 function formatRelativeTime(value: string | null | undefined) {
   if (!value) return "—";
@@ -70,6 +85,93 @@ function formatRelativeTime(value: string | null | undefined) {
   if (diffWeeks < 4) return `${diffWeeks}w`;
 
   return `${Math.max(1, Math.floor(diffDays / 30))}mo`;
+}
+
+// Deterministic avatar accent so the same customer always gets the same color.
+const AVATAR_PALETTE = [
+  "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
+  "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+  "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
+  "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
+  "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
+];
+
+const emojiList = [
+  "😀",
+  "😊",
+  "🙂",
+  "😉",
+  "😍",
+  "😂",
+  "😭",
+  "😢",
+  "😎",
+  "🤔",
+  "👍",
+  "👎",
+  "👌",
+  "👏",
+  "🙌",
+  "🙏",
+  "❤️",
+  "🔥",
+  "✨",
+  "🎉",
+  "💯",
+  "💪",
+  "👋",
+  "🤝",
+];
+
+function getAvatarColor(seed: string) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
+
+function getInitials(name: string | null | undefined) {
+  if (!name) return null;
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return null;
+  const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase());
+  return initials.join("");
+}
+
+function CustomerAvatar({
+  name,
+  size = "h-9 w-9",
+  online,
+}: {
+  name?: string | null;
+  size?: string;
+  online?: boolean;
+}) {
+  const initials = getInitials(name);
+
+  return (
+    <div className="relative shrink-0">
+      <Avatar className={`${size} mt-0.5`}>
+        <AvatarFallback
+          className={`text-sm font-medium ${
+            initials ? getAvatarColor(name ?? "") : "bg-primary/10 text-primary"
+          }`}
+        >
+          {initials ?? <IconUser className="h-5 w-5" />}
+        </AvatarFallback>
+      </Avatar>
+      {online !== undefined && (
+        <span
+          className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${
+            online ? "bg-green-500" : "bg-muted-foreground/40"
+          }`}
+        />
+      )}
+    </div>
+  );
 }
 
 function ThreadChatControls({
@@ -108,24 +210,54 @@ function ThreadChatControls({
   onRemoveSelectedFile: (index: number) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Auto-grow the composer like a chat app, capped at a few lines.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [agentMessage]);
 
   if (!activeThreadId || !isThreadActive) {
     return null;
   }
 
+  const canSend =
+    (agentMessage.trim().length > 0 || selectedFiles.length > 0) &&
+    transitionState === "idle";
+
   return (
     <div
       className={`relative border-t border-border/50 bg-background/95 p-4 ${className ?? ""}`}
     >
+      {!isAgentConnected && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-border/70 bg-muted/30 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <IconRobot className="h-4 w-4 shrink-0" />
+            <span>
+              The AI assistant is currently handling this conversation.
+            </span>
+          </div>
+        </div>
+      )}
+
       {isAgentConnected && (
-        <div className="rounded-xl border border-border/60 bg-background/80 p-2 shadow-sm">
+        <div className="rounded-2xl border border-border/60 bg-background shadow-sm transition-shadow focus-within:border-primary/50 focus-within:shadow-md">
+          <div className="flex items-center justify-between border-b border-border/50 px-3 py-1.5">
+            <span className="text-[11px] font-medium text-muted-foreground">
+              Replying as agent
+            </span>
+          </div>
+
           {isEmojiPickerOpen && (
-            <div className="mb-2 flex flex-wrap gap-2 rounded-lg border border-border/60 bg-muted/40 p-2">
-              {["😀", "😊", "👍", "❤️", "🎉", "🙏"].map((emoji) => (
+            <div className="grid max-h-40 grid-cols-8 gap-1 overflow-y-auto border-b border-border/50 p-2">
+              {emojiList.map((emoji) => (
                 <button
                   key={emoji}
                   type="button"
-                  className="rounded-md px-2 py-1 text-lg transition hover:bg-background"
+                  className="flex items-center justify-center rounded-md py-1 text-lg transition-colors hover:bg-muted"
                   onClick={() => onEmojiSelect(emoji)}
                 >
                   {emoji}
@@ -135,101 +267,111 @@ function ThreadChatControls({
           )}
 
           {selectedFiles.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 border-b border-border/50 p-2">
               {selectedFiles.map((file, index) => (
                 <div
                   key={`${file.name}-${index}`}
-                  className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/60 px-2 py-2 text-xs text-muted-foreground"
+                  className="group relative flex items-center gap-2 rounded-xl border border-border/60 bg-muted/60 py-1.5 pl-1.5 pr-2.5 text-xs text-muted-foreground"
                 >
                   {file.type.startsWith("image/") ? (
                     <Image
                       src={URL.createObjectURL(file)}
                       alt={file.name}
-                      width={40}
-                      height={40}
+                      width={32}
+                      height={32}
                       unoptimized
-                      className="h-10 w-10 rounded object-cover"
+                      className="h-8 w-8 rounded-lg object-cover"
                     />
                   ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded bg-background/70">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-background/70">
                       <IconPaperclip className="h-4 w-4" />
                     </div>
                   )}
                   <span className="max-w-[140px] truncate">{file.name}</span>
                   <button
                     type="button"
-                    className="ml-1 rounded-full p-0.5 text-muted-foreground transition hover:bg-background hover:text-foreground"
+                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground"
                     onClick={() => onRemoveSelectedFile(index)}
                     title="Remove attachment"
                   >
-                    <IconX className="h-3.5 w-3.5" />
+                    <IconX className="h-3 w-3" />
                   </button>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground transition hover:bg-muted"
-              onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-              title="Add emoji"
-            >
-              <IconMoodSmile className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground transition hover:bg-muted"
-              onClick={() => fileInputRef.current?.click()}
-              title="Attach image or file"
-            >
-              <IconPaperclip className="h-4 w-4" />
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*,.pdf,.doc,.docx,.txt"
-              onChange={onFileSelection}
-              className="hidden"
+          {/* Text input row */}
+          <div className="px-3 pt-2">
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              placeholder="Type your reply…"
+              value={agentMessage}
+              onChange={(event) => setAgentMessage(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  onSendAgentMessage();
+                }
+              }}
+              className="max-h-[120px] w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground"
             />
-            <div className="flex-1">
+          </div>
+
+          {/* Controls row: emoji + attach on the left, send on the right */}
+          <div className="flex items-center justify-between gap-2 p-2">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted transition-colors hover:bg-muted/80 ${
+                  isEmojiPickerOpen
+                    ? "text-foreground ring-1 ring-primary/40"
+                    : "text-muted-foreground"
+                }`}
+                onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                title="Add emoji"
+              >
+                <IconMoodSmile className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80"
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach image or file"
+              >
+                <IconPaperclip className="h-4 w-4" />
+              </button>
               <input
-                placeholder="Type your message…"
-                value={agentMessage}
-                onChange={(event) => setAgentMessage(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    onSendAgentMessage();
-                  }
-                }}
-                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.pdf,.doc,.docx,.txt"
+                onChange={onFileSelection}
+                className="hidden"
               />
             </div>
+
             <button
               type="button"
               onClick={onSendAgentMessage}
-              disabled={
-                (!agentMessage.trim() && selectedFiles.length === 0) ||
-                transitionState !== "idle"
-              }
-              className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!canSend}
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed ${
+                canSend
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
+                  : "bg-muted text-muted-foreground"
+              }`}
               title="Send message"
             >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3 20l18-8-18-8 4 8-4 8z" />
-              </svg>
+              <IconSend className="h-4 w-4" />
             </button>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-border/50 px-3 py-1.5 text-[11px] text-muted-foreground">
+            <span>Enter to send · Shift + Enter for a new line</span>
+            {selectedFiles.length > 0 && (
+              <span>{selectedFiles.length} attached</span>
+            )}
           </div>
         </div>
       )}
@@ -257,6 +399,25 @@ function ThreadChatControls({
   );
 }
 
+// Shape of the "message" event data coming from the dashboard socket.
+type DashboardMessageEvent = {
+  id: string;
+  message: string;
+  role: string;
+  thread_id: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+type DashboardSocketPayload =
+  | { success: boolean; action_type: "connection"; data?: unknown }
+  | { success: boolean; action_type: "message"; data: DashboardMessageEvent }
+  | {
+      success: boolean;
+      action_type: "thread_closed";
+      data: { thread_id: string };
+    };
+
 export default function Support() {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
@@ -274,33 +435,94 @@ export default function Support() {
   const { FetchUserMetadataData, FetchUserMetadataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchUserMetadataState,
   );
-  const { CloseThreadIsLoading } = useAppSelector(
-    (state) => state.GetThreadReducer.CloseThreadState,
-  );
 
-  const threads = useMemo(
-    () => FetchThreadsListData?.results ?? [],
-    [FetchThreadsListData],
+  // Local, mutable copy of the thread list. Seeded from Redux (is_read
+  // defaults to true), then patched in place by the dashboard socket (new
+  // messages / thread_closed events) without waiting on a refetch.
+  const [previousThreadsData, setPreviousThreadsData] =
+    useState(FetchThreadsListData);
+  const [localThreads, setLocalThreads] = useState<ThreadWithReadState[]>(() =>
+    normalizeThreads(FetchThreadsListData?.results),
   );
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
   const [isAgentConnected, setIsAgentConnected] = useState(false);
-  const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
   const [transitionState, setTransitionState] = useState<
     "idle" | "taking_over" | "returning_to_ai"
   >("idle");
   const [agentMessage, setAgentMessage] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [threadSearch, setThreadSearch] = useState("");
+  const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
+    "all",
+  );
   const { data: session } = useSession();
   const wsRef = useRef<WebSocket | null>(null);
+  const dashboardWsRef = useRef<WebSocket | null>(null);
 
-  const activeThreadId = selectedThreadId ?? threads[0]?.id ?? null;
+  // Reset the socket-mutable copy when Redux supplies a new response. React
+  // applies this guarded render-time adjustment before committing children,
+  // avoiding an extra render with stale thread data.
+  if (FetchThreadsListData !== previousThreadsData) {
+    setPreviousThreadsData(FetchThreadsListData);
+    setLocalThreads(normalizeThreads(FetchThreadsListData?.results));
+  }
+
+  const selectedThreadStillExists =
+    selectedThreadId !== null &&
+    localThreads.some((thread) => thread.id === selectedThreadId);
+  if (selectedThreadId !== null && !selectedThreadStillExists) {
+    setSelectedThreadId(localThreads[0]?.id ?? null);
+  }
+  const activeThreadId = selectedThreadStillExists
+    ? selectedThreadId
+    : (localThreads[0]?.id ?? null);
+
+  // The open conversation is read by definition. Keep that as derived state
+  // so defaulting or advancing to the first thread needs no effect.
+  const visibleThreads = useMemo(
+    () =>
+      localThreads.map((thread) =>
+        thread.id === activeThreadId && thread.is_read === false
+          ? { ...thread, is_read: true }
+          : thread,
+      ),
+    [activeThreadId, localThreads],
+  );
 
   const selectedThread = useMemo(
-    () => threads.find((thread) => thread.id === activeThreadId) ?? null,
-    [activeThreadId, threads],
+    () => visibleThreads.find((thread) => thread.id === activeThreadId) ?? null,
+    [activeThreadId, visibleThreads],
   );
+
+  const unreadCount = useMemo(
+    () => visibleThreads.filter((thread) => thread.is_read === false).length,
+    [visibleThreads],
+  );
+
+  const filteredThreads = useMemo(() => {
+    const query = threadSearch.trim().toLowerCase();
+
+    return visibleThreads.filter((thread: ThreadWithReadState) => {
+      if (query) {
+        const name = thread.customer?.name?.toLowerCase() ?? "";
+        const preview = thread.last_message?.toLowerCase() ?? "";
+        if (!name.includes(query) && !preview.includes(query)) {
+          return false;
+        }
+      }
+
+      if (readFilter === "unread" && thread.is_read !== false) {
+        return false;
+      }
+      if (readFilter === "read" && thread.is_read === false) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [visibleThreads, threadSearch, readFilter]);
 
   useEffect(() => {
     if (!storeCode) return;
@@ -339,38 +561,6 @@ export default function Support() {
 
   const handleThreadMessageAdded = useCallback((message: ThreadMessage) => {
     setThreadMessages((prev) => [...prev, message]);
-  }, []);
-
-  const handleCloseRequest = useCallback(() => {
-    setIsCloseConfirmOpen(true);
-  }, []);
-
-  const handleConfirmClose = useCallback(async () => {
-    try {
-      await dispatch(CloseThread(activeThreadId)).unwrap();
-      toast.success("Conversation closed successfully");
-      setSelectedThreadId(null);
-      setIsCloseConfirmOpen(false);
-
-      if (storeCode) {
-        dispatch(
-          FetchThreads({
-            store_code: storeCode,
-            page: 1,
-            limit: 50,
-            filters: { is_active: true },
-          }),
-        );
-      }
-    } catch (error) {
-      toast.error(
-        typeof error === "string" ? error : "Failed to close conversation",
-      );
-    }
-  }, [dispatch, activeThreadId]);
-
-  const handleCancelClose = useCallback(() => {
-    setIsCloseConfirmOpen(false);
   }, []);
 
   const handleTakeOver = useCallback(async () => {
@@ -456,6 +646,148 @@ export default function Support() {
     );
   }, []);
 
+  const handleSelectThread = useCallback((threadId: string) => {
+    // Close the previously open thread's chat socket immediately on click,
+    // rather than waiting for the effect below to notice the id changed.
+    wsRef.current?.close();
+    wsRef.current = null;
+    setLocalThreads((prev) =>
+      prev.map((thread) =>
+        thread.id === threadId && thread.is_read === false
+          ? { ...thread, is_read: true }
+          : thread,
+      ),
+    );
+    setSelectedThreadId(threadId);
+  }, []);
+
+  // Insert or patch a thread in localThreads based on an incoming dashboard
+  // "message" event. Existing threads keep their position; brand-new
+  // threads are prepended. Marks the thread unread unless it's the one
+  // currently open.
+  const upsertThreadFromMessage = useCallback(
+    (data: DashboardMessageEvent) => {
+      const belongsToOpenThread = data.thread_id === activeThreadId;
+
+      setLocalThreads((prev) => {
+        const existingIndex = prev.findIndex((t) => t.id === data.thread_id);
+
+        if (existingIndex === -1) {
+          const newThread: ThreadWithReadState = {
+            id: data.thread_id,
+            last_message: data.message,
+            is_active: data.is_active,
+            total_messages: 1,
+            created_at: new Date().toISOString(),
+            customer: null,
+            is_read: belongsToOpenThread,
+          } as ThreadWithReadState;
+          return [newThread, ...prev];
+        }
+
+        return prev.map((thread) =>
+          thread.id === data.thread_id
+            ? {
+                ...thread,
+                last_message: data.message,
+                is_active: data.is_active,
+                total_messages: (thread.total_messages ?? 0) + 1,
+                is_read: belongsToOpenThread,
+              }
+            : thread,
+        );
+      });
+
+      // If this message belongs to the thread currently open in the chat
+      // panel, the user is already looking at it — append it there so the
+      // open conversation stays live instead of just flagging it unread.
+      if (belongsToOpenThread) {
+        handleThreadMessageAdded({
+          role: data.role,
+          message: data.message,
+          created_at: new Date().toISOString(),
+          messaged_by: "",
+        });
+      }
+    },
+    [activeThreadId, handleThreadMessageAdded],
+  );
+
+  const removeClosedThread = useCallback((threadId: string) => {
+    setLocalThreads((prev) => prev.filter((t) => t.id !== threadId));
+  }, []);
+
+  // ---- Dashboard-wide socket: opens once the page has an authenticated
+  // session, independent of which thread is selected. Drives live updates
+  // to the thread list (new messages, new threads, closed threads). ----
+  useEffect(() => {
+    const token = session?.user?.access_token;
+    if (!token) {
+      dashboardWsRef.current?.close();
+      dashboardWsRef.current = null;
+      return;
+    }
+
+    if (dashboardWsRef.current) {
+      dashboardWsRef.current.close();
+      dashboardWsRef.current = null;
+    }
+
+    const dashboardUrl = ENDPOINTS.dashboardSocket(storeCode, token);
+    const dashboardWs = new WebSocket(dashboardUrl);
+    dashboardWsRef.current = dashboardWs;
+
+    dashboardWs.onopen = () => {
+      console.info("Dashboard socket connected");
+    };
+
+    dashboardWs.onmessage = (event) => {
+      let data: DashboardSocketPayload;
+      try {
+        data = JSON.parse(event.data);
+      } catch (error) {
+        console.error("Failed to parse dashboard socket message", error);
+        return;
+      }
+
+      if (!data?.success) {
+        return;
+      }
+
+      if (data.action_type === "connection") {
+        return;
+      }
+
+      if (data.action_type === "message") {
+        upsertThreadFromMessage(data.data);
+        return;
+      }
+
+      if (data.action_type === "thread_closed") {
+        removeClosedThread(data.data.thread_id);
+      }
+    };
+
+    dashboardWs.onclose = () => {
+      if (dashboardWsRef.current === dashboardWs) {
+        dashboardWsRef.current = null;
+      }
+      console.info("Dashboard socket disconnected");
+    };
+
+    dashboardWs.onerror = (error) => {
+      console.error("Dashboard socket error", error);
+    };
+
+    return () => {
+      dashboardWs.close();
+      if (dashboardWsRef.current === dashboardWs) {
+        dashboardWsRef.current = null;
+      }
+    };
+  }, [session?.user?.access_token]);
+
+  // ---- Per-thread chat socket: opens/closes as the selected thread changes. ----
   useEffect(() => {
     if (
       !activeThreadId ||
@@ -465,6 +797,11 @@ export default function Support() {
       wsRef.current?.close();
       wsRef.current = null;
       return;
+    }
+
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
     }
 
     const url = ENDPOINTS.chatSocket(activeThreadId, session.user.access_token);
@@ -517,6 +854,9 @@ export default function Support() {
     };
 
     ws.onclose = () => {
+      if (wsRef.current === ws) {
+        wsRef.current = null;
+      }
       console.info("Agent disconnected");
     };
 
@@ -526,7 +866,9 @@ export default function Support() {
 
     return () => {
       ws.close();
-      wsRef.current = null;
+      if (wsRef.current === ws) {
+        wsRef.current = null;
+      }
     };
   }, [
     activeThreadId,
@@ -539,50 +881,117 @@ export default function Support() {
     <div className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)_520px]">
         <Card className="flex min-h-0 flex-col overflow-hidden gap-2">
-          <CardHeader className="border-b border-border/50">
+          <CardHeader className="border-b border-border/50 space-y-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <IconMessage2 className="size-4" />
               Active Chats
+              {localThreads.length > 0 && (
+                <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
+                  {localThreads.length}
+                </span>
+              )}
             </CardTitle>
+            <div className="relative">
+              <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={threadSearch}
+                onChange={(event) => setThreadSearch(event.target.value)}
+                placeholder="Search conversations…"
+                className="h-8 w-full border border-input bg-muted/40 pl-8 pr-3 text-xs outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              {(
+                [
+                  { key: "all", label: "All" },
+                  { key: "unread", label: "Unread" },
+                  { key: "read", label: "Read" },
+                ] as const
+              ).map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setReadFilter(option.key)}
+                  className={`flex items-center gap-1 border px-2.5 py-1 text-[11px] font-medium transition ${
+                    readFilter === option.key
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border/60 bg-background text-muted-foreground hover:bg-muted/60"
+                  }`}
+                >
+                  {option.label}
+                  {option.key === "unread" && unreadCount > 0 && (
+                    <span
+                      className={`rounded-full px-1.5 text-[10px] ${
+                        readFilter === "unread"
+                          ? "bg-primary-foreground/20"
+                          : "bg-muted text-foreground/70"
+                      }`}
+                    >
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </CardHeader>
           <CardContent className="flex-1 min-h-0 overflow-y-auto p-3">
             {FetchThreadsIsLoading ? (
               <div className="flex h-full items-center justify-center">
                 <Spinner />
               </div>
-            ) : threads.length ? (
-              <div className="space-y-2">
-                {threads.map((thread: Thread) => {
+            ) : filteredThreads.length ? (
+              <div className="space-y-1.5">
+                {filteredThreads.map((thread: ThreadWithReadState) => {
                   const isSelected = thread.id === activeThreadId;
+                  const isUnread = thread.is_read === false;
 
                   return (
                     <button
                       key={thread.id}
                       type="button"
-                      onClick={() => setSelectedThreadId(thread.id)}
-                      className={`w-full rounded-lg border p-3 text-left transition ${
+                      onClick={() => handleSelectThread(thread.id)}
+                      className={`w-full rounded-xl border-l-[3px] p-3 text-left transition ${
                         isSelected
-                          ? "border-primary bg-primary/10 shadow-sm"
-                          : "border-border/60 bg-background hover:border-primary/50 hover:bg-muted/50"
+                          ? "border-l-primary bg-primary/[0.07] shadow-sm"
+                          : isUnread
+                            ? "border-l-sky-500 bg-sky-500/[0.06] hover:bg-sky-500/[0.1] dark:bg-sky-400/[0.08]"
+                            : "border-l-transparent hover:bg-muted/50"
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <Avatar className="mt-0.5 h-9 w-9 shrink-0">
-                          <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-                            <IconUser className="h-5 w-5" />
-                          </AvatarFallback>
-                        </Avatar>
+                        <CustomerAvatar
+                          name={thread.customer?.name}
+                          online={thread.is_active}
+                        />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
-                              {thread.customer?.name ? (
-                                <p className="truncate text-sm font-medium">
-                                  {thread.customer.name}
-                                </p>
-                              ) : null}
+                              <div className="flex items-center gap-1.5">
+                                {thread.customer?.name ? (
+                                  <p
+                                    className={`truncate text-sm ${
+                                      isUnread
+                                        ? "font-semibold text-foreground"
+                                        : "font-medium"
+                                    }`}
+                                  >
+                                    {thread.customer.name}
+                                  </p>
+                                ) : (
+                                  <p
+                                    className={`truncate text-sm text-muted-foreground ${
+                                      isUnread ? "font-semibold" : "font-medium"
+                                    }`}
+                                  >
+                                    Anonymous visitor
+                                  </p>
+                                )}
+                              </div>
                               <p
-                                className={`line-clamp-2 text-xs text-muted-foreground ${
-                                  thread.customer?.name ? "mt-1" : "mt-0"
+                                className={`mt-0.5 line-clamp-2 text-xs ${
+                                  isUnread
+                                    ? "text-foreground/70 font-bold"
+                                    : "text-muted-foreground"
                                 }`}
                               >
                                 {thread.last_message ||
@@ -602,6 +1011,21 @@ export default function Support() {
                   );
                 })}
               </div>
+            ) : threadSearch || readFilter !== "all" ? (
+              <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">
+                  {readFilter === "unread"
+                    ? "No unread conversations"
+                    : readFilter === "read"
+                      ? "No read conversations"
+                      : "No matches"}
+                </p>
+                <p>
+                  {threadSearch
+                    ? "Try a different name or keyword."
+                    : "Try a different filter."}
+                </p>
+              </div>
             ) : (
               <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
                 No active chats matched the current store scope.
@@ -611,27 +1035,19 @@ export default function Support() {
         </Card>
 
         <Card className="flex min-h-0 flex-col overflow-hidden">
-          <CardHeader className="border-b border-border/50">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Avatar className="mt-0.5 h-9 w-9 shrink-0">
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-                    <IconUser className="h-5 w-5" />
-                  </AvatarFallback>
-                </Avatar>
+          <CardHeader className="border-b border-border/50 bg-background/95 py-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <CustomerAvatar
+                  name={selectedThread?.customer?.name}
+                  online={selectedThread?.is_active}
+                />
                 <div>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    {selectedThread?.customer?.name ||
-                      selectedThread?.name ||
-                      "Conversation"}
+                  <CardTitle className="text-base leading-tight">
+                    {selectedThread?.customer?.name || "Anonymous visitor"}
                   </CardTitle>
                   {selectedThread?.is_active ? (
                     <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium ${isAgentConnected ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"}`}
-                      >
-                        {isAgentConnected ? "Live" : "AI Mode"}
-                      </span>
                       <span className="text-xs text-muted-foreground">
                         {isAgentConnected
                           ? "Connected with agent"
@@ -649,6 +1065,7 @@ export default function Support() {
                       onClick={handleTakeOver}
                       disabled={transitionState !== "idle"}
                     >
+                      <IconHeadset className="h-4 w-4" />
                       Take Over
                     </Button>
                   ) : (
@@ -658,18 +1075,11 @@ export default function Support() {
                       onClick={handleReturnToAI}
                       disabled={transitionState !== "idle"}
                     >
+                      <IconRobot className="h-4 w-4" />
                       Return to AI
                     </Button>
                   )
                 ) : null}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCloseRequest}
-                >
-                  Close
-                </Button>
               </div>
             </div>
           </CardHeader>
@@ -686,8 +1096,12 @@ export default function Support() {
                     {threadMessages.length > 0 ? (
                       <MessagePan messages={threadMessages} />
                     ) : (
-                      <div className="flex h-full items-center justify-center p-6 text-center text-sm text-muted-foreground">
-                        No messages were returned for this thread yet.
+                      <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted-foreground">
+                        <IconMessage2 className="mb-1 h-6 w-6 opacity-40" />
+                        <p className="font-medium text-foreground">
+                          Nothing here yet
+                        </p>
+                        <p>Messages for this thread will show up here.</p>
                       </div>
                     )}
                   </div>
@@ -748,35 +1162,6 @@ export default function Support() {
           </CardContent>
         </Card>
       </div>
-
-      {isCloseConfirmOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-background/70 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-xl border border-border/60 bg-background p-6 shadow-xl">
-            <h3 className="text-lg font-semibold">Close conversation?</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              This will clear the current conversation view. You can reopen it
-              later from the thread list.
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancelClose}
-                disabled={CloseThreadIsLoading}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleConfirmClose}
-                disabled={CloseThreadIsLoading}
-              >
-                {CloseThreadIsLoading ? <>Closing...</> : "Close"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
