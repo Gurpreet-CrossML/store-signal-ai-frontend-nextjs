@@ -51,6 +51,7 @@ import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
+import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 
 // Extends the shared Thread type with a local read-state flag. Ideally
 // `is_read` becomes a real field on Thread (and maybe comes from the API),
@@ -95,33 +96,6 @@ const AVATAR_PALETTE = [
   "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
   "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
   "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-];
-
-const emojiList = [
-  "😀",
-  "😊",
-  "🙂",
-  "😉",
-  "😍",
-  "😂",
-  "😭",
-  "😢",
-  "😎",
-  "🤔",
-  "👍",
-  "👎",
-  "👌",
-  "👏",
-  "🙌",
-  "🙏",
-  "❤️",
-  "🔥",
-  "✨",
-  "🎉",
-  "💯",
-  "💪",
-  "👋",
-  "🤝",
 ];
 
 function getAvatarColor(seed: string) {
@@ -228,6 +202,10 @@ function ThreadChatControls({
     (agentMessage.trim().length > 0 || selectedFiles.length > 0) &&
     transitionState === "idle";
 
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    onEmojiSelect(emojiData.emoji);
+  };
+
   return (
     <div
       className={`relative border-t border-border/50 bg-background/95 p-4 ${className ?? ""}`}
@@ -252,17 +230,15 @@ function ThreadChatControls({
           </div>
 
           {isEmojiPickerOpen && (
-            <div className="grid max-h-40 grid-cols-8 gap-1 overflow-y-auto border-b border-border/50 p-2">
-              {emojiList.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  className="flex items-center justify-center rounded-md py-1 text-lg transition-colors hover:bg-muted"
-                  onClick={() => onEmojiSelect(emoji)}
-                >
-                  {emoji}
-                </button>
-              ))}
+            <div className="border-b border-border/50 p-2">
+              <EmojiPicker
+                onEmojiClick={handleEmojiClick}
+                width="100%"
+                height={320}
+                theme={Theme.AUTO}
+                previewConfig={{ showPreview: false }}
+                searchPlaceholder="Search emoji…"
+              />
             </div>
           )}
 
