@@ -1,7 +1,4 @@
-const INTEGRATION_LOGO_BUCKET =
-  process.env.NEXT_PUBLIC_INTEGRATION_LOGO_BUCKET ||
-  process.env.NEXT_PUBLIC_S3_BUCKET_NAME ||
-  "";
+const INTEGRATION_LOGO_BUCKET = process.env.NEXT_PUBLIC_S3_BUCKET_NAME || "";
 
 function isAbsoluteUrl(value: string) {
   return /^https?:\/\//i.test(value) || value.startsWith("//");

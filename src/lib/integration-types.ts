@@ -8,7 +8,7 @@ export type IntegrationAttribute = {
   is_required: boolean;
 };
 
-export type CoreIntegration = {
+export type Integration = {
   id: number;
   name: string;
   logo: string | null;
@@ -24,6 +24,6 @@ export type CoreIntegration = {
   attributes?: IntegrationAttribute[];
 };
 
-export type IntegrationCatalogItem = CoreIntegration & {
+export type IntegrationCatalogItem = Integration & {
   attributes: IntegrationAttribute[];
 };
