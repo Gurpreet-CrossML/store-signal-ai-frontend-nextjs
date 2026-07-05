@@ -12,126 +12,165 @@ export type StoreIntegrationRecord = {
   integration: number;
 };
 
-export const fetchIntegrationsCatalog = createAsyncThunk<IntegrationCatalogItem[]>(
-  "Integrations/fetchCatalog",
-  async (_, thunkAPI) => {
-    try {
-      const response = await axiosInstance.get(ENDPOINTS.fetchIntegrationsCatalog());
-      return response.data.data || response.data;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
-    }
+export const fetchIntegrationsCatalog = createAsyncThunk<
+  IntegrationCatalogItem[]
+>("Integrations/fetchCatalog", async (_, thunkAPI) => {
+  try {
+    const response = await axiosInstance.get(
+      ENDPOINTS.fetchIntegrationsCatalog(),
+    );
+    return response.data.data || response.data;
+  } catch (error) {
+    const response = isAxiosError(error) ? error.response : undefined;
+    return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
   }
-);
+});
 
-export const fetchStoreIntegrations = createAsyncThunk<StoreIntegrationRecord[], number>(
-  "Integrations/fetchStoreIntegrations",
-  async (storeId, thunkAPI) => {
-    try {
-      const response = await axiosInstance.get(ENDPOINTS.storeIntegrations(storeId), {
+export const fetchStoreIntegrations = createAsyncThunk<
+  StoreIntegrationRecord[],
+  number
+>("Integrations/fetchStoreIntegrations", async (storeId, thunkAPI) => {
+  try {
+    const response = await axiosInstance.get(
+      ENDPOINTS.storeIntegrations(storeId),
+      {
         useBackend: true,
-      });
-      return response.data.data || response.data;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
-    }
+      },
+    );
+    return response.data.data || response.data;
+  } catch (error) {
+    const response = isAxiosError(error) ? error.response : undefined;
+    return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
   }
-);
+});
 
 export const connectStoreIntegration = createAsyncThunk<
   { id: number; integrationId: number },
-  { storeId: number; integrationId: number; attributeValues?: Record<string, string> }
->("Integrations/connectStoreIntegration", async ({ storeId, integrationId, attributeValues }, thunkAPI) => {
-  try {
-    const payload: Record<string, unknown> = {
-      integration_id: integrationId,
-      store: storeId,
-    };
-    if (attributeValues) {
-      payload.attribute_values = attributeValues;
-    }
-
-    const response = await axiosInstance.post(
-      ENDPOINTS.storeIntegrations(storeId),
-      payload,
-      {
-        useBackend: true,
-      }
-    );
-    toast.success("Integration enabled");
-    const data = response.data.data || response.data;
-    return { id: data.id, integrationId };
-  } catch (error) {
-    const response = isAxiosError(error) ? error.response : undefined;
-    const data = response?.data as { message?: string; detail?: string; error?: string } | undefined;
-    toast.error(
-      data?.message || data?.detail || data?.error || (error instanceof Error ? error.message : "") || "Something went wrong."
-    );
-    return thunkAPI.rejectWithValue(data || "Something went wrong");
+  {
+    storeId: number;
+    integrationId: number;
+    attributeValues?: Record<string, string>;
   }
-});
+>(
+  "Integrations/connectStoreIntegration",
+  async ({ storeId, integrationId, attributeValues }, thunkAPI) => {
+    try {
+      const payload: Record<string, unknown> = {
+        integration_id: integrationId,
+        store: storeId,
+      };
+      if (attributeValues) {
+        payload.attribute_values = attributeValues;
+      }
+
+      const response = await axiosInstance.post(
+        ENDPOINTS.storeIntegrations(storeId),
+        payload,
+        {
+          useBackend: true,
+        },
+      );
+      toast.success("Integration enabled");
+      const data = response.data.data || response.data;
+      return { id: data.id, integrationId };
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data as
+        | { message?: string; detail?: string; error?: string }
+        | undefined;
+      toast.error(
+        data?.message ||
+          data?.detail ||
+          data?.error ||
+          (error instanceof Error ? error.message : "") ||
+          "Something went wrong.",
+      );
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
 
 export const deleteStoreIntegration = createAsyncThunk<
   { integrationId: number },
   { storeId: number; integrationId: number }
->("Integrations/deleteStoreIntegration", async ({ storeId, integrationId }, thunkAPI) => {
-  try {
-    await axiosInstance.delete(ENDPOINTS.deleteStoreIntegration(storeId, integrationId), {
-      useBackend: true,
-    });
-    toast.success("Integration disabled");
-    return { integrationId };
-  } catch (error) {
-    const response = isAxiosError(error) ? error.response : undefined;
-    const data = response?.data as { message?: string; detail?: string; error?: string } | undefined;
-    toast.error(
-      data?.message || data?.detail || data?.error || (error instanceof Error ? error.message : "") || "Something went wrong."
-    );
-    return thunkAPI.rejectWithValue(data || "Something went wrong");
-  }
-});
+>(
+  "Integrations/deleteStoreIntegration",
+  async ({ storeId, integrationId }, thunkAPI) => {
+    try {
+      await axiosInstance.delete(
+        ENDPOINTS.deleteStoreIntegration(storeId, integrationId),
+        {
+          useBackend: true,
+        },
+      );
+      toast.success("Integration disabled");
+      return { integrationId };
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data as
+        | { message?: string; detail?: string; error?: string }
+        | undefined;
+      toast.error(
+        data?.message ||
+          data?.detail ||
+          data?.error ||
+          (error instanceof Error ? error.message : "") ||
+          "Something went wrong.",
+      );
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
 
 export const testStoreIntegrationConnection = createAsyncThunk<
   { message?: string; detail?: string },
-  { storeId: number; integrationId: number; attributeValues: Record<string, string> }
->("Integrations/testConnection", async ({ storeId, integrationId, attributeValues }, thunkAPI) => {
-  try {
-    const response = await axiosInstance.post(
-      ENDPOINTS.testStoreIntegrationConnection(storeId),
-      {
-        integration_id: integrationId,
-        attribute_values: attributeValues,
-      },
-      {
-        useBackend: true,
-      }
-    );
-    return response.data.data || response.data;
-  } catch (error) {
-    const response = isAxiosError(error) ? error.response : undefined;
-    return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+  {
+    storeId: number;
+    integrationId: number;
+    attributeValues: Record<string, string>;
   }
-});
+>(
+  "Integrations/testConnection",
+  async ({ storeId, integrationId, attributeValues }, thunkAPI) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.testStoreIntegrationConnection(storeId),
+        {
+          integration_id: integrationId,
+          attribute_values: attributeValues,
+        },
+        {
+          useBackend: true,
+        },
+      );
+      return response.data.data || response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+    }
+  },
+);
 
 export const fetchStoreIntegrationDetail = createAsyncThunk<
   { id: number; stored_attributes: { code: string; value: string }[] },
   { storeId: number; storeIntegrationRowId: number }
->("Integrations/fetchDetail", async ({ storeId, storeIntegrationRowId }, thunkAPI) => {
-  try {
-    const response = await axiosInstance.get(
-      ENDPOINTS.updateStoreIntegration(storeId, storeIntegrationRowId),
-      {
-        useBackend: true,
-      }
-    );
-    return response.data.data || response.data;
-  } catch (error) {
-    const response = isAxiosError(error) ? error.response : undefined;
-    return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
-  }
-});
+>(
+  "Integrations/fetchDetail",
+  async ({ storeId, storeIntegrationRowId }, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        ENDPOINTS.updateStoreIntegration(storeId, storeIntegrationRowId),
+        {
+          useBackend: true,
+        },
+      );
+      return response.data.data || response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+    }
+  },
+);
 
 const IntegrationsSlice = createSlice({
   name: "Integrations",
@@ -147,15 +186,19 @@ const IntegrationsSlice = createSlice({
     },
   },
   reducers: {
-    setEnabledId: (state, action: PayloadAction<{ id: number; enabled: boolean }>) => {
-      state.IntegrationsState.enabledIds[action.payload.id] = action.payload.enabled;
+    setEnabledId: (
+      state,
+      action: PayloadAction<{ id: number; enabled: boolean }>,
+    ) => {
+      state.IntegrationsState.enabledIds[action.payload.id] =
+        action.payload.enabled;
     },
     resetIntegrationsState: (state) => {
       state.IntegrationsState.storeIntegrations = [];
       state.IntegrationsState.enabledIds = {};
       state.IntegrationsState.savedIds = {};
       state.IntegrationsState.storeIntegrationIds = {};
-    }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -205,6 +248,7 @@ const IntegrationsSlice = createSlice({
   },
 });
 
-export const { setEnabledId, resetIntegrationsState } = IntegrationsSlice.actions;
+export const { setEnabledId, resetIntegrationsState } =
+  IntegrationsSlice.actions;
 
 export default IntegrationsSlice.reducer;

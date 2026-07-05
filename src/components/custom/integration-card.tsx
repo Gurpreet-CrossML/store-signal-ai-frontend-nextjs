@@ -129,7 +129,10 @@ export function IntegrationCard({
           Configure
           <IconArrowRight />
         </Button>
-        <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="flex items-center space-x-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           <Switch
             id={`enable-${integration.id}`}
             checked={checked}

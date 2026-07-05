@@ -13,9 +13,15 @@ import {
   testStoreIntegrationConnection,
   setEnabledId,
 } from "@/redux/api-slice/integrations-slice";
-import type { Integration, IntegrationAttribute } from "@/lib/integration-types";
+import type {
+  Integration,
+  IntegrationAttribute,
+} from "@/lib/integration-types";
 import { IntegrationCard } from "@/components/custom/integration-card";
-import { IntegrationDialog, StepId } from "@/components/custom/integration-dialog";
+import {
+  IntegrationDialog,
+  StepId,
+} from "@/components/custom/integration-dialog";
 
 export default function StoreIntegrationsTabContent() {
   const dispatch = useAppDispatch();
@@ -26,10 +32,13 @@ export default function StoreIntegrationsTabContent() {
     (state) => state.GetStoresReducer.GetStoresState.GetStoresListData,
   );
 
-  const store = storeList.find((item) => item.code === selectedStoreCode) ?? null;
+  const store =
+    storeList.find((item) => item.code === selectedStoreCode) ?? null;
   const storeId = store ? Number(store.id) : null;
 
-  const integrationsState = useAppSelector((state) => state.GetIntegrationsReducer.IntegrationsState);
+  const integrationsState = useAppSelector(
+    (state) => state.GetIntegrationsReducer.IntegrationsState,
+  );
   const { catalog, enabledIds, savedIds, storeIntegrationIds } = {
     catalog: integrationsState.catalog,
     enabledIds: integrationsState.enabledIds,
@@ -37,11 +46,16 @@ export default function StoreIntegrationsTabContent() {
     storeIntegrationIds: integrationsState.storeIntegrationIds,
   };
 
-  const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
+  const [selectedIntegration, setSelectedIntegration] =
+    useState<Integration | null>(null);
   const [step, setStep] = useState<StepId>(0);
   const [attributes, setAttributes] = useState<IntegrationAttribute[]>([]);
-  const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
-  const [testState, setTestState] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [attributeValues, setAttributeValues] = useState<
+    Record<string, string>
+  >({});
+  const [testState, setTestState] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
   const [testMessage, setTestMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const prefillRequestRef = useRef(0);
@@ -89,7 +103,7 @@ export default function StoreIntegrationsTabContent() {
         dispatch(setEnabledId({ id: previousId, enabled: false }));
       }
     }
-    
+
     dispatch(setEnabledId({ id: integration.id, enabled: true }));
 
     prefillRequestRef.current += 1;
@@ -108,10 +122,12 @@ export default function StoreIntegrationsTabContent() {
       storeIntegrationIds[integration.id] &&
       storeId != null
     ) {
-      dispatch(fetchStoreIntegrationDetail({
-        storeId,
-        storeIntegrationRowId: storeIntegrationIds[integration.id],
-      }))
+      dispatch(
+        fetchStoreIntegrationDetail({
+          storeId,
+          storeIntegrationRowId: storeIntegrationIds[integration.id],
+        }),
+      )
         .unwrap()
         .then((data) => {
           if (prefillRequestRef.current !== requestId) return;
@@ -126,10 +142,7 @@ export default function StoreIntegrationsTabContent() {
     }
   };
 
-  const handleToggle = async (
-    integration: Integration,
-    checked: boolean,
-  ) => {
+  const handleToggle = async (integration: Integration, checked: boolean) => {
     if (checked) {
       openPanel(integration);
       return;
@@ -139,7 +152,9 @@ export default function StoreIntegrationsTabContent() {
       const storeIntegrationId = storeIntegrationIds[integration.id];
       if (storeId == null || storeIntegrationId == null) return;
 
-      dispatch(deleteStoreIntegration({ storeId, integrationId: integration.id }));
+      dispatch(
+        deleteStoreIntegration({ storeId, integrationId: integration.id }),
+      );
       return;
     }
 
@@ -158,12 +173,14 @@ export default function StoreIntegrationsTabContent() {
     setTestMessage(null);
 
     try {
-      const response = await dispatch(testStoreIntegrationConnection({
-        storeId,
-        integrationId: selectedIntegration.id,
-        attributeValues,
-      })).unwrap();
-      
+      const response = await dispatch(
+        testStoreIntegrationConnection({
+          storeId,
+          integrationId: selectedIntegration.id,
+          attributeValues,
+        }),
+      ).unwrap();
+
       const message =
         (response as { message?: string; detail?: string })?.message ||
         (response as { message?: string; detail?: string })?.detail ||
@@ -172,7 +189,9 @@ export default function StoreIntegrationsTabContent() {
       setTestMessage(message);
     } catch (error) {
       setTestState("error");
-      const responseMessage = (error as { message?: string; detail?: string; error?: string }) || undefined;
+      const responseMessage =
+        (error as { message?: string; detail?: string; error?: string }) ||
+        undefined;
       setTestMessage(
         responseMessage?.message ||
           responseMessage?.detail ||
@@ -190,12 +209,14 @@ export default function StoreIntegrationsTabContent() {
     setSaving(true);
 
     try {
-      await dispatch(connectStoreIntegration({
-        storeId,
-        integrationId: selectedIntegration.id,
-        attributeValues,
-      })).unwrap();
-      
+      await dispatch(
+        connectStoreIntegration({
+          storeId,
+          integrationId: selectedIntegration.id,
+          attributeValues,
+        }),
+      ).unwrap();
+
       closePanel(true);
     } catch {
       // toast is handled in the thunk

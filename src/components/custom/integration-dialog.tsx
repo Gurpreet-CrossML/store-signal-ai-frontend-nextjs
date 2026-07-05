@@ -1,6 +1,16 @@
 import { useState } from "react";
-import { IconArrowLeft, IconArrowRight, IconCheck, IconChevronRight } from "@tabler/icons-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  IconArrowLeft,
+  IconArrowRight,
+  IconCheck,
+  IconChevronRight,
+} from "@tabler/icons-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,7 +18,10 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { Integration, IntegrationAttribute } from "@/lib/integration-types";
+import type {
+  Integration,
+  IntegrationAttribute,
+} from "@/lib/integration-types";
 import { LogoMark } from "@/components/custom/integration-card";
 import { Stepper } from "@/components/custom/stepper";
 
@@ -38,7 +51,11 @@ interface IntegrationDialogProps {
   currentSaved: boolean;
   onClose: (keepEnabled: boolean) => void;
   onSetStep: (step: StepId) => void;
-  onSetAttributeValues: (values: Record<string, string> | ((current: Record<string, string>) => Record<string, string>)) => void;
+  onSetAttributeValues: (
+    values:
+      | Record<string, string>
+      | ((current: Record<string, string>) => Record<string, string>),
+  ) => void;
   onSetTestState: (state: "idle" | "loading" | "success" | "error") => void;
   onSetTestMessage: (message: string | null) => void;
   onTestConnection: () => Promise<void>;
@@ -64,7 +81,9 @@ export function IntegrationDialog({
   onTestConnection,
   onSave,
 }: IntegrationDialogProps) {
-  const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>({});
+  const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>(
+    {},
+  );
 
   return (
     <Dialog
@@ -78,9 +97,7 @@ export function IntegrationDialog({
           <DialogHeader className="border-b border-border/60 px-5 pb-3 pt-5 pr-16">
             <div className="flex items-start justify-between gap-4">
               <div className="flex min-w-0 items-start gap-3">
-                {integration ? (
-                  <LogoMark integration={integration} />
-                ) : null}
+                {integration ? <LogoMark integration={integration} /> : null}
                 <div className="min-w-0">
                   <DialogTitle className="text-lg font-medium">
                     {integration?.name ?? "Integration"}
@@ -126,7 +143,8 @@ export function IntegrationDialog({
                 <div className="space-y-4">
                   <div className="space-y-4">
                     {attributes.map((attribute) => {
-                      const fieldType = attribute.type === "url" ? "url" : "text";
+                      const fieldType =
+                        attribute.type === "url" ? "url" : "text";
                       const secretField = isSecretField(attribute);
                       return (
                         <Field key={attribute.code} className="space-y-2">
@@ -169,7 +187,9 @@ export function IntegrationDialog({
                                   }));
                                 }}
                               >
-                                {visibleFields[attribute.code] ? "Hide" : "Show"}
+                                {visibleFields[attribute.code]
+                                  ? "Hide"
+                                  : "Show"}
                               </Button>
                             )}
                           </div>
@@ -185,7 +205,11 @@ export function IntegrationDialog({
                   </div>
 
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <Button type="button" variant="outline" onClick={() => onSetStep(0)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => onSetStep(0)}
+                    >
                       <IconArrowLeft />
                       Back
                     </Button>
@@ -255,14 +279,20 @@ export function IntegrationDialog({
                   </div>
 
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <Button type="button" variant="outline" onClick={() => onSetStep(1)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => onSetStep(1)}
+                    >
                       <IconArrowLeft />
                       Back
                     </Button>
                     <Button
                       type="button"
                       onClick={() => void onSave()}
-                      disabled={testState !== "success" || saving || storeId == null}
+                      disabled={
+                        testState !== "success" || saving || storeId == null
+                      }
                     >
                       {saving ? (
                         <>
