@@ -136,10 +136,10 @@ function ThreadAIInsightCard({
                       {item}
                     </li>
                   )) || (
-                    <p className="text-sm text-muted-foreground italic">
-                      No data available.
-                    </p>
-                  )}
+                      <p className="text-sm text-muted-foreground italic">
+                        No data available.
+                      </p>
+                    )}
                 </ul>
               </div>
             )}
@@ -164,9 +164,9 @@ function ThreadAIInsightCard({
             <div>
               <span>Performing Matrix</span>
               {overperformingCases &&
-              underperformingCases &&
-              overperformingCases?.length === 0 &&
-              underperformingCases?.length === 0 ? (
+                underperformingCases &&
+                overperformingCases?.length === 0 &&
+                underperformingCases?.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">
                   No Matrix available.
                 </p>
@@ -370,10 +370,10 @@ function FreshdeskTicketCard({
               </CardContent>
             </Card>
           )) || (
-            <p className="text-sm text-muted-foreground italic">
-              No Freshdesk ticket data available.
-            </p>
-          )}
+              <p className="text-sm text-muted-foreground italic">
+                No Freshdesk ticket data available.
+              </p>
+            )}
         </CardContent>
       )}
     </Card>
@@ -743,13 +743,13 @@ export default function ThreadDetailDrawer({
 
                       {(thread?.customer?.email ||
                         FetchThreadDetailsData?.customer_email) && (
-                        <>
-                          <br />
-                          {thread?.customer?.email ||
-                            FetchThreadDetailsData?.customer_email ||
-                            "-"}
-                        </>
-                      )}
+                          <>
+                            <br />
+                            {thread?.customer?.email ||
+                              FetchThreadDetailsData?.customer_email ||
+                              "-"}
+                          </>
+                        )}
                     </>
                   )}
                 </CardDescription>
@@ -758,35 +758,22 @@ export default function ThreadDetailDrawer({
           </div>
         </DrawerHeader>
         <div className="grid grid-cols-1 lg:grid-cols-2 p-4 pb-0 h-full overflow-hidden">
-          <div className="relative flex flex-col h-full overflow-hidden border-0 border-r-1 border-r-border/50">
-            <div className="border-b border-gray-200 dark:border-slate-800 px-6 py-4 bg-gradient-to-r from-white dark:from-slate-900 to-gray-50 dark:to-slate-800/50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Messages
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {isAgentConnected ? "Connected with agent" : "AI Assistant"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {isAgentConnected ? (
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 rounded-full">
-                      <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                      <span className="text-xs font-medium text-green-700 dark:text-green-400">
-                        Live
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                      <IconRobot className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                      <span className="text-xs font-medium text-blue-700 dark:text-blue-400">
-                        AI Mode
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
+          <div className="relative flex flex-col h-full overflow-hidden border-0 border-r border-r-border/50">
+            <div className="flex items-center justify-between pe-4 pb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Messages
+              </h3>
+              {!thread?.is_active ? (
+                <></>
+              ) : isAgentConnected ? (
+                <Badge>
+                  Live
+                </Badge>
+              ) : (
+                <Badge>
+                  AI Mode
+                </Badge>
+              )}
             </div>
 
             {FetchThreadDetailsIsLoading ? (
@@ -802,25 +789,20 @@ export default function ThreadDetailDrawer({
                       <MessagePan messages={threadMessages} />
                     </div>
 
-                    {FetchThreadDetailsData?.is_active && (
-                      <div className="border-t border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                    {thread?.is_active && (
+                      <div className="flex py-2 px-4 border-t border-t-border/50">
                         {!isAgentConnected ? (
                           /* AI Mode */
-                          <div className="p-4">
-                            <Button
-                              className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-sm hover:shadow-md flex items-center justify-center gap-2"
-                              onClick={handleTakeOver}
-                              disabled={transitionState !== "idle"}
-                            >
-                              Take Over Chat
-                            </Button>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">
-                              Help this customer directly
-                            </p>
-                          </div>
+                          <Button
+                            className="w-full"
+                            onClick={handleTakeOver}
+                            disabled={transitionState !== "idle"}
+                          >
+                            Take Over Chat
+                          </Button>
                         ) : (
-                          <div className="p-4 space-y-3">
-                            <div className="flex gap-2">
+                          <div className="p-4 space-y-3 w-full">
+                            <div className="flex gap-2 items-center">
                               <Input
                                 placeholder="Type your message…"
                                 value={agentMessage}
@@ -833,7 +815,6 @@ export default function ThreadDetailDrawer({
                                     handleSendAgentMessage();
                                   }
                                 }}
-                                className="flex-1 h-10 bg-gray-50 dark:bg-slate-800 border-gray-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent placeholder:text-gray-500 dark:placeholder:text-gray-400"
                               />
                               <Button
                                 onClick={handleSendAgentMessage}
@@ -841,7 +822,6 @@ export default function ThreadDetailDrawer({
                                   !agentMessage.trim() ||
                                   transitionState !== "idle"
                                 }
-                                className="h-10 w-10 p-0 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 title="Send message"
                               >
                                 <IconSend className="h-4 w-4" />
