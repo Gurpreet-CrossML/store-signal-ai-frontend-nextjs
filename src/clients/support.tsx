@@ -1069,8 +1069,10 @@ export default function Support() {
                       onClick={handleTakeOver}
                       disabled={
                         transitionState !== "idle" ||
-                        (connectedAgent &&
-                          connectedAgent !== session?.user?.email)
+                        !!(
+                          connectedAgent &&
+                          connectedAgent !== session?.user?.email
+                        )
                       }
                     >
                       <IconHeadset className="h-4 w-4" />
