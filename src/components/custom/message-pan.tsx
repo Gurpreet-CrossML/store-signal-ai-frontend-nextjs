@@ -74,6 +74,7 @@ export default function MessagePan({
                 ) : (
                   <div
                     id="markdown-message-bubble"
+                    style={{ borderRadius: "0.7rem" }}
                     className={`p-3 text-sm wrap-break-word ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary border border-border rounded-tl-none"}`}
                   >
                     {message.role === "assistant" ? (
@@ -226,7 +227,7 @@ export default function MessagePan({
                             <Button
                               key={idx}
                               variant="outline"
-                              className="text-xs hover:bg-primary/25 hover:text-primary hover:border-primary"
+                              className="text-xs hover:bg-primary/25 hover:text-primary hover:border-primary rounded-full"
                             >
                               {s}
                             </Button>

@@ -13,8 +13,8 @@ import {
   smallint,
   uuid,
   jsonb,
-  uniqueIndex,
   doublePrecision,
+  uniqueIndex,
   numeric,
   inet,
 } from "drizzle-orm/pg-core";
@@ -983,75 +983,6 @@ export const chatBotevent = pgTable(
   ],
 );
 
-export const chatThread = pgTable(
-  "chat_thread",
-  {
-    id: uuid().primaryKey().notNull(),
-    name: varchar({ length: 255 }),
-    isActive: boolean("is_active").notNull(),
-    followupLevel: integer("followup_level").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    endedAt: timestamp("ended_at", { withTimezone: true, mode: "string" }),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    customerId: bigint("customer_id", { mode: "number" }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    storeId: bigint("store_id", { mode: "number" }).notNull(),
-    externalId: varchar("external_id", { length: 255 }),
-    source: varchar({ length: 20 }).notNull(),
-    chatHandler: varchar("chat_handler", { length: 10 }).notNull(),
-  },
-  (table) => [
-    index("chat_thread_chat_handler_44f4c9ad").using(
-      "btree",
-      table.chatHandler.asc().nullsLast().op("text_ops"),
-    ),
-    index("chat_thread_chat_handler_44f4c9ad_like").using(
-      "btree",
-      table.chatHandler.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("chat_thread_customer_id_31f2879e").using(
-      "btree",
-      table.customerId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("chat_thread_external_id_781a6db4").using(
-      "btree",
-      table.externalId.asc().nullsLast().op("text_ops"),
-    ),
-    index("chat_thread_external_id_781a6db4_like").using(
-      "btree",
-      table.externalId.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("chat_thread_store_id_b856f451").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-    ),
-    uniqueIndex("uniq_store_external_thread")
-      .using(
-        "btree",
-        table.storeId.asc().nullsLast().op("text_ops"),
-        table.externalId.asc().nullsLast().op("text_ops"),
-      )
-      .where(sql`(external_id IS NOT NULL)`),
-    foreignKey({
-      columns: [table.customerId],
-      foreignColumns: [chatCustomer.id],
-      name: "chat_thread_customer_id_31f2879e_fk_chat_customer_id",
-    }),
-    foreignKey({
-      columns: [table.storeId],
-      foreignColumns: [store.id],
-      name: "chat_thread_store_id_b856f451_fk_store_id",
-    }),
-  ],
-);
-
 export const chatHistory = pgTable(
   "chat_history",
   {
@@ -1116,6 +1047,85 @@ export const chatHistory = pgTable(
       columns: [table.messagedById],
       foreignColumns: [authUser.id],
       name: "chat_history_messaged_by_id_3c647c76_fk_auth_user_id",
+    }),
+  ],
+);
+
+export const chatThread = pgTable(
+  "chat_thread",
+  {
+    id: uuid().primaryKey().notNull(),
+    name: varchar({ length: 255 }),
+    isActive: boolean("is_active").notNull(),
+    followupLevel: integer("followup_level").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true, mode: "string" }),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    customerId: bigint("customer_id", { mode: "number" }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+    externalId: varchar("external_id", { length: 255 }),
+    source: varchar({ length: 20 }).notNull(),
+    chatHandler: varchar("chat_handler", { length: 10 }).notNull(),
+    chatHandlerUserId: integer("chat_handler_user_id"),
+  },
+  (table) => [
+    index("chat_thread_chat_handler_44f4c9ad").using(
+      "btree",
+      table.chatHandler.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_thread_chat_handler_44f4c9ad_like").using(
+      "btree",
+      table.chatHandler.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("chat_thread_chat_handler_user_id_b6c39021").using(
+      "btree",
+      table.chatHandlerUserId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("chat_thread_customer_id_31f2879e").using(
+      "btree",
+      table.customerId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("chat_thread_external_id_781a6db4").using(
+      "btree",
+      table.externalId.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_thread_external_id_781a6db4_like").using(
+      "btree",
+      table.externalId.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("chat_thread_store_id_b856f451").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    uniqueIndex("uniq_store_external_thread")
+      .using(
+        "btree",
+        table.storeId.asc().nullsLast().op("text_ops"),
+        table.externalId.asc().nullsLast().op("text_ops"),
+      )
+      .where(sql`(external_id IS NOT NULL)`),
+    foreignKey({
+      columns: [table.customerId],
+      foreignColumns: [chatCustomer.id],
+      name: "chat_thread_customer_id_31f2879e_fk_chat_customer_id",
+    }),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "chat_thread_store_id_b856f451_fk_store_id",
+    }),
+    foreignKey({
+      columns: [table.chatHandlerUserId],
+      foreignColumns: [authUser.id],
+      name: "chat_thread_chat_handler_user_id_b6c39021_fk_auth_user_id",
     }),
   ],
 );
