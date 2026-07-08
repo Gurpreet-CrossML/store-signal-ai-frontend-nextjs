@@ -152,7 +152,8 @@ function ThreadChatControls({
   activeThreadId,
   isThreadActive = true,
   className,
-  isAgentConnected,
+  connectedAgent,
+  user,
   transitionState,
   agentMessage,
   setAgentMessage,
@@ -169,7 +170,8 @@ function ThreadChatControls({
   activeThreadId?: string | null;
   isThreadActive?: boolean;
   className?: string;
-  isAgentConnected: boolean;
+  connectedAgent: string | null;
+  user: string | null,
   transitionState: "idle" | "taking_over" | "returning_to_ai";
   agentMessage: string;
   setAgentMessage: (value: string) => void;
@@ -210,7 +212,7 @@ function ThreadChatControls({
     <div
       className={`relative border-t border-border/50 bg-background/95 p-4 ${className ?? ""}`}
     >
-      {!isAgentConnected && (
+      {!connectedAgent && (
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-border/70 bg-muted/30 px-4 py-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <IconRobot className="h-4 w-4 shrink-0" />
@@ -221,7 +223,18 @@ function ThreadChatControls({
         </div>
       )}
 
-      {isAgentConnected && (
+      {connectedAgent && connectedAgent !== user && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-border/70 bg-muted/30 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <IconRobot className="h-4 w-4 shrink-0" />
+            <span>
+              A human agent is currently handling this conversation.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {connectedAgent === user && (
         <div className="rounded-2xl border border-border/60 bg-background shadow-sm transition-shadow focus-within:border-primary/50 focus-within:shadow-md">
           <div className="flex items-center justify-between border-b border-border/50 px-3 py-1.5">
             <span className="text-[11px] font-medium text-muted-foreground">
@@ -422,7 +435,7 @@ export default function Support() {
   );
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
-  const [isAgentConnected, setIsAgentConnected] = useState(false);
+  const [connectedAgent, setConnectedAgent] = useState<string | null>(null);
   const [transitionState, setTransitionState] = useState<
     "idle" | "taking_over" | "returning_to_ai"
   >("idle");
@@ -436,6 +449,7 @@ export default function Support() {
   const { data: session } = useSession();
   const wsRef = useRef<WebSocket | null>(null);
   const dashboardWsRef = useRef<WebSocket | null>(null);
+  const connectedAgentRef = useRef<string | null>(null);
 
   // Reset the socket-mutable copy when Redux supplies a new response. React
   // applies this guarded render-time adjustment before committing children,
@@ -698,7 +712,7 @@ export default function Support() {
   // to the thread list (new messages, new threads, closed threads). ----
   useEffect(() => {
     const token = session?.user?.access_token;
-    if (!token) {
+    if (!token || !storeCode) {
       dashboardWsRef.current?.close();
       dashboardWsRef.current = null;
       return;
@@ -761,7 +775,7 @@ export default function Support() {
         dashboardWsRef.current = null;
       }
     };
-  }, [session?.user?.access_token]);
+  }, [session?.user?.access_token, storeCode]);
 
   // ---- Per-thread chat socket: opens/closes as the selected thread changes. ----
   useEffect(() => {
@@ -799,17 +813,31 @@ export default function Support() {
         return;
       }
 
-      if (!data?.success || data?.sender === "agent") {
+      if (!data?.success || (data?.sender === "agent" && connectedAgentRef.current === session?.user?.email)) {
         return;
       }
 
       if (data?.success && data?.action_type === "connection") {
-        setIsAgentConnected(data?.chat_handler === "human");
+        if (data?.chat_handler === "human" && data?.chat_handler_user) {
+          setConnectedAgent(data?.chat_handler_user);
+          connectedAgentRef.current = data?.chat_handler_user;
+        }
+        else {
+          setConnectedAgent(null);
+          connectedAgentRef.current = null;
+        }
         return;
       }
 
       if (data?.success && data?.action_type === "handler_change") {
-        setIsAgentConnected(data?.chat_handler === "human");
+        if (data?.chat_handler === "human" && data?.chat_handler_user) {
+          setConnectedAgent(data?.chat_handler_user);
+          connectedAgentRef.current = data?.chat_handler_user;
+        }
+        else {
+          setConnectedAgent(null);
+          connectedAgentRef.current = null;
+        }
         setTransitionState("idle");
         return;
       }
@@ -824,7 +852,7 @@ export default function Support() {
           message: data?.final_update?.message,
           json_content: data?.final_update?.json_content || {},
           created_at: new Date().toISOString(),
-          messaged_by: "",
+          messaged_by: data?.sender === "agent" ? "agent" : "",
         });
       }
     };
@@ -855,8 +883,8 @@ export default function Support() {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)_520px]">
-        <Card className="flex min-h-0 flex-col overflow-hidden gap-2">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)_420px]">
+        <Card className="flex min-h-0 flex-col overflow-hidden gap-2 h-[88vh]!">
           <CardHeader className="border-b border-border/50 space-y-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <IconMessage2 className="size-4" />
@@ -1010,7 +1038,7 @@ export default function Support() {
           </CardContent>
         </Card>
 
-        <Card className="flex min-h-0 flex-col overflow-hidden">
+        <Card className="flex min-h-0 flex-col overflow-hidden h-[88vh]!">
           <CardHeader className="border-b border-border/50 bg-background/95 py-3.5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
@@ -1025,7 +1053,7 @@ export default function Support() {
                   {selectedThread?.is_active ? (
                     <div className="mt-1 flex flex-wrap items-center gap-2">
                       <span className="text-xs text-muted-foreground">
-                        {isAgentConnected
+                        {connectedAgent
                           ? "Connected with agent"
                           : "Assistant ready"}
                       </span>
@@ -1035,11 +1063,11 @@ export default function Support() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {selectedThread?.is_active ? (
-                  !isAgentConnected ? (
+                  connectedAgent !== session?.user?.email ? (
                     <Button
                       type="button"
                       onClick={handleTakeOver}
-                      disabled={transitionState !== "idle"}
+                      disabled={transitionState !== "idle" || (connectedAgent && connectedAgent !== session?.user?.email)}
                     >
                       <IconHeadset className="h-4 w-4" />
                       Take Over
@@ -1086,7 +1114,8 @@ export default function Support() {
                       activeThreadId={activeThreadId}
                       isThreadActive={selectedThread.is_active}
                       className="border-t"
-                      isAgentConnected={isAgentConnected}
+                      connectedAgent={connectedAgent}
+                      user={session?.user?.email || null}
                       transitionState={transitionState}
                       agentMessage={agentMessage}
                       setAgentMessage={setAgentMessage}
