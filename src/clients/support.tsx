@@ -171,7 +171,7 @@ function ThreadChatControls({
   isThreadActive?: boolean;
   className?: string;
   connectedAgent: string | null;
-  user: string | null,
+  user: string | null;
   transitionState: "idle" | "taking_over" | "returning_to_ai";
   agentMessage: string;
   setAgentMessage: (value: string) => void;
@@ -227,9 +227,7 @@ function ThreadChatControls({
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-border/70 bg-muted/30 px-4 py-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <IconRobot className="h-4 w-4 shrink-0" />
-            <span>
-              A human agent is currently handling this conversation.
-            </span>
+            <span>A human agent is currently handling this conversation.</span>
           </div>
         </div>
       )}
@@ -813,7 +811,11 @@ export default function Support() {
         return;
       }
 
-      if (!data?.success || (data?.sender === "agent" && connectedAgentRef.current === session?.user?.email)) {
+      if (
+        !data?.success ||
+        (data?.sender === "agent" &&
+          connectedAgentRef.current === session?.user?.email)
+      ) {
         return;
       }
 
@@ -821,8 +823,7 @@ export default function Support() {
         if (data?.chat_handler === "human" && data?.chat_handler_user) {
           setConnectedAgent(data?.chat_handler_user);
           connectedAgentRef.current = data?.chat_handler_user;
-        }
-        else {
+        } else {
           setConnectedAgent(null);
           connectedAgentRef.current = null;
         }
@@ -833,8 +834,7 @@ export default function Support() {
         if (data?.chat_handler === "human" && data?.chat_handler_user) {
           setConnectedAgent(data?.chat_handler_user);
           connectedAgentRef.current = data?.chat_handler_user;
-        }
-        else {
+        } else {
           setConnectedAgent(null);
           connectedAgentRef.current = null;
         }
@@ -1067,7 +1067,11 @@ export default function Support() {
                     <Button
                       type="button"
                       onClick={handleTakeOver}
-                      disabled={transitionState !== "idle" || (connectedAgent && connectedAgent !== session?.user?.email)}
+                      disabled={
+                        transitionState !== "idle" ||
+                        (connectedAgent &&
+                          connectedAgent !== session?.user?.email)
+                      }
                     >
                       <IconHeadset className="h-4 w-4" />
                       Take Over
