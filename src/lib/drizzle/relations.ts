@@ -94,6 +94,7 @@ export const authUserRelations = relations(authUser, ({ many }) => ({
   djangoAdminLogs: many(djangoAdminLog),
   companyMemberships: many(companyMembership),
   chatHistorys: many(chatHistory),
+  chatThreads: many(chatThread),
   storeAccesss_grantedById: many(storeAccess, {
     relationName: "storeAccess_grantedById_authUser_id",
   }),
@@ -285,6 +286,7 @@ export const chatHistoryRelations = relations(chatHistory, ({ one, many }) => ({
 export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
   chatbotFeedbacks: many(chatbotFeedback),
   chatBotevents: many(chatBotevent),
+  chatHistorys: many(chatHistory),
   chatCustomer: one(chatCustomer, {
     fields: [chatThread.customerId],
     references: [chatCustomer.id],
@@ -293,7 +295,10 @@ export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
     fields: [chatThread.storeId],
     references: [store.id],
   }),
-  chatHistorys: many(chatHistory),
+  authUser: one(authUser, {
+    fields: [chatThread.chatHandlerUserId],
+    references: [authUser.id],
+  }),
   aiInsightss: many(aiInsights),
   sentimentAnalysiss: many(sentimentAnalysis),
   sessionResolutionVerdicts: many(sessionResolutionVerdict),

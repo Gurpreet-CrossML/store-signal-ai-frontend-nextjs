@@ -1,0 +1,1178 @@
+"use client";
+
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import MessagePan from "@/components/custom/message-pan";
+import {
+  CartDetailsCard,
+  UserMetadataCard,
+} from "@/components/custom/thread-detail-panels";
+import {
+  FetchAIInsight,
+  FetchCart,
+  FetchConversationSummary,
+  FetchFeedbackSequence,
+  FetchFreshdeskTicketId,
+  FetchThreadDetails,
+  FetchThreads,
+  FetchUserMetadata,
+  type Thread,
+  type ThreadMessage,
+} from "@/redux/api-slice/thread-slice";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  IconHeadset,
+  IconMessage2,
+  IconMoodSmile,
+  IconPaperclip,
+  IconRobot,
+  IconSearch,
+  IconSend,
+  IconUser,
+  IconX,
+} from "@tabler/icons-react";
+import { useSession } from "next-auth/react";
+import Image from "next/image";
+import { toast } from "sonner";
+import { ENDPOINTS } from "@/lib/config";
+import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
+
+// Extends the shared Thread type with a local read-state flag. Ideally
+// `is_read` becomes a real field on Thread (and maybe comes from the API),
+// but until then we track it client-side, defaulting to true on load.
+type ThreadWithReadState = Thread & { is_read?: boolean };
+
+function normalizeThreads(threads: Thread[] | undefined) {
+  return (threads ?? []).map((thread) => ({
+    ...thread,
+    is_read: (thread as ThreadWithReadState).is_read ?? true,
+  }));
+}
+
+function formatRelativeTime(value: string | null | undefined) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 60) return `${diffMinutes}m`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d`;
+
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 4) return `${diffWeeks}w`;
+
+  return `${Math.max(1, Math.floor(diffDays / 30))}mo`;
+}
+
+// Deterministic avatar accent so the same customer always gets the same color.
+const AVATAR_PALETTE = [
+  "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
+  "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+  "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
+  "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
+  "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
+];
+
+function getAvatarColor(seed: string) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
+
+function getInitials(name: string | null | undefined) {
+  if (!name) return null;
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return null;
+  const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase());
+  return initials.join("");
+}
+
+function CustomerAvatar({
+  name,
+  size = "h-9 w-9",
+  online,
+}: {
+  name?: string | null;
+  size?: string;
+  online?: boolean;
+}) {
+  const initials = getInitials(name);
+
+  return (
+    <div className="relative shrink-0">
+      <Avatar className={`${size} mt-0.5`}>
+        <AvatarFallback
+          className={`text-sm font-medium ${
+            initials ? getAvatarColor(name ?? "") : "bg-primary/10 text-primary"
+          }`}
+        >
+          {initials ?? <IconUser className="h-5 w-5" />}
+        </AvatarFallback>
+      </Avatar>
+      {online !== undefined && (
+        <span
+          className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${
+            online ? "bg-green-500" : "bg-muted-foreground/40"
+          }`}
+        />
+      )}
+    </div>
+  );
+}
+
+function ThreadChatControls({
+  activeThreadId,
+  isThreadActive = true,
+  className,
+  connectedAgent,
+  user,
+  transitionState,
+  agentMessage,
+  setAgentMessage,
+  selectedFiles,
+  isEmojiPickerOpen,
+  setIsEmojiPickerOpen,
+  onTakeOver,
+  onReturnToAI,
+  onSendAgentMessage,
+  onFileSelection,
+  onEmojiSelect,
+  onRemoveSelectedFile,
+}: {
+  activeThreadId?: string | null;
+  isThreadActive?: boolean;
+  className?: string;
+  connectedAgent: string | null;
+  user: string | null;
+  transitionState: "idle" | "taking_over" | "returning_to_ai";
+  agentMessage: string;
+  setAgentMessage: (value: string) => void;
+  selectedFiles: File[];
+  isEmojiPickerOpen: boolean;
+  setIsEmojiPickerOpen: (value: boolean) => void;
+  onTakeOver: () => void;
+  onReturnToAI: () => void;
+  onSendAgentMessage: () => void;
+  onFileSelection: (event: ChangeEvent<HTMLInputElement>) => void;
+  onEmojiSelect: (emoji: string) => void;
+  onRemoveSelectedFile: (index: number) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Auto-grow the composer like a chat app, capped at a few lines.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [agentMessage]);
+
+  if (!activeThreadId || !isThreadActive) {
+    return null;
+  }
+
+  const canSend =
+    (agentMessage.trim().length > 0 || selectedFiles.length > 0) &&
+    transitionState === "idle";
+
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    onEmojiSelect(emojiData.emoji);
+  };
+
+  return (
+    <div
+      className={`relative border-t border-border/50 bg-background/95 p-4 ${className ?? ""}`}
+    >
+      {!connectedAgent && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-border/70 bg-muted/30 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <IconRobot className="h-4 w-4 shrink-0" />
+            <span>
+              The AI assistant is currently handling this conversation.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {connectedAgent && connectedAgent !== user && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-border/70 bg-muted/30 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <IconRobot className="h-4 w-4 shrink-0" />
+            <span>A human agent is currently handling this conversation.</span>
+          </div>
+        </div>
+      )}
+
+      {connectedAgent === user && (
+        <div className="rounded-2xl border border-border/60 bg-background shadow-sm transition-shadow focus-within:border-primary/50 focus-within:shadow-md">
+          <div className="flex items-center justify-between border-b border-border/50 px-3 py-1.5">
+            <span className="text-[11px] font-medium text-muted-foreground">
+              Replying as agent
+            </span>
+          </div>
+
+          {isEmojiPickerOpen && (
+            <div className="border-b border-border/50 p-2">
+              <EmojiPicker
+                onEmojiClick={handleEmojiClick}
+                width="100%"
+                height={320}
+                theme={Theme.AUTO}
+                previewConfig={{ showPreview: false }}
+                searchPlaceholder="Search emoji…"
+              />
+            </div>
+          )}
+
+          {selectedFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2 border-b border-border/50 p-2">
+              {selectedFiles.map((file, index) => (
+                <div
+                  key={`${file.name}-${index}`}
+                  className="group relative flex items-center gap-2 rounded-xl border border-border/60 bg-muted/60 py-1.5 pl-1.5 pr-2.5 text-xs text-muted-foreground"
+                >
+                  {file.type.startsWith("image/") ? (
+                    <Image
+                      src={URL.createObjectURL(file)}
+                      alt={file.name}
+                      width={32}
+                      height={32}
+                      unoptimized
+                      className="h-8 w-8 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-background/70">
+                      <IconPaperclip className="h-4 w-4" />
+                    </div>
+                  )}
+                  <span className="max-w-[140px] truncate">{file.name}</span>
+                  <button
+                    type="button"
+                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground"
+                    onClick={() => onRemoveSelectedFile(index)}
+                    title="Remove attachment"
+                  >
+                    <IconX className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Text input row */}
+          <div className="px-3 pt-2">
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              placeholder="Type your reply…"
+              value={agentMessage}
+              onChange={(event) => setAgentMessage(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  onSendAgentMessage();
+                }
+              }}
+              className="max-h-[120px] w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+
+          {/* Controls row: emoji + attach on the left, send on the right */}
+          <div className="flex items-center justify-between gap-2 p-2">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted transition-colors hover:bg-muted/80 ${
+                  isEmojiPickerOpen
+                    ? "text-foreground ring-1 ring-primary/40"
+                    : "text-muted-foreground"
+                }`}
+                onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                title="Add emoji"
+              >
+                <IconMoodSmile className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80"
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach image or file"
+              >
+                <IconPaperclip className="h-4 w-4" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.pdf,.doc,.docx,.txt"
+                onChange={onFileSelection}
+                className="hidden"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={onSendAgentMessage}
+              disabled={!canSend}
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed ${
+                canSend
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
+                  : "bg-muted text-muted-foreground"
+              }`}
+              title="Send message"
+            >
+              <IconSend className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-border/50 px-3 py-1.5 text-[11px] text-muted-foreground">
+            <span>Enter to send · Shift + Enter for a new line</span>
+            {selectedFiles.length > 0 && (
+              <span>{selectedFiles.length} attached</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {transitionState !== "idle" && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-sm">
+          <div className="flex min-w-[280px] flex-col items-center gap-3 rounded-lg border bg-background p-6 shadow-lg">
+            <Spinner className="size-6" />
+            <div className="text-center">
+              <p className="font-medium">
+                {transitionState === "taking_over"
+                  ? "Connecting..."
+                  : "Returning to AI..."}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {transitionState === "taking_over"
+                  ? "Taking over this conversation"
+                  : "Handing conversation back to AI assistant"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Shape of the "message" event data coming from the dashboard socket.
+type DashboardMessageEvent = {
+  id: string;
+  message: string;
+  role: string;
+  thread_id: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+type DashboardSocketPayload =
+  | { success: boolean; action_type: "connection"; data?: unknown }
+  | { success: boolean; action_type: "message"; data: DashboardMessageEvent }
+  | {
+      success: boolean;
+      action_type: "thread_closed";
+      data: { thread_id: string };
+    };
+
+export default function Support() {
+  const dispatch = useAppDispatch();
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
+  const { FetchThreadsListData, FetchThreadsIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchThreadsState,
+  );
+  const { FetchThreadDetailsIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchThreadDetailsState,
+  );
+  const { FetchCartData, FetchCartDataIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchCartDataState,
+  );
+  const { FetchUserMetadataData, FetchUserMetadataIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchUserMetadataState,
+  );
+
+  // Local, mutable copy of the thread list. Seeded from Redux (is_read
+  // defaults to true), then patched in place by the dashboard socket (new
+  // messages / thread_closed events) without waiting on a refetch.
+  const [previousThreadsData, setPreviousThreadsData] =
+    useState(FetchThreadsListData);
+  const [localThreads, setLocalThreads] = useState<ThreadWithReadState[]>(() =>
+    normalizeThreads(FetchThreadsListData?.results),
+  );
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
+  const [connectedAgent, setConnectedAgent] = useState<string | null>(null);
+  const [transitionState, setTransitionState] = useState<
+    "idle" | "taking_over" | "returning_to_ai"
+  >("idle");
+  const [agentMessage, setAgentMessage] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [threadSearch, setThreadSearch] = useState("");
+  const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
+    "all",
+  );
+  const { data: session } = useSession();
+  const wsRef = useRef<WebSocket | null>(null);
+  const dashboardWsRef = useRef<WebSocket | null>(null);
+  const connectedAgentRef = useRef<string | null>(null);
+
+  // Reset the socket-mutable copy when Redux supplies a new response. React
+  // applies this guarded render-time adjustment before committing children,
+  // avoiding an extra render with stale thread data.
+  if (FetchThreadsListData !== previousThreadsData) {
+    setPreviousThreadsData(FetchThreadsListData);
+    setLocalThreads(normalizeThreads(FetchThreadsListData?.results));
+  }
+
+  const selectedThreadStillExists =
+    selectedThreadId !== null &&
+    localThreads.some((thread) => thread.id === selectedThreadId);
+  if (selectedThreadId !== null && !selectedThreadStillExists) {
+    setSelectedThreadId(localThreads[0]?.id ?? null);
+  }
+  const activeThreadId = selectedThreadStillExists
+    ? selectedThreadId
+    : (localThreads[0]?.id ?? null);
+
+  // The open conversation is read by definition. Keep that as derived state
+  // so defaulting or advancing to the first thread needs no effect.
+  const visibleThreads = useMemo(
+    () =>
+      localThreads.map((thread) =>
+        thread.id === activeThreadId && thread.is_read === false
+          ? { ...thread, is_read: true }
+          : thread,
+      ),
+    [activeThreadId, localThreads],
+  );
+
+  const selectedThread = useMemo(
+    () => visibleThreads.find((thread) => thread.id === activeThreadId) ?? null,
+    [activeThreadId, visibleThreads],
+  );
+
+  const unreadCount = useMemo(
+    () => visibleThreads.filter((thread) => thread.is_read === false).length,
+    [visibleThreads],
+  );
+
+  const filteredThreads = useMemo(() => {
+    const query = threadSearch.trim().toLowerCase();
+
+    return visibleThreads.filter((thread: ThreadWithReadState) => {
+      if (query) {
+        const name = thread.customer?.name?.toLowerCase() ?? "";
+        const preview = thread.last_message?.toLowerCase() ?? "";
+        if (!name.includes(query) && !preview.includes(query)) {
+          return false;
+        }
+      }
+
+      if (readFilter === "unread" && thread.is_read !== false) {
+        return false;
+      }
+      if (readFilter === "read" && thread.is_read === false) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [visibleThreads, threadSearch, readFilter]);
+
+  useEffect(() => {
+    if (!storeCode) return;
+
+    dispatch(
+      FetchThreads({
+        store_code: storeCode,
+        page: 1,
+        limit: 50,
+        filters: { is_active: true },
+      }),
+    );
+  }, [dispatch, storeCode]);
+
+  useEffect(() => {
+    if (!activeThreadId || !storeCode) {
+      return;
+    }
+
+    const loadThreadData = async () => {
+      setThreadMessages([]);
+      const result = await dispatch(
+        FetchThreadDetails(activeThreadId),
+      ).unwrap();
+      setThreadMessages(result.messages ?? []);
+      dispatch(FetchConversationSummary(activeThreadId));
+      dispatch(FetchAIInsight(activeThreadId));
+      dispatch(FetchCart(activeThreadId));
+      dispatch(FetchUserMetadata(activeThreadId));
+      dispatch(FetchFeedbackSequence(activeThreadId));
+      dispatch(FetchFreshdeskTicketId(activeThreadId));
+    };
+
+    void loadThreadData();
+  }, [dispatch, activeThreadId, storeCode]);
+
+  const handleThreadMessageAdded = useCallback((message: ThreadMessage) => {
+    setThreadMessages((prev) => [...prev, message]);
+  }, []);
+
+  const handleTakeOver = useCallback(async () => {
+    if (!activeThreadId || !wsRef.current) {
+      return;
+    }
+
+    try {
+      setTransitionState("taking_over");
+      wsRef.current.send(
+        JSON.stringify({
+          action_type: "handler_change",
+          chat_handler: "human",
+        }),
+      );
+    } catch (error) {
+      console.error(error);
+      setTransitionState("idle");
+    }
+  }, [activeThreadId]);
+
+  const handleReturnToAI = useCallback(async () => {
+    if (!activeThreadId || !wsRef.current) {
+      return;
+    }
+
+    try {
+      setTransitionState("returning_to_ai");
+      wsRef.current.send(
+        JSON.stringify({ action_type: "handler_change", chat_handler: "ai" }),
+      );
+    } catch (error) {
+      console.error(error);
+      setTransitionState("idle");
+    }
+  }, [activeThreadId]);
+
+  const handleSendAgentMessage = useCallback(() => {
+    const message = agentMessage.trim();
+    const attachmentText = selectedFiles.length
+      ? `\nAttachments: ${selectedFiles.map((file) => file.name).join(", ")}`
+      : "";
+    const outgoingMessage = `${message}${attachmentText}`.trim();
+
+    if (!outgoingMessage || !wsRef.current) {
+      return;
+    }
+
+    handleThreadMessageAdded({
+      role: "assistant",
+      message: outgoingMessage,
+      created_at: new Date().toISOString(),
+      messaged_by: "You",
+    });
+
+    wsRef.current.send(JSON.stringify({ message: outgoingMessage }));
+    setAgentMessage("");
+    setSelectedFiles([]);
+    setIsEmojiPickerOpen(false);
+  }, [agentMessage, handleThreadMessageAdded, selectedFiles]);
+
+  const handleFileSelection = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files ?? []);
+      if (!files.length) {
+        return;
+      }
+
+      setSelectedFiles((prev) => [...prev, ...files]);
+      event.target.value = "";
+    },
+    [],
+  );
+
+  const handleEmojiSelect = useCallback((emoji: string) => {
+    setAgentMessage((prev) => `${prev}${emoji}`);
+    setIsEmojiPickerOpen(false);
+  }, []);
+
+  const removeSelectedFile = useCallback((index: number) => {
+    setSelectedFiles((prev) =>
+      prev.filter((_, itemIndex) => itemIndex !== index),
+    );
+  }, []);
+
+  const handleSelectThread = useCallback((threadId: string) => {
+    // Close the previously open thread's chat socket immediately on click,
+    // rather than waiting for the effect below to notice the id changed.
+    wsRef.current?.close();
+    wsRef.current = null;
+    setLocalThreads((prev) =>
+      prev.map((thread) =>
+        thread.id === threadId && thread.is_read === false
+          ? { ...thread, is_read: true }
+          : thread,
+      ),
+    );
+    setSelectedThreadId(threadId);
+  }, []);
+
+  // Insert or patch a thread in localThreads based on an incoming dashboard
+  // "message" event. Existing threads keep their position; brand-new
+  // threads are prepended. Marks the thread unread unless it's the one
+  // currently open.
+  const upsertThreadFromMessage = useCallback(
+    (data: DashboardMessageEvent) => {
+      const belongsToOpenThread = data.thread_id === activeThreadId;
+
+      setLocalThreads((prev) => {
+        const existingIndex = prev.findIndex((t) => t.id === data.thread_id);
+
+        if (existingIndex === -1) {
+          const newThread: ThreadWithReadState = {
+            id: data.thread_id,
+            last_message: data.message,
+            is_active: data.is_active,
+            total_messages: 1,
+            created_at: new Date().toISOString(),
+            customer: null,
+            is_read: belongsToOpenThread,
+          } as ThreadWithReadState;
+          return [newThread, ...prev];
+        }
+
+        return prev.map((thread) =>
+          thread.id === data.thread_id
+            ? {
+                ...thread,
+                last_message: data.message,
+                is_active: data.is_active,
+                total_messages: (thread.total_messages ?? 0) + 1,
+                is_read: belongsToOpenThread,
+              }
+            : thread,
+        );
+      });
+
+      // If this message belongs to the thread currently open in the chat
+      // panel, the user is already looking at it — append it there so the
+      // open conversation stays live instead of just flagging it unread.
+      if (belongsToOpenThread) {
+        handleThreadMessageAdded({
+          role: data.role,
+          message: data.message,
+          created_at: new Date().toISOString(),
+          messaged_by: "",
+        });
+      }
+    },
+    [activeThreadId, handleThreadMessageAdded],
+  );
+
+  const removeClosedThread = useCallback((threadId: string) => {
+    setLocalThreads((prev) => prev.filter((t) => t.id !== threadId));
+  }, []);
+
+  // ---- Dashboard-wide socket: opens once the page has an authenticated
+  // session, independent of which thread is selected. Drives live updates
+  // to the thread list (new messages, new threads, closed threads). ----
+  useEffect(() => {
+    const token = session?.user?.access_token;
+    if (!token || !storeCode) {
+      dashboardWsRef.current?.close();
+      dashboardWsRef.current = null;
+      return;
+    }
+
+    if (dashboardWsRef.current) {
+      dashboardWsRef.current.close();
+      dashboardWsRef.current = null;
+    }
+
+    const dashboardUrl = ENDPOINTS.dashboardSocket(storeCode, token);
+    const dashboardWs = new WebSocket(dashboardUrl);
+    dashboardWsRef.current = dashboardWs;
+
+    dashboardWs.onopen = () => {
+      console.info("Dashboard socket connected");
+    };
+
+    dashboardWs.onmessage = (event) => {
+      let data: DashboardSocketPayload;
+      try {
+        data = JSON.parse(event.data);
+      } catch (error) {
+        console.error("Failed to parse dashboard socket message", error);
+        return;
+      }
+
+      if (!data?.success) {
+        return;
+      }
+
+      if (data.action_type === "connection") {
+        return;
+      }
+
+      if (data.action_type === "message") {
+        upsertThreadFromMessage(data.data);
+        return;
+      }
+
+      if (data.action_type === "thread_closed") {
+        removeClosedThread(data.data.thread_id);
+      }
+    };
+
+    dashboardWs.onclose = () => {
+      if (dashboardWsRef.current === dashboardWs) {
+        dashboardWsRef.current = null;
+      }
+      console.info("Dashboard socket disconnected");
+    };
+
+    dashboardWs.onerror = (error) => {
+      console.error("Dashboard socket error", error);
+    };
+
+    return () => {
+      dashboardWs.close();
+      if (dashboardWsRef.current === dashboardWs) {
+        dashboardWsRef.current = null;
+      }
+    };
+  }, [session?.user?.access_token, storeCode]);
+
+  // ---- Per-thread chat socket: opens/closes as the selected thread changes. ----
+  useEffect(() => {
+    if (
+      !activeThreadId ||
+      !selectedThread?.is_active ||
+      !session?.user?.access_token
+    ) {
+      wsRef.current?.close();
+      wsRef.current = null;
+      return;
+    }
+
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    const url = ENDPOINTS.chatSocket(activeThreadId, session.user.access_token);
+    const ws = new WebSocket(url);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.info("Agent connected");
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (!data?.success && data?.action_type === "handler_change") {
+        toast.error("Permission Issue!", {
+          description: data?.message || "",
+        });
+        setTransitionState("idle");
+        return;
+      }
+
+      if (
+        !data?.success ||
+        (data?.sender === "agent" &&
+          connectedAgentRef.current === session?.user?.email)
+      ) {
+        return;
+      }
+
+      if (data?.success && data?.action_type === "connection") {
+        if (data?.chat_handler === "human" && data?.chat_handler_user) {
+          setConnectedAgent(data?.chat_handler_user);
+          connectedAgentRef.current = data?.chat_handler_user;
+        } else {
+          setConnectedAgent(null);
+          connectedAgentRef.current = null;
+        }
+        return;
+      }
+
+      if (data?.success && data?.action_type === "handler_change") {
+        if (data?.chat_handler === "human" && data?.chat_handler_user) {
+          setConnectedAgent(data?.chat_handler_user);
+          connectedAgentRef.current = data?.chat_handler_user;
+        } else {
+          setConnectedAgent(null);
+          connectedAgentRef.current = null;
+        }
+        setTransitionState("idle");
+        return;
+      }
+
+      if (
+        data?.success &&
+        data?.action_type === "message" &&
+        data?.final_update
+      ) {
+        handleThreadMessageAdded({
+          role: data?.final_update?.role,
+          message: data?.final_update?.message,
+          json_content: data?.final_update?.json_content || {},
+          created_at: new Date().toISOString(),
+          messaged_by: data?.sender === "agent" ? "agent" : "",
+        });
+      }
+    };
+
+    ws.onclose = () => {
+      if (wsRef.current === ws) {
+        wsRef.current = null;
+      }
+      console.info("Agent disconnected");
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error", error);
+    };
+
+    return () => {
+      ws.close();
+      if (wsRef.current === ws) {
+        wsRef.current = null;
+      }
+    };
+  }, [
+    activeThreadId,
+    handleThreadMessageAdded,
+    selectedThread?.is_active,
+    session?.user?.access_token,
+  ]);
+
+  return (
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)_420px]">
+        <Card className="flex min-h-0 flex-col overflow-hidden gap-2 h-[88vh]!">
+          <CardHeader className="border-b border-border/50 space-y-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <IconMessage2 className="size-4" />
+              Active Chats
+              {localThreads.length > 0 && (
+                <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
+                  {localThreads.length}
+                </span>
+              )}
+            </CardTitle>
+            <div className="relative">
+              <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={threadSearch}
+                onChange={(event) => setThreadSearch(event.target.value)}
+                placeholder="Search conversations…"
+                className="h-8 w-full border border-input bg-muted/40 pl-8 pr-3 text-xs outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              {(
+                [
+                  { key: "all", label: "All" },
+                  { key: "unread", label: "Unread" },
+                  { key: "read", label: "Read" },
+                ] as const
+              ).map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setReadFilter(option.key)}
+                  className={`flex items-center gap-1 border px-2.5 py-1 text-[11px] font-medium transition ${
+                    readFilter === option.key
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border/60 bg-background text-muted-foreground hover:bg-muted/60"
+                  }`}
+                >
+                  {option.label}
+                  {option.key === "unread" && unreadCount > 0 && (
+                    <span
+                      className={`rounded-full px-1.5 text-[10px] ${
+                        readFilter === "unread"
+                          ? "bg-primary-foreground/20"
+                          : "bg-muted text-foreground/70"
+                      }`}
+                    >
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </CardHeader>
+          <CardContent className="flex-1 min-h-0 overflow-y-auto p-3">
+            {FetchThreadsIsLoading ? (
+              <div className="flex h-full items-center justify-center">
+                <Spinner />
+              </div>
+            ) : filteredThreads.length ? (
+              <div className="space-y-1.5">
+                {filteredThreads.map((thread: ThreadWithReadState) => {
+                  const isSelected = thread.id === activeThreadId;
+                  const isUnread = thread.is_read === false;
+
+                  return (
+                    <button
+                      key={thread.id}
+                      type="button"
+                      onClick={() => handleSelectThread(thread.id)}
+                      className={`w-full rounded-xl border-l-[3px] p-3 text-left transition ${
+                        isSelected
+                          ? "border-l-primary bg-primary/[0.07] shadow-sm"
+                          : isUnread
+                            ? "border-l-sky-500 bg-sky-500/[0.06] hover:bg-sky-500/[0.1] dark:bg-sky-400/[0.08]"
+                            : "border-l-transparent hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <CustomerAvatar
+                          name={thread.customer?.name}
+                          online={thread.is_active}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                {thread.customer?.name ? (
+                                  <p
+                                    className={`truncate text-sm ${
+                                      isUnread
+                                        ? "font-semibold text-foreground"
+                                        : "font-medium"
+                                    }`}
+                                  >
+                                    {thread.customer.name}
+                                  </p>
+                                ) : (
+                                  <p
+                                    className={`truncate text-sm text-muted-foreground ${
+                                      isUnread ? "font-semibold" : "font-medium"
+                                    }`}
+                                  >
+                                    Anonymous visitor
+                                  </p>
+                                )}
+                              </div>
+                              <p
+                                className={`mt-0.5 line-clamp-2 text-xs ${
+                                  isUnread
+                                    ? "text-foreground/70 font-bold"
+                                    : "text-muted-foreground"
+                                }`}
+                              >
+                                {thread.last_message ||
+                                  "No message preview available."}
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-[11px] text-muted-foreground">
+                              {formatRelativeTime(thread.created_at)}
+                            </span>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+                            <span>{thread.total_messages} messages</span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : threadSearch || readFilter !== "all" ? (
+              <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">
+                  {readFilter === "unread"
+                    ? "No unread conversations"
+                    : readFilter === "read"
+                      ? "No read conversations"
+                      : "No matches"}
+                </p>
+                <p>
+                  {threadSearch
+                    ? "Try a different name or keyword."
+                    : "Try a different filter."}
+                </p>
+              </div>
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
+                No active chats matched the current store scope.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="flex min-h-0 flex-col overflow-hidden h-[88vh]!">
+          <CardHeader className="border-b border-border/50 bg-background/95 py-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <CustomerAvatar
+                  name={selectedThread?.customer?.name}
+                  online={selectedThread?.is_active}
+                />
+                <div>
+                  <CardTitle className="text-base leading-tight">
+                    {selectedThread?.customer?.name || "Anonymous visitor"}
+                  </CardTitle>
+                  {selectedThread?.is_active ? (
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {connectedAgent
+                          ? "Connected with agent"
+                          : "Assistant ready"}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedThread?.is_active ? (
+                  connectedAgent !== session?.user?.email ? (
+                    <Button
+                      type="button"
+                      onClick={handleTakeOver}
+                      disabled={
+                        transitionState !== "idle" ||
+                        !!(
+                          connectedAgent &&
+                          connectedAgent !== session?.user?.email
+                        )
+                      }
+                    >
+                      <IconHeadset className="h-4 w-4" />
+                      Take Over
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleReturnToAI}
+                      disabled={transitionState !== "idle"}
+                    >
+                      <IconRobot className="h-4 w-4" />
+                      Return to AI
+                    </Button>
+                  )
+                ) : null}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+            {activeThreadId ? (
+              FetchThreadDetailsIsLoading ? (
+                <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
+                  <Spinner />
+                  Loading conversation…
+                </div>
+              ) : (
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="flex-1 min-h-0 overflow-y-auto p-3">
+                    {threadMessages.length > 0 ? (
+                      <MessagePan messages={threadMessages} />
+                    ) : (
+                      <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted-foreground">
+                        <IconMessage2 className="mb-1 h-6 w-6 opacity-40" />
+                        <p className="font-medium text-foreground">
+                          Nothing here yet
+                        </p>
+                        <p>Messages for this thread will show up here.</p>
+                      </div>
+                    )}
+                  </div>
+                  {selectedThread?.is_active ? (
+                    <ThreadChatControls
+                      activeThreadId={activeThreadId}
+                      isThreadActive={selectedThread.is_active}
+                      className="border-t"
+                      connectedAgent={connectedAgent}
+                      user={session?.user?.email || null}
+                      transitionState={transitionState}
+                      agentMessage={agentMessage}
+                      setAgentMessage={setAgentMessage}
+                      selectedFiles={selectedFiles}
+                      isEmojiPickerOpen={isEmojiPickerOpen}
+                      setIsEmojiPickerOpen={setIsEmojiPickerOpen}
+                      onTakeOver={handleTakeOver}
+                      onReturnToAI={handleReturnToAI}
+                      onSendAgentMessage={handleSendAgentMessage}
+                      onFileSelection={handleFileSelection}
+                      onEmojiSelect={handleEmojiSelect}
+                      onRemoveSelectedFile={removeSelectedFile}
+                    />
+                  ) : null}
+                </div>
+              )
+            ) : (
+              <div className="flex h-full items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                Select a chat from the left to view the live conversation.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="flex min-h-0 flex-col overflow-hidden">
+          <CardHeader className="border-b border-border/50">
+            <CardTitle className="text-base">Thread Details</CardTitle>
+            <CardDescription>
+              Customer context and metadata for the selected thread.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1 min-h-0 space-y-4 overflow-y-auto p-3">
+            {!activeThreadId ? (
+              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
+                Select a conversation to inspect its details.
+              </div>
+            ) : (
+              <>
+                <CartDetailsCard
+                  cartData={FetchCartData}
+                  loading={FetchCartDataIsLoading}
+                />
+                <UserMetadataCard
+                  userMetadata={FetchUserMetadataData}
+                  loading={FetchUserMetadataIsLoading}
+                />
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
