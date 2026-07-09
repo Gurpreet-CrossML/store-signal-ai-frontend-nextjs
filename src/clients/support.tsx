@@ -37,6 +37,7 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  IconAlertTriangle,
   IconHeadset,
   IconMessage2,
   IconMoodSmile,
@@ -52,6 +53,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
+import axios from "axios";
 
 // Extends the shared Thread type with a local read-state flag. Ideally
 // `is_read` becomes a real field on Thread (and maybe comes from the API),
@@ -148,6 +150,16 @@ function CustomerAvatar({
   );
 }
 
+type AttachmentStatus = "uploading" | "uploaded" | "error";
+
+type AttachmentUpload = {
+  id: string;
+  file: File;
+  previewUrl: string;
+  url: string | null;
+  status: AttachmentStatus;
+};
+
 function ThreadChatControls({
   activeThreadId,
   isThreadActive = true,
@@ -157,7 +169,7 @@ function ThreadChatControls({
   transitionState,
   agentMessage,
   setAgentMessage,
-  selectedFiles,
+  attachments,
   isEmojiPickerOpen,
   setIsEmojiPickerOpen,
   onTakeOver,
@@ -165,7 +177,8 @@ function ThreadChatControls({
   onSendAgentMessage,
   onFileSelection,
   onEmojiSelect,
-  onRemoveSelectedFile,
+  onRemoveAttachment,
+  onRetryAttachment,
 }: {
   activeThreadId?: string | null;
   isThreadActive?: boolean;
@@ -175,7 +188,7 @@ function ThreadChatControls({
   transitionState: "idle" | "taking_over" | "returning_to_ai";
   agentMessage: string;
   setAgentMessage: (value: string) => void;
-  selectedFiles: File[];
+  attachments: AttachmentUpload[];
   isEmojiPickerOpen: boolean;
   setIsEmojiPickerOpen: (value: boolean) => void;
   onTakeOver: () => void;
@@ -183,7 +196,8 @@ function ThreadChatControls({
   onSendAgentMessage: () => void;
   onFileSelection: (event: ChangeEvent<HTMLInputElement>) => void;
   onEmojiSelect: (emoji: string) => void;
-  onRemoveSelectedFile: (index: number) => void;
+  onRemoveAttachment: (id: string) => void;
+  onRetryAttachment: (id: string) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -200,9 +214,19 @@ function ThreadChatControls({
     return null;
   }
 
+  const isUploadingAttachments = attachments.some(
+    (attachment) => attachment.status === "uploading",
+  );
+  const hasFailedAttachments = attachments.some(
+    (attachment) => attachment.status === "error",
+  );
+  const inputsDisabled = isUploadingAttachments || transitionState !== "idle";
+
   const canSend =
-    (agentMessage.trim().length > 0 || selectedFiles.length > 0) &&
-    transitionState === "idle";
+    (agentMessage.trim().length > 0 || attachments.length > 0) &&
+    transitionState === "idle" &&
+    !isUploadingAttachments &&
+    !hasFailedAttachments;
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     onEmojiSelect(emojiData.emoji);
@@ -253,38 +277,74 @@ function ThreadChatControls({
             </div>
           )}
 
-          {selectedFiles.length > 0 && (
+          {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2 border-b border-border/50 p-2">
-              {selectedFiles.map((file, index) => (
-                <div
-                  key={`${file.name}-${index}`}
-                  className="group relative flex items-center gap-2 rounded-xl border border-border/60 bg-muted/60 py-1.5 pl-1.5 pr-2.5 text-xs text-muted-foreground"
-                >
-                  {file.type.startsWith("image/") ? (
-                    <Image
-                      src={URL.createObjectURL(file)}
-                      alt={file.name}
-                      width={32}
-                      height={32}
-                      unoptimized
-                      className="h-8 w-8 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-background/70">
-                      <IconPaperclip className="h-4 w-4" />
-                    </div>
-                  )}
-                  <span className="max-w-[140px] truncate">{file.name}</span>
-                  <button
-                    type="button"
-                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground"
-                    onClick={() => onRemoveSelectedFile(index)}
-                    title="Remove attachment"
+              {attachments.map((attachment) => {
+                const isImage = attachment.file.type.startsWith("image/");
+                const isUploading = attachment.status === "uploading";
+                const isError = attachment.status === "error";
+
+                return (
+                  <div
+                    key={attachment.id}
+                    className="group relative flex items-center gap-2 rounded-xl border border-border/60 bg-muted/60 py-1.5 pl-1.5 pr-2.5 text-xs text-muted-foreground"
                   >
-                    <IconX className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
+                    <div className="relative h-8 w-8 shrink-0">
+                      {isImage ? (
+                        <Image
+                          src={attachment.previewUrl}
+                          alt={attachment.file.name}
+                          width={32}
+                          height={32}
+                          unoptimized
+                          className={`h-8 w-8 rounded-lg object-cover ${
+                            isUploading ? "opacity-40" : ""
+                          } ${isError ? "opacity-60" : ""}`}
+                        />
+                      ) : (
+                        <div
+                          className={`flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 ${
+                            isUploading ? "opacity-40" : ""
+                          }`}
+                        >
+                          <IconPaperclip className="h-4 w-4" />
+                        </div>
+                      )}
+                      {isUploading && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Spinner className="size-4" />
+                        </div>
+                      )}
+                      {isError && (
+                        <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/60">
+                          <IconAlertTriangle className="size-4 text-destructive" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="max-w-[140px] truncate">
+                      {attachment.file.name}
+                    </span>
+                    {isError && (
+                      <button
+                        type="button"
+                        className="text-[11px] font-medium text-primary underline-offset-2 hover:underline"
+                        onClick={() => onRetryAttachment(attachment.id)}
+                      >
+                        Retry
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={isUploading}
+                      className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-0"
+                      onClick={() => onRemoveAttachment(attachment.id)}
+                      title={isUploading ? "Uploading…" : "Remove attachment"}
+                    >
+                      <IconX className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -293,8 +353,11 @@ function ThreadChatControls({
             <textarea
               ref={textareaRef}
               rows={1}
-              placeholder="Type your reply…"
+              placeholder={
+                isUploadingAttachments ? "Uploading image…" : "Type your reply…"
+              }
               value={agentMessage}
+              disabled={inputsDisabled}
               onChange={(event) => setAgentMessage(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
@@ -302,7 +365,7 @@ function ThreadChatControls({
                   onSendAgentMessage();
                 }
               }}
-              className="max-h-[120px] w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground"
+              className="max-h-[120px] w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
 
@@ -311,6 +374,7 @@ function ThreadChatControls({
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
+                disabled={inputsDisabled}
                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted transition-colors hover:bg-muted/80 ${
                   isEmojiPickerOpen
                     ? "text-foreground ring-1 ring-primary/40"
@@ -323,7 +387,8 @@ function ThreadChatControls({
               </button>
               <button
                 type="button"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80"
+                disabled={inputsDisabled}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={() => fileInputRef.current?.click()}
                 title="Attach image or file"
               >
@@ -333,7 +398,8 @@ function ThreadChatControls({
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept="image/*,.pdf,.doc,.docx,.txt"
+                accept="image/*"
+                disabled={inputsDisabled}
                 onChange={onFileSelection}
                 className="hidden"
               />
@@ -348,16 +414,22 @@ function ThreadChatControls({
                   ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
                   : "bg-muted text-muted-foreground"
               }`}
-              title="Send message"
+              title={
+                isUploadingAttachments ? "Waiting for upload…" : "Send message"
+              }
             >
               <IconSend className="h-4 w-4" />
             </button>
           </div>
 
           <div className="flex items-center justify-between border-t border-border/50 px-3 py-1.5 text-[11px] text-muted-foreground">
-            <span>Enter to send · Shift + Enter for a new line</span>
-            {selectedFiles.length > 0 && (
-              <span>{selectedFiles.length} attached</span>
+            <span>
+              {isUploadingAttachments
+                ? "Uploading attachment…"
+                : "Enter to send · Shift + Enter for a new line"}
+            </span>
+            {attachments.length > 0 && (
+              <span>{attachments.length} attached</span>
             )}
           </div>
         </div>
@@ -405,6 +477,33 @@ type DashboardSocketPayload =
       data: { thread_id: string };
     };
 
+// Best-effort parsing of the upload endpoint's response into a list of
+// URLs, in the same order the files were appended to the FormData. Adjust
+// the key names here to match the real API response shape once confirmed.
+function extractUploadedUrls(
+  result: unknown,
+  count: number,
+): (string | null)[] {
+  const list: unknown[] = Array.isArray(
+    (result as { images?: unknown[] })?.images,
+  )
+    ? (result as { images: unknown[] }).images
+    : Array.isArray((result as { data?: unknown[] })?.data)
+      ? (result as { data: unknown[] }).data
+      : Array.isArray(result)
+        ? (result as unknown[])
+        : [];
+
+  const urls = list.map((entry) => {
+    if (typeof entry === "string") return entry;
+    const record = entry as { image_url?: string; url?: string };
+    return record?.image_url ?? record?.url ?? null;
+  });
+
+  // Pad/truncate defensively so callers can zip 1:1 with the files sent.
+  return Array.from({ length: count }, (_, index) => urls[index] ?? null);
+}
+
 export default function Support() {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
@@ -438,7 +537,7 @@ export default function Support() {
     "idle" | "taking_over" | "returning_to_ai"
   >("idle");
   const [agentMessage, setAgentMessage] = useState("");
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentUpload[]>([]);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
   const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
@@ -451,7 +550,7 @@ export default function Support() {
   const activeThreadIdRef = useRef<string | null>(null);
 
   // Generate a unique client ID for this session. This is used to identify messages sent by this client, so we can ignore them when they come back from the server.
-  const clientId = crypto.randomUUID();
+  const [clientID, setClientID] = useState<string | null>(crypto.randomUUID());
 
   // Reset the socket-mutable copy when Redux supplies a new response. React
   // applies this guarded render-time adjustment before committing children,
@@ -590,43 +689,134 @@ export default function Support() {
     }
   }, [activeThreadId]);
 
+  // Uploads a batch of newly-selected files immediately (one POST for the
+  // whole batch, matching the "images" multi-append shape of the API) and
+  // patches each attachment's status/url in place as the response resolves.
+  const uploadAttachments = useCallback(
+    async (threadId: string, items: AttachmentUpload[]) => {
+      const formData = new FormData();
+      formData.append("thread_id", threadId);
+      items.forEach((item) => formData.append("images", item.file));
+
+      try {
+        const response = await axios.post(ENDPOINTS.uploadImage(), formData, {
+          headers: {
+            Authorization: `Bearer ${session?.user?.access_token}`,
+          },
+        });
+        const result = await response.data;
+
+        const urls = extractUploadedUrls(result, items.length);
+
+        setAttachments((prev) =>
+          prev.map((attachment) => {
+            const index = items.findIndex((item) => item.id === attachment.id);
+            if (index === -1) return attachment;
+            const url = urls[index];
+            return {
+              ...attachment,
+              url,
+              status: url ? "uploaded" : "error",
+            };
+          }),
+        );
+
+        if (urls.every((url) => !url)) {
+          toast.error("Upload failed", {
+            description: "Could not upload the selected image(s).",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to upload attachment(s)", error);
+        setAttachments((prev) =>
+          prev.map((attachment) =>
+            items.some((item) => item.id === attachment.id)
+              ? { ...attachment, status: "error" }
+              : attachment,
+          ),
+        );
+        toast.error("Upload failed", {
+          description: "Could not upload the selected image(s). Try again.",
+        });
+      }
+    },
+    [],
+  );
+
   const handleSendAgentMessage = useCallback(() => {
     const message = agentMessage.trim();
-    const attachmentText = selectedFiles.length
-      ? `\nAttachments: ${selectedFiles.map((file) => file.name).join(", ")}`
-      : "";
-    const outgoingMessage = `${message}${attachmentText}`.trim();
+    const isUploadingAttachments = attachments.some(
+      (attachment) => attachment.status === "uploading",
+    );
+    const hasFailedAttachments = attachments.some(
+      (attachment) => attachment.status === "error",
+    );
 
-    if (!outgoingMessage || !wsRef.current) {
+    if (isUploadingAttachments) {
+      toast.error("Please wait", {
+        description: "Attachments are still uploading.",
+      });
+      return;
+    }
+
+    if (hasFailedAttachments) {
+      toast.error("Attachment failed", {
+        description: "Remove or retry the failed attachment before sending.",
+      });
+      return;
+    }
+
+    const imageUrls = attachments
+      .filter(
+        (attachment) => attachment.status === "uploaded" && attachment.url,
+      )
+      .map((attachment) => attachment.url as string);
+
+    if ((!message && imageUrls.length === 0) || !wsRef.current) {
       return;
     }
 
     handleThreadMessageAdded({
       role: "assistant",
-      message: outgoingMessage,
+      message: message,
       created_at: new Date().toISOString(),
       messaged_by: "You",
+      image_url: imageUrls,
     });
 
     wsRef.current.send(
-      JSON.stringify({ message: outgoingMessage, client_id: clientId }),
+      JSON.stringify({
+        message,
+        client_id: clientID,
+        image_url: imageUrls,
+      }),
     );
+
     setAgentMessage("");
-    setSelectedFiles([]);
+    setAttachments([]);
     setIsEmojiPickerOpen(false);
-  }, [agentMessage, handleThreadMessageAdded, selectedFiles]);
+  }, [agentMessage, attachments, handleThreadMessageAdded]);
 
   const handleFileSelection = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(event.target.files ?? []);
-      if (!files.length) {
+      event.target.value = "";
+      if (!files.length || !activeThreadId) {
         return;
       }
 
-      setSelectedFiles((prev) => [...prev, ...files]);
-      event.target.value = "";
+      const newAttachments: AttachmentUpload[] = files.map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+        url: null,
+        status: "uploading",
+      }));
+
+      setAttachments((prev) => [...prev, ...newAttachments]);
+      void uploadAttachments(activeThreadId, newAttachments);
     },
-    [],
+    [activeThreadId, uploadAttachments],
   );
 
   const handleEmojiSelect = useCallback((emoji: string) => {
@@ -634,11 +824,31 @@ export default function Support() {
     setIsEmojiPickerOpen(false);
   }, []);
 
-  const removeSelectedFile = useCallback((index: number) => {
-    setSelectedFiles((prev) =>
-      prev.filter((_, itemIndex) => itemIndex !== index),
-    );
+  const removeAttachment = useCallback((id: string) => {
+    setAttachments((prev) => {
+      const target = prev.find((attachment) => attachment.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((attachment) => attachment.id !== id);
+    });
   }, []);
+
+  const retryAttachment = useCallback(
+    (id: string) => {
+      if (!activeThreadId) return;
+      setAttachments((prev) => {
+        const target = prev.find((attachment) => attachment.id === id);
+        if (!target) return prev;
+
+        const retried: AttachmentUpload = { ...target, status: "uploading" };
+        void uploadAttachments(activeThreadId, [retried]);
+
+        return prev.map((attachment) =>
+          attachment.id === id ? retried : attachment,
+        );
+      });
+    },
+    [activeThreadId, uploadAttachments],
+  );
 
   const handleSelectThread = useCallback((threadId: string) => {
     // Close the previously open thread's chat socket immediately on click,
@@ -653,6 +863,7 @@ export default function Support() {
       ),
     );
     setSelectedThreadId(threadId);
+    setAttachments([]);
   }, []);
 
   // Insert or patch a thread in localThreads based on an incoming dashboard
@@ -813,7 +1024,7 @@ export default function Support() {
         !data?.success ||
         (data?.sender === "agent" &&
           connectedAgentRef.current === session?.user?.email &&
-          data?.client_id === clientId)
+          data?.client_id === clientID)
       ) {
         return;
       }
@@ -852,6 +1063,7 @@ export default function Support() {
           json_content: data?.final_update?.json_content || {},
           created_at: new Date().toISOString(),
           messaged_by: data?.sender === "agent" ? "agent" : "",
+          image_url: data?.final_update?.image_url || null,
         });
       }
     };
@@ -1124,7 +1336,7 @@ export default function Support() {
                       transitionState={transitionState}
                       agentMessage={agentMessage}
                       setAgentMessage={setAgentMessage}
-                      selectedFiles={selectedFiles}
+                      attachments={attachments}
                       isEmojiPickerOpen={isEmojiPickerOpen}
                       setIsEmojiPickerOpen={setIsEmojiPickerOpen}
                       onTakeOver={handleTakeOver}
@@ -1132,7 +1344,8 @@ export default function Support() {
                       onSendAgentMessage={handleSendAgentMessage}
                       onFileSelection={handleFileSelection}
                       onEmojiSelect={handleEmojiSelect}
-                      onRemoveSelectedFile={removeSelectedFile}
+                      onRemoveAttachment={removeAttachment}
+                      onRetryAttachment={retryAttachment}
                     />
                   ) : null}
                 </div>
