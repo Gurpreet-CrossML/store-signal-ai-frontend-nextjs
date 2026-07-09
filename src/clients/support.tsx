@@ -448,6 +448,10 @@ export default function Support() {
   const wsRef = useRef<WebSocket | null>(null);
   const dashboardWsRef = useRef<WebSocket | null>(null);
   const connectedAgentRef = useRef<string | null>(null);
+  const activeThreadIdRef = useRef<string | null>(null);
+
+  // Generate a unique client ID for this session. This is used to identify messages sent by this client, so we can ignore them when they come back from the server.
+  const clientId = crypto.randomUUID();
 
   // Reset the socket-mutable copy when Redux supplies a new response. React
   // applies this guarded render-time adjustment before committing children,
@@ -604,7 +608,9 @@ export default function Support() {
       messaged_by: "You",
     });
 
-    wsRef.current.send(JSON.stringify({ message: outgoingMessage }));
+    wsRef.current.send(
+      JSON.stringify({ message: outgoingMessage, client_id: clientId }),
+    );
     setAgentMessage("");
     setSelectedFiles([]);
     setIsEmojiPickerOpen(false);
@@ -655,7 +661,7 @@ export default function Support() {
   // currently open.
   const upsertThreadFromMessage = useCallback(
     (data: DashboardMessageEvent) => {
-      const belongsToOpenThread = data.thread_id === activeThreadId;
+      const belongsToOpenThread = data.thread_id === activeThreadIdRef.current;
 
       setLocalThreads((prev) => {
         const existingIndex = prev.findIndex((t) => t.id === data.thread_id);
@@ -685,21 +691,13 @@ export default function Support() {
             : thread,
         );
       });
-
-      // If this message belongs to the thread currently open in the chat
-      // panel, the user is already looking at it — append it there so the
-      // open conversation stays live instead of just flagging it unread.
-      if (belongsToOpenThread) {
-        handleThreadMessageAdded({
-          role: data.role,
-          message: data.message,
-          created_at: new Date().toISOString(),
-          messaged_by: "",
-        });
-      }
     },
     [activeThreadId, handleThreadMessageAdded],
   );
+
+  useEffect(() => {
+    activeThreadIdRef.current = activeThreadId;
+  }, [activeThreadId]);
 
   const removeClosedThread = useCallback((threadId: string) => {
     setLocalThreads((prev) => prev.filter((t) => t.id !== threadId));
@@ -814,7 +812,8 @@ export default function Support() {
       if (
         !data?.success ||
         (data?.sender === "agent" &&
-          connectedAgentRef.current === session?.user?.email)
+          connectedAgentRef.current === session?.user?.email &&
+          data?.client_id === clientId)
       ) {
         return;
       }
