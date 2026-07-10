@@ -53,7 +53,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
-import axios from "axios";
+import { UploadMessageAttachments } from "@/redux/api-slice/thread-slice";
 
 // Extends the shared Thread type with a local read-state flag. Ideally
 // `is_read` becomes a real field on Thread (and maybe comes from the API),
@@ -477,33 +477,6 @@ type DashboardSocketPayload =
       data: { thread_id: string };
     };
 
-// Best-effort parsing of the upload endpoint's response into a list of
-// URLs, in the same order the files were appended to the FormData. Adjust
-// the key names here to match the real API response shape once confirmed.
-function extractUploadedUrls(
-  result: unknown,
-  count: number,
-): (string | null)[] {
-  const list: unknown[] = Array.isArray(
-    (result as { images?: unknown[] })?.images,
-  )
-    ? (result as { images: unknown[] }).images
-    : Array.isArray((result as { data?: unknown[] })?.data)
-      ? (result as { data: unknown[] }).data
-      : Array.isArray(result)
-        ? (result as unknown[])
-        : [];
-
-  const urls = list.map((entry) => {
-    if (typeof entry === "string") return entry;
-    const record = entry as { image_url?: string; url?: string };
-    return record?.image_url ?? record?.url ?? null;
-  });
-
-  // Pad/truncate defensively so callers can zip 1:1 with the files sent.
-  return Array.from({ length: count }, (_, index) => urls[index] ?? null);
-}
-
 export default function Support() {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
@@ -699,29 +672,24 @@ export default function Support() {
       items.forEach((item) => formData.append("images", item.file));
 
       try {
-        const response = await axios.post(ENDPOINTS.uploadImage(), formData, {
-          headers: {
-            Authorization: `Bearer ${session?.user?.access_token}`,
-          },
-        });
-        const result = await response.data;
-
-        const urls = extractUploadedUrls(result, items.length);
+        const result = await dispatch(
+          UploadMessageAttachments({ formData }),
+        ).unwrap();
 
         setAttachments((prev) =>
           prev.map((attachment) => {
             const index = items.findIndex((item) => item.id === attachment.id);
             if (index === -1) return attachment;
-            const url = urls[index];
+            const image = result[index];
             return {
               ...attachment,
-              url,
-              status: url ? "uploaded" : "error",
+              url: image.url,
+              status: image?.url ? "uploaded" : "error",
             };
           }),
         );
 
-        if (urls.every((url) => !url)) {
+        if (result.every((image: AttachmentUpload) => !image.url)) {
           toast.error("Upload failed", {
             description: "Could not upload the selected image(s).",
           });

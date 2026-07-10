@@ -43,7 +43,8 @@ export const ENDPOINTS = {
 
   // Image upload (Django) — POST multipart/form-data to this endpoint, then
   // use the returned URL in a message payload.
-  uploadImage: () => createAPIUrl("/support/attachments/upload/", "django"),
+  uploadAttachments: () =>
+    createAPIUrl("/support/attachments/upload/", "django"),
 
   // Company & staff management (Django /api/tenancy/). These are Django-owned;
   // GET calls must pass `useBackend: true` (writes auto-route to Django).
