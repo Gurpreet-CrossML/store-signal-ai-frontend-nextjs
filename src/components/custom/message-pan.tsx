@@ -47,7 +47,12 @@ export default function MessagePan({
 
   return (
     <div className="h-full space-y-4 p-2 overflow-y-auto" ref={containerRef}>
-      {messages?.map((message: ThreadMessage, index: number) => (
+      {messages?.map((message: ThreadMessage, index: number) => {
+        const isLastMessage = index === messages.length - 1;
+        const showReplyWithAI =
+          isLastMessage && message.role === "user" && !!onReplyWithAI;
+
+        return (
         <div key={index} className="space-y-2 pb-2">
           <div
             className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
@@ -111,7 +116,7 @@ export default function MessagePan({
                 {/* "Reply with AI" — only for user messages, only when a
                     handler is supplied by the parent. Shown on row hover
                     so it doesn't clutter the transcript by default. */}
-                {message.role === "user" && onReplyWithAI && (
+                {showReplyWithAI && (
                   <div className="mt-1 flex justify-end transition-opacity group-hover:opacity-100">
                     <Button
                       type="button"
@@ -291,7 +296,8 @@ export default function MessagePan({
             </div>
           </div>
         </div>
-      ))}
+        )
+      })}
     </div>
   );
 }

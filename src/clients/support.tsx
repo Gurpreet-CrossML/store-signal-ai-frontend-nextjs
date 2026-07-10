@@ -787,6 +787,7 @@ export default function Support() {
     }
 
     handleThreadMessageAdded({
+      id: crypto.randomUUID(),
       role: "assistant",
       message: message,
       created_at: new Date().toISOString(),
@@ -815,7 +816,7 @@ export default function Support() {
       // Adjust the payload shape to match whatever your socket/API expects.
       wsRef.current.send(
         JSON.stringify({
-          action_type: "ai_reply",
+          action_type: "reply_with_ai",
           message_id: message_id,
           client_id: clientID,
         }),
@@ -1047,6 +1048,10 @@ export default function Support() {
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
+      if (data?.success && data?.action_type === "message" && data?.chunk) {
+        return;
+      }
+
       if (!data?.success && data?.action_type === "handler_change") {
         toast.error("Permission Issue!", {
           description: data?.message || "",
@@ -1093,6 +1098,7 @@ export default function Support() {
         data?.final_update
       ) {
         handleThreadMessageAdded({
+          id: data?.final_update?.id,
           role: data?.final_update?.role,
           message: data?.final_update?.message,
           json_content: data?.final_update?.json_content || {},
@@ -1336,7 +1342,7 @@ export default function Support() {
                 <div className="flex min-h-0 flex-1 flex-col">
                   <div className="flex-1 min-h-0 overflow-y-auto p-3">
                     {threadMessages.length > 0 ? (
-                      <MessagePan messages={threadMessages} onReplyWithAI={handleReplyWithAI} />
+                      <MessagePan messages={threadMessages} onReplyWithAI={connectedAgent === session?.user?.email ? handleReplyWithAI : undefined} />
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted-foreground">
                         <IconMessage2 className="mb-1 h-6 w-6 opacity-40" />
