@@ -69,7 +69,7 @@ export default function MessagePan({
                     {formatDateTime(message.created_at)}
                   </span>
                 </div>
-                {message.role === "user" && !message.message.trim() ? (
+                {!message.message.trim() ? (
                   <></>
                 ) : (
                   <div
@@ -237,7 +237,7 @@ export default function MessagePan({
                     </div>
                   )}
 
-                {message.role === "user" && message.image_url && (
+                {message.image_url && (
                   <div className="flex flex-wrap gap-2 mt-2 justify-end">
                     {Array.isArray(message.image_url) ? (
                       <div className="flex gap-2">

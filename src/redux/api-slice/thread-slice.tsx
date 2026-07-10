@@ -471,6 +471,37 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
   },
 );
 
+export const UploadMessageAttachments = createAsyncThunk(
+  "UploadMessageAttachments",
+  async ({ formData }: { formData: FormData }, thunkAPI) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.uploadAttachments(),
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Could not upload the selected image(s). Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 const ThreadSlice = createSlice({
   name: "Thread",
   initialState: {
@@ -532,6 +563,11 @@ const ThreadSlice = createSlice({
       FetchFreshdeskTicketIdIsSuccess: false,
       FetchFreshdeskTicketIdIsError: null as null | string | object | unknown,
       FetchFreshdeskTicketIdData: [] as ThreadTicketData[],
+    },
+    UploadMessageAttachmentsState: {
+      UploadMessageAttachmentsIsLoading: false,
+      UploadMessageAttachmentsIsSuccess: false,
+      UploadMessageAttachmentsIsError: null as null | string | object | unknown,
     },
   },
   reducers: {},
@@ -679,6 +715,22 @@ const ThreadSlice = createSlice({
         state.FetchFreshdeskTicketIdState.FetchFreshdeskTicketIdIsError =
           action.payload;
         state.FetchFreshdeskTicketIdState.FetchFreshdeskTicketIdIsSuccess = false;
+      })
+      .addCase(UploadMessageAttachments.pending, (state) => {
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsLoading = true;
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsError =
+          null;
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsSuccess = false;
+      })
+      .addCase(UploadMessageAttachments.fulfilled, (state) => {
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsLoading = false;
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsSuccess = true;
+      })
+      .addCase(UploadMessageAttachments.rejected, (state, action) => {
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsLoading = false;
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsError =
+          action.payload;
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsSuccess = false;
       });
   },
 });
