@@ -15,15 +15,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { IconShoppingBag } from "@tabler/icons-react";
+import { IconShoppingBag, IconSparkles } from "@tabler/icons-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
 
 export default function MessagePan({
   messages,
+  onReplyWithAI
 }: {
   messages: ThreadMessage[];
+  onReplyWithAI?: (message: ThreadMessage, message_id: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -105,6 +107,25 @@ export default function MessagePan({
                     )}
                   </div>
                 )}
+
+                {/* "Reply with AI" — only for user messages, only when a
+                    handler is supplied by the parent. Shown on row hover
+                    so it doesn't clutter the transcript by default. */}
+                {message.role === "user" && onReplyWithAI && (
+                  <div className="mt-1 flex justify-end transition-opacity group-hover:opacity-100">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 gap-1 px-2 text-[11px] text-muted-foreground hover:text-primary"
+                      onClick={() => onReplyWithAI(message, message.id)}
+                    >
+                      <IconSparkles className="h-3 w-3" />
+                      Reply with AI
+                    </Button>
+                  </div>
+                )}
+
                 {message.role === "assistant" &&
                   message?.json_content?.products &&
                   message.json_content.products.length > 0 && (
