@@ -77,11 +77,6 @@ export const sidebarMenus: SideBarMenus = {
       icon: IconMessageUser,
     },
     {
-      title: "Help Desk",
-      url: "/helpdesk",
-      icon: IconHeadset,
-    },
-    {
       title: "Knowledge",
       url: "/knowledge",
       icon: IconBooks,
