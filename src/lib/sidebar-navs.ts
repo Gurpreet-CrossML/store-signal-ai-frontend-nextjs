@@ -1,11 +1,16 @@
 import {
+  IconAdjustmentsHorizontal,
+  IconBan,
   IconBooks,
   IconDashboard,
   IconHelp,
   IconImageGeneration,
   IconMessage2,
+  IconMoodSmile,
+  IconNotebook,
   IconSearch,
   IconSettings,
+  IconUser,
 } from "@tabler/icons-react";
 
 export const sidebarMenus = {
@@ -34,6 +39,32 @@ export const sidebarMenus = {
       title: "Customisation",
       url: "/customisation",
       icon: IconImageGeneration,
+    },
+    {
+      title: "Brand Voice",
+      icon: IconMoodSmile,
+      items: [
+        {
+          title: "Persona Identity",
+          url: "/brand-voice/persona-identity",
+          icon: IconUser,
+        },
+        {
+          title: "Tone & Style",
+          url: "/brand-voice/tone-style",
+          icon: IconAdjustmentsHorizontal,
+        },
+        {
+          title: "Vocabulary",
+          url: "/brand-voice/vocabulary",
+          icon: IconNotebook,
+        },
+        {
+          title: "Never-Say Rules",
+          url: "/brand-voice/never-say-rules",
+          icon: IconBan,
+        },
+      ],
     },
   ],
 
