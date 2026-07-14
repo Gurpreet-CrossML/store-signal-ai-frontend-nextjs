@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -15,6 +16,9 @@ import type {
   CartDataResponse,
   ThreadTicketData,
   UserMetadata,
+  Customer,
+  OrderData,
+  OrderShippingAddress,
 } from "@/redux/api-slice/thread-slice";
 import {
   IconBrain,
@@ -26,7 +30,11 @@ import {
   IconShoppingBag,
   IconTicket,
   IconUser,
+  IconPackage,
+  IconChevronRight,
 } from "@tabler/icons-react";
+import { FulfillmentBadge, StatusBadge } from "@/components/ui/status-badge";
+import { Button } from "@/components/ui/button";
 
 function CardLoadingState() {
   return (
@@ -218,9 +226,11 @@ export function CartDetailsCard({
 
 export function UserMetadataCard({
   userMetadata,
+  custometData,
   loading,
 }: {
   userMetadata: UserMetadata | null;
+  custometData?: Customer | null;
   loading?: boolean;
 }) {
   return (
@@ -234,6 +244,33 @@ export function UserMetadataCard({
           <CardLoadingState />
         ) : (
           <div className="flex flex-col gap-3">
+            {custometData && custometData?.name && (
+              <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="bg-primary/20 p-1">
+                    <IconLocationPin className="size-5 inline text-primary" />
+                  </span>
+                  <span className="shrink-0">Name</span>
+                </div>
+                <span className="ml-auto min-w-0 break-words text-right">
+                  {custometData?.name}
+                </span>
+              </div>
+            )}
+            {custometData && custometData?.email && (
+              <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="bg-primary/20 p-1">
+                    <IconLocationPin className="size-5 inline text-primary" />
+                  </span>
+                  <span className="shrink-0">Email</span>
+                </div>
+                <span className="ml-auto min-w-0 break-words text-right">
+                  {custometData?.email}
+                </span>
+              </div>
+            )}
+
             <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="bg-primary/20 p-1">
@@ -345,6 +382,264 @@ export function FreshdeskTicketCard({
           )}
         </CardContent>
       )}
+    </Card>
+  );
+}
+
+/**
+ * Build a readable multi-line shipping address, skipping any parts that
+ * are missing rather than rendering "null" or empty lines.
+ */
+function formatShippingAddress(address: OrderShippingAddress): {
+  recipient: string | null;
+  lines: string[];
+} {
+  const recipient =
+    address.name ??
+    [address.first_name, address.last_name].filter(Boolean).join(" ") ??
+    null;
+
+  const streetLine = [address.address1, address.address2]
+    .filter(Boolean)
+    .join(", ");
+
+  const cityLine = [
+    address.city,
+    address.province_code ?? address.province,
+    address.zip,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const lines = [streetLine, cityLine, address.country].filter(
+    (line): line is string => Boolean(line),
+  );
+
+  return { recipient: recipient || null, lines };
+}
+
+function ShippingAddress({
+  address,
+}: {
+  address: OrderShippingAddress | null;
+}) {
+  if (!address) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        No shipping address on file
+      </p>
+    );
+  }
+
+  const { recipient, lines } = formatShippingAddress(address);
+
+  if (!recipient && lines.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        No shipping address on file
+      </p>
+    );
+  }
+
+  return (
+    <div className="text-xs font-medium text-foreground">
+      {recipient && <p>{recipient}</p>}
+      {lines.map((line, idx) => (
+        <p key={idx} className="text-muted-foreground">
+          {line}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/** Format a "YYYY-MM-DD HH:mm:ss+TZ" timestamp into a short readable date. */
+function formatDate(value: string): string {
+  // Date.parse doesn't reliably handle a space between date and time the
+  // way it does the "T" separator, so normalize it first.
+  const date = new Date(value.replace(" ", "T"));
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/** Format a price string with the order's currency, e.g. "3850.00" → "$3,850.00". */
+function formatPrice(value: string, currency: string): string {
+  const amount = Number(value);
+  if (Number.isNaN(amount)) return value;
+
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      // Without this, some locales render USD as "US$" instead of "$" to
+      // disambiguate from their own local currency — narrowSymbol forces
+      // the plain symbol regardless of locale.
+      currencyDisplay: "narrowSymbol",
+    }).format(amount);
+  } catch {
+    // Unrecognized currency code — fall back to plain formatting.
+    return `${value} ${currency}`;
+  }
+}
+
+function OrderDetails({ order }: { order: OrderData }) {
+  return (
+    <div className="mt-1.5 space-y-3 rounded-xl border border-border/50 bg-muted/20 p-3">
+      <div>
+        <p className="text-[11px] font-medium text-muted-foreground">Items</p>
+        <div className="mt-1.5 space-y-1.5">
+          {order.items.map((item, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between text-xs"
+            >
+              <span className="text-foreground">
+                {item.name}{" "}
+                <span className="text-muted-foreground">× {item.quantity}</span>
+              </span>
+              <span className="font-medium text-foreground">
+                {formatPrice(item.price, order.currency)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 border-t border-border/50 pt-2.5">
+        <div>
+          <p className="text-[11px] text-muted-foreground">Payment</p>
+          <p className="text-xs font-medium text-foreground capitalize">
+            {order.gateway}
+          </p>
+        </div>
+        <div>
+          <p className="text-[11px] text-muted-foreground">Payment Status</p>
+          <div className="mt-0.5">
+            <StatusBadge status={order.financial_status} />
+          </div>
+        </div>
+        <div>
+          <p className="text-[11px] text-muted-foreground">Total</p>
+          <p className="text-xs font-semibold text-primary">
+            {formatPrice(order.total_price, order.currency)}
+          </p>
+        </div>
+        <div className="col-span-2">
+          <p className="text-[11px] text-muted-foreground">Shipping Address</p>
+          <div className="mt-0.5">
+            <ShippingAddress address={order.shipping_address} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function OrdersCard({
+  orders,
+  loading,
+  handleOrdersSync,
+  orderSyncLoading,
+}: {
+  orders?: OrderData[] | null;
+  loading?: boolean;
+  handleOrdersSync: () => void;
+  orderSyncLoading?: boolean;
+}) {
+  const orderList = orders;
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const toggleOrder = (id: number) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
+
+  if (!orderList || orderList.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card className="gap-0 py-0 overflow-hidden">
+      <CardHeader className="border-b border-border/50 bg-muted/30 py-3.5">
+        <CardTitle className="flex items-center justify-between gap-2 text-sm">
+          <div className="flex items-center gap-2 text-sm">
+            <IconShoppingBag className="h-4 w-4" />
+            Orders ({orderList.length})
+          </div>
+          <Button
+            type="button"
+            size="xs"
+            onClick={handleOrdersSync}
+            disabled={loading || orderSyncLoading}
+          >
+            {orderSyncLoading ? "Syncing..." : "Sync"}
+          </Button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-2">
+        {loading ? (
+          <p className="py-4 text-center text-xs text-muted-foreground">
+            Loading orders…
+          </p>
+        ) : orderList.length === 0 ? (
+          <p className="py-4 text-center text-xs text-muted-foreground">
+            No past orders found.
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            {orderList.map((order) => {
+              const isExpanded = expandedId === order.id;
+
+              return (
+                <div key={order.id}>
+                  <button
+                    type="button"
+                    onClick={() => toggleOrder(order.id)}
+                    className={`flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition ${
+                      isExpanded
+                        ? "border-primary/40 bg-primary/[0.04]"
+                        : "border-border/50 hover:bg-muted/50"
+                    }`}
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                      <IconPackage className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-xs font-semibold text-foreground">
+                          #{order.order_number}
+                        </p>
+                        <FulfillmentBadge status={order.fulfillment_status} />
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {formatDate(order.created_at)} · {order.items.length}{" "}
+                        item
+                        {order.items.length !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <span className="text-xs font-semibold text-primary">
+                        {formatPrice(order.total_price, order.currency)}
+                      </span>
+                      <IconChevronRight
+                        className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
+                          isExpanded ? "rotate-90" : ""
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  {isExpanded && <OrderDetails order={order} />}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 }

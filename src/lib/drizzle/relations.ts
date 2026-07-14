@@ -32,6 +32,7 @@ import {
   userMetadata,
   storeAccess,
   fraudFlag,
+  chatCustomerorder,
   scrapeLinkslinks,
   knowledgeStorelibrarydocument,
   storeIntegration,
@@ -253,6 +254,7 @@ export const chatAddressRelations = relations(chatAddress, ({ one }) => ({
 export const chatCustomerRelations = relations(chatCustomer, ({ many }) => ({
   chatAddresss: many(chatAddress),
   chatThreads: many(chatThread),
+  chatCustomerorders: many(chatCustomerorder),
   supportTickets: many(supportTicket),
 }));
 
@@ -379,6 +381,16 @@ export const fraudFlagRelations = relations(fraudFlag, ({ one }) => ({
     references: [chatThread.id],
   }),
 }));
+
+export const chatCustomerorderRelations = relations(
+  chatCustomerorder,
+  ({ one }) => ({
+    chatCustomer: one(chatCustomer, {
+      fields: [chatCustomerorder.customerId],
+      references: [chatCustomer.id],
+    }),
+  }),
+);
 
 export const scrapeLinkslinksRelations = relations(
   scrapeLinkslinks,
