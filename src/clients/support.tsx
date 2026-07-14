@@ -244,27 +244,21 @@ function ThreadChatControls({
               The AI assistant is currently handling this conversation.
             </span>
           </div>
-          {
-            activeThreadId && connectedAgent !== user &&
-            (
+          {activeThreadId && connectedAgent !== user && (
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 onClick={onTakeOver}
                 disabled={
                   transitionState !== "idle" ||
-                  !!(
-                    connectedAgent &&
-                    connectedAgent !== user
-                  )
+                  !!(connectedAgent && connectedAgent !== user)
                 }
               >
                 <IconHeadset className="h-4 w-4" />
                 Take Over
-                </Button>
+              </Button>
             </div>
-            )
-          }
+          )}
         </div>
       )}
 
@@ -556,7 +550,9 @@ export default function Support() {
   const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
     "all",
   );
-  const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<string | number | null>(null);
+  const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
+    string | number | null
+  >(null);
 
   const { data: session } = useSession();
 
@@ -1319,9 +1315,7 @@ export default function Support() {
                   ) : null}
                 </div>
               </div>
-              {
-                activeThreadId && connectedAgent === session?.user?.email &&
-                (
+              {activeThreadId && connectedAgent === session?.user?.email && (
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
@@ -1333,8 +1327,7 @@ export default function Support() {
                     Return to AI
                   </Button>
                 </div>
-                )
-              }
+              )}
             </div>
           </CardHeader>
           <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
@@ -1348,7 +1341,15 @@ export default function Support() {
                 <div className="flex min-h-0 flex-1 flex-col">
                   <div className="flex-1 min-h-0 overflow-y-auto p-3">
                     {threadMessages.length > 0 ? (
-                      <MessagePan messages={threadMessages} onReplyWithAI={connectedAgent === session?.user?.email ? handleReplyWithAI : undefined} replyWithAILoadingId={replyWithAILoadingId} />
+                      <MessagePan
+                        messages={threadMessages}
+                        onReplyWithAI={
+                          connectedAgent === session?.user?.email
+                            ? handleReplyWithAI
+                            : undefined
+                        }
+                        replyWithAILoadingId={replyWithAILoadingId}
+                      />
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted-foreground">
                         <IconMessage2 className="mb-1 h-6 w-6 opacity-40" />
