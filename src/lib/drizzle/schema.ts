@@ -1657,3 +1657,163 @@ export const supportTicket = pgTable(
     unique("support_ticket_ticket_id_key").on(table.ticketId),
   ],
 );
+export const neverSayRules = pgTable(
+  "never_say_rules",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "never_say_rules_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    noHollowApologies: boolean("no_hollow_apologies").notNull(),
+    neverRevealAiUnprompted: boolean("never_reveal_ai_unprompted").notNull(),
+    doNotSayPhrases: jsonb("do_not_say_phrases").notNull(),
+    forbiddenClaims: jsonb("forbidden_claims").notNull(),
+    requiredLegalPhrases: jsonb("required_legal_phrases").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "never_say_rules_store_id_9293ed10_fk_store_id",
+    }),
+    unique("never_say_rules_store_id_key").on(table.storeId),
+  ],
+);
+
+export const vocabulary = pgTable(
+  "vocabulary",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "vocabulary_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    preferredPhrases: jsonb("preferred_phrases").notNull(),
+    bannedWords: jsonb("banned_words").notNull(),
+    signaturePhrases: jsonb("signature_phrases").notNull(),
+    wordReplacements: jsonb("word_replacements").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "vocabulary_store_id_599134c7_fk_store_id",
+    }),
+    unique("vocabulary_store_id_key").on(table.storeId),
+  ],
+);
+
+export const personaIdentity = pgTable(
+  "persona_identity",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "persona_identity_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    roleDescription: varchar("role_description", { length: 255 }).notNull(),
+    selfReference: varchar("self_reference", { length: 10 }).notNull(),
+    emailSignature: varchar("email_signature", { length: 255 }).notNull(),
+    backstory: text().notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+    name: varchar({ length: 100 }).notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "persona_identity_store_id_591e4b25_fk_store_id",
+    }),
+    unique("persona_identity_store_id_key").on(table.storeId),
+  ],
+);
+
+export const toneStyle = pgTable(
+  "tone_style",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "tone_style_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    preset: varchar({ length: 20 }).notNull(),
+    warmth: smallint().notNull(),
+    formality: smallint().notNull(),
+    energy: smallint().notNull(),
+    playfulness: smallint().notNull(),
+    directness: smallint().notNull(),
+    answerLength: varchar("answer_length", { length: 10 }).notNull(),
+    regionalSpelling: varchar("regional_spelling", { length: 5 }).notNull(),
+    useBulletPoints: boolean("use_bullet_points").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+    frequencyPolicy: varchar("frequency_policy", { length: 10 }).notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "tone_style_store_id_b6e0aeaf_fk_store_id",
+    }),
+    unique("tone_style_store_id_key").on(table.storeId),
+    check("tone_style_warmth_check", sql`warmth >= 0`),
+    check("tone_style_formality_check", sql`formality >= 0`),
+    check("tone_style_energy_check", sql`energy >= 0`),
+    check("tone_style_playfulness_check", sql`playfulness >= 0`),
+    check("tone_style_directness_check", sql`directness >= 0`),
+  ],
+);

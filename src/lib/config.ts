@@ -108,6 +108,10 @@ export const ENDPOINTS = {
   fetchScrapeLinkTypes: () => `/knowledge/scrape-links/types`,
   createScrapeLink: () => `/knowledge/scrape-links/`,
   fetchScrapeLink: () => `/knowledge/scrape-links`,
+
+  // Brand Voice (local Next GET routes backed by src/db/brand-voice.ts).
+  fetchToneStyle: () => `/brand-voice/tone-style`,
+  fetchVocabulary: () => `/brand-voice/vocabulary`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

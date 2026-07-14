@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Vocabulary",
+  title: "Tone & Style",
 };
 
 export default function Page() {

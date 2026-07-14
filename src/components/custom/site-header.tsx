@@ -13,9 +13,11 @@ export function SiteHeader() {
   const navMain = session?.user?.is_staff
     ? [...sidebarMenus.navMain, ...sidebarMenus.navAdmin]
     : sidebarMenus.navMain;
+  const navItems = [...navMain, ...sidebarMenus.navBrandVoice.items];
 
   function findTitleFromPath(pathname: string | null) {
-    const found = navMain.find((item) => item.url === pathname);
+    const decodedPath = pathname ? decodeURIComponent(pathname) : pathname;
+    const found = navItems.find((item) => item.url === decodedPath);
     return found ? found.title : pathname;
   }
 

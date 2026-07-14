@@ -5,6 +5,8 @@ import ThreadSlice from "@/redux/api-slice/thread-slice";
 import KnowledgeSlice from "@/redux/api-slice/knowledge-slice";
 import CustomizationSlice from "@/redux/api-slice/customization-slice";
 import TenancySlice from "@/redux/api-slice/tenancy-slice";
+import ToneStyleSlice from "@/redux/api-slice/tone-style-slice";
+import VocabularySlice from "@/redux/api-slice/vocabulary-slice";
 
 const store = configureStore({
   reducer: {
@@ -14,6 +16,8 @@ const store = configureStore({
     GetKnowledgeReducer: KnowledgeSlice,
     GetCustomizationReducer: CustomizationSlice,
     GetTenancyReducer: TenancySlice,
+    GetToneStyleReducer: ToneStyleSlice,
+    GetVocabularyReducer: VocabularySlice,
   },
 });
 

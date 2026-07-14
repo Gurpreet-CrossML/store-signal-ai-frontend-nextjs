@@ -34,8 +34,12 @@ import {
   fraudFlag,
   scrapeLinkslinks,
   knowledgeStorelibrarydocument,
-  storeIntegration,
   supportTicket,
+  storeIntegration,
+  neverSayRules,
+  vocabulary,
+  personaIdentity,
+  toneStyle,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -193,8 +197,12 @@ export const storeRelations = relations(store, ({ many }) => ({
   storeAccesss: many(storeAccess),
   scrapeLinkslinkss: many(scrapeLinkslinks),
   knowledgeStorelibrarydocuments: many(knowledgeStorelibrarydocument),
-  storeIntegrations: many(storeIntegration),
   supportTickets: many(supportTicket),
+  storeIntegrations: many(storeIntegration),
+  neverSayRuless: many(neverSayRules),
+  vocabularys: many(vocabulary),
+  personaIdentitys: many(personaIdentity),
+  toneStyles: many(toneStyle),
 }));
 
 export const chatbotWidgetCustomizationQuickActionsRelations = relations(
@@ -422,5 +430,35 @@ export const supportTicketRelations = relations(supportTicket, ({ one }) => ({
   chatThread: one(chatThread, {
     fields: [supportTicket.threadId],
     references: [chatThread.id],
+  }),
+}));
+export const neverSayRulesRelations = relations(neverSayRules, ({ one }) => ({
+  store: one(store, {
+    fields: [neverSayRules.storeId],
+    references: [store.id],
+  }),
+}));
+
+export const vocabularyRelations = relations(vocabulary, ({ one }) => ({
+  store: one(store, {
+    fields: [vocabulary.storeId],
+    references: [store.id],
+  }),
+}));
+
+export const personaIdentityRelations = relations(
+  personaIdentity,
+  ({ one }) => ({
+    store: one(store, {
+      fields: [personaIdentity.storeId],
+      references: [store.id],
+    }),
+  }),
+);
+
+export const toneStyleRelations = relations(toneStyle, ({ one }) => ({
+  store: one(store, {
+    fields: [toneStyle.storeId],
+    references: [store.id],
   }),
 }));

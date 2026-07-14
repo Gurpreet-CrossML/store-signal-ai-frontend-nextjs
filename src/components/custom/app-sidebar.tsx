@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { NavMain } from "@/components/custom/nav-main";
+import { NavBrandVoice } from "@/components/custom/nav-brand-voice";
 import { NavSecondary } from "@/components/custom/nav-secondary";
 import { NavUser } from "@/components/custom/nav-user";
 import {
@@ -49,6 +50,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />
+        <NavBrandVoice
+          label={sidebarMenus.navBrandVoice.label}
+          items={sidebarMenus.navBrandVoice.items}
+          className="-mt-2"
+        />
         <NavSecondary items={sidebarMenus.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

@@ -40,33 +40,33 @@ export const sidebarMenus = {
       url: "/customisation",
       icon: IconImageGeneration,
     },
-    {
-      title: "Brand Voice",
-      icon: IconMoodSmile,
-      items: [
-        {
-          title: "Persona Identity",
-          url: "/brand-voice/persona-identity",
-          icon: IconUser,
-        },
-        {
-          title: "Tone & Style",
-          url: "/brand-voice/tone-style",
-          icon: IconAdjustmentsHorizontal,
-        },
-        {
-          title: "Vocabulary",
-          url: "/brand-voice/vocabulary",
-          icon: IconNotebook,
-        },
-        {
-          title: "Never-Say Rules",
-          url: "/brand-voice/never-say-rules",
-          icon: IconBan,
-        },
-      ],
-    },
   ],
+
+  navBrandVoice: {
+    label: "Brand Voice & Tone",
+    items: [
+      {
+        title: "Persona Identity",
+        url: "/brand-voice/persona-identity",
+        icon: IconUser,
+      },
+      {
+        title: "Tone & Style",
+        url: "/brand-voice/tone-style",
+        icon: IconMoodSmile,
+      },
+      {
+        title: "Vocabulary",
+        url: "/brand-voice/vocabulary",
+        icon: IconBooks,
+      },
+      {
+        title: "Never-Say Rules",
+        url: "/brand-voice/never-say-rules",
+        icon: IconBan,
+      },
+    ],
+  },
 
   // Company-admin only (is_staff). Gated in AppSidebar by the session role.
   navAdmin: [
