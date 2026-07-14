@@ -152,22 +152,6 @@ export default function TestSimulate() {
         </Tabs>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center xl:justify-end">
-          {/* <Select defaultValue="local-store-bot">
-            <SelectTrigger className="h-10 w-full min-w-60 justify-between sm:w-72">
-              <SelectValue />
-              <span className="ml-auto flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
-                <span className="size-2 rounded-full bg-emerald-500" />
-                Active
-              </span>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="local-store-bot">
-                  {selectedStoreName} Bot
-                </SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select> */}
 
           <Button className="h-10 gap-2">
             <IconMessageCircle className="size-4" />
@@ -199,7 +183,6 @@ export default function TestSimulate() {
 
           <CardContent className="flex min-h-[540px] flex-1 flex-col px-5 py-5">
             <div className="flex gap-4">
-              <BotAvatar />
               <div className="min-w-0">
                 <div className="w-fit max-w-full rounded-md border bg-muted/50 px-5 py-4 text-sm font-medium shadow-xs">
                   Hi there! How can I help you today?
@@ -208,7 +191,7 @@ export default function TestSimulate() {
               </div>
             </div>
 
-            <div className="mt-6 flex flex-wrap gap-3 pl-0 md:pl-16">
+            <div className="mt-6 flex flex-wrap gap-3 pl-0 md:pl-0">
               {quickReplies.map((reply) => (
                 <button
                   key={reply}
@@ -261,8 +244,7 @@ export default function TestSimulate() {
                     </button>
                   </AlertDialogTrigger>
                   <AlertDialogContent
-                    size="sm"
-                    className="w-[calc(100vw-2rem)] max-w-[308px] gap-0 rounded-xl p-4 shadow-2xl sm:max-w-[308px]"
+                    className="w-[calc(100vw-2rem)] max-w-[500px] gap-0 rounded-xl p-6 shadow-2xl lg:max-w-[500px]"
                   >
                     <div className="mb-4 flex items-center gap-3">
                       <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
