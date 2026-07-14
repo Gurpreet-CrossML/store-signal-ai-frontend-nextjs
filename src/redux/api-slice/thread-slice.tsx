@@ -103,6 +103,7 @@ export type ThreadJsonContent = {
 };
 
 export type ThreadMessage = {
+  id: string | number;
   role: string;
   message: string;
   json_content?: ThreadJsonContent;
