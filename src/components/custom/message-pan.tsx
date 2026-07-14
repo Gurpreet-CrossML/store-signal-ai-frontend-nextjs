@@ -19,13 +19,16 @@ import { IconShoppingBag, IconSparkles } from "@tabler/icons-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
+import { Spinner } from "../ui/spinner";
 
 export default function MessagePan({
   messages,
-  onReplyWithAI
+  onReplyWithAI,
+  replyWithAILoadingId
 }: {
   messages: ThreadMessage[];
-  onReplyWithAI?: (message: ThreadMessage, message_id: number) => void;
+  onReplyWithAI?: (message_id: number | string) => void;
+  replyWithAILoadingId?: string | number | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -123,10 +126,20 @@ export default function MessagePan({
                       variant="ghost"
                       size="sm"
                       className="h-6 gap-1 px-2 text-[11px] text-muted-foreground hover:text-primary"
-                      onClick={() => onReplyWithAI(message, message.id)}
+                      onClick={() => onReplyWithAI(message.id)}
+                      disabled={replyWithAILoadingId !== null && replyWithAILoadingId !== undefined}
                     >
-                      <IconSparkles className="h-3 w-3" />
-                      Reply with AI
+                      {replyWithAILoadingId === message.id ? (
+                        <>
+                          <Spinner className="size-3" />
+                          Generating…
+                        </>
+                      ) : (
+                        <>
+                          <IconSparkles className="h-3 w-3" />
+                          Reply with AI
+                        </>
+                      )}
                     </Button>
                   </div>
                 )}

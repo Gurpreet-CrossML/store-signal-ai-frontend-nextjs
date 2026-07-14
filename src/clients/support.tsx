@@ -556,7 +556,10 @@ export default function Support() {
   const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
     "all",
   );
+  const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<string | number | null>(null);
+
   const { data: session } = useSession();
+
   const wsRef = useRef<WebSocket | null>(null);
   const dashboardWsRef = useRef<WebSocket | null>(null);
   const connectedAgentRef = useRef<string | null>(null);
@@ -809,8 +812,10 @@ export default function Support() {
   }, [agentMessage, attachments, handleThreadMessageAdded]);
 
   const handleReplyWithAI = useCallback(
-    (message: ThreadMessage, message_id: number) => {
+    (message_id: number | string) => {
       if (!wsRef.current) return;
+
+      setReplyWithAILoadingId(message_id);
 
       // Tell the backend to generate an AI reply for this specific user turn.
       // Adjust the payload shape to match whatever your socket/API expects.
@@ -1106,6 +1111,7 @@ export default function Support() {
           messaged_by: data?.sender === "agent" ? "agent" : "",
           image_url: data?.final_update?.image_url || null,
         });
+        setReplyWithAILoadingId(null);
       }
     };
 
@@ -1342,7 +1348,7 @@ export default function Support() {
                 <div className="flex min-h-0 flex-1 flex-col">
                   <div className="flex-1 min-h-0 overflow-y-auto p-3">
                     {threadMessages.length > 0 ? (
-                      <MessagePan messages={threadMessages} onReplyWithAI={connectedAgent === session?.user?.email ? handleReplyWithAI : undefined} />
+                      <MessagePan messages={threadMessages} onReplyWithAI={connectedAgent === session?.user?.email ? handleReplyWithAI : undefined} replyWithAILoadingId={replyWithAILoadingId} />
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted-foreground">
                         <IconMessage2 className="mb-1 h-6 w-6 opacity-40" />
