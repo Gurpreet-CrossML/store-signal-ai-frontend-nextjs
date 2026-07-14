@@ -1,6 +1,6 @@
 "use client";
 
-import { type Icon } from "@tabler/icons-react";
+import { type Icon, IconChevronDown } from "@tabler/icons-react";
 
 import {
   Select,
@@ -17,7 +17,13 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarGroupLabel,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "radix-ui";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -85,15 +91,14 @@ function StoreSelector() {
   );
 }
 
-export function NavMain({
-  items,
-}: {
-  items: {
-    title: string;
-    url: string;
-    icon?: Icon;
-  }[];
-}) {
+type NavItem = {
+  title: string;
+  url?: string;
+  icon?: Icon;
+  items?: { title: string; url: string; icon?: Icon }[];
+};
+
+export function NavMain({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
 
   return (
@@ -106,13 +111,45 @@ export function NavMain({
               <SidebarMenuButton
                 tooltip={item.title}
                 className={cn(
-                  pathname == item.url
+                  pathname === item.url
                     ? "min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
                     : "",
                 )}
                 asChild
               >
-                <Link href={item.url}>
+                <Link href={item.url!}>
+                  {item.icon && <item.icon />}
+                  <span>{item.title}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
+export function NavBrandVoice({ items }: { items: NavItem[] }) {
+  const pathname = usePathname();
+
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel>BRAND VOICE</SidebarGroupLabel>
+      <SidebarGroupContent className="flex flex-col gap-2">
+        <SidebarMenu>
+          {items.map((item) => (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton
+                tooltip={item.title}
+                className={cn(
+                  pathname === item.url
+                    ? "min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
+                    : "",
+                )}
+                asChild
+              >
+                <Link href={item.url!}>
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
                 </Link>
