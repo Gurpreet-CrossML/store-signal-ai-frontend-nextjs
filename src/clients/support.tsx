@@ -244,6 +244,21 @@ function ThreadChatControls({
               The AI assistant is currently handling this conversation.
             </span>
           </div>
+          {activeThreadId && connectedAgent !== user && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                onClick={onTakeOver}
+                disabled={
+                  transitionState !== "idle" ||
+                  !!(connectedAgent && connectedAgent !== user)
+                }
+              >
+                <IconHeadset className="h-4 w-4" />
+                Take Over
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -477,6 +492,25 @@ type DashboardSocketPayload =
       data: { thread_id: string };
     };
 
+const useNotificationSound = (soundUrl: string = "/notification_sound.mp3") => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const play = useCallback(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio(soundUrl);
+      audioRef.current.volume = 0.5;
+    }
+    // reset so rapid consecutive messages still replay the sound
+    audioRef.current.currentTime = 0;
+    audioRef.current.play().catch((err) => {
+      // browsers block autoplay until user has interacted with the page
+      console.warn("Notification sound blocked:", err);
+    });
+  }, [soundUrl]);
+
+  return play;
+};
+
 export default function Support() {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
@@ -516,7 +550,12 @@ export default function Support() {
   const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
     "all",
   );
+  const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
+    string | number | null
+  >(null);
+
   const { data: session } = useSession();
+
   const wsRef = useRef<WebSocket | null>(null);
   const dashboardWsRef = useRef<WebSocket | null>(null);
   const connectedAgentRef = useRef<string | null>(null);
@@ -542,6 +581,8 @@ export default function Support() {
   const activeThreadId = selectedThreadStillExists
     ? selectedThreadId
     : (localThreads[0]?.id ?? null);
+
+  const playNotificationSound = useNotificationSound();
 
   // The open conversation is read by definition. Keep that as derived state
   // so defaulting or advancing to the first thread needs no effect.
@@ -745,6 +786,7 @@ export default function Support() {
     }
 
     handleThreadMessageAdded({
+      id: crypto.randomUUID(),
       role: "assistant",
       message: message,
       created_at: new Date().toISOString(),
@@ -764,6 +806,29 @@ export default function Support() {
     setAttachments([]);
     setIsEmojiPickerOpen(false);
   }, [agentMessage, attachments, handleThreadMessageAdded]);
+
+  const handleReplyWithAI = useCallback(
+    (message_id: number | string) => {
+      if (!wsRef.current) return;
+
+      setReplyWithAILoadingId(message_id);
+
+      // Tell the backend to generate an AI reply for this specific user turn.
+      // Adjust the payload shape to match whatever your socket/API expects.
+      wsRef.current.send(
+        JSON.stringify({
+          action_type: "reply_with_ai",
+          message_id: message_id,
+          client_id: clientID,
+        }),
+      );
+
+      toast.success("Asked AI to reply", {
+        description: "Generating a response for this message…",
+      });
+    },
+    [clientID],
+  );
 
   const handleFileSelection = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -858,18 +923,22 @@ export default function Support() {
           return [newThread, ...prev];
         }
 
-        return prev.map((thread) =>
-          thread.id === data.thread_id
-            ? {
-                ...thread,
-                last_message: data.message,
-                is_active: data.is_active,
-                total_messages: (thread.total_messages ?? 0) + 1,
-                is_read: belongsToOpenThread,
-              }
-            : thread,
-        );
+        const existingThread = prev[existingIndex];
+        const updatedThread: ThreadWithReadState = {
+          ...existingThread,
+          last_message: data.message,
+          is_active: data.is_active,
+          total_messages: (existingThread.total_messages ?? 0) + 1,
+          is_read: belongsToOpenThread,
+        };
+
+        const rest = prev.filter((thread) => thread.id !== data.thread_id);
+        return [updatedThread, ...rest];
       });
+
+      if (!belongsToOpenThread) {
+        playNotificationSound();
+      }
     },
     [activeThreadId, handleThreadMessageAdded],
   );
@@ -980,6 +1049,10 @@ export default function Support() {
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
+      if (data?.success && data?.action_type === "message" && data?.chunk) {
+        return;
+      }
+
       if (!data?.success && data?.action_type === "handler_change") {
         toast.error("Permission Issue!", {
           description: data?.message || "",
@@ -1026,6 +1099,7 @@ export default function Support() {
         data?.final_update
       ) {
         handleThreadMessageAdded({
+          id: data?.final_update?.id,
           role: data?.final_update?.role,
           message: data?.final_update?.message,
           json_content: data?.final_update?.json_content || {},
@@ -1033,6 +1107,7 @@ export default function Support() {
           messaged_by: data?.sender === "agent" ? "agent" : "",
           image_url: data?.final_update?.image_url || null,
         });
+        setReplyWithAILoadingId(null);
       }
     };
 
@@ -1240,36 +1315,19 @@ export default function Support() {
                   ) : null}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {selectedThread?.is_active ? (
-                  connectedAgent !== session?.user?.email ? (
-                    <Button
-                      type="button"
-                      onClick={handleTakeOver}
-                      disabled={
-                        transitionState !== "idle" ||
-                        !!(
-                          connectedAgent &&
-                          connectedAgent !== session?.user?.email
-                        )
-                      }
-                    >
-                      <IconHeadset className="h-4 w-4" />
-                      Take Over
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleReturnToAI}
-                      disabled={transitionState !== "idle"}
-                    >
-                      <IconRobot className="h-4 w-4" />
-                      Return to AI
-                    </Button>
-                  )
-                ) : null}
-              </div>
+              {activeThreadId && connectedAgent === session?.user?.email && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleReturnToAI}
+                    disabled={transitionState !== "idle"}
+                  >
+                    <IconRobot className="h-4 w-4" />
+                    Return to AI
+                  </Button>
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
@@ -1283,7 +1341,15 @@ export default function Support() {
                 <div className="flex min-h-0 flex-1 flex-col">
                   <div className="flex-1 min-h-0 overflow-y-auto p-3">
                     {threadMessages.length > 0 ? (
-                      <MessagePan messages={threadMessages} />
+                      <MessagePan
+                        messages={threadMessages}
+                        onReplyWithAI={
+                          connectedAgent === session?.user?.email
+                            ? handleReplyWithAI
+                            : undefined
+                        }
+                        replyWithAILoadingId={replyWithAILoadingId}
+                      />
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted-foreground">
                         <IconMessage2 className="mb-1 h-6 w-6 opacity-40" />
