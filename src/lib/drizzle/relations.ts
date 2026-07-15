@@ -43,12 +43,6 @@ import {
   storeIntegration,
   storeIntegrationAttribute,
   chatCustomerorder,
-  vocabulary,
-  neverSayRules,
-  personaIdentity,
-  toneStyle,
-  vocabularyWordReplacements,
-  wordReplacement,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -134,8 +128,7 @@ export const authUserRelations = relations(authUser, ({ many }) => ({
   storeAccesss_userId: many(storeAccess, {
     relationName: "storeAccess_userId_authUser_id",
   }),
-  chatThreads: many(chatThread),
-  chatHistorys: many(chatHistory),
+  chatHistory: many(chatHistory),
 }));
 
 export const authUserUserPermissionsRelations = relations(
@@ -204,9 +197,9 @@ export const storeRelations = relations(store, ({ many }) => ({
   storeFaqss: many(storeFaqs),
   storeCredentialss: many(storeCredentials),
   sessionResolutionVerdicts: many(sessionResolutionVerdict),
-  chatThreads: many(chatThread),
   scrapeLinkslinkss: many(scrapeLinkslinks),
   knowledgeStorelibrarydocuments: many(knowledgeStorelibrarydocument),
+  supportTickets: many(supportTicket),
   supportTickets: many(supportTicket),
   storeIntegrations: many(storeIntegration),
   vocabularys: many(vocabulary),
@@ -339,7 +332,7 @@ export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
   }),
   userMetadatas: many(userMetadata),
   fraudFlags: many(fraudFlag),
-  chatHistorys: many(chatHistory),
+  chatHistory: many(chatHistory),
   supportTickets: many(supportTicket),
 }));
 
@@ -505,58 +498,5 @@ export const chatCustomerorderRelations = relations(
       fields: [chatCustomerorder.customerId],
       references: [chatCustomer.id],
     }),
-  }),
-);
-
-export const vocabularyRelations = relations(vocabulary, ({ one, many }) => ({
-  store: one(store, {
-    fields: [vocabulary.storeId],
-    references: [store.id],
-  }),
-  vocabularyWordReplacementss: many(vocabularyWordReplacements),
-}));
-
-export const neverSayRulesRelations = relations(neverSayRules, ({ one }) => ({
-  store: one(store, {
-    fields: [neverSayRules.storeId],
-    references: [store.id],
-  }),
-}));
-
-export const personaIdentityRelations = relations(
-  personaIdentity,
-  ({ one }) => ({
-    store: one(store, {
-      fields: [personaIdentity.storeId],
-      references: [store.id],
-    }),
-  }),
-);
-
-export const toneStyleRelations = relations(toneStyle, ({ one }) => ({
-  store: one(store, {
-    fields: [toneStyle.storeId],
-    references: [store.id],
-  }),
-}));
-
-export const vocabularyWordReplacementsRelations = relations(
-  vocabularyWordReplacements,
-  ({ one }) => ({
-    vocabulary: one(vocabulary, {
-      fields: [vocabularyWordReplacements.vocabularyId],
-      references: [vocabulary.id],
-    }),
-    wordReplacement: one(wordReplacement, {
-      fields: [vocabularyWordReplacements.wordreplacementId],
-      references: [wordReplacement.id],
-    }),
-  }),
-);
-
-export const wordReplacementRelations = relations(
-  wordReplacement,
-  ({ many }) => ({
-    vocabularyWordReplacementss: many(vocabularyWordReplacements),
   }),
 );

@@ -7,8 +7,10 @@ import {
   foreignKey,
   bigint,
   check,
+  check,
   timestamp,
   boolean,
+  uuid,
   uuid,
   text,
   smallint,
@@ -999,6 +1001,154 @@ export const chatBotevent = pgTable(
   ],
 );
 
+export const chatHistory = pgTable(
+  "chat_history",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "chat_history_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    role: varchar({ length: 20 }).notNull(),
+    jsonContent: jsonb("json_content").notNull(),
+    messageType: varchar("message_type", { length: 30 }).notNull(),
+    responseTime: doublePrecision("response_time").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    threadId: uuid("thread_id").notNull(),
+    workflow: varchar({ length: 100 }),
+    message: text().notNull(),
+    imageUrl: jsonb("image_url"),
+    messagedById: integer("messaged_by_id"),
+  },
+  (table) => [
+    index("chat_histor_created_2850f7_idx").using(
+      "btree",
+      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
+    ),
+    index("chat_histor_message_aee83b_idx").using(
+      "btree",
+      table.messageType.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_histor_role_2d2777_idx").using(
+      "btree",
+      table.role.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_histor_thread__381e32_idx").using(
+      "btree",
+      table.threadId.asc().nullsLast().op("uuid_ops"),
+    ),
+    index("chat_history_messaged_by_id_3c647c76").using(
+      "btree",
+      table.messagedById.asc().nullsLast().op("int4_ops"),
+    ),
+    index("chat_history_thread_id_4bac8b19").using(
+      "btree",
+      table.threadId.asc().nullsLast().op("uuid_ops"),
+    ),
+    foreignKey({
+      columns: [table.threadId],
+      foreignColumns: [chatThread.id],
+      name: "chat_history_thread_id_4bac8b19_fk_chat_thread_id",
+    }),
+    foreignKey({
+      columns: [table.messagedById],
+      foreignColumns: [authUser.id],
+      name: "chat_history_messaged_by_id_3c647c76_fk_auth_user_id",
+    }),
+  ],
+);
+
+export const chatThread = pgTable(
+  "chat_thread",
+  {
+    id: uuid().primaryKey().notNull(),
+    name: varchar({ length: 255 }),
+    isActive: boolean("is_active").notNull(),
+    followupLevel: integer("followup_level").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true, mode: "string" }),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    customerId: bigint("customer_id", { mode: "number" }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+    externalId: varchar("external_id", { length: 255 }),
+    source: varchar({ length: 20 }).notNull(),
+    chatHandler: varchar("chat_handler", { length: 10 }).notNull(),
+    chatHandlerUserId: integer("chat_handler_user_id"),
+  },
+  (table) => [
+    index("chat_thread_chat_handler_44f4c9ad").using(
+      "btree",
+      table.chatHandler.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_thread_chat_handler_44f4c9ad_like").using(
+      "btree",
+      table.chatHandler.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("chat_thread_chat_handler_user_id_b6c39021").using(
+      "btree",
+      table.chatHandlerUserId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("chat_thread_customer_id_31f2879e").using(
+      "btree",
+      table.customerId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("chat_thread_external_id_781a6db4").using(
+      "btree",
+      table.externalId.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_thread_external_id_781a6db4_like").using(
+      "btree",
+      table.externalId.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("chat_thread_store_id_b856f451").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    uniqueIndex("uniq_store_external_thread")
+      .using(
+        "btree",
+        table.storeId.asc().nullsLast().op("text_ops"),
+        table.externalId.asc().nullsLast().op("text_ops"),
+        table.externalId.asc().nullsLast().op("int8_ops"),
+      )
+      .where(sql`(external_id IS NOT NULL)`),
+    foreignKey({
+      columns: [table.customerId],
+      foreignColumns: [chatCustomer.id],
+      name: "chat_thread_customer_id_31f2879e_fk_chat_customer_id",
+    }),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "chat_thread_store_id_b856f451_fk_store_id",
+    }),
+    foreignKey({
+      columns: [table.chatHandlerUserId],
+      foreignColumns: [authUser.id],
+      name: "chat_thread_chat_handler_user_id_b6c39021_fk_auth_user_id",
+    }),
+  ],
+);
+
 export const aiInsights = pgTable(
   "ai_insights",
   {
@@ -1602,6 +1752,282 @@ export const supportTicket = pgTable(
       name: "support_ticket_thread_id_2978cb77_fk_chat_thread_id",
     }),
     unique("support_ticket_ticket_id_key").on(table.ticketId),
+  ],
+);
+
+export const taggitTaggeditem = pgTable(
+  "taggit_taggeditem",
+  {
+    id: integer().primaryKey().generatedByDefaultAsIdentity({
+      name: "taggit_taggeditem_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 2147483647,
+      cache: 1,
+    }),
+    objectId: integer("object_id").notNull(),
+    contentTypeId: integer("content_type_id").notNull(),
+    tagId: integer("tag_id").notNull(),
+  },
+  (table) => [
+    index("taggit_tagg_content_8fc721_idx").using(
+      "btree",
+      table.contentTypeId.asc().nullsLast().op("int4_ops"),
+      table.objectId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("taggit_taggeditem_content_type_id_9957a03c").using(
+      "btree",
+      table.contentTypeId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("taggit_taggeditem_object_id_e2d7d1df").using(
+      "btree",
+      table.objectId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("taggit_taggeditem_tag_id_f4f5b767").using(
+      "btree",
+      table.tagId.asc().nullsLast().op("int4_ops"),
+    ),
+    foreignKey({
+      columns: [table.contentTypeId],
+      foreignColumns: [djangoContentType.id],
+      name: "taggit_taggeditem_content_type_id_9957a03c_fk_django_co",
+    }),
+    foreignKey({
+      columns: [table.tagId],
+      foreignColumns: [taggitTag.id],
+      name: "taggit_taggeditem_tag_id_f4f5b767_fk_taggit_tag_id",
+    }),
+    unique(
+      "taggit_taggeditem_content_type_id_object_id_tag_id_4bb97a8e_uni",
+    ).on(table.contentTypeId, table.objectId, table.tagId),
+  ],
+);
+
+export const taggitTag = pgTable(
+  "taggit_tag",
+  {
+    id: integer().primaryKey().generatedByDefaultAsIdentity({
+      name: "taggit_tag_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 2147483647,
+      cache: 1,
+    }),
+    name: varchar({ length: 100 }).notNull(),
+    slug: varchar({ length: 100 }).notNull(),
+  },
+  (table) => [
+    index("taggit_tag_name_58eb2ed9_like").using(
+      "btree",
+      table.name.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("taggit_tag_slug_6be58b2c_like").using(
+      "btree",
+      table.slug.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    unique("taggit_tag_name_key").on(table.name),
+    unique("taggit_tag_slug_key").on(table.slug),
+  ],
+);
+
+export const integrationCategory = pgTable("integration_category", {
+  // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+  id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+    name: "integration_category_id_seq",
+    startWith: 1,
+    increment: 1,
+    minValue: 1,
+    maxValue: 9223372036854775807,
+    cache: 1,
+  }),
+  name: varchar({ length: 255 }).notNull(),
+  description: text(),
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+});
+
+export const integration = pgTable(
+  "integration",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "integration_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    name: varchar({ length: 255 }).notNull(),
+    description: text(),
+    logo: varchar({ length: 100 }),
+    isActive: boolean("is_active").notNull(),
+    stepsForCreds: text("steps_for_creds").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    categoryId: bigint("category_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("integration_category_id_7356fea4").using(
+      "btree",
+      table.categoryId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.categoryId],
+      foreignColumns: [integrationCategory.id],
+      name: "integration_category_id_7356fea4_fk_integration_category_id",
+    }),
+  ],
+);
+
+export const integrationAttribute = pgTable(
+  "integration_attribute",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "integration_attribute_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    name: varchar({ length: 255 }).notNull(),
+    code: varchar({ length: 255 }).notNull(),
+    displayName: varchar("display_name", { length: 255 }).notNull(),
+    type: varchar({ length: 50 }).notNull(),
+    isRequired: boolean("is_required").notNull(),
+    options: jsonb(),
+    order: integer().notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    integrationId: bigint("integration_id", { mode: "number" }).notNull(),
+    placeholder: varchar({ length: 255 }),
+  },
+  (table) => [
+    index("integration_attribute_integration_id_accbd512").using(
+      "btree",
+      table.integrationId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.integrationId],
+      foreignColumns: [integration.id],
+      name: "integration_attribute_integration_id_accbd512_fk_integration_id",
+    }),
+    unique("integration_attribute_integration_id_code_84a2ecb7_uniq").on(
+      table.code,
+      table.integrationId,
+    ),
+    check("integration_attribute_order_check", sql`"order" >= 0`),
+  ],
+);
+
+export const storeIntegration = pgTable(
+  "store_integration",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "store_integration_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    integrationId: bigint("integration_id", { mode: "number" }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("store_integration_integration_id_9fe693af").using(
+      "btree",
+      table.integrationId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("store_integration_store_id_38acbb75").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "store_integration_store_id_38acbb75_fk_store_id",
+    }),
+    unique("unique_store_integration").on(table.integrationId, table.storeId),
+  ],
+);
+
+export const storeIntegrationAttribute = pgTable(
+  "store_integration_attribute",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "store_integration_attribute_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    key: varchar({ length: 255 }).notNull(),
+    value: text().notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeIntegrationId: bigint("store_integration_id", {
+      mode: "number",
+    }).notNull(),
+  },
+  (table) => [
+    index("store_integration_attribute_store_integration_id_1cf271b2").using(
+      "btree",
+      table.storeIntegrationId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.storeIntegrationId],
+      foreignColumns: [storeIntegration.id],
+      name: "store_integration_at_store_integration_id_1cf271b2_fk_store_int",
+    }),
+    unique("unique_store_integration_attribute").on(
+      table.key,
+      table.storeIntegrationId,
+    ),
   ],
 );
 
