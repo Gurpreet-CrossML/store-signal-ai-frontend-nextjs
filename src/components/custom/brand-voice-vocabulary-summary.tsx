@@ -23,7 +23,9 @@ export default function BrandVoiceVocabularySummary({
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle>Vocabulary summary</CardTitle>
-            <p className="text-sm text-muted-foreground">Quick counts and a few live hints.</p>
+            <p className="text-sm text-muted-foreground">
+              Quick counts and a few live hints.
+            </p>
           </div>
           {lastSavedAt && (
             <span className="text-xs text-muted-foreground">
@@ -40,7 +42,9 @@ export default function BrandVoiceVocabularySummary({
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 {item.label}
               </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums">{item.value}</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">
+                {item.value}
+              </p>
             </div>
           ))}
         </div>
@@ -48,7 +52,9 @@ export default function BrandVoiceVocabularySummary({
         <Separator />
 
         <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">Preferred phrases currently on deck.</p>
+          <p className="text-sm text-muted-foreground">
+            Preferred phrases currently on deck.
+          </p>
           <div className="flex flex-wrap gap-2">
             {preferredPhrases.slice(0, 6).map((item) => (
               <Badge key={item} variant="secondary" className="font-normal">
@@ -57,7 +63,8 @@ export default function BrandVoiceVocabularySummary({
             ))}
             {preferredPhrases.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                Add a few preferred phrases to make the assistant sound more on-brand.
+                Add a few preferred phrases to make the assistant sound more
+                on-brand.
               </p>
             )}
           </div>

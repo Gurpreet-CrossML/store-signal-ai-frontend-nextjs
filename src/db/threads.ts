@@ -11,6 +11,7 @@ import {
   supportTicket,
   userMetadata,
   sessionResolutionVerdict,
+  chatCustomerorder,
 } from "@/lib/drizzle/schema";
 import {
   and,
@@ -26,6 +27,11 @@ import {
   sql,
   SQL,
 } from "drizzle-orm";
+import {
+  OrderData,
+  OrderItemData,
+  OrderShippingAddress,
+} from "@/redux/api-slice/thread-slice";
 
 /**
  * Filters accepted by the thread list endpoint, mirroring
@@ -667,4 +673,51 @@ export async function get_user_metadata(
 
   if (rows.length === 0) return null;
   return { ...rows[0], id: Number(rows[0].id) };
+}
+
+export async function get_order_data(thread_id: string): Promise<OrderData[]> {
+  const db = getDb();
+
+  const thread = await db
+    .select({ customerId: chatThread.customerId })
+    .from(chatThread)
+    .where(eq(chatThread.id, thread_id))
+    .then((rows) => rows[0]);
+
+  if (!thread?.customerId) {
+    return [];
+  }
+
+  const orderRows = await db
+    .select({
+      id: chatCustomerorder.id,
+      order_id: chatCustomerorder.orderId,
+      order_number: chatCustomerorder.orderNumber,
+      created_at: chatCustomerorder.createdAt,
+      total_price: chatCustomerorder.totalPrice,
+      financial_status: chatCustomerorder.financialStatus,
+      fulfillment_status: chatCustomerorder.fulfillmentStatus,
+      gateway: chatCustomerorder.gateway,
+      shipping_address: chatCustomerorder.shippingAddress,
+      currency: chatCustomerorder.currency,
+      items: chatCustomerorder.items,
+      subtotal_price: chatCustomerorder.subtotalPrice,
+      total_tax: chatCustomerorder.totalTax,
+      total_shipping: chatCustomerorder.totalShipping,
+      total_discounts: chatCustomerorder.totalDiscounts,
+      shipping_method: chatCustomerorder.shippingMethod,
+    })
+    .from(chatCustomerorder)
+    .where(eq(chatCustomerorder.customerId, thread.customerId))
+    .orderBy(desc(chatCustomerorder.createdAt));
+
+  if (orderRows.length === 0) {
+    return [];
+  }
+
+  return orderRows.map((row) => ({
+    ...row,
+    shipping_address: row.shipping_address as OrderShippingAddress,
+    items: row.items as OrderItemData[],
+  }));
 }

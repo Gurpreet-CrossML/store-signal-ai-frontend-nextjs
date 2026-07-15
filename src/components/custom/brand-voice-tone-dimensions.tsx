@@ -16,11 +16,41 @@ type SliderDef = {
 // Purple-harmonious palette — each slider gets a distinct shade
 // within the analogous range of the theme hue (~292 oklch / purple).
 const SLIDERS: SliderDef[] = [
-  { key: "warmth",      label: "Warmth",      minLabel: "Reserved",  maxLabel: "Warm",      accentColor: "oklch(0.65 0.22 310)" },   // rosy magenta
-  { key: "formality",   label: "Formality",   minLabel: "Casual",    maxLabel: "Formal",    accentColor: "oklch(0.55 0.24 270)" },   // deep violet
-  { key: "energy",      label: "Energy",      minLabel: "Calm",      maxLabel: "Energetic", accentColor: "oklch(0.62 0.26 330)" },   // fuchsia pink
-  { key: "playfulness", label: "Playfulness", minLabel: "Serious",   maxLabel: "Playful",   accentColor: "oklch(0.68 0.20 290)" },   // soft lavender
-  { key: "directness",  label: "Directness",  minLabel: "Gentle",    maxLabel: "Direct",    accentColor: "oklch(0.56 0.20 255)" },   // indigo blue
+  {
+    key: "warmth",
+    label: "Warmth",
+    minLabel: "Reserved",
+    maxLabel: "Warm",
+    accentColor: "oklch(0.65 0.22 310)",
+  }, // rosy magenta
+  {
+    key: "formality",
+    label: "Formality",
+    minLabel: "Casual",
+    maxLabel: "Formal",
+    accentColor: "oklch(0.55 0.24 270)",
+  }, // deep violet
+  {
+    key: "energy",
+    label: "Energy",
+    minLabel: "Calm",
+    maxLabel: "Energetic",
+    accentColor: "oklch(0.62 0.26 330)",
+  }, // fuchsia pink
+  {
+    key: "playfulness",
+    label: "Playfulness",
+    minLabel: "Serious",
+    maxLabel: "Playful",
+    accentColor: "oklch(0.68 0.20 290)",
+  }, // soft lavender
+  {
+    key: "directness",
+    label: "Directness",
+    minLabel: "Gentle",
+    maxLabel: "Direct",
+    accentColor: "oklch(0.56 0.20 255)",
+  }, // indigo blue
 ];
 
 type BrandVoiceToneDimensionsProps = {

@@ -58,13 +58,15 @@ export default function BrandVoiceToneCurrentProfile({
           ))}
         </div>
         <div className="grid grid-cols-2 gap-3 text-sm">
-          {([
-            ["Warmth", warmth],
-            ["Formality", formality],
-            ["Energy", energy],
-            ["Playfulness", playfulness],
-            ["Directness", directness],
-          ] as const).map(([label, value]) => (
+          {(
+            [
+              ["Warmth", warmth],
+              ["Formality", formality],
+              ["Energy", energy],
+              ["Playfulness", playfulness],
+              ["Directness", directness],
+            ] as const
+          ).map(([label, value]) => (
             <div key={label} className="rounded-lg border border-border/60 p-3">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 {label}

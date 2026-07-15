@@ -31,8 +31,8 @@ export default function BrandVoiceTonePresetSelector({
           Quick-start preset
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Pick a starter voice. If the store already has a saved profile,
-          the preview will stay synced to that data.
+          Pick a starter voice. If the store already has a saved profile, the
+          preview will stay synced to that data.
         </p>
       </CardHeader>
       <CardContent className="px-5 pb-5">

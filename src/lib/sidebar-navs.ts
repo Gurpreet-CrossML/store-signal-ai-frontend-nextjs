@@ -26,7 +26,7 @@ export const sidebarMenus = {
       icon: IconMessage2,
     },
     {
-      title: "Support",
+      title: "Live Support",
       url: "/support",
       icon: IconMessage2,
     },

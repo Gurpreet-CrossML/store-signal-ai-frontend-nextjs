@@ -48,7 +48,12 @@ type ToneStylePreviewConfig = TonePreviewConfig & {
 };
 
 type AnswerLengthValue = "concise" | "standard" | "thorough";
-type FrequencyPolicyValue = "none" | "sparing" | "moderate" | "liberal" | "free";
+type FrequencyPolicyValue =
+  | "none"
+  | "sparing"
+  | "moderate"
+  | "liberal"
+  | "free";
 type RegionalSpellingValue = "uk" | "us" | "auto";
 
 type StoreSummary = { id: string; name: string; code: string };
@@ -67,23 +72,98 @@ const PRESET_ORDER = [
 ] as const;
 
 const PRESET_META = [
-  { key: "friendly",     icon: IconMoodSmile, title: previewConfig.presets.friendly.title,     description: previewConfig.presets.friendly.description },
-  { key: "warm_expert",  icon: IconSparkles,  title: previewConfig.presets.warm_expert.title,  description: previewConfig.presets.warm_expert.description },
-  { key: "professional", icon: IconBriefcase, title: previewConfig.presets.professional.title, description: previewConfig.presets.professional.description },
-  { key: "playful",      icon: IconGauge,     title: previewConfig.presets.playful.title,      description: previewConfig.presets.playful.description },
-  { key: "luxury",       icon: IconDiamond,   title: previewConfig.presets.luxury.title,       description: previewConfig.presets.luxury.description },
-  { key: "custom",       icon: IconAdjustments, title: previewConfig.presets.custom.title,     description: previewConfig.presets.custom.description },
+  {
+    key: "friendly",
+    icon: IconMoodSmile,
+    title: previewConfig.presets.friendly.title,
+    description: previewConfig.presets.friendly.description,
+  },
+  {
+    key: "warm_expert",
+    icon: IconSparkles,
+    title: previewConfig.presets.warm_expert.title,
+    description: previewConfig.presets.warm_expert.description,
+  },
+  {
+    key: "professional",
+    icon: IconBriefcase,
+    title: previewConfig.presets.professional.title,
+    description: previewConfig.presets.professional.description,
+  },
+  {
+    key: "playful",
+    icon: IconGauge,
+    title: previewConfig.presets.playful.title,
+    description: previewConfig.presets.playful.description,
+  },
+  {
+    key: "luxury",
+    icon: IconDiamond,
+    title: previewConfig.presets.luxury.title,
+    description: previewConfig.presets.luxury.description,
+  },
+  {
+    key: "custom",
+    icon: IconAdjustments,
+    title: previewConfig.presets.custom.title,
+    description: previewConfig.presets.custom.description,
+  },
 ];
 
 const PRESET_VALUES: Record<
   Exclude<(typeof PRESET_ORDER)[number], "custom">,
   Partial<ToneStylePayload>
 > = {
-  friendly:     { warmth: 85, formality: 35, energy: 65, playfulness: 70, directness: 45, answer_length: "standard",  frequency_policy: "moderate", use_bullet_points: true },
-  warm_expert:  { warmth: 78, formality: 66, energy: 42, playfulness: 25, directness: 55, answer_length: "thorough",  frequency_policy: "sparing",  use_bullet_points: true },
-  professional: { warmth: 35, formality: 85, energy: 45, playfulness: 15, directness: 75, answer_length: "concise",   frequency_policy: "none",     use_bullet_points: true },
-  playful:      { warmth: 75, formality: 25, energy: 85, playfulness: 85, directness: 50, answer_length: "concise",   frequency_policy: "liberal",  use_bullet_points: false },
-  luxury:       { warmth: 45, formality: 90, energy: 35, playfulness: 15, directness: 40, answer_length: "standard",  frequency_policy: "sparing",  use_bullet_points: false },
+  friendly: {
+    warmth: 85,
+    formality: 35,
+    energy: 65,
+    playfulness: 70,
+    directness: 45,
+    answer_length: "standard",
+    frequency_policy: "moderate",
+    use_bullet_points: true,
+  },
+  warm_expert: {
+    warmth: 78,
+    formality: 66,
+    energy: 42,
+    playfulness: 25,
+    directness: 55,
+    answer_length: "thorough",
+    frequency_policy: "sparing",
+    use_bullet_points: true,
+  },
+  professional: {
+    warmth: 35,
+    formality: 85,
+    energy: 45,
+    playfulness: 15,
+    directness: 75,
+    answer_length: "concise",
+    frequency_policy: "none",
+    use_bullet_points: true,
+  },
+  playful: {
+    warmth: 75,
+    formality: 25,
+    energy: 85,
+    playfulness: 85,
+    directness: 50,
+    answer_length: "concise",
+    frequency_policy: "liberal",
+    use_bullet_points: false,
+  },
+  luxury: {
+    warmth: 45,
+    formality: 90,
+    energy: 35,
+    playfulness: 15,
+    directness: 40,
+    answer_length: "standard",
+    frequency_policy: "sparing",
+    use_bullet_points: false,
+  },
 };
 
 const DEFAULT_TONE_STYLE: ToneStylePayload = {
@@ -189,7 +269,9 @@ function BrandVoiceToneStyleEditorView({
     createDefaultToneStyle(),
   );
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
-  const [hasStoredToneStyle, setHasStoredToneStyle] = useState<boolean | null>(null);
+  const [hasStoredToneStyle, setHasStoredToneStyle] = useState<boolean | null>(
+    null,
+  );
 
   // ── Formik ────────────────────────────────────────────────────────────────
   const formik = useFormik<ToneStylePayload>({
@@ -236,7 +318,9 @@ function BrandVoiceToneStyleEditorView({
         setHasStoredToneStyle(false);
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [dispatch, selectedStore]);
 
   // ── Derived state ─────────────────────────────────────────────────────────
@@ -244,8 +328,13 @@ function BrandVoiceToneStyleEditorView({
   const isCustom = values.preset === "custom";
 
   const previewMode =
-    hasStoredToneStyle === null ? "loading" : hasStoredToneStyle ? "saved" : "preset";
-  const modeLabel = previewMode === "saved" ? "Saved profile" : "Preset preview";
+    hasStoredToneStyle === null
+      ? "loading"
+      : hasStoredToneStyle
+        ? "saved"
+        : "preset";
+  const modeLabel =
+    previewMode === "saved" ? "Saved profile" : "Preset preview";
   const modeDescription =
     previewMode === "saved"
       ? "Live view of the stored store-specific tone settings."
@@ -280,28 +369,82 @@ function BrandVoiceToneStyleEditorView({
             ? "I'll keep the next steps clear."
             : "I'll keep you posted.";
     if (values.use_bullet_points) {
-      return [opener, base, detail, closer].filter(Boolean).map((l) => `- ${l}`).join("\n");
+      return [opener, base, detail, closer]
+        .filter(Boolean)
+        .map((l) => `- ${l}`)
+        .join("\n");
     }
     return [opener, base, detail, closer].filter(Boolean).join(" ");
   }, [values]);
 
   const insightRows = useMemo(
     () => [
-      { label: "Warmth",      value: previewConfig.insights.warmth[thresholdLabel(values.warmth)]           ?? previewConfig.insights.warmth.medium },
-      { label: "Formality",   value: previewConfig.insights.formality[thresholdLabel(values.formality)]     ?? previewConfig.insights.formality.medium },
-      { label: "Energy",      value: previewConfig.insights.energy[thresholdLabel(values.energy)]           ?? previewConfig.insights.energy.medium },
-      { label: "Playfulness", value: previewConfig.insights.playfulness[thresholdLabel(values.playfulness)] ?? previewConfig.insights.playfulness.medium },
-      { label: "Directness",  value: previewConfig.insights.directness[thresholdLabel(values.directness)]   ?? previewConfig.insights.directness.medium },
+      {
+        label: "Warmth",
+        value:
+          previewConfig.insights.warmth[thresholdLabel(values.warmth)] ??
+          previewConfig.insights.warmth.medium,
+      },
+      {
+        label: "Formality",
+        value:
+          previewConfig.insights.formality[thresholdLabel(values.formality)] ??
+          previewConfig.insights.formality.medium,
+      },
+      {
+        label: "Energy",
+        value:
+          previewConfig.insights.energy[thresholdLabel(values.energy)] ??
+          previewConfig.insights.energy.medium,
+      },
+      {
+        label: "Playfulness",
+        value:
+          previewConfig.insights.playfulness[
+            thresholdLabel(values.playfulness)
+          ] ?? previewConfig.insights.playfulness.medium,
+      },
+      {
+        label: "Directness",
+        value:
+          previewConfig.insights.directness[
+            thresholdLabel(values.directness)
+          ] ?? previewConfig.insights.directness.medium,
+      },
     ],
     [values],
   );
 
   const summaryRows = useMemo(
     () => [
-      { label: "Answer length", value: previewConfig.insights.answer_length[values.answer_length as AnswerLengthValue]         ?? previewConfig.insights.answer_length.standard },
-      { label: "Frequency",     value: previewConfig.insights.frequency_policy[values.frequency_policy as FrequencyPolicyValue] ?? previewConfig.insights.frequency_policy.sparing },
-      { label: "Spelling",      value: previewConfig.insights.regional_spelling[values.regional_spelling as RegionalSpellingValue] ?? previewConfig.insights.regional_spelling.auto },
-      { label: "Bullet points", value: previewConfig.insights.use_bullet_points[String(values.use_bullet_points) as "true" | "false"] ?? previewConfig.insights.use_bullet_points.true },
+      {
+        label: "Answer length",
+        value:
+          previewConfig.insights.answer_length[
+            values.answer_length as AnswerLengthValue
+          ] ?? previewConfig.insights.answer_length.standard,
+      },
+      {
+        label: "Frequency",
+        value:
+          previewConfig.insights.frequency_policy[
+            values.frequency_policy as FrequencyPolicyValue
+          ] ?? previewConfig.insights.frequency_policy.sparing,
+      },
+      {
+        label: "Spelling",
+        value:
+          previewConfig.insights.regional_spelling[
+            values.regional_spelling as RegionalSpellingValue
+          ] ?? previewConfig.insights.regional_spelling.auto,
+      },
+      {
+        label: "Bullet points",
+        value:
+          previewConfig.insights.use_bullet_points[
+            String(values.use_bullet_points) as "true" | "false"
+          ] ?? previewConfig.insights.use_bullet_points.true,
+      },
     ],
     [values],
   );
@@ -312,7 +455,9 @@ function BrandVoiceToneStyleEditorView({
     if (preset !== "custom") {
       const presetVals = PRESET_VALUES[preset as keyof typeof PRESET_VALUES];
       if (presetVals) {
-        Object.entries(presetVals).forEach(([k, v]) => formik.setFieldValue(k, v));
+        Object.entries(presetVals).forEach(([k, v]) =>
+          formik.setFieldValue(k, v),
+        );
       }
     }
   };
@@ -330,8 +475,8 @@ function BrandVoiceToneStyleEditorView({
           <EmptyHeader>
             <EmptyTitle>Select a store first</EmptyTitle>
             <EmptyDescription>
-              Choose a store from the sidebar to edit Tone &amp; Style and preview
-              how replies will sound.
+              Choose a store from the sidebar to edit Tone &amp; Style and
+              preview how replies will sound.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -347,7 +492,9 @@ function BrandVoiceToneStyleEditorView({
       {/* Page header */}
       <div className="mt-6 flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary" className="font-normal">Brand Voice</Badge>
+          <Badge variant="secondary" className="font-normal">
+            Brand Voice
+          </Badge>
           <Badge variant="outline" className="font-normal">
             {store?.name ?? selectedStore}
           </Badge>
@@ -407,16 +554,28 @@ function BrandVoiceToneStyleEditorView({
             }
             disabled={!isCustom}
             onAnswerLengthChange={(v) =>
-              formik.setFieldValue("answer_length", v as ToneStylePayload["answer_length"])
+              formik.setFieldValue(
+                "answer_length",
+                v as ToneStylePayload["answer_length"],
+              )
             }
             onFrequencyPolicyChange={(v) =>
-              formik.setFieldValue("frequency_policy", v as ToneStylePayload["frequency_policy"])
+              formik.setFieldValue(
+                "frequency_policy",
+                v as ToneStylePayload["frequency_policy"],
+              )
             }
             onRegionalSpellingChange={(v) =>
-              formik.setFieldValue("regional_spelling", v as ToneStylePayload["regional_spelling"])
+              formik.setFieldValue(
+                "regional_spelling",
+                v as ToneStylePayload["regional_spelling"],
+              )
             }
             onToggleBulletPoints={() =>
-              formik.setFieldValue("use_bullet_points", !values.use_bullet_points)
+              formik.setFieldValue(
+                "use_bullet_points",
+                !values.use_bullet_points,
+              )
             }
           />
 

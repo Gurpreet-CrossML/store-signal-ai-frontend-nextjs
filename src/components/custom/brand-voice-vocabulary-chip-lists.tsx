@@ -27,17 +27,28 @@ type ChipListFieldProps = {
   onChange: (value: string[]) => void;
 };
 
-function ChipListField({ label, description, value, placeholder, kind, onChange }: ChipListFieldProps) {
+function ChipListField({
+  label,
+  description,
+  value,
+  placeholder,
+  kind,
+  onChange,
+}: ChipListFieldProps) {
   const [draft, setDraft] = useState("");
 
   const addValue = (raw: string) => {
-    const next = raw.split(/[\n,]/).map((item) => item.trim()).filter(Boolean);
+    const next = raw
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
     if (!next.length) return;
     onChange(Array.from(new Set([...value, ...next])));
     setDraft("");
   };
 
-  const removeValue = (item: string) => onChange(value.filter((e) => e !== item));
+  const removeValue = (item: string) =>
+    onChange(value.filter((e) => e !== item));
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" || event.key === ",") {
@@ -75,7 +86,9 @@ function ChipListField({ label, description, value, placeholder, kind, onChange 
             </Badge>
           ))}
           {value.length === 0 && (
-            <span className="text-sm text-muted-foreground">No entries yet.</span>
+            <span className="text-sm text-muted-foreground">
+              No entries yet.
+            </span>
           )}
         </div>
         <div className="flex gap-2">
@@ -85,7 +98,11 @@ function ChipListField({ label, description, value, placeholder, kind, onChange 
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
           />
-          <Button type="button" variant="outline" onClick={() => addValue(draft)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => addValue(draft)}
+          >
             Add
           </Button>
         </div>
@@ -96,7 +113,11 @@ function ChipListField({ label, description, value, placeholder, kind, onChange 
 
 // ─── ReplacementRow ───────────────────────────────────────────────────────────
 
-type ReplacementRowItem = { say_word: string; replace_word: string; is_active: boolean };
+type ReplacementRowItem = {
+  say_word: string;
+  replace_word: string;
+  is_active: boolean;
+};
 
 type ReplacementRowProps = {
   index: number;
@@ -107,7 +128,14 @@ type ReplacementRowProps = {
   onRemove: () => void;
 };
 
-function ReplacementRow({ index, sayWord, replaceWord, isActive, onChange, onRemove }: ReplacementRowProps) {
+function ReplacementRow({
+  index,
+  sayWord,
+  replaceWord,
+  isActive,
+  onChange,
+  onRemove,
+}: ReplacementRowProps) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-background p-4 sm:flex-row sm:items-end">
       <div className="flex-1 min-w-0">
@@ -136,11 +164,27 @@ function ReplacementRow({ index, sayWord, replaceWord, isActive, onChange, onRem
           size="sm"
           variant={isActive ? "default" : "outline"}
           onClick={() => onChange({ is_active: !isActive })}
-          title={isActive ? "Active — click to deactivate" : "Inactive — click to activate"}
+          title={
+            isActive
+              ? "Active — click to deactivate"
+              : "Inactive — click to activate"
+          }
         >
-          {isActive ? <><IconCheck className="size-4" /> Active</> : "Inactive"}
+          {isActive ? (
+            <>
+              <IconCheck className="size-4" /> Active
+            </>
+          ) : (
+            "Inactive"
+          )}
         </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={onRemove} className="text-destructive hover:text-destructive">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={onRemove}
+          className="text-destructive hover:text-destructive"
+        >
           <IconTrash className="size-4" />
         </Button>
       </div>
@@ -158,7 +202,10 @@ type BrandVoiceVocabularyChipListsProps = {
   onPreferredChange: (v: string[]) => void;
   onBannedChange: (v: string[]) => void;
   onSignatureChange: (v: string[]) => void;
-  onReplacementChange: (index: number, patch: Partial<ReplacementRowItem>) => void;
+  onReplacementChange: (
+    index: number,
+    patch: Partial<ReplacementRowItem>,
+  ) => void;
   onReplacementRemove: (index: number) => void;
   onReplacementAdd: () => void;
 };
@@ -208,9 +255,17 @@ export default function BrandVoiceVocabularyChipLists({
           <div className="flex items-start justify-between gap-3">
             <div>
               <CardTitle>Word replacements</CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">Exact swaps the AI always makes.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Exact swaps the AI always makes.
+              </p>
             </div>
-            <Button type="button" variant="outline" size="sm" onClick={onReplacementAdd} className="shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onReplacementAdd}
+              className="shrink-0"
+            >
               <IconPlus className="size-4" />
               Add replacement
             </Button>
@@ -231,7 +286,8 @@ export default function BrandVoiceVocabularyChipLists({
             ))
           ) : (
             <div className="rounded-xl border border-dashed border-border/70 px-4 py-8 text-center text-sm text-muted-foreground">
-              No replacements yet. Click &ldquo;Add replacement&rdquo; to get started.
+              No replacements yet. Click &ldquo;Add replacement&rdquo; to get
+              started.
             </div>
           )}
         </CardContent>

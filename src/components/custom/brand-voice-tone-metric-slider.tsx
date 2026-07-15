@@ -27,7 +27,8 @@ export default function BrandVoiceToneMetricSlider({
 
   // Build a unique class id so we can scope the <style> block per slider.
   const uid = useMemo(
-    () => `slider-${label.toLowerCase().replace(/\s+/g, "-")}-${Math.random().toString(36).slice(2, 6)}`,
+    () =>
+      `slider-${label.toLowerCase().replace(/\s+/g, "-")}-${Math.random().toString(36).slice(2, 6)}`,
     [label],
   );
 

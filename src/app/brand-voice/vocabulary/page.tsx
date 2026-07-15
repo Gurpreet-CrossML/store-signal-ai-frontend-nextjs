@@ -1,10 +1,9 @@
-﻿import Chat from "./chat";
+import BrandVoiceVocabularyEditor from "@/clients/vocabulary";
 
 export const metadata = {
   title: "Vocabulary",
 };
 
 export default function Page() {
-  return <Chat />;
+  return <BrandVoiceVocabularyEditor />;
 }
-

@@ -56,7 +56,12 @@ const validationSchema = z.object({
 });
 
 function emptyFormValues(): VocabularyFormValues {
-  return { preferred_phrases: [], banned_words: [], signature_phrases: [], word_replacements: [] };
+  return {
+    preferred_phrases: [],
+    banned_words: [],
+    signature_phrases: [],
+    word_replacements: [],
+  };
 }
 
 function normalizeList(values: string[] | undefined) {
@@ -82,11 +87,13 @@ function toPayload(values: VocabularyFormValues): VocabularyPayload {
     banned_words: normalizeList(values.banned_words),
     signature_phrases: normalizeList(values.signature_phrases),
     word_replacements: values.word_replacements
-      .map((row): WordReplacementPayload => ({
-        say_word: row.say_word.trim(),
-        replace_word: row.replace_word.trim(),
-        is_active: row.is_active,
-      }))
+      .map(
+        (row): WordReplacementPayload => ({
+          say_word: row.say_word.trim(),
+          replace_word: row.replace_word.trim(),
+          is_active: row.is_active,
+        }),
+      )
       .filter((row) => row.say_word || row.replace_word),
   };
 }
@@ -115,7 +122,11 @@ export default function BrandVoiceVocabularyEditor() {
 
 // ─── Editor view (Formik + Redux orchestrator) ────────────────────────────────
 
-function BrandVoiceVocabularyEditorView({ selectedStore }: { selectedStore: string }) {
+function BrandVoiceVocabularyEditorView({
+  selectedStore,
+}: {
+  selectedStore: string;
+}) {
   const dispatch = useAppDispatch();
   const saveIsLoading = useAppSelector(
     (state) => state.GetBrandVoiceReducer.vocabulary.save.isLoading,
@@ -123,7 +134,8 @@ function BrandVoiceVocabularyEditorView({ selectedStore }: { selectedStore: stri
   const fetchIsLoading = useAppSelector(
     (state) => state.GetBrandVoiceReducer.vocabulary.fetch.isLoading,
   );
-  const [initialValues, setInitialValues] = useState<VocabularyFormValues>(emptyFormValues());
+  const [initialValues, setInitialValues] =
+    useState<VocabularyFormValues>(emptyFormValues());
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   // ── Formik ────────────────────────────────────────────────────────────────
@@ -138,7 +150,10 @@ function BrandVoiceVocabularyEditorView({ selectedStore }: { selectedStore: stri
     onSubmit: async (values) => {
       if (!selectedStore) return;
       const result = await dispatch(
-        SaveVocabulary({ storeCode: selectedStore, payload: toPayload(values) }),
+        SaveVocabulary({
+          storeCode: selectedStore,
+          payload: toPayload(values),
+        }),
       );
       if (SaveVocabulary.fulfilled.match(result)) {
         setInitialValues(normalizeVocabulary(result.payload));
@@ -164,7 +179,9 @@ function BrandVoiceVocabularyEditorView({ selectedStore }: { selectedStore: stri
         }
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [dispatch, selectedStore]);
 
   // ── Derived state ─────────────────────────────────────────────────────────
@@ -173,7 +190,7 @@ function BrandVoiceVocabularyEditorView({ selectedStore }: { selectedStore: stri
   const summary = useMemo(
     () => [
       { label: "Preferred", value: values.preferred_phrases.length },
-      { label: "Blocked",   value: values.banned_words.length },
+      { label: "Blocked", value: values.banned_words.length },
       { label: "Signature", value: values.signature_phrases.length },
       {
         label: "Replacements",
@@ -218,7 +235,8 @@ function BrandVoiceVocabularyEditorView({ selectedStore }: { selectedStore: stri
           <EmptyHeader>
             <EmptyTitle>Select a store first</EmptyTitle>
             <EmptyDescription>
-              Choose a store from the sidebar to edit vocabulary rules and preferred phrasing.
+              Choose a store from the sidebar to edit vocabulary rules and
+              preferred phrasing.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -235,8 +253,9 @@ function BrandVoiceVocabularyEditorView({ selectedStore }: { selectedStore: stri
       <div className="mt-6 flex flex-col gap-2">
         <h1 className="font-heading text-2xl font-semibold">Vocabulary</h1>
         <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          The specific words that make your brand sound like you. Preferred phrases to lean
-          into, words to ban, signature expressions, and exact swaps the AI always makes.
+          The specific words that make your brand sound like you. Preferred
+          phrases to lean into, words to ban, signature expressions, and exact
+          swaps the AI always makes.
         </p>
       </div>
 
@@ -248,9 +267,13 @@ function BrandVoiceVocabularyEditorView({ selectedStore }: { selectedStore: stri
           bannedWords={values.banned_words}
           signaturePhrases={values.signature_phrases}
           wordReplacements={values.word_replacements}
-          onPreferredChange={(v) => formik.setFieldValue("preferred_phrases", v)}
+          onPreferredChange={(v) =>
+            formik.setFieldValue("preferred_phrases", v)
+          }
           onBannedChange={(v) => formik.setFieldValue("banned_words", v)}
-          onSignatureChange={(v) => formik.setFieldValue("signature_phrases", v)}
+          onSignatureChange={(v) =>
+            formik.setFieldValue("signature_phrases", v)
+          }
           onReplacementChange={handleReplacementChange}
           onReplacementRemove={handleReplacementRemove}
           onReplacementAdd={handleReplacementAdd}
