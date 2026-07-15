@@ -1,0 +1,93 @@
+{
+  "hero": {
+    "title": "Tone & Style",
+    "description": "Shape how every reply sounds. The live preview updates as you adjust the settings."
+  },
+  "preview": {
+    "customerLabel": "Customer",
+    "assistantLabel": "Assistant",
+    "customerMessage": "My order still has not arrived. Can you check the status?",
+    "assistantTemplates": {
+      "friendly": "I’m sorry for the delay. I’m checking the order status now and will keep this simple and clear.",
+      "warm_expert": "I’m sorry the order has taken longer than expected. I’m checking the shipment details now and will share the next step as soon as I have it.",
+      "professional": "Thank you for reaching out. I’m checking the shipment status and will confirm the next step shortly.",
+      "playful": "I’m on it. Let me check the order status and get you a clear update.",
+      "luxury": "Thank you for your patience. I’m reviewing the shipment details now and will follow up with a precise update.",
+      "custom": "I’m checking the order status now and will respond with the next step as soon as I have it."
+    }
+  },
+  "presets": {
+    "friendly": {
+      "title": "Friendly",
+      "description": "Warm, approachable, and conversational."
+    },
+    "warm_expert": {
+      "title": "Warm Expert",
+      "description": "Calm, caring, and knowledgeable."
+    },
+    "professional": {
+      "title": "Professional",
+      "description": "Clear, confident, and polished."
+    },
+    "playful": {
+      "title": "Playful",
+      "description": "Light, energetic, and upbeat."
+    },
+    "luxury": {
+      "title": "Luxury",
+      "description": "Refined, premium, and understated."
+    },
+    "custom": {
+      "title": "Custom",
+      "description": "Build every dimension to match your brand."
+    }
+  },
+  "insights": {
+    "warmth": {
+      "high": "High warmth leads with empathy before the logistics.",
+      "medium": "Balanced warmth keeps the reply helpful without sounding distant.",
+      "low": "Lower warmth keeps the tone brisk and to the point."
+    },
+    "formality": {
+      "high": "Higher formality uses a more polished register.",
+      "medium": "Medium formality stays professional without feeling stiff.",
+      "low": "Lower formality sounds more relaxed and conversational."
+    },
+    "energy": {
+      "high": "Higher energy gives the reply more lift and momentum.",
+      "medium": "Medium energy keeps the message steady and composed.",
+      "low": "Lower energy keeps the response calm and measured."
+    },
+    "playfulness": {
+      "high": "Higher playfulness adds lightness where it fits.",
+      "medium": "Medium playfulness adds a subtle human touch.",
+      "low": "Lower playfulness keeps the reply straightforward."
+    },
+    "directness": {
+      "high": "Higher directness gets to the answer quickly.",
+      "medium": "Medium directness balances clarity and context.",
+      "low": "Lower directness leaves more room for softening language."
+    },
+    "answer_length": {
+      "concise": "Concise answers stay short and focused.",
+      "standard": "Standard answers give enough detail without drifting.",
+      "thorough": "Thorough answers leave more room for explanation."
+    },
+    "frequency_policy": {
+      "none": "No repeated phrases keeps the response varied.",
+      "sparing": "Sparing repetition keeps the voice natural.",
+      "moderate": "Moderate repetition can reinforce brand language.",
+      "liberal": "Higher repetition makes signature phrasing more noticeable.",
+      "free": "Free repetition keeps the language unconstrained."
+    },
+    "regional_spelling": {
+      "uk": "UK spelling is applied consistently.",
+      "us": "US spelling is applied consistently.",
+      "auto": "Spelling follows the store's detected audience."
+    },
+    "use_bullet_points": {
+      "true": "Bullet points help organize longer answers.",
+      "false": "Paragraphs keep the reply more fluid."
+    }
+  }
+}

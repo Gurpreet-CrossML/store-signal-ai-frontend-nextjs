@@ -1710,7 +1710,6 @@ export const vocabulary = pgTable(
     preferredPhrases: jsonb("preferred_phrases").notNull(),
     bannedWords: jsonb("banned_words").notNull(),
     signaturePhrases: jsonb("signature_phrases").notNull(),
-    wordReplacements: jsonb("word_replacements").notNull(),
     createdAt: timestamp("created_at", {
       withTimezone: true,
       mode: "string",
@@ -1817,3 +1816,70 @@ export const toneStyle = pgTable(
     check("tone_style_directness_check", sql`directness >= 0`),
   ],
 );
+
+export const vocabularyWordReplacements = pgTable(
+  "vocabulary_word_replacements",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "vocabulary_word_replacements_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    vocabularyId: bigint("vocabulary_id", { mode: "number" }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    wordreplacementId: bigint("wordreplacement_id", {
+      mode: "number",
+    }).notNull(),
+  },
+  (table) => [
+    index("vocabulary_word_replacements_vocabulary_id_37a9c4c7").using(
+      "btree",
+      table.vocabularyId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("vocabulary_word_replacements_wordreplacement_id_322e70a7").using(
+      "btree",
+      table.wordreplacementId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.vocabularyId],
+      foreignColumns: [vocabulary.id],
+      name: "vocabulary_word_repl_vocabulary_id_37a9c4c7_fk_vocabular",
+    }),
+    foreignKey({
+      columns: [table.wordreplacementId],
+      foreignColumns: [wordReplacement.id],
+      name: "vocabulary_word_repl_wordreplacement_id_322e70a7_fk_word_repl",
+    }),
+    unique(
+      "vocabulary_word_replacem_vocabulary_id_wordreplac_fee69a97_uniq",
+    ).on(table.vocabularyId, table.wordreplacementId),
+  ],
+);
+
+export const wordReplacement = pgTable("word_replacement", {
+  // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+  id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+    name: "word_replacement_id_seq",
+    startWith: 1,
+    increment: 1,
+    minValue: 1,
+    maxValue: 9223372036854775807,
+    cache: 1,
+  }),
+  sayWord: varchar("say_word", { length: 255 }).notNull(),
+  replaceWord: varchar("replace_word", { length: 255 }).notNull(),
+  isActive: boolean("is_active").notNull(),
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+});

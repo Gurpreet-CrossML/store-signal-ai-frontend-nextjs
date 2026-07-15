@@ -40,6 +40,8 @@ import {
   vocabulary,
   personaIdentity,
   toneStyle,
+  vocabularyWordReplacements,
+  wordReplacement,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -439,11 +441,12 @@ export const neverSayRulesRelations = relations(neverSayRules, ({ one }) => ({
   }),
 }));
 
-export const vocabularyRelations = relations(vocabulary, ({ one }) => ({
+export const vocabularyRelations = relations(vocabulary, ({ one, many }) => ({
   store: one(store, {
     fields: [vocabulary.storeId],
     references: [store.id],
   }),
+  vocabularyWordReplacementss: many(vocabularyWordReplacements),
 }));
 
 export const personaIdentityRelations = relations(
@@ -462,3 +465,24 @@ export const toneStyleRelations = relations(toneStyle, ({ one }) => ({
     references: [store.id],
   }),
 }));
+
+export const vocabularyWordReplacementsRelations = relations(
+  vocabularyWordReplacements,
+  ({ one }) => ({
+    vocabulary: one(vocabulary, {
+      fields: [vocabularyWordReplacements.vocabularyId],
+      references: [vocabulary.id],
+    }),
+    wordReplacement: one(wordReplacement, {
+      fields: [vocabularyWordReplacements.wordreplacementId],
+      references: [wordReplacement.id],
+    }),
+  }),
+);
+
+export const wordReplacementRelations = relations(
+  wordReplacement,
+  ({ many }) => ({
+    vocabularyWordReplacementss: many(vocabularyWordReplacements),
+  }),
+);

@@ -109,9 +109,12 @@ export const ENDPOINTS = {
   createScrapeLink: () => `/knowledge/scrape-links/`,
   fetchScrapeLink: () => `/knowledge/scrape-links`,
 
-  // Brand Voice (local Next GET routes backed by src/db/brand-voice.ts).
-  fetchToneStyle: () => `/brand-voice/tone-style`,
-  fetchVocabulary: () => `/brand-voice/vocabulary`,
+  // Brand Voice reads use the local DB-backed chat route; writes go straight to
+  // Django's upsert endpoints.
+  fetchToneStyle: () => `/brand-voice/chat?feature=tone-style`,
+  fetchVocabulary: () => `/brand-voice/chat?feature=vocabulary`,
+  saveToneStyle: () => `/chat/tone-style/`,
+  saveVocabulary: () => `/chat/vocabulary/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
