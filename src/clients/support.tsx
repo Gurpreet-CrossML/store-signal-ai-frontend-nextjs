@@ -1431,15 +1431,16 @@ export default function Support() {
               </div>
             ) : (
               <>
-                <CartDetailsCard
-                  cartData={FetchCartData}
-                  loading={FetchCartDataIsLoading}
-                />
                 <OrdersCard
                   orders={FetchOrderData}
                   loading={FetchOrderDataIsLoading}
                   handleOrdersSync={handleOrdersSync}
                   orderSyncLoading={SyncOrdersIsLoading}
+                  custometData={selectedThread?.customer || null}
+                />
+                <CartDetailsCard
+                  cartData={FetchCartData}
+                  loading={FetchCartDataIsLoading}
                 />
                 <UserMetadataCard
                   userMetadata={FetchUserMetadataData}

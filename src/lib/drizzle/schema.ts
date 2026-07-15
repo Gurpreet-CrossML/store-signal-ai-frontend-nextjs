@@ -1418,156 +1418,6 @@ export const fraudFlag = pgTable(
   ],
 );
 
-export const chatCustomerorder = pgTable(
-  "chat_customerorder",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "chat_customerorder_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    orderId: varchar("order_id", { length: 100 }).notNull(),
-    orderNumber: varchar("order_number", { length: 50 }).notNull(),
-    name: varchar({ length: 50 }).notNull(),
-    confirmationNumber: varchar("confirmation_number", { length: 100 }),
-    customerEmail: varchar("customer_email", { length: 254 }).notNull(),
-    customerPhone: varchar("customer_phone", { length: 50 }).notNull(),
-    financialStatus: varchar("financial_status", { length: 50 }).notNull(),
-    fulfillmentStatus: varchar("fulfillment_status", { length: 50 }),
-    confirmed: boolean().notNull(),
-    cancelledAt: timestamp("cancelled_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    cancelReason: varchar("cancel_reason", { length: 255 }).notNull(),
-    statusHistory: jsonb("status_history"),
-    currency: varchar({ length: 10 }).notNull(),
-    totalPrice: numeric("total_price", { precision: 12, scale: 2 }).notNull(),
-    subtotalPrice: numeric("subtotal_price", {
-      precision: 12,
-      scale: 2,
-    }).notNull(),
-    totalTax: numeric("total_tax", { precision: 12, scale: 2 }).notNull(),
-    totalDiscounts: numeric("total_discounts", {
-      precision: 12,
-      scale: 2,
-    }).notNull(),
-    totalShipping: numeric("total_shipping", {
-      precision: 12,
-      scale: 2,
-    }).notNull(),
-    totalPriceUsd: numeric("total_price_usd", { precision: 12, scale: 2 }),
-    totalPaid: numeric("total_paid", { precision: 12, scale: 2 }).notNull(),
-    totalOutstanding: numeric("total_outstanding", {
-      precision: 12,
-      scale: 2,
-    }).notNull(),
-    totalRefunded: numeric("total_refunded", {
-      precision: 12,
-      scale: 2,
-    }).notNull(),
-    discountCodes: jsonb("discount_codes"),
-    gateway: varchar({ length: 100 }).notNull(),
-    paymentDetails: jsonb("payment_details"),
-    paymentTerms: jsonb("payment_terms"),
-    shippingAddress: jsonb("shipping_address"),
-    billingAddress: jsonb("billing_address"),
-    shippingLines: jsonb("shipping_lines"),
-    trackingCompany: varchar("tracking_company", { length: 100 }),
-    trackingNumber: varchar("tracking_number", { length: 100 }),
-    trackingUrl: varchar("tracking_url", { length: 200 }),
-    orderStatusUrl: varchar("order_status_url", { length: 200 }).notNull(),
-    landingSite: varchar("landing_site", { length: 200 }).notNull(),
-    tags: varchar({ length: 500 }).notNull(),
-    note: text().notNull(),
-    noteAttributes: jsonb("note_attributes"),
-    items: jsonb(),
-    fulfillments: jsonb(),
-    refunds: jsonb(),
-    rawData: jsonb("raw_data"),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    processedAt: timestamp("processed_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    closedAt: timestamp("closed_at", { withTimezone: true, mode: "string" }),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }),
-    recordCreatedAt: timestamp("record_created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    recordUpdatedAt: timestamp("record_updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    customerId: bigint("customer_id", { mode: "number" }).notNull(),
-  },
-  (table) => [
-    index("chat_custom_created_cbf142_idx").using(
-      "btree",
-      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
-    ),
-    index("chat_custom_custome_4d7ae4_idx").using(
-      "btree",
-      table.customerId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("chat_custom_custome_f18652_idx").using(
-      "btree",
-      table.customerEmail.asc().nullsLast().op("text_ops"),
-    ),
-    index("chat_custom_financi_5df63e_idx").using(
-      "btree",
-      table.financialStatus.asc().nullsLast().op("text_ops"),
-    ),
-    index("chat_custom_fulfill_900a2e_idx").using(
-      "btree",
-      table.fulfillmentStatus.asc().nullsLast().op("text_ops"),
-    ),
-    index("chat_custom_order_n_be1dd8_idx").using(
-      "btree",
-      table.orderNumber.asc().nullsLast().op("text_ops"),
-    ),
-    index("chat_customerorder_customer_email_a4c8d820").using(
-      "btree",
-      table.customerEmail.asc().nullsLast().op("text_ops"),
-    ),
-    index("chat_customerorder_customer_email_a4c8d820_like").using(
-      "btree",
-      table.customerEmail.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("chat_customerorder_customer_id_23fe8bbb").using(
-      "btree",
-      table.customerId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("chat_customerorder_order_id_c520d70b_like").using(
-      "btree",
-      table.orderId.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("chat_customerorder_order_number_bc81e209").using(
-      "btree",
-      table.orderNumber.asc().nullsLast().op("text_ops"),
-    ),
-    index("chat_customerorder_order_number_bc81e209_like").using(
-      "btree",
-      table.orderNumber.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    foreignKey({
-      columns: [table.customerId],
-      foreignColumns: [chatCustomer.id],
-      name: "chat_customerorder_customer_id_23fe8bbb_fk_chat_customer_id",
-    }),
-    unique("chat_customerorder_order_id_key").on(table.orderId),
-  ],
-);
-
 export const scrapeLinkslinks = pgTable(
   "_scrapeLinkslinks",
   {
@@ -1805,5 +1655,156 @@ export const supportTicket = pgTable(
       name: "support_ticket_thread_id_2978cb77_fk_chat_thread_id",
     }),
     unique("support_ticket_ticket_id_key").on(table.ticketId),
+  ],
+);
+
+export const chatCustomerorder = pgTable(
+  "chat_customerorder",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "chat_customerorder_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    orderId: varchar("order_id", { length: 100 }).notNull(),
+    orderNumber: varchar("order_number", { length: 50 }).notNull(),
+    name: varchar({ length: 50 }).notNull(),
+    confirmationNumber: varchar("confirmation_number", { length: 100 }),
+    customerEmail: varchar("customer_email", { length: 254 }).notNull(),
+    customerPhone: varchar("customer_phone", { length: 50 }).notNull(),
+    financialStatus: varchar("financial_status", { length: 50 }).notNull(),
+    fulfillmentStatus: varchar("fulfillment_status", { length: 50 }),
+    confirmed: boolean().notNull(),
+    cancelledAt: timestamp("cancelled_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    cancelReason: varchar("cancel_reason", { length: 255 }).notNull(),
+    statusHistory: jsonb("status_history"),
+    currency: varchar({ length: 10 }).notNull(),
+    totalPrice: numeric("total_price", { precision: 12, scale: 2 }).notNull(),
+    subtotalPrice: numeric("subtotal_price", {
+      precision: 12,
+      scale: 2,
+    }).notNull(),
+    totalTax: numeric("total_tax", { precision: 12, scale: 2 }).notNull(),
+    totalDiscounts: numeric("total_discounts", {
+      precision: 12,
+      scale: 2,
+    }).notNull(),
+    totalShipping: numeric("total_shipping", {
+      precision: 12,
+      scale: 2,
+    }).notNull(),
+    totalPriceUsd: numeric("total_price_usd", { precision: 12, scale: 2 }),
+    totalPaid: numeric("total_paid", { precision: 12, scale: 2 }).notNull(),
+    totalOutstanding: numeric("total_outstanding", {
+      precision: 12,
+      scale: 2,
+    }).notNull(),
+    totalRefunded: numeric("total_refunded", {
+      precision: 12,
+      scale: 2,
+    }).notNull(),
+    discountCodes: jsonb("discount_codes"),
+    gateway: varchar({ length: 100 }).notNull(),
+    paymentDetails: jsonb("payment_details"),
+    paymentTerms: jsonb("payment_terms"),
+    shippingAddress: jsonb("shipping_address"),
+    billingAddress: jsonb("billing_address"),
+    shippingLines: jsonb("shipping_lines"),
+    trackingCompany: varchar("tracking_company", { length: 100 }),
+    trackingNumber: varchar("tracking_number", { length: 100 }),
+    trackingUrl: varchar("tracking_url", { length: 200 }),
+    orderStatusUrl: varchar("order_status_url", { length: 200 }).notNull(),
+    landingSite: varchar("landing_site", { length: 200 }).notNull(),
+    tags: varchar({ length: 500 }).notNull(),
+    note: text().notNull(),
+    noteAttributes: jsonb("note_attributes"),
+    items: jsonb(),
+    fulfillments: jsonb(),
+    refunds: jsonb(),
+    rawData: jsonb("raw_data"),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    processedAt: timestamp("processed_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    closedAt: timestamp("closed_at", { withTimezone: true, mode: "string" }),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }),
+    recordCreatedAt: timestamp("record_created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    recordUpdatedAt: timestamp("record_updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    customerId: bigint("customer_id", { mode: "number" }).notNull(),
+    shippingMethod: varchar("shipping_method", { length: 100 }),
+  },
+  (table) => [
+    index("chat_custom_created_cbf142_idx").using(
+      "btree",
+      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
+    ),
+    index("chat_custom_custome_4d7ae4_idx").using(
+      "btree",
+      table.customerId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("chat_custom_custome_f18652_idx").using(
+      "btree",
+      table.customerEmail.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_custom_financi_5df63e_idx").using(
+      "btree",
+      table.financialStatus.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_custom_fulfill_900a2e_idx").using(
+      "btree",
+      table.fulfillmentStatus.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_custom_order_n_be1dd8_idx").using(
+      "btree",
+      table.orderNumber.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_customerorder_customer_email_a4c8d820").using(
+      "btree",
+      table.customerEmail.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_customerorder_customer_email_a4c8d820_like").using(
+      "btree",
+      table.customerEmail.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("chat_customerorder_customer_id_23fe8bbb").using(
+      "btree",
+      table.customerId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("chat_customerorder_order_id_c520d70b_like").using(
+      "btree",
+      table.orderId.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("chat_customerorder_order_number_bc81e209").using(
+      "btree",
+      table.orderNumber.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_customerorder_order_number_bc81e209_like").using(
+      "btree",
+      table.orderNumber.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    foreignKey({
+      columns: [table.customerId],
+      foreignColumns: [chatCustomer.id],
+      name: "chat_customerorder_customer_id_23fe8bbb_fk_chat_customer_id",
+    }),
+    unique("chat_customerorder_order_id_key").on(table.orderId),
   ],
 );

@@ -234,9 +234,14 @@ export type ThreadTicketData = {
 };
 
 export type OrderItemData = {
+  sku: string;
   name: string;
   quantity: number;
   price: string;
+  product_id: number;
+  total_price: string | number;
+  price_incl_tax: string | number;
+  total_tax_price: string | number;
 };
 
 export type OrderShippingAddress = {
@@ -261,6 +266,7 @@ export type OrderShippingAddress = {
   province: string;
   province_code: string;
   zip: string;
+  lastname: string;
 };
 
 export type OrderData = {
@@ -270,9 +276,14 @@ export type OrderData = {
   created_at: string;
   currency: string;
   total_price: string;
+  subtotal_price: string;
+  total_tax: string;
+  total_shipping: string;
+  total_discounts: string;
   financial_status: string | null;
   fulfillment_status: string | null;
   gateway: string;
+  shipping_method: string | null;
   shipping_address: OrderShippingAddress;
   items: OrderItemData[];
 };

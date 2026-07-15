@@ -32,11 +32,11 @@ import {
   userMetadata,
   storeAccess,
   fraudFlag,
-  chatCustomerorder,
   scrapeLinkslinks,
   knowledgeStorelibrarydocument,
   storeIntegration,
   supportTicket,
+  chatCustomerorder,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -254,8 +254,8 @@ export const chatAddressRelations = relations(chatAddress, ({ one }) => ({
 export const chatCustomerRelations = relations(chatCustomer, ({ many }) => ({
   chatAddresss: many(chatAddress),
   chatThreads: many(chatThread),
-  chatCustomerorders: many(chatCustomerorder),
   supportTickets: many(supportTicket),
+  chatCustomerorders: many(chatCustomerorder),
 }));
 
 export const chatbotFeedbackRelations = relations(
@@ -382,16 +382,6 @@ export const fraudFlagRelations = relations(fraudFlag, ({ one }) => ({
   }),
 }));
 
-export const chatCustomerorderRelations = relations(
-  chatCustomerorder,
-  ({ one }) => ({
-    chatCustomer: one(chatCustomer, {
-      fields: [chatCustomerorder.customerId],
-      references: [chatCustomer.id],
-    }),
-  }),
-);
-
 export const scrapeLinkslinksRelations = relations(
   scrapeLinkslinks,
   ({ one }) => ({
@@ -436,3 +426,13 @@ export const supportTicketRelations = relations(supportTicket, ({ one }) => ({
     references: [chatThread.id],
   }),
 }));
+
+export const chatCustomerorderRelations = relations(
+  chatCustomerorder,
+  ({ one }) => ({
+    chatCustomer: one(chatCustomer, {
+      fields: [chatCustomerorder.customerId],
+      references: [chatCustomer.id],
+    }),
+  }),
+);
