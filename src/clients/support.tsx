@@ -21,6 +21,7 @@ import MessagePan from "@/components/custom/message-pan";
 import {
   CartDetailsCard,
   UserMetadataCard,
+  OrdersCard,
 } from "@/components/custom/thread-detail-panels";
 import {
   FetchAIInsight,
@@ -33,6 +34,9 @@ import {
   FetchUserMetadata,
   type Thread,
   type ThreadMessage,
+  FetchOrders,
+  UploadMessageAttachments,
+  SyncOrders,
 } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
@@ -53,7 +57,6 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
-import { UploadMessageAttachments } from "@/redux/api-slice/thread-slice";
 
 // Extends the shared Thread type with a local read-state flag. Ideally
 // `is_read` becomes a real field on Thread (and maybe comes from the API),
@@ -525,8 +528,14 @@ export default function Support() {
   const { FetchCartData, FetchCartDataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchCartDataState,
   );
+  const { FetchOrderData, FetchOrderDataIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchOrderDataState,
+  );
   const { FetchUserMetadataData, FetchUserMetadataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchUserMetadataState,
+  );
+  const { SyncOrdersIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.SyncOrdersState,
   );
 
   // Local, mutable copy of the thread list. Seeded from Redux (is_read
@@ -659,6 +668,7 @@ export default function Support() {
       dispatch(FetchUserMetadata(activeThreadId));
       dispatch(FetchFeedbackSequence(activeThreadId));
       dispatch(FetchFreshdeskTicketId(activeThreadId));
+      dispatch(FetchOrders(activeThreadId));
     };
 
     void loadThreadData();
@@ -1135,6 +1145,21 @@ export default function Support() {
     session?.user?.access_token,
   ]);
 
+  const handleOrdersSync = async () => {
+    try {
+      await dispatch(SyncOrders({ threadID: activeThreadId })).unwrap();
+
+      dispatch(FetchOrders(activeThreadId));
+      toast.error("Order Sync", {
+        description: "Orders synced successfully.",
+      });
+    } catch (error) {
+      toast.error("Order Sync failed", {
+        description: "Could not sync orders. Try again.",
+      });
+    }
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)_420px]">
@@ -1392,7 +1417,7 @@ export default function Support() {
           </CardContent>
         </Card>
 
-        <Card className="flex min-h-0 flex-col overflow-hidden">
+        <Card className="flex min-h-0 flex-col overflow-hidden h-[88vh]!">
           <CardHeader className="border-b border-border/50">
             <CardTitle className="text-base">Thread Details</CardTitle>
             <CardDescription>
@@ -1406,12 +1431,20 @@ export default function Support() {
               </div>
             ) : (
               <>
+                <OrdersCard
+                  orders={FetchOrderData}
+                  loading={FetchOrderDataIsLoading}
+                  handleOrdersSync={handleOrdersSync}
+                  orderSyncLoading={SyncOrdersIsLoading}
+                  custometData={selectedThread?.customer || null}
+                />
                 <CartDetailsCard
                   cartData={FetchCartData}
                   loading={FetchCartDataIsLoading}
                 />
                 <UserMetadataCard
                   userMetadata={FetchUserMetadataData}
+                  custometData={selectedThread?.customer || null}
                   loading={FetchUserMetadataIsLoading}
                 />
               </>
