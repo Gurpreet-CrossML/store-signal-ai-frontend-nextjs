@@ -15,26 +15,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-function DisclaimerInfoBox({
-  icon,
-  title,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-md bg-muted p-3">
-      <div className="mb-2 flex items-center gap-1.5 font-semibold">
-        {icon}
-        <span>{title}</span>
-      </div>
-      <div className="space-y-2">{children}</div>
-    </div>
-  );
-}
-
 export function AiDisclaimerNotice() {
   return (
     <p className="mt-4 text-center text-xs text-muted-foreground">
@@ -70,27 +50,34 @@ export function AiDisclaimerNotice() {
                 support.
               </p>
 
-              <DisclaimerInfoBox
-                icon={<IconAlertTriangle className="size-4" />}
-                title="Please keep in mind:"
-              >
-                <p>
-                  AI responses may occasionally be inaccurate or incomplete.
-                </p>
-                <p>
-                  Always verify important details like pricing, availability.
-                </p>
-                <p>
-                  For critical issues, please contact our human support team.
-                </p>
-              </DisclaimerInfoBox>
-              <DisclaimerInfoBox
-                icon={<IconAlertTriangle className="size-4" />}
-                title="Your privacy matters:"
-              >
-                <p>Conversations may be used to improve our service.</p>
-                <p>We do not share your personal data with third parties.</p>
-              </DisclaimerInfoBox>
+              <div className="rounded-md bg-muted p-3">
+                <div className="mb-2 flex items-center gap-1.5 font-semibold">
+                  <IconAlertTriangle className="size-4" />
+                  <span>Please keep in mind:</span>
+                </div>
+                <div className="space-y-2">
+                  <p>
+                    AI responses may occasionally be inaccurate or incomplete.
+                  </p>
+                  <p>
+                    Always verify important details like pricing, availability.
+                  </p>
+                  <p>
+                    For critical issues, please contact our human support team.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-md bg-muted p-3">
+                <div className="mb-2 flex items-center gap-1.5 font-semibold">
+                  <IconLock className="size-4" />
+                  <span>Your privacy matters:</span>
+                </div>
+                <div className="space-y-2">
+                  <p>Conversations may be used to improve our service.</p>
+                  <p>We do not share your personal data with third parties.</p>
+                </div>
+              </div>
             </div>
           </AlertDialogDescription>
 
