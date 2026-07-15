@@ -12,7 +12,7 @@ import { getToken } from "next-auth/jwt";
 // appropriate and its result can be cached.
 
 // List of routes for unauthenticated users (auth pages)
-const authRoutes = ["/login"];
+const authRoutes = ["/login", "/register"];
 
 export async function proxy(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });

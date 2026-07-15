@@ -195,6 +195,42 @@ export const ResetStaffPassword = createAsyncThunk(
   },
 );
 
+/** Public self-service signup: create a company + its first admin. */
+export type RegisterCompanyPayload = {
+  name: string;
+  admin_email: string;
+  first_name: string;
+  last_name: string;
+};
+
+export type RegisteredCompany = {
+  id: number;
+  name: string;
+  schema_name: string;
+  is_active: boolean;
+  admin_email: string;
+};
+
+export const RegisterCompany = createAsyncThunk(
+  "tenancy/RegisterCompany",
+  async (payload: RegisterCompanyPayload, thunkAPI) => {
+    try {
+      const res = await axiosInstance.post(
+        ENDPOINTS.registerCompany(),
+        payload,
+      );
+      // Success feedback is a confirmation dialog shown by the register form,
+      // not a toast — so just return the created company here.
+      return res.data.data as RegisteredCompany;
+    } catch (error) {
+      toast.error("Uh oh! Something went wrong.", {
+        description: errorMessage(error, "Unable to create your account."),
+      });
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
 export type StoreAccessLevel = "no_access" | "view" | "manage";
 
 export type StoreAccessEntry = {
@@ -252,6 +288,7 @@ type TenancyState = {
   companyProfile: CompanyProfile | null;
   companyLoading: boolean;
   companySaving: boolean;
+  registering: boolean;
   staff: StaffMember[];
   staffLoading: boolean;
   staffSaving: boolean;
@@ -264,6 +301,7 @@ const initialState: TenancyState = {
   companyProfile: null,
   companyLoading: false,
   companySaving: false,
+  registering: false,
   staff: [],
   staffLoading: false,
   staffSaving: false,
@@ -311,6 +349,15 @@ const TenancySlice = createSlice({
       .addCase(SetStaffActive.fulfilled, (state, action) => {
         const idx = state.staff.findIndex((s) => s.id === action.payload.id);
         if (idx !== -1) state.staff[idx] = action.payload;
+      })
+      .addCase(RegisterCompany.pending, (state) => {
+        state.registering = true;
+      })
+      .addCase(RegisterCompany.fulfilled, (state) => {
+        state.registering = false;
+      })
+      .addCase(RegisterCompany.rejected, (state) => {
+        state.registering = false;
       })
       .addCase(CreateStaff.pending, (state) => {
         state.staffSaving = true;

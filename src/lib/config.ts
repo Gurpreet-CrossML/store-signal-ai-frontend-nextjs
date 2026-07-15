@@ -58,6 +58,7 @@ export const ENDPOINTS = {
   createStaff: () => "/tenancy/staff/",
   updateStaff: (id: number) => `/tenancy/staff/${id}/`,
   resetStaffPassword: (id: number) => `/tenancy/staff/${id}/reset-password/`,
+  registerCompany: () => "/tenancy/company/register/",
   // Per-store access grants for a staff user (Django; GET needs useBackend).
   fetchStoreAccess: (userId: number) =>
     `/tenancy/staff/${userId}/store-access/`,
