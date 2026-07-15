@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { useMemo } from "react";
+import { useId } from "react";
 
 type BrandVoiceToneMetricSliderProps = {
   label: string;
@@ -25,12 +25,9 @@ export default function BrandVoiceToneMetricSlider({
 }: BrandVoiceToneMetricSliderProps) {
   const pct = ((value - 0) / (100 - 0)) * 100;
 
-  // Build a unique class id so we can scope the <style> block per slider.
-  const uid = useMemo(
-    () =>
-      `slider-${label.toLowerCase().replace(/\s+/g, "-")}-${Math.random().toString(36).slice(2, 6)}`,
-    [label],
-  );
+  // Use React's useId for a stable, pure unique identifier
+  const baseId = useId();
+  const uid = `slider-${baseId.replace(/:/g, "")}`;
 
   return (
     <div className={`flex flex-col gap-2 ${disabled ? "opacity-70" : ""}`}>
