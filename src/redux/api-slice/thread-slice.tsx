@@ -233,6 +233,61 @@ export type ThreadTicketData = {
   updated_at: string;
 };
 
+export type OrderItemData = {
+  sku: string;
+  name: string;
+  quantity: number;
+  price: string;
+  product_id: number;
+  total_price: string | number;
+  price_incl_tax: string | number;
+  total_tax_price: string | number;
+};
+
+export type OrderShippingAddress = {
+  city: string;
+  email: string;
+  street: string[];
+  postcode: string;
+  firstname: string;
+  telephone: string;
+  country_id: string;
+  address1: string;
+  address2: string;
+  company: string;
+  country: string;
+  country_code: string;
+  first_name: string;
+  last_name: string;
+  latitude: string;
+  name: string;
+  longitude: string;
+  phone: string;
+  province: string;
+  province_code: string;
+  zip: string;
+  lastname: string;
+};
+
+export type OrderData = {
+  id: number;
+  order_id: string;
+  order_number: string;
+  created_at: string;
+  currency: string;
+  total_price: string;
+  subtotal_price: string;
+  total_tax: string;
+  total_shipping: string;
+  total_discounts: string;
+  financial_status: string | null;
+  fulfillment_status: string | null;
+  gateway: string;
+  shipping_method: string | null;
+  shipping_address: OrderShippingAddress;
+  items: OrderItemData[];
+};
+
 export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
   "Threads",
   async (
@@ -503,6 +558,56 @@ export const UploadMessageAttachments = createAsyncThunk(
   },
 );
 
+export const FetchOrders = createAsyncThunk(
+  "OrderData",
+  async (threadId: string, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        ENDPOINTS.fetchOrderData(threadId),
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      // A 404 simply means no cart data exists for this thread — not an error worth surfacing.
+      if (response?.status !== 404) {
+        toast.error("Uh oh! Something went wrong.", {
+          description:
+            data?.message ||
+            "Unable to fetch the cart data, please try again later.",
+        });
+      }
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const SyncOrders = createAsyncThunk(
+  "SyncOrders",
+  async ({ threadID }: { threadID: string }, thunkAPI) => {
+    try {
+      const response = await axiosInstance.post(ENDPOINTS.syncOrders(threadID));
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message || "Could not sync orders. Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 const ThreadSlice = createSlice({
   name: "Thread",
   initialState: {
@@ -569,6 +674,17 @@ const ThreadSlice = createSlice({
       UploadMessageAttachmentsIsLoading: false,
       UploadMessageAttachmentsIsSuccess: false,
       UploadMessageAttachmentsIsError: null as null | string | object | unknown,
+    },
+    FetchOrderDataState: {
+      FetchOrderDataIsLoading: false,
+      FetchOrderDataIsSuccess: false,
+      FetchOrderDataIsError: null as null | string | object | unknown,
+      FetchOrderData: [] as OrderData[],
+    },
+    SyncOrdersState: {
+      SyncOrdersIsLoading: false,
+      SyncOrdersIsSuccess: false,
+      SyncOrdersIsError: null as null | string | object | unknown,
     },
   },
   reducers: {},
@@ -732,6 +848,35 @@ const ThreadSlice = createSlice({
         state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsError =
           action.payload;
         state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsSuccess = false;
+      })
+      .addCase(FetchOrders.pending, (state) => {
+        state.FetchOrderDataState.FetchOrderDataIsLoading = true;
+        state.FetchOrderDataState.FetchOrderDataIsError = null;
+        state.FetchOrderDataState.FetchOrderDataIsSuccess = false;
+      })
+      .addCase(FetchOrders.fulfilled, (state, action) => {
+        state.FetchOrderDataState.FetchOrderDataIsLoading = false;
+        state.FetchOrderDataState.FetchOrderData = action.payload;
+        state.FetchOrderDataState.FetchOrderDataIsSuccess = true;
+      })
+      .addCase(FetchOrders.rejected, (state, action) => {
+        state.FetchOrderDataState.FetchOrderDataIsLoading = false;
+        state.FetchOrderDataState.FetchOrderDataIsError = action.payload;
+        state.FetchOrderDataState.FetchOrderDataIsSuccess = false;
+      })
+      .addCase(SyncOrders.pending, (state) => {
+        state.SyncOrdersState.SyncOrdersIsLoading = true;
+        state.SyncOrdersState.SyncOrdersIsError = null;
+        state.SyncOrdersState.SyncOrdersIsSuccess = false;
+      })
+      .addCase(SyncOrders.fulfilled, (state) => {
+        state.SyncOrdersState.SyncOrdersIsLoading = false;
+        state.SyncOrdersState.SyncOrdersIsSuccess = true;
+      })
+      .addCase(SyncOrders.rejected, (state, action) => {
+        state.SyncOrdersState.SyncOrdersIsLoading = false;
+        state.SyncOrdersState.SyncOrdersIsError = action.payload;
+        state.SyncOrdersState.SyncOrdersIsSuccess = false;
       });
   },
 });
