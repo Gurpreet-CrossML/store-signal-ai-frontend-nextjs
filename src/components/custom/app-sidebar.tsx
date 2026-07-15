@@ -2,8 +2,7 @@
 
 import * as React from "react";
 
-import { NavMain } from "@/components/custom/nav-main";
-import { NavBrandVoice } from "@/components/custom/nav-brand-voice";
+import { NavMain, NavBrandVoice } from "@/components/custom/nav-main";
 import { NavSecondary } from "@/components/custom/nav-secondary";
 import { NavUser } from "@/components/custom/nav-user";
 import {
@@ -50,11 +49,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />
-        <NavBrandVoice
-          label={sidebarMenus.navBrandVoice.label}
-          items={sidebarMenus.navBrandVoice.items}
-          className="-mt-2"
-        />
+        {session?.user?.is_staff && (
+          <NavBrandVoice items={sidebarMenus.navBrandVoice} />
+        )}
         <NavSecondary items={sidebarMenus.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
