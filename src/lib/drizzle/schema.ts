@@ -1418,8 +1418,8 @@ export const chatHistory = pgTable(
   ],
 );
 
-export const scrapeLinkslinks = pgTable(
-  "_scrapeLinkslinks",
+export const knowledgeStorelibrarydocument = pgTable(
+  "knowledge_storelibrarydocument",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({

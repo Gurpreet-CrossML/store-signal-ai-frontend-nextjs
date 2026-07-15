@@ -30,7 +30,7 @@ import {
 } from "drizzle-orm";
 import {
   OrderData,
-  OrderItem,
+  OrderItemData,
   OrderShippingAddress,
 } from "@/redux/api-slice/thread-slice";
 
@@ -702,6 +702,11 @@ export async function get_order_data(thread_id: string): Promise<OrderData[]> {
       shipping_address: chatCustomerorder.shippingAddress,
       currency: chatCustomerorder.currency,
       items: chatCustomerorder.items,
+      subtotal_price: chatCustomerorder.subtotalPrice,
+      total_tax: chatCustomerorder.totalTax,
+      total_shipping: chatCustomerorder.totalShipping,
+      total_discounts: chatCustomerorder.totalDiscounts,
+      shipping_method: chatCustomerorder.shippingMethod,
     })
     .from(chatCustomerorder)
     .where(eq(chatCustomerorder.customerId, thread.customerId))
@@ -714,6 +719,6 @@ export async function get_order_data(thread_id: string): Promise<OrderData[]> {
   return orderRows.map((row) => ({
     ...row,
     shipping_address: row.shipping_address as OrderShippingAddress,
-    items: row.items as OrderItem[],
+    items: row.items as OrderItemData[],
   }));
 }

@@ -33,6 +33,7 @@ import {
   IconUser,
   IconPackage,
   IconChevronRight,
+  IconMail,
 } from "@tabler/icons-react";
 import { FulfillmentBadge, StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
@@ -249,7 +250,7 @@ export function UserMetadataCard({
               <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="bg-primary/20 p-1">
-                    <IconLocationPin className="size-5 inline text-primary" />
+                    <IconUser className="size-5 inline text-primary" />
                   </span>
                   <span className="shrink-0">Name</span>
                 </div>
@@ -262,7 +263,7 @@ export function UserMetadataCard({
               <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="bg-primary/20 p-1">
-                    <IconLocationPin className="size-5 inline text-primary" />
+                    <IconMail className="size-5 inline text-primary" />
                   </span>
                   <span className="shrink-0">Email</span>
                 </div>
@@ -397,24 +398,32 @@ function formatShippingAddress(address: OrderShippingAddress): {
 } {
   const recipient =
     address.name ??
-    [address.first_name, address.last_name].filter(Boolean).join(" ") ??
+    [
+      address.first_name || address.firstname,
+      address.last_name || address.lastname,
+    ]
+      .filter(Boolean)
+      .join(" ") ??
     null;
 
-  const streetLine = [address.address1, address.address2]
-    .filter(Boolean)
-    .join(", ");
+  const streetLine =
+    [address.address1, address.address2].filter(Boolean).join(", ") ||
+    (address?.street ?? []).filter(Boolean).join(", ");
 
   const cityLine = [
     address.city,
     address.province_code ?? address.province,
-    address.zip,
+    address.zip || address.postcode,
   ]
     .filter(Boolean)
     .join(", ");
 
-  const lines = [streetLine, cityLine, address.country].filter(
-    (line): line is string => Boolean(line),
-  );
+  const lines = [
+    streetLine,
+    cityLine,
+    address.country || address.country_id,
+    address.telephone,
+  ].filter((line): line is string => Boolean(line));
 
   return { recipient: recipient || null, lines };
 }
@@ -469,9 +478,9 @@ function formatDate(value: string): string {
 }
 
 /** Format a price string with the order's currency, e.g. "3850.00" → "$3,850.00". */
-function formatPrice(value: string, currency: string): string {
-  const amount = Number(value);
-  if (Number.isNaN(amount)) return value;
+function formatPrice(value: string | number, currency: string): string {
+  const amount = typeof value === "number" ? value : Number(value);
+  if (Number.isNaN(amount)) return String(value);
 
   try {
     return new Intl.NumberFormat(undefined, {
@@ -488,28 +497,113 @@ function formatPrice(value: string, currency: string): string {
   }
 }
 
+/**
+ * Build the optional price-breakdown rows (subtotal, discount, shipping,
+ * tax) for the order summary — each only appears when the platform
+ * actually captured that value, since not every synced order has one.
+ */
+function getPriceBreakdownRows(
+  order: OrderData,
+): { label: string; value: string }[] {
+  const rows: { label: string; value: string }[] = [];
+
+  if (order.subtotal_price) {
+    rows.push({
+      label: "Subtotal",
+      value: formatPrice(order.subtotal_price, order.currency),
+    });
+  }
+
+  if (order.total_discounts && Number(order.total_discounts) > 0) {
+    rows.push({
+      label: "Discount",
+      value: `−${formatPrice(order.total_discounts, order.currency)}`,
+    });
+  }
+
+  if (order.total_shipping) {
+    rows.push({
+      label: "Shipping",
+      value: formatPrice(order.total_shipping, order.currency),
+    });
+  }
+
+  if (order.total_tax) {
+    rows.push({
+      label: "Tax",
+      value: formatPrice(order.total_tax, order.currency),
+    });
+  }
+
+  if (order.total_price) {
+    rows.push({
+      label: "Total",
+      value: formatPrice(order.total_price, order.currency),
+    });
+  }
+
+  return rows;
+}
+
 function OrderDetails({ order }: { order: OrderData }) {
+  const breakdownRows = getPriceBreakdownRows(order);
+
   return (
     <div className="mt-1.5 space-y-3 rounded-xl border border-border/50 bg-muted/20 p-3">
       <div>
         <p className="text-[11px] font-medium text-muted-foreground">Items</p>
-        <div className="mt-1.5 space-y-1.5">
-          {order.items.map((item, idx) => (
+        <div className="mt-1.5 space-y-2">
+          {order.items.map((item, idx) => {
+            const unitPrice =
+              typeof item.price === "number" ? item.price : Number(item.price);
+            const lineTotal =
+              item.total_price ??
+              (Number.isNaN(unitPrice)
+                ? item.price
+                : unitPrice * item.quantity);
+
+            return (
+              <div key={idx} className="text-xs">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-foreground">{item.name}</span>
+                  <span className="shrink-0 font-medium text-foreground">
+                    {formatPrice(lineTotal, order.currency)}
+                  </span>
+                </div>
+                {/* Wraps onto its own line on narrow screens instead of
+                    overflowing the card. */}
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                  <span>
+                    {formatPrice(item.price, order.currency)} × {item.quantity}
+                  </span>
+                  {/* Tax is Magento-only — Shopify items don't include a
+                      per-item tax breakdown, so this is skipped rather
+                      than shown as $0.00 when the field is absent. */}
+                  {item.total_tax_price != null && (
+                    <span>
+                      · Tax {formatPrice(item.total_tax_price, order.currency)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {breakdownRows.length > 0 && (
+        <div className="space-y-1 border-t border-border/50 pt-2.5">
+          {breakdownRows.map((row) => (
             <div
-              key={idx}
-              className="flex items-center justify-between text-xs"
+              key={row.label}
+              className="flex items-center justify-between text-[11px]"
             >
-              <span className="text-foreground">
-                {item.name}{" "}
-                <span className="text-muted-foreground">× {item.quantity}</span>
-              </span>
-              <span className="font-medium text-foreground">
-                {formatPrice(item.price, order.currency)}
-              </span>
+              <span className="text-muted-foreground">{row.label}</span>
+              <span className="font-medium text-foreground">{row.value}</span>
             </div>
           ))}
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 border-t border-border/50 pt-2.5">
         <div>
@@ -524,12 +618,14 @@ function OrderDetails({ order }: { order: OrderData }) {
             <StatusBadge status={order.financial_status} />
           </div>
         </div>
-        <div>
-          <p className="text-[11px] text-muted-foreground">Total</p>
-          <p className="text-xs font-semibold text-primary">
-            {formatPrice(order.total_price, order.currency)}
-          </p>
-        </div>
+        {order.shipping_method && (
+          <div className="col-span-2">
+            <p className="text-[11px] text-muted-foreground">Shipping Method</p>
+            <p className="mt-0.5 text-xs font-medium text-foreground break-words [overflow-wrap:anywhere]">
+              {order.shipping_method.replace(/_/g, " ")}
+            </p>
+          </div>
+        )}
         <div className="col-span-2">
           <p className="text-[11px] text-muted-foreground">Shipping Address</p>
           <div className="mt-0.5">
@@ -546,11 +642,13 @@ export function OrdersCard({
   loading,
   handleOrdersSync,
   orderSyncLoading,
+  custometData,
 }: {
   orders?: OrderData[] | null;
   loading?: boolean;
   handleOrdersSync: () => void;
   orderSyncLoading?: boolean;
+  custometData?: Customer | null;
 }) {
   const orderList = orders;
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -559,40 +657,36 @@ export function OrdersCard({
     setExpandedId((prev) => (prev === id ? null : id));
   };
 
-  if (!orderList || orderList.length === 0) {
-    return null;
-  }
-
   return (
-    <Card className="gap-0 py-0 overflow-hidden">
-      <CardHeader className="border-b border-border/50 bg-muted/30 py-3.5">
-        <CardTitle className="flex items-center justify-between gap-2 text-sm">
-          <div className="flex items-center gap-2 text-sm">
-            <IconShoppingBag className="h-4 w-4" />
-            Orders ({orderList.length})
-          </div>
+    <Card>
+      <CardContent className="space-y-4">
+        <CardHeader className="flex items-center justify-between p-0">
+          <CardTitle className="flex items-center gap-2">
+            <IconPackage className="h-4 w-4" />
+            Orders ({orderList?.length})
+          </CardTitle>
           <Button
             type="button"
             size="xs"
             onClick={handleOrdersSync}
-            disabled={loading || orderSyncLoading}
+            disabled={loading || orderSyncLoading || !custometData?.email}
           >
             {orderSyncLoading ? "Syncing..." : "Sync"}
           </Button>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-2">
+        </CardHeader>
         {loading ? (
-          <p className="py-4 text-center text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground italic">
             Loading orders…
           </p>
-        ) : orderList.length === 0 ? (
-          <p className="py-4 text-center text-xs text-muted-foreground">
-            No past orders found.
+        ) : orderList?.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic">
+            {!custometData?.email
+              ? "Customer not registered."
+              : "No orders found. Click Sync to fetch them."}
           </p>
         ) : (
           <div className="space-y-1.5">
-            {orderList.map((order) => {
+            {orderList?.map((order) => {
               const isExpanded = expandedId === order.id;
 
               return (

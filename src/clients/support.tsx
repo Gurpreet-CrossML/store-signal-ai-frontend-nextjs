@@ -1442,12 +1442,6 @@ export default function Support() {
                   cartData={FetchCartData}
                   loading={FetchCartDataIsLoading}
                 />
-                <OrdersCard
-                  orders={FetchOrderData}
-                  loading={FetchOrderDataIsLoading}
-                  handleOrdersSync={handleOrdersSync}
-                  orderSyncLoading={SyncOrdersIsLoading}
-                />
                 <UserMetadataCard
                   userMetadata={FetchUserMetadataData}
                   custometData={selectedThread?.customer || null}
