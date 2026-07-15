@@ -152,7 +152,6 @@ export default function TestSimulate() {
         </Tabs>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center xl:justify-end">
-
           <Button className="h-10 gap-2">
             <IconMessageCircle className="size-4" />
             New Conversation
@@ -243,9 +242,7 @@ export default function TestSimulate() {
                       Learn more
                     </button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent
-                    className="w-[calc(100vw-2rem)] max-w-[500px] gap-0 rounded-xl p-6 shadow-2xl lg:max-w-[500px]"
-                  >
+                  <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-[500px] gap-0 rounded-xl p-6 shadow-2xl lg:max-w-[500px]">
                     <div className="mb-4 flex items-center gap-3">
                       <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                         <IconInfoCircle className="size-5" />
