@@ -89,15 +89,6 @@ const responseReasons = [
   "Added quick replies for better UX",
 ];
 
-function BotAvatar() {
-  return (
-    <div className="relative mt-1 flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-      <IconRobot className="size-7" />
-      <span className="absolute -right-0.5 bottom-1 size-3 rounded-full border-2 border-background bg-emerald-500" />
-    </div>
-  );
-}
-
 function ExplainabilityItem({
   item,
 }: {

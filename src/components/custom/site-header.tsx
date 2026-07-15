@@ -1,9 +1,7 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { IconDeviceFloppy } from "@tabler/icons-react";
 import { usePathname } from "next/navigation";
 import { findMenuItemByUrl, sidebarMenus } from "@/lib/sidebar-navs";
 import { useSession } from "next-auth/react";
