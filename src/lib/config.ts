@@ -109,10 +109,10 @@ export const ENDPOINTS = {
   createScrapeLink: () => `/knowledge/scrape-links/`,
   fetchScrapeLink: () => `/knowledge/scrape-links`,
 
-  // Brand Voice reads use the local DB-backed chat route; writes go straight to
+  // Brand Voice reads use the local DB-backed index route; writes go straight to
   // Django's upsert endpoints.
-  fetchToneStyle: () => `/brand-voice/chat?feature=tone-style`,
-  fetchVocabulary: () => `/brand-voice/chat?feature=vocabulary`,
+  fetchToneStyle: () => `/brand-voice?feature=tone-style`,
+  fetchVocabulary: () => `/brand-voice?feature=vocabulary`,
   saveToneStyle: () => `/chat/tone-style/`,
   saveVocabulary: () => `/chat/vocabulary/`,
 };

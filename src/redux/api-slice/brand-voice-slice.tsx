@@ -2,8 +2,8 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
 
-import { fetchToneStyle, saveToneStyle } from "@/clients/tone";
-import { fetchVocabulary, saveVocabulary } from "@/clients/vocabulary";
+import { ENDPOINTS } from "@/lib/config";
+import { axiosInstance } from "@/redux/axios-config";
 import type {
   ToneStylePayload,
   ToneStyleRecord,
@@ -53,7 +53,10 @@ export const GetToneStyle = createAsyncThunk<ToneStyleRecord | null, string>(
   "brandVoice/getToneStyle",
   async (storeCode, thunkAPI) => {
     try {
-      return await fetchToneStyle(storeCode);
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchToneStyle()}&store_code=${encodeURIComponent(storeCode)}`,
+      );
+      return response.data.data as ToneStyleRecord | null;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
@@ -72,9 +75,12 @@ export const SaveToneStyle = createAsyncThunk<
   { storeCode: string; payload: ToneStylePayload }
 >("brandVoice/saveToneStyle", async ({ storeCode, payload }, thunkAPI) => {
   try {
-    const data = await saveToneStyle(storeCode, payload);
+    const response = await axiosInstance.post(
+      `${ENDPOINTS.saveToneStyle()}?store_code=${encodeURIComponent(storeCode)}`,
+      payload,
+    );
     toast.success("Tone & Style saved successfully");
-    return data;
+    return response.data.data as ToneStyleRecord;
   } catch (error) {
     const response = isAxiosError(error) ? error.response : undefined;
     const data = response?.data;
@@ -91,7 +97,10 @@ export const GetVocabulary = createAsyncThunk<VocabularyRecord | null, string>(
   "brandVoice/getVocabulary",
   async (storeCode, thunkAPI) => {
     try {
-      return await fetchVocabulary(storeCode);
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchVocabulary()}&store_code=${encodeURIComponent(storeCode)}`,
+      );
+      return response.data.data as VocabularyRecord | null;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
@@ -110,9 +119,12 @@ export const SaveVocabulary = createAsyncThunk<
   { storeCode: string; payload: VocabularyPayload }
 >("brandVoice/saveVocabulary", async ({ storeCode, payload }, thunkAPI) => {
   try {
-    const data = await saveVocabulary(storeCode, payload);
+    const response = await axiosInstance.post(
+      `${ENDPOINTS.saveVocabulary()}?store_code=${encodeURIComponent(storeCode)}`,
+      payload,
+    );
     toast.success("Vocabulary saved successfully");
-    return data;
+    return response.data.data as VocabularyRecord;
   } catch (error) {
     const response = isAxiosError(error) ? error.response : undefined;
     const data = response?.data;

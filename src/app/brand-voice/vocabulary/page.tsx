@@ -1,4 +1,4 @@
-import Chat from "./chat";
+﻿import Chat from "./chat";
 
 export const metadata = {
   title: "Vocabulary",
@@ -7,3 +7,4 @@ export const metadata = {
 export default function Page() {
   return <Chat />;
 }
+

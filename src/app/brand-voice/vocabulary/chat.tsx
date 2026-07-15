@@ -1,4 +1,4 @@
-import BrandVoiceVocabularyEditor from "@/components/custom/brand-voice-vocabulary-editor";
+import BrandVoiceVocabularyEditor from "@/clients/vocabulary";
 
 export default function Chat() {
   return <BrandVoiceVocabularyEditor />;
