@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import TestSimulate from "@/clients/test-simulate";
 
 export const metadata = {
@@ -5,5 +7,9 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <TestSimulate />;
+  return (
+    <Suspense fallback={null}>
+      <TestSimulate />
+    </Suspense>
+  );
 }
