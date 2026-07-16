@@ -41,6 +41,7 @@ import {
   integration,
   integrationAttribute,
   storeIntegration,
+  storeIntegrationAttribute,
   neverSayRules,
   vocabulary,
   personaIdentity,
