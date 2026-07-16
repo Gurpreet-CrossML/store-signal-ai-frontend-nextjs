@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
-import { IconX, IconCheck, IconTrash, IconPlus } from "@tabler/icons-react";
+import { IconX, IconCheck, IconPlus } from "@tabler/icons-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-// ─── ChipListField ────────────────────────────────────────────────────────────
+// ChipListField
 
 type ChipKind = "preferred" | "banned" | "signature";
 
@@ -112,7 +112,7 @@ function ChipListField({
   );
 }
 
-// ─── ReplacementRow ───────────────────────────────────────────────────────────
+// ReplacementRow
 
 type ReplacementRowItem = {
   say_word: string;
@@ -126,7 +126,6 @@ type ReplacementRowProps = {
   replaceWord: string;
   isActive: boolean;
   onChange: (patch: Partial<ReplacementRowItem>) => void;
-  onRemove: () => void;
 };
 
 function ReplacementRow({
@@ -135,7 +134,6 @@ function ReplacementRow({
   replaceWord,
   isActive,
   onChange,
-  onRemove,
 }: ReplacementRowProps) {
   return (
     <div className="grid gap-4 rounded-xl border border-border/60 bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
@@ -145,9 +143,6 @@ function ReplacementRow({
           id={`say_word_${index}`}
           value={sayWord}
           onChange={(e) => onChange({ say_word: e.target.value })}
-          onBlur={() => {
-            if (!sayWord.trim()) onRemove();
-          }}
           placeholder="e.g. basket"
           autoComplete="off"
         />
@@ -158,9 +153,6 @@ function ReplacementRow({
           id={`replace_word_${index}`}
           value={replaceWord}
           onChange={(e) => onChange({ replace_word: e.target.value })}
-          onBlur={() => {
-            if (!replaceWord.trim()) onRemove();
-          }}
           placeholder="e.g. cart"
           autoComplete="off"
         />
@@ -185,21 +177,12 @@ function ReplacementRow({
             "Inactive"
           )}
         </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={onRemove}
-          className="text-destructive hover:text-destructive"
-        >
-          <IconTrash className="size-4" />
-        </Button>
       </div>
     </div>
   );
 }
 
-// ─── BrandVoiceVocabularyChipLists (exported) ─────────────────────────────────
+// BrandVoiceVocabularyChipLists
 
 type BrandVoiceVocabularyChipListsProps = {
   preferredPhrases: string[];
@@ -213,7 +196,6 @@ type BrandVoiceVocabularyChipListsProps = {
     index: number,
     patch: Partial<ReplacementRowItem>,
   ) => void;
-  onReplacementRemove: (index: number) => void;
   onReplacementAdd: () => void;
 };
 
@@ -226,7 +208,6 @@ export default function BrandVoiceVocabularyChipLists({
   onBannedChange,
   onSignatureChange,
   onReplacementChange,
-  onReplacementRemove,
   onReplacementAdd,
 }: BrandVoiceVocabularyChipListsProps) {
   return (
@@ -289,7 +270,6 @@ export default function BrandVoiceVocabularyChipLists({
                   replaceWord={row.replace_word}
                   isActive={row.is_active}
                   onChange={(patch) => onReplacementChange(index, patch)}
-                  onRemove={() => onReplacementRemove(index)}
                 />
               ))}
             </div>

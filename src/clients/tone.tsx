@@ -6,9 +6,7 @@ import z from "zod";
 
 import previewConfigJson from "@/app/brand-voice/tone-style/live-preview.json";
 import BrandVoiceTonePresetSelector from "@/components/custom/brand-voice-tone-preset-selector";
-import BrandVoiceToneDimensions from "@/components/custom/brand-voice-tone-dimensions";
-import BrandVoiceToneStructure from "@/components/custom/brand-voice-tone-structure";
-import BrandVoiceToneCurrentProfile from "@/components/custom/brand-voice-tone-current-profile";
+import BrandVoiceToneControls from "@/components/custom/brand-voice-tone-controls";
 import ToneStylePreviewPanel, {
   type TonePreviewConfig,
 } from "@/components/custom/brand-voice-tone-preview-panel";
@@ -489,7 +487,7 @@ function BrandVoiceToneStyleEditorView({
             onSelect={handlePresetSelect}
           />
 
-          <BrandVoiceToneDimensions
+          <BrandVoiceToneControls
             values={{
               warmth: values.warmth,
               formality: values.formality,
@@ -497,12 +495,6 @@ function BrandVoiceToneStyleEditorView({
               playfulness: values.playfulness,
               directness: values.directness,
             }}
-            onChange={(key, value) =>
-              updateToneField(key as ToneEditableField, value as number)
-            }
-          />
-
-          <BrandVoiceToneStructure
             answerLength={values.answer_length}
             frequencyPolicy={values.frequency_policy}
             regionalSpelling={values.regional_spelling}
@@ -511,6 +503,9 @@ function BrandVoiceToneStyleEditorView({
               previewConfig.insights.use_bullet_points[
                 String(values.use_bullet_points) as "true" | "false"
               ] ?? previewConfig.insights.use_bullet_points.true
+            }
+            onChange={(key, value) =>
+              updateToneField(key as ToneEditableField, value as number)
             }
             onAnswerLengthChange={(v) =>
               updateToneField(
@@ -570,22 +565,21 @@ function BrandVoiceToneStyleEditorView({
             preset={values.preset}
             modeLabel={modeLabel}
             modeDescription={modeDescription}
+            presetOrder={PRESET_ORDER}
             customerMessage={previewConfig.preview.customerMessage}
             assistantMessage={assistantMessage}
             insightRows={insightRows}
             summaryRows={summaryRows}
             previewConfig={previewConfig}
-          />
-
-          <BrandVoiceToneCurrentProfile
-            presetOrder={PRESET_ORDER}
-            preset={values.preset}
-            warmth={values.warmth}
-            formality={values.formality}
-            energy={values.energy}
-            playfulness={values.playfulness}
-            directness={values.directness}
-            useBulletPoints={values.use_bullet_points}
+            currentProfile={{
+              preset: values.preset,
+              warmth: values.warmth,
+              formality: values.formality,
+              energy: values.energy,
+              playfulness: values.playfulness,
+              directness: values.directness,
+              useBulletPoints: values.use_bullet_points,
+            }}
           />
         </div>
       </div>

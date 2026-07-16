@@ -233,13 +233,6 @@ function BrandVoiceVocabularyEditorView({
     formik.setFieldValue("word_replacements", next);
   };
 
-  const handleReplacementRemove = (index: number) => {
-    formik.setFieldValue(
-      "word_replacements",
-      values.word_replacements.filter((_, i) => i !== index),
-    );
-  };
-
   const handleReplacementAdd = () => {
     formik.setFieldValue("word_replacements", [
       ...values.word_replacements,
@@ -292,7 +285,6 @@ function BrandVoiceVocabularyEditorView({
             formik.setFieldValue("signature_phrases", v)
           }
           onReplacementChange={handleReplacementChange}
-          onReplacementRemove={handleReplacementRemove}
           onReplacementAdd={handleReplacementAdd}
         />
 

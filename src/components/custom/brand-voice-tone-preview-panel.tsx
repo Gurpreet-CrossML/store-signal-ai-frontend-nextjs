@@ -55,22 +55,34 @@ type ToneStylePreviewPanelProps = {
   preset: string;
   modeLabel: string;
   modeDescription: string;
+  presetOrder: readonly string[];
   customerMessage: string;
   assistantMessage: string;
   insightRows: Array<{ label: string; value: string }>;
   summaryRows: Array<{ label: string; value: string }>;
   previewConfig: TonePreviewConfig;
+  currentProfile: {
+    preset: string;
+    warmth: number;
+    formality: number;
+    energy: number;
+    playfulness: number;
+    directness: number;
+    useBulletPoints: boolean;
+  };
 };
 
 export default function ToneStylePreviewPanel({
   preset,
   modeLabel,
   modeDescription,
+  presetOrder,
   customerMessage,
   assistantMessage,
   insightRows,
   summaryRows,
   previewConfig,
+  currentProfile,
 }: ToneStylePreviewPanelProps) {
   const presetLabel =
     typeof preset === "string" && preset.trim()
@@ -179,6 +191,54 @@ export default function ToneStylePreviewPanel({
                 </p>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Current profile
+          </h3>
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {presetOrder.map((p) => (
+                <Badge
+                  key={p}
+                  variant={currentProfile.preset === p ? "default" : "outline"}
+                  className="font-normal capitalize"
+                >
+                  {p.replaceAll("_", " ")}
+                </Badge>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {(
+                [
+                  ["Warmth", currentProfile.warmth],
+                  ["Formality", currentProfile.formality],
+                  ["Energy", currentProfile.energy],
+                  ["Playfulness", currentProfile.playfulness],
+                  ["Directness", currentProfile.directness],
+                ] as const
+              ).map(([label, value]) => (
+                <div
+                  key={label}
+                  className="rounded-lg border border-border/60 p-3"
+                >
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {label}
+                  </p>
+                  <p className="mt-1 font-medium tabular-nums">{value}</p>
+                </div>
+              ))}
+              <div className="rounded-lg border border-border/60 p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Bullet points
+                </p>
+                <p className="mt-1 font-medium">
+                  {currentProfile.useBulletPoints ? "Enabled" : "Disabled"}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </CardContent>
