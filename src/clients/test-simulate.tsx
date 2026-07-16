@@ -142,25 +142,6 @@ export function formatPrice(amount: number | string, currency = "USD") {
   }).format(amount);
 }
 
-export const submitThreadFeedback = async (
-  rating: string,
-  threadId: string,
-  feedbackMessage?: string,
-) => {
-  try {
-    if (!rating || !threadId) return null;
-    const response = await axiosInstance.post("/chat/thread-feedback/", {
-      rating,
-      thread_id: threadId,
-      feedback_message: feedbackMessage,
-    });
-    return response.data?.status === "success" ? response.data?.data : null;
-  } catch (error) {
-    console.error("Thread feedback submission failed, Error:", error);
-    return null;
-  }
-};
-
 export const saveEvent = async (
   eventType: string,
   threadId: string,

@@ -2,12 +2,13 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import {
-  submitThreadFeedback,
   uid,
   type RatingChoice,
   useTestChatbotContext,
 } from "@/clients/test-simulate";
 import { cn } from "@/lib/utils";
+import { SubmitThreadFeedback } from "@/redux/api-slice/thread-slice";
+import { useAppDispatch } from "@/redux/hooks";
 
 type FeedbackCardProps = {
   ratingChoices?: RatingChoice[];
@@ -25,6 +26,7 @@ const FALLBACK_RATING_OPTIONS: RatingChoice[] = [
 const MAX_FEEDBACK_LENGTH = 500;
 
 export function FeedbackCard({ ratingChoices, onDone }: FeedbackCardProps) {
+  const dispatch = useAppDispatch();
   const { session, addMessage } = useTestChatbotContext();
   const [selectedOption, setSelectedOption] = useState<RatingChoice | null>(
     null,
@@ -49,11 +51,13 @@ export function FeedbackCard({ ratingChoices, onDone }: FeedbackCardProps) {
         created_at: new Date(),
       });
 
-      const result = await submitThreadFeedback(
-        selectedOption.value,
-        session.session_id,
-        feedbackMessage.trim() || undefined,
-      );
+      const result = await dispatch(
+        SubmitThreadFeedback({
+          rating: selectedOption.value,
+          thread_id: session.session_id,
+          feedback_message: feedbackMessage.trim() || undefined,
+        }),
+      ).unwrap();
 
       setSubmitted(true);
       toast.success(result?.message ?? "Thank you for your feedback!");
