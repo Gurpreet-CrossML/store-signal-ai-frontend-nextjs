@@ -26,9 +26,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TestConversationPanel } from "@/components/custom/test-conversation-panel";
-import { createWebSocketUrl } from "@/lib/config";
+import { ENDPOINTS } from "@/lib/config";
 import { cn } from "@/lib/utils";
-import { axiosInstance } from "@/redux/axios-config";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   CreateThread,
@@ -142,12 +141,6 @@ export function formatPrice(amount: number | string, currency = "USD") {
   }).format(amount);
 }
 
-const buildSimulationSocketUrl = (threadId: string, token?: string) => {
-  const params = new URLSearchParams({ role: "customer" });
-  if (token) params.set("token", token);
-  return `${createWebSocketUrl(`/chat/${threadId}/`)}?${params.toString()}`;
-};
-
 type ConnectWebSocketOptions = {
   token?: string;
   onMessage?: (event: MessageEvent) => void;
@@ -166,7 +159,9 @@ const connectWebSocket = (
 ) => {
   if (!sessionId) return null;
 
-  const ws = new WebSocket(buildSimulationSocketUrl(sessionId, token));
+  const ws = new WebSocket(
+    ENDPOINTS.chatSocket(sessionId, "customer", token || ""),
+  );
 
   if (onMessage) {
     ws.onmessage = onMessage;
