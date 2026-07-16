@@ -1,67 +1,144 @@
 "use client";
 
+import { useId } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { IconGauge } from "@tabler/icons-react";
-import BrandVoiceToneMetricSlider from "@/components/custom/brand-voice-tone-metric-slider";
 
 type SliderDef = {
   key: string;
   label: string;
   minLabel: string;
   maxLabel: string;
-  /** CSS color value that harmonizes with the purple theme */
-  accentColor: string;
 };
 
-// Purple-harmonious palette — each slider gets a distinct shade
-// within the analogous range of the theme hue (~292 oklch / purple).
 const SLIDERS: SliderDef[] = [
   {
     key: "warmth",
     label: "Warmth",
     minLabel: "Reserved",
     maxLabel: "Warm",
-    accentColor: "oklch(0.65 0.22 310)",
-  }, // rosy magenta
+  },
   {
     key: "formality",
     label: "Formality",
     minLabel: "Casual",
     maxLabel: "Formal",
-    accentColor: "oklch(0.55 0.24 270)",
-  }, // deep violet
+  },
   {
     key: "energy",
     label: "Energy",
     minLabel: "Calm",
     maxLabel: "Energetic",
-    accentColor: "oklch(0.62 0.26 330)",
-  }, // fuchsia pink
+  },
   {
     key: "playfulness",
     label: "Playfulness",
     minLabel: "Serious",
     maxLabel: "Playful",
-    accentColor: "oklch(0.68 0.20 290)",
-  }, // soft lavender
+  },
   {
     key: "directness",
     label: "Directness",
     minLabel: "Gentle",
     maxLabel: "Direct",
-    accentColor: "oklch(0.56 0.20 255)",
-  }, // indigo blue
+  },
 ];
+
+function ToneMetricSlider({
+  label,
+  value,
+  minLabel,
+  maxLabel,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  minLabel: string;
+  maxLabel: string;
+  onChange: (value: number) => void;
+}) {
+  const baseId = useId();
+  const uid = `slider-${baseId.replace(/:/g, "")}`;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <Label className="text-sm font-medium">{label}</Label>
+        <Badge variant="outline" className="font-normal tabular-nums">
+          {value}
+        </Badge>
+      </div>
+
+      <style>{`
+        .${uid}::-webkit-slider-runnable-track {
+          height: 8px;
+          border-radius: 9999px;
+          background: linear-gradient(
+            to right,
+            var(--color-primary) ${value}%,
+            var(--color-border) ${value}%
+          );
+        }
+        .${uid}::-moz-range-track {
+          height: 8px;
+          border-radius: 9999px;
+          background: var(--color-border);
+        }
+        .${uid}::-moz-range-progress {
+          height: 8px;
+          border-radius: 9999px 0 0 9999px;
+          background: var(--color-primary);
+        }
+        .${uid}::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 18px;
+          height: 18px;
+          border-radius: 9999px;
+          background: var(--color-primary);
+          border: 2px solid var(--color-background);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
+          margin-top: -5px;
+          cursor: pointer;
+        }
+        .${uid}::-moz-range-thumb {
+          width: 18px;
+          height: 18px;
+          border-radius: 9999px;
+          background: var(--color-primary);
+          border: 2px solid var(--color-background);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
+          cursor: pointer;
+        }
+      `}</style>
+
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={1}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className={`${uid} w-full cursor-pointer appearance-none bg-transparent`}
+      />
+
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{minLabel}</span>
+        <span>{maxLabel}</span>
+      </div>
+    </div>
+  );
+}
 
 type BrandVoiceToneDimensionsProps = {
   values: Record<string, number>;
-  disabled: boolean;
   onChange: (key: string, value: number) => void;
 };
 
 export default function BrandVoiceToneDimensions({
   values,
-  disabled,
   onChange,
 }: BrandVoiceToneDimensionsProps) {
   return (
@@ -74,14 +151,12 @@ export default function BrandVoiceToneDimensions({
       </CardHeader>
       <CardContent className="space-y-6 px-5 pb-5">
         {SLIDERS.map((slider) => (
-          <BrandVoiceToneMetricSlider
+          <ToneMetricSlider
             key={slider.key}
             label={slider.label}
             value={values[slider.key] ?? 50}
             minLabel={slider.minLabel}
             maxLabel={slider.maxLabel}
-            disabled={disabled}
-            accentColor={slider.accentColor}
             onChange={(v) => onChange(slider.key, v)}
           />
         ))}

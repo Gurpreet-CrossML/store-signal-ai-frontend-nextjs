@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useFormik, setIn } from "formik";
 import z from "zod";
 import { IconDeviceFloppy } from "@tabler/icons-react";
 
-import BrandVoiceTabsNav from "@/components/custom/brand-voice-tabs-nav";
 import BrandVoiceVocabularyChipLists from "@/components/custom/brand-voice-vocabulary-chip-lists";
 import BrandVoiceVocabularySummary from "@/components/custom/brand-voice-vocabulary-summary";
 import { Button } from "@/components/ui/button";
@@ -25,9 +24,9 @@ import type {
   VocabularyPayload,
   VocabularyRecord,
   WordReplacementPayload,
-} from "@/db/brand-voice";
+} from "@/db/chat";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// Types
 
 type VocabularyFormValues = {
   preferred_phrases: string[];
@@ -40,20 +39,44 @@ type VocabularyFormValues = {
   }>;
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
-const validationSchema = z.object({
-  preferred_phrases: z.array(z.string().trim().min(1)).default([]),
-  banned_words: z.array(z.string().trim().min(1)).default([]),
-  signature_phrases: z.array(z.string().trim().min(1)).default([]),
-  word_replacements: z.array(
-    z.object({
-      say_word: z.string().trim(),
-      replace_word: z.string().trim(),
-      is_active: z.boolean(),
-    }),
-  ),
+const replacementSchema = z.object({
+  say_word: z.string().trim(),
+  replace_word: z.string().trim(),
+  is_active: z.boolean(),
 });
+
+const validationSchema = z
+  .object({
+    preferred_phrases: z.array(z.string().trim().min(1)).default([]),
+    banned_words: z.array(z.string().trim().min(1)).default([]),
+    signature_phrases: z.array(z.string().trim().min(1)).default([]),
+    word_replacements: z.array(replacementSchema),
+  })
+  .superRefine((values, ctx) => {
+    values.word_replacements.forEach((row, index) => {
+      const hasSayWord = row.say_word.trim().length > 0;
+      const hasReplaceWord = row.replace_word.trim().length > 0;
+
+      if (hasSayWord !== hasReplaceWord) {
+        if (!hasSayWord) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["word_replacements", index, "say_word"],
+            message: "Say word and replace with must be filled together.",
+          });
+        }
+        if (!hasReplaceWord) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["word_replacements", index, "replace_word"],
+            message: "Say word and replace with must be filled together.",
+          });
+        }
+      }
+    });
+  });
 
 function emptyFormValues(): VocabularyFormValues {
   return {
@@ -82,19 +105,20 @@ function normalizeVocabulary(data: VocabularyRecord): VocabularyFormValues {
 }
 
 function toPayload(values: VocabularyFormValues): VocabularyPayload {
+  const completeRows = values.word_replacements.filter(
+    (row) => row.say_word.trim() && row.replace_word.trim(),
+  );
   return {
     preferred_phrases: normalizeList(values.preferred_phrases),
     banned_words: normalizeList(values.banned_words),
     signature_phrases: normalizeList(values.signature_phrases),
-    word_replacements: values.word_replacements
-      .map(
-        (row): WordReplacementPayload => ({
-          say_word: row.say_word.trim(),
-          replace_word: row.replace_word.trim(),
-          is_active: row.is_active,
-        }),
-      )
-      .filter((row) => row.say_word || row.replace_word),
+    word_replacements: completeRows.map(
+      (row): WordReplacementPayload => ({
+        say_word: row.say_word.trim(),
+        replace_word: row.replace_word.trim(),
+        is_active: row.is_active,
+      }),
+    ),
   };
 }
 
@@ -105,7 +129,7 @@ function issuesToFormikErrors(issues: z.ZodIssue[]) {
   );
 }
 
-// ─── Root component (store selector shell) ────────────────────────────────────
+// Root component (store selector shell)
 
 export default function BrandVoiceVocabularyEditor() {
   const selectedStore = useAppSelector(
@@ -120,7 +144,7 @@ export default function BrandVoiceVocabularyEditor() {
   );
 }
 
-// ─── Editor view (Formik + Redux orchestrator) ────────────────────────────────
+// Editor view (Formik + Redux orchestrator)
 
 function BrandVoiceVocabularyEditorView({
   selectedStore,
@@ -138,7 +162,7 @@ function BrandVoiceVocabularyEditorView({
     useState<VocabularyFormValues>(emptyFormValues());
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
-  // ── Formik ────────────────────────────────────────────────────────────────
+  // Formik
   const formik = useFormik<VocabularyFormValues>({
     enableReinitialize: true,
     initialValues,
@@ -162,7 +186,7 @@ function BrandVoiceVocabularyEditorView({
     },
   });
 
-  // ── Fetch on mount ────────────────────────────────────────────────────────
+  // Fetch on mount
   useEffect(() => {
     if (!selectedStore) return;
     let active = true;
@@ -184,25 +208,22 @@ function BrandVoiceVocabularyEditorView({
     };
   }, [dispatch, selectedStore]);
 
-  // ── Derived state ─────────────────────────────────────────────────────────
+  // Derived state
   const values = formik.values;
 
-  const summary = useMemo(
-    () => [
-      { label: "Preferred", value: values.preferred_phrases.length },
-      { label: "Blocked", value: values.banned_words.length },
-      { label: "Signature", value: values.signature_phrases.length },
-      {
-        label: "Replacements",
-        value: values.word_replacements.filter(
-          (item) => item.say_word.trim() || item.replace_word.trim(),
-        ).length,
-      },
-    ],
-    [values],
-  );
+  const summary = [
+    { label: "Preferred", value: values.preferred_phrases.length },
+    { label: "Blocked", value: values.banned_words.length },
+    { label: "Signature", value: values.signature_phrases.length },
+    {
+      label: "Replacements",
+      value: values.word_replacements.filter(
+        (row) => row.say_word.trim() && row.replace_word.trim(),
+      ).length,
+    },
+  ];
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  // Handlers
   const handleReplacementChange = (
     index: number,
     patch: Partial<VocabularyFormValues["word_replacements"][number]>,
@@ -226,11 +247,10 @@ function BrandVoiceVocabularyEditorView({
     ]);
   };
 
-  // ── Empty state ───────────────────────────────────────────────────────────
+  // Empty state
   if (!selectedStore) {
     return (
       <div className="w-full px-4 pb-6 md:px-6">
-        <BrandVoiceTabsNav />
         <Empty className="min-h-[55vh]">
           <EmptyHeader>
             <EmptyTitle>Select a store first</EmptyTitle>
@@ -244,14 +264,11 @@ function BrandVoiceVocabularyEditorView({
     );
   }
 
-  // ── Main layout ───────────────────────────────────────────────────────────
+  // Main layout
   return (
     <form onSubmit={formik.handleSubmit} className="w-full px-4 pb-6 md:px-6">
-      <BrandVoiceTabsNav />
-
       {/* Page header */}
-      <div className="mt-6 flex flex-col gap-2">
-        <h1 className="font-heading text-2xl font-semibold">Vocabulary</h1>
+      <div className="mt-3 flex flex-col gap-2">
         <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
           The specific words that make your brand sound like you. Preferred
           phrases to lean into, words to ban, signature expressions, and exact
@@ -260,7 +277,7 @@ function BrandVoiceVocabularyEditorView({
       </div>
 
       {/* Two-column grid */}
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+      <div className="mt-4 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
         {/* Left column — chip lists + replacements */}
         <BrandVoiceVocabularyChipLists
           preferredPhrases={values.preferred_phrases}
@@ -299,7 +316,9 @@ function BrandVoiceVocabularyEditorView({
         </Button>
         <Button
           type="submit"
-          disabled={!formik.dirty || saveIsLoading || fetchIsLoading}
+          disabled={
+            !formik.dirty || !formik.isValid || saveIsLoading || fetchIsLoading
+          }
         >
           {saveIsLoading ? (
             <>

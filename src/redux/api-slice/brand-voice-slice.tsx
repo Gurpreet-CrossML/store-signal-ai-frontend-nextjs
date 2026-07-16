@@ -9,7 +9,7 @@ import type {
   ToneStyleRecord,
   VocabularyPayload,
   VocabularyRecord,
-} from "@/db/brand-voice";
+} from "@/db/chat";
 
 type AsyncState<T> = {
   isLoading: boolean;
@@ -25,6 +25,34 @@ function createAsyncState<T>(data: T | null = null): AsyncState<T> {
     isError: null,
     data,
   };
+}
+
+function collectErrorDetails(value: unknown): string[] {
+  if (!value) return [];
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectErrorDetails(item));
+  }
+  if (typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).flatMap((item) =>
+      collectErrorDetails(item),
+    );
+  }
+  return [];
+}
+
+function getErrorDescription(fallback: string, data: unknown): string {
+  const message =
+    typeof data === "object" && data && "message" in data
+      ? String((data as { message?: unknown }).message || "")
+      : "";
+  const details = collectErrorDetails(
+    typeof data === "object" && data && "data" in data
+      ? (data as { data?: unknown }).data
+      : undefined,
+  );
+  const parts = [message, ...details].filter(Boolean);
+  return parts.length ? parts.join(" ") : fallback;
 }
 
 type BrandVoiceState = {
@@ -61,9 +89,10 @@ export const GetToneStyle = createAsyncThunk<ToneStyleRecord | null, string>(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
+        description: getErrorDescription(
           "Unable to fetch the Tone & Style, please try again later.",
+          data,
+        ),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -85,9 +114,10 @@ export const SaveToneStyle = createAsyncThunk<
     const response = isAxiosError(error) ? error.response : undefined;
     const data = response?.data;
     toast.error("Uh oh! Something went wrong.", {
-      description:
-        data?.message ||
+      description: getErrorDescription(
         "Unable to save the Tone & Style, please try again later.",
+        data,
+      ),
     });
     return thunkAPI.rejectWithValue(data || "Something went wrong");
   }
@@ -105,9 +135,10 @@ export const GetVocabulary = createAsyncThunk<VocabularyRecord | null, string>(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
+        description: getErrorDescription(
           "Unable to fetch the Vocabulary, please try again later.",
+          data,
+        ),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -129,9 +160,10 @@ export const SaveVocabulary = createAsyncThunk<
     const response = isAxiosError(error) ? error.response : undefined;
     const data = response?.data;
     toast.error("Uh oh! Something went wrong.", {
-      description:
-        data?.message ||
+      description: getErrorDescription(
         "Unable to save the Vocabulary, please try again later.",
+        data,
+      ),
     });
     return thunkAPI.rejectWithValue(data || "Something went wrong");
   }

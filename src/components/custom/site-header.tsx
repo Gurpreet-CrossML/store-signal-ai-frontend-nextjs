@@ -13,10 +13,13 @@ export function SiteHeader() {
   const navMain = session?.user?.is_staff
     ? [...sidebarMenus.navMain, ...sidebarMenus.navAdmin]
     : sidebarMenus.navMain;
+  const navBrandVoice = sidebarMenus.navBrandVoice;
 
   function findTitleFromPath(pathname: string | null) {
-    const found = navMain.find((item) => item.url === pathname);
-    return found ? found.title : pathname;
+    const found = [...navMain, ...navBrandVoice].find(
+      (item) => item.url === pathname,
+    );
+    return found ? found.title : "Store Signal";
   }
 
   return (

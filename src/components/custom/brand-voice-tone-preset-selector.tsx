@@ -1,9 +1,9 @@
 "use client";
 
+import type { Icon } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconMoodSmile } from "@tabler/icons-react";
-import BrandVoiceTonePresetCard from "@/components/custom/brand-voice-tone-preset-card";
-import type { Icon } from "@tabler/icons-react";
+import { cn } from "@/lib/utils";
 
 type PresetMeta = {
   key: string;
@@ -13,7 +13,7 @@ type PresetMeta = {
 };
 
 type BrandVoiceTonePresetSelectorProps = {
-  presets: PresetMeta[];
+  presets: readonly PresetMeta[];
   activePreset: string;
   onSelect: (preset: string) => void;
 };
@@ -37,16 +37,41 @@ export default function BrandVoiceTonePresetSelector({
       </CardHeader>
       <CardContent className="px-5 pb-5">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-          {presets.map((preset) => (
-            <BrandVoiceTonePresetCard
-              key={preset.key}
-              title={preset.title}
-              description={preset.description}
-              icon={preset.icon}
-              active={activePreset === preset.key}
-              onClick={() => onSelect(preset.key)}
-            />
-          ))}
+          {presets.map((preset) => {
+            const IconComponent = preset.icon;
+            return (
+              <button
+                key={preset.key}
+                type="button"
+                onClick={() => onSelect(preset.key)}
+                className="text-left"
+                aria-pressed={activePreset === preset.key}
+              >
+                <Card
+                  size="sm"
+                  className={cn(
+                    "h-full border-border/70 transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-sm",
+                    activePreset === preset.key &&
+                      "border-primary bg-primary/10 ring-1 ring-primary/20",
+                  )}
+                >
+                  <div className="flex h-full flex-col gap-3 px-4 py-4">
+                    <div className="flex size-9 items-center justify-center rounded-md bg-muted text-foreground">
+                      <IconComponent className="size-4" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <h3 className="font-medium leading-tight">
+                        {preset.title}
+                      </h3>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        {preset.description}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              </button>
+            );
+          })}
         </div>
       </CardContent>
     </Card>

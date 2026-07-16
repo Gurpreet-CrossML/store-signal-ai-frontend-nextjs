@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
-import { getToneStyle, getVocabulary } from "@/db/brand-voice";
+import { getToneStyle, getVocabulary } from "@/db/chat";
 import { APIResponse } from "@/lib/config";
 import { createAPIResponse } from "@/lib/helpers";
 import { withTenantRoute } from "@/lib/with-tenant-route";

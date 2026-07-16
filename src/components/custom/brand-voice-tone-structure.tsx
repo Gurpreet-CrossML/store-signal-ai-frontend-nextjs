@@ -39,23 +39,21 @@ function ToneSelectField({
   description,
   value,
   options,
-  disabled,
   onChange,
 }: {
   label: string;
   description: string;
   value: string;
   options: readonly SelectOption[];
-  disabled?: boolean;
   onChange: (value: string) => void;
 }) {
   return (
-    <div className={`flex flex-col gap-2 ${disabled ? "opacity-70" : ""}`}>
+    <div className="flex flex-col gap-2">
       <div className="flex flex-col gap-1">
         <Label className="text-sm font-medium">{label}</Label>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
-      <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <Select value={value} onValueChange={onChange}>
         <SelectTrigger className="w-full">
           <SelectValue placeholder={label} />
         </SelectTrigger>
@@ -77,7 +75,6 @@ type BrandVoiceToneStructureProps = {
   regionalSpelling: string;
   useBulletPoints: boolean;
   bulletPointsDescription: string;
-  disabled: boolean;
   onAnswerLengthChange: (value: string) => void;
   onFrequencyPolicyChange: (value: string) => void;
   onRegionalSpellingChange: (value: string) => void;
@@ -90,7 +87,6 @@ export default function BrandVoiceToneStructure({
   regionalSpelling,
   useBulletPoints,
   bulletPointsDescription,
-  disabled,
   onAnswerLengthChange,
   onFrequencyPolicyChange,
   onRegionalSpellingChange,
@@ -111,7 +107,6 @@ export default function BrandVoiceToneStructure({
             description="Controls how much detail the assistant gives."
             value={answerLength}
             options={ANSWER_LENGTH_OPTIONS}
-            disabled={disabled}
             onChange={onAnswerLengthChange}
           />
           <ToneSelectField
@@ -119,7 +114,6 @@ export default function BrandVoiceToneStructure({
             description="Sets how often signature phrasing can repeat."
             value={frequencyPolicy}
             options={FREQUENCY_OPTIONS}
-            disabled={disabled}
             onChange={onFrequencyPolicyChange}
           />
           <ToneSelectField
@@ -127,7 +121,6 @@ export default function BrandVoiceToneStructure({
             description="Matches the store's spelling preference."
             value={regionalSpelling}
             options={SPELLING_OPTIONS}
-            disabled={disabled}
             onChange={onRegionalSpellingChange}
           />
         </div>
@@ -137,11 +130,10 @@ export default function BrandVoiceToneStructure({
         <button
           type="button"
           onClick={onToggleBulletPoints}
-          disabled={disabled}
           className={
             useBulletPoints
-              ? `flex items-center justify-between rounded-xl border border-primary/40 bg-primary/5 px-4 py-3 text-left transition-colors ${disabled ? "opacity-70 cursor-not-allowed" : ""}`
-              : `flex items-center justify-between rounded-xl border border-border/70 bg-background px-4 py-3 text-left transition-colors ${disabled ? "opacity-70 cursor-not-allowed" : ""}`
+              ? "flex items-center justify-between rounded-xl border border-primary/50 bg-primary/10 px-4 py-3 text-left transition-colors"
+              : "flex items-center justify-between rounded-xl border border-border/70 bg-background px-4 py-3 text-left transition-colors"
           }
           aria-pressed={useBulletPoints}
         >

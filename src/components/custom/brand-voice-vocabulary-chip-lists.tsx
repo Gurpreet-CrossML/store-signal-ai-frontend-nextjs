@@ -61,13 +61,13 @@ function ChipListField({
   };
 
   return (
-    <Card className="gap-0 overflow-hidden">
+    <Card className="flex h-full min-h-0 flex-col gap-0 overflow-hidden">
       <CardHeader className="px-5 py-4">
         <CardTitle>{label}</CardTitle>
         <p className="text-sm text-muted-foreground">{description}</p>
       </CardHeader>
-      <CardContent className="space-y-4 px-5 pb-5">
-        <div className="flex flex-wrap gap-2">
+      <CardContent className="flex flex-1 min-h-0 flex-col gap-4 px-5 pb-5">
+        <div className="flex min-h-24 max-h-24 flex-wrap content-start gap-2 overflow-y-auto rounded-xl border border-border/60 bg-muted/20 p-2">
           {value.map((item) => (
             <Badge
               key={item}
@@ -86,12 +86,12 @@ function ChipListField({
             </Badge>
           ))}
           {value.length === 0 && (
-            <span className="text-sm text-muted-foreground">
+            <span className="px-1 text-sm text-muted-foreground">
               No entries yet.
             </span>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="mt-auto grid gap-2 sm:grid-cols-[minmax(0,1fr)_5.5rem]">
           <Input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -102,6 +102,7 @@ function ChipListField({
             type="button"
             variant="outline"
             onClick={() => addValue(draft)}
+            className="h-10 shrink-0"
           >
             Add
           </Button>
@@ -137,28 +138,34 @@ function ReplacementRow({
   onRemove,
 }: ReplacementRowProps) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-background p-4 sm:flex-row sm:items-end">
-      <div className="flex-1 min-w-0">
+    <div className="grid gap-4 rounded-xl border border-border/60 bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
+      <div className="flex min-w-0 flex-col gap-2">
         <FieldLabel htmlFor={`say_word_${index}`}>Say word</FieldLabel>
         <Input
           id={`say_word_${index}`}
           value={sayWord}
           onChange={(e) => onChange({ say_word: e.target.value })}
+          onBlur={() => {
+            if (!sayWord.trim()) onRemove();
+          }}
           placeholder="e.g. basket"
           autoComplete="off"
         />
       </div>
-      <div className="flex-1 min-w-0">
+      <div className="flex min-w-0 flex-col gap-2">
         <FieldLabel htmlFor={`replace_word_${index}`}>Replace with</FieldLabel>
         <Input
           id={`replace_word_${index}`}
           value={replaceWord}
           onChange={(e) => onChange({ replace_word: e.target.value })}
+          onBlur={() => {
+            if (!replaceWord.trim()) onRemove();
+          }}
           placeholder="e.g. cart"
           autoComplete="off"
         />
       </div>
-      <div className="flex shrink-0 gap-1.5">
+      <div className="flex items-center gap-1.5 lg:justify-end">
         <Button
           type="button"
           size="sm"
@@ -223,7 +230,7 @@ export default function BrandVoiceVocabularyChipLists({
   onReplacementAdd,
 }: BrandVoiceVocabularyChipListsProps) {
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 items-stretch gap-6 lg:auto-rows-[20rem] lg:grid-cols-2">
       <ChipListField
         label="Preferred words & phrases"
         description="The AI leans toward these when they fit naturally."
@@ -234,7 +241,7 @@ export default function BrandVoiceVocabularyChipLists({
       />
       <ChipListField
         label="Banned words"
-        description="The AI never uses these. Checked deterministically before send."
+        description="The AI never uses these. Checked deterministically."
         value={bannedWords}
         placeholder="Add a banned word and press Enter"
         kind="banned"
@@ -250,7 +257,7 @@ export default function BrandVoiceVocabularyChipLists({
       />
 
       {/* Word Replacements */}
-      <Card className="gap-0 overflow-hidden">
+      <Card className="flex h-full min-h-0 flex-col gap-0 overflow-hidden">
         <CardHeader className="px-5 py-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -264,26 +271,28 @@ export default function BrandVoiceVocabularyChipLists({
               variant="outline"
               size="sm"
               onClick={onReplacementAdd}
-              className="shrink-0"
+              className="h-9 shrink-0"
             >
               <IconPlus className="size-4" />
               Add replacement
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3 px-5 pb-5">
+        <CardContent className="flex flex-1 min-h-0 flex-col gap-3 px-5 pb-5">
           {wordReplacements.length ? (
-            wordReplacements.map((row, index) => (
-              <ReplacementRow
-                key={index}
-                index={index}
-                sayWord={row.say_word}
-                replaceWord={row.replace_word}
-                isActive={row.is_active}
-                onChange={(patch) => onReplacementChange(index, patch)}
-                onRemove={() => onReplacementRemove(index)}
-              />
-            ))
+            <div className="flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
+              {wordReplacements.map((row, index) => (
+                <ReplacementRow
+                  key={index}
+                  index={index}
+                  sayWord={row.say_word}
+                  replaceWord={row.replace_word}
+                  isActive={row.is_active}
+                  onChange={(patch) => onReplacementChange(index, patch)}
+                  onRemove={() => onReplacementRemove(index)}
+                />
+              ))}
+            </div>
           ) : (
             <div className="rounded-xl border border-dashed border-border/70 px-4 py-8 text-center text-sm text-muted-foreground">
               No replacements yet. Click &ldquo;Add replacement&rdquo; to get

@@ -57,7 +57,11 @@ export default function BrandVoiceVocabularySummary({
           </p>
           <div className="flex flex-wrap gap-2">
             {preferredPhrases.slice(0, 6).map((item) => (
-              <Badge key={item} variant="secondary" className="font-normal">
+              <Badge
+                key={item}
+                variant="outline"
+                className="border-primary/20 bg-primary/10 font-normal text-primary"
+              >
                 {item}
               </Badge>
             ))}

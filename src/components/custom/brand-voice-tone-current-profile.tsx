@@ -4,21 +4,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconBriefcase } from "@tabler/icons-react";
 
-const PRESET_ORDER = [
-  "friendly",
-  "warm_expert",
-  "professional",
-  "playful",
-  "luxury",
-  "custom",
-] as const;
-
 function formatPresetLabel(value: string | undefined) {
   if (!value) return "custom";
   return value.replaceAll("_", " ");
 }
 
 type BrandVoiceToneCurrentProfileProps = {
+  presetOrder: readonly string[];
   preset: string;
   warmth: number;
   formality: number;
@@ -29,6 +21,7 @@ type BrandVoiceToneCurrentProfileProps = {
 };
 
 export default function BrandVoiceToneCurrentProfile({
+  presetOrder,
   preset,
   warmth,
   formality,
@@ -47,7 +40,7 @@ export default function BrandVoiceToneCurrentProfile({
       </CardHeader>
       <CardContent className="space-y-3 px-5 pb-5">
         <div className="flex flex-wrap gap-2">
-          {PRESET_ORDER.map((p) => (
+          {presetOrder.map((p) => (
             <Badge
               key={p}
               variant={preset === p ? "default" : "outline"}

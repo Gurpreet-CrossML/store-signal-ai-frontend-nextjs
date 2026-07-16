@@ -7,6 +7,10 @@
     "customerLabel": "Customer",
     "assistantLabel": "Assistant",
     "customerMessage": "My order still has not arrived. Can you check the status?",
+    "thresholds": {
+      "high": 67,
+      "medium": 34
+    },
     "assistantTemplates": {
       "friendly": "I’m sorry for the delay. I’m checking the order status now and will keep this simple and clear.",
       "warm_expert": "I’m sorry the order has taken longer than expected. I’m checking the shipment details now and will share the next step as soon as I have it.",
@@ -14,32 +18,99 @@
       "playful": "I’m on it. Let me check the order status and get you a clear update.",
       "luxury": "Thank you for your patience. I’m reviewing the shipment details now and will follow up with a precise update.",
       "custom": "I’m checking the order status now and will respond with the next step as soon as I have it."
+    },
+    "assistantMessage": {
+      "opener": {
+        "warmthHigh": "I’m sorry for the delay.",
+        "formalityHigh": "Thank you for reaching out.",
+        "directnessHigh": "Here’s the update.",
+        "fallback": "I’m here to help."
+      },
+      "detail": {
+        "concise": "I’m checking it now.",
+        "standard": "I’m checking the shipment details now.",
+        "thorough": "I’m checking the shipment details now and will follow up with the next step."
+      },
+      "closer": {
+        "playfulnessHigh": "Let’s get this sorted.",
+        "energyHigh": "I’ll move quickly on this.",
+        "bulletPoints": "I’ll keep the next steps clear.",
+        "paragraph": "I’ll keep you posted."
+      }
     }
   },
   "presets": {
     "friendly": {
       "title": "Friendly",
-      "description": "Warm, approachable, and conversational."
+      "description": "Warm, approachable, and conversational.",
+      "warmth": 85,
+      "formality": 35,
+      "energy": 65,
+      "playfulness": 70,
+      "directness": 45,
+      "answer_length": "standard",
+      "frequency_policy": "moderate",
+      "use_bullet_points": true
     },
     "warm_expert": {
       "title": "Warm Expert",
-      "description": "Calm, caring, and knowledgeable."
+      "description": "Calm, caring, and knowledgeable.",
+      "warmth": 78,
+      "formality": 66,
+      "energy": 42,
+      "playfulness": 25,
+      "directness": 55,
+      "answer_length": "thorough",
+      "frequency_policy": "sparing",
+      "use_bullet_points": true
     },
     "professional": {
       "title": "Professional",
-      "description": "Clear, confident, and polished."
+      "description": "Clear, confident, and polished.",
+      "warmth": 35,
+      "formality": 85,
+      "energy": 45,
+      "playfulness": 15,
+      "directness": 75,
+      "answer_length": "concise",
+      "frequency_policy": "none",
+      "use_bullet_points": true
     },
     "playful": {
       "title": "Playful",
-      "description": "Light, energetic, and upbeat."
+      "description": "Light, energetic, and upbeat.",
+      "warmth": 75,
+      "formality": 25,
+      "energy": 85,
+      "playfulness": 85,
+      "directness": 50,
+      "answer_length": "concise",
+      "frequency_policy": "liberal",
+      "use_bullet_points": false
     },
     "luxury": {
       "title": "Luxury",
-      "description": "Refined, premium, and understated."
+      "description": "Refined, premium, and understated.",
+      "warmth": 45,
+      "formality": 90,
+      "energy": 35,
+      "playfulness": 15,
+      "directness": 40,
+      "answer_length": "standard",
+      "frequency_policy": "sparing",
+      "use_bullet_points": false
     },
     "custom": {
       "title": "Custom",
-      "description": "Build every dimension to match your brand."
+      "description": "Build every dimension to match your brand.",
+      "warmth": 85,
+      "formality": 35,
+      "energy": 65,
+      "playfulness": 70,
+      "directness": 45,
+      "answer_length": "standard",
+      "frequency_policy": "moderate",
+      "use_bullet_points": true
     }
   },
   "insights": {
