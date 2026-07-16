@@ -7,7 +7,6 @@ import {
   IconHeadset,
   IconImageGeneration,
   IconMessage2,
-  IconMoodSmile,
   IconNotebook,
   IconSearch,
   IconSettings,

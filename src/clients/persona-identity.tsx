@@ -1,82 +1,76 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useFormik } from "formik";
+import { toast } from "sonner";
 import z from "zod";
-import { IconMessageCircle, IconUserCircle } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldLabel,
-  FieldTitle,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-
+import PersonaIdentityForm from "@/components/custom/persona-identity-form";
 import PersonaIdentityLivePreview from "@/components/custom/persona-identity-live-preview";
-
+import SettingsPageHeader from "@/components/custom/settings-page-header";
+import SettingsSaveBar from "@/components/custom/settings-save-bar";
 import {
   fetchPersonaIdentity,
-  createPersonaIdentity,
-  type PersonaIdentityData,
+  savePersonaIdentity,
+  type PersonaIdentityPayload,
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { SELF_REFERENCE_OPTIONS } from "@/lib/config";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-// Validation schema for the form using Zod
-const validationSchema = z.object({
-  name: z
-    .string("Agent name is required")
-    .trim()
-    .min(1, "Agent name is required")
-    .max(60),
-  role_description: z
-    .string("Role description is required")
-    .trim()
-    .min(1, "Role description is required")
-    .max(160),
-  self_reference: z.enum(["i", "we"]).default("i"),
-  email_signature: z.string().max(160).optional(),
-  backstory: z.string().max(500).optional(),
-});
-
-const initialValues: PersonaIdentityData = {
+const DEFAULT_VALUES: PersonaIdentityPayload = {
   name: "",
   role_description: "",
   self_reference: "i",
   email_signature: "",
   backstory: "",
-  created_at: "",
-  updated_at: "",
 };
+
+const validationSchema = z.object({
+  name: z.string().trim().min(1, "Agent name is required").max(100),
+  role_description: z
+    .string()
+    .trim()
+    .min(1, "Role description is required")
+    .max(255),
+  self_reference: z.enum(["i", "we"]),
+  email_signature: z.string().max(255),
+  backstory: z.string(),
+});
 
 export default function PersonaIdentity() {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-
-  const { FetchPersonaIdentityData, FetchPersonaIdentityIsLoading } =
-    useAppSelector(
-      (state) => state.GetBrandVoiceReducer.FetchPersonaIdentityState,
-    );
-  const { CreatePersonaIdentityIsLoading } = useAppSelector(
-    (state) => state.GetBrandVoiceReducer.CreatePersonaIdentityState,
+  const { data, isLoading } = useAppSelector(
+    (state) => state.BrandVoiceReducer.personaIdentity,
+  );
+  const isSaving = useAppSelector(
+    (state) => state.BrandVoiceReducer.isSavingPersonaIdentity,
   );
 
   useEffect(() => {
     if (storeCode) dispatch(fetchPersonaIdentity(storeCode));
   }, [dispatch, storeCode]);
 
-  const formik = useFormik<PersonaIdentityData>({
-    initialValues: { ...initialValues, ...FetchPersonaIdentityData },
-    enableReinitialize: true,
+  const initialValues = useMemo<PersonaIdentityPayload>(
+    () =>
+      data
+        ? {
+            name: data.name,
+            role_description: data.role_description,
+            self_reference: data.self_reference,
+            email_signature: data.email_signature,
+            backstory: data.backstory,
+          }
+        : DEFAULT_VALUES,
+    [data],
+  );
 
-    // Validation using Zod schema
+  const formik = useFormik<PersonaIdentityPayload>({
+    initialValues,
+    enableReinitialize: true,
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
@@ -87,13 +81,8 @@ export default function PersonaIdentity() {
         ]),
       );
     },
-
-    // Handle form submission
     onSubmit: async (values) => {
-      // Guard against submitting without a store code
       if (!storeCode) return;
-
-      // Trim whitespace from string fields before sending to the API
       const payload = {
         ...values,
         name: values.name.trim(),
@@ -101,36 +90,49 @@ export default function PersonaIdentity() {
         email_signature: values.email_signature.trim(),
         backstory: values.backstory.trim(),
       };
-
-      // Dispatch the createPersonaIdentity action and handle the result
       const result = await dispatch(
-        createPersonaIdentity({ storeCode, payload }),
+        savePersonaIdentity({ storeCode, payload }),
       );
-
-      // If the action is fulfilled, reset the form with the new values
-      if (createPersonaIdentity.fulfilled.match(result)) {
+      if (savePersonaIdentity.fulfilled.match(result)) {
         formik.resetForm({ values: result.payload });
-      }
-
-      if (createPersonaIdentity.rejected.match(result)) {
-        const payload = result.payload as Record<
-          string,
-          string | Record<string, string>
-        > | null;
-        const errors = (payload?.data as Record<string, string>) || {};
-        formik.setErrors({
-          ...errors,
-        });
       }
     },
   });
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      {FetchPersonaIdentityIsLoading ? (
-        <div className="flex items-center justify-center gap-2 py-10">
-          <Spinner className="size-6" />
-          Loading Persona Identity...
+    <div className="flex flex-col gap-4">
+      <SettingsPageHeader
+        breadcrumb="Brand Voice / Persona Identity"
+        title="Persona Identity"
+        description="Who the AI is when it talks to your customers — its name, role, how it refers to itself, and how it signs off."
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                toast.info("Test Voice", {
+                  description: "Voice testing is coming soon.",
+                })
+              }
+            >
+              Test Voice
+            </Button>
+            <Button
+              type="button"
+              onClick={formik.submitForm}
+              disabled={isSaving}
+            >
+              {isSaving && <Spinner data-icon="inline-start" />}
+              Publish
+            </Button>
+          </>
+        }
+      />
+
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Spinner />
         </div>
       ) : (
         <form
@@ -138,158 +140,39 @@ export default function PersonaIdentity() {
           className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_400px]"
         >
           <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-6">
-              <Field>
-                <FieldLabel htmlFor="agent-name">
-                  <IconUserCircle className="size-4" />
-                  Agent name
-                  <span className="text-xs text-destructive -ml-1.5">*</span>
-                </FieldLabel>
-                <Input
-                  id="agent-name"
-                  name="name"
-                  value={formik.values.name ?? ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="Ellie"
-                />
-                {formik.touched.name && formik.errors.name && (
-                  <p className="text-xs text-destructive">
-                    {formik.errors.name}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  How the AI identifies itself. Use a persona name to feel like
-                  a real teammate — or your brand name for a company voice.
-                </p>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="role-description">
-                  Role description
-                  <span className="text-xs text-destructive -ml-1.5">*</span>
-                </FieldLabel>
-                <Input
-                  id="role-description"
-                  name="role_description"
-                  value={formik.values.role_description ?? ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="A friendly product expert on the Mother&Baby team"
-                />
-                {formik.touched.role_description &&
-                  formik.errors.role_description && (
-                    <p className="text-xs text-destructive">
-                      {formik.errors.role_description}
-                    </p>
-                  )}
-                <p className="text-xs text-muted-foreground">
-                  Frames how the AI sees its own job. Shapes helpfulness and
-                  expertise.
-                </p>
-              </Field>
-
-              <Field>
-                <FieldLabel>Self-reference</FieldLabel>
-                <RadioGroup
-                  defaultValue={formik.values.self_reference}
-                  className="flex w-full"
-                  onValueChange={(value) =>
-                    formik.setFieldValue("self_reference", value)
-                  }
-                >
-                  {SELF_REFERENCE_OPTIONS.map((option) => (
-                    <FieldLabel
-                      htmlFor={`${option.value}-reference`}
-                      key={option.value}
-                    >
-                      <Field orientation="horizontal">
-                        <FieldContent>
-                          <FieldTitle>{option.label}</FieldTitle>
-                          <FieldDescription>
-                            {option.description}
-                          </FieldDescription>
-                        </FieldContent>
-                        <RadioGroupItem
-                          value={option.value}
-                          id={`${option.value}-reference`}
-                        />
-                      </Field>
-                    </FieldLabel>
-                  ))}
-                </RadioGroup>
-                <p className="text-xs text-muted-foreground">
-                  How the AI refers to itself in conversations.
-                </p>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="email-signature">
-                  <IconMessageCircle className="size-4" />
-                  Email signature
-                  <span className="text-xs font-normal text-muted-foreground">
-                    (optional)
-                  </span>
-                </FieldLabel>
-                <Input
-                  id="email-signature"
-                  name="email_signature"
-                  value={formik.values.email_signature ?? ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="Warmly, Ellie — Mother&Baby Customer Care"
-                />
-                {formik.touched.email_signature &&
-                  formik.errors.email_signature && (
-                    <p className="text-xs text-destructive">
-                      {formik.errors.email_signature}
-                    </p>
-                  )}
-                <p className="text-xs text-muted-foreground">
-                  Appended to email replies. Chat and WhatsApp skip this
-                  automatically.
-                </p>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="backstory">
-                  Backstory
-                  <span className="text-xs font-normal text-muted-foreground">
-                    (optional)
-                  </span>
-                </FieldLabel>
-                <textarea
-                  id="backstory"
-                  name="backstory"
-                  value={formik.values.backstory ?? ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="Ellie is a parent herself and genuinely understands the little worries new parents have. Warm, reassuring, never condescending."
-                  rows={4}
-                  className="w-full min-w-0 resize-y rounded-md border border-input bg-transparent px-2.5 py-2 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
-                />
-                {formik.touched.backstory && formik.errors.backstory && (
-                  <p className="text-xs text-destructive">
-                    {formik.errors.backstory}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Adds personality and context to guide how the AI responds.
-                </p>
-              </Field>
-            </div>
-            <div className="sticky bottom-0 z-10 flex justify-start border-t border-border bg-background py-3">
-              <Button
-                type="submit"
-                size="lg"
-                disabled={CreatePersonaIdentityIsLoading}
-              >
-                {CreatePersonaIdentityIsLoading && (
-                  <Spinner data-icon="inline-start" />
-                )}
-                {CreatePersonaIdentityIsLoading ? "Saving..." : "Save Changes"}
-              </Button>
-            </div>
+            <PersonaIdentityForm
+              name={formik.values.name}
+              onNameChange={(value) => formik.setFieldValue("name", value)}
+              roleDescription={formik.values.role_description}
+              onRoleDescriptionChange={(value) =>
+                formik.setFieldValue("role_description", value)
+              }
+              selfReference={formik.values.self_reference}
+              onSelfReferenceChange={(value) =>
+                formik.setFieldValue("self_reference", value)
+              }
+              emailSignature={formik.values.email_signature}
+              onEmailSignatureChange={(value) =>
+                formik.setFieldValue("email_signature", value)
+              }
+              backstory={formik.values.backstory}
+              onBackstoryChange={(value) =>
+                formik.setFieldValue("backstory", value)
+              }
+            />
+            {(formik.touched.name && formik.errors.name) ||
+            (formik.touched.role_description &&
+              formik.errors.role_description) ? (
+              <p className="text-sm text-destructive">
+                {formik.errors.name || formik.errors.role_description}
+              </p>
+            ) : null}
+            <SettingsSaveBar
+              onReset={() => formik.setValues(DEFAULT_VALUES)}
+              onCancel={() => formik.resetForm()}
+              onSave={formik.submitForm}
+              saving={isSaving}
+            />
           </div>
           <PersonaIdentityLivePreview
             name={formik.values.name}
