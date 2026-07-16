@@ -70,10 +70,10 @@ export function MessagesTab() {
             />
           )}
 
-          {messages.map((message) =>
+          {messages.map((message, index) =>
             message.chat_hanlder ? (
               <div
-                key={message.id}
+                key={`${message.id}-${message.role}-${index}`}
                 className="flex items-center gap-3 py-1 text-xs text-muted-foreground"
               >
                 <span className="h-px flex-1 bg-border" />
@@ -81,7 +81,10 @@ export function MessagesTab() {
                 <span className="h-px flex-1 bg-border" />
               </div>
             ) : (
-              <MessageBubble key={message.id} message={message} />
+              <MessageBubble
+                key={`${message.id}-${message.role}-${index}`}
+                message={message}
+              />
             ),
           )}
 

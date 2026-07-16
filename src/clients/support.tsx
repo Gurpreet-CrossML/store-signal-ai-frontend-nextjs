@@ -1048,7 +1048,7 @@ export default function Support() {
       wsRef.current = null;
     }
 
-    const url = ENDPOINTS.chatSocket(activeThreadId, session.user.access_token);
+    const url = ENDPOINTS.chatSocket(activeThreadId,"agent", session.user.access_token);
     const ws = new WebSocket(url);
     wsRef.current = ws;
 

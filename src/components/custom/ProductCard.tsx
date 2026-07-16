@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  type Product,
-  type ProductVariant,
-  useTestChatbotContext,
-} from "@/clients/test-simulate";
+import { useTestChatbotContext } from "@/clients/test-simulate";
+import type {
+  ProductData,
+  ProductVariant,
+} from "@/redux/api-slice/thread-slice";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { toast } from "react-hot-toast";
 
 function getVariantId(variant: ProductVariant, index: number) {
   return variant.variant_id ?? variant.id ?? variant.variant_name ?? index;
@@ -27,7 +26,7 @@ function getVariantPrice(variant: ProductVariant, fallback: string | number) {
   return variant.variant_price ?? variant.price?.amount ?? fallback;
 }
 
-function getInitialVariantId(product: Product) {
+function getInitialVariantId(product: ProductData) {
   const variants = product.variants || [];
   if (!variants.length) return product.id;
   const firstAvailable =
@@ -43,7 +42,7 @@ export function ProductCard({
   addCart = false,
   showVariants = false,
 }: {
-  product: Product;
+  product: ProductData;
   showDescription?: boolean;
   viewDetail?: boolean;
   addCart?: boolean;
@@ -88,20 +87,6 @@ export function ProductCard({
     showVariants && selectedVariant
       ? getVariantPrice(selectedVariant, product.price)
       : product.price;
-
-  const handleAddPrompt = () => {
-    if (!selectedVariantId) {
-      toast.success("Please select a variant first.");
-      return;
-    }
-
-    const variant = variants.find(
-      (item, index) => getVariantId(item, index) === selectedVariantId,
-    );
-    sendMessage(
-      `Add ${product.name} (${variant ? getVariantTitle(variant) : selectedVariantId}) to cart`,
-    );
-  };
 
   return (
     <Card ref={productRef} className="w-[220px] shrink-0 overflow-hidden py-0">
@@ -191,7 +176,7 @@ export function ProductCard({
               type="button"
               size="sm"
               className="h-8 flex-1"
-              onClick={handleAddPrompt}
+              disabled
             >
               Add
             </Button>

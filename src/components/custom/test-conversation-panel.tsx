@@ -21,7 +21,7 @@ export function TestConversationPanel() {
       <CardHeader className="flex min-h-14 flex-row items-center justify-between border-b-2 px-5">
         <div className="flex items-center gap-3">
           <CardTitle className="text-lg font-semibold">
-            {store?.name || "StoreSignal AI"}
+            {store || "StoreSignal AI"}
           </CardTitle>
           <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
             {reInitializing ? "Refreshing" : "Active"}

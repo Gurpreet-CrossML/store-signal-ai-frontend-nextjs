@@ -1,10 +1,12 @@
 import {
   formatPrice,
   saveEvent,
-  type MessageJsonContent,
-  type TicketDetails,
   useTestChatbotContext,
 } from "@/clients/test-simulate";
+import type {
+  ThreadJsonContent,
+  TicketDetails,
+} from "@/redux/api-slice/thread-slice";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +37,7 @@ function formatOrderDate(value: unknown) {
   });
 }
 
-export function MessageAttachments({ json }: { json?: MessageJsonContent }) {
+export function MessageAttachments({ json }: { json?: ThreadJsonContent }) {
   const { session } = useTestChatbotContext();
   const threadId = session?.session_id ?? "";
 
@@ -212,14 +214,14 @@ export function MessageAttachments({ json }: { json?: MessageJsonContent }) {
           </div>
         </CardHeader>
         <CardContent className="space-y-3 px-4">
-          {cart_details.items?.map((item) => {
+          {cart_details.items?.map((item, index) => {
             const itemPrice =
               typeof item.price === "number"
                 ? formatPrice(item.price)
                 : String(item.price);
             return (
               <div
-                key={String(item.product_id)}
+                key={`${item.product_id}-${item.name}-${index}`}
                 className="flex items-center gap-3 rounded-md border p-2"
               >
                 <img

@@ -51,55 +51,81 @@ export type Thread = {
 };
 
 export type OrderItem = {
-  line_item_id: string;
-  name: string;
-  price: string;
-  product_id: number;
-  quantity: number;
-  variant_id: number;
+  line_item_id?: string | number;
+  name?: string;
+  price?: string | number;
+  product_id?: string | number;
+  quantity?: number;
+  qty?: number;
+  variant_id?: string | number;
 };
 export type OrderDetail = {
-  order_id: string | number;
-  order_url: string;
-  financial_status: string;
-  fulfillment_status: string;
-  is_cancelable: boolean;
-  is_returnable: boolean;
-  cancel_reason: string | null;
-  cancel_message: string | null;
-  cancelled_at: string | null;
-  return_message: string | null;
-  discount: string;
-  discount_codes: string[];
-  subtotal: string;
-  tax: string;
-  total: string;
-  email: string;
-  note: string | null;
-  payment_gateways: string[];
-  items: OrderItem[];
+  order_id?: string | number;
+  orderId?: string | number;
+  order_url?: string;
+  created_at?: string;
+  placedAt?: string;
+  financial_status?: string;
+  status?: string;
+  fulfillment_status?: string;
+  is_cancelable?: boolean;
+  is_returnable?: boolean;
+  cancel_reason?: string | null;
+  cancel_message?: string | null;
+  cancelled_at?: string | null;
+  return_message?: string | null;
+  discount?: string | number;
+  discount_codes?: string[];
+  subtotal?: string | number;
+  tax?: string | number;
+  total?: string | number;
+  currency?: string;
+  email?: string;
+  note?: string | null;
+  payment_gateways?: string[];
+  items?: OrderItem[];
 };
 
 export type CartItem = {
+  product_id: string | number;
   name: string;
-  image: string;
-  price: string;
+  price: string | number;
   quantity: number;
-  product_id: number;
+  image: string;
 };
 
 export type CartDetails = {
   items: CartItem[];
-  sub_total: string;
+  sub_total: string | number;
+  checkout_url?: string;
+};
+
+export type TicketDetails = {
+  ticket_id: string | number;
+  description: string;
+  customer_email: string;
+  customer_name: string;
+  created_at: string;
+};
+
+export type RatingChoice = {
+  value: string;
+  label: string;
+  emoji: string;
 };
 
 export type ThreadJsonContent = {
   products?: ProductData[];
+  related_products?: ProductData[];
   order_details?: OrderDetail;
   cart_details?: CartDetails;
+  ticket_details?: TicketDetails;
   order_id?: string;
   order_verification_step?: string;
   suggestions?: string[];
+  is_feedback_flow?: boolean;
+  feedback_step?: string;
+  rating_choices?: RatingChoice[];
 };
 
 export type ThreadMessage = {
@@ -113,26 +139,29 @@ export type ThreadMessage = {
 };
 
 export type ProductVariant = {
-  variant_id: string;
-  title: string;
-  price: {
+  variant_id: string | number;
+  id?: string | number;
+  title?: string;
+  variant_name?: string;
+  variant_price?: string | number;
+  price?: {
     amount: string;
     currency: string;
   };
-  options: { name: string; value: string }[];
-  available_for_sale: boolean;
-  compare_at_price: string | null;
-  discount: string | null;
+  options?: { name: string; value: string }[];
+  available_for_sale?: boolean;
+  compare_at_price?: string | null;
+  discount?: string | null;
 };
 
 export type ProductData = {
-  id: string;
+  id: string | number;
   name: string;
   image: string;
-  description: string;
-  price: string;
+  description?: string;
+  price: string | number;
   product_url: string;
-  available_for_sale: boolean;
+  available_for_sale?: boolean;
   variants?: ProductVariant[];
 };
 
@@ -335,6 +364,7 @@ export const FetchThreadDetails = createAsyncThunk(
         ENDPOINTS.fetchThreadDetails(threadId),
       );
       const data = response.data.data;
+       console.log(data);
 
       return data;
     } catch (error) {

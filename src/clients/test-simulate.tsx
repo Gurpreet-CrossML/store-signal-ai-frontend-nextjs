@@ -29,20 +29,26 @@ import { TestConversationPanel } from "@/components/custom/test-conversation-pan
 import { createWebSocketUrl } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { axiosInstance } from "@/redux/axios-config";
-import { useAppSelector } from "@/redux/hooks";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import {
+  FetchThreadDetails,
+  type CartDetails,
+  type OrderDetail,
+  type ProductData,
+  type ProductVariant,
+  type RatingChoice,
+  type ThreadDetails,
+  type ThreadJsonContent,
+  type ThreadMessage,
+  type TicketDetails,
+} from "@/redux/api-slice/thread-slice";
 
 const STREAM_CHUNK_MS = 20;
 const CHAT_SESSION_KEY = "chat_session_id";
 const CHAT_SOUND_KEY = "chat_sound_enabled";
 
 export type MessageRole = "user" | "assistant";
-export type OfflineTask =
-  | ""
-  | "add"
-  | "update"
-  | "remove"
-  | "view"
-  | "checkout";
+export type OfflineTask = "" | "view" | "checkout";
 
 export type OfflineTaskData = {
   variant_name?: string;
@@ -51,98 +57,14 @@ export type OfflineTaskData = {
   item_id?: number;
 } | null;
 
-export type RatingChoice = {
-  value: string;
-  label: string;
-  emoji: string;
-};
-
-export type ProductVariant = {
-  variant_id: string | number;
-  id?: string | number;
-  title?: string;
-  variant_name?: string;
-  variant_price?: string | number;
-  price?: {
-    amount: string;
-    currency: string;
-  };
-  options?: { name: string; value: string }[];
-  available_for_sale?: boolean;
-};
-
-export type Product = {
-  id: string | number;
-  name: string;
-  image: string;
-  description?: string;
-  price: string | number;
-  product_url: string;
-  available_for_sale?: boolean;
-  variants?: ProductVariant[];
-};
-
-export type CartItem = {
-  product_id: string | number;
-  name: string;
-  price: string | number;
-  quantity: number;
-  image: string;
-};
-
-export type CartDetails = {
-  items: CartItem[];
-  sub_total: string | number;
-  checkout_url?: string;
-};
-
-export type TicketDetails = {
-  ticket_id: string | number;
-  description: string;
-  customer_email: string;
-  customer_name: string;
-  created_at: string;
-};
-
-export type OrderItem = {
-  line_item_id?: string | number;
-  variant_id?: string | number;
-  product_id?: string | number;
-  name?: string;
-  quantity?: number;
-  qty?: number;
-  price?: string | number;
-};
-
-export type OrderDetails = {
-  [key: string]: unknown;
-  order_id?: string | number;
-  orderId?: string | number;
-  created_at?: string;
-  placedAt?: string;
-  financial_status?: string;
-  status?: string;
-  fulfillment_status?: string;
-  items?: OrderItem[];
-  subtotal?: string | number;
-  discount?: string | number;
-  tax?: string | number;
-  total?: string | number;
-  currency?: string;
-  order_url?: string;
-};
-
-export type MessageJsonContent = {
-  [key: string]: unknown;
-  suggestions?: string[];
-  products?: Product[];
-  related_products?: Product[];
-  order_details?: OrderDetails;
-  cart_details?: CartDetails;
-  ticket_details?: TicketDetails;
-  is_feedback_flow?: boolean;
-  feedback_step?: string;
-  rating_choices?: RatingChoice[];
+export type Product = ProductData;
+export type MessageJsonContent = ThreadJsonContent;
+export type OrderDetails = OrderDetail;
+export type {
+  CartDetails,
+  ProductVariant,
+  RatingChoice,
+  TicketDetails,
 };
 
 export type Message = {
@@ -161,13 +83,8 @@ type Session = {
   session_id: string;
 };
 
-type StoreInfo = {
-  name?: string;
-  code: string;
-};
-
 type TestChatbotContextValue = {
-  store: StoreInfo | null;
+  store: string | null;
   session: Session | null;
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
@@ -223,32 +140,6 @@ export function formatPrice(amount: number | string, currency = "USD") {
     currency,
   }).format(amount);
 }
-
-const fetchStoreInfo = async (storeCode: string) => {
-  try {
-    const response = await axiosInstance.get(
-      `/store/info/?store_code=${encodeURIComponent(storeCode)}`,
-      { useBackend: true },
-    );
-    return response.data?.data?.code ? (response.data.data as StoreInfo) : null;
-  } catch (error) {
-    console.error("Store fetching error:", error);
-    return null;
-  }
-};
-
-const getThread = async (sessionId: string) => {
-  try {
-    const response = await axiosInstance.get(
-      `/chat/chat-messages/list/${sessionId}/`,
-      { useBackend: true },
-    );
-    return response.data?.status === "success" ? response.data.data : null;
-  } catch (error) {
-    console.error("Thread listing failed, Error:", error);
-    return null;
-  }
-};
 
 const createNewThread = async (storeCode: string) => {
   try {
@@ -397,14 +288,29 @@ const applySuggestionVisibility = (items: Message[]) => {
   return updated;
 };
 
+type RestoredThreadDetails = ThreadDetails & {
+  is_closed?: boolean;
+  history?: Message[];
+};
+
+const toSimulationMessage = (message: ThreadMessage): Message => ({
+  id: message.id,
+  role: message.role === "user" ? "user" : "assistant",
+  message: message.message || "",
+  created_at: message.created_at,
+  json_content: message.json_content,
+  image_url: message.image_url ?? null,
+});
+
 function TestChatbotProvider({ children }: { children: ReactNode }) {
+  const dispatch = useAppDispatch();
   const selectedStore = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
   const { data: authSession } = useSession();
   const accessToken = authSession?.user?.access_token;
 
-  const [store, setStore] = useState<StoreInfo | null>(null);
+  const [store, setStore] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const sessionId = session?.session_id;
   const [messages, setMessages] = useState<Message[]>([]);
@@ -551,27 +457,34 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
 
-      const storeData = await fetchStoreInfo(selectedStore);
-      if (!storeData) return;
-      setStore(storeData);
+      if (!selectedStore) return;
+      setStore(selectedStore);
 
       let activeSessionId = localStorage.getItem(CHAT_SESSION_KEY) || "";
 
       if (activeSessionId) {
-        const threadData = await getThread(activeSessionId);
+        const threadData = (await dispatch(
+          FetchThreadDetails(activeSessionId),
+        ).unwrap()) as RestoredThreadDetails;
 
-        if (threadData?.is_closed) {
+        if (threadData.is_closed || threadData.is_active === false) {
           localStorage.removeItem(CHAT_SESSION_KEY);
           activeSessionId = "";
-        } else if (threadData?.history) {
+        } else if (threadData.history?.length) {
           setMessages(applySuggestionVisibility(threadData.history));
+        } else if (threadData.messages?.length) {
+          setMessages(
+            applySuggestionVisibility(
+              threadData.messages.map(toSimulationMessage),
+            ),
+          );
         } else {
           activeSessionId = "";
         }
       }
 
       if (!activeSessionId) {
-        activeSessionId = (await createNewThread(storeData.code)) || "";
+        activeSessionId = (await createNewThread(selectedStore)) || "";
       }
 
       if (!activeSessionId) {
@@ -601,7 +514,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, handleSocketMessage, selectedStore]);
+  }, [accessToken, dispatch, handleSocketMessage, selectedStore]);
 
   useEffect(() => {
     sessionInitializationRef.current = sessionInitialization;
@@ -680,14 +593,25 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
           !chatSocketRef.current ||
           chatSocketRef.current.readyState !== WebSocket.OPEN
         ) {
-          chatSocketRef.current = connectWebSocket(sessionId, {
+          const payload = JSON.stringify({
+            message,
+            image_url: imageUrl,
+          });
+          const socket = connectWebSocket(sessionId, {
             token: accessToken,
             onMessage: handleSocketMessage,
             onSocketChange: (socket) => {
               chatSocketRef.current = socket;
             },
           });
-          setResponseLoading(false);
+          chatSocketRef.current = socket;
+          socket?.addEventListener(
+            "open",
+            () => {
+              socket.send(payload);
+            },
+            { once: true },
+          );
           return;
         }
 

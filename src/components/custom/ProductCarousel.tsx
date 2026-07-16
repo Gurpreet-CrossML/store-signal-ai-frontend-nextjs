@@ -1,8 +1,8 @@
-import type { Product } from "@/clients/test-simulate";
+import type { ProductData } from "@/redux/api-slice/thread-slice";
 import { ProductCard } from "./ProductCard";
 
 interface ProductCarouselProps {
-  products: Product[];
+  products: ProductData[];
   showDescription?: boolean;
   viewDetail?: boolean;
   addCart?: boolean;
@@ -19,9 +19,9 @@ export function ProductCarousel({
   return (
     <div className="max-w-full overflow-x-auto pb-2">
       <div className="flex w-max max-w-full gap-3">
-        {products.map((product) => (
+        {products.map((product, index) => (
           <ProductCard
-            key={product.id}
+            key={`${product.id}-${index}`}
             product={product}
             showDescription={showDescription}
             viewDetail={viewDetail}
