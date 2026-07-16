@@ -91,12 +91,13 @@ function ChipListField({
             </span>
           )}
         </div>
-        <div className="mt-auto grid gap-2 sm:grid-cols-[minmax(0,1fr)_5.5rem]">
+        <div className="mt-auto grid gap-2 sm:grid-cols-[minmax(0,1fr)_4.75rem]">
           <Input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
+            className="h-10"
           />
           <Button
             type="button"
@@ -163,6 +164,7 @@ function ReplacementRow({
           size="sm"
           variant={isActive ? "default" : "outline"}
           onClick={() => onChange({ is_active: !isActive })}
+          className="h-6 min-w-[4rem] px-1.5 text-[10px]"
           title={
             isActive
               ? "Active — click to deactivate"
@@ -171,7 +173,7 @@ function ReplacementRow({
         >
           {isActive ? (
             <>
-              <IconCheck className="size-4" /> Active
+              <IconCheck className="size-2.5" /> Active
             </>
           ) : (
             "Inactive"

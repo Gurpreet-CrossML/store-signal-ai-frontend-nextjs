@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useFormik, setIn } from "formik";
 import z from "zod";
 
-import previewConfigJson from "@/app/brand-voice/tone-style/live-preview.json";
+import previewConfigJson from "@/lib/brand-voice-tone-preview.json";
 import BrandVoiceTonePresetSelector from "@/components/custom/brand-voice-tone-preset-selector";
 import BrandVoiceToneControls from "@/components/custom/brand-voice-tone-controls";
 import ToneStylePreviewPanel, {
