@@ -128,6 +128,7 @@ export const authUserRelations = relations(authUser, ({ many }) => ({
   storeAccesss_userId: many(storeAccess, {
     relationName: "storeAccess_userId_authUser_id",
   }),
+  chatThreads: many(chatThread),
   chatHistory: many(chatHistory),
 }));
 
@@ -197,6 +198,7 @@ export const storeRelations = relations(store, ({ many }) => ({
   storeFaqss: many(storeFaqs),
   storeCredentialss: many(storeCredentials),
   sessionResolutionVerdicts: many(sessionResolutionVerdict),
+  chatThreads: many(chatThread),
   scrapeLinkslinkss: many(scrapeLinkslinks),
   knowledgeStorelibrarydocuments: many(knowledgeStorelibrarydocument),
   supportTickets: many(supportTicket),
