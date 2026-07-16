@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useFormik, setIn } from "formik";
 import z from "zod";
 
@@ -23,7 +23,7 @@ import {
   SaveToneStyle,
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { type ToneStylePayload, type ToneStyleRecord } from "@/db/chat";
+import { type ToneStylePayload } from "@/db/chat";
 import {
   IconAdjustments,
   IconBriefcase,
@@ -98,8 +98,6 @@ type FrequencyPolicyValue =
   | "free";
 type RegionalSpellingValue = "uk" | "us" | "auto";
 type ToneEditableField = Exclude<keyof ToneStylePayload, "preset">;
-
-type StoreSummary = { id: string; name: string; code: string };
 
 // Constants
 
@@ -195,19 +193,14 @@ function issuesToFormikErrors(issues: z.ZodIssue[]) {
 // Root component (store selector shell)
 
 export default function BrandVoiceToneStyleEditor() {
-  const stores = useAppSelector(
-    (state) => state.GetStoresReducer.GetStoresState.GetStoresListData,
-  );
   const selectedStore = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const store = stores.find((item) => item.code === selectedStore);
 
   return (
     <BrandVoiceToneStyleEditorView
       key={selectedStore || "no-store"}
       selectedStore={selectedStore}
-      store={store}
     />
   );
 }
@@ -215,10 +208,8 @@ export default function BrandVoiceToneStyleEditor() {
 // Editor view (Formik + Redux orchestrator)
 function BrandVoiceToneStyleEditorView({
   selectedStore,
-  store,
 }: {
   selectedStore: string;
-  store: StoreSummary | undefined;
 }) {
   const dispatch = useAppDispatch();
   const { data: toneData, isLoading: fetchIsLoading } = useAppSelector(
