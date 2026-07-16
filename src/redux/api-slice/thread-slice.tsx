@@ -266,6 +266,13 @@ export type CreateThreadResponse = {
   thread_id: string;
 };
 
+export type SubmitMessageFeedbackArgs = {
+  rating: string;
+  thread_id: string;
+  chat_message_id: string | number;
+  feedback_message?: string;
+};
+
 export type OrderItemData = {
   sku: string;
   name: string;
@@ -378,6 +385,45 @@ export const CreateThread = createAsyncThunk(
         description:
           data?.message ||
           "Unable to create a new conversation, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const SubmitMessageFeedback = createAsyncThunk(
+  "SubmitMessageFeedback",
+  async (
+    {
+      rating,
+      thread_id,
+      chat_message_id,
+      feedback_message = "",
+    }: SubmitMessageFeedbackArgs,
+    thunkAPI,
+  ) => {
+    try {
+      if (!rating || !thread_id || !chat_message_id) {
+        return false;
+      }
+
+      const response = await axiosInstance.post(ENDPOINTS.messageFeedback(), {
+        rating,
+        thread_id,
+        chat_message_id,
+        feedback_message,
+      });
+
+      return response.data?.status === "success";
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to submit message feedback, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -687,6 +733,12 @@ const ThreadSlice = createSlice({
       CreateThreadIsError: null as null | string | object | unknown,
       CreateThreadData: null as null | CreateThreadResponse,
     },
+    SubmitMessageFeedbackState: {
+      SubmitMessageFeedbackIsLoading: false,
+      SubmitMessageFeedbackIsSuccess: false,
+      SubmitMessageFeedbackIsError: null as null | string | object | unknown,
+      SubmitMessageFeedbackData: false,
+    },
     FetchThreadDetailsState: {
       FetchThreadDetailsIsLoading: false,
       FetchThreadDetailsIsSuccess: false,
@@ -784,6 +836,23 @@ const ThreadSlice = createSlice({
         state.CreateThreadState.CreateThreadIsLoading = false;
         state.CreateThreadState.CreateThreadIsError = action.payload;
         state.CreateThreadState.CreateThreadIsSuccess = false;
+      })
+      .addCase(SubmitMessageFeedback.pending, (state) => {
+        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsLoading = true;
+        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsError = null;
+        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsSuccess = false;
+      })
+      .addCase(SubmitMessageFeedback.fulfilled, (state, action) => {
+        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsLoading = false;
+        state.SubmitMessageFeedbackState.SubmitMessageFeedbackData =
+          action.payload;
+        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsSuccess = true;
+      })
+      .addCase(SubmitMessageFeedback.rejected, (state, action) => {
+        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsLoading = false;
+        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsError =
+          action.payload;
+        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsSuccess = false;
       })
       .addCase(FetchThreadDetails.pending, (state) => {
         state.FetchThreadDetailsState.FetchThreadDetailsIsLoading = true;

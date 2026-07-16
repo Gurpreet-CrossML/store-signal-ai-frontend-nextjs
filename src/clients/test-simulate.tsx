@@ -142,27 +142,6 @@ export function formatPrice(amount: number | string, currency = "USD") {
   }).format(amount);
 }
 
-export const submitMessageFeedback = async (
-  rating: string,
-  threadId: string,
-  chatMessageId: string | number,
-  feedbackMessage = "",
-) => {
-  try {
-    if (!rating || !threadId || !chatMessageId) return false;
-    const response = await axiosInstance.post("/chat/message-feedback/", {
-      rating,
-      thread_id: threadId,
-      chat_message_id: chatMessageId,
-      feedback_message: feedbackMessage,
-    });
-    return response.data?.status === "success";
-  } catch (error) {
-    console.error("Feedback submission failed, Error:", error);
-    return false;
-  }
-};
-
 export const submitThreadFeedback = async (
   rating: string,
   threadId: string,

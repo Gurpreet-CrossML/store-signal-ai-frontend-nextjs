@@ -6,16 +6,18 @@ import { Check, Copy, ThumbsDown, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   formatTimestamp,
-  submitMessageFeedback,
   type Message,
   useTestChatbotContext,
 } from "@/clients/test-simulate";
 import { cn } from "@/lib/utils";
 import { MessageAttachments } from "./MessageAttachments";
+import { SubmitMessageFeedback } from "@/redux/api-slice/thread-slice";
+import { useAppDispatch } from "@/redux/hooks";
 
 const SYNTHETIC_IMAGE_PATTERN = /\[Images? uploaded by user:[^\]]*\]/gi;
 
 export function MessageBubble({ message }: { message: Message }) {
+  const dispatch = useAppDispatch();
   const { session } = useTestChatbotContext();
   const isUser = message.role === "user";
   const isGreeting = message.id === "greeting";
@@ -39,10 +41,12 @@ export function MessageBubble({ message }: { message: Message }) {
   const handleLike = () => {
     try {
       if (!liked) {
-        void submitMessageFeedback(
-          "good",
-          session?.session_id || "",
-          message.id,
+        void dispatch(
+          SubmitMessageFeedback({
+            rating: "good",
+            thread_id: session?.session_id || "",
+            chat_message_id: message.id,
+          }),
         );
         toast.success("Thanks for your feedback!");
       }
@@ -56,12 +60,14 @@ export function MessageBubble({ message }: { message: Message }) {
 
   const handleDislikeSubmit = async () => {
     try {
-      await submitMessageFeedback(
-        "bad",
-        session?.session_id || "",
-        message.id,
-        dislikeComment,
-      );
+      await dispatch(
+        SubmitMessageFeedback({
+          rating: "bad",
+          thread_id: session?.session_id || "",
+          chat_message_id: message.id,
+          feedback_message: dislikeComment,
+        }),
+      ).unwrap();
     } catch (error) {
       console.error("Message feedback failed, Error:", error);
     } finally {
