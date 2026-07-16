@@ -327,7 +327,7 @@ function UserMetadataCard({
   );
 }
 
-function FreshdeskTicketCard({
+function SupportTicketCard({
   ticketData,
   loading,
 }: {
@@ -339,7 +339,7 @@ function FreshdeskTicketCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <IconTicket className="size-4" />
-          Freshdesk Ticket
+          Support Ticket
         </CardTitle>
       </CardHeader>
       {loading ? (
@@ -371,7 +371,7 @@ function FreshdeskTicketCard({
             </Card>
           )) || (
             <p className="text-sm text-muted-foreground italic">
-              No Freshdesk ticket data available.
+              No Support ticket data available.
             </p>
           )}
         </CardContent>
@@ -924,7 +924,7 @@ export default function ThreadDetailDrawer({
                 }
                 loading={FetchAIInsightIsLoading}
               />
-              <FreshdeskTicketCard
+              <SupportTicketCard
                 ticketData={FetchFreshdeskTicketIdData || []}
                 loading={FetchThreadDetailsIsLoading}
               />
