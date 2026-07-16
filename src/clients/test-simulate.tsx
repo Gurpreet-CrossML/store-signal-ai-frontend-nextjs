@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { axiosInstance } from "@/redux/axios-config";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
+  CreateThread,
   FetchThreadDetails,
   type CartDetails,
   type OrderDetail,
@@ -140,20 +141,6 @@ export function formatPrice(amount: number | string, currency = "USD") {
     currency,
   }).format(amount);
 }
-
-const createNewThread = async (storeCode: string) => {
-  try {
-    const response = await axiosInstance.post("/chat/threads/create/", {
-      store_code: storeCode,
-    });
-    return response.data?.status === "success"
-      ? (response.data?.data?.thread_id as string)
-      : null;
-  } catch (error) {
-    console.error("Session creating failed, Error:", error);
-    return null;
-  }
-};
 
 export const submitMessageFeedback = async (
   rating: string,
@@ -484,7 +471,10 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
       }
 
       if (!activeSessionId) {
-        activeSessionId = (await createNewThread(selectedStore)) || "";
+        const createdThread = await dispatch(
+          CreateThread({ store_code: selectedStore }),
+        ).unwrap();
+        activeSessionId = createdThread?.thread_id || "";
       }
 
       if (!activeSessionId) {
