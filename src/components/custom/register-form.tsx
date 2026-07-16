@@ -253,7 +253,7 @@ export function RegisterForm({
               Your account has been created successfully.
               <br />
               <br />
-              We&apos;ve sent a temporary password to{" "}
+              We&apos;ve sent a password to{" "}
               <span className="font-medium text-foreground">
                 {successEmail}
               </span>
