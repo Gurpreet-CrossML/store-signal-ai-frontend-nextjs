@@ -1,7 +1,4 @@
-import {
-  formatPrice,
-  useTestChatbotContext,
-} from "@/clients/test-simulate";
+import { formatPrice, useTestChatbotContext } from "@/clients/test-simulate";
 import {
   SaveBotEvent,
   type ThreadJsonContent,

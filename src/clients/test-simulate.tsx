@@ -60,12 +60,7 @@ export type OfflineTaskData = {
 export type Product = ProductData;
 export type MessageJsonContent = ThreadJsonContent;
 export type OrderDetails = OrderDetail;
-export type {
-  CartDetails,
-  ProductVariant,
-  RatingChoice,
-  TicketDetails,
-};
+export type { CartDetails, ProductVariant, RatingChoice, TicketDetails };
 
 export type Message = {
   id: string | number;

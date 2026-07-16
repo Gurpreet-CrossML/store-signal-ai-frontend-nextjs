@@ -172,12 +172,7 @@ export function ProductCard({
             </Button>
           ) : null}
           {addCart ? (
-            <Button
-              type="button"
-              size="sm"
-              className="h-8 flex-1"
-              disabled
-            >
+            <Button type="button" size="sm" className="h-8 flex-1" disabled>
               Add
             </Button>
           ) : null}

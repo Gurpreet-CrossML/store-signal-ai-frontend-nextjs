@@ -452,11 +452,7 @@ export const SubmitMessageFeedback = createAsyncThunk(
 export const SubmitThreadFeedback = createAsyncThunk(
   "SubmitThreadFeedback",
   async (
-    {
-      rating,
-      thread_id,
-      feedback_message,
-    }: SubmitThreadFeedbackArgs,
+    { rating, thread_id, feedback_message }: SubmitThreadFeedbackArgs,
     thunkAPI,
   ) => {
     try {
@@ -491,7 +487,12 @@ export const SubmitThreadFeedback = createAsyncThunk(
 export const SaveBotEvent = createAsyncThunk(
   "SaveBotEvent",
   async (
-    { event_type, thread_id, product_name = "", category = "" }: SaveBotEventArgs,
+    {
+      event_type,
+      thread_id,
+      product_name = "",
+      category = "",
+    }: SaveBotEventArgs,
     thunkAPI,
   ) => {
     try {
@@ -515,8 +516,7 @@ export const SaveBotEvent = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
-          data?.message ||
-          "Unable to save chat event, please try again later.",
+          data?.message || "Unable to save chat event, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -532,7 +532,7 @@ export const FetchThreadDetails = createAsyncThunk(
         ENDPOINTS.fetchThreadDetails(threadId),
       );
       const data = response.data.data;
-       console.log(data);
+      console.log(data);
 
       return data;
     } catch (error) {
