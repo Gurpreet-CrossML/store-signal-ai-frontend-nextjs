@@ -40,11 +40,14 @@ export default function PersonaIdentity() {
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const { data, isLoading } = useAppSelector(
-    (state) => state.BrandVoiceReducer.personaIdentity,
+  const {
+    FetchPersonaIdentityData: data,
+    FetchPersonaIdentityIsLoading: isLoading,
+  } = useAppSelector(
+    (state) => state.BrandVoiceReducer.FetchPersonaIdentityState,
   );
-  const isSaving = useAppSelector(
-    (state) => state.BrandVoiceReducer.isSavingPersonaIdentity,
+  const { SavePersonaIdentityIsLoading: isSaving } = useAppSelector(
+    (state) => state.BrandVoiceReducer.SavePersonaIdentityState,
   );
 
   useEffect(() => {
@@ -97,7 +100,7 @@ export default function PersonaIdentity() {
   });
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 p-4">
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Spinner />

@@ -15,7 +15,10 @@ export function SiteHeader() {
     : sidebarMenus.navMain;
 
   function findTitleFromPath(pathname: string | null) {
-    const found = navMain.find((item) => item.url === pathname);
+    const found = findMenuItemByUrl(
+      [...navMain, ...sidebarMenus.navBrandVoice],
+      pathname,
+    );
     return found ? found.title : pathname;
   }
 
@@ -24,7 +27,9 @@ export function SiteHeader() {
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mx-2" />
-        <h1 className="text-base font-medium">{title}</h1>
+        <h1 className="text-base font-medium">
+          {findTitleFromPath(pathname)}
+        </h1>
       </div>
     </header>
   );
