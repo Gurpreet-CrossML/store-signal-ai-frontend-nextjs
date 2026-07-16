@@ -17,7 +17,7 @@ import {
 
 export function AiDisclaimerNotice() {
   return (
-    <p className="mt-4 text-center text-xs text-muted-foreground">
+    <p className="mt-2 text-center text-xs text-muted-foreground">
       This AI-Chatbot can make mistakes.{" "}
       <AlertDialog>
         <AlertDialogTrigger asChild>
