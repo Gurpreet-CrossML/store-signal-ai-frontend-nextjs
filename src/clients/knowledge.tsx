@@ -9,7 +9,7 @@ export default function Knowledge() {
   return (
     <div className="p-4">
       <Tabs defaultValue="storefaqs">
-        <TabsList>
+        <TabsList variant="line">
           <TabsTrigger value="storefaqs">Quick FAQs</TabsTrigger>
           <TabsTrigger value="policies">Policies</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>

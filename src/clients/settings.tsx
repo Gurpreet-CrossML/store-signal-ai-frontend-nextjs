@@ -42,7 +42,7 @@ export default function Settings() {
   return (
     <div className="p-4">
       <Tabs defaultValue="company" className="gap-4">
-        <TabsList>
+        <TabsList variant="line">
           <TabsTrigger value="company">Company</TabsTrigger>
           <TabsTrigger value="staff">Staff</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>

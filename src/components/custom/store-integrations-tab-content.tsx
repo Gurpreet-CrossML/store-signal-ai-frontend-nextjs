@@ -419,7 +419,10 @@ export default function StoreIntegrationsTabContent() {
   return (
     <>
       {FetchIntegrationsIsLoading ? (
-        <div>Loading...</div>
+        <div className="flex items-center justify-center py-10 gap-2">
+          <Spinner className="size-6" />
+          Loading Integrations...
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {FetchIntegrationsListData.map((integration) => (
