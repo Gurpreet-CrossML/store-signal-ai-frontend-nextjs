@@ -42,6 +42,7 @@ import {
   integrationAttribute,
   storeIntegration,
   storeIntegrationAttribute,
+  chatCustomerorder,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -121,6 +122,8 @@ export const authUserRelations = relations(authUser, ({ many }) => ({
   authUserUserPermissions: many(authUserUserPermissions),
   djangoAdminLogs: many(djangoAdminLog),
   companyMemberships: many(companyMembership),
+  chatHistorys: many(chatHistory),
+  chatThreads: many(chatThread),
   storeAccesss_grantedById: many(storeAccess, {
     relationName: "storeAccess_grantedById_authUser_id",
   }),
@@ -277,6 +280,7 @@ export const chatCustomerRelations = relations(chatCustomer, ({ many }) => ({
   chatAddresss: many(chatAddress),
   chatThreads: many(chatThread),
   supportTickets: many(supportTicket),
+  chatCustomerorders: many(chatCustomerorder),
 }));
 
 export const chatbotFeedbackRelations = relations(
@@ -309,6 +313,7 @@ export const chatHistoryRelations = relations(chatHistory, ({ one, many }) => ({
 export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
   chatbotFeedbacks: many(chatbotFeedback),
   chatBotevents: many(chatBotevent),
+  chatHistorys: many(chatHistory),
   chatCustomer: one(chatCustomer, {
     fields: [chatThread.customerId],
     references: [chatCustomer.id],
@@ -316,6 +321,10 @@ export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
   store: one(store, {
     fields: [chatThread.storeId],
     references: [store.id],
+  }),
+  authUser: one(authUser, {
+    fields: [chatThread.chatHandlerUserId],
+    references: [authUser.id],
   }),
   aiInsightss: many(aiInsights),
   sentimentAnalysiss: many(sentimentAnalysis),
@@ -477,6 +486,16 @@ export const storeIntegrationAttributeRelations = relations(
     storeIntegration: one(storeIntegration, {
       fields: [storeIntegrationAttribute.storeIntegrationId],
       references: [storeIntegration.id],
+    }),
+  }),
+);
+
+export const chatCustomerorderRelations = relations(
+  chatCustomerorder,
+  ({ one }) => ({
+    chatCustomer: one(chatCustomer, {
+      fields: [chatCustomerorder.customerId],
+      references: [chatCustomer.id],
     }),
   }),
 );
