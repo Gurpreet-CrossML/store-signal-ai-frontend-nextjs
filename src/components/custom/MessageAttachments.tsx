@@ -94,7 +94,9 @@ export function MessageAttachments({ json }: { json?: MessageJsonContent }) {
         <CardHeader className="px-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <CardTitle className="text-sm">Order #{String(orderId)}</CardTitle>
+              <CardTitle className="text-sm">
+                Order #{String(orderId)}
+              </CardTitle>
               {placedAt ? (
                 <p className="mt-1 text-xs text-muted-foreground">
                   Placed {placedAt}
@@ -171,7 +173,11 @@ export function MessageAttachments({ json }: { json?: MessageJsonContent }) {
 
           {typeof order.order_url === "string" && order.order_url ? (
             <Button asChild className="w-full">
-              <a href={order.order_url} target="_blank" rel="noopener noreferrer">
+              <a
+                href={order.order_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 View order
               </a>
             </Button>
@@ -183,8 +189,10 @@ export function MessageAttachments({ json }: { json?: MessageJsonContent }) {
 
   if (cart_details) {
     const totalQuantity =
-      cart_details.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) ??
-      0;
+      cart_details.items?.reduce(
+        (sum, item) => sum + (item.quantity || 0),
+        0,
+      ) ?? 0;
     const formattedSubTotal =
       typeof cart_details.sub_total === "number"
         ? formatPrice(cart_details.sub_total)
@@ -258,7 +266,9 @@ export function MessageAttachments({ json }: { json?: MessageJsonContent }) {
     return (
       <Card className="max-w-sm gap-3 py-4">
         <CardHeader className="px-4">
-          <CardTitle className="text-sm">Ticket TCK-{ticket.ticket_id}</CardTitle>
+          <CardTitle className="text-sm">
+            Ticket TCK-{ticket.ticket_id}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 px-4 text-sm">
           {(ticket.customer_email || ticket.customer_name) && (

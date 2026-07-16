@@ -120,7 +120,10 @@ export function ProductCard({
           rel="noopener noreferrer"
           className="block"
         >
-          <p className="line-clamp-2 min-h-10 text-sm font-semibold" title={product.name}>
+          <p
+            className="line-clamp-2 min-h-10 text-sm font-semibold"
+            title={product.name}
+          >
             {product.name}
           </p>
         </a>
@@ -176,7 +179,9 @@ export function ProductCard({
               variant="outline"
               size="sm"
               className="h-8 flex-1"
-              onClick={() => sendMessage(`Give me details of "${product.name}"`)}
+              onClick={() =>
+                sendMessage(`Give me details of "${product.name}"`)
+              }
             >
               View
             </Button>

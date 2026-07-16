@@ -39,7 +39,11 @@ export function MessageBubble({ message }: { message: Message }) {
   const handleLike = () => {
     try {
       if (!liked) {
-        void submitMessageFeedback("good", session?.session_id || "", message.id);
+        void submitMessageFeedback(
+          "good",
+          session?.session_id || "",
+          message.id,
+        );
         toast.success("Thanks for your feedback!");
       }
     } catch (error) {
@@ -92,7 +96,9 @@ export function MessageBubble({ message }: { message: Message }) {
           </div>
         ) : null}
 
-        {!isUser && !message.streaming && !message.json_content?.cart_details ? (
+        {!isUser &&
+        !message.streaming &&
+        !message.json_content?.cart_details ? (
           <MessageAttachments json={message.json_content} />
         ) : null}
 
@@ -192,7 +198,10 @@ export function MessageBubble({ message }: { message: Message }) {
                 >
                   Cancel
                 </Button>
-                <Button type="button" onClick={() => void handleDislikeSubmit()}>
+                <Button
+                  type="button"
+                  onClick={() => void handleDislikeSubmit()}
+                >
                   Submit
                 </Button>
               </div>

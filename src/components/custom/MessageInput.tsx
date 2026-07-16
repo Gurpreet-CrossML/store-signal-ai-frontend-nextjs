@@ -1,17 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Loader,
-  Paperclip,
-  Send,
-  Smile,
-} from "lucide-react";
+import { Loader, Paperclip, Send, Smile } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ENDPOINTS } from "@/lib/config";
 import { axiosInstance } from "@/redux/axios-config";
 import { useTestChatbotContext } from "@/clients/test-simulate";
 import { AiDisclaimerNotice } from "@/components/custom/test-Ai-disclaimer-modal";
 
-const EMOJIS = ["😀", "😂", "😍", "👍", "🙏", "🎉", "🔥", "❤️", "🤔", "👏", "✨", "🛒"];
+const EMOJIS = [
+  "😀",
+  "😂",
+  "😍",
+  "👍",
+  "🙏",
+  "🎉",
+  "🔥",
+  "❤️",
+  "🤔",
+  "👏",
+  "✨",
+  "🛒",
+];
 
 type UploadImage = {
   id: string;

@@ -85,7 +85,10 @@ export function MessagesTab() {
             ),
           )}
 
-          {suggestions && suggestions.length > 0 && !responseLoading && !showFeedback ? (
+          {suggestions &&
+          suggestions.length > 0 &&
+          !responseLoading &&
+          !showFeedback ? (
             <div className="flex flex-wrap gap-2 pl-0">
               {suggestions.map((suggestion) => (
                 <Button
