@@ -115,6 +115,15 @@ export const ENDPOINTS = {
   createScrapeLink: () => `/knowledge/scrape-links/`,
   fetchScrapeLink: () => `/knowledge/scrape-links`,
 
+  // Integrations
+  fetchIntegrations: () => `/integrations`,
+  // Write — connecting a store to an integration stays on the Django backend.
+  // NOTE: endpoint is still being finalised by the backend dev; adjust the path
+  // here once it's confirmed.
+  connectStoreIntegration: () => `/store/integrations/`,
+  // Detail route — disconnect targets a StoreIntegration by its own object id.
+  storeIntegrationDetail: (id: number) => `/store/integrations/${id}/`,
+
   // Brand Voice reads use the local DB-backed index route; writes go straight to
   // Django's upsert endpoints.
   fetchToneStyle: () => `/brand-voice?feature=tone-style`,

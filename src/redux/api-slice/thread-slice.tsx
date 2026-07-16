@@ -519,7 +519,7 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
       toast.error("Uh oh! Something went wrong.", {
         description:
           data?.message ||
-          "Unable to fetch the Freshdesk ticket ID, please try again later.",
+          "Unable to fetch the Support ticket ID, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
