@@ -1,6 +1,6 @@
 "use client";
 
-import { type Icon } from "@tabler/icons-react";
+import { IconChevronRight } from "@tabler/icons-react";
 
 import {
   Select,
@@ -18,6 +18,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarGroupLabel,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
@@ -29,6 +32,12 @@ import {
   SELECTED_STORE_KEY,
 } from "@/redux/api-slice/stores-slice";
 import { useEffect } from "react";
+import { SideBarMenuItem } from "@/lib/sidebar-navs";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 function StoreSelector() {
   const dispatch = useAppDispatch();
@@ -86,14 +95,7 @@ function StoreSelector() {
   );
 }
 
-type NavItem = {
-  title: string;
-  url?: string;
-  icon?: Icon;
-  items?: { title: string; url: string; icon?: Icon }[];
-};
-
-export function NavMain({ items }: { items: NavItem[] }) {
+export function NavMain({ items }: { items: SideBarMenuItem[] }) {
   const pathname = usePathname();
 
   return (
@@ -101,56 +103,75 @@ export function NavMain({ items }: { items: NavItem[] }) {
       <SidebarGroupContent className="flex flex-col gap-2">
         <StoreSelector />
         <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton
-                tooltip={item.title}
-                className={cn(
-                  pathname === item.url
-                    ? "min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
-                    : "",
-                )}
-                asChild
-              >
-                <Link href={item.url!}>
-                  {item.icon && <item.icon />}
-                  <span>{item.title}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  );
-}
-
-export function NavBrandVoice({ items }: { items: NavItem[] }) {
-  const pathname = usePathname();
-
-  return (
-    <SidebarGroup>
-      <SidebarGroupLabel>BRAND VOICE</SidebarGroupLabel>
-      <SidebarGroupContent className="flex flex-col gap-2">
-        <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton
-                tooltip={item.title}
-                className={cn(
-                  pathname === item.url
-                    ? "min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
-                    : "",
-                )}
-                asChild
-              >
-                <Link href={item.url!}>
-                  {item.icon && <item.icon />}
-                  <span>{item.title}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {items.map((item) => {
+            if (item.items && item.items.length > 0) {
+              return (
+                <Collapsible
+                  key={item.title}
+                  asChild
+                  defaultOpen={item.isExpanded}
+                  className="group/collapsible"
+                >
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton tooltip={item.title}>
+                        {item.icon && <item.icon />}
+                        <span>{item.title}</span>
+                        <IconChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        {item.items?.map((subItem) => (
+                          <SidebarMenuSubItem key={subItem.title}>
+                            <SidebarMenuSubButton
+                              className={cn(
+                                pathname == subItem.url
+                                  ? "min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
+                                  : "",
+                              )}
+                              asChild
+                            >
+                              <Link href={subItem.url}>
+                                {subItem.icon && (
+                                  <subItem.icon
+                                    className={cn(
+                                      pathname == subItem.url
+                                        ? "text-primary-foreground!"
+                                        : "",
+                                    )}
+                                  />
+                                )}
+                                <span>{subItem.title}</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
+              );
+            }
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  tooltip={item.title}
+                  className={cn(
+                    pathname == item.url
+                      ? "min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
+                      : "",
+                  )}
+                  asChild
+                >
+                  <Link href={item.url}>
+                    {item.icon && <item.icon />}
+                    <span>{item.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>

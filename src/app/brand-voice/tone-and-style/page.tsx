@@ -1,14 +1,14 @@
+import BrandVoiceToneStyleEditor from "@/clients/tone";
 import { Suspense } from "react";
-import BrandVoiceVocabularyEditor from "@/clients/vocabulary";
 
 export const metadata = {
-  title: "Vocabulary",
+  title: "Tone and Style",
 };
 
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <BrandVoiceVocabularyEditor />
+      <BrandVoiceToneStyleEditor />
     </Suspense>
   );
 }
