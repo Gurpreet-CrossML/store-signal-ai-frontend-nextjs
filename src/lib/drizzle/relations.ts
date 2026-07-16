@@ -36,6 +36,7 @@ import {
   knowledgeStorelibrarydocument,
   storeIntegration,
   supportTicket,
+  chatCustomerorder,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -254,6 +255,7 @@ export const chatCustomerRelations = relations(chatCustomer, ({ many }) => ({
   chatAddresss: many(chatAddress),
   chatThreads: many(chatThread),
   supportTickets: many(supportTicket),
+  chatCustomerorders: many(chatCustomerorder),
 }));
 
 export const chatbotFeedbackRelations = relations(
@@ -424,3 +426,13 @@ export const supportTicketRelations = relations(supportTicket, ({ one }) => ({
     references: [chatThread.id],
   }),
 }));
+
+export const chatCustomerorderRelations = relations(
+  chatCustomerorder,
+  ({ one }) => ({
+    chatCustomer: one(chatCustomer, {
+      fields: [chatCustomerorder.customerId],
+      references: [chatCustomer.id],
+    }),
+  }),
+);

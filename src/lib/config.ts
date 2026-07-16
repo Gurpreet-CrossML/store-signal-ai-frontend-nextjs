@@ -46,6 +46,10 @@ export const ENDPOINTS = {
   uploadAttachments: () =>
     createAPIUrl("/support/attachments/upload/", "django"),
 
+  // Customer Orders Sync (Django) — POST
+  syncOrders: (threadId: string) =>
+    createAPIUrl(`/chat/threads/${threadId}/orders/sync/`, "django"),
+
   // Company & staff management (Django /api/tenancy/). These are Django-owned;
   // GET calls must pass `useBackend: true` (writes auto-route to Django).
   fetchCompanyProfile: () => "/tenancy/company/",
@@ -92,6 +96,8 @@ export const ENDPOINTS = {
     `/analytics/threads/${threadId}/cart-data`,
   fetchFreshdeskTicketId: (threadId: string) =>
     `/support/threads/${threadId}/tickets`,
+  fetchOrderData: (threadId: string) =>
+    `/analytics/threads/${threadId}/order-data`,
 
   // Chatbot Customization (Django via useBackend — keep trailing slash).
   widgetCustomization: (storeId: number) =>
