@@ -19,3 +19,9 @@ export function isValidUrl(value: string): boolean {
     return false;
   }
 }
+
+export function getAbsoluteS3Url(key: string): string {
+  const awsStorageBucketName = process.env.AWS_STORAGE_BUCKET_NAME;
+  const awsRegion = process.env.AWS_REGION;
+  return `https://${awsStorageBucketName}.s3.${awsRegion}.amazonaws.com/${key}`;
+}
