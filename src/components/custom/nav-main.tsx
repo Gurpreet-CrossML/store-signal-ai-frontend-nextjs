@@ -1,6 +1,6 @@
 "use client";
 
-import { type Icon, IconChevronDown } from "@tabler/icons-react";
+import { type Icon } from "@tabler/icons-react";
 
 import {
   Select,
@@ -19,11 +19,6 @@ import {
   SidebarMenuItem,
   SidebarGroupLabel,
 } from "@/components/ui/sidebar";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "radix-ui";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import Link from "next/link";

@@ -1808,3 +1808,43 @@ export const chatCustomerorder = pgTable(
     unique("chat_customerorder_order_id_key").on(table.orderId),
   ],
 );
+
+// Brand Voice tables are owned by the Django `chat` app. They are declared
+// here so Next.js can serve the read-only settings endpoints from the tenant DB.
+export const personaIdentity = pgTable("persona_identity", {
+  id: integer().primaryKey().generatedByDefaultAsIdentity(),
+  storeId: integer("store_id").notNull(),
+  name: varchar({ length: 100 }).notNull(),
+  roleDescription: varchar("role_description", { length: 255 }).notNull(),
+  selfReference: varchar("self_reference", { length: 10 }).notNull(),
+  emailSignature: varchar("email_signature", { length: 255 }).notNull(),
+  backstory: text().notNull(),
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+});
+
+export const neverSayRules = pgTable("never_say_rules", {
+  id: integer().primaryKey().generatedByDefaultAsIdentity(),
+  storeId: integer("store_id").notNull(),
+  noHollowApologies: boolean("no_hollow_apologies").notNull(),
+  neverRevealAiUnprompted: boolean("never_reveal_ai_unprompted").notNull(),
+  doNotSayPhrases: jsonb("do_not_say_phrases").$type<string[]>().notNull(),
+  forbiddenClaims: jsonb("forbidden_claims").$type<string[]>().notNull(),
+  requiredLegalPhrases: jsonb("required_legal_phrases")
+    .$type<{ context: string; phrase: string }[]>()
+    .notNull(),
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+});

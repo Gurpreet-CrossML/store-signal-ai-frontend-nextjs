@@ -6,7 +6,6 @@ import {
   IconHelp,
   IconImageGeneration,
   IconMessage2,
-  IconMoodSmile,
   IconNotebook,
   IconSearch,
   IconSettings,
