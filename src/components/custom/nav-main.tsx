@@ -33,7 +33,11 @@ import {
 } from "@/redux/api-slice/stores-slice";
 import { useEffect } from "react";
 import { SideBarMenuItem } from "@/lib/sidebar-navs";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 function StoreSelector() {
   const dispatch = useAppDispatch();
@@ -91,11 +95,7 @@ function StoreSelector() {
   );
 }
 
-export function NavMain({
-  items,
-}: {
-  items: SideBarMenuItem[];
-}) {
+export function NavMain({ items }: { items: SideBarMenuItem[] }) {
   const pathname = usePathname();
 
   return (
@@ -133,7 +133,15 @@ export function NavMain({
                               asChild
                             >
                               <Link href={subItem.url}>
-                                {subItem.icon && <subItem.icon className={cn(pathname == subItem.url ? "text-primary-foreground!" : "")} />}
+                                {subItem.icon && (
+                                  <subItem.icon
+                                    className={cn(
+                                      pathname == subItem.url
+                                        ? "text-primary-foreground!"
+                                        : "",
+                                    )}
+                                  />
+                                )}
                                 <span>{subItem.title}</span>
                               </Link>
                             </SidebarMenuSubButton>
@@ -143,7 +151,7 @@ export function NavMain({
                     </CollapsibleContent>
                   </SidebarMenuItem>
                 </Collapsible>
-              )
+              );
             }
             return (
               <SidebarMenuItem key={item.title}>
@@ -162,7 +170,7 @@ export function NavMain({
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            )
+            );
           })}
         </SidebarMenu>
       </SidebarGroupContent>

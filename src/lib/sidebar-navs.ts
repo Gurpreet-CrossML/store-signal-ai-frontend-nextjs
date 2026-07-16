@@ -16,7 +16,7 @@ import {
   IconUserHexagon,
   IconUser,
   IconVolume,
-  type Icon
+  type Icon,
 } from "@tabler/icons-react";
 
 export type SideBarMenuItem = {
@@ -111,8 +111,8 @@ export const sidebarMenus: SideBarMenus = {
           title: "Never-Say Rules",
           url: "/brand-voice/never-say-rules",
           icon: IconBan,
-        }
-      ]
+        },
+      ],
     },
     {
       title: "Settings",
