@@ -284,6 +284,13 @@ export type SubmitThreadFeedbackResponse = {
   message_id?: string | number;
 };
 
+export type SaveBotEventArgs = {
+  event_type: string;
+  thread_id: string;
+  product_name?: string;
+  category?: string;
+};
+
 export type OrderItemData = {
   sku: string;
   name: string;
@@ -474,6 +481,42 @@ export const SubmitThreadFeedback = createAsyncThunk(
         description:
           data?.message ||
           "Unable to submit thread feedback, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const SaveBotEvent = createAsyncThunk(
+  "SaveBotEvent",
+  async (
+    { event_type, thread_id, product_name = "", category = "" }: SaveBotEventArgs,
+    thunkAPI,
+  ) => {
+    try {
+      if (!event_type || !thread_id) {
+        return false;
+      }
+
+      const payload: Record<string, string> = {
+        event_type,
+        thread_id,
+      };
+      if (product_name) payload.product_name = product_name;
+      if (category) payload.category = category;
+
+      const response = await axiosInstance.post(ENDPOINTS.botEvents(), payload);
+
+      return response.data?.status === "success";
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to save chat event, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -795,6 +838,12 @@ const ThreadSlice = createSlice({
       SubmitThreadFeedbackIsError: null as null | string | object | unknown,
       SubmitThreadFeedbackData: null as null | SubmitThreadFeedbackResponse,
     },
+    SaveBotEventState: {
+      SaveBotEventIsLoading: false,
+      SaveBotEventIsSuccess: false,
+      SaveBotEventIsError: null as null | string | object | unknown,
+      SaveBotEventData: false,
+    },
     FetchThreadDetailsState: {
       FetchThreadDetailsIsLoading: false,
       FetchThreadDetailsIsSuccess: false,
@@ -926,6 +975,21 @@ const ThreadSlice = createSlice({
         state.SubmitThreadFeedbackState.SubmitThreadFeedbackIsError =
           action.payload;
         state.SubmitThreadFeedbackState.SubmitThreadFeedbackIsSuccess = false;
+      })
+      .addCase(SaveBotEvent.pending, (state) => {
+        state.SaveBotEventState.SaveBotEventIsLoading = true;
+        state.SaveBotEventState.SaveBotEventIsError = null;
+        state.SaveBotEventState.SaveBotEventIsSuccess = false;
+      })
+      .addCase(SaveBotEvent.fulfilled, (state, action) => {
+        state.SaveBotEventState.SaveBotEventIsLoading = false;
+        state.SaveBotEventState.SaveBotEventData = action.payload;
+        state.SaveBotEventState.SaveBotEventIsSuccess = true;
+      })
+      .addCase(SaveBotEvent.rejected, (state, action) => {
+        state.SaveBotEventState.SaveBotEventIsLoading = false;
+        state.SaveBotEventState.SaveBotEventIsError = action.payload;
+        state.SaveBotEventState.SaveBotEventIsSuccess = false;
       })
       .addCase(FetchThreadDetails.pending, (state) => {
         state.FetchThreadDetailsState.FetchThreadDetailsIsLoading = true;

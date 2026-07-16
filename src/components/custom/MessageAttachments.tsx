@@ -1,12 +1,13 @@
 import {
   formatPrice,
-  saveEvent,
   useTestChatbotContext,
 } from "@/clients/test-simulate";
-import type {
-  ThreadJsonContent,
-  TicketDetails,
+import {
+  SaveBotEvent,
+  type ThreadJsonContent,
+  type TicketDetails,
 } from "@/redux/api-slice/thread-slice";
+import { useAppDispatch } from "@/redux/hooks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +39,7 @@ function formatOrderDate(value: unknown) {
 }
 
 export function MessageAttachments({ json }: { json?: ThreadJsonContent }) {
+  const dispatch = useAppDispatch();
   const { session } = useTestChatbotContext();
   const threadId = session?.session_id ?? "";
 
@@ -251,7 +253,14 @@ export function MessageAttachments({ json }: { json?: ThreadJsonContent }) {
                 href={cart_details.checkout_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => void saveEvent("checkout_link", threadId)}
+                onClick={() =>
+                  void dispatch(
+                    SaveBotEvent({
+                      event_type: "checkout_link",
+                      thread_id: threadId,
+                    }),
+                  )
+                }
               >
                 Checkout
               </a>

@@ -142,28 +142,6 @@ export function formatPrice(amount: number | string, currency = "USD") {
   }).format(amount);
 }
 
-export const saveEvent = async (
-  eventType: string,
-  threadId: string,
-  productName = "",
-  category = "",
-) => {
-  try {
-    if (!eventType || !threadId) return false;
-    const payload: Record<string, string> = {
-      event_type: eventType,
-      thread_id: threadId,
-    };
-    if (productName) payload.product_name = productName;
-    if (category) payload.category = category;
-    const response = await axiosInstance.post("/chat/bot-events/", payload);
-    return response.data?.status === "success";
-  } catch (error) {
-    console.error("Event saving failed, Error:", error);
-    return false;
-  }
-};
-
 const buildSimulationSocketUrl = (threadId: string, token?: string) => {
   const params = new URLSearchParams({ role: "customer" });
   if (token) params.set("token", token);
