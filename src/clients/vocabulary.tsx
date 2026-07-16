@@ -78,50 +78,6 @@ const validationSchema = z
     });
   });
 
-function emptyFormValues(): VocabularyFormValues {
-  return {
-    preferred_phrases: [],
-    banned_words: [],
-    signature_phrases: [],
-    word_replacements: [],
-  };
-}
-
-function normalizeList(values: string[] | undefined) {
-  return (values ?? []).map((v) => v.trim()).filter(Boolean);
-}
-
-function normalizeVocabulary(data: VocabularyRecord): VocabularyFormValues {
-  return {
-    preferred_phrases: normalizeList(data.preferred_phrases),
-    banned_words: normalizeList(data.banned_words),
-    signature_phrases: normalizeList(data.signature_phrases),
-    word_replacements: (data.word_replacements ?? []).map((item) => ({
-      say_word: item.say_word,
-      replace_word: item.replace_word,
-      is_active: item.is_active,
-    })),
-  };
-}
-
-function toPayload(values: VocabularyFormValues): VocabularyPayload {
-  const completeRows = values.word_replacements.filter(
-    (row) => row.say_word.trim() && row.replace_word.trim(),
-  );
-  return {
-    preferred_phrases: normalizeList(values.preferred_phrases),
-    banned_words: normalizeList(values.banned_words),
-    signature_phrases: normalizeList(values.signature_phrases),
-    word_replacements: completeRows.map(
-      (row): WordReplacementPayload => ({
-        say_word: row.say_word.trim(),
-        replace_word: row.replace_word.trim(),
-        is_active: row.is_active,
-      }),
-    ),
-  };
-}
-
 function issuesToFormikErrors(issues: z.ZodIssue[]) {
   return issues.reduce(
     (errors, issue) => setIn(errors, issue.path.join("."), issue.message),
@@ -152,20 +108,24 @@ function BrandVoiceVocabularyEditorView({
   selectedStore: string;
 }) {
   const dispatch = useAppDispatch();
-  const saveIsLoading = useAppSelector(
-    (state) => state.GetBrandVoiceReducer.vocabulary.save.isLoading,
+  const { data: vocabData, isLoading: fetchIsLoading } = useAppSelector(
+    (state) => state.GetBrandVoiceReducer.vocabulary.fetch,
   );
-  const fetchIsLoading = useAppSelector(
-    (state) => state.GetBrandVoiceReducer.vocabulary.fetch.isLoading,
+  const { isLoading: saveIsLoading } = useAppSelector(
+    (state) => state.GetBrandVoiceReducer.vocabulary.save,
   );
-  const [initialValues, setInitialValues] =
-    useState<VocabularyFormValues>(emptyFormValues());
-  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+
+  const updatedAt = vocabData?.updated_at ?? null;
 
   // Formik
   const formik = useFormik<VocabularyFormValues>({
     enableReinitialize: true,
-    initialValues,
+    initialValues: (vocabData as any as VocabularyFormValues) || {
+      preferred_phrases: [],
+      banned_words: [],
+      signature_phrases: [],
+      word_replacements: [],
+    },
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
@@ -173,39 +133,26 @@ function BrandVoiceVocabularyEditorView({
     },
     onSubmit: async (values) => {
       if (!selectedStore) return;
-      const result = await dispatch(
+      const payload = {
+        ...values,
+        word_replacements: values.word_replacements.filter(
+          (row) => row.say_word.trim() && row.replace_word.trim(),
+        ),
+      };
+      await dispatch(
         SaveVocabulary({
           storeCode: selectedStore,
-          payload: toPayload(values),
+          payload,
         }),
       );
-      if (SaveVocabulary.fulfilled.match(result)) {
-        setInitialValues(normalizeVocabulary(result.payload));
-        setLastSavedAt(result.payload.updated_at);
-      }
     },
   });
 
   // Fetch on mount
   useEffect(() => {
-    if (!selectedStore) return;
-    let active = true;
-    (async () => {
-      const result = await dispatch(GetVocabulary(selectedStore));
-      if (!active) return;
-      if (GetVocabulary.fulfilled.match(result)) {
-        if (result.payload) {
-          setInitialValues(normalizeVocabulary(result.payload));
-          setLastSavedAt(result.payload.updated_at);
-        } else {
-          setInitialValues(emptyFormValues());
-          setLastSavedAt(null);
-        }
-      }
-    })();
-    return () => {
-      active = false;
-    };
+    if (selectedStore) {
+      dispatch(GetVocabulary(selectedStore));
+    }
   }, [dispatch, selectedStore]);
 
   // Derived state
@@ -292,7 +239,7 @@ function BrandVoiceVocabularyEditorView({
         <BrandVoiceVocabularySummary
           summary={summary}
           preferredPhrases={values.preferred_phrases}
-          lastSavedAt={lastSavedAt}
+          updatedAt={updatedAt}
         />
       </div>
 
@@ -308,20 +255,15 @@ function BrandVoiceVocabularyEditorView({
         </Button>
         <Button
           type="submit"
-          disabled={
-            !formik.dirty || !formik.isValid || saveIsLoading || fetchIsLoading
-          }
+          disabled={!formik.dirty || saveIsLoading || fetchIsLoading}
         >
           {saveIsLoading ? (
             <>
               <Spinner data-icon="inline-start" />
-              Saving
+              Saving...
             </>
           ) : (
-            <>
-              <IconDeviceFloppy />
-              Save changes
-            </>
+            "Save Changes"
           )}
         </Button>
       </div>

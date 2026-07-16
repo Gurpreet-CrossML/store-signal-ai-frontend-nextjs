@@ -31,7 +31,6 @@ import {
   IconGauge,
   IconMoodSmile,
   IconSparkles,
-  IconDeviceFloppy,
 } from "@tabler/icons-react";
 
 // Types
@@ -176,21 +175,6 @@ function createDefaultToneStyle(): ToneStylePayload {
   };
 }
 
-function normalizeToneStyle(data: ToneStyleRecord): ToneStylePayload {
-  return {
-    preset: data.preset as ToneStylePayload["preset"],
-    warmth: data.warmth,
-    formality: data.formality,
-    energy: data.energy,
-    playfulness: data.playfulness,
-    directness: data.directness,
-    answer_length: data.answer_length as AnswerLengthValue,
-    frequency_policy: data.frequency_policy as FrequencyPolicyValue,
-    regional_spelling: data.regional_spelling as RegionalSpellingValue,
-    use_bullet_points: data.use_bullet_points,
-  };
-}
-
 function thresholdLabel(value: number) {
   if (value >= previewConfig.preview.thresholds.high) return "high" as const;
   if (value >= previewConfig.preview.thresholds.medium)
@@ -237,24 +221,21 @@ function BrandVoiceToneStyleEditorView({
   store: StoreSummary | undefined;
 }) {
   const dispatch = useAppDispatch();
-  const saveIsLoading = useAppSelector(
-    (state) => state.GetBrandVoiceReducer.toneStyle.save.isLoading,
+  const { data: toneData, isLoading: fetchIsLoading } = useAppSelector(
+    (state) => state.GetBrandVoiceReducer.toneStyle.fetch,
   );
-  const fetchIsLoading = useAppSelector(
-    (state) => state.GetBrandVoiceReducer.toneStyle.fetch.isLoading,
+  const { isLoading: saveIsLoading } = useAppSelector(
+    (state) => state.GetBrandVoiceReducer.toneStyle.save,
   );
-  const [initialValues, setInitialValues] = useState<ToneStylePayload>(
-    createDefaultToneStyle(),
-  );
-  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
-  const [hasStoredToneStyle, setHasStoredToneStyle] = useState<boolean | null>(
-    null,
-  );
+
+  const hasStoredToneStyle = toneData ? true : fetchIsLoading ? null : false;
+  const updatedAt = toneData?.updated_at ?? null;
 
   // Formik
   const formik = useFormik<ToneStylePayload>({
     enableReinitialize: true,
-    initialValues,
+    initialValues:
+      (toneData as any as ToneStylePayload) || createDefaultToneStyle(),
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
@@ -262,43 +243,17 @@ function BrandVoiceToneStyleEditorView({
     },
     onSubmit: async (values) => {
       if (!selectedStore) return;
-      const result = await dispatch(
+      await dispatch(
         SaveToneStyle({ storeCode: selectedStore, payload: values }),
       );
-      if (SaveToneStyle.fulfilled.match(result)) {
-        const next = normalizeToneStyle(result.payload);
-        setInitialValues(next);
-        setHasStoredToneStyle(true);
-        setLastSavedAt(result.payload.updated_at);
-      }
     },
   });
 
   // Fetch on mount
   useEffect(() => {
-    if (!selectedStore) return;
-    let active = true;
-    (async () => {
-      const result = await dispatch(GetToneStyle(selectedStore));
-      if (!active) return;
-      if (GetToneStyle.fulfilled.match(result)) {
-        if (result.payload) {
-          const next = normalizeToneStyle(result.payload);
-          setInitialValues(next);
-          setHasStoredToneStyle(true);
-          setLastSavedAt(result.payload.updated_at);
-        } else {
-          setInitialValues(createDefaultToneStyle());
-          setHasStoredToneStyle(false);
-          setLastSavedAt(null);
-        }
-      } else {
-        setHasStoredToneStyle(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
+    if (selectedStore) {
+      dispatch(GetToneStyle(selectedStore));
+    }
   }, [dispatch, selectedStore]);
 
   // Derived state
@@ -547,13 +502,10 @@ function BrandVoiceToneStyleEditorView({
               {saveIsLoading ? (
                 <>
                   <Spinner data-icon="inline-start" />
-                  Saving
+                  Saving...
                 </>
               ) : (
-                <>
-                  <IconDeviceFloppy />
-                  Save changes
-                </>
+                "Save Changes"
               )}
             </Button>
           </div>

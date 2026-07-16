@@ -9,13 +9,13 @@ type SummaryItem = { label: string; value: number };
 type BrandVoiceVocabularySummaryProps = {
   summary: SummaryItem[];
   preferredPhrases: string[];
-  lastSavedAt: string | null;
+  updatedAt: string | null;
 };
 
 export default function BrandVoiceVocabularySummary({
   summary,
   preferredPhrases,
-  lastSavedAt,
+  updatedAt,
 }: BrandVoiceVocabularySummaryProps) {
   return (
     <Card className="sticky top-4 gap-0 overflow-hidden">
@@ -27,9 +27,9 @@ export default function BrandVoiceVocabularySummary({
               Quick counts and a few live hints.
             </p>
           </div>
-          {lastSavedAt && (
+          {updatedAt && (
             <span className="text-xs text-muted-foreground">
-              Last synced {new Date(lastSavedAt).toLocaleString()}
+              Last synced {new Date(updatedAt).toLocaleString()}
             </span>
           )}
         </div>
