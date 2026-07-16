@@ -46,7 +46,7 @@ import {
 import { Skeleton } from "../ui/skeleton";
 import {
   CartDetailsCard,
-  FreshdeskTicketCard,
+  SupportTicketCard,
   ThreadAIInsightCard,
   ThreadSummaryCard,
   UserMetadataCard,
