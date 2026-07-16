@@ -122,14 +122,13 @@ export const authUserRelations = relations(authUser, ({ many }) => ({
   authUserUserPermissions: many(authUserUserPermissions),
   djangoAdminLogs: many(djangoAdminLog),
   companyMemberships: many(companyMembership),
-  chatHistorys: many(chatHistory),
-  chatThreads: many(chatThread),
   storeAccesss_grantedById: many(storeAccess, {
     relationName: "storeAccess_grantedById_authUser_id",
   }),
   storeAccesss_userId: many(storeAccess, {
     relationName: "storeAccess_userId_authUser_id",
   }),
+  chatThreads: many(chatThread),
   chatHistorys: many(chatHistory),
 }));
 
@@ -198,8 +197,8 @@ export const storeRelations = relations(store, ({ many }) => ({
   storeAccesss: many(storeAccess),
   storeFaqss: many(storeFaqs),
   storeCredentialss: many(storeCredentials),
-  chatThreads: many(chatThread),
   sessionResolutionVerdicts: many(sessionResolutionVerdict),
+  chatThreads: many(chatThread),
   scrapeLinkslinkss: many(scrapeLinkslinks),
   knowledgeStorelibrarydocuments: many(knowledgeStorelibrarydocument),
   supportTickets: many(supportTicket),
@@ -313,7 +312,9 @@ export const chatHistoryRelations = relations(chatHistory, ({ one, many }) => ({
 export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
   chatbotFeedbacks: many(chatbotFeedback),
   chatBotevents: many(chatBotevent),
-  chatHistorys: many(chatHistory),
+  aiInsightss: many(aiInsights),
+  sentimentAnalysiss: many(sentimentAnalysis),
+  sessionResolutionVerdicts: many(sessionResolutionVerdict),
   chatCustomer: one(chatCustomer, {
     fields: [chatThread.customerId],
     references: [chatCustomer.id],
@@ -326,9 +327,6 @@ export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
     fields: [chatThread.chatHandlerUserId],
     references: [authUser.id],
   }),
-  aiInsightss: many(aiInsights),
-  sentimentAnalysiss: many(sentimentAnalysis),
-  sessionResolutionVerdicts: many(sessionResolutionVerdict),
   userMetadatas: many(userMetadata),
   fraudFlags: many(fraudFlag),
   chatHistorys: many(chatHistory),
