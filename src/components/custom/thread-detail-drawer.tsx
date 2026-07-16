@@ -46,7 +46,7 @@ import {
 import { Skeleton } from "../ui/skeleton";
 import {
   CartDetailsCard,
-  FreshdeskTicketCard,
+  SupportTicketCard,
   ThreadAIInsightCard,
   ThreadSummaryCard,
   UserMetadataCard,
@@ -337,7 +337,7 @@ export default function ThreadDetailDrawer({
                 }
                 loading={FetchAIInsightIsLoading}
               />
-              <FreshdeskTicketCard
+              <SupportTicketCard
                 ticketData={FetchFreshdeskTicketIdData || []}
                 loading={FetchThreadDetailsIsLoading}
               />
