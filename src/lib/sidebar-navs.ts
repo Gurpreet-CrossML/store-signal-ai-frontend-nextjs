@@ -1,16 +1,19 @@
 import {
-  IconAdjustmentsHorizontal,
+  IconAdjustmentsSpark,
   IconBan,
+  IconBook2,
   IconBooks,
   IconDashboard,
   IconHelp,
-  IconHeadset,
   IconImageGeneration,
   IconMessage2,
-  IconNotebook,
+  IconMessageUser,
   IconSearch,
   IconSettings,
-  IconUser,
+  IconShoppingBag,
+  IconUserHexagon,
+  IconVolume,
+  type Icon,
 } from "@tabler/icons-react";
 
 export type SideBarMenuItem = {
@@ -59,11 +62,6 @@ export const sidebarMenus: SideBarMenus = {
       title: "Live Support",
       url: "/support",
       icon: IconMessageUser,
-    },
-    {
-      title: "Help Desk",
-      url: "/helpdesk",
-      icon: IconHeadset,
     },
     {
       title: "Knowledge",
