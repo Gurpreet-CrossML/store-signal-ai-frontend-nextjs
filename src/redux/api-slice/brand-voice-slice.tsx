@@ -125,74 +125,99 @@ export const saveNeverSayRules = createAsyncThunk(
   },
 );
 
-type RequestState<T> = {
-  isLoading: boolean;
-  error: string | null;
-  data: T | null;
-};
-
-function idle<T>(): RequestState<T> {
-  return { isLoading: false, error: null, data: null };
-}
-
 const brandVoiceSlice = createSlice({
   name: "brandVoice",
   initialState: {
-    personaIdentity: idle<PersonaIdentityData>(),
-    neverSayRules: idle<NeverSayRulesData>(),
-    isSavingPersonaIdentity: false,
-    isSavingNeverSayRules: false,
+    FetchPersonaIdentityState: {
+      FetchPersonaIdentityIsLoading: false,
+      FetchPersonaIdentityIsSuccess: false,
+      FetchPersonaIdentityIsError: null as null | string | object | unknown,
+      FetchPersonaIdentityData: null as PersonaIdentityData | null,
+    },
+    SavePersonaIdentityState: {
+      SavePersonaIdentityIsLoading: false,
+      SavePersonaIdentityIsSuccess: false,
+      SavePersonaIdentityIsError: null as null | string | object | unknown,
+    },
+    FetchNeverSayRulesState: {
+      FetchNeverSayRulesIsLoading: false,
+      FetchNeverSayRulesIsSuccess: false,
+      FetchNeverSayRulesIsError: null as null | string | object | unknown,
+      FetchNeverSayRulesData: null as NeverSayRulesData | null,
+    },
+    SaveNeverSayRulesState: {
+      SaveNeverSayRulesIsLoading: false,
+      SaveNeverSayRulesIsSuccess: false,
+      SaveNeverSayRulesIsError: null as null | string | object | unknown,
+    },
   },
   reducers: {},
   extraReducers: (builder) => {
     builder
       .addCase(fetchPersonaIdentity.pending, (state) => {
-        state.personaIdentity.isLoading = true;
-        state.personaIdentity.error = null;
+        state.FetchPersonaIdentityState.FetchPersonaIdentityIsLoading = true;
+        state.FetchPersonaIdentityState.FetchPersonaIdentityIsError = null;
+        state.FetchPersonaIdentityState.FetchPersonaIdentityIsSuccess = false;
       })
       .addCase(fetchPersonaIdentity.fulfilled, (state, action) => {
-        state.personaIdentity.isLoading = false;
-        state.personaIdentity.data = action.payload;
+        state.FetchPersonaIdentityState.FetchPersonaIdentityIsLoading = false;
+        state.FetchPersonaIdentityState.FetchPersonaIdentityData =
+          action.payload;
+        state.FetchPersonaIdentityState.FetchPersonaIdentityIsSuccess = true;
       })
       .addCase(fetchPersonaIdentity.rejected, (state, action) => {
-        state.personaIdentity.isLoading = false;
-        state.personaIdentity.error = String(
-          action.payload || "Something went wrong",
-        );
+        state.FetchPersonaIdentityState.FetchPersonaIdentityIsLoading = false;
+        state.FetchPersonaIdentityState.FetchPersonaIdentityIsError =
+          action.payload;
+        state.FetchPersonaIdentityState.FetchPersonaIdentityIsSuccess = false;
       })
       .addCase(savePersonaIdentity.pending, (state) => {
-        state.isSavingPersonaIdentity = true;
+        state.SavePersonaIdentityState.SavePersonaIdentityIsLoading = true;
+        state.SavePersonaIdentityState.SavePersonaIdentityIsError = null;
+        state.SavePersonaIdentityState.SavePersonaIdentityIsSuccess = false;
       })
       .addCase(savePersonaIdentity.fulfilled, (state, action) => {
-        state.isSavingPersonaIdentity = false;
-        state.personaIdentity.data = action.payload;
+        state.SavePersonaIdentityState.SavePersonaIdentityIsLoading = false;
+        state.FetchPersonaIdentityState.FetchPersonaIdentityData =
+          action.payload;
+        state.SavePersonaIdentityState.SavePersonaIdentityIsSuccess = true;
       })
-      .addCase(savePersonaIdentity.rejected, (state) => {
-        state.isSavingPersonaIdentity = false;
+      .addCase(savePersonaIdentity.rejected, (state, action) => {
+        state.SavePersonaIdentityState.SavePersonaIdentityIsLoading = false;
+        state.SavePersonaIdentityState.SavePersonaIdentityIsError =
+          action.payload;
+        state.SavePersonaIdentityState.SavePersonaIdentityIsSuccess = false;
       })
       .addCase(fetchNeverSayRules.pending, (state) => {
-        state.neverSayRules.isLoading = true;
-        state.neverSayRules.error = null;
+        state.FetchNeverSayRulesState.FetchNeverSayRulesIsLoading = true;
+        state.FetchNeverSayRulesState.FetchNeverSayRulesIsError = null;
+        state.FetchNeverSayRulesState.FetchNeverSayRulesIsSuccess = false;
       })
       .addCase(fetchNeverSayRules.fulfilled, (state, action) => {
-        state.neverSayRules.isLoading = false;
-        state.neverSayRules.data = action.payload;
+        state.FetchNeverSayRulesState.FetchNeverSayRulesIsLoading = false;
+        state.FetchNeverSayRulesState.FetchNeverSayRulesData = action.payload;
+        state.FetchNeverSayRulesState.FetchNeverSayRulesIsSuccess = true;
       })
       .addCase(fetchNeverSayRules.rejected, (state, action) => {
-        state.neverSayRules.isLoading = false;
-        state.neverSayRules.error = String(
-          action.payload || "Something went wrong",
-        );
+        state.FetchNeverSayRulesState.FetchNeverSayRulesIsLoading = false;
+        state.FetchNeverSayRulesState.FetchNeverSayRulesIsError =
+          action.payload;
+        state.FetchNeverSayRulesState.FetchNeverSayRulesIsSuccess = false;
       })
       .addCase(saveNeverSayRules.pending, (state) => {
-        state.isSavingNeverSayRules = true;
+        state.SaveNeverSayRulesState.SaveNeverSayRulesIsLoading = true;
+        state.SaveNeverSayRulesState.SaveNeverSayRulesIsError = null;
+        state.SaveNeverSayRulesState.SaveNeverSayRulesIsSuccess = false;
       })
       .addCase(saveNeverSayRules.fulfilled, (state, action) => {
-        state.isSavingNeverSayRules = false;
-        state.neverSayRules.data = action.payload;
+        state.SaveNeverSayRulesState.SaveNeverSayRulesIsLoading = false;
+        state.FetchNeverSayRulesState.FetchNeverSayRulesData = action.payload;
+        state.SaveNeverSayRulesState.SaveNeverSayRulesIsSuccess = true;
       })
-      .addCase(saveNeverSayRules.rejected, (state) => {
-        state.isSavingNeverSayRules = false;
+      .addCase(saveNeverSayRules.rejected, (state, action) => {
+        state.SaveNeverSayRulesState.SaveNeverSayRulesIsLoading = false;
+        state.SaveNeverSayRulesState.SaveNeverSayRulesIsError = action.payload;
+        state.SaveNeverSayRulesState.SaveNeverSayRulesIsSuccess = false;
       });
   },
 });

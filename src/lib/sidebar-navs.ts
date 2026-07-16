@@ -1,5 +1,6 @@
 import {
   IconAdjustmentsSpark,
+  IconAdjustmentsHorizontal,
   IconBan,
   IconBook2,
   IconBooks,
@@ -8,10 +9,12 @@ import {
   IconImageGeneration,
   IconMessage2,
   IconMessageUser,
+  IconNotebook,
   IconSearch,
   IconSettings,
   IconShoppingBag,
   IconUserHexagon,
+  IconUser,
   IconVolume,
   type Icon,
 } from "@tabler/icons-react";
@@ -27,6 +30,7 @@ export type SideBarMenuItem = {
 export type SideBarMenus = {
   navMain: SideBarMenuItem[];
   navAdmin: SideBarMenuItem[];
+  navBrandVoice: SideBarMenuItem[];
   navSecondary: SideBarMenuItem[];
 };
 

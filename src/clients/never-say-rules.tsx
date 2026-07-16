@@ -41,11 +41,14 @@ export default function NeverSayRules() {
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const { data, isLoading } = useAppSelector(
-    (state) => state.BrandVoiceReducer.neverSayRules,
+  const {
+    FetchNeverSayRulesData: data,
+    FetchNeverSayRulesIsLoading: isLoading,
+  } = useAppSelector(
+    (state) => state.BrandVoiceReducer.FetchNeverSayRulesState,
   );
-  const isSaving = useAppSelector(
-    (state) => state.BrandVoiceReducer.isSavingNeverSayRules,
+  const { SaveNeverSayRulesIsLoading: isSaving } = useAppSelector(
+    (state) => state.BrandVoiceReducer.SaveNeverSayRulesState,
   );
 
   useEffect(() => {
@@ -134,13 +137,7 @@ export default function NeverSayRules() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <SettingsPageHeader
-        breadcrumb="Brand Voice / Never-Say Rules"
-        title="Never-Say Rules"
-        description="Brand voice is as much about subtraction as addition. These are the hard guardrails on language — kept separate from tone, and verified before any reply is sent."
-      />
-
+    <div className="flex flex-col gap-4 p-4">
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Spinner />

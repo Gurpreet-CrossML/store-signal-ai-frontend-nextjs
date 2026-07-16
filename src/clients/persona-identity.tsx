@@ -43,11 +43,14 @@ export default function PersonaIdentity() {
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const { data, isLoading } = useAppSelector(
-    (state) => state.BrandVoiceReducer.personaIdentity,
+  const {
+    FetchPersonaIdentityData: data,
+    FetchPersonaIdentityIsLoading: isLoading,
+  } = useAppSelector(
+    (state) => state.BrandVoiceReducer.FetchPersonaIdentityState,
   );
-  const isSaving = useAppSelector(
-    (state) => state.BrandVoiceReducer.isSavingPersonaIdentity,
+  const { SavePersonaIdentityIsLoading: isSaving } = useAppSelector(
+    (state) => state.BrandVoiceReducer.SavePersonaIdentityState,
   );
 
   useEffect(() => {
@@ -100,36 +103,7 @@ export default function PersonaIdentity() {
   });
 
   return (
-    <div className="flex flex-col gap-4">
-      <SettingsPageHeader
-        breadcrumb="Brand Voice / Persona Identity"
-        title="Persona Identity"
-        description="Who the AI is when it talks to your customers — its name, role, how it refers to itself, and how it signs off."
-        actions={
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                toast.info("Test Voice", {
-                  description: "Voice testing is coming soon.",
-                })
-              }
-            >
-              Test Voice
-            </Button>
-            <Button
-              type="button"
-              onClick={formik.submitForm}
-              disabled={isSaving}
-            >
-              {isSaving && <Spinner data-icon="inline-start" />}
-              Publish
-            </Button>
-          </>
-        }
-      />
-
+    <div className="flex flex-col gap-4 p-4">
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Spinner />
