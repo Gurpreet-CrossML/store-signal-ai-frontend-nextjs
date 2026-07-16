@@ -22,11 +22,11 @@ export default function SettingsPageHeader({
           <p className="text-xs text-muted-foreground">{breadcrumb}</p>
         )}
         <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          {description}
-        </p>
+        <p className="max-w-2xl text-sm text-muted-foreground">{description}</p>
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex shrink-0 items-center gap-2">{actions}</div>
+      )}
     </div>
   );
 }

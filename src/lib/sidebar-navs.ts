@@ -39,7 +39,6 @@ export const sidebarMenus = {
       url: "/customisation",
       icon: IconImageGeneration,
     },
-
   ],
 
   // Company-admin only (is_staff). Gated in AppSidebar by the session role.
