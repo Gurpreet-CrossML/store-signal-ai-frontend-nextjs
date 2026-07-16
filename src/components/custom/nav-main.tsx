@@ -1,6 +1,6 @@
 "use client";
 
-import { IconChevronRight } from "@tabler/icons-react";
+import { type Icon } from "@tabler/icons-react";
 
 import {
   Select,
