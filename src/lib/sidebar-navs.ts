@@ -5,7 +5,6 @@ import {
   IconBooks,
   IconDashboard,
   IconHelp,
-  IconHeadset,
   IconImageGeneration,
   IconMessage2,
   IconMessageUser,
