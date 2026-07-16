@@ -6,7 +6,6 @@ import z from "zod";
 
 import { Spinner } from "@/components/ui/spinner";
 import NeverSayRulesForm from "@/components/custom/never-say-rules-form";
-import SettingsPageHeader from "@/components/custom/settings-page-header";
 import SettingsSaveBar from "@/components/custom/settings-save-bar";
 import {
   fetchNeverSayRules,
@@ -135,12 +134,6 @@ export default function NeverSayRules() {
 
   return (
     <div className="flex flex-col gap-4">
-      <SettingsPageHeader
-        breadcrumb="Brand Voice / Never-Say Rules"
-        title="Never-Say Rules"
-        description="Brand voice is as much about subtraction as addition. These are the hard guardrails on language — kept separate from tone, and verified before any reply is sent."
-      />
-
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Spinner />
