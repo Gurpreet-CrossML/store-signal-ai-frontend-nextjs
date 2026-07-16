@@ -13,6 +13,7 @@ import {
 import { IconLock } from "@tabler/icons-react";
 import CompanyProfileForm from "@/components/custom/company-profile-form";
 import StaffManagement from "@/components/custom/staff-management";
+import StoreIntegrationsTabContent from "@/components/custom/store-integrations-tab-content";
 
 export default function Settings() {
   const { data: session, status } = useSession();
@@ -41,15 +42,19 @@ export default function Settings() {
   return (
     <div className="p-4">
       <Tabs defaultValue="company" className="gap-4">
-        <TabsList>
+        <TabsList variant="line">
           <TabsTrigger value="company">Company</TabsTrigger>
           <TabsTrigger value="staff">Staff</TabsTrigger>
+          <TabsTrigger value="integrations">Integrations</TabsTrigger>
         </TabsList>
         <TabsContent value="company">
           <CompanyProfileForm />
         </TabsContent>
         <TabsContent value="staff">
           <StaffManagement />
+        </TabsContent>
+        <TabsContent value="integrations">
+          <StoreIntegrationsTabContent />
         </TabsContent>
       </Tabs>
     </div>

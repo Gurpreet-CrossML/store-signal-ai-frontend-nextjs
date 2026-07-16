@@ -121,6 +121,15 @@ export const ENDPOINTS = {
   fetchScrapeLinkTypes: () => `/knowledge/scrape-links/types`,
   createScrapeLink: () => `/knowledge/scrape-links/`,
   fetchScrapeLink: () => `/knowledge/scrape-links`,
+
+  // Integrations
+  fetchIntegrations: () => `/integrations`,
+  // Write — connecting a store to an integration stays on the Django backend.
+  // NOTE: endpoint is still being finalised by the backend dev; adjust the path
+  // here once it's confirmed.
+  connectStoreIntegration: () => `/store/integrations/`,
+  // Detail route — disconnect targets a StoreIntegration by its own object id.
+  storeIntegrationDetail: (id: number) => `/store/integrations/${id}/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

@@ -121,8 +121,9 @@ export default function CompanyProfileForm() {
   if (companyLoading && !companyProfile) {
     return (
       <Card>
-        <CardContent className="flex items-center justify-center py-16">
-          <Spinner />
+        <CardContent className="flex h-[300px] items-center justify-center gap-2 text-muted-foreground">
+          <Spinner className="size-5" />
+          Loading…
         </CardContent>
       </Card>
     );
