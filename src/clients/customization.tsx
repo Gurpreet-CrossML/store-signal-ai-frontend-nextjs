@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
-  CreateWidgetCustomization,
   FetchWidgetCustomization,
   UpdateWidgetCustomization,
   UpdateWidgetCustomizationWithImage,
@@ -300,20 +299,7 @@ export default function Customization() {
     setSavingAll(true);
     try {
       let result;
-      if (!widgetExists) {
-        result = await dispatch(
-          CreateWidgetCustomization({ storeId, payload }),
-        );
-        if (CreateWidgetCustomization.fulfilled.match(result) && logoFile) {
-          result = await dispatch(
-            UpdateWidgetCustomizationWithImage({
-              storeId,
-              payload: {},
-              logoFile,
-            }),
-          );
-        }
-      } else if (logoFile) {
+      if (logoFile) {
         result = await dispatch(
           UpdateWidgetCustomizationWithImage({ storeId, payload, logoFile }),
         );
@@ -324,7 +310,6 @@ export default function Customization() {
       }
 
       const fulfilled =
-        CreateWidgetCustomization.fulfilled.match(result) ||
         UpdateWidgetCustomization.fulfilled.match(result) ||
         UpdateWidgetCustomizationWithImage.fulfilled.match(result);
 
