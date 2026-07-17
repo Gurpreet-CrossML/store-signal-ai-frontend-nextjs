@@ -68,6 +68,15 @@ export const ENDPOINTS = {
   // Store Management
   fetchStoresList: () => "/store/list",
 
+  // Shopify OAuth onboarding (Django). `shopifyInstall` is authenticated (JWT):
+  // call it through axiosInstance with `useBackend: true`; it returns Shopify's
+  // authorize URL to open in a new tab. `shopifyCallback` is Shopify's browser
+  // redirect target — configured on the backend, never called from here; it
+  // 302s to the frontend /onboarding/connected|connect-error pages.
+  shopifyInstall: (shop: string, name: string) =>
+    `/store/shopify/install/?shop=${encodeURIComponent(shop)}&name=${encodeURIComponent(name)}`,
+  shopifyCallback: () => createAPIUrl("/store/shopify/callback/", "django"),
+
   // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
   // Next.js issues a 308 redirect (an extra round-trip) before each call.
   // fetchDashboard consolidates the 5 summary calls into one request.

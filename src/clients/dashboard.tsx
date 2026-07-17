@@ -20,6 +20,16 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import { OnboardingOverlay } from "@/components/custom/onboarding/onboarding-overlay";
+import { OnboardingBanner } from "@/components/custom/onboarding/onboarding-banner";
+import { onboardingDoneKey } from "@/lib/onboarding";
+import {
+  hydrateOnboarding,
+  openOnboarding,
+  closeOnboarding,
+  completeOnboarding,
+} from "@/redux/api-slice/onboarding-slice";
 
 const toISODate = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -50,6 +60,29 @@ const InfoIcon = ({ text }: { text: string }) => (
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();
+
+  // Onboarding: on landing here we open the setup overlay until it's finished.
+  // Dismissing it (X) drops to a resume banner above Performance Summary. State
+  // lives in Redux so the mount effect only dispatches (never sets state
+  // directly in an effect).
+  const { data: session } = useSession();
+  const companyCode = session?.user?.company_code ?? null;
+  const { completed: onboardingDone, overlayOpen: onboardingOpen } =
+    useAppSelector((s) => s.GetOnboardingReducer);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !companyCode) return;
+    const done = localStorage.getItem(onboardingDoneKey(companyCode)) === "1";
+    dispatch(hydrateOnboarding(done));
+  }, [companyCode, dispatch]);
+
+  const handleCompleteOnboarding = () => {
+    if (typeof window !== "undefined" && companyCode) {
+      localStorage.setItem(onboardingDoneKey(companyCode), "1");
+    }
+    dispatch(completeOnboarding());
+  };
+
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -256,6 +289,14 @@ export default function Dashboard() {
 
   return (
     <>
+      {onboardingDone === false && !onboardingOpen && (
+        <OnboardingBanner onOpen={() => dispatch(openOnboarding())} />
+      )}
+      <OnboardingOverlay
+        open={onboardingOpen}
+        onClose={() => dispatch(closeOnboarding())}
+        onComplete={handleCompleteOnboarding}
+      />
       <div className="px-6 py-2">
         <h3 className="text-lg font-semibold text-foreground mb-6">
           Performance Summary

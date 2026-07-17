@@ -42,7 +42,12 @@ export default function MainLayout({
   );
   const pathname = usePathname();
 
-  if (pathname === "/login" || pathname === "/register") {
+  // Auth + onboarding run outside the dashboard shell (no sidebar/header).
+  if (
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname?.startsWith("/onboarding")
+  ) {
     return <>{children}</>;
   }
 
