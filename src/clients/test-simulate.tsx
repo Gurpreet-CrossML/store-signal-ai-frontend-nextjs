@@ -415,8 +415,6 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
               threadData.messages.map(toSimulationMessage),
             ),
           );
-        } else {
-          activeSessionId = "";
         }
       }
 
