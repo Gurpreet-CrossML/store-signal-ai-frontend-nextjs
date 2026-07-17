@@ -129,7 +129,7 @@ export const authUserRelations = relations(authUser, ({ many }) => ({
     relationName: "storeAccess_userId_authUser_id",
   }),
   chatThreads: many(chatThread),
-  chatHistory: many(chatHistory),
+  chatHistorys: many(chatHistory),
 }));
 
 export const authUserUserPermissionsRelations = relations(
@@ -201,7 +201,6 @@ export const storeRelations = relations(store, ({ many }) => ({
   chatThreads: many(chatThread),
   scrapeLinkslinkss: many(scrapeLinkslinks),
   knowledgeStorelibrarydocuments: many(knowledgeStorelibrarydocument),
-  supportTickets: many(supportTicket),
   supportTickets: many(supportTicket),
   storeIntegrations: many(storeIntegration),
   vocabularys: many(vocabulary),
@@ -334,7 +333,7 @@ export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
   }),
   userMetadatas: many(userMetadata),
   fraudFlags: many(fraudFlag),
-  chatHistory: many(chatHistory),
+  chatHistorys: many(chatHistory),
   supportTickets: many(supportTicket),
 }));
 

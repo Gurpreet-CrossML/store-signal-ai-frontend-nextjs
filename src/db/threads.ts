@@ -12,7 +12,6 @@ import {
   userMetadata,
   sessionResolutionVerdict,
   chatCustomerorder,
-  chatCustomerorder,
 } from "@/lib/drizzle/schema";
 import {
   and,
