@@ -17,7 +17,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarGroupLabel,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
