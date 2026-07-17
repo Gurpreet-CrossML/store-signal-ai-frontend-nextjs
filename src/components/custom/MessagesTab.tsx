@@ -26,11 +26,17 @@ export function MessagesTab() {
   const latestAssistant = [...messages]
     .reverse()
     .find((message) => message.role === "assistant");
+  const feedbackAssistant = [...messages].reverse().find(
+    (message) =>
+      message.role === "assistant" &&
+      message.json_content?.is_feedback_flow === true &&
+      message.json_content?.feedback_step === "awaiting_rating",
+  );
 
   const isFeedbackFlow =
     latestAssistant?.json_content?.is_feedback_flow === true;
   const feedbackStep = latestAssistant?.json_content?.feedback_step;
-  const showFeedback = isFeedbackFlow && feedbackStep === "awaiting_rating";
+  const showFeedback = Boolean(feedbackAssistant);
   const showGreeting = messages.length === 0;
   const suggestions = showGreeting
     ? DEFAULT_SUGGESTIONS
@@ -120,7 +126,7 @@ export function MessagesTab() {
 
           {showFeedback && (
             <FeedbackCard
-              ratingChoices={latestAssistant?.json_content?.rating_choices}
+              ratingChoices={feedbackAssistant?.json_content?.rating_choices}
               onDone={() => void resetChat()}
             />
           )}

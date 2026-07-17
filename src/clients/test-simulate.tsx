@@ -240,6 +240,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
   const chatSocketRef = useRef<WebSocket | null>(null);
   const streamBufferRef = useRef("");
   const selectedStoreRef = useRef<string | null>(null);
+  const closedThreadResetTimerRef = useRef<number | null>(null);
   const sessionInitializationRef = useRef<() => Promise<void>>(async () => {});
 
   const handleSocketMessage = useCallback(async (event: MessageEvent) => {
@@ -296,18 +297,39 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
 
       if (data.action_type === "message" && data.final_update) {
         const finalJson = data.final_update;
+        const jsonContent = {
+          ...(finalJson.json_content || {}),
+          ...(finalJson.is_feedback_flow !== undefined && {
+            is_feedback_flow:
+              finalJson.is_feedback_flow === true ||
+              finalJson.is_feedback_flow === "true",
+          }),
+          ...(finalJson.feedback_step && {
+            feedback_step: finalJson.feedback_step,
+          }),
+          ...(finalJson.rating_choices && {
+            rating_choices: finalJson.rating_choices,
+          }),
+        };
+        const isAwaitingFeedback =
+          jsonContent.is_feedback_flow === true &&
+          jsonContent.feedback_step === "awaiting_rating";
+
+        if (isAwaitingFeedback && closedThreadResetTimerRef.current) {
+          window.clearTimeout(closedThreadResetTimerRef.current);
+          closedThreadResetTimerRef.current = null;
+          setReInitializing(false);
+        }
 
         if (
-          finalJson?.is_active === false ||
-          finalJson?.is_active === "false"
+          !isAwaitingFeedback &&
+          (finalJson?.is_active === false || finalJson?.is_active === "false")
         ) {
           setReInitializing(true);
-          if (chatSocketRef.current) {
-            chatSocketRef.current.onmessage = null;
-          }
-          window.setTimeout(async () => {
+          closedThreadResetTimerRef.current = window.setTimeout(async () => {
             if (chatSocketRef.current) {
               chatSocketRef.current.onclose = null;
+              chatSocketRef.current.onmessage = null;
               chatSocketRef.current.close();
               chatSocketRef.current = null;
             }
@@ -316,6 +338,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
             setMessages([]);
             await sessionInitializationRef.current();
             setReInitializing(false);
+            closedThreadResetTimerRef.current = null;
           }, 5000);
         }
 
@@ -325,7 +348,6 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
             show_suggestions: false,
           }));
           const lastMessage = updated[updated.length - 1];
-          const jsonContent = finalJson.json_content || {};
           const finalMessage: Message = {
             id: finalJson.id,
             role: finalJson.role === "user" ? "user" : "assistant",
@@ -440,6 +462,11 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
 
   const resetChat = useCallback(async () => {
     try {
+      if (closedThreadResetTimerRef.current) {
+        window.clearTimeout(closedThreadResetTimerRef.current);
+        closedThreadResetTimerRef.current = null;
+      }
+
       if (chatSocketRef.current) {
         chatSocketRef.current.onclose = null;
         chatSocketRef.current.onmessage = null;
@@ -578,6 +605,11 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
     }, 0);
 
     return () => {
+      if (closedThreadResetTimerRef.current) {
+        window.clearTimeout(closedThreadResetTimerRef.current);
+        closedThreadResetTimerRef.current = null;
+      }
+
       if (chatSocketRef.current) {
         chatSocketRef.current.onclose = null;
         chatSocketRef.current.onmessage = null;
