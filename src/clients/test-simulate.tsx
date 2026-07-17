@@ -422,7 +422,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
 
       if (!activeSessionId) {
         const createdThread = await dispatch(
-          CreateThread({ store_code: selectedStore }),
+          CreateThread({ store_code: selectedStore, is_test: true }),
         ).unwrap();
         activeSessionId = createdThread?.thread_id || "";
       }

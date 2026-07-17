@@ -265,6 +265,11 @@ export type CreateThreadResponse = {
   thread_id: string;
 };
 
+export type CreateThreadArgs = {
+  store_code: string;
+  is_test?: boolean;
+};
+
 export type SubmitMessageFeedbackArgs = {
   rating: string;
   thread_id: string;
@@ -386,10 +391,11 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
 
 export const CreateThread = createAsyncThunk(
   "CreateThread",
-  async ({ store_code }: { store_code: string }, thunkAPI) => {
+  async ({ store_code, is_test }: CreateThreadArgs, thunkAPI) => {
     try {
       const response = await axiosInstance.post(ENDPOINTS.createThread(), {
         store_code,
+        ...(is_test !== undefined && { is_test }),
       });
       const data = response.data.data as CreateThreadResponse;
 
