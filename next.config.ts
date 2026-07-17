@@ -33,6 +33,12 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/support_attachments/**",
       },
+      {
+        protocol: "https",
+        hostname: "store-signals-ai-dev-s3.s3.amazonaws.com",
+        port: "",
+        pathname: "/tone_preset/**",
+      },
     ],
   },
 };

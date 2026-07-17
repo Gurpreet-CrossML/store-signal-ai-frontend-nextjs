@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
 import { axiosInstance } from "@/redux/axios-config";
 import type {
+  TonePresetRecord,
   ToneStylePayload,
   ToneStyleRecord,
   VocabularyPayload,
@@ -56,6 +57,9 @@ function getErrorDescription(fallback: string, data: unknown): string {
 }
 
 type BrandVoiceState = {
+  tonePresets: {
+    fetch: AsyncState<TonePresetRecord[]>;
+  };
   toneStyle: {
     fetch: AsyncState<ToneStyleRecord>;
     save: AsyncState<ToneStyleRecord>;
@@ -67,6 +71,9 @@ type BrandVoiceState = {
 };
 
 const initialState: BrandVoiceState = {
+  tonePresets: {
+    fetch: createAsyncState<TonePresetRecord[]>(),
+  },
   toneStyle: {
     fetch: createAsyncState<ToneStyleRecord>(),
     save: createAsyncState<ToneStyleRecord>(),
@@ -91,6 +98,27 @@ export const GetToneStyle = createAsyncThunk<ToneStyleRecord | null, string>(
       toast.error("Uh oh! Something went wrong.", {
         description: getErrorDescription(
           "Unable to fetch the Tone & Style, please try again later.",
+          data,
+        ),
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const GetTonePresets = createAsyncThunk<TonePresetRecord[], void>(
+  "brandVoice/getTonePresets",
+  async (_, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(ENDPOINTS.fetchTonePresets());
+      const data = response.data.data;
+      return Array.isArray(data) ? (data as TonePresetRecord[]) : [];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: getErrorDescription(
+          "Unable to fetch the Tone presets, please try again later.",
           data,
         ),
       });
@@ -175,6 +203,22 @@ const BrandVoiceSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
+      .addCase(GetTonePresets.pending, (state) => {
+        state.tonePresets.fetch.isLoading = true;
+        state.tonePresets.fetch.isSuccess = false;
+        state.tonePresets.fetch.isError = null;
+      })
+      .addCase(GetTonePresets.fulfilled, (state, action) => {
+        state.tonePresets.fetch.isLoading = false;
+        state.tonePresets.fetch.isSuccess = true;
+        state.tonePresets.fetch.data = action.payload;
+      })
+      .addCase(GetTonePresets.rejected, (state, action) => {
+        state.tonePresets.fetch.isLoading = false;
+        state.tonePresets.fetch.isSuccess = false;
+        state.tonePresets.fetch.isError =
+          action.payload || "Something went wrong";
+      })
       .addCase(GetToneStyle.pending, (state) => {
         state.toneStyle.fetch.isLoading = true;
         state.toneStyle.fetch.isSuccess = false;

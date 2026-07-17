@@ -126,6 +126,7 @@ export const ENDPOINTS = {
 
   // Brand Voice reads use the local DB-backed chat routes; writes go straight to
   // Django's upsert endpoints.
+  fetchTonePresets: () => `/chat/tone-presets`,
   fetchToneStyle: () => `/chat/tone-style`,
   fetchVocabulary: () => `/chat/vocabulary`,
   saveToneStyle: () => `/chat/tone-style/`,

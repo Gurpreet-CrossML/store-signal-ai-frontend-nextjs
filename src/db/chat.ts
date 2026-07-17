@@ -1,12 +1,14 @@
 import { getDb, resolveStoreScope } from "@/lib/tenant-context";
 import {
   store,
+  tonePreset,
   toneStyle,
   vocabulary,
   vocabularyWordReplacements,
   wordReplacement,
 } from "@/lib/drizzle/schema";
 import { asc, eq } from "drizzle-orm";
+import { getAbsoluteS3Url } from "@/lib/url";
 
 /**
  * Brand Voice domain helpers.
@@ -16,7 +18,7 @@ import { asc, eq } from "drizzle-orm";
  */
 
 export type ToneStyleRecord = {
-  preset: string;
+  preset: number;
   warmth: number;
   formality: number;
   energy: number;
@@ -34,6 +36,20 @@ export type ToneStylePayload = Omit<
   ToneStyleRecord,
   "created_at" | "updated_at"
 >;
+
+export type TonePresetRecord = {
+  id: number;
+  name: string;
+  description: string;
+  icon: string | null;
+  warmth: number;
+  formality: number;
+  energy: number;
+  playfulness: number;
+  directness: number;
+  preview_question: string;
+  preview_message: string;
+};
 
 export type WordReplacementRecord = {
   id: number;
@@ -61,7 +77,7 @@ export type VocabularyPayload = {
 };
 
 const DEFAULT_TONE_STYLE = {
-  preset: "friendly",
+  preset: 0,
   warmth: 50,
   formality: 50,
   energy: 50,
@@ -84,10 +100,11 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-export function buildToneStyleDefaults(): ToneStyleRecord {
+export function buildToneStyleDefaults(presetId = 0): ToneStyleRecord {
   const timestamp = nowIso();
   return {
     ...DEFAULT_TONE_STYLE,
+    preset: presetId,
     created_at: timestamp,
     updated_at: timestamp,
   };
@@ -141,7 +158,7 @@ export async function getToneStyle(
   const db = getDb();
   const rows = await db
     .select({
-      preset: toneStyle.preset,
+      preset: toneStyle.presetId,
       warmth: toneStyle.warmth,
       formality: toneStyle.formality,
       energy: toneStyle.energy,
@@ -159,6 +176,31 @@ export async function getToneStyle(
     .limit(1);
 
   return rows[0] ?? null;
+}
+
+export async function listTonePresets(): Promise<TonePresetRecord[]> {
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: tonePreset.id,
+      name: tonePreset.name,
+      description: tonePreset.description,
+      icon: tonePreset.icon,
+      warmth: tonePreset.warmth,
+      formality: tonePreset.formality,
+      energy: tonePreset.energy,
+      playfulness: tonePreset.playfulness,
+      directness: tonePreset.directness,
+      preview_question: tonePreset.previewQuestion,
+      preview_message: tonePreset.previewMessage,
+    })
+    .from(tonePreset)
+    .orderBy(asc(tonePreset.id));
+
+  return rows.map((row) => ({
+    ...row,
+    icon: row.icon ? getAbsoluteS3Url(row.icon) : null,
+  }));
 }
 
 export async function getVocabulary(

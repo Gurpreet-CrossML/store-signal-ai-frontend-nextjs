@@ -3,66 +3,16 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import type { TonePresetRecord } from "@/db/chat";
 import { cn } from "@/lib/utils";
 
-export type TonePreviewConfig = {
-  hero: {
-    title: string;
-    description: string;
-  };
-  preview: {
-    customerLabel: string;
-    assistantLabel: string;
-    customerMessage: string;
-    assistantTemplates: Record<string, string>;
-    thresholds: {
-      high: number;
-      medium: number;
-    };
-    assistantMessage: {
-      opener: {
-        warmthHigh: string;
-        formalityHigh: string;
-        directnessHigh: string;
-        fallback: string;
-      };
-      detail: Record<"concise" | "standard" | "thorough", string>;
-      closer: {
-        playfulnessHigh: string;
-        energyHigh: string;
-        bulletPoints: string;
-        paragraph: string;
-      };
-    };
-  };
-  insights: {
-    warmth: Record<"high" | "medium" | "low", string>;
-    formality: Record<"high" | "medium" | "low", string>;
-    energy: Record<"high" | "medium" | "low", string>;
-    playfulness: Record<"high" | "medium" | "low", string>;
-    directness: Record<"high" | "medium" | "low", string>;
-    answer_length: Record<"concise" | "standard" | "thorough", string>;
-    frequency_policy: Record<
-      "none" | "sparing" | "moderate" | "liberal" | "free",
-      string
-    >;
-    regional_spelling: Record<"uk" | "us" | "auto", string>;
-    use_bullet_points: Record<"true" | "false", string>;
-  };
-};
-
 type ToneStylePreviewPanelProps = {
-  preset: string;
+  preset: TonePresetRecord | null;
   modeLabel: string;
   modeDescription: string;
-  presetOrder: readonly string[];
-  customerMessage: string;
-  assistantMessage: string;
-  insightRows: Array<{ label: string; value: string }>;
-  summaryRows: Array<{ label: string; value: string }>;
-  previewConfig: TonePreviewConfig;
+  presetOrder: readonly TonePresetRecord[];
   currentProfile: {
-    preset: string;
+    preset: number;
     warmth: number;
     formality: number;
     energy: number;
@@ -77,24 +27,11 @@ export default function ToneStylePreviewPanel({
   modeLabel,
   modeDescription,
   presetOrder,
-  customerMessage,
-  assistantMessage,
-  insightRows,
-  summaryRows,
-  previewConfig,
   currentProfile,
 }: ToneStylePreviewPanelProps) {
-  const presetLabel =
-    typeof preset === "string" && preset.trim()
-      ? preset.replaceAll("_", " ")
-      : "custom";
-  const assistantLines = assistantMessage
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const assistantBullets = assistantLines.every((line) =>
-    line.startsWith("- "),
-  );
+  const presetLabel = preset?.name ?? "Custom";
+  const customerMessage = preset?.preview_question ?? "";
+  const assistantMessage = preset?.preview_message ?? "";
 
   return (
     <Card className="sticky top-4 gap-0 overflow-hidden border-border/60 bg-background/95 shadow-sm backdrop-blur">
@@ -103,7 +40,7 @@ export default function ToneStylePreviewPanel({
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <h2 className="font-heading text-base font-medium">
-                {previewConfig.hero.title}
+                Tone & Style
               </h2>
               <Badge variant="secondary" className="font-normal">
                 {modeLabel}
@@ -129,19 +66,9 @@ export default function ToneStylePreviewPanel({
             <div className="flex justify-start">
               <div className="max-w-[90%] rounded-2xl rounded-bl-md border border-primary/15 bg-primary/10 px-4 py-3 text-sm leading-relaxed text-foreground shadow-sm">
                 <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {previewConfig.preview.assistantLabel}
+                  Assistant
                 </div>
-                {assistantBullets ? (
-                  <ul className="space-y-2 pl-5">
-                    {assistantLines.map((line) => (
-                      <li key={line} className="list-disc">
-                        {line.replace(/^- /, "")}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>{assistantMessage}</p>
-                )}
+                <p>{assistantMessage}</p>
               </div>
             </div>
           </div>
@@ -154,22 +81,65 @@ export default function ToneStylePreviewPanel({
             </h3>
           </div>
           <div className="space-y-3">
-            {insightRows.map((row) => (
-              <div key={row.label}>
-                <div className="flex items-start gap-3">
-                  <Badge
-                    variant="outline"
-                    className={cn("min-w-24 justify-center font-normal")}
-                  >
-                    {row.label}
-                  </Badge>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {row.value}
-                  </p>
-                </div>
-                <Separator className="mt-3" />
-              </div>
-            ))}
+            <div className="flex items-start gap-3">
+              <Badge
+                variant="outline"
+                className={cn("min-w-24 justify-center font-normal")}
+              >
+                Warmth
+              </Badge>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {currentProfile.warmth}
+              </p>
+            </div>
+            <Separator />
+            <div className="flex items-start gap-3">
+              <Badge
+                variant="outline"
+                className={cn("min-w-24 justify-center font-normal")}
+              >
+                Formality
+              </Badge>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {currentProfile.formality}
+              </p>
+            </div>
+            <Separator />
+            <div className="flex items-start gap-3">
+              <Badge
+                variant="outline"
+                className={cn("min-w-24 justify-center font-normal")}
+              >
+                Energy
+              </Badge>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {currentProfile.energy}
+              </p>
+            </div>
+            <Separator />
+            <div className="flex items-start gap-3">
+              <Badge
+                variant="outline"
+                className={cn("min-w-24 justify-center font-normal")}
+              >
+                Playfulness
+              </Badge>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {currentProfile.playfulness}
+              </p>
+            </div>
+            <Separator />
+            <div className="flex items-start gap-3">
+              <Badge
+                variant="outline"
+                className={cn("min-w-24 justify-center font-normal")}
+              >
+                Directness
+              </Badge>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {currentProfile.directness}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -178,19 +148,28 @@ export default function ToneStylePreviewPanel({
             Structure & expression
           </h3>
           <div className="flex flex-col gap-3">
-            {summaryRows.map((row) => (
-              <div key={row.label} className="flex items-start gap-3 text-sm">
-                <Badge
-                  variant="secondary"
-                  className="min-w-24 justify-center font-normal"
-                >
-                  {row.label}
-                </Badge>
-                <p className="leading-relaxed text-muted-foreground">
-                  {row.value}
-                </p>
-              </div>
-            ))}
+            <div className="flex items-start gap-3 text-sm">
+              <Badge
+                variant="secondary"
+                className="min-w-24 justify-center font-normal"
+              >
+                Preset ID
+              </Badge>
+              <p className="leading-relaxed text-muted-foreground">
+                {currentProfile.preset}
+              </p>
+            </div>
+            <div className="flex items-start gap-3 text-sm">
+              <Badge
+                variant="secondary"
+                className="min-w-24 justify-center font-normal"
+              >
+                Bullet points
+              </Badge>
+              <p className="leading-relaxed text-muted-foreground">
+                {currentProfile.useBulletPoints ? "Enabled" : "Disabled"}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -202,42 +181,23 @@ export default function ToneStylePreviewPanel({
             <div className="flex flex-wrap gap-2">
               {presetOrder.map((p) => (
                 <Badge
-                  key={p}
-                  variant={currentProfile.preset === p ? "default" : "outline"}
+                  key={p.id}
+                  variant={
+                    currentProfile.preset === p.id ? "default" : "outline"
+                  }
                   className="font-normal capitalize"
                 >
-                  {p.replaceAll("_", " ")}
+                  {p.name}
                 </Badge>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              {(
-                [
-                  ["Warmth", currentProfile.warmth],
-                  ["Formality", currentProfile.formality],
-                  ["Energy", currentProfile.energy],
-                  ["Playfulness", currentProfile.playfulness],
-                  ["Directness", currentProfile.directness],
-                ] as const
-              ).map(([label, value]) => (
-                <div
-                  key={label}
-                  className="rounded-lg border border-border/60 p-3"
-                >
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    {label}
-                  </p>
-                  <p className="mt-1 font-medium tabular-nums">{value}</p>
-                </div>
-              ))}
-              <div className="rounded-lg border border-border/60 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Bullet points
-                </p>
-                <p className="mt-1 font-medium">
-                  {currentProfile.useBulletPoints ? "Enabled" : "Disabled"}
-                </p>
-              </div>
+            <div className="rounded-lg border border-border/60 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Preview
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                Uses the selected preset&apos;s stored question and answer.
+              </p>
             </div>
           </div>
         </div>

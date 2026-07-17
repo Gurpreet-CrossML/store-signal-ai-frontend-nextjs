@@ -1,21 +1,16 @@
 "use client";
 
-import type { Icon } from "@tabler/icons-react";
+import Image from "next/image";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconMoodSmile } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
-
-type PresetMeta = {
-  key: string;
-  icon: Icon;
-  title: string;
-  description: string;
-};
+import type { TonePresetRecord } from "@/db/chat";
 
 type BrandVoiceTonePresetSelectorProps = {
-  presets: readonly PresetMeta[];
-  activePreset: string;
-  onSelect: (preset: string) => void;
+  presets: readonly TonePresetRecord[];
+  activePreset: number;
+  onSelect: (presetId: number) => void;
 };
 
 export default function BrandVoiceTonePresetSelector({
@@ -38,30 +33,39 @@ export default function BrandVoiceTonePresetSelector({
       <CardContent className="px-5 pb-5">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
           {presets.map((preset) => {
-            const IconComponent = preset.icon;
             return (
               <button
-                key={preset.key}
+                key={preset.id}
                 type="button"
-                onClick={() => onSelect(preset.key)}
+                onClick={() => onSelect(preset.id)}
                 className="text-left"
-                aria-pressed={activePreset === preset.key}
+                aria-pressed={activePreset === preset.id}
               >
                 <Card
                   size="sm"
                   className={cn(
                     "h-full border-border/70 transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-sm",
-                    activePreset === preset.key &&
+                    activePreset === preset.id &&
                       "border-primary bg-primary/10 ring-1 ring-primary/20",
                   )}
                 >
                   <div className="flex h-full flex-col gap-3 px-4 py-4">
-                    <div className="flex size-9 items-center justify-center rounded-md bg-muted text-foreground">
-                      <IconComponent className="size-4" />
+                    <div className="relative flex size-9 items-center justify-center overflow-hidden rounded-md bg-muted text-xs font-medium text-muted-foreground">
+                      {preset.icon ? (
+                        <Image
+                          src={preset.icon}
+                          alt=""
+                          fill
+                          sizes="36px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        preset.name.slice(0, 1).toUpperCase()
+                      )}
                     </div>
                     <div className="flex flex-col gap-1">
                       <h3 className="font-medium leading-tight">
-                        {preset.title}
+                        {preset.name}
                       </h3>
                       <p className="text-xs leading-relaxed text-muted-foreground">
                         {preset.description}
