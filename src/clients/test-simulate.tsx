@@ -462,6 +462,8 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
 
   const resetChat = useCallback(async () => {
     try {
+      setLoading(true);
+
       if (closedThreadResetTimerRef.current) {
         window.clearTimeout(closedThreadResetTimerRef.current);
         closedThreadResetTimerRef.current = null;

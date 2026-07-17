@@ -44,6 +44,52 @@ export function MessageAttachments({ json }: { json?: ThreadJsonContent }) {
 
   const { products, related_products, order_details, cart_details } = json;
 
+  if (json.ticket_details) {
+    const ticket: TicketDetails = json.ticket_details;
+
+    return (
+      <Card className="max-w-sm gap-3 border border-border bg-background py-4 shadow-xs">
+        <CardHeader className="px-4">
+          <CardTitle className="text-sm">
+            Ticket TCK-{ticket.ticket_id}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 px-4 text-sm">
+          {(ticket.customer_email || ticket.customer_name) && (
+            <div className="flex items-center gap-3 rounded-md bg-muted/40 p-3">
+              <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <User className="size-4" />
+              </span>
+              <div className="min-w-0">
+                {ticket.customer_email ? (
+                  <p className="truncate font-medium">
+                    {ticket.customer_email}
+                  </p>
+                ) : null}
+                {ticket.customer_name ? (
+                  <p className="truncate text-xs text-muted-foreground">
+                    {ticket.customer_name}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          )}
+          {ticket.description ? (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground">
+                User Query
+              </p>
+              <p className="mt-1">{ticket.description}</p>
+            </div>
+          ) : null}
+          <p className="border-t pt-3 text-xs text-muted-foreground">
+            Created {formatOrderDate(ticket.created_at)}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (
     (products && products.length > 0) ||
     (related_products && related_products.length > 0)
@@ -263,52 +309,6 @@ export function MessageAttachments({ json }: { json?: ThreadJsonContent }) {
               </a>
             </Button>
           ) : null}
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (json.ticket_details) {
-    const ticket: TicketDetails = json.ticket_details;
-
-    return (
-      <Card className="max-w-sm gap-3 py-4">
-        <CardHeader className="px-4">
-          <CardTitle className="text-sm">
-            Ticket TCK-{ticket.ticket_id}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 px-4 text-sm">
-          {(ticket.customer_email || ticket.customer_name) && (
-            <div className="flex items-center gap-3 rounded-md bg-muted/40 p-3">
-              <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <User className="size-4" />
-              </span>
-              <div className="min-w-0">
-                {ticket.customer_email ? (
-                  <p className="truncate font-medium">
-                    {ticket.customer_email}
-                  </p>
-                ) : null}
-                {ticket.customer_name ? (
-                  <p className="truncate text-xs text-muted-foreground">
-                    {ticket.customer_name}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          )}
-          {ticket.description ? (
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground">
-                User Query
-              </p>
-              <p className="mt-1">{ticket.description}</p>
-            </div>
-          ) : null}
-          <p className="border-t pt-3 text-xs text-muted-foreground">
-            Created {formatOrderDate(ticket.created_at)}
-          </p>
         </CardContent>
       </Card>
     );
