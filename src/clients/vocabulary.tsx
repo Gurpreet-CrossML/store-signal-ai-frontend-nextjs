@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useFormik, setIn } from "formik";
 import z from "zod";
-import { IconDeviceFloppy } from "@tabler/icons-react";
 
 import BrandVoiceVocabularyChipLists from "@/components/custom/brand-voice-vocabulary-chip-lists";
 import BrandVoiceVocabularySummary from "@/components/custom/brand-voice-vocabulary-summary";
@@ -20,11 +19,6 @@ import {
   SaveVocabulary,
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import type {
-  VocabularyPayload,
-  VocabularyRecord,
-  WordReplacementPayload,
-} from "@/db/chat";
 
 // Types
 
