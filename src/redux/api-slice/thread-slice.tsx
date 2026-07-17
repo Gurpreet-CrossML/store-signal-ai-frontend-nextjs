@@ -56,7 +56,6 @@ export type OrderItem = {
   price?: string | number;
   product_id?: string | number;
   quantity?: number;
-  qty?: number;
   variant_id?: string | number;
 };
 export type OrderDetail = {

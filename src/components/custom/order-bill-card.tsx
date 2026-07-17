@@ -117,7 +117,7 @@ export default function OrderBillCard({ order }: { order: OrderDetail }) {
           <div className="flex flex-col">
             {items.map((item) => {
               const unit = toNumber(item.price);
-              const quantity = Number(item.quantity ?? item.qty) || 0;
+              const quantity = Number(item.quantity) || 0;
               const lineTotal = Number.isNaN(unit)
                 ? "—"
                 : `${currencySymbol(item.price)}${(unit * quantity).toFixed(2)}`;

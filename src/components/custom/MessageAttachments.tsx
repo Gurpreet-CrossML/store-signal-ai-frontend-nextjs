@@ -82,7 +82,7 @@ export function MessageAttachments({ json }: { json?: ThreadJsonContent }) {
       toTitleCase(order.fulfillment_status) || "Processing";
     const items = Array.isArray(order.items) ? order.items : [];
     const totalQuantity = items.reduce(
-      (sum, item) => sum + (Number(item.quantity ?? item.qty) || 0),
+      (sum, item) => sum + (Number(item.quantity ?? item.quantity) || 0),
       0,
     );
     const subtotal = formatMoney(order.subtotal, order.currency);
@@ -115,7 +115,7 @@ export function MessageAttachments({ json }: { json?: ThreadJsonContent }) {
 
           <div className="space-y-2">
             {items.map((item, index) => {
-              const quantity = Number(item.quantity ?? item.qty) || 0;
+              const quantity = Number(item.quantity) || 0;
               const itemPrice = formatMoney(item.price, order.currency);
               return (
                 <div
