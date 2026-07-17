@@ -165,6 +165,25 @@
   }
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(97, 97, 97, 0.5) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(97, 97, 97, 0.5);
+  border-radius: 20px;
+  border: transparent;
+}
+
 div.editor-container__editor > ol,
 div.editor-container__editor > ul,
 div.editor-container__editor > menu,
