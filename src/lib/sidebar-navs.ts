@@ -1,6 +1,5 @@
 import {
   IconAdjustmentsSpark,
-  IconAdjustmentsHorizontal,
   IconBan,
   IconBook2,
   IconBooks,
@@ -9,12 +8,10 @@ import {
   IconImageGeneration,
   IconMessage2,
   IconMessageUser,
-  IconNotebook,
   IconSearch,
   IconSettings,
   IconShoppingBag,
   IconUserHexagon,
-  IconUser,
   IconVolume,
   IconBolt,
   IconCalendarTime,
@@ -42,7 +39,6 @@ export type SideBarMenuItem = {
 export type SideBarMenus = {
   navMain: SideBarMenuItem[];
   navAdmin: SideBarMenuItem[];
-  navBrandVoice: SideBarMenuItem[];
   navSecondary: SideBarMenuItem[];
 };
 
@@ -59,7 +55,6 @@ export function findMenuItemByUrl(
     const match = item.items && findMenuItemByUrl(item.items, url);
     if (match) return match;
   }
-  return undefined;
 }
 
 export const sidebarMenus: SideBarMenus = {

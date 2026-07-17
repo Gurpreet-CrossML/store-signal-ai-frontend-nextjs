@@ -59,7 +59,6 @@ export default function PersonaIdentity() {
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-
   const { FetchPersonaIdentityData, FetchPersonaIdentityIsLoading } =
     useAppSelector(
       (state) => state.GetBrandVoiceReducer.FetchPersonaIdentityState,
