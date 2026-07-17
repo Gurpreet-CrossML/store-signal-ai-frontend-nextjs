@@ -82,7 +82,7 @@ export const GetToneStyle = createAsyncThunk<ToneStyleRecord | null, string>(
   async (storeCode, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchToneStyle()}&store_code=${encodeURIComponent(storeCode)}`,
+        `${ENDPOINTS.fetchToneStyle()}?store_code=${encodeURIComponent(storeCode)}`,
       );
       return response.data.data as ToneStyleRecord | null;
     } catch (error) {
@@ -128,7 +128,7 @@ export const GetVocabulary = createAsyncThunk<VocabularyRecord | null, string>(
   async (storeCode, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchVocabulary()}&store_code=${encodeURIComponent(storeCode)}`,
+        `${ENDPOINTS.fetchVocabulary()}?store_code=${encodeURIComponent(storeCode)}`,
       );
       return response.data.data as VocabularyRecord | null;
     } catch (error) {

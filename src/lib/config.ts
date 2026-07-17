@@ -124,10 +124,10 @@ export const ENDPOINTS = {
   // Detail route — disconnect targets a StoreIntegration by its own object id.
   storeIntegrationDetail: (id: number) => `/store/integrations/${id}/`,
 
-  // Brand Voice reads use the local DB-backed index route; writes go straight to
+  // Brand Voice reads use the local DB-backed chat routes; writes go straight to
   // Django's upsert endpoints.
-  fetchToneStyle: () => `/brand-voice?feature=tone-style`,
-  fetchVocabulary: () => `/brand-voice?feature=vocabulary`,
+  fetchToneStyle: () => `/chat/tone-style`,
+  fetchVocabulary: () => `/chat/vocabulary`,
   saveToneStyle: () => `/chat/tone-style/`,
   saveVocabulary: () => `/chat/vocabulary/`,
 };
