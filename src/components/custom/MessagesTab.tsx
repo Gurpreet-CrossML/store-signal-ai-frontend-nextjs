@@ -58,7 +58,7 @@ export function MessagesTab() {
         ref={messageContainerRef}
         className="min-h-0 flex-1 overflow-y-auto pr-1"
       >
-        <div className="space-y-4">
+        <div className="space-y-0">
           {showGreeting && (
             <MessageBubble
               message={{
@@ -118,12 +118,12 @@ export function MessagesTab() {
             </div>
           ) : null}
 
-          {showFeedback ? (
+          {showFeedback && (
             <FeedbackCard
               ratingChoices={latestAssistant?.json_content?.rating_choices}
               onDone={() => void resetChat()}
             />
-          ) : null}
+          )}
         </div>
       </div>
 

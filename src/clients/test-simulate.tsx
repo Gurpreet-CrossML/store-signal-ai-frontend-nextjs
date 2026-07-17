@@ -244,7 +244,6 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
 
   const handleSocketMessage = useCallback(async (event: MessageEvent) => {
     try {
-      setIsStreaming(true);
       const data = JSON.parse(event.data);
 
       if (!data?.success || data?.sender === "customer") return;
@@ -260,6 +259,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
       }
 
       if (data.action_type === "message" && data.chunk) {
+        setIsStreaming(true);
         await sleep(STREAM_CHUNK_MS);
         streamBufferRef.current += data.chunk;
 
