@@ -9,8 +9,8 @@ const SAMPLE_CUSTOMER_MESSAGE =
   "Hi there, I'm here to ask about an order I placed. Can you help me out?";
 
 type PersonaIdentityLivePreviewProps = {
-  name: string;
-  roleDescription: string;
+  name?: string;
+  roleDescription?: string;
   selfReference: SelfReference;
 };
 
@@ -19,8 +19,8 @@ export default function PersonaIdentityLivePreview({
   roleDescription,
   selfReference,
 }: PersonaIdentityLivePreviewProps) {
-  const displayName = name.trim() || "Your agent";
-  const role = roleDescription.trim() || "a helpful assistant";
+  const displayName = name?.trim() || "Your agent";
+  const role = roleDescription?.trim() || "a helpful assistant";
   const pronoun = selfReference === "we" ? "We" : "I";
   const introVerb = selfReference === "we" ? "We're" : "I'm";
   const pronounLower = pronoun.toLowerCase();

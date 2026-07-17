@@ -16,7 +16,7 @@ const store = configureStore({
     GetKnowledgeReducer: KnowledgeSlice,
     GetCustomizationReducer: CustomizationSlice,
     GetTenancyReducer: TenancySlice,
-    BrandVoiceReducer: BrandVoiceSlice,
+    GetBrandVoiceReducer: BrandVoiceSlice,
     GetIntegrationReducer: IntegrationSlice,
   },
 });
