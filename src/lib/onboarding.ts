@@ -25,11 +25,25 @@ export type OAuthMessage =
   | { type: "connected"; shop: string; store: string | null }
   | { type: "error"; message: string };
 
-export type ScopeAccess = "read" | "write";
+export type CompactScope = { name: string; read: boolean; write: boolean };
 
-/** A scope grants write access if its name carries the `write` verb. */
-export function scopeAccess(scope: string): ScopeAccess {
-  return scope.includes("write") ? "write" : "read";
+/**
+ * Collapse read_/write_ scope pairs into one display row: "read_orders" +
+ * "write_orders" → { name: "orders", read, write }. The `customer_` /
+ * `unauthenticated_` prefixes survive in the name (e.g. "customer_orders"),
+ * so each row still identifies the exact API surface being granted.
+ */
+export function compactScopes(scopes: string[]): CompactScope[] {
+  const rows = new Map<string, CompactScope>();
+  for (const scope of scopes) {
+    const match = scope.match(/^(customer_|unauthenticated_)?(read|write)_(.+)$/);
+    const name = match ? `${match[1] ?? ""}${match[3]}` : scope;
+    const row = rows.get(name) ?? { name, read: false, write: false };
+    if (match?.[2] === "write") row.write = true;
+    else row.read = true;
+    rows.set(name, row);
+  }
+  return [...rows.values()];
 }
 
 // Where we record that a company finished onboarding, so the dashboard overlay

@@ -72,7 +72,7 @@ export default function StaffForm({
         <SheetHeader>
           <SheetTitle>Add Staff User</SheetTitle>
           <SheetDescription>
-            Create a staff account for your company. A temporary password is
+            Create a staff account for your company. A password is
             auto-generated and emailed to them. Store-level access is granted
             separately.
           </SheetDescription>

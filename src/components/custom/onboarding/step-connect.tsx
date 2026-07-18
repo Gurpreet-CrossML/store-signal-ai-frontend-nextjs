@@ -11,7 +11,11 @@ import {
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 import { IconLock, IconArrowRight } from "@tabler/icons-react";
-import { SHOPIFY_PERMISSION_GROUPS, scopeAccess } from "@/lib/onboarding";
+import {
+  SHOPIFY_PERMISSION_GROUPS,
+  compactScopes,
+  type CompactScope,
+} from "@/lib/onboarding";
 import { OnboardingHeader } from "./onboarding-header";
 
 function PlatformCard({
@@ -57,21 +61,22 @@ function PlatformCard({
   );
 }
 
-function ScopeRow({ scope }: { scope: string }) {
-  const access = scopeAccess(scope);
+function ScopeRow({ scope }: { scope: CompactScope }) {
   return (
     <div className="flex items-center justify-between gap-3 py-1.5">
-      <code className="text-xs text-muted-foreground">{scope}</code>
-      <Badge
-        className={cn(
-          "shrink-0 capitalize",
-          access === "write"
-            ? "border-amber-200 bg-amber-50 text-amber-600"
-            : "border-primary/20 bg-primary/10 text-primary",
+      <code className="text-xs text-muted-foreground">{scope.name}</code>
+      <span className="flex shrink-0 items-center gap-1.5">
+        {scope.read && (
+          <Badge className="border-primary/20 bg-primary/10 text-primary">
+            Read
+          </Badge>
         )}
-      >
-        {access}
-      </Badge>
+        {scope.write && (
+          <Badge className="border-amber-200 bg-amber-50 text-amber-600">
+            Write
+          </Badge>
+        )}
+      </span>
     </div>
   );
 }
@@ -128,8 +133,8 @@ export function StepConnect({ onNext }: { onNext: () => void }) {
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="divide-y divide-dashed">
-                      {group.scopes.map((scope) => (
-                        <ScopeRow key={scope} scope={scope} />
+                      {compactScopes(group.scopes).map((scope) => (
+                        <ScopeRow key={scope.name} scope={scope} />
                       ))}
                     </div>
                   </AccordionContent>

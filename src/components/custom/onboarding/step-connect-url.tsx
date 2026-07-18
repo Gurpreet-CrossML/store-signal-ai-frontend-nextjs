@@ -22,12 +22,26 @@ function normalizeShop(input: string): string {
     .toLowerCase();
 }
 
+/** Open Shopify's approval screen in a centred popup window (not a tab), so the
+ * merchant stays anchored to the onboarding page underneath. */
+function openOAuthPopup(url: string) {
+  const width = 560;
+  const height = 720;
+  const left = Math.max(0, window.screenX + (window.outerWidth - width) / 2);
+  const top = Math.max(0, window.screenY + (window.outerHeight - height) / 2);
+  window.open(
+    url,
+    "storesignal-shopify-oauth",
+    `popup=yes,width=${width},height=${height},left=${left},top=${top}`,
+  );
+}
+
 export function StepConnectUrl({ onBack }: { onBack: () => void }) {
   const dispatch = useAppDispatch();
   const { installing } = useAppSelector((s) => s.GetOnboardingReducer);
   const [name, setName] = useState("");
   const [shop, setShop] = useState("");
-  // True once we've opened Shopify in a new tab and are waiting for the OAuth
+  // True once we've opened the Shopify popup and are waiting for the OAuth
   // round-trip to broadcast back (the orchestrator advances the step on that).
   const [awaiting, setAwaiting] = useState(false);
 
@@ -46,7 +60,7 @@ export function StepConnectUrl({ onBack }: { onBack: () => void }) {
       StartShopifyInstall({ shop: normalized, name: trimmedName }),
     );
     if (StartShopifyInstall.fulfilled.match(result)) {
-      window.open(result.payload.install_url, "_blank", "noopener,noreferrer");
+      openOAuthPopup(result.payload.install_url);
       setAwaiting(true);
     }
   };
@@ -57,7 +71,7 @@ export function StepConnectUrl({ onBack }: { onBack: () => void }) {
         label="Step 2 of 4"
         title="Name & connect your store"
         time="60 sec"
-        description="Give your store a name and paste its Shopify URL. We'll open Shopify in a new tab so you can authorise access — this connects your store to Store Signal AI."
+        description="Give your store a name and paste its Shopify URL. We'll open Shopify in a secure popup window so you can authorise access — this connects your store to Store Signal AI."
       />
 
       <Card>
@@ -116,8 +130,8 @@ export function StepConnectUrl({ onBack }: { onBack: () => void }) {
             <div className="flex flex-col gap-1">
               <p className="font-medium">Waiting for you to authorise in Shopify…</p>
               <p className="text-sm text-muted-foreground">
-                A new tab opened — approve access there. This page continues
-                automatically once your store is connected. If the tab
+                A Shopify window opened — approve access there. This page continues
+                automatically once your store is connected. If the window
                 didn&apos;t open,{" "}
                 <button
                   type="button"
@@ -137,7 +151,7 @@ export function StepConnectUrl({ onBack }: { onBack: () => void }) {
         <IconInfoCircle className="mt-0.5 size-4 shrink-0 text-primary" />
         <p>
           <span className="font-medium text-foreground">
-            Why this happens in a new tab:
+            Why this happens in a popup window:
           </span>{" "}
           Shopify hosts its own approval screen. You approve there, we save the
           connection, and you come right back here — no copy-pasting API keys.
