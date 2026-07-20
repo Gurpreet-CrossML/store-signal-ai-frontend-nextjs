@@ -684,11 +684,7 @@ function ConversationPanel({
             >
               Save draft
             </Button>
-            <Button
-              size="sm"
-              onClick={onSend}
-              disabled={isSending}
-            >
+            <Button size="sm" onClick={onSend} disabled={isSending}>
               <IconSend className="size-4" />
               {isSending ? "Sending..." : "Send"}
               <IconChevronDown className="size-4" />
@@ -757,10 +753,7 @@ function CopilotPanel({
               <span className="font-medium text-emerald-600">94%</span>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <Button
-                size="sm"
-                onClick={onAcceptDraft}
-              >
+              <Button size="sm" onClick={onAcceptDraft}>
                 <IconCheck className="size-4" />
                 Use draft
               </Button>
