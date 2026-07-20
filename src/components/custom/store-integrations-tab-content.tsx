@@ -173,7 +173,7 @@ export function IntegrationConnectionModal({
                   {attribute.type === "select" ? (
                     <Select
                       value={formik.values[attribute.code] ?? ""}
-                      onValueChange={(value) => {
+                      onValueChange={(value: string) => {
                         formik.setFieldValue(attribute.code, value);
                         formik.setFieldTouched(attribute.code, true, false);
                       }}
@@ -301,7 +301,7 @@ export function DisconnectConfirmDialog({
           <AlertDialogAction
             // Keep the dialog open while the request is in flight; we
             // close it manually on success.
-            onClick={(e) => {
+            onClick={(e:React.MouseEvent<HTMLButtonElement>) => {
               e.preventDefault();
               handleDisconnect();
             }}

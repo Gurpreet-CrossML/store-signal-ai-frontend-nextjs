@@ -291,7 +291,7 @@ export default function StorePolicyTabContent() {
                   </span>
                   <Select
                     value={draft.type}
-                    onValueChange={(value) =>
+                    onValueChange={(value:string) =>
                       updateDraft(draft.uid, "type", value)
                     }
                   >
