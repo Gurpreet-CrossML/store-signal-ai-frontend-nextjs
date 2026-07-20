@@ -1,5 +1,5 @@
 import type { ProductData } from "@/redux/api-slice/thread-slice";
-import { ProductCard } from "./test-simulate/ProductCard";
+import { ProductCard } from "./ProductCard";
 
 interface ProductCarouselProps {
   products: ProductData[];
