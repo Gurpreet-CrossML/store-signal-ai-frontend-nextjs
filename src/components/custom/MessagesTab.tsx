@@ -26,12 +26,14 @@ export function MessagesTab() {
   const latestAssistant = [...messages]
     .reverse()
     .find((message) => message.role === "assistant");
-  const feedbackAssistant = [...messages].reverse().find(
-    (message) =>
-      message.role === "assistant" &&
-      message.json_content?.is_feedback_flow === true &&
-      message.json_content?.feedback_step === "awaiting_rating",
-  );
+  const feedbackAssistant = [...messages]
+    .reverse()
+    .find(
+      (message) =>
+        message.role === "assistant" &&
+        message.json_content?.is_feedback_flow === true &&
+        message.json_content?.feedback_step === "awaiting_rating",
+    );
 
   const isFeedbackFlow =
     latestAssistant?.json_content?.is_feedback_flow === true;
