@@ -125,14 +125,13 @@ export function MessagesTab() {
               </div>
             </div>
           ) : null}
-
         </div>
       </div>
 
       {!showFeedback && <MessageInput />}
 
       {showFeedback ? (
-         <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
+        <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
           <FeedbackCard
             ratingChoices={feedbackAssistant?.json_content?.rating_choices}
             onDone={resetChat}

@@ -7,13 +7,8 @@ import { useTestChatbotContext } from "@/clients/test-simulate";
 import { MessagesTab } from "./MessagesTab";
 
 export function TestConversationPanel() {
-  const {
-    messages,
-    loading,
-    reInitializing,
-    isSoundEnabled,
-    toggleSound,
-  } = useTestChatbotContext();
+  const { messages, loading, reInitializing, isSoundEnabled, toggleSound } =
+    useTestChatbotContext();
 
   return (
     <Card className="h-[780px] gap-0 overflow-hidden py-0">
