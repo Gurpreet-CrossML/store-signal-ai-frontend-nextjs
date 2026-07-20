@@ -226,13 +226,13 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
   const closedThreadResetTimerRef = useRef<number | null>(null);
   const sessionInitializationRef = useRef<() => Promise<void>>(async () => {});
   const closeChatSocket = useCallback(() => {
-  if (!chatSocketRef.current) return;
+    if (!chatSocketRef.current) return;
 
-  chatSocketRef.current.onclose = null;
-  chatSocketRef.current.onmessage = null;
-  chatSocketRef.current.close();
-  chatSocketRef.current = null;
-}, []);
+    chatSocketRef.current.onclose = null;
+    chatSocketRef.current.onmessage = null;
+    chatSocketRef.current.close();
+    chatSocketRef.current = null;
+  }, []);
 
   const handleSocketMessage = useCallback(async (event: MessageEvent) => {
     try {
@@ -539,12 +539,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
         setResponseLoading(false);
       }
     },
-    [
-      accessToken,
-      handleSocketMessage,
-      reInitializing,
-      sessionId,
-    ],
+    [accessToken, handleSocketMessage, reInitializing, sessionId],
   );
 
   const handleScroll = useCallback(() => {

@@ -1,12 +1,12 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
-import {
-  uid,
-  useTestChatbotContext,
-} from "@/clients/test-simulate";
+import { uid, useTestChatbotContext } from "@/clients/test-simulate";
 import { cn } from "@/lib/utils";
-import { SubmitThreadFeedback, RatingChoice } from "@/redux/api-slice/thread-slice";
+import {
+  SubmitThreadFeedback,
+  RatingChoice,
+} from "@/redux/api-slice/thread-slice";
 import { useAppDispatch } from "@/redux/hooks";
 
 type FeedbackCardProps = {

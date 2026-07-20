@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader, Paperclip, Send, Smile } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ENDPOINTS } from "@/lib/config";
-import { axiosInstance } from "@/redux/axios-config";
 import { useTestChatbotContext } from "@/clients/test-simulate";
 import { AiDisclaimerNotice } from "@/components/custom/test-Ai-disclaimer-modal";
+import { UploadMessageAttachments } from "@/redux/api-slice/thread-slice";
+import { useAppDispatch } from "@/redux/hooks";
 
 const EMOJIS = [
   "😀",
@@ -35,6 +35,7 @@ type UploadedAttachment = {
 };
 
 export function MessageInput() {
+  const dispatch = useAppDispatch();
   const { sendMessage, session, responseLoading, reInitializing } =
     useTestChatbotContext();
   const [text, setText] = useState("");
@@ -70,45 +71,38 @@ export function MessageInput() {
     setImages((prev) => [...prev, ...newImages]);
     if (fileRef.current) fileRef.current.value = "";
 
-    const formData = new FormData();
-    formData.append("thread_id", session?.session_id || "");
-    filesArray.forEach((file) => formData.append("images", file));
+    await Promise.all(
+      newImages.map(async (newImage) => {
+        const formData = new FormData();
+        formData.append("thread_id", session?.session_id || "");
+        formData.append("images", newImage.file);
 
-    try {
-      const response = await axiosInstance.post(
-        ENDPOINTS.uploadAttachments(),
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      );
-      const uploadedData: UploadedAttachment[] = Array.isArray(
-        response.data?.data,
-      )
-        ? response.data.data
-        : [];
+        try {
+          const result = await dispatch(
+            UploadMessageAttachments({ formData }),
+          ).unwrap();
+          const uploadedData: UploadedAttachment[] = Array.isArray(result)
+            ? result
+            : [];
+          const uploadedUrl = uploadedData[0]?.url || null;
 
-      setImages((prev) =>
-        prev.map((image) => {
-          const isJustUploaded = newImages.some((item) => item.id === image.id);
-          if (!isJustUploaded) return image;
-
-          const match = uploadedData.find(
-            (uploaded) => uploaded.original_file_name === image.file.name,
+          setImages((prev) =>
+            prev.map((image) =>
+              image.id === newImage.id
+                ? {
+                    ...image,
+                    isUploading: false,
+                    uploadedUrl,
+                  }
+                : image,
+            ),
           );
-          return {
-            ...image,
-            isUploading: false,
-            uploadedUrl: match?.url || image.previewUrl,
-          };
-        }),
-      );
-    } catch (error) {
-      console.error("Upload failed", error);
-      setImages((prev) =>
-        prev.filter((image) => !newImages.some((item) => item.id === image.id)),
-      );
-    }
+        } catch (error) {
+          console.error("Upload failed", error);
+          setImages((prev) => prev.filter((image) => image.id !== newImage.id));
+        }
+      }),
+    );
   };
 
   const handleSend = () => {
@@ -121,13 +115,7 @@ export function MessageInput() {
 
     if (!text.trim() && imageUrls.length === 0) return;
 
-    sendMessage(
-      text.trim(),
-      false,
-      "",
-      null,
-      imageUrls.length > 0 ? imageUrls : null,
-    );
+    sendMessage(text.trim(), false, imageUrls.length > 0 ? imageUrls : null);
 
     setText("");
     setImages((prev) => prev.filter((image) => image.isUploading));
