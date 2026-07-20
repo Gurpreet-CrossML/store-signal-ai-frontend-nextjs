@@ -66,7 +66,8 @@ export function OnboardingFlow({
   };
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
+    if (typeof window === "undefined" || !("BroadcastChannel" in window))
+      return;
     const channel = new BroadcastChannel(OAUTH_CHANNEL);
     channel.onmessage = (event: MessageEvent<OAuthMessage>) => {
       const msg = event.data;

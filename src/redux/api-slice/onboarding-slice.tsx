@@ -23,13 +23,19 @@ export const StartShopifyInstall = createAsyncThunk(
     try {
       // Authenticated Django GET (JWT names the tenant → its store). `name`
       // renames that store to what the merchant typed on the connect step.
-      const res = await axiosInstance.get(ENDPOINTS.shopifyInstall(shop, name), {
-        useBackend: true,
-      });
+      const res = await axiosInstance.get(
+        ENDPOINTS.shopifyInstall(shop, name),
+        {
+          useBackend: true,
+        },
+      );
       return res.data.data as ShopifyInstall;
     } catch (error) {
       toast.error("Uh oh! Something went wrong.", {
-        description: errorMessage(error, "Unable to start the Shopify connect."),
+        description: errorMessage(
+          error,
+          "Unable to start the Shopify connect.",
+        ),
       });
       return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
     }

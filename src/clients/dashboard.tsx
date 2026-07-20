@@ -64,9 +64,11 @@ export default function Dashboard() {
   // slice auto-opens the setup overlay once when it's unfinished. Dismissing it
   // (X) drops to a resume banner above Performance Summary; the overlay resumes
   // from the first step not yet completed.
-  const { journey, journeyLoaded, overlayOpen: onboardingOpen } = useAppSelector(
-    (s) => s.GetOnboardingReducer,
-  );
+  const {
+    journey,
+    journeyLoaded,
+    overlayOpen: onboardingOpen,
+  } = useAppSelector((s) => s.GetOnboardingReducer);
   const onboardingComplete = isOnboardingComplete(journey);
   const onboardingResumeStep = resumeStep(journey);
 

@@ -19,7 +19,8 @@ export function ConnectErrorView() {
     "Something went wrong while connecting your store.";
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
+    if (typeof window === "undefined" || !("BroadcastChannel" in window))
+      return;
     const channel = new BroadcastChannel(OAUTH_CHANNEL);
     const payload: OAuthMessage = { type: "error", message };
     channel.postMessage(payload);

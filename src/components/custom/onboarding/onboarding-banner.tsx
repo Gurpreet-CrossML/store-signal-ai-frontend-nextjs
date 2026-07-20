@@ -22,7 +22,8 @@ export function OnboardingBanner({ onOpen }: { onOpen: () => void }) {
           <div>
             <p className="font-semibold">Finish setting up your store</p>
             <p className="text-sm text-muted-foreground">
-              Connect your store and go live — it only takes a couple of minutes.
+              Connect your store and go live — it only takes a couple of
+              minutes.
             </p>
           </div>
         </div>

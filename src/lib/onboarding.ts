@@ -36,7 +36,9 @@ export type CompactScope = { name: string; read: boolean; write: boolean };
 export function compactScopes(scopes: string[]): CompactScope[] {
   const rows = new Map<string, CompactScope>();
   for (const scope of scopes) {
-    const match = scope.match(/^(customer_|unauthenticated_)?(read|write)_(.+)$/);
+    const match = scope.match(
+      /^(customer_|unauthenticated_)?(read|write)_(.+)$/,
+    );
     const name = match ? `${match[1] ?? ""}${match[3]}` : scope;
     const row = rows.get(name) ?? { name, read: false, write: false };
     if (match?.[2] === "write") row.write = true;

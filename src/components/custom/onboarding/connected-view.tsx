@@ -23,7 +23,8 @@ export function ConnectedView() {
 
   // Broadcast once on mount so the onboarding tab advances.
   useEffect(() => {
-    if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
+    if (typeof window === "undefined" || !("BroadcastChannel" in window))
+      return;
     const channel = new BroadcastChannel(OAUTH_CHANNEL);
     const message: OAuthMessage = { type: "connected", shop, store };
     channel.postMessage(message);

@@ -89,7 +89,9 @@ export function StepQuestions({ onNext }: { onNext: () => void }) {
                 <Icon className="size-6 text-primary" aria-hidden />
                 <span className="font-semibold">{c.label}</span>
                 {c.detected && (
-                  <span className="text-xs text-muted-foreground">Detected</span>
+                  <span className="text-xs text-muted-foreground">
+                    Detected
+                  </span>
                 )}
               </button>
             );

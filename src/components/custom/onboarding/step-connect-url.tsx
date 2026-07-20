@@ -157,11 +157,13 @@ export function StepConnectUrl() {
           <CardContent className="flex items-start gap-3">
             <Spinner className="mt-0.5" />
             <div className="flex flex-col gap-1">
-              <p className="font-medium">Waiting for you to authorise in Shopify…</p>
+              <p className="font-medium">
+                Waiting for you to authorise in Shopify…
+              </p>
               <p className="text-sm text-muted-foreground">
-                A Shopify window opened — approve access there. This page continues
-                automatically once your store is connected. If the window
-                didn&apos;t open,{" "}
+                A Shopify window opened — approve access there. This page
+                continues automatically once your store is connected. If the
+                window didn&apos;t open,{" "}
                 <button
                   type="button"
                   onClick={connect}
