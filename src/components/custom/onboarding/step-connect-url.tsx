@@ -68,7 +68,7 @@ export function StepConnectUrl({ onBack }: { onBack: () => void }) {
   return (
     <div className="flex flex-col gap-6">
       <OnboardingHeader
-        label="Step 2 of 4"
+        label="Step 2 of 6"
         title="Name & connect your store"
         time="60 sec"
         description="Give your store a name and paste its Shopify URL. We'll open Shopify in a secure popup window so you can authorise access — this connects your store to Store Signal AI."
@@ -92,27 +92,17 @@ export function StepConnectUrl({ onBack }: { onBack: () => void }) {
           </Field>
           <Field>
             <FieldLabel htmlFor="shop">Your store URL</FieldLabel>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                id="shop"
-                name="shop"
-                placeholder="your-store.myshopify.com"
-                value={shop}
-                disabled={installing}
-                onChange={(e) => setShop(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") connect();
-                }}
-              />
-              <Button
-                onClick={connect}
-                disabled={installing}
-                className="shrink-0"
-              >
-                {installing && <Spinner data-icon="inline-start" />}
-                {installing ? "Opening…" : "Authorise & connect"}
-              </Button>
-            </div>
+            <Input
+              id="shop"
+              name="shop"
+              placeholder="your-store.myshopify.com"
+              value={shop}
+              disabled={installing}
+              onChange={(e) => setShop(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") connect();
+              }}
+            />
           </Field>
           <p className="text-sm text-muted-foreground">
             Enter your{" "}
@@ -120,6 +110,12 @@ export function StepConnectUrl({ onBack }: { onBack: () => void }) {
             domain (e.g. your-store.myshopify.com). Tokens are stored encrypted;
             we never post as you.
           </p>
+          <div className="flex justify-end">
+            <Button onClick={connect} disabled={installing}>
+              {installing && <Spinner data-icon="inline-start" />}
+              {installing ? "Opening…" : "Authorise & connect"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

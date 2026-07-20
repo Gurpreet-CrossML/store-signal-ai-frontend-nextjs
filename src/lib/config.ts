@@ -76,6 +76,12 @@ export const ENDPOINTS = {
   shopifyInstall: (shop: string, name: string) =>
     `/store/shopify/install/?shop=${encodeURIComponent(shop)}&name=${encodeURIComponent(name)}`,
   shopifyCallback: () => createAPIUrl("/store/shopify/callback/", "django"),
+  // Runs the read-only Shopify probes against the connected store and returns
+  // each one's status (authed Django GET; call via axiosInstance useBackend).
+  shopifyVerify: (store?: string) =>
+    store
+      ? `/store/shopify/verify/?store=${encodeURIComponent(store)}`
+      : `/store/shopify/verify/`,
 
   // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
   // Next.js issues a 308 redirect (an extra round-trip) before each call.

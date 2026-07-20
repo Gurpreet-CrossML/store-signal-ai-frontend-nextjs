@@ -57,7 +57,7 @@ export function StepQuestions({
   return (
     <div className="flex flex-col gap-6">
       <OnboardingHeader
-        label="Step 3 of 4"
+        label="Step 3 of 6"
         title="Two quick questions"
         time="30 sec"
         description="These two answers pre-configure everything that follows — workflows, tone, safety limits, and your dashboard. That's all we ask."

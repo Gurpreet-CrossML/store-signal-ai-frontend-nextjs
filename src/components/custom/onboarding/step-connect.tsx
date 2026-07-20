@@ -85,7 +85,7 @@ export function StepConnect({ onNext }: { onNext: () => void }) {
   return (
     <div className="flex flex-col gap-6">
       <OnboardingHeader
-        label="Step 1 of 4"
+        label="Step 1 of 6"
         title="Connect your store"
         time="60 sec"
         description="The only technical step — and it's one click. We start learning your store immediately in the background."

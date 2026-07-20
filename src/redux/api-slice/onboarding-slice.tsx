@@ -40,6 +40,9 @@ export const StartShopifyInstall = createAsyncThunk(
   },
 );
 
+// The "Your AI is ready" step streams `/store/shopify/verify/` (NDJSON) directly
+// in the component, so its results aren't kept in Redux.
+
 type OnboardingState = {
   installing: boolean;
   // null until hydrated from localStorage; then whether setup is finished.
