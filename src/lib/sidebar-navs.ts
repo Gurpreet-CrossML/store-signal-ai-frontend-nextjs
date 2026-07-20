@@ -2,6 +2,7 @@ import {
   IconBooks,
   IconDashboard,
   IconHelp,
+  IconHeadset,
   IconImageGeneration,
   IconMessage2,
   IconSearch,
@@ -24,6 +25,11 @@ export const sidebarMenus = {
       title: "Live Support",
       url: "/support",
       icon: IconMessage2,
+    },
+    {
+      title: "Help Desk",
+      url: "/helpdesk",
+      icon: IconHeadset,
     },
     {
       title: "Knowledge",
