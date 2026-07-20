@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useTestChatbotContext } from "@/clients/test-simulate";
 import { Button } from "@/components/ui/button";
 import { MessageBubble } from "./MessageBubble";
-import { MessageInput } from "../MessageInput";
+import { MessageInput } from "./MessageInput";
 import { FeedbackCard } from "./FeedbackCard";
 
 const DEFAULT_GREETING_MESSAGE = "Hi there! How can I help you today?";
