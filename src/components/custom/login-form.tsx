@@ -52,6 +52,8 @@ export function LoginForm({
         toast.success("Log in Successfully!", {
           description: "Welcome back! You have successfully logged in.",
         });
+        // Land on the dashboard; it shows the onboarding overlay itself until
+        // setup is finished.
         router.push("/");
         router.refresh();
       } else {

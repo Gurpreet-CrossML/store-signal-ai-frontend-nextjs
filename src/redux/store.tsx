@@ -6,6 +6,7 @@ import KnowledgeSlice from "@/redux/api-slice/knowledge-slice";
 import CustomizationSlice from "@/redux/api-slice/customization-slice";
 import TenancySlice from "@/redux/api-slice/tenancy-slice";
 import IntegrationSlice from "@/redux/api-slice/integrations-slice";
+import OnboardingSlice from "@/redux/api-slice/onboarding-slice";
 
 const store = configureStore({
   reducer: {
@@ -16,6 +17,7 @@ const store = configureStore({
     GetCustomizationReducer: CustomizationSlice,
     GetTenancyReducer: TenancySlice,
     GetIntegrationReducer: IntegrationSlice,
+    GetOnboardingReducer: OnboardingSlice,
   },
 });
 

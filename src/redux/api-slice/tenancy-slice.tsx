@@ -209,6 +209,9 @@ export type RegisteredCompany = {
   schema_name: string;
   is_active: boolean;
   admin_email: string;
+  // One-time handover of the generated password so the form can sign the
+  // admin straight in (it is also emailed once the workspace activates).
+  password: string | null;
 };
 
 export const RegisterCompany = createAsyncThunk(
@@ -219,8 +222,8 @@ export const RegisterCompany = createAsyncThunk(
         ENDPOINTS.registerCompany(),
         payload,
       );
-      // Success feedback is a confirmation dialog shown by the register form,
-      // not a toast — so just return the created company here.
+      // Success feedback (toast + auto sign-in) is handled by the register
+      // form — so just return the created company here.
       return res.data.data as RegisteredCompany;
     } catch (error) {
       toast.error("Uh oh! Something went wrong.", {

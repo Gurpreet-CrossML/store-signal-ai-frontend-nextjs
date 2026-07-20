@@ -59,6 +59,7 @@ export const ENDPOINTS = {
   updateStaff: (id: number) => `/tenancy/staff/${id}/`,
   resetStaffPassword: (id: number) => `/tenancy/staff/${id}/reset-password/`,
   registerCompany: () => "/tenancy/company/register/",
+  onboardingJourney: () => "/tenancy/onboarding/",
   // Per-store access grants for a staff user (Django; GET needs useBackend).
   fetchStoreAccess: (userId: number) =>
     `/tenancy/staff/${userId}/store-access/`,
@@ -67,6 +68,19 @@ export const ENDPOINTS = {
 
   // Store Management
   fetchStoresList: () => "/store/list",
+
+  // Shopify OAuth onboarding (Django). `shopifyInstall` is authenticated (JWT):
+  // call it through axiosInstance with `useBackend: true`; it returns Shopify's
+  // authorize URL to open in a new tab. `shopifyCallback` is Shopify's browser
+  shopifyInstall: (shop: string, name: string) =>
+    `/store/shopify/install/?shop=${encodeURIComponent(shop)}&name=${encodeURIComponent(name)}`,
+  shopifyCallback: () => createAPIUrl("/store/shopify/callback/", "django"),
+  // Runs the read-only Shopify probes against the connected store and returns
+  // each one's status (authed Django GET; call via axiosInstance useBackend).
+  shopifyVerify: (store?: string) =>
+    store
+      ? `/store/shopify/verify/?store=${encodeURIComponent(store)}`
+      : `/store/shopify/verify/`,
 
   // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
   // Next.js issues a 308 redirect (an extra round-trip) before each call.

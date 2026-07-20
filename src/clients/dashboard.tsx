@@ -20,6 +20,14 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
+import { OnboardingOverlay } from "@/components/custom/onboarding/onboarding-overlay";
+import { OnboardingBanner } from "@/components/custom/onboarding/onboarding-banner";
+import { isOnboardingComplete, resumeStep } from "@/lib/onboarding";
+import {
+  FetchOnboarding,
+  openOnboarding,
+  closeOnboarding,
+} from "@/redux/api-slice/onboarding-slice";
 
 const toISODate = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -50,6 +58,24 @@ const InfoIcon = ({ text }: { text: string }) => (
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();
+
+  // Onboarding: the completed-step journey comes from the backend (source of
+  // truth, survives logout/refresh/device). On landing here we load it; the
+  // slice auto-opens the setup overlay once when it's unfinished. Dismissing it
+  // (X) drops to a resume banner above Performance Summary; the overlay resumes
+  // from the first step not yet completed.
+  const {
+    journey,
+    journeyLoaded,
+    overlayOpen: onboardingOpen,
+  } = useAppSelector((s) => s.GetOnboardingReducer);
+  const onboardingComplete = isOnboardingComplete(journey);
+  const onboardingResumeStep = resumeStep(journey);
+
+  useEffect(() => {
+    dispatch(FetchOnboarding());
+  }, [dispatch]);
+
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -256,6 +282,15 @@ export default function Dashboard() {
 
   return (
     <>
+      {journeyLoaded && !onboardingComplete && !onboardingOpen && (
+        <OnboardingBanner onOpen={() => dispatch(openOnboarding())} />
+      )}
+      <OnboardingOverlay
+        open={onboardingOpen}
+        initialStep={onboardingResumeStep}
+        onClose={() => dispatch(closeOnboarding())}
+        onComplete={() => dispatch(closeOnboarding())}
+      />
       <div className="px-6 py-2">
         <h3 className="text-lg font-semibold text-foreground mb-6">
           Performance Summary
