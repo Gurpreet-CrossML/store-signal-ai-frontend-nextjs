@@ -221,7 +221,7 @@ export default function StoreFaqTabContent() {
 
       <AlertDialog
         open={faqToDelete !== null}
-        onOpenChange={(open:boolean) => {
+        onOpenChange={(open: boolean) => {
           if (!open) setFaqToDelete(null);
         }}
       >
@@ -240,7 +240,7 @@ export default function StoreFaqTabContent() {
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
               disabled={DeleteStoreFaqIsLoading}
-              onClick={(event:React.MouseEvent<HTMLButtonElement>) => {
+              onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
                 event.preventDefault();
                 handleConfirmDelete();
               }}

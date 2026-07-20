@@ -113,7 +113,7 @@ export default function CustomizationActionButtons({
                   key={button.id ?? button.name}
                   checked
                   onCheckedChange={() => removeButton(button)}
-                  onSelect={(event:Event) => event.preventDefault()}
+                  onSelect={(event: Event) => event.preventDefault()}
                 >
                   {button.name}
                 </DropdownMenuCheckboxItem>

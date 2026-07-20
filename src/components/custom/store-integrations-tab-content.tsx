@@ -301,7 +301,7 @@ export function DisconnectConfirmDialog({
           <AlertDialogAction
             // Keep the dialog open while the request is in flight; we
             // close it manually on success.
-            onClick={(e:React.MouseEvent<HTMLButtonElement>) => {
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
               e.preventDefault();
               handleDisconnect();
             }}

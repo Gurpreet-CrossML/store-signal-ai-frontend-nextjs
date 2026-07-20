@@ -77,7 +77,9 @@ export function CustomerInteractionLineChart({
         <div className="flex flex-wrap items-center gap-2">
           <Select
             value={granularity}
-            onValueChange={(value: string) => onGranularityChange(value as Granularity)}
+            onValueChange={(value: string) =>
+              onGranularityChange(value as Granularity)
+            }
           >
             <SelectTrigger className="w-[120px]" size="sm">
               <SelectValue />
