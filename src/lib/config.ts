@@ -59,6 +59,7 @@ export const ENDPOINTS = {
   updateStaff: (id: number) => `/tenancy/staff/${id}/`,
   resetStaffPassword: (id: number) => `/tenancy/staff/${id}/reset-password/`,
   registerCompany: () => "/tenancy/company/register/",
+  onboardingJourney: () => "/tenancy/onboarding/",
   // Per-store access grants for a staff user (Django; GET needs useBackend).
   fetchStoreAccess: (userId: number) =>
     `/tenancy/staff/${userId}/store-access/`,
@@ -71,8 +72,6 @@ export const ENDPOINTS = {
   // Shopify OAuth onboarding (Django). `shopifyInstall` is authenticated (JWT):
   // call it through axiosInstance with `useBackend: true`; it returns Shopify's
   // authorize URL to open in a new tab. `shopifyCallback` is Shopify's browser
-  // redirect target — configured on the backend, never called from here; it
-  // 302s to the frontend /onboarding/connected|connect-error pages.
   shopifyInstall: (shop: string, name: string) =>
     `/store/shopify/install/?shop=${encodeURIComponent(shop)}&name=${encodeURIComponent(name)}`,
   shopifyCallback: () => createAPIUrl("/store/shopify/callback/", "django"),

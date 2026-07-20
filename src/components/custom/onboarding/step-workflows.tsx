@@ -35,13 +35,7 @@ const WORKFLOWS = [
   { key: "chat_feedback", label: "Chat feedback" },
 ];
 
-export function StepWorkflows({
-  onNext,
-  onBack,
-}: {
-  onNext: () => void;
-  onBack: () => void;
-}) {
+export function StepWorkflows({ onNext }: { onNext: () => void }) {
   // Every workflow starts enabled; toggling is local only for now.
   const [enabled, setEnabled] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(WORKFLOWS.map((w) => [w.key, true])),
@@ -92,14 +86,9 @@ export function StepWorkflows({
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={onBack}>
-            Back
-          </Button>
-          <Button onClick={onNext}>
-            Continue <IconArrowRight />
-          </Button>
-        </div>
+        <Button onClick={onNext}>
+          Continue <IconArrowRight />
+        </Button>
         <span className="text-sm text-muted-foreground">
           {enabledCount} workflows enabled
         </span>

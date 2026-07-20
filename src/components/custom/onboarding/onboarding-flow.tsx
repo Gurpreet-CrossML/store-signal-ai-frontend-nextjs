@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "motion/react";
-import { OAUTH_CHANNEL, type OAuthMessage } from "@/lib/onboarding";
+import { OAUTH_CHANNEL, ONBOARDING_STEP_KEYS } from "@/lib/onboarding";
+import type { OAuthMessage } from "@/lib/onboarding";
+import { useAppDispatch } from "@/redux/hooks";
+import { CompleteOnboardingStep } from "@/redux/api-slice/onboarding-slice";
 import { StepConnect } from "@/components/custom/onboarding/step-connect";
 import { StepConnectUrl } from "@/components/custom/onboarding/step-connect-url";
 import { StepQuestions } from "@/components/custom/onboarding/step-questions";
@@ -11,28 +14,55 @@ import { StepAiReady } from "@/components/custom/onboarding/step-ai-ready";
 import { StepWorkflows } from "@/components/custom/onboarding/step-workflows";
 import { StepGoLive } from "@/components/custom/onboarding/step-go-live";
 
-// Each step slides in from the right and the previous one leaves to the left
-// (reversed on Back), so the 6-step flow reads as forward motion.
+// Forward-only motion: each step slides in from the right, the previous one
+// leaves to the left. There's no Back — progress only moves forward.
 const variants = {
-  enter: (dir: number) => ({ x: dir >= 0 ? 64 : -64, opacity: 0 }),
+  enter: { x: 64, opacity: 0 },
   center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir >= 0 ? -64 : 64, opacity: 0 }),
+  exit: { x: -64, opacity: 0 },
 };
 
 /**
  * The 6-step setup flow, decoupled from where it's rendered (the dashboard
- * overlay). Manages step state and listens for the Shopify OAuth success
- * broadcast to auto-advance past the connect step. Calls `onComplete` when the
- * merchant finishes the final step. Steps transition with a left/right slide.
+ * overlay). Opens at `initialStep` (the resume point from the saved journey),
+ * saves each step to the backend as the merchant moves off it, and listens for
+ * the Shopify OAuth success broadcast to auto-advance past the connect step.
+ * Calls `onComplete` when the final step is finished.
  */
-export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
-  const [step, setStep] = useState(1);
-  // Sign of the last transition: +1 forward (Continue), -1 backward (Back).
-  const [direction, setDirection] = useState(1);
+export function OnboardingFlow({
+  initialStep,
+  onComplete,
+}: {
+  initialStep: number;
+  onComplete: () => void;
+}) {
+  const dispatch = useAppDispatch();
+  const [step, setStep] = useState(initialStep);
+  // Mirror `step` into a ref so the mount-only broadcast handler reads the
+  // current step (not the stale value captured at mount).
+  const stepRef = useRef(step);
+  useEffect(() => {
+    stepRef.current = step;
+  }, [step]);
 
-  const go = (next: number) => {
-    setDirection(next >= step ? 1 : -1);
-    setStep(next);
+  // Persist "step N is complete" (fire-and-forget; the backend keeps the order).
+  const saveStep = (stepNumber: number) => {
+    const key = ONBOARDING_STEP_KEYS[stepNumber - 1];
+    if (key) dispatch(CompleteOnboardingStep(key));
+  };
+
+  // Complete the current step and move to the next.
+  const advance = () => {
+    saveStep(step);
+    setStep((s) => s + 1);
+  };
+
+  const finish = async () => {
+    // Await the final save so the journey reads complete before the overlay
+    // closes (otherwise the resume banner would flash for a beat).
+    const key = ONBOARDING_STEP_KEYS[ONBOARDING_STEP_KEYS.length - 1];
+    await dispatch(CompleteOnboardingStep(key));
+    onComplete();
   };
 
   useEffect(() => {
@@ -44,9 +74,11 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
         toast.success("Store connected!", {
           description: "Your Shopify store is now linked to Store Signal AI.",
         });
-        // Only nudge forward if we're still on/behind the connect step.
-        setDirection(1);
-        setStep((s) => (s < 3 ? 3 : s));
+        // The connect step (2) just finished — save it and move to questions.
+        if (stepRef.current < 3) {
+          saveStep(2);
+          setStep(3);
+        }
       } else if (msg?.type === "error") {
         toast.error("Couldn't connect your store.", {
           description: msg.message,
@@ -54,29 +86,25 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
       }
     };
     return () => channel.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <AnimatePresence mode="wait" custom={direction} initial={false}>
+    <AnimatePresence mode="wait" initial={false}>
       <motion.div
         key={step}
-        custom={direction}
         variants={variants}
         initial="enter"
         animate="center"
         exit="exit"
         transition={{ duration: 0.28, ease: "easeInOut" }}
       >
-        {step === 1 && <StepConnect onNext={() => go(2)} />}
-        {step === 2 && <StepConnectUrl onBack={() => go(1)} />}
-        {step === 3 && (
-          <StepQuestions onNext={() => go(4)} onBack={() => go(2)} />
-        )}
-        {step === 4 && <StepAiReady onNext={() => go(5)} onBack={() => go(3)} />}
-        {step === 5 && (
-          <StepWorkflows onNext={() => go(6)} onBack={() => go(4)} />
-        )}
-        {step === 6 && <StepGoLive onFinish={onComplete} />}
+        {step === 1 && <StepConnect onNext={advance} />}
+        {step === 2 && <StepConnectUrl />}
+        {step === 3 && <StepQuestions onNext={advance} />}
+        {step === 4 && <StepAiReady onNext={advance} />}
+        {step === 5 && <StepWorkflows onNext={advance} />}
+        {step === 6 && <StepGoLive onFinish={finish} />}
       </motion.div>
     </AnimatePresence>
   );

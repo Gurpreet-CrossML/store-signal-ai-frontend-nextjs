@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,20 +23,21 @@ function normalizeShop(input: string): string {
 }
 
 /** Open Shopify's approval screen in a centred popup window (not a tab), so the
- * merchant stays anchored to the onboarding page underneath. */
-function openOAuthPopup(url: string) {
+ * merchant stays anchored to the onboarding page underneath. Returns the window
+ * handle so the caller can watch for it closing. */
+function openOAuthPopup(url: string): Window | null {
   const width = 560;
   const height = 720;
   const left = Math.max(0, window.screenX + (window.outerWidth - width) / 2);
   const top = Math.max(0, window.screenY + (window.outerHeight - height) / 2);
-  window.open(
+  return window.open(
     url,
     "storesignal-shopify-oauth",
     `popup=yes,width=${width},height=${height},left=${left},top=${top}`,
   );
 }
 
-export function StepConnectUrl({ onBack }: { onBack: () => void }) {
+export function StepConnectUrl() {
   const dispatch = useAppDispatch();
   const { installing } = useAppSelector((s) => s.GetOnboardingReducer);
   const [name, setName] = useState("");
@@ -44,6 +45,19 @@ export function StepConnectUrl({ onBack }: { onBack: () => void }) {
   // True once we've opened the Shopify popup and are waiting for the OAuth
   // round-trip to broadcast back (the orchestrator advances the step on that).
   const [awaiting, setAwaiting] = useState(false);
+  // True while the Shopify popup window is open — keeps the connect button
+  // disabled so the merchant can't spawn a second popup mid-authorisation.
+  const [popupOpen, setPopupOpen] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Stop polling if the step unmounts (e.g. the OAuth success advances the flow)
+  // while a popup was still open.
+  useEffect(
+    () => () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    },
+    [],
+  );
 
   const connect = async () => {
     const trimmedName = name.trim();
@@ -60,10 +74,25 @@ export function StepConnectUrl({ onBack }: { onBack: () => void }) {
       StartShopifyInstall({ shop: normalized, name: trimmedName }),
     );
     if (StartShopifyInstall.fulfilled.match(result)) {
-      openOAuthPopup(result.payload.install_url);
+      const popup = openOAuthPopup(result.payload.install_url);
       setAwaiting(true);
+      if (popup) {
+        // Keep the button disabled until the popup closes (whether it
+        // auto-closes on success or the merchant closes it manually).
+        setPopupOpen(true);
+        if (pollRef.current) clearInterval(pollRef.current);
+        pollRef.current = setInterval(() => {
+          if (popup.closed) {
+            if (pollRef.current) clearInterval(pollRef.current);
+            pollRef.current = null;
+            setPopupOpen(false);
+          }
+        }, 500);
+      }
     }
   };
+
+  const busy = installing || popupOpen;
 
   return (
     <div className="flex flex-col gap-6">
@@ -83,7 +112,7 @@ export function StepConnectUrl({ onBack }: { onBack: () => void }) {
               name="store-name"
               placeholder="e.g. CityCraft Living"
               value={name}
-              disabled={installing}
+              disabled={busy}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") connect();
@@ -97,7 +126,7 @@ export function StepConnectUrl({ onBack }: { onBack: () => void }) {
               name="shop"
               placeholder="your-store.myshopify.com"
               value={shop}
-              disabled={installing}
+              disabled={busy}
               onChange={(e) => setShop(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") connect();
@@ -111,9 +140,13 @@ export function StepConnectUrl({ onBack }: { onBack: () => void }) {
             we never post as you.
           </p>
           <div className="flex justify-end">
-            <Button onClick={connect} disabled={installing}>
-              {installing && <Spinner data-icon="inline-start" />}
-              {installing ? "Opening…" : "Authorise & connect"}
+            <Button onClick={connect} disabled={busy}>
+              {busy && <Spinner data-icon="inline-start" />}
+              {installing
+                ? "Opening…"
+                : popupOpen
+                  ? "Waiting for Shopify…"
+                  : "Authorise & connect"}
             </Button>
           </div>
         </CardContent>
@@ -132,7 +165,8 @@ export function StepConnectUrl({ onBack }: { onBack: () => void }) {
                 <button
                   type="button"
                   onClick={connect}
-                  className="text-primary underline-offset-4 hover:underline"
+                  disabled={busy}
+                  className="text-primary underline-offset-4 hover:underline disabled:opacity-50"
                 >
                   reopen Shopify
                 </button>
@@ -155,9 +189,6 @@ export function StepConnectUrl({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="flex items-center gap-3">
-        <Button variant="outline" onClick={onBack} disabled={installing}>
-          Back
-        </Button>
         <a
           href="https://help.shopify.com/en/manual/domains"
           target="_blank"

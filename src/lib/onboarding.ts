@@ -46,13 +46,27 @@ export function compactScopes(scopes: string[]): CompactScope[] {
   return [...rows.values()];
 }
 
-// Where we record that a company finished onboarding, so the dashboard overlay
-// doesn't reappear. Client-only + per-company; the durable server-side gate is
-// a later task.
-export function onboardingDoneKey(
-  companyCode: string | null | undefined,
-): string {
-  return `storesignal_onboarding_done_${companyCode ?? "unknown"}`;
+// Canonical ordered onboarding step keys — must match the backend's
+// tenancy.models.ONBOARDING_STEPS. Step N of the flow is at index N-1.
+export const ONBOARDING_STEP_KEYS = [
+  "connect",
+  "store_url",
+  "questions",
+  "ai_ready",
+  "workflows",
+  "go_live",
+] as const;
+
+/** True once every step key is present in the completed journey. */
+export function isOnboardingComplete(journey: string[]): boolean {
+  return ONBOARDING_STEP_KEYS.every((key) => journey.includes(key));
+}
+
+/** 1-based step number to resume from = the first step not yet completed
+ * (the flow's step count when everything is done). */
+export function resumeStep(journey: string[]): number {
+  const idx = ONBOARDING_STEP_KEYS.findIndex((key) => !journey.includes(key));
+  return idx === -1 ? ONBOARDING_STEP_KEYS.length : idx + 1;
 }
 
 export type PermissionGroup = {

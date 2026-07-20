@@ -1,36 +1,45 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { IconCircleCheck } from "@tabler/icons-react";
 import { OAUTH_CHANNEL, type OAuthMessage } from "@/lib/onboarding";
 
-// How long the popup stays open after a successful connect, so the merchant
-// can actually read the confirmation before it closes itself.
-const CLOSE_AFTER_MS = 10_000;
+// Seconds the popup stays open after a successful connect, counted down on
+// screen, so the merchant can read the confirmation before it closes itself.
+const COUNTDOWN_START = 10;
 
 /**
  * Landing page for the OAuth popup: the backend callback 302s here after it
- * saves the store's tokens. We broadcast to the onboarding tab (so it advances)
- * and close the popup after a beat, dropping the merchant back into setup.
+ * saves the store's tokens. We broadcast to the onboarding tab (so it advances),
+ * count down from 10, then close the popup, dropping the merchant back into setup.
  */
 export function ConnectedView() {
   const params = useSearchParams();
   const shop = params?.get("shop") ?? "";
   const store = params?.get("store") ?? null;
+  const [seconds, setSeconds] = useState(COUNTDOWN_START);
 
+  // Broadcast once on mount so the onboarding tab advances.
   useEffect(() => {
     if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
     const channel = new BroadcastChannel(OAUTH_CHANNEL);
     const message: OAuthMessage = { type: "connected", shop, store };
     channel.postMessage(message);
     channel.close();
-    // Close the (script-opened) popup once the merchant has had time to read
-    // this; if the browser refuses, the on-screen message is the fallback.
-    const timer = setTimeout(() => window.close(), CLOSE_AFTER_MS);
-    return () => clearTimeout(timer);
   }, [shop, store]);
+
+  // Tick 10 → 9 → … → 0, then close the (script-opened) popup. If the browser
+  // refuses to close it, the on-screen message stays as the fallback.
+  useEffect(() => {
+    if (seconds <= 0) {
+      window.close();
+      return;
+    }
+    const timer = setTimeout(() => setSeconds((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [seconds]);
 
   return (
     <div className="flex min-h-svh flex-col items-center bg-muted/30 px-6 text-center">
@@ -58,9 +67,12 @@ export function ConnectedView() {
             "Your store has been added to Store Signal AI."
           )}
         </p>
-        <p className="text-sm font-medium text-foreground">
-          This window closes automatically in a few seconds — you can also close
-          it now.
+        <p className="text-sm text-muted-foreground">
+          This window closes in{" "}
+          <span className="font-semibold text-foreground tabular-nums">
+            {seconds}s
+          </span>{" "}
+          — you can also close it now.
         </p>
       </div>
     </div>

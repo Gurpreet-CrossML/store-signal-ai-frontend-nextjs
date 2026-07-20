@@ -44,13 +44,7 @@ const PRIORITIES = [
   { key: "both", title: "Both", subtitle: "Support and revenue" },
 ];
 
-export function StepQuestions({
-  onNext,
-  onBack,
-}: {
-  onNext: () => void;
-  onBack: () => void;
-}) {
+export function StepQuestions({ onNext }: { onNext: () => void }) {
   const [category, setCategory] = useState("baby");
   const [priority, setPriority] = useState("both");
 
@@ -143,9 +137,6 @@ export function StepQuestions({
       </div>
 
       <div className="flex items-center gap-3">
-        <Button variant="outline" onClick={onBack}>
-          Back
-        </Button>
         <Button onClick={onNext}>
           Continue <IconArrowRight />
         </Button>

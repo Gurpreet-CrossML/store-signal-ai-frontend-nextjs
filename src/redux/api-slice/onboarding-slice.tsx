@@ -1,8 +1,4 @@
-import {
-  createAsyncThunk,
-  createSlice,
-  type PayloadAction,
-} from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { axiosInstance } from "@/redux/axios-config";
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
@@ -43,10 +39,56 @@ export const StartShopifyInstall = createAsyncThunk(
 // The "Your AI is ready" step streams `/store/shopify/verify/` (NDJSON) directly
 // in the component, so its results aren't kept in Redux.
 
+export type OnboardingJourney = {
+  user_journey: string[];
+  is_complete: boolean;
+  next_step: string | null;
+};
+
+/** Load the company's onboarding progress from the backend (source of truth
+ * for whether/where to show the setup overlay — replaces the old localStorage). */
+export const FetchOnboarding = createAsyncThunk(
+  "onboarding/FetchOnboarding",
+  async (_: void, thunkAPI) => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.onboardingJourney(), {
+        useBackend: true,
+      });
+      return res.data.data as OnboardingJourney;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        errorMessage(error, "Unable to load onboarding progress."),
+      );
+    }
+  },
+);
+
+/** Record a completed onboarding step (fire-and-forget as the merchant moves on;
+ * the backend keeps the ordered prefix and drives resume). */
+export const CompleteOnboardingStep = createAsyncThunk(
+  "onboarding/CompleteOnboardingStep",
+  async (step: string, thunkAPI) => {
+    try {
+      const res = await axiosInstance.post(ENDPOINTS.onboardingJourney(), {
+        step,
+      });
+      return res.data.data as OnboardingJourney;
+    } catch (error) {
+      // Non-blocking: the UI has already advanced; a failed save just means
+      // resume may replay this step.
+      return thunkAPI.rejectWithValue(
+        errorMessage(error, "Unable to save onboarding step."),
+      );
+    }
+  },
+);
+
 type OnboardingState = {
   installing: boolean;
-  // null until hydrated from localStorage; then whether setup is finished.
-  completed: boolean | null;
+  // Completed step keys (backend order); [] until the journey loads.
+  journey: string[];
+  // False until FetchOnboarding resolves — the dashboard waits before deciding.
+  journeyLoaded: boolean;
   // Whether the full-screen overlay is currently shown.
   overlayOpen: boolean;
   // Guards the one-time auto-open so a dismissal isn't re-opened on re-render.
@@ -55,7 +97,8 @@ type OnboardingState = {
 
 const initialState: OnboardingState = {
   installing: false,
-  completed: null,
+  journey: [],
+  journeyLoaded: false,
   overlayOpen: false,
   autoOpened: false,
 };
@@ -64,15 +107,6 @@ const OnboardingSlice = createSlice({
   name: "Onboarding",
   initialState,
   reducers: {
-    // Seed `completed` from localStorage and auto-open the overlay once when
-    // setup isn't finished (dispatched from the dashboard on mount).
-    hydrateOnboarding: (state, action: PayloadAction<boolean>) => {
-      state.completed = action.payload;
-      if (!action.payload && !state.autoOpened) {
-        state.overlayOpen = true;
-        state.autoOpened = true;
-      }
-    },
     openOnboarding: (state) => {
       state.overlayOpen = true;
       state.autoOpened = true;
@@ -80,10 +114,6 @@ const OnboardingSlice = createSlice({
     closeOnboarding: (state) => {
       state.overlayOpen = false;
       state.autoOpened = true;
-    },
-    completeOnboarding: (state) => {
-      state.completed = true;
-      state.overlayOpen = false;
     },
   },
   extraReducers: (builder) => {
@@ -96,15 +126,26 @@ const OnboardingSlice = createSlice({
       })
       .addCase(StartShopifyInstall.rejected, (state) => {
         state.installing = false;
+      })
+      .addCase(FetchOnboarding.fulfilled, (state, action) => {
+        state.journey = action.payload.user_journey;
+        state.journeyLoaded = true;
+        // Auto-open the overlay once when setup isn't finished.
+        if (!action.payload.is_complete && !state.autoOpened) {
+          state.overlayOpen = true;
+          state.autoOpened = true;
+        }
+      })
+      .addCase(FetchOnboarding.rejected, (state) => {
+        // Don't block the dashboard if the load fails.
+        state.journeyLoaded = true;
+      })
+      .addCase(CompleteOnboardingStep.fulfilled, (state, action) => {
+        state.journey = action.payload.user_journey;
       });
   },
 });
 
-export const {
-  hydrateOnboarding,
-  openOnboarding,
-  closeOnboarding,
-  completeOnboarding,
-} = OnboardingSlice.actions;
+export const { openOnboarding, closeOnboarding } = OnboardingSlice.actions;
 
 export default OnboardingSlice.reducer;

@@ -12,10 +12,12 @@ import { OnboardingFlow } from "./onboarding-flow";
  */
 export function OnboardingOverlay({
   open,
+  initialStep,
   onClose,
   onComplete,
 }: {
   open: boolean;
+  initialStep: number;
   onClose: () => void;
   onComplete: () => void;
 }) {
@@ -45,7 +47,7 @@ export function OnboardingOverlay({
       {/* Full-height internal scroll, with the scrollbar hidden. */}
       <div className="no-scrollbar h-full overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl px-6 py-12 md:py-16">
-          <OnboardingFlow onComplete={onComplete} />
+          <OnboardingFlow initialStep={initialStep} onComplete={onComplete} />
         </div>
       </div>
     </div>

@@ -51,13 +51,7 @@ function CheckRow({ check }: { check: ShopifyCheck }) {
   );
 }
 
-export function StepAiReady({
-  onNext,
-  onBack,
-}: {
-  onNext: () => void;
-  onBack: () => void;
-}) {
+export function StepAiReady({ onNext }: { onNext: () => void }) {
   const [checks, setChecks] = useState<ShopifyCheck[]>([]);
   const [phase, setPhase] = useState<Phase>("loading");
   const startedRef = useRef(false);
@@ -186,9 +180,6 @@ export function StepAiReady({
       </Card>
 
       <div className="flex items-center gap-3">
-        <Button variant="outline" onClick={onBack} disabled={streaming}>
-          Back
-        </Button>
         <Button onClick={onNext}>
           Looks good — let&apos;s set it up <IconArrowRight />
         </Button>
