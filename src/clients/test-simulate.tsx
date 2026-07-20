@@ -247,6 +247,14 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
   const selectedStoreRef = useRef<string | null>(null);
   const closedThreadResetTimerRef = useRef<number | null>(null);
   const sessionInitializationRef = useRef<() => Promise<void>>(async () => {});
+  const closeChatSocket = useCallback(() => {
+  if (!chatSocketRef.current) return;
+
+  chatSocketRef.current.onclose = null;
+  chatSocketRef.current.onmessage = null;
+  chatSocketRef.current.close();
+  chatSocketRef.current = null;
+}, []);
 
   const handleSocketMessage = useCallback(async (event: MessageEvent) => {
     try {
@@ -332,12 +340,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
         ) {
           setReInitializing(true);
           closedThreadResetTimerRef.current = window.setTimeout(async () => {
-            if (chatSocketRef.current) {
-              chatSocketRef.current.onclose = null;
-              chatSocketRef.current.onmessage = null;
-              chatSocketRef.current.close();
-              chatSocketRef.current = null;
-            }
+            closeChatSocket();
 
             localStorage.removeItem(CHAT_SESSION_KEY);
             setMessages([]);
@@ -438,12 +441,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(CHAT_SESSION_KEY, activeSessionId);
       setSession({ session_id: activeSessionId });
 
-      if (chatSocketRef.current) {
-        chatSocketRef.current.onclose = null;
-        chatSocketRef.current.onmessage = null;
-        chatSocketRef.current.close();
-        chatSocketRef.current = null;
-      }
+      closeChatSocket();
 
       const chatSoundEnabled = localStorage.getItem(CHAT_SOUND_KEY);
       if (chatSoundEnabled === null) {
@@ -479,12 +477,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
         closedThreadResetTimerRef.current = null;
       }
 
-      if (chatSocketRef.current) {
-        chatSocketRef.current.onclose = null;
-        chatSocketRef.current.onmessage = null;
-        chatSocketRef.current.close();
-        chatSocketRef.current = null;
-      }
+      closeChatSocket();
 
       localStorage.removeItem(CHAT_SESSION_KEY);
       setMessages([]);
@@ -623,12 +616,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
         closedThreadResetTimerRef.current = null;
       }
 
-      if (chatSocketRef.current) {
-        chatSocketRef.current.onclose = null;
-        chatSocketRef.current.onmessage = null;
-        chatSocketRef.current.close();
-        chatSocketRef.current = null;
-      }
+      closeChatSocket();
     };
   }, [selectedStore, sessionInitialization]);
 
