@@ -60,7 +60,7 @@ export function MessagesTab() {
   }, [handleScroll, messages, showFeedback]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       <div
         id="chat-container"
         ref={messageContainerRef}
@@ -126,16 +126,19 @@ export function MessagesTab() {
             </div>
           ) : null}
 
-          {showFeedback && (
-            <FeedbackCard
-              ratingChoices={feedbackAssistant?.json_content?.rating_choices}
-              onDone={() => void resetChat()}
-            />
-          )}
         </div>
       </div>
 
       {!showFeedback && <MessageInput />}
+
+      {showFeedback ? (
+         <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
+          <FeedbackCard
+            ratingChoices={feedbackAssistant?.json_content?.rating_choices}
+            onDone={() => void resetChat()}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
