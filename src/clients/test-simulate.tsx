@@ -213,7 +213,6 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const sessionId = session?.session_id;
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isAgentConnected, setIsAgentConnected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [responseLoading, setResponseLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -240,16 +239,6 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
       const data = JSON.parse(event.data);
 
       if (!data?.success || data?.sender === "customer") return;
-
-      if (data.action_type === "connection") {
-        setIsAgentConnected(data.chat_handler === "human");
-        return;
-      }
-
-      if (data.action_type === "handler_change") {
-        setIsAgentConnected(data.chat_handler === "human");
-        return;
-      }
 
       if (data.action_type === "message" && data.chunk) {
         setIsStreaming(true);
@@ -510,9 +499,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
           },
         ]);
 
-        if (!isAgentConnected) {
-          setResponseLoading(true);
-        }
+        setResponseLoading(true);
 
         if (
           !chatSocketRef.current ||
@@ -555,7 +542,6 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
     [
       accessToken,
       handleSocketMessage,
-      isAgentConnected,
       reInitializing,
       sessionId,
     ],
