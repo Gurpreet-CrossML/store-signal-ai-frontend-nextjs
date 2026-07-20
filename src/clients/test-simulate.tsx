@@ -141,6 +141,7 @@ type ConnectWebSocketOptions = {
   onMessage?: (event: MessageEvent) => void;
   onSocketChange?: (socket: WebSocket | null) => void;
   retryAttempt?: number;
+  shouldReconnect?: boolean;
 };
 
 const connectWebSocket = (
@@ -150,6 +151,7 @@ const connectWebSocket = (
     onMessage,
     onSocketChange,
     retryAttempt = 0,
+    shouldReconnect = true,
   }: ConnectWebSocketOptions = {},
 ) => {
   if (!sessionId) return null;
@@ -172,6 +174,8 @@ const connectWebSocket = (
 
   ws.onclose = () => {
     onSocketChange?.(null);
+    if (!shouldReconnect) return;
+
     const delay = Math.min(1000 * 2 ** retryAttempt, 30000);
     window.setTimeout(() => {
       const reconnectSocket = connectWebSocket(sessionId, {
@@ -179,6 +183,7 @@ const connectWebSocket = (
         onMessage,
         onSocketChange,
         retryAttempt: retryAttempt + 1,
+        shouldReconnect,
       });
       onSocketChange?.(reconnectSocket);
     }, delay);
@@ -433,6 +438,13 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(CHAT_SESSION_KEY, activeSessionId);
       setSession({ session_id: activeSessionId });
 
+      if (chatSocketRef.current) {
+        chatSocketRef.current.onclose = null;
+        chatSocketRef.current.onmessage = null;
+        chatSocketRef.current.close();
+        chatSocketRef.current = null;
+      }
+
       const chatSoundEnabled = localStorage.getItem(CHAT_SOUND_KEY);
       if (chatSoundEnabled === null) {
         localStorage.setItem(CHAT_SOUND_KEY, "true");
@@ -548,6 +560,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
             onSocketChange: (socket) => {
               chatSocketRef.current = socket;
             },
+            shouldReconnect: false,
           });
           chatSocketRef.current = socket;
           socket?.addEventListener(

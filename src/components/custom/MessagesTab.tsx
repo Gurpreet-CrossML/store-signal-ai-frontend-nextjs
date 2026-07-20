@@ -118,10 +118,10 @@ export function MessagesTab() {
 
           {responseLoading && !isStreaming ? (
             <div className="flex justify-start">
-              <div className="flex items-center gap-1 rounded-md border bg-muted/50 px-3 py-2">
-                <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground" />
-                <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground [animation-delay:120ms]" />
-                <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground [animation-delay:240ms]" />
+              <div className="flex items-center gap-1 rounded-md px-3 py-2">
+                <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground" />
+                <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:120ms]" />
+                <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:240ms]" />
               </div>
             </div>
           ) : null}
