@@ -48,14 +48,6 @@ const CHAT_SESSION_KEY = "chat_session_id";
 const CHAT_SOUND_KEY = "chat_sound_enabled";
 
 export type MessageRole = "user" | "assistant";
-export type OfflineTask = "" | "view" | "checkout";
-
-export type OfflineTaskData = {
-  variant_name?: string;
-  variant_id?: number;
-  quantity?: number;
-  item_id?: number;
-} | null;
 
 export type Product = ProductData;
 export type MessageJsonContent = ThreadJsonContent;
@@ -92,8 +84,6 @@ type TestChatbotContextValue = {
   sendMessage: (
     text: string,
     isOffline?: boolean,
-    taskName?: OfflineTask,
-    taskData?: OfflineTaskData,
     imageUrl?: string | string[] | null,
   ) => void;
   addMessage: (message: Message) => void;
@@ -508,13 +498,9 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
     async (
       text: string,
       isOffline = false,
-      taskName: OfflineTask = "",
-      taskData: OfflineTaskData = null,
       imageUrl: string | string[] | null = null,
     ) => {
       void isOffline;
-      void taskName;
-      void taskData;
 
       const message = text.trim();
       const hasImage = Array.isArray(imageUrl)
