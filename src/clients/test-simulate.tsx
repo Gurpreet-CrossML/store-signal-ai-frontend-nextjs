@@ -25,7 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TestConversationPanel } from "@/components/custom/test-conversation-panel";
+import { TestConversationPanel } from "@/components/custom/test-simulate/test-conversation-panel";
 import { ENDPOINTS } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";

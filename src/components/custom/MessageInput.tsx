@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader, Paperclip, Send, Smile } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTestChatbotContext } from "@/clients/test-simulate";
-import { AiDisclaimerNotice } from "@/components/custom/test-Ai-disclaimer-modal";
+import { AiDisclaimerNotice } from "@/components/custom/test-simulate/test-Ai-disclaimer-modal";
 import { UploadMessageAttachments } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch } from "@/redux/hooks";
 

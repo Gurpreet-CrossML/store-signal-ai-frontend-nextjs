@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useTestChatbotContext } from "@/clients/test-simulate";
 import { Button } from "@/components/ui/button";
 import { MessageBubble } from "./MessageBubble";
-import { MessageInput } from "./MessageInput";
+import { MessageInput } from "../MessageInput";
 import { FeedbackCard } from "./FeedbackCard";
 
 const DEFAULT_GREETING_MESSAGE = "Hi there! How can I help you today?";
@@ -135,7 +135,7 @@ export function MessagesTab() {
          <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
           <FeedbackCard
             ratingChoices={feedbackAssistant?.json_content?.rating_choices}
-            onDone={() => void resetChat()}
+            onDone={resetChat}
           />
         </div>
       ) : null}

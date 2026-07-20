@@ -1,6 +1,7 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { uid, useTestChatbotContext } from "@/clients/test-simulate";
 import { cn } from "@/lib/utils";
 import {
@@ -11,7 +12,7 @@ import { useAppDispatch } from "@/redux/hooks";
 
 type FeedbackCardProps = {
   ratingChoices?: RatingChoice[];
-  onDone: () => void;
+  onDone: () => Promise<void> | void;
 };
 
 const FALLBACK_RATING_OPTIONS: RatingChoice[] = [
@@ -70,12 +71,24 @@ export function FeedbackCard({ ratingChoices, onDone }: FeedbackCardProps) {
           feedback_step: "done",
         },
       });
+      await onDone();
     } catch (error) {
       console.error("Failed to save feedback", error);
     } finally {
       setLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="mx-auto flex min-h-48 w-full max-w-md flex-col items-center justify-center gap-4 rounded-md border bg-background p-4 shadow-xs">
+        <Spinner className="size-8 text-primary" />
+        <p className="text-sm font-semibold text-muted-foreground">
+          Saving your feedback
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-md rounded-md border bg-background p-4 shadow-xs">

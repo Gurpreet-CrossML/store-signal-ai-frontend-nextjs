@@ -8,7 +8,6 @@ import { MessagesTab } from "./MessagesTab";
 
 export function TestConversationPanel() {
   const {
-    store,
     messages,
     loading,
     reInitializing,
