@@ -3,11 +3,10 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import {
   uid,
-  type RatingChoice,
   useTestChatbotContext,
 } from "@/clients/test-simulate";
 import { cn } from "@/lib/utils";
-import { SubmitThreadFeedback } from "@/redux/api-slice/thread-slice";
+import { SubmitThreadFeedback, RatingChoice } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch } from "@/redux/hooks";
 
 type FeedbackCardProps = {

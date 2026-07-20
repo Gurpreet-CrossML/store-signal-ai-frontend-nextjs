@@ -32,15 +32,9 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   CreateThread,
   FetchThreadDetails,
-  type CartDetails,
-  type OrderDetail,
-  type ProductData,
-  type ProductVariant,
-  type RatingChoice,
   type ThreadDetails,
   type ThreadJsonContent,
   type ThreadMessage,
-  type TicketDetails,
 } from "@/redux/api-slice/thread-slice";
 
 const STREAM_CHUNK_MS = 20;
@@ -49,17 +43,12 @@ const CHAT_SOUND_KEY = "chat_sound_enabled";
 
 export type MessageRole = "user" | "assistant";
 
-export type Product = ProductData;
-export type MessageJsonContent = ThreadJsonContent;
-export type OrderDetails = OrderDetail;
-export type { CartDetails, ProductVariant, RatingChoice, TicketDetails };
-
 export type Message = {
   id: string | number;
   role: MessageRole;
   message: string;
   created_at: Date | string;
-  json_content?: MessageJsonContent;
+  json_content?: ThreadJsonContent;
   show_suggestions?: boolean;
   image_url?: string | string[] | null;
   streaming?: boolean;
@@ -737,12 +726,8 @@ function TestSimulateContent() {
             >
               Test Conversation
             </TabsTrigger>
-            <TabsTrigger value="replay" className="px-5">
-              Historical Replay
-            </TabsTrigger>
           </TabsList>
           <TabsContent value="conversation" className="hidden" />
-          <TabsContent value="replay" className="hidden" />
         </Tabs>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center xl:justify-end">
