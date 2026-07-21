@@ -89,7 +89,12 @@ function BrandVoiceToneStyleEditorView({ storeCode }: { storeCode: string }) {
     },
     onSubmit: async (values) => {
       if (!storeCode) return;
-      await dispatch(SaveToneStyle({ storeCode: storeCode, payload: values }));
+      const result = await dispatch(
+        SaveToneStyle({ storeCode: storeCode, payload: values }),
+      );
+      if (SaveToneStyle.fulfilled.match(result)) {
+        formik.resetForm({ values: result.payload });
+      }
     },
   });
 

@@ -117,12 +117,15 @@ function BrandVoiceVocabularyEditorView({ storeCode }: { storeCode: string }) {
           (row) => row.say_word.trim() && row.replace_word.trim(),
         ),
       };
-      await dispatch(
+      const result = await dispatch(
         SaveVocabulary({
           storeCode: storeCode,
           payload,
         }),
       );
+      if (SaveVocabulary.fulfilled.match(result)) {
+        formik.resetForm({ values: result.payload });
+      }
     },
   });
 
