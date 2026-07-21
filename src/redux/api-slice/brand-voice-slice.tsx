@@ -382,7 +382,10 @@ const BrandVoiceSlice = createSlice({
       .addCase(CreatePersonaIdentity.rejected, (state, action) => {
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsLoading = false;
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsError =
-          action.payload || "Something went wrong";
+          action.payload as Record<
+            string,
+            string | Record<string, string>
+          > | null;
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsSuccess = false;
       })
       // Never Say Rules
