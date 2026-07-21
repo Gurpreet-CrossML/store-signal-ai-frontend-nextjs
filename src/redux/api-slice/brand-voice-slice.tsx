@@ -12,78 +12,6 @@ import type {
   VocabularyRecord,
 } from "@/db/chat";
 
-type AsyncState<T> = {
-  isLoading: boolean;
-  isSuccess: boolean;
-  isError: null | string | object;
-  data: T | null;
-};
-
-function createAsyncState<T>(data: T | null = null): AsyncState<T> {
-  return {
-    isLoading: false,
-    isSuccess: false,
-    isError: null,
-    data,
-  };
-}
-
-function collectErrorDetails(value: unknown): string[] {
-  if (!value) return [];
-  if (typeof value === "string") return [value];
-  if (Array.isArray(value)) {
-    return value.flatMap((item) => collectErrorDetails(item));
-  }
-  if (typeof value === "object") {
-    return Object.values(value as Record<string, unknown>).flatMap((item) =>
-      collectErrorDetails(item),
-    );
-  }
-  return [];
-}
-
-function getErrorDescription(fallback: string, data: unknown): string {
-  const message =
-    typeof data === "object" && data && "message" in data
-      ? String((data as { message?: unknown }).message || "")
-      : "";
-  const details = collectErrorDetails(
-    typeof data === "object" && data && "data" in data
-      ? (data as { data?: unknown }).data
-      : undefined,
-  );
-  const parts = [message, ...details].filter(Boolean);
-  return parts.length ? parts.join(" ") : fallback;
-}
-
-type BrandVoiceState = {
-  tonePresets: {
-    fetch: AsyncState<TonePresetRecord[]>;
-  };
-  toneStyle: {
-    fetch: AsyncState<ToneStyleRecord>;
-    save: AsyncState<ToneStyleRecord>;
-  };
-  vocabulary: {
-    fetch: AsyncState<VocabularyRecord>;
-    save: AsyncState<VocabularyRecord>;
-  };
-};
-
-const initialState: BrandVoiceState = {
-  tonePresets: {
-    fetch: createAsyncState<TonePresetRecord[]>(),
-  },
-  toneStyle: {
-    fetch: createAsyncState<ToneStyleRecord>(),
-    save: createAsyncState<ToneStyleRecord>(),
-  },
-  vocabulary: {
-    fetch: createAsyncState<VocabularyRecord>(),
-    save: createAsyncState<VocabularyRecord>(),
-  },
-};
-
 export const GetToneStyle = createAsyncThunk<ToneStyleRecord | null, string>(
   "brandVoice/getToneStyle",
   async (storeCode, thunkAPI) => {
@@ -91,16 +19,18 @@ export const GetToneStyle = createAsyncThunk<ToneStyleRecord | null, string>(
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchToneStyle()}?store_code=${encodeURIComponent(storeCode)}`,
       );
-      return response.data.data as ToneStyleRecord | null;
+      const data = response.data.data;
+      return data as ToneStyleRecord | null;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
+
       toast.error("Uh oh! Something went wrong.", {
-        description: getErrorDescription(
+        description:
+          data?.message ||
           "Unable to fetch the Tone & Style, please try again later.",
-          data,
-        ),
       });
+
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
@@ -116,12 +46,13 @@ export const GetTonePresets = createAsyncThunk<TonePresetRecord[], void>(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
+
       toast.error("Uh oh! Something went wrong.", {
-        description: getErrorDescription(
-          "Unable to fetch the Tone presets, please try again later.",
-          data,
-        ),
+        description:
+          data?.message ||
+          "Unable to fetch the tone presets, please try again later.",
       });
+
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
@@ -136,17 +67,23 @@ export const SaveToneStyle = createAsyncThunk<
       `${ENDPOINTS.saveToneStyle()}?store_code=${encodeURIComponent(storeCode)}`,
       payload,
     );
-    toast.success("Tone & Style saved successfully");
-    return response.data.data as ToneStyleRecord;
+    const data = response.data.data;
+
+    toast.success(
+      response?.data?.message || "Tone & Style saved successfully!",
+    );
+
+    return data as ToneStyleRecord;
   } catch (error) {
     const response = isAxiosError(error) ? error.response : undefined;
     const data = response?.data;
+
     toast.error("Uh oh! Something went wrong.", {
-      description: getErrorDescription(
+      description:
+        data?.message ||
         "Unable to save the Tone & Style, please try again later.",
-        data,
-      ),
     });
+
     return thunkAPI.rejectWithValue(data || "Something went wrong");
   }
 });
@@ -158,16 +95,18 @@ export const GetVocabulary = createAsyncThunk<VocabularyRecord | null, string>(
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchVocabulary()}?store_code=${encodeURIComponent(storeCode)}`,
       );
-      return response.data.data as VocabularyRecord | null;
+      const data = response.data.data;
+      return data as VocabularyRecord | null;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
+
       toast.error("Uh oh! Something went wrong.", {
-        description: getErrorDescription(
-          "Unable to fetch the Vocabulary, please try again later.",
-          data,
-        ),
+        description:
+          data?.message ||
+          "Unable to fetch the vocabulary, please try again later.",
       });
+
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
@@ -182,106 +121,142 @@ export const SaveVocabulary = createAsyncThunk<
       `${ENDPOINTS.saveVocabulary()}?store_code=${encodeURIComponent(storeCode)}`,
       payload,
     );
-    toast.success("Vocabulary saved successfully");
-    return response.data.data as VocabularyRecord;
+    const data = response.data.data;
+
+    toast.success(response?.data?.message || "Vocabulary saved successfully!");
+
+    return data as VocabularyRecord;
   } catch (error) {
     const response = isAxiosError(error) ? error.response : undefined;
     const data = response?.data;
+
     toast.error("Uh oh! Something went wrong.", {
-      description: getErrorDescription(
-        "Unable to save the Vocabulary, please try again later.",
-        data,
-      ),
+      description:
+        data?.message ||
+        "Unable to save the vocabulary, please try again later.",
     });
+
     return thunkAPI.rejectWithValue(data || "Something went wrong");
   }
 });
 
 const BrandVoiceSlice = createSlice({
   name: "BrandVoice",
-  initialState,
+  initialState: {
+    GetTonePresetsState: {
+      GetTonePresetsIsLoading: false,
+      GetTonePresetsIsSuccess: false,
+      GetTonePresetsIsError: null as null | string | object,
+      GetTonePresetsData: [] as TonePresetRecord[],
+    },
+    GetToneStyleState: {
+      GetToneStyleIsLoading: false,
+      GetToneStyleIsSuccess: false,
+      GetToneStyleIsError: null as null | string | object,
+      GetToneStyleData: null as ToneStyleRecord | null,
+    },
+    SaveToneStyleState: {
+      SaveToneStyleIsLoading: false,
+      SaveToneStyleIsSuccess: false,
+      SaveToneStyleIsError: null as null | string | object,
+      SaveToneStyleData: null as ToneStyleRecord | null,
+    },
+    GetVocabularyState: {
+      GetVocabularyIsLoading: false,
+      GetVocabularyIsSuccess: false,
+      GetVocabularyIsError: null as null | string | object,
+      GetVocabularyData: null as VocabularyRecord | null,
+    },
+    SaveVocabularyState: {
+      SaveVocabularyIsLoading: false,
+      SaveVocabularyIsSuccess: false,
+      SaveVocabularyIsError: null as null | string | object,
+      SaveVocabularyData: null as VocabularyRecord | null,
+    },
+  },
   reducers: {},
   extraReducers: (builder) => {
     builder
       .addCase(GetTonePresets.pending, (state) => {
-        state.tonePresets.fetch.isLoading = true;
-        state.tonePresets.fetch.isSuccess = false;
-        state.tonePresets.fetch.isError = null;
+        state.GetTonePresetsState.GetTonePresetsIsLoading = true;
+        state.GetTonePresetsState.GetTonePresetsIsSuccess = false;
+        state.GetTonePresetsState.GetTonePresetsIsError = null;
       })
       .addCase(GetTonePresets.fulfilled, (state, action) => {
-        state.tonePresets.fetch.isLoading = false;
-        state.tonePresets.fetch.isSuccess = true;
-        state.tonePresets.fetch.data = action.payload;
+        state.GetTonePresetsState.GetTonePresetsIsLoading = false;
+        state.GetTonePresetsState.GetTonePresetsIsSuccess = true;
+        state.GetTonePresetsState.GetTonePresetsData = action.payload;
       })
       .addCase(GetTonePresets.rejected, (state, action) => {
-        state.tonePresets.fetch.isLoading = false;
-        state.tonePresets.fetch.isSuccess = false;
-        state.tonePresets.fetch.isError =
+        state.GetTonePresetsState.GetTonePresetsIsLoading = false;
+        state.GetTonePresetsState.GetTonePresetsIsSuccess = false;
+        state.GetTonePresetsState.GetTonePresetsIsError =
           action.payload || "Something went wrong";
       })
       .addCase(GetToneStyle.pending, (state) => {
-        state.toneStyle.fetch.isLoading = true;
-        state.toneStyle.fetch.isSuccess = false;
-        state.toneStyle.fetch.isError = null;
+        state.GetToneStyleState.GetToneStyleIsLoading = true;
+        state.GetToneStyleState.GetToneStyleIsSuccess = false;
+        state.GetToneStyleState.GetToneStyleIsError = null;
       })
       .addCase(GetToneStyle.fulfilled, (state, action) => {
-        state.toneStyle.fetch.isLoading = false;
-        state.toneStyle.fetch.isSuccess = true;
-        state.toneStyle.fetch.data = action.payload;
+        state.GetToneStyleState.GetToneStyleIsLoading = false;
+        state.GetToneStyleState.GetToneStyleIsSuccess = true;
+        state.GetToneStyleState.GetToneStyleData = action.payload;
       })
       .addCase(GetToneStyle.rejected, (state, action) => {
-        state.toneStyle.fetch.isLoading = false;
-        state.toneStyle.fetch.isSuccess = false;
-        state.toneStyle.fetch.isError =
+        state.GetToneStyleState.GetToneStyleIsLoading = false;
+        state.GetToneStyleState.GetToneStyleIsSuccess = false;
+        state.GetToneStyleState.GetToneStyleIsError =
           action.payload || "Something went wrong";
       })
       .addCase(SaveToneStyle.pending, (state) => {
-        state.toneStyle.save.isLoading = true;
-        state.toneStyle.save.isSuccess = false;
-        state.toneStyle.save.isError = null;
+        state.SaveToneStyleState.SaveToneStyleIsLoading = true;
+        state.SaveToneStyleState.SaveToneStyleIsSuccess = false;
+        state.SaveToneStyleState.SaveToneStyleIsError = null;
       })
       .addCase(SaveToneStyle.fulfilled, (state, action) => {
-        state.toneStyle.save.isLoading = false;
-        state.toneStyle.save.isSuccess = true;
-        state.toneStyle.fetch.data = action.payload;
-        state.toneStyle.save.data = action.payload;
+        state.SaveToneStyleState.SaveToneStyleIsLoading = false;
+        state.SaveToneStyleState.SaveToneStyleIsSuccess = true;
+        state.GetToneStyleState.GetToneStyleData = action.payload;
+        state.SaveToneStyleState.SaveToneStyleData = action.payload;
       })
       .addCase(SaveToneStyle.rejected, (state, action) => {
-        state.toneStyle.save.isLoading = false;
-        state.toneStyle.save.isSuccess = false;
-        state.toneStyle.save.isError = action.payload || "Something went wrong";
+        state.SaveToneStyleState.SaveToneStyleIsLoading = false;
+        state.SaveToneStyleState.SaveToneStyleIsSuccess = false;
+        state.SaveToneStyleState.SaveToneStyleIsError =
+          action.payload || "Something went wrong";
       })
       .addCase(GetVocabulary.pending, (state) => {
-        state.vocabulary.fetch.isLoading = true;
-        state.vocabulary.fetch.isSuccess = false;
-        state.vocabulary.fetch.isError = null;
+        state.GetVocabularyState.GetVocabularyIsLoading = true;
+        state.GetVocabularyState.GetVocabularyIsSuccess = false;
+        state.GetVocabularyState.GetVocabularyIsError = null;
       })
       .addCase(GetVocabulary.fulfilled, (state, action) => {
-        state.vocabulary.fetch.isLoading = false;
-        state.vocabulary.fetch.isSuccess = true;
-        state.vocabulary.fetch.data = action.payload;
+        state.GetVocabularyState.GetVocabularyIsLoading = false;
+        state.GetVocabularyState.GetVocabularyIsSuccess = true;
+        state.GetVocabularyState.GetVocabularyData = action.payload;
       })
       .addCase(GetVocabulary.rejected, (state, action) => {
-        state.vocabulary.fetch.isLoading = false;
-        state.vocabulary.fetch.isSuccess = false;
-        state.vocabulary.fetch.isError =
+        state.GetVocabularyState.GetVocabularyIsLoading = false;
+        state.GetVocabularyState.GetVocabularyIsSuccess = false;
+        state.GetVocabularyState.GetVocabularyIsError =
           action.payload || "Something went wrong";
       })
       .addCase(SaveVocabulary.pending, (state) => {
-        state.vocabulary.save.isLoading = true;
-        state.vocabulary.save.isSuccess = false;
-        state.vocabulary.save.isError = null;
+        state.SaveVocabularyState.SaveVocabularyIsLoading = true;
+        state.SaveVocabularyState.SaveVocabularyIsSuccess = false;
+        state.SaveVocabularyState.SaveVocabularyIsError = null;
       })
       .addCase(SaveVocabulary.fulfilled, (state, action) => {
-        state.vocabulary.save.isLoading = false;
-        state.vocabulary.save.isSuccess = true;
-        state.vocabulary.fetch.data = action.payload;
-        state.vocabulary.save.data = action.payload;
+        state.SaveVocabularyState.SaveVocabularyIsLoading = false;
+        state.SaveVocabularyState.SaveVocabularyIsSuccess = true;
+        state.GetVocabularyState.GetVocabularyData = action.payload;
+        state.SaveVocabularyState.SaveVocabularyData = action.payload;
       })
       .addCase(SaveVocabulary.rejected, (state, action) => {
-        state.vocabulary.save.isLoading = false;
-        state.vocabulary.save.isSuccess = false;
-        state.vocabulary.save.isError =
+        state.SaveVocabularyState.SaveVocabularyIsLoading = false;
+        state.SaveVocabularyState.SaveVocabularyIsSuccess = false;
+        state.SaveVocabularyState.SaveVocabularyIsError =
           action.payload || "Something went wrong";
       });
   },

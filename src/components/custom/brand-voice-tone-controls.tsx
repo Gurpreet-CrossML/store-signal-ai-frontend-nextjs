@@ -1,7 +1,8 @@
 "use client";
 
 import { useId } from "react";
-
+import type { useFormik } from "formik";
+import { type ToneStylePayload } from "@/db/chat";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -16,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { IconAdjustments, IconGauge } from "@tabler/icons-react";
 
 type SliderDef = {
-  key: string;
+  key: keyof ToneStylePayload;
   label: string;
   minLabel: string;
   maxLabel: string;
@@ -68,17 +69,21 @@ const SPELLING_OPTIONS: readonly SelectOption[] = [
 ];
 
 function ToneMetricSlider({
+  name,
   label,
   value,
   minLabel,
   maxLabel,
   onChange,
+  onBlur,
 }: {
+  name: string;
   label: string;
   value: number;
   minLabel: string;
   maxLabel: string;
-  onChange: (value: number) => void;
+  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onBlur: (event: React.FocusEvent<HTMLInputElement>) => void;
 }) {
   const baseId = useId();
   const uid = `slider-${baseId.replace(/:/g, "")}`;
@@ -86,7 +91,9 @@ function ToneMetricSlider({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
-        <Label className="text-sm font-medium">{label}</Label>
+        <Label htmlFor={name} className="text-sm font-medium">
+          {label}
+        </Label>
         <Badge variant="outline" className="font-normal tabular-nums">
           {value}
         </Badge>
@@ -136,12 +143,15 @@ function ToneMetricSlider({
       `}</style>
 
       <input
+        id={name}
+        name={name}
         type="range"
         min={0}
         max={100}
         step={1}
         value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
+        onChange={onChange}
+        onBlur={onBlur}
         className={`${uid} w-full cursor-pointer appearance-none bg-transparent`}
       />
 
@@ -154,12 +164,14 @@ function ToneMetricSlider({
 }
 
 function ToneSelectField({
+  name,
   label,
   description,
   value,
   options,
   onChange,
 }: {
+  name: string;
   label: string;
   description: string;
   value: string;
@@ -173,7 +185,7 @@ function ToneSelectField({
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-full">
+        <SelectTrigger id={name} className="w-full">
           <SelectValue placeholder={label} />
         </SelectTrigger>
         <SelectContent>
@@ -189,32 +201,16 @@ function ToneSelectField({
 }
 
 type BrandVoiceToneControlsProps = {
-  values: Record<string, number>;
-  answerLength: string;
-  frequencyPolicy: string;
-  regionalSpelling: string;
-  useBulletPoints: boolean;
+  formik: ReturnType<typeof useFormik<ToneStylePayload>>;
   bulletPointsDescription: string;
-  onChange: (key: string, value: number) => void;
-  onAnswerLengthChange: (value: string) => void;
-  onFrequencyPolicyChange: (value: string) => void;
-  onRegionalSpellingChange: (value: string) => void;
-  onToggleBulletPoints: () => void;
 };
 
 export default function BrandVoiceToneControls({
-  values,
-  answerLength,
-  frequencyPolicy,
-  regionalSpelling,
-  useBulletPoints,
+  formik,
   bulletPointsDescription,
-  onChange,
-  onAnswerLengthChange,
-  onFrequencyPolicyChange,
-  onRegionalSpellingChange,
-  onToggleBulletPoints,
 }: BrandVoiceToneControlsProps) {
+  const values = formik.values;
+
   return (
     <div className="flex flex-col gap-6">
       <Card className="gap-0 overflow-hidden border-border/60 bg-background/95 shadow-sm">
@@ -228,11 +224,13 @@ export default function BrandVoiceToneControls({
           {SLIDERS.map((slider) => (
             <ToneMetricSlider
               key={slider.key}
+              name={slider.key}
               label={slider.label}
-              value={values[slider.key] ?? 50}
+              value={Number(values[slider.key] ?? 50)}
               minLabel={slider.minLabel}
               maxLabel={slider.maxLabel}
-              onChange={(v) => onChange(slider.key, v)}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
             />
           ))}
         </CardContent>
@@ -248,25 +246,28 @@ export default function BrandVoiceToneControls({
         <CardContent className="space-y-6 px-5 pb-5">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <ToneSelectField
+              name="answer_length"
               label="Answer length"
               description="Controls how much detail the assistant gives."
-              value={answerLength}
+              value={values.answer_length}
               options={ANSWER_LENGTH_OPTIONS}
-              onChange={onAnswerLengthChange}
+              onChange={(val) => formik.setFieldValue("answer_length", val)}
             />
             <ToneSelectField
+              name="frequency_policy"
               label="Frequency policy"
               description="Sets how often signature phrasing can repeat."
-              value={frequencyPolicy}
+              value={values.frequency_policy}
               options={FREQUENCY_OPTIONS}
-              onChange={onFrequencyPolicyChange}
+              onChange={(val) => formik.setFieldValue("frequency_policy", val)}
             />
             <ToneSelectField
+              name="regional_spelling"
               label="Regional spelling"
               description="Matches the store's spelling preference."
-              value={regionalSpelling}
+              value={values.regional_spelling}
               options={SPELLING_OPTIONS}
-              onChange={onRegionalSpellingChange}
+              onChange={(val) => formik.setFieldValue("regional_spelling", val)}
             />
           </div>
 
@@ -274,13 +275,18 @@ export default function BrandVoiceToneControls({
 
           <button
             type="button"
-            onClick={onToggleBulletPoints}
+            onClick={() =>
+              formik.setFieldValue(
+                "use_bullet_points",
+                !values.use_bullet_points,
+              )
+            }
             className={
-              useBulletPoints
+              values.use_bullet_points
                 ? "flex items-center justify-between rounded-xl border border-primary/50 bg-primary/10 px-4 py-3 text-left transition-colors"
                 : "flex items-center justify-between rounded-xl border border-border/70 bg-background px-4 py-3 text-left transition-colors"
             }
-            aria-pressed={useBulletPoints}
+            aria-pressed={values.use_bullet_points}
           >
             <div className="flex flex-col gap-1">
               <span className="text-sm font-medium">Use bullet points</span>
@@ -290,14 +296,14 @@ export default function BrandVoiceToneControls({
             </div>
             <span
               className={
-                useBulletPoints
+                values.use_bullet_points
                   ? "flex h-7 w-12 items-center rounded-full bg-primary p-1 transition-colors"
                   : "flex h-7 w-12 items-center rounded-full bg-muted p-1 transition-colors"
               }
             >
               <span
                 className={
-                  useBulletPoints
+                  values.use_bullet_points
                     ? "size-5 translate-x-5 rounded-full bg-background shadow-sm transition-transform"
                     : "size-5 translate-x-0 rounded-full bg-background shadow-sm transition-transform"
                 }

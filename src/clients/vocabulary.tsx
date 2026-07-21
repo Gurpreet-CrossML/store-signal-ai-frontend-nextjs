@@ -1,18 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { useFormik, setIn } from "formik";
+import { useFormik } from "formik";
 import z from "zod";
 
 import BrandVoiceVocabularyChipLists from "@/components/custom/brand-voice-vocabulary-chip-lists";
 import BrandVoiceVocabularySummary from "@/components/custom/brand-voice-vocabulary-summary";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import {
   GetVocabulary,
@@ -72,13 +66,6 @@ const validationSchema = z
     });
   });
 
-function issuesToFormikErrors(issues: z.ZodIssue[]) {
-  return issues.reduce(
-    (errors, issue) => setIn(errors, issue.path.join("."), issue.message),
-    {} as Record<string, unknown>,
-  );
-}
-
 // Root component (store selector shell)
 
 export default function BrandVoiceVocabularyEditor() {
@@ -86,27 +73,19 @@ export default function BrandVoiceVocabularyEditor() {
     (state) => state.GetStoresReducer.selectedStore,
   );
 
-  return (
-    <BrandVoiceVocabularyEditorView
-      key={selectedStore || "no-store"}
-      selectedStore={selectedStore}
-    />
-  );
+  return <BrandVoiceVocabularyEditorView storeCode={selectedStore} />;
 }
 
 // Editor view (Formik + Redux orchestrator)
 
-function BrandVoiceVocabularyEditorView({
-  selectedStore,
-}: {
-  selectedStore: string;
-}) {
+function BrandVoiceVocabularyEditorView({ storeCode }: { storeCode: string }) {
   const dispatch = useAppDispatch();
-  const { data: vocabData, isLoading: fetchIsLoading } = useAppSelector(
-    (state) => state.GetBrandVoiceReducer.vocabulary.fetch,
-  );
-  const { isLoading: saveIsLoading } = useAppSelector(
-    (state) => state.GetBrandVoiceReducer.vocabulary.save,
+  const {
+    GetVocabularyData: vocabData,
+    GetVocabularyIsLoading: fetchIsLoading,
+  } = useAppSelector((state) => state.GetBrandVoiceReducer.GetVocabularyState);
+  const { SaveVocabularyIsLoading: saveIsLoading } = useAppSelector(
+    (state) => state.GetBrandVoiceReducer.SaveVocabularyState,
   );
 
   const updatedAt = vocabData?.updated_at ?? null;
@@ -123,10 +102,15 @@ function BrandVoiceVocabularyEditorView({
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
-      return issuesToFormikErrors(result.error.issues);
+      return Object.fromEntries(
+        result.error.issues.map((issue) => [
+          issue.path.join("."),
+          issue.message,
+        ]),
+      );
     },
     onSubmit: async (values) => {
-      if (!selectedStore) return;
+      if (!storeCode) return;
       const payload = {
         ...values,
         word_replacements: values.word_replacements.filter(
@@ -135,19 +119,25 @@ function BrandVoiceVocabularyEditorView({
       };
       await dispatch(
         SaveVocabulary({
-          storeCode: selectedStore,
+          storeCode: storeCode,
           payload,
         }),
       );
     },
   });
 
-  // Fetch on mount
+  // Fetch on mount / store change
   useEffect(() => {
-    if (selectedStore) {
-      dispatch(GetVocabulary(selectedStore));
-    }
-  }, [dispatch, selectedStore]);
+    if (!storeCode) return;
+    let active = true;
+    (async () => {
+      await dispatch(GetVocabulary(storeCode));
+      if (!active) return;
+    })();
+    return () => {
+      active = false;
+    };
+  }, [dispatch, storeCode]);
 
   // Derived state
   const values = formik.values;
@@ -163,40 +153,6 @@ function BrandVoiceVocabularyEditorView({
       ).length,
     },
   ];
-
-  // Handlers
-  const handleReplacementChange = (
-    index: number,
-    patch: Partial<VocabularyFormValues["word_replacements"][number]>,
-  ) => {
-    const next = [...values.word_replacements];
-    next[index] = { ...next[index], ...patch };
-    formik.setFieldValue("word_replacements", next);
-  };
-
-  const handleReplacementAdd = () => {
-    formik.setFieldValue("word_replacements", [
-      ...values.word_replacements,
-      { say_word: "", replace_word: "", is_active: true },
-    ]);
-  };
-
-  // Empty state
-  if (!selectedStore) {
-    return (
-      <div className="w-full px-4 pb-6 md:px-6">
-        <Empty className="min-h-[55vh]">
-          <EmptyHeader>
-            <EmptyTitle>Select a store first</EmptyTitle>
-            <EmptyDescription>
-              Choose a store from the sidebar to edit vocabulary rules and
-              preferred phrasing.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </div>
-    );
-  }
 
   // Main layout
   return (
@@ -214,6 +170,7 @@ function BrandVoiceVocabularyEditorView({
       <div className="mt-4 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
         {/* Left column — chip lists + replacements */}
         <BrandVoiceVocabularyChipLists
+          formik={formik}
           preferredPhrases={values.preferred_phrases}
           bannedWords={values.banned_words}
           signaturePhrases={values.signature_phrases}
@@ -225,8 +182,12 @@ function BrandVoiceVocabularyEditorView({
           onSignatureChange={(v) =>
             formik.setFieldValue("signature_phrases", v)
           }
-          onReplacementChange={handleReplacementChange}
-          onReplacementAdd={handleReplacementAdd}
+          onReplacementAdd={() =>
+            formik.setFieldValue("word_replacements", [
+              ...values.word_replacements,
+              { say_word: "", replace_word: "", is_active: true },
+            ])
+          }
         />
 
         {/* Right column — summary sidebar */}

@@ -1,19 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import { useFormik, setIn } from "formik";
+import { useFormik } from "formik";
 import z from "zod";
 
 import BrandVoiceTonePresetSelector from "@/components/custom/brand-voice-tone-preset-selector";
 import BrandVoiceToneControls from "@/components/custom/brand-voice-tone-controls";
 import ToneStylePreviewPanel from "@/components/custom/brand-voice-tone-preview-panel";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import {
   GetTonePresets,
@@ -21,57 +15,24 @@ import {
   SaveToneStyle,
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { type TonePresetRecord, type ToneStylePayload } from "@/db/chat";
-
-type ToneEditableField = Exclude<keyof ToneStylePayload, "preset">;
+import { type ToneStylePayload, type TonePresetRecord } from "@/db/chat";
 
 const validationSchema = z.object({
   preset: z.number().int(),
-  warmth: z.number().min(0).max(100),
-  formality: z.number().min(0).max(100),
-  energy: z.number().min(0).max(100),
-  playfulness: z.number().min(0).max(100),
-  directness: z.number().min(0).max(100),
+  warmth: z.coerce.number().min(0).max(100),
+  formality: z.coerce.number().min(0).max(100),
+  energy: z.coerce.number().min(0).max(100),
+  playfulness: z.coerce.number().min(0).max(100),
+  directness: z.coerce.number().min(0).max(100),
   answer_length: z.enum(["concise", "standard", "thorough"]),
   frequency_policy: z.enum(["none", "sparing", "moderate", "liberal", "free"]),
   regional_spelling: z.enum(["uk", "us", "auto"]),
   use_bullet_points: z.boolean(),
 });
 
-function createDefaultToneStyle(
-  presets: readonly TonePresetRecord[],
-): ToneStylePayload {
-  const defaultPreset = presets[0] ?? null;
-  return {
-    preset: defaultPreset?.id ?? 0,
-    warmth: defaultPreset?.warmth ?? 50,
-    formality: defaultPreset?.formality ?? 50,
-    energy: defaultPreset?.energy ?? 50,
-    playfulness: defaultPreset?.playfulness ?? 50,
-    directness: defaultPreset?.directness ?? 50,
-    answer_length: "standard",
-    frequency_policy: "sparing",
-    regional_spelling: "auto",
-    use_bullet_points: true,
-  };
-}
-
-function getCustomPreset(
-  presets: readonly TonePresetRecord[],
-): TonePresetRecord | null {
+function getCustomPreset(presets: TonePresetRecord[]): number | null {
   return (
-    presets.find((preset) => preset.name.trim().toLowerCase() === "custom") ??
-    null
-  );
-}
-
-function issuesToFormikErrors(issues: z.ZodIssue[]) {
-  return issues.reduce(
-    (errors, issue) => {
-      const path = issue.path.join(".");
-      return setIn(errors, path, issue.message);
-    },
-    {} as Record<string, unknown>,
+    presets.find((preset) => preset.name.toLowerCase() === "custom")?.id ?? null
   );
 }
 
@@ -82,74 +43,114 @@ export default function BrandVoiceToneStyleEditor() {
     (state) => state.GetStoresReducer.selectedStore,
   );
 
-  return (
-    <BrandVoiceToneStyleEditorView
-      key={selectedStore || "no-store"}
-      selectedStore={selectedStore}
-    />
-  );
+  return <BrandVoiceToneStyleEditorView storeCode={selectedStore} />;
 }
 
 // Editor view (Formik + Redux orchestrator)
-function BrandVoiceToneStyleEditorView({
-  selectedStore,
-}: {
-  selectedStore: string;
-}) {
+
+function BrandVoiceToneStyleEditorView({ storeCode }: { storeCode: string }) {
   const dispatch = useAppDispatch();
-  const tonePresetsFetch = useAppSelector(
-    (state) => state.GetBrandVoiceReducer.tonePresets.fetch,
+  const {
+    GetTonePresetsData: tonePresets,
+    GetTonePresetsIsLoading: presetsIsLoading,
+  } = useAppSelector((state) => state.GetBrandVoiceReducer.GetTonePresetsState);
+  const { GetToneStyleData: toneData, GetToneStyleIsLoading: fetchIsLoading } =
+    useAppSelector((state) => state.GetBrandVoiceReducer.GetToneStyleState);
+  const { SaveToneStyleIsLoading: saveIsLoading } = useAppSelector(
+    (state) => state.GetBrandVoiceReducer.SaveToneStyleState,
   );
-  const { data: tonePresets, isLoading: presetsIsLoading } = tonePresetsFetch;
-  const { data: toneData, isLoading: fetchIsLoading } = useAppSelector(
-    (state) => state.GetBrandVoiceReducer.toneStyle.fetch,
-  );
-  const { isLoading: saveIsLoading } = useAppSelector(
-    (state) => state.GetBrandVoiceReducer.toneStyle.save,
-  );
-  const presetList = tonePresets ?? [];
-  const customPreset = getCustomPreset(presetList);
-  const hasStoredToneStyle = toneData ? true : fetchIsLoading ? null : false;
+
+  const customPresetId = getCustomPreset(tonePresets);
+
   // Formik
   const formik = useFormik<ToneStylePayload>({
     enableReinitialize: true,
-    initialValues:
-      (toneData as ToneStylePayload) || createDefaultToneStyle(presetList),
+    initialValues: (toneData as ToneStylePayload) || {
+      preset: tonePresets[0]?.id ?? 0,
+      warmth: tonePresets[0]?.warmth ?? 50,
+      formality: tonePresets[0]?.formality ?? 50,
+      energy: tonePresets[0]?.energy ?? 50,
+      playfulness: tonePresets[0]?.playfulness ?? 50,
+      directness: tonePresets[0]?.directness ?? 50,
+      answer_length: "standard",
+      frequency_policy: "sparing",
+      regional_spelling: "auto",
+      use_bullet_points: true,
+    },
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
-      return issuesToFormikErrors(result.error.issues);
+      return Object.fromEntries(
+        result.error.issues.map((issue) => [
+          issue.path.join("."),
+          issue.message,
+        ]),
+      );
     },
     onSubmit: async (values) => {
-      if (!selectedStore) return;
-      await dispatch(
-        SaveToneStyle({ storeCode: selectedStore, payload: values }),
-      );
+      if (!storeCode) return;
+      await dispatch(SaveToneStyle({ storeCode: storeCode, payload: values }));
     },
   });
 
-  // Fetch on mount
+  // Fetch on mount / store change
   useEffect(() => {
-    if (selectedStore) {
-      dispatch(GetToneStyle(selectedStore));
-    }
-  }, [dispatch, selectedStore]);
+    if (!storeCode) return;
+    let active = true;
+    (async () => {
+      await dispatch(GetToneStyle(storeCode));
+      if (!active) return;
+    })();
+    return () => {
+      active = false;
+    };
+  }, [dispatch, storeCode]);
 
   useEffect(() => {
     dispatch(GetTonePresets());
   }, [dispatch]);
 
+  // Auto-switch to custom preset when dimension values change
+  useEffect(() => {
+    if (customPresetId === null) return;
+    const currentPreset = tonePresets.find(
+      (p) => p.id === formik.values.preset,
+    );
+    if (!currentPreset) return;
+    if (
+      currentPreset.warmth !== Number(formik.values.warmth) ||
+      currentPreset.formality !== Number(formik.values.formality) ||
+      currentPreset.energy !== Number(formik.values.energy) ||
+      currentPreset.playfulness !== Number(formik.values.playfulness) ||
+      currentPreset.directness !== Number(formik.values.directness)
+    ) {
+      if (formik.values.preset !== customPresetId) {
+        formik.setFieldValue("preset", customPresetId, false);
+      }
+    }
+  }, [
+    formik.values.warmth,
+    formik.values.formality,
+    formik.values.energy,
+    formik.values.playfulness,
+    formik.values.directness,
+    formik.values.preset,
+    customPresetId,
+    tonePresets,
+    formik,
+  ]);
+
   // Derived state
   const values = formik.values;
   const selectedPreset =
-    presetList.find((preset) => preset.id === values.preset) ?? presetList[0];
+    tonePresets.find((preset) => preset.id === values.preset) ?? tonePresets[0];
 
-  const previewMode =
-    hasStoredToneStyle === null
+  const previewMode = toneData
+    ? "saved"
+    : fetchIsLoading
       ? "loading"
-      : hasStoredToneStyle
-        ? "saved"
-        : "preset";
+      : "preset";
+
   const modeLabel =
     previewMode === "saved" ? "Saved profile" : "Preset preview";
   const modeDescription =
@@ -159,19 +160,8 @@ function BrandVoiceToneStyleEditorView({
         ? "Loading the store's tone settings."
         : "No saved tone profile yet, so this preview follows the starter preset.";
 
-  // Handlers
-  const updateToneField = <K extends ToneEditableField>(
-    key: K,
-    value: ToneStylePayload[K],
-  ) => {
-    if (customPreset && formik.values.preset !== customPreset.id) {
-      formik.setFieldValue("preset", customPreset.id);
-    }
-    formik.setFieldValue(key, value);
-  };
-
   const handlePresetSelect = (presetId: number) => {
-    const tonePreset = presetList.find((preset) => preset.id === presetId);
+    const tonePreset = tonePresets.find((preset) => preset.id === presetId);
     if (!tonePreset) {
       return;
     }
@@ -190,23 +180,6 @@ function BrandVoiceToneStyleEditorView({
     });
   };
 
-  //  Empty state
-  if (!selectedStore) {
-    return (
-      <div className="w-full px-4 pb-6 md:px-6">
-        <Empty className="min-h-[55vh]">
-          <EmptyHeader>
-            <EmptyTitle>Select a store first</EmptyTitle>
-            <EmptyDescription>
-              Choose a store from the sidebar to edit Tone &amp; Style and
-              preview how replies will sound.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </div>
-    );
-  }
-
   // Main layout
   return (
     <form onSubmit={formik.handleSubmit} className="w-full px-4 pb-6 md:px-6">
@@ -219,7 +192,7 @@ function BrandVoiceToneStyleEditorView({
       </div>
 
       {/* Loading banner */}
-      {fetchIsLoading || presetsIsLoading || hasStoredToneStyle === null ? (
+      {fetchIsLoading || presetsIsLoading ? (
         <div className="mt-4 flex items-center gap-2 rounded-xl border border-border/60 bg-background px-4 py-3 text-sm text-muted-foreground">
           <Spinner className="size-4" />
           Loading current tone settings
@@ -231,48 +204,14 @@ function BrandVoiceToneStyleEditorView({
         {/* Left column */}
         <div className="flex flex-col gap-6">
           <BrandVoiceTonePresetSelector
-            presets={presetList}
+            presets={tonePresets}
             activePreset={values.preset}
             onSelect={handlePresetSelect}
           />
 
           <BrandVoiceToneControls
-            values={{
-              warmth: values.warmth,
-              formality: values.formality,
-              energy: values.energy,
-              playfulness: values.playfulness,
-              directness: values.directness,
-            }}
-            answerLength={values.answer_length}
-            frequencyPolicy={values.frequency_policy}
-            regionalSpelling={values.regional_spelling}
-            useBulletPoints={values.use_bullet_points}
+            formik={formik}
             bulletPointsDescription="Bullet points help organize longer answers."
-            onChange={(key, value) =>
-              updateToneField(key as ToneEditableField, value as number)
-            }
-            onAnswerLengthChange={(v) =>
-              updateToneField(
-                "answer_length",
-                v as ToneStylePayload["answer_length"],
-              )
-            }
-            onFrequencyPolicyChange={(v) =>
-              updateToneField(
-                "frequency_policy",
-                v as ToneStylePayload["frequency_policy"],
-              )
-            }
-            onRegionalSpellingChange={(v) =>
-              updateToneField(
-                "regional_spelling",
-                v as ToneStylePayload["regional_spelling"],
-              )
-            }
-            onToggleBulletPoints={() =>
-              updateToneField("use_bullet_points", !values.use_bullet_points)
-            }
           />
 
           {/* Save / Reset buttons */}
@@ -307,14 +246,14 @@ function BrandVoiceToneStyleEditorView({
             preset={selectedPreset ?? null}
             modeLabel={modeLabel}
             modeDescription={modeDescription}
-            presetOrder={presetList}
+            presetOrder={tonePresets}
             currentProfile={{
               preset: values.preset,
-              warmth: values.warmth,
-              formality: values.formality,
-              energy: values.energy,
-              playfulness: values.playfulness,
-              directness: values.directness,
+              warmth: Number(values.warmth),
+              formality: Number(values.formality),
+              energy: Number(values.energy),
+              playfulness: Number(values.playfulness),
+              directness: Number(values.directness),
               useBulletPoints: values.use_bullet_points,
             }}
           />

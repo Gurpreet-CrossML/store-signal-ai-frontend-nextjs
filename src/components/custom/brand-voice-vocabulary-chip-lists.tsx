@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
+import type { useFormik } from "formik";
 import { IconX, IconCheck, IconPlus } from "@tabler/icons-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -126,7 +127,7 @@ type ReplacementRowProps = {
   sayWord: string;
   replaceWord: string;
   isActive: boolean;
-  onChange: (patch: Partial<ReplacementRowItem>) => void;
+  formik: ReturnType<typeof useFormik<any>>;
 };
 
 function ReplacementRow({
@@ -134,26 +135,34 @@ function ReplacementRow({
   sayWord,
   replaceWord,
   isActive,
-  onChange,
+  formik,
 }: ReplacementRowProps) {
   return (
     <div className="grid gap-4 rounded-xl border border-border/60 bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
       <div className="flex min-w-0 flex-col gap-2">
-        <FieldLabel htmlFor={`say_word_${index}`}>Say word</FieldLabel>
+        <FieldLabel htmlFor={`word_replacements.${index}.say_word`}>
+          Say word
+        </FieldLabel>
         <Input
-          id={`say_word_${index}`}
+          id={`word_replacements.${index}.say_word`}
+          name={`word_replacements.${index}.say_word`}
           value={sayWord}
-          onChange={(e) => onChange({ say_word: e.target.value })}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
           placeholder="e.g. basket"
           autoComplete="off"
         />
       </div>
       <div className="flex min-w-0 flex-col gap-2">
-        <FieldLabel htmlFor={`replace_word_${index}`}>Replace with</FieldLabel>
+        <FieldLabel htmlFor={`word_replacements.${index}.replace_word`}>
+          Replace with
+        </FieldLabel>
         <Input
-          id={`replace_word_${index}`}
+          id={`word_replacements.${index}.replace_word`}
+          name={`word_replacements.${index}.replace_word`}
           value={replaceWord}
-          onChange={(e) => onChange({ replace_word: e.target.value })}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
           placeholder="e.g. cart"
           autoComplete="off"
         />
@@ -163,7 +172,12 @@ function ReplacementRow({
           type="button"
           size="sm"
           variant={isActive ? "default" : "outline"}
-          onClick={() => onChange({ is_active: !isActive })}
+          onClick={() =>
+            formik.setFieldValue(
+              `word_replacements.${index}.is_active`,
+              !isActive,
+            )
+          }
           className="h-6 min-w-[4rem] px-1.5 text-[10px]"
           title={
             isActive
@@ -187,6 +201,7 @@ function ReplacementRow({
 // BrandVoiceVocabularyChipLists
 
 type BrandVoiceVocabularyChipListsProps = {
+  formik: ReturnType<typeof useFormik<any>>;
   preferredPhrases: string[];
   bannedWords: string[];
   signaturePhrases: string[];
@@ -194,14 +209,11 @@ type BrandVoiceVocabularyChipListsProps = {
   onPreferredChange: (v: string[]) => void;
   onBannedChange: (v: string[]) => void;
   onSignatureChange: (v: string[]) => void;
-  onReplacementChange: (
-    index: number,
-    patch: Partial<ReplacementRowItem>,
-  ) => void;
   onReplacementAdd: () => void;
 };
 
 export default function BrandVoiceVocabularyChipLists({
+  formik,
   preferredPhrases,
   bannedWords,
   signaturePhrases,
@@ -209,7 +221,6 @@ export default function BrandVoiceVocabularyChipLists({
   onPreferredChange,
   onBannedChange,
   onSignatureChange,
-  onReplacementChange,
   onReplacementAdd,
 }: BrandVoiceVocabularyChipListsProps) {
   return (
@@ -271,7 +282,7 @@ export default function BrandVoiceVocabularyChipLists({
                   sayWord={row.say_word}
                   replaceWord={row.replace_word}
                   isActive={row.is_active}
-                  onChange={(patch) => onReplacementChange(index, patch)}
+                  formik={formik}
                 />
               ))}
             </div>
