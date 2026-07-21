@@ -165,3 +165,16 @@ export type APIResponse = {
   message?: string;
   data?: object | object[] | PaginationResponse | ErrorResponse | null;
 };
+
+export const SELF_REFERENCE_OPTIONS = [
+  {
+    value: "i",
+    label: '"I"',
+    description: "I can help with that",
+  },
+  {
+    value: "we",
+    label: '"We"',
+    description: "We can help with that",
+  },
+] as const;

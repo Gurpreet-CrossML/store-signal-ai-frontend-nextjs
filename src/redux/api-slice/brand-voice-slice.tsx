@@ -207,7 +207,10 @@ const brandVoiceSlice = createSlice({
       .addCase(createPersonaIdentity.rejected, (state, action) => {
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsLoading = false;
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsError =
-          action.payload as string | object;
+          action.payload as Record<
+            string,
+            string | Record<string, string>
+          > | null;
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsSuccess = false;
       })
       .addCase(fetchNeverSayRules.pending, (state) => {
