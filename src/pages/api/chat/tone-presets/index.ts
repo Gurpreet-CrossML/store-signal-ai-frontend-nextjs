@@ -19,7 +19,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
 
     return res
       .status(200)
-      .json(createAPIResponse(true, "Tone presets retrieved successfully", data));
+      .json(
+        createAPIResponse(true, "Tone presets retrieved successfully", data),
+      );
   } catch (e) {
     return handleApiError(res, e, "chat/tone-presets");
   }
