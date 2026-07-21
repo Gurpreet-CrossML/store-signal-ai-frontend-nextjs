@@ -52,8 +52,8 @@ export const fetchPersonaIdentity = createAsyncThunk(
   },
 );
 
-export const CreatePersonaIdentity = createAsyncThunk(
-  "CreatePersonaIdentity",
+export const createPersonaIdentity = createAsyncThunk(
+  "createPersonaIdentity",
   async (
     { storeCode, payload }: { storeCode: string; payload: PersonaIdentityData },
     thunkAPI,
@@ -110,8 +110,8 @@ export const fetchNeverSayRules = createAsyncThunk(
   },
 );
 
-export const CreateNeverSayRules = createAsyncThunk(
-  "CreateNeverSayRules",
+export const createNeverSayRules = createAsyncThunk(
+  "createNeverSayRules",
   async (
     { storeCode, payload }: { storeCode: string; payload: NeverSayRulesData },
     thunkAPI,
@@ -191,12 +191,12 @@ const brandVoiceSlice = createSlice({
           action.payload as string | object;
         state.FetchPersonaIdentityState.FetchPersonaIdentityIsSuccess = false;
       })
-      .addCase(CreatePersonaIdentity.pending, (state) => {
+      .addCase(createPersonaIdentity.pending, (state) => {
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsLoading = true;
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsError = null;
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsSuccess = false;
       })
-      .addCase(CreatePersonaIdentity.fulfilled, (state, action) => {
+      .addCase(createPersonaIdentity.fulfilled, (state, action) => {
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsLoading = false;
         state.CreatePersonaIdentityState.CreatePersonaIdentityData =
           action.payload;
@@ -204,7 +204,7 @@ const brandVoiceSlice = createSlice({
           action.payload;
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsSuccess = true;
       })
-      .addCase(CreatePersonaIdentity.rejected, (state, action) => {
+      .addCase(createPersonaIdentity.rejected, (state, action) => {
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsLoading = false;
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsError =
           action.payload as string | object;
@@ -226,18 +226,18 @@ const brandVoiceSlice = createSlice({
           action.payload as string | object;
         state.FetchNeverSayRulesState.FetchNeverSayRulesIsSuccess = false;
       })
-      .addCase(CreateNeverSayRules.pending, (state) => {
+      .addCase(createNeverSayRules.pending, (state) => {
         state.CreateNeverSayRulesState.CreateNeverSayRulesIsLoading = true;
         state.CreateNeverSayRulesState.CreateNeverSayRulesIsError = null;
         state.CreateNeverSayRulesState.CreateNeverSayRulesIsSuccess = false;
       })
-      .addCase(CreateNeverSayRules.fulfilled, (state, action) => {
+      .addCase(createNeverSayRules.fulfilled, (state, action) => {
         state.CreateNeverSayRulesState.CreateNeverSayRulesIsLoading = false;
         state.CreateNeverSayRulesState.CreateNeverSayRulesData = action.payload;
         state.FetchNeverSayRulesState.FetchNeverSayRulesData = action.payload;
         state.CreateNeverSayRulesState.CreateNeverSayRulesIsSuccess = true;
       })
-      .addCase(CreateNeverSayRules.rejected, (state, action) => {
+      .addCase(createNeverSayRules.rejected, (state, action) => {
         state.CreateNeverSayRulesState.CreateNeverSayRulesIsLoading = false;
         state.CreateNeverSayRulesState.CreateNeverSayRulesIsError =
           action.payload as string | object;
