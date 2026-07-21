@@ -45,6 +45,37 @@ export const StartShopifyInstall = createAsyncThunk(
 // The "Your AI is ready" step streams `/store/shopify/verify/` (NDJSON) directly
 // in the component, so its results aren't kept in Redux.
 
+export type MagentoConnect = { store_code: string };
+
+/** Verify a merchant's Magento admin access token and connect their store.
+ * Django reads the store's categories with the token to prove it works, then
+ * saves the store URL + token onto the store's credentials. Resolves on success
+ * (loading is tracked locally by the connect step, so nothing lands in Redux). */
+export const VerifyMagentoToken = createAsyncThunk(
+  "onboarding/VerifyMagentoToken",
+  async (
+    payload: { name: string; base_url: string; access_token: string },
+    thunkAPI,
+  ) => {
+    try {
+      const res = await axiosInstance.post(
+        ENDPOINTS.magentoConnect(),
+        payload,
+        { useBackend: true },
+      );
+      return res.data.data as MagentoConnect;
+    } catch (error) {
+      toast.error("Couldn't verify your access token.", {
+        description: errorMessage(
+          error,
+          "Magento didn't accept that token. Double-check it and try again.",
+        ),
+      });
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
 export type OnboardingJourney = {
   user_journey: string[];
   is_complete: boolean;

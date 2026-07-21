@@ -12,9 +12,9 @@ import {
 import { cn } from "@/lib/utils";
 import { IconLock, IconArrowRight } from "@tabler/icons-react";
 import {
-  SHOPIFY_PERMISSION_GROUPS,
-  compactScopes,
+  permissionGroups,
   type CompactScope,
+  type OnboardingPlatform,
 } from "@/lib/onboarding";
 import { OnboardingHeader } from "./onboarding-header";
 
@@ -81,11 +81,22 @@ function ScopeRow({ scope }: { scope: CompactScope }) {
   );
 }
 
-export function StepConnect({ onNext }: { onNext: () => void }) {
+export function StepConnect({
+  platform,
+  onPlatformChange,
+  onNext,
+}: {
+  platform: OnboardingPlatform;
+  onPlatformChange: (platform: OnboardingPlatform) => void;
+  onNext: () => void;
+}) {
+  const groups = permissionGroups(platform);
+  const totalSteps = platform === "magento" ? 5 : 6;
+
   return (
     <div className="flex flex-col gap-6">
       <OnboardingHeader
-        label="Step 1 of 6"
+        label={`Step 1 of ${totalSteps}`}
         title="Connect your store"
         time="60 sec"
         description="The only technical step — and it's one click. We start learning your store immediately in the background."
@@ -93,17 +104,16 @@ export function StepConnect({ onNext }: { onNext: () => void }) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <PlatformCard
-          selected
+          selected={platform === "shopify"}
           title="Shopify"
           subtitle="Connect via secure OAuth"
-          onSelect={() => {}}
+          onSelect={() => onPlatformChange("shopify")}
         />
         <PlatformCard
-          selected={false}
-          disabled
-          title="Magento 2"
-          subtitle="Connect via admin OAuth · coming soon"
-          onSelect={() => {}}
+          selected={platform === "magento"}
+          title="Magento"
+          subtitle="Connect via access token"
+          onSelect={() => onPlatformChange("magento")}
         />
       </div>
 
@@ -116,12 +126,15 @@ export function StepConnect({ onNext }: { onNext: () => void }) {
               for, grouped so you know exactly what you&apos;re granting.
             </p>
           </div>
+          {/* Remount on platform switch so the accordion re-opens its first
+              group cleanly. */}
           <Accordion
+            key={platform}
             type="single"
             collapsible
-            defaultValue={SHOPIFY_PERMISSION_GROUPS[0].key}
+            defaultValue={groups[0].key}
           >
-            {SHOPIFY_PERMISSION_GROUPS.map((group) => {
+            {groups.map((group) => {
               const Icon = group.icon;
               return (
                 <AccordionItem key={group.key} value={group.key}>
@@ -133,7 +146,7 @@ export function StepConnect({ onNext }: { onNext: () => void }) {
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="divide-y divide-dashed">
-                      {compactScopes(group.scopes).map((scope) => (
+                      {group.scopes.map((scope) => (
                         <ScopeRow key={scope.name} scope={scope} />
                       ))}
                     </div>

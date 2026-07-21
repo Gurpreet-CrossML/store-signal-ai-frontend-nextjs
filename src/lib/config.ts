@@ -81,6 +81,7 @@ export const ENDPOINTS = {
     store
       ? `/store/shopify/verify/?store=${encodeURIComponent(store)}`
       : `/store/shopify/verify/`,
+  magentoConnect: () => "/store/magento/connect/",
 
   // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
   // Next.js issues a 308 redirect (an extra round-trip) before each call.

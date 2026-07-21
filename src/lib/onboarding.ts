@@ -13,7 +13,18 @@ import {
   IconBox,
   IconScale,
   IconWorld,
+  IconTruckDelivery,
+  IconPackages,
+  IconCoin,
+  IconShoppingBag,
+  IconBuildingStore,
+  IconSettings,
+  IconChartBar,
+  IconPlugConnected,
+  IconReceiptTax,
 } from "@tabler/icons-react";
+
+export type OnboardingPlatform = "shopify" | "magento";
 
 // The OAuth install opens Shopify in a new tab; on success the backend 302s
 // that tab to /onboarding/connected, which broadcasts here so the original
@@ -158,3 +169,171 @@ export const SHOPIFY_PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
 ];
+
+// Magento access is granted per resource for both read + write, so scopes here
+// are bare resource names (no read_/write_ prefixes) and every row shows both.
+export const MAGENTO_PERMISSION_GROUPS: PermissionGroup[] = [
+  {
+    key: "fulfillment",
+    icon: IconTruckDelivery,
+    title: "Fulfillment",
+    scopes: [
+      "assigned_fulfillment_orders",
+      "fulfillments",
+      "merchant_managed_fulfillment_orders",
+      "third_party_fulfillment_orders",
+    ],
+  },
+  {
+    key: "orders",
+    icon: IconShoppingCart,
+    title: "Orders",
+    scopes: ["orders", "order_edits", "draft_orders", "returns"],
+  },
+  {
+    key: "customers",
+    icon: IconUsers,
+    title: "Customers",
+    scopes: [
+      "customers",
+      "customer_groups",
+      "customer_addresses",
+      "customer_segments",
+    ],
+  },
+  {
+    key: "discounts",
+    icon: IconTag,
+    title: "Discounts & Pricing",
+    scopes: ["discounts", "cart_rules", "catalog_rules"],
+  },
+  {
+    key: "products",
+    icon: IconBox,
+    title: "Products",
+    scopes: [
+      "products",
+      "product_attributes",
+      "product_attribute_options",
+      "product_attribute_sets",
+      "product_categories",
+      "product_images",
+      "product_tags",
+    ],
+  },
+  {
+    key: "legal",
+    icon: IconScale,
+    title: "Legal Policies",
+    scopes: ["policies", "policy_templates"],
+  },
+  {
+    key: "unauthenticated",
+    icon: IconWorld,
+    title: "Unauthenticated (Storefront / Public Access)",
+    scopes: ["storefront_view", "public_search", "product_reviews"],
+  },
+  {
+    key: "inventory",
+    icon: IconPackages,
+    title: "Inventory",
+    scopes: [
+      "sources",
+      "source_items",
+      "inventory_stock_management",
+      "inventory_stock_pick_list",
+    ],
+  },
+  {
+    key: "sales",
+    icon: IconCoin,
+    title: "Sales",
+    scopes: [
+      "sales_orders",
+      "sales_invoices",
+      "sales_shipments",
+      "sales_credit_memos",
+      "sales_transactions",
+    ],
+  },
+  {
+    key: "checkout",
+    icon: IconShoppingBag,
+    title: "Checkout",
+    scopes: ["cart", "checkout"],
+  },
+  {
+    key: "stores",
+    icon: IconBuildingStore,
+    title: "Stores",
+    scopes: ["stores", "store_config", "store_views", "currencies"],
+  },
+  {
+    key: "system",
+    icon: IconSettings,
+    title: "System",
+    scopes: ["users", "roles", "api"],
+  },
+  {
+    key: "reports",
+    icon: IconChartBar,
+    title: "Reports",
+    scopes: ["reports", "analytics"],
+  },
+  {
+    key: "integrations",
+    icon: IconPlugConnected,
+    title: "Integrations",
+    scopes: ["integrations", "webhooks"],
+  },
+  {
+    key: "tax",
+    icon: IconReceiptTax,
+    title: "Tax",
+    scopes: ["tax_rates", "tax_classes", "tax_rules"],
+  },
+];
+
+export type NormalizedPermissionGroup = {
+  key: string;
+  icon: Icon;
+  title: string;
+  scopes: CompactScope[];
+};
+
+/** Permission groups for a platform with each scope carrying Read/Write flags.
+ * Shopify scopes are read_/write_ pairs (collapsed into one row); Magento scopes
+ * are bare resource names that grant both read and write. */
+export function permissionGroups(
+  platform: OnboardingPlatform,
+): NormalizedPermissionGroup[] {
+  const source =
+    platform === "magento"
+      ? MAGENTO_PERMISSION_GROUPS
+      : SHOPIFY_PERMISSION_GROUPS;
+  return source.map((group) => ({
+    key: group.key,
+    icon: group.icon,
+    title: group.title,
+    scopes:
+      platform === "magento"
+        ? group.scopes.map((name) => ({ name, read: true, write: true }))
+        : compactScopes(group.scopes),
+  }));
+}
+
+/** Build the Magento admin (emanager) URL from whatever the merchant pasted:
+ * normalise to the origin and append /emanager. Returns "" when there's no URL
+ * yet. e.g. "edfeb27880.nxcli.net" → "https://edfeb27880.nxcli.net/emanager". */
+export function magentoAdminUrl(storeUrl: string): string {
+  const trimmed = storeUrl.trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+  const withProtocol = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+  try {
+    return `${new URL(withProtocol).origin}/emanager`;
+  } catch {
+    return `${withProtocol}/emanager`;
+  }
+}

@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "motion/react";
 import { OAUTH_CHANNEL, ONBOARDING_STEP_KEYS } from "@/lib/onboarding";
-import type { OAuthMessage } from "@/lib/onboarding";
+import type { OAuthMessage, OnboardingPlatform } from "@/lib/onboarding";
 import { useAppDispatch } from "@/redux/hooks";
 import { CompleteOnboardingStep } from "@/redux/api-slice/onboarding-slice";
 import { StepConnect } from "@/components/custom/onboarding/step-connect";
 import { StepConnectUrl } from "@/components/custom/onboarding/step-connect-url";
+import { StepMagentoConnect } from "@/components/custom/onboarding/step-magento-connect";
 import { StepQuestions } from "@/components/custom/onboarding/step-questions";
 import { StepAiReady } from "@/components/custom/onboarding/step-ai-ready";
 import { StepWorkflows } from "@/components/custom/onboarding/step-workflows";
@@ -38,6 +39,9 @@ export function OnboardingFlow({
 }) {
   const dispatch = useAppDispatch();
   const [step, setStep] = useState(initialStep);
+  // Which platform the merchant picked on step 1 — drives the permissions shown
+  // there and which connect UI (Shopify OAuth vs Magento token) step 2 renders.
+  const [platform, setPlatform] = useState<OnboardingPlatform>("shopify");
   // Mirror `step` into a ref so the mount-only broadcast handler reads the
   // current step (not the stale value captured at mount).
   const stepRef = useRef(step);
@@ -52,9 +56,14 @@ export function OnboardingFlow({
   };
 
   // Complete the current step and move to the next.
+  // For Magento: after step 3 (questions), jump straight to step 5 (workflows),
+  // skipping step 4 (AI Ready) which is Shopify-only.
   const advance = () => {
     saveStep(step);
-    setStep((s) => s + 1);
+    setStep((s) => {
+      if (platform === "magento" && s === 3) return 5;
+      return s + 1;
+    });
   };
 
   const finish = async () => {
@@ -100,11 +109,25 @@ export function OnboardingFlow({
         exit="exit"
         transition={{ duration: 0.28, ease: "easeInOut" }}
       >
-        {step === 1 && <StepConnect onNext={advance} />}
-        {step === 2 && <StepConnectUrl />}
-        {step === 3 && <StepQuestions onNext={advance} />}
-        {step === 4 && <StepAiReady onNext={advance} />}
-        {step === 5 && <StepWorkflows onNext={advance} />}
+        {step === 1 && (
+          <StepConnect
+            platform={platform}
+            onPlatformChange={setPlatform}
+            onNext={advance}
+          />
+        )}
+        {step === 2 &&
+          (platform === "shopify" ? (
+            <StepConnectUrl />
+          ) : (
+            <StepMagentoConnect onNext={advance} />
+          ))}
+        {step === 3 && <StepQuestions platform={platform} onNext={advance} />}
+        {/* Step 4 (AI Ready) is only shown for Shopify; Magento skips it. */}
+        {step === 4 && platform === "shopify" && (
+          <StepAiReady onNext={advance} />
+        )}
+        {step === 5 && <StepWorkflows platform={platform} onNext={advance} />}
         {step === 6 && <StepGoLive onFinish={finish} />}
       </motion.div>
     </AnimatePresence>

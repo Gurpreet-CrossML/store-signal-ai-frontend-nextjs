@@ -35,7 +35,16 @@ const WORKFLOWS = [
   { key: "chat_feedback", label: "Chat feedback" },
 ];
 
-export function StepWorkflows({ onNext }: { onNext: () => void }) {
+export function StepWorkflows({
+  platform,
+  onNext,
+}: {
+  platform: import("@/lib/onboarding").OnboardingPlatform;
+  onNext: () => void;
+}) {
+  // For Magento (5 steps, AI Ready skipped), workflows is step 4 of 5.
+  // For Shopify (6 steps), workflows is step 5 of 6.
+  const stepLabel = platform === "magento" ? "Step 4 of 5" : "Step 5 of 6";
   // Every workflow starts enabled; toggling is local only for now.
   const [enabled, setEnabled] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(WORKFLOWS.map((w) => [w.key, true])),
@@ -49,7 +58,7 @@ export function StepWorkflows({ onNext }: { onNext: () => void }) {
   return (
     <div className="flex flex-col gap-6">
       <OnboardingHeader
-        label="Step 5 of 6"
+        label={stepLabel}
         title="Choose what it handles"
         time="2 min"
         description="These are the workflows your AI can run. They're all on by default — flip anything off you don't want it to handle."

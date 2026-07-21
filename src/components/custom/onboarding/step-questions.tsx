@@ -44,14 +44,21 @@ const PRIORITIES = [
   { key: "both", title: "Both", subtitle: "Support and revenue" },
 ];
 
-export function StepQuestions({ onNext }: { onNext: () => void }) {
+export function StepQuestions({
+  platform,
+  onNext,
+}: {
+  platform: import("@/lib/onboarding").OnboardingPlatform;
+  onNext: () => void;
+}) {
+  const totalSteps = platform === "magento" ? 5 : 6;
   const [category, setCategory] = useState("baby");
   const [priority, setPriority] = useState("both");
 
   return (
     <div className="flex flex-col gap-6">
       <OnboardingHeader
-        label="Step 3 of 6"
+        label={`Step 3 of ${totalSteps}`}
         title="Two quick questions"
         time="30 sec"
         description="These two answers pre-configure everything that follows — workflows, tone, safety limits, and your dashboard. That's all we ask."
