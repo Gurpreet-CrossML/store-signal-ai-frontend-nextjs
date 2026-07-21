@@ -32,7 +32,7 @@ export const fetchPersonaIdentity = createAsyncThunk(
   async (storeCode: string, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
-        ENDPOINTS.personaIdentity(storeCode),
+        `${ENDPOINTS.personaIdentity()}?store_code=${storeCode}`,
       );
       const data = response.data.data;
 
@@ -60,7 +60,7 @@ export const CreatePersonaIdentity = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.post(
-        ENDPOINTS.personaIdentity(storeCode),
+        `${ENDPOINTS.personaIdentity()}?store_code=${storeCode}`,
         payload,
       );
       const data = response.data.data;
@@ -90,7 +90,7 @@ export const fetchNeverSayRules = createAsyncThunk(
   async (storeCode: string, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
-        ENDPOINTS.neverSayRules(storeCode),
+        `${ENDPOINTS.neverSayRules()}?store_code=${storeCode}`,
       );
       const data = response.data.data;
 
@@ -118,7 +118,7 @@ export const CreateNeverSayRules = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.post(
-        ENDPOINTS.neverSayRules(storeCode),
+        `${ENDPOINTS.neverSayRules()}?store_code=${storeCode}`,
         payload,
       );
       const data = response.data.data;
