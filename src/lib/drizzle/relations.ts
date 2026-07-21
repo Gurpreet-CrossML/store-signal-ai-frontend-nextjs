@@ -43,6 +43,12 @@ import {
   storeIntegration,
   storeIntegrationAttribute,
   chatCustomerorder,
+  vocabulary,
+  neverSayRules,
+  personaIdentity,
+  toneStyle,
+  vocabularyWordReplacements,
+  wordReplacement,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -203,6 +209,10 @@ export const storeRelations = relations(store, ({ many }) => ({
   knowledgeStorelibrarydocuments: many(knowledgeStorelibrarydocument),
   supportTickets: many(supportTicket),
   storeIntegrations: many(storeIntegration),
+  vocabularys: many(vocabulary),
+  neverSayRuless: many(neverSayRules),
+  personaIdentitys: many(personaIdentity),
+  toneStyles: many(toneStyle),
 }));
 
 export const chatbotWidgetCustomizationQuickActionsRelations = relations(
@@ -228,14 +238,14 @@ export const quickActionRelations = relations(quickAction, ({ many }) => ({
 }));
 
 export const storeAccessRelations = relations(storeAccess, ({ one }) => ({
-  store: one(store, {
-    fields: [storeAccess.storeId],
-    references: [store.id],
-  }),
   authUser_grantedById: one(authUser, {
     fields: [storeAccess.grantedById],
     references: [authUser.id],
     relationName: "storeAccess_grantedById_authUser_id",
+  }),
+  store: one(store, {
+    fields: [storeAccess.storeId],
+    references: [store.id],
   }),
   authUser_userId: one(authUser, {
     fields: [storeAccess.userId],
@@ -299,13 +309,13 @@ export const chatbotFeedbackRelations = relations(
 export const chatHistoryRelations = relations(chatHistory, ({ one, many }) => ({
   chatbotFeedbacks: many(chatbotFeedback),
   fraudFlags: many(fraudFlag),
-  chatThread: one(chatThread, {
-    fields: [chatHistory.threadId],
-    references: [chatThread.id],
-  }),
   authUser: one(authUser, {
     fields: [chatHistory.messagedById],
     references: [authUser.id],
+  }),
+  chatThread: one(chatThread, {
+    fields: [chatHistory.threadId],
+    references: [chatThread.id],
   }),
 }));
 
@@ -315,6 +325,10 @@ export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
   aiInsightss: many(aiInsights),
   sentimentAnalysiss: many(sentimentAnalysis),
   sessionResolutionVerdicts: many(sessionResolutionVerdict),
+  authUser: one(authUser, {
+    fields: [chatThread.chatHandlerUserId],
+    references: [authUser.id],
+  }),
   chatCustomer: one(chatCustomer, {
     fields: [chatThread.customerId],
     references: [chatCustomer.id],
@@ -322,10 +336,6 @@ export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
   store: one(store, {
     fields: [chatThread.storeId],
     references: [store.id],
-  }),
-  authUser: one(authUser, {
-    fields: [chatThread.chatHandlerUserId],
-    references: [authUser.id],
   }),
   userMetadatas: many(userMetadata),
   fraudFlags: many(fraudFlag),
@@ -495,5 +505,58 @@ export const chatCustomerorderRelations = relations(
       fields: [chatCustomerorder.customerId],
       references: [chatCustomer.id],
     }),
+  }),
+);
+
+export const vocabularyRelations = relations(vocabulary, ({ one, many }) => ({
+  store: one(store, {
+    fields: [vocabulary.storeId],
+    references: [store.id],
+  }),
+  vocabularyWordReplacementss: many(vocabularyWordReplacements),
+}));
+
+export const neverSayRulesRelations = relations(neverSayRules, ({ one }) => ({
+  store: one(store, {
+    fields: [neverSayRules.storeId],
+    references: [store.id],
+  }),
+}));
+
+export const personaIdentityRelations = relations(
+  personaIdentity,
+  ({ one }) => ({
+    store: one(store, {
+      fields: [personaIdentity.storeId],
+      references: [store.id],
+    }),
+  }),
+);
+
+export const toneStyleRelations = relations(toneStyle, ({ one }) => ({
+  store: one(store, {
+    fields: [toneStyle.storeId],
+    references: [store.id],
+  }),
+}));
+
+export const vocabularyWordReplacementsRelations = relations(
+  vocabularyWordReplacements,
+  ({ one }) => ({
+    vocabulary: one(vocabulary, {
+      fields: [vocabularyWordReplacements.vocabularyId],
+      references: [vocabulary.id],
+    }),
+    wordReplacement: one(wordReplacement, {
+      fields: [vocabularyWordReplacements.wordreplacementId],
+      references: [wordReplacement.id],
+    }),
+  }),
+);
+
+export const wordReplacementRelations = relations(
+  wordReplacement,
+  ({ many }) => ({
+    vocabularyWordReplacementss: many(vocabularyWordReplacements),
   }),
 );
