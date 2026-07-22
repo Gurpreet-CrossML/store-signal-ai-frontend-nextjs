@@ -22,7 +22,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
@@ -96,6 +96,10 @@ function StoreSelector() {
 
 export function NavMain({ items }: { items: SideBarMenuItem[] }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentUrl = searchParams.toString()
+    ? `${pathname}?${searchParams.toString()}`
+    : pathname;
 
   return (
     <SidebarGroup>
@@ -125,7 +129,7 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
                           <SidebarMenuSubItem key={subItem.title}>
                             <SidebarMenuSubButton
                               className={cn(
-                                pathname == subItem.url
+                                currentUrl == subItem.url
                                   ? "min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
                                   : "",
                               )}
@@ -135,7 +139,7 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
                                 {subItem.icon && (
                                   <subItem.icon
                                     className={cn(
-                                      pathname == subItem.url
+                                      currentUrl == subItem.url
                                         ? "text-primary-foreground!"
                                         : "",
                                     )}
@@ -157,7 +161,7 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
                 <SidebarMenuButton
                   tooltip={item.title}
                   className={cn(
-                    pathname == item.url
+                    currentUrl == item.url
                       ? "min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
                       : "",
                   )}
