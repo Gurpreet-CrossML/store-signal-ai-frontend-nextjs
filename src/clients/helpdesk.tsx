@@ -1,45 +1,32 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
-  IconAdjustmentsHorizontal,
   IconArchive,
   IconArrowsDiagonal,
   IconBolt,
   IconBrandInstagram,
   IconBrandWhatsapp,
-  IconCalendarTime,
   IconCheck,
   IconChevronDown,
   IconClock,
-  IconClockHour4,
   IconDotsVertical,
   IconFilter,
   IconGift,
-  IconGridDots,
-  IconInbox,
   IconLanguage,
-  IconLayoutGrid,
   IconMail,
   IconMessage2,
   IconMessageChatbot,
   IconMoodSmile,
   IconPencil,
-  IconPlugConnected,
   IconReload,
-  IconRoute,
   IconSend,
-  IconSettingsAutomation,
   IconSparkles,
-  IconStar,
   IconTag,
-  IconTags,
   IconUser,
   IconUsers,
-  IconUsersGroup,
   IconWand,
 } from "@tabler/icons-react";
 
@@ -48,7 +35,6 @@ import { Button } from "@/components/ui/button";
 import {
   resolveTicketingSettingsSection,
   TicketingSettingsContent,
-  type SectionId,
 } from "@/components/custom/ticketing-settings";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -83,131 +69,6 @@ type ChatMessage = {
 
 const suggestedReply =
   "Hi Sarah - I completely understand, and I am sorry it has felt like a long wait. Good news: your order shipped Tuesday and is out for delivery with DHL today. I will keep an eye on it too.";
-
-const inboxes = [
-  {
-    label: "All open",
-    count: 34,
-    icon: IconInbox,
-    active: true,
-    href: "/helpdesk",
-  },
-  { label: "Unassigned", count: 9, icon: IconUser, alert: true },
-  { label: "My open tickets", count: 7, icon: IconCheck },
-  { label: "Mentions", count: 2, icon: IconMessage2, alert: true },
-];
-
-const savedViews = [
-  { label: "Urgent + SLA", count: 4, icon: IconBolt, alert: true },
-  { label: "VIP customers", count: 3, icon: IconStar },
-  { label: "Returns - waiting", count: 6, icon: IconReload },
-  { label: "AI-handled today", count: 218, icon: IconMessageChatbot },
-];
-
-const channels_views: {
-  label: string;
-  count: number;
-  icon: typeof IconPlugConnected;
-  color: string;
-  href: string;
-}[] = [
-  {
-    label: "Channels",
-    count: 12,
-    icon: IconPlugConnected,
-    color: "text-emerald-500",
-    href: "/helpdesk?section=channels",
-  },
-  {
-    label: "Views",
-    count: 5,
-    icon: IconLayoutGrid,
-    color: "text-blue-500",
-    href: "/helpdesk?section=views",
-  },
-  {
-    label: "Tags & Fields",
-    count: 3,
-    icon: IconTags,
-    color: "text-indigo-500",
-    href: "/helpdesk?section=tags-fields",
-  },
-];
-
-const automation: {
-  label: string;
-  count: number;
-  icon: typeof IconBolt;
-  color: string;
-  href?: string;
-}[] = [
-  {
-    label: "Macros",
-    count: 12,
-    icon: IconBolt,
-    color: "text-amber-500",
-  },
-  {
-    label: "Rules & Automations",
-    count: 5,
-    icon: IconSettingsAutomation,
-    color: "text-violet-500",
-    href: "/helpdesk?section=rules-automations",
-  },
-  {
-    label: "Routing & Assignment",
-    count: 3,
-    icon: IconRoute,
-    color: "text-cyan-500",
-    href: "/helpdesk?section=routing-assignment",
-  },
-];
-
-const service_levels: {
-  label: string;
-  count: number;
-  icon: typeof IconClockHour4;
-  color: string;
-  href: string;
-}[] = [
-  {
-    label: "SLA Policies",
-    count: 12,
-    icon: IconClockHour4,
-    color: "text-orange-500",
-    href: "/helpdesk?section=sla-policies",
-  },
-  {
-    label: "Business Hours",
-    count: 5,
-    icon: IconCalendarTime,
-    color: "text-sky-500",
-    href: "/helpdesk?section=business-hours",
-  },
-];
-
-const team_quality: {
-  label: string;
-  count: number;
-  icon: typeof IconUsersGroup;
-  color: string;
-  href: string;
-}[] = [
-  {
-    label: "Teams & Roles",
-    count: 12,
-    icon: IconUsersGroup,
-    color: "text-teal-500",
-    href: "/helpdesk?section=teams-roles",
-  },
-  {
-    label: "CSAT",
-    count: 5,
-    icon: IconMoodSmile,
-    color: "text-yellow-500",
-    href: "/helpdesk?section=csat",
-  },
-];
 
 const tickets: Ticket[] = [
   {
@@ -446,83 +307,6 @@ function Badge({
   );
 }
 
-function SideNavGroup({
-  title,
-  items,
-  canAdd,
-  activeSection,
-  onItemAction,
-}: {
-  title: string;
-  items: {
-    label: string;
-    count: number;
-    icon: typeof IconInbox;
-    active?: boolean;
-    alert?: boolean;
-    color?: string;
-    href?: string;
-  }[];
-  canAdd?: boolean;
-  activeSection?: SectionId | null;
-  onItemAction?: (label: string) => void;
-}) {
-  return (
-    <section>
-      <div className="mb-2 flex items-center justify-between px-2 text-[11px] font-bold uppercase text-slate-400">
-        <span>{title}</span>
-        {canAdd ? <span className="text-slate-400">+</span> : null}
-      </div>
-      <div className="space-y-1">
-        {items.map((item) => {
-          const itemSection = item.href
-            ? resolveTicketingSettingsSection(
-                new URL(item.href, "http://localhost").searchParams.get(
-                  "section",
-                ),
-              )
-            : null;
-          const isActive =
-            item.active || (!!itemSection && itemSection === activeSection);
-          const content = (
-            <>
-              <item.icon className={cn("size-4 shrink-0", item.color)} />
-              <span className="min-w-0 flex-1 truncate">{item.label}</span>
-              <span
-                className={cn(
-                  "rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500",
-                  isActive && "bg-white text-indigo-600",
-                  item.alert && "bg-red-50 text-red-500",
-                )}
-              >
-                {item.count}
-              </span>
-            </>
-          );
-          const className = cn(
-            "flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100",
-            isActive && "bg-indigo-50 text-indigo-700",
-          );
-
-          return item.href ? (
-            <Link key={item.label} href={item.href} className={className}>
-              {content}
-            </Link>
-          ) : (
-            <button
-              key={item.label}
-              className={className}
-              onClick={() => onItemAction?.(item.label)}
-            >
-              {content}
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 function TicketRow({
   ticket,
   active,
@@ -583,56 +367,6 @@ function TicketRow({
         ) : null}
       </div>
     </button>
-  );
-}
-
-function InboxPanel({
-  activeSection,
-  onInboxAction,
-}: {
-  activeSection?: SectionId | null;
-  onInboxAction: (label: string) => void;
-}) {
-  return (
-    <aside className="hidden w-[250px] shrink-0 border-r bg-slate-50/70 p-3 lg:block">
-      <div className="space-y-6 overflow-y-auto h-[90vh]!">
-        <SideNavGroup
-          title="Inboxes"
-          items={inboxes.map((item) => ({
-            ...item,
-            active: !activeSection && item.active,
-          }))}
-          onItemAction={onInboxAction}
-        />
-        <SideNavGroup
-          title="Saved views"
-          items={savedViews}
-          canAdd
-          onItemAction={onInboxAction}
-        />
-        <SideNavGroup
-          title="Channels & Views"
-          items={channels_views}
-          activeSection={activeSection}
-        />
-        <SideNavGroup
-          title="Automation"
-          items={automation}
-          activeSection={activeSection}
-          onItemAction={onInboxAction}
-        />
-        <SideNavGroup
-          title="Service Levels"
-          items={service_levels}
-          activeSection={activeSection}
-        />
-        <SideNavGroup
-          title="Team & Quality"
-          items={team_quality}
-          activeSection={activeSection}
-        />
-      </div>
-    </aside>
   );
 }
 
@@ -1127,12 +861,6 @@ export default function HelpDesk() {
     return [customerMessage, ...(extraMessages[activeTicket.id] ?? [])];
   }, [activeTicket, extraMessages]);
 
-  const handleInboxAction = (label: string) => {
-    toast.info(`${label} selected`, {
-      description: "This is a mock sidebar action for now.",
-    });
-  };
-
   const handleSelectTicket = (ticketId: string) => {
     const nextTicket = ticketRows.find((ticket) => ticket.id === ticketId);
     if (!nextTicket) return;
@@ -1244,7 +972,6 @@ export default function HelpDesk() {
   return (
     <div className="-my-4 flex h-[calc(100vh-var(--header-height))] flex-col overflow-hidden border-y bg-white text-slate-950 md:-my-6">
       <div className="flex min-h-0 flex-1">
-        <InboxPanel activeSection={activeSection} />
         {activeSection ? (
           <TicketingSettingsContent active={activeSection} />
         ) : (

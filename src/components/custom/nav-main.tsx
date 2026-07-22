@@ -22,7 +22,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
@@ -96,6 +96,10 @@ function StoreSelector() {
 
 export function NavMain({ items }: { items: SideBarMenuItem[] }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentUrl = searchParams.toString()
+    ? `${pathname}?${searchParams.toString()}`
+    : pathname;
 
   return (
     <SidebarGroup>
