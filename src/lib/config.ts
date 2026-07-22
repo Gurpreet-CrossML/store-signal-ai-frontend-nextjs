@@ -59,7 +59,6 @@ export const ENDPOINTS = {
   updateStaff: (id: number) => `/tenancy/staff/${id}/`,
   resetStaffPassword: (id: number) => `/tenancy/staff/${id}/reset-password/`,
   registerCompany: () => "/tenancy/company/register/",
-  onboardingJourney: () => "/tenancy/onboarding/",
   // Per-store access grants for a staff user (Django; GET needs useBackend).
   fetchStoreAccess: (userId: number) =>
     `/tenancy/staff/${userId}/store-access/`,
@@ -68,6 +67,10 @@ export const ENDPOINTS = {
 
   // Store Management
   fetchStoresList: () => "/store/list",
+  // Store onboarding journey (Django). GET reads the workspace store's progress
+  // + platform + resume point; POST records a completed step (`{ step }`). The
+  // store is resolved server-side (no code sent). Source of truth for the overlay.
+  storeOnboarding: () => "/store/onboarding/",
 
   // Shopify OAuth onboarding (Django). `shopifyInstall` is authenticated (JWT):
   // call it through axiosInstance with `useBackend: true`; it returns Shopify's

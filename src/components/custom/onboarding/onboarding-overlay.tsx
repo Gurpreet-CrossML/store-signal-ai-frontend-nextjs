@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { IconX } from "@tabler/icons-react";
+import type { OnboardingPlatform } from "@/lib/onboarding";
 import { OnboardingFlow } from "./onboarding-flow";
 
 /**
@@ -13,11 +14,13 @@ import { OnboardingFlow } from "./onboarding-flow";
 export function OnboardingOverlay({
   open,
   initialStep,
+  platform,
   onClose,
   onComplete,
 }: {
   open: boolean;
   initialStep: number;
+  platform: OnboardingPlatform;
   onClose: () => void;
   onComplete: () => void;
 }) {
@@ -47,7 +50,11 @@ export function OnboardingOverlay({
       {/* Full-height internal scroll, with the scrollbar hidden. */}
       <div className="no-scrollbar h-full overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl px-6 py-12 md:py-16">
-          <OnboardingFlow initialStep={initialStep} onComplete={onComplete} />
+          <OnboardingFlow
+            initialStep={initialStep}
+            platform={platform}
+            onComplete={onComplete}
+          />
         </div>
       </div>
     </div>

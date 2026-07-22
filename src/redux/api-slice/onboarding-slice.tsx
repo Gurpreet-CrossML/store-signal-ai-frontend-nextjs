@@ -3,11 +3,12 @@ import { axiosInstance } from "@/redux/axios-config";
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
+import type { OnboardingPlatform } from "@/lib/onboarding";
 
 /**
- * Store-onboarding actions. Currently just the Shopify OAuth kick-off: an
- * authenticated GET to Django that resolves the caller's store, signs it into
- * the OAuth state, and returns Shopify's authorize URL for us to open.
+ * Store-onboarding actions. Onboarding runs for the workspace's store, which the
+ * backend resolves itself (creating it from the merchant's typed name on the
+ * connect step) — so nothing here passes a store code.
  */
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -21,8 +22,8 @@ export const StartShopifyInstall = createAsyncThunk(
   "onboarding/StartShopifyInstall",
   async ({ shop, name }: { shop: string; name: string }, thunkAPI) => {
     try {
-      // Authenticated Django GET (JWT names the tenant → its store). `name`
-      // renames that store to what the merchant typed on the connect step.
+      // Authenticated Django GET (JWT names the tenant). `name` names the store
+      // being created/connected — the backend derives its code from it.
       const res = await axiosInstance.get(
         ENDPOINTS.shopifyInstall(shop, name),
         {
@@ -49,8 +50,8 @@ export type MagentoConnect = { store_code: string };
 
 /** Verify a merchant's Magento admin access token and connect their store.
  * Django reads the store's categories with the token to prove it works, then
- * saves the store URL + token onto the store's credentials. Resolves on success
- * (loading is tracked locally by the connect step, so nothing lands in Redux). */
+ * creates the store from `name` and saves the URL + token onto its credentials.
+ * Resolves on success (loading is tracked locally by the connect step). */
 export const VerifyMagentoToken = createAsyncThunk(
   "onboarding/VerifyMagentoToken",
   async (
@@ -77,18 +78,21 @@ export const VerifyMagentoToken = createAsyncThunk(
 );
 
 export type OnboardingJourney = {
+  store_code: string | null;
+  platform: OnboardingPlatform;
   user_journey: string[];
   is_complete: boolean;
   next_step: string | null;
 };
 
-/** Load the company's onboarding progress from the backend (source of truth
- * for whether/where to show the setup overlay — replaces the old localStorage). */
+/** Load the workspace store's onboarding progress (source of truth for whether/
+ * where to show the setup overlay, and which platform's flow to run). Before the
+ * store exists it reads as an untouched Shopify journey (overlay opens at step 1). */
 export const FetchOnboarding = createAsyncThunk(
   "onboarding/FetchOnboarding",
   async (_: void, thunkAPI) => {
     try {
-      const res = await axiosInstance.get(ENDPOINTS.onboardingJourney(), {
+      const res = await axiosInstance.get(ENDPOINTS.storeOnboarding(), {
         useBackend: true,
       });
       return res.data.data as OnboardingJourney;
@@ -101,12 +105,13 @@ export const FetchOnboarding = createAsyncThunk(
 );
 
 /** Record a completed onboarding step (fire-and-forget as the merchant moves on;
- * the backend keeps the ordered prefix and drives resume). */
+ * the backend keeps the ordered prefix and drives resume). The store + its
+ * platform are resolved server-side, so only the step key is sent. */
 export const CompleteOnboardingStep = createAsyncThunk(
   "onboarding/CompleteOnboardingStep",
   async (step: string, thunkAPI) => {
     try {
-      const res = await axiosInstance.post(ENDPOINTS.onboardingJourney(), {
+      const res = await axiosInstance.post(ENDPOINTS.storeOnboarding(), {
         step,
       });
       return res.data.data as OnboardingJourney;
@@ -124,6 +129,8 @@ type OnboardingState = {
   installing: boolean;
   // Completed step keys (backend order); [] until the journey loads.
   journey: string[];
+  // Platform of the workspace store — drives which flow (Shopify vs Magento).
+  platform: OnboardingPlatform;
   // False until FetchOnboarding resolves — the dashboard waits before deciding.
   journeyLoaded: boolean;
   // Whether the full-screen overlay is currently shown.
@@ -135,6 +142,7 @@ type OnboardingState = {
 const initialState: OnboardingState = {
   installing: false,
   journey: [],
+  platform: "shopify",
   journeyLoaded: false,
   overlayOpen: false,
   autoOpened: false,
@@ -166,6 +174,7 @@ const OnboardingSlice = createSlice({
       })
       .addCase(FetchOnboarding.fulfilled, (state, action) => {
         state.journey = action.payload.user_journey;
+        state.platform = action.payload.platform;
         state.journeyLoaded = true;
         // Auto-open the overlay once when setup isn't finished.
         if (!action.payload.is_complete && !state.autoOpened) {
@@ -179,6 +188,7 @@ const OnboardingSlice = createSlice({
       })
       .addCase(CompleteOnboardingStep.fulfilled, (state, action) => {
         state.journey = action.payload.user_journey;
+        state.platform = action.payload.platform;
       });
   },
 });

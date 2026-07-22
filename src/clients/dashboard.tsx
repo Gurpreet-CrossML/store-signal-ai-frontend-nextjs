@@ -28,6 +28,7 @@ import {
   openOnboarding,
   closeOnboarding,
 } from "@/redux/api-slice/onboarding-slice";
+import { GetStores } from "@/redux/api-slice/stores-slice";
 
 const toISODate = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -66,19 +67,28 @@ export default function Dashboard() {
   // from the first step not yet completed.
   const {
     journey,
+    platform: onboardingPlatform,
     journeyLoaded,
     overlayOpen: onboardingOpen,
   } = useAppSelector((s) => s.GetOnboardingReducer);
-  const onboardingComplete = isOnboardingComplete(journey);
-  const onboardingResumeStep = resumeStep(journey);
-
-  useEffect(() => {
-    dispatch(FetchOnboarding());
-  }, [dispatch]);
+  const onboardingComplete = isOnboardingComplete(journey, onboardingPlatform);
+  const onboardingResumeStep = resumeStep(journey, onboardingPlatform);
 
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
+
+  // Load the workspace store's onboarding progress (backend resolves the store).
+  useEffect(() => {
+    dispatch(FetchOnboarding());
+  }, [dispatch]);
+
+  // When onboarding closes, the connect step may have just created the store —
+  // refresh the switcher list so it appears (and gets selected).
+  const finishOnboarding = () => {
+    dispatch(closeOnboarding());
+    dispatch(GetStores({}));
+  };
 
   const { FetchFeedbackInsightsData } = useAppSelector(
     (state) => state.GetDashboardReducer.FetchFeedbackInsightsState,
@@ -288,8 +298,9 @@ export default function Dashboard() {
       <OnboardingOverlay
         open={onboardingOpen}
         initialStep={onboardingResumeStep}
-        onClose={() => dispatch(closeOnboarding())}
-        onComplete={() => dispatch(closeOnboarding())}
+        platform={onboardingPlatform}
+        onClose={finishOnboarding}
+        onComplete={finishOnboarding}
       />
       <div className="px-6 py-2">
         <h3 className="text-lg font-semibold text-foreground mb-6">

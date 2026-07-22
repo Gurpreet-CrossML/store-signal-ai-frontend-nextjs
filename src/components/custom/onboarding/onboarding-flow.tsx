@@ -24,24 +24,29 @@ const variants = {
 };
 
 /**
- * The 6-step setup flow, decoupled from where it's rendered (the dashboard
- * overlay). Opens at `initialStep` (the resume point from the saved journey),
- * saves each step to the backend as the merchant moves off it, and listens for
- * the Shopify OAuth success broadcast to auto-advance past the connect step.
- * Calls `onComplete` when the final step is finished.
+ * The setup flow for the workspace's store, decoupled from where it's rendered
+ * (the dashboard overlay). Opens at `initialStep` (the resume point from the
+ * saved journey) on the store's `platform`, saves each step to the backend as
+ * the merchant moves off it, and listens for the Shopify OAuth success broadcast
+ * to auto-advance past the connect step. Calls `onComplete` when the final step
+ * is finished. The backend resolves the store itself, so no code is passed here.
  */
 export function OnboardingFlow({
   initialStep,
+  platform: initialPlatform,
   onComplete,
 }: {
   initialStep: number;
+  platform: OnboardingPlatform;
   onComplete: () => void;
 }) {
   const dispatch = useAppDispatch();
   const [step, setStep] = useState(initialStep);
   // Which platform the merchant picked on step 1 — drives the permissions shown
   // there and which connect UI (Shopify OAuth vs Magento token) step 2 renders.
-  const [platform, setPlatform] = useState<OnboardingPlatform>("shopify");
+  // Seeded from the store's saved platform so a resumed Magento setup stays on
+  // the Magento flow instead of defaulting back to Shopify.
+  const [platform, setPlatform] = useState<OnboardingPlatform>(initialPlatform);
   // Mirror `step` into a ref so the mount-only broadcast handler reads the
   // current step (not the stale value captured at mount).
   const stepRef = useRef(step);
@@ -49,10 +54,13 @@ export function OnboardingFlow({
     stepRef.current = step;
   }, [step]);
 
-  // Persist "step N is complete" (fire-and-forget; the backend keeps the order).
+  // Persist "step N is complete" (fire-and-forget; the backend keeps the order
+  // and resolves the store). Step 1 (connect) has no store yet — the store is
+  // created on step 2, whose save covers "connect" via the monotonic prefix — so
+  // it's skipped here.
   const saveStep = (stepNumber: number) => {
     const key = ONBOARDING_STEP_KEYS[stepNumber - 1];
-    if (key) dispatch(CompleteOnboardingStep(key));
+    if (key && key !== "connect") dispatch(CompleteOnboardingStep(key));
   };
 
   // Complete the current step and move to the next.

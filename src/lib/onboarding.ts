@@ -70,16 +70,50 @@ export const ONBOARDING_STEP_KEYS = [
   "go_live",
 ] as const;
 
-/** True once every step key is present in the completed journey. */
-export function isOnboardingComplete(journey: string[]): boolean {
-  return ONBOARDING_STEP_KEYS.every((key) => journey.includes(key));
+export type OnboardingStepKey = (typeof ONBOARDING_STEP_KEYS)[number];
+
+// Steps that apply to a subset of platforms only. A step absent here applies to
+// every platform. "ai_ready" (the "Your AI is ready" check) is Shopify-only, so
+// Magento's flow skips straight from questions to workflows. Mirrors the
+// backend's store.onboarding.PLATFORM_ONLY_STEPS.
+const PLATFORM_ONLY_STEPS: Partial<
+  Record<OnboardingStepKey, OnboardingPlatform[]>
+> = {
+  ai_ready: ["shopify"],
+};
+
+/** The ordered step keys a given platform's onboarding flow goes through. */
+export function stepsForPlatform(
+  platform: OnboardingPlatform,
+): OnboardingStepKey[] {
+  return ONBOARDING_STEP_KEYS.filter((key) => {
+    const allowed = PLATFORM_ONLY_STEPS[key];
+    return !allowed || allowed.includes(platform);
+  });
 }
 
-/** 1-based step number to resume from = the first step not yet completed
- * (the flow's step count when everything is done). */
-export function resumeStep(journey: string[]): number {
-  const idx = ONBOARDING_STEP_KEYS.findIndex((key) => !journey.includes(key));
-  return idx === -1 ? ONBOARDING_STEP_KEYS.length : idx + 1;
+/** True once every step for this platform is present in the completed journey. */
+export function isOnboardingComplete(
+  journey: string[],
+  platform: OnboardingPlatform,
+): boolean {
+  return stepsForPlatform(platform).every((key) => journey.includes(key));
+}
+
+/** 1-based step number to open at = the flow slot of the first step not yet
+ * completed for this platform (the full step count when everything is done).
+ * The number is the absolute flow position (ai_ready is 4, workflows 5), so
+ * Magento — which has no ai_ready — resumes at 5 after questions rather than the
+ * Shopify-only step 4. */
+export function resumeStep(
+  journey: string[],
+  platform: OnboardingPlatform,
+): number {
+  const nextKey = stepsForPlatform(platform).find(
+    (key) => !journey.includes(key),
+  );
+  if (!nextKey) return ONBOARDING_STEP_KEYS.length;
+  return ONBOARDING_STEP_KEYS.indexOf(nextKey) + 1;
 }
 
 export type PermissionGroup = {
