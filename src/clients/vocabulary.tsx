@@ -14,8 +14,6 @@ import {
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
-// Types
-
 type VocabularyFormValues = {
   preferred_phrases: string[];
   banned_words: string[];
@@ -27,14 +25,13 @@ type VocabularyFormValues = {
   }>;
 };
 
-// Helpers
-
 const replacementSchema = z.object({
   say_word: z.string().trim(),
   replace_word: z.string().trim(),
   is_active: z.boolean(),
 });
 
+// Validation schema for the form using Zod
 const validationSchema = z
   .object({
     preferred_phrases: z.array(z.string().trim().min(1)).default([]),
@@ -95,6 +92,7 @@ export default function BrandVoiceVocabularyEditor() {
       signature_phrases: [],
       word_replacements: [],
     },
+    // Validation using Zod schema
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
@@ -105,7 +103,9 @@ export default function BrandVoiceVocabularyEditor() {
         ]),
       );
     },
+    // Handle form submission
     onSubmit: async (values) => {
+      // Guard against submitting without a store code
       if (!storeCode) return;
       const payload = {
         ...values,
@@ -113,12 +113,14 @@ export default function BrandVoiceVocabularyEditor() {
           (row) => row.say_word.trim() && row.replace_word.trim(),
         ),
       };
+      // Dispatch the createVocabulary action and handle the result
       const result = await dispatch(
         createVocabulary({
           storeCode: storeCode,
           payload,
         }),
       );
+      // If the action is fulfilled, reset the form with the new values
       if (createVocabulary.fulfilled.match(result)) {
         formik.resetForm({ values: result.payload as VocabularyFormValues });
       }

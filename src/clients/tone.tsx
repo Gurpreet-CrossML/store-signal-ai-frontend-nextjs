@@ -17,6 +17,7 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { type ToneStylePayload } from "@/db/chat";
 
+// Validation schema for the form using Zod
 const validationSchema = z.object({
   preset: z.number().int(),
   warmth: z.coerce.number().min(0).max(100),
@@ -67,6 +68,7 @@ export default function BrandVoiceToneStyleEditor() {
       regional_spelling: FetchToneStyleData?.regional_spelling || "auto",
       use_bullet_points: FetchToneStyleData?.use_bullet_points ?? true,
     },
+    // Validation using Zod schema
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
@@ -77,11 +79,15 @@ export default function BrandVoiceToneStyleEditor() {
         ]),
       );
     },
+    // Handle form submission
     onSubmit: async (values) => {
+      // Guard against submitting without a store code
       if (!storeCode) return;
+      // Dispatch the createToneStyle action and handle the result
       const result = await dispatch(
         createToneStyle({ storeCode, payload: values }),
       );
+      // If the action is fulfilled, reset the form with the new values
       if (createToneStyle.fulfilled.match(result)) {
         formik.resetForm({ values: result.payload as ToneStylePayload });
       }
@@ -112,7 +118,6 @@ export default function BrandVoiceToneStyleEditor() {
     );
     if (!currentPreset) return;
 
-    // Check if the NEW values differ from the current preset
     const updatedValues = {
       ...formik.values,
       [key]: value,
