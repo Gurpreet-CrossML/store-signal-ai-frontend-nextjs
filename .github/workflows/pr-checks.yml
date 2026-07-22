@@ -17,8 +17,14 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
+
+      # package-lock.json is generated with npm 11 (local dev). Node 22 ships
+      # npm 10.x, which rejects that lockfile ("Missing esbuild@0.28.1 from lock
+      # file"), so pin npm 11 to match before installing.
+      - name: Pin npm to 11 (match the lockfile)
+        run: npm install -g npm@11
 
       - name: Install dependencies
         run: npm ci

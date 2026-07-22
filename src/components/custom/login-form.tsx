@@ -5,6 +5,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { signIn } from "next-auth/react";
 import { useFormik } from "formik";
@@ -51,6 +52,8 @@ export function LoginForm({
         toast.success("Log in Successfully!", {
           description: "Welcome back! You have successfully logged in.",
         });
+        // Land on the dashboard; it shows the onboarding overlay itself until
+        // setup is finished.
         router.push("/");
         router.refresh();
       } else {
@@ -133,6 +136,15 @@ export function LoginForm({
             {isLoading ? "Logging in..." : "Login"}
           </Button>
         </Field>
+        <p className="text-center text-sm text-muted-foreground">
+          Create an account?{" "}
+          <Link
+            href="/register"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            Register
+          </Link>
+        </p>
       </FieldGroup>
     </form>
   );

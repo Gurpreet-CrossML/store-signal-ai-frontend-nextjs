@@ -20,6 +20,15 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
+import { OnboardingOverlay } from "@/components/custom/onboarding/onboarding-overlay";
+import { OnboardingBanner } from "@/components/custom/onboarding/onboarding-banner";
+import { isOnboardingComplete, resumeStep } from "@/lib/onboarding";
+import {
+  FetchOnboarding,
+  openOnboarding,
+  closeOnboarding,
+} from "@/redux/api-slice/onboarding-slice";
+import { GetStores } from "@/redux/api-slice/stores-slice";
 
 const toISODate = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -50,9 +59,36 @@ const InfoIcon = ({ text }: { text: string }) => (
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();
+
+  // Onboarding: the completed-step journey comes from the backend (source of
+  // truth, survives logout/refresh/device). On landing here we load it; the
+  // slice auto-opens the setup overlay once when it's unfinished. Dismissing it
+  // (X) drops to a resume banner above Performance Summary; the overlay resumes
+  // from the first step not yet completed.
+  const {
+    journey,
+    platform: onboardingPlatform,
+    journeyLoaded,
+    overlayOpen: onboardingOpen,
+  } = useAppSelector((s) => s.GetOnboardingReducer);
+  const onboardingComplete = isOnboardingComplete(journey, onboardingPlatform);
+  const onboardingResumeStep = resumeStep(journey, onboardingPlatform);
+
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
+
+  // Load the workspace store's onboarding progress (backend resolves the store).
+  useEffect(() => {
+    dispatch(FetchOnboarding());
+  }, [dispatch]);
+
+  // When onboarding closes, the connect step may have just created the store —
+  // refresh the switcher list so it appears (and gets selected).
+  const finishOnboarding = () => {
+    dispatch(closeOnboarding());
+    dispatch(GetStores({}));
+  };
 
   const { FetchFeedbackInsightsData } = useAppSelector(
     (state) => state.GetDashboardReducer.FetchFeedbackInsightsState,
@@ -256,6 +292,16 @@ export default function Dashboard() {
 
   return (
     <>
+      {journeyLoaded && !onboardingComplete && !onboardingOpen && (
+        <OnboardingBanner onOpen={() => dispatch(openOnboarding())} />
+      )}
+      <OnboardingOverlay
+        open={onboardingOpen}
+        initialStep={onboardingResumeStep}
+        platform={onboardingPlatform}
+        onClose={finishOnboarding}
+        onComplete={finishOnboarding}
+      />
       <div className="px-6 py-2">
         <h3 className="text-lg font-semibold text-foreground mb-6">
           Performance Summary
