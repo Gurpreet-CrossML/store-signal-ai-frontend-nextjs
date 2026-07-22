@@ -104,7 +104,6 @@ export type TicketDetails = {
   created_at: string;
 };
 
-
 export type ThreadJsonContent = {
   products?: ProductData[];
   related_products?: ProductData[];
@@ -376,7 +375,6 @@ export const CreateThread = createAsyncThunk(
     }
   },
 );
-
 
 export const FetchThreadDetails = createAsyncThunk(
   "ThreadDetails",

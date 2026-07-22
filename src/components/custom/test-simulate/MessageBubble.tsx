@@ -3,10 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Check, Copy, ThumbsDown, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  formatTimestamp,
-  type Message,
-} from "@/clients/test-simulate";
+import { formatTimestamp, type Message } from "@/clients/test-simulate";
 import { cn } from "@/lib/utils";
 import { MessageAttachments } from "./MessageAttachments";
 

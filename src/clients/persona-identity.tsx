@@ -194,7 +194,7 @@ export default function PersonaIdentity() {
                 <RadioGroup
                   defaultValue={formik.values.self_reference}
                   className="flex w-full"
-                  onValueChange={(value) =>
+                  onValueChange={(value: string) =>
                     formik.setFieldValue("self_reference", value)
                   }
                 >

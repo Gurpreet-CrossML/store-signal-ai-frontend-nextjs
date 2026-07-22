@@ -34,7 +34,6 @@ function formatOrderDate(value: unknown) {
 }
 
 export function MessageAttachments({ json }: { json?: ThreadJsonContent }) {
-
   if (!json) return null;
 
   const { products, related_products, order_details, cart_details } = json;
@@ -85,9 +84,7 @@ export function MessageAttachments({ json }: { json?: ThreadJsonContent }) {
     );
   }
 
-  if (
-    (products && products.length > 0)
-  ) {
+  if (products && products.length > 0) {
     return (
       <div className="space-y-3">
         {products && products.length > 0 ? (

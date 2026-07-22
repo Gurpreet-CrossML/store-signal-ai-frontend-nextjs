@@ -42,7 +42,6 @@ export function MessagesTab() {
       ? latestAssistant?.json_content?.suggestions
       : [];
 
-
   useEffect(() => {
     handleScroll();
   }, [handleScroll, messages, showFeedback]);
@@ -120,9 +119,7 @@ export function MessagesTab() {
 
       {showFeedback ? (
         <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
-          <FeedbackCard
-            onDone={resetChat}
-          />
+          <FeedbackCard onDone={resetChat} />
         </div>
       ) : null}
     </div>
