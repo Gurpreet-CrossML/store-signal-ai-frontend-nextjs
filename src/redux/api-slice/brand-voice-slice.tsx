@@ -62,7 +62,7 @@ export const fetchPersonaIdentity = createAsyncThunk(
 );
 
 export const CreatePersonaIdentity = createAsyncThunk(
-  "brandVoice/createPersonaIdentity",
+  "createPersonaIdentity",
   async (
     { storeCode, payload }: { storeCode: string; payload: PersonaIdentityData },
     thunkAPI,
@@ -121,7 +121,7 @@ export const fetchNeverSayRules = createAsyncThunk(
 );
 
 export const CreateNeverSayRules = createAsyncThunk(
-  "brandVoice/createNeverSayRules",
+  "createNeverSayRules",
   async (
     { storeCode, payload }: { storeCode: string; payload: NeverSayRulesData },
     thunkAPI,

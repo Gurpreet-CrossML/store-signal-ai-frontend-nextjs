@@ -20,7 +20,7 @@ import PersonaIdentityLivePreview from "@/components/custom/persona-identity-liv
 
 import {
   fetchPersonaIdentity,
-  createPersonaIdentity,
+  CreatePersonaIdentity,
   type PersonaIdentityData,
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -102,17 +102,17 @@ export default function PersonaIdentity() {
         backstory: values.backstory.trim(),
       };
 
-      // Dispatch the createPersonaIdentity action and handle the result
+      // Dispatch the CreatePersonaIdentity action and handle the result
       const result = await dispatch(
-        createPersonaIdentity({ storeCode, payload }),
+        CreatePersonaIdentity({ storeCode, payload }),
       );
 
       // If the action is fulfilled, reset the form with the new values
-      if (createPersonaIdentity.fulfilled.match(result)) {
+      if (CreatePersonaIdentity.fulfilled.match(result)) {
         formik.resetForm({ values: result.payload });
       }
 
-      if (createPersonaIdentity.rejected.match(result)) {
+      if (CreatePersonaIdentity.rejected.match(result)) {
         const payload = result.payload as Record<
           string,
           string | Record<string, string>
