@@ -1,10 +1,8 @@
-import { formatPrice, useTestChatbotContext } from "@/clients/test-simulate";
+import { formatPrice } from "@/clients/test-simulate";
 import {
-  SaveBotEvent,
   type ThreadJsonContent,
   type TicketDetails,
 } from "@/redux/api-slice/thread-slice";
-import { useAppDispatch } from "@/redux/hooks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,9 +34,6 @@ function formatOrderDate(value: unknown) {
 }
 
 export function MessageAttachments({ json }: { json?: ThreadJsonContent }) {
-  const dispatch = useAppDispatch();
-  const { session } = useTestChatbotContext();
-  const threadId = session?.session_id ?? "";
 
   if (!json) return null;
 
@@ -91,8 +86,7 @@ export function MessageAttachments({ json }: { json?: ThreadJsonContent }) {
   }
 
   if (
-    (products && products.length > 0) ||
-    (related_products && related_products.length > 0)
+    (products && products.length > 0)
   ) {
     return (
       <div className="space-y-3">
@@ -121,9 +115,9 @@ export function MessageAttachments({ json }: { json?: ThreadJsonContent }) {
 
   if (order_details) {
     const order = order_details;
-    const orderId = order.order_id ?? order.orderId;
-    const placedAt = formatOrderDate(order.created_at ?? order.placedAt);
-    const financialStatus = toTitleCase(order.financial_status ?? order.status);
+    const orderId = order.order_id;
+    const placedAt = formatOrderDate(order.created_at);
+    const financialStatus = toTitleCase(order.financial_status);
     const fulfillmentStatus =
       toTitleCase(order.fulfillment_status) || "Processing";
     const items = Array.isArray(order.items) ? order.items : [];
@@ -296,14 +290,14 @@ export function MessageAttachments({ json }: { json?: ThreadJsonContent }) {
                 href={cart_details.checkout_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() =>
-                  void dispatch(
-                    SaveBotEvent({
-                      event_type: "checkout_link",
-                      thread_id: threadId,
-                    }),
-                  )
-                }
+                // onClick={() =>
+                //   void dispatch(
+                //     SaveBotEvent({
+                //       event_type: "checkout_link",
+                //       thread_id: threadId,
+                //     }),
+                //   )
+                // }
               >
                 Checkout
               </a>

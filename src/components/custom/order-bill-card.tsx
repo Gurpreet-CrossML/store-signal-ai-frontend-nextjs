@@ -14,15 +14,13 @@ import { Badge } from "@/components/ui/badge";
 import type { OrderDetail } from "@/redux/api-slice/thread-slice";
 
 /** Numeric value of a pre-formatted amount string like "Rs.499.00" or "$12.50". */
-function toNumber(value?: string | number | null): number {
-  if (typeof value === "number") return value;
+function toNumber(value?: string | null): number {
   if (!value) return NaN;
   return parseFloat(String(value).replace(/[^0-9.-]/g, ""));
 }
 
 /** Leading currency symbol of a pre-formatted amount (e.g. "Rs.", "$", "₹"). */
-function currencySymbol(value?: string | number | null): string {
-  if (typeof value === "number") return "";
+function currencySymbol(value?: string | null): string {
   if (!value) return "";
   return (
     String(value)
@@ -31,7 +29,7 @@ function currencySymbol(value?: string | number | null): string {
   );
 }
 
-function hasAmount(value?: string | number | null): boolean {
+function hasAmount(value?: string | null): boolean {
   return !Number.isNaN(toNumber(value));
 }
 
@@ -117,18 +115,12 @@ export default function OrderBillCard({ order }: { order: OrderDetail }) {
           <div className="flex flex-col">
             {items.map((item) => {
               const unit = toNumber(item.price);
-              const quantity = Number(item.quantity) || 0;
               const lineTotal = Number.isNaN(unit)
                 ? "—"
-                : `${currencySymbol(item.price)}${(unit * quantity).toFixed(2)}`;
+                : `${currencySymbol(item.price)}${(unit * item.quantity).toFixed(2)}`;
               return (
                 <div
-                  key={String(
-                    item.line_item_id ??
-                      item.variant_id ??
-                      item.product_id ??
-                      item.name,
-                  )}
+                  key={item.line_item_id}
                   className="flex items-start justify-between gap-3 border-b border-border/30 py-2 last:border-0"
                 >
                   <div className="flex min-w-0 items-start gap-2">
@@ -140,7 +132,7 @@ export default function OrderBillCard({ order }: { order: OrderDetail }) {
                         {item.name}
                       </p>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-                        <span>Qty: {quantity}</span>
+                        <span>Qty: {item.quantity}</span>
                         {hasAmount(item.price) && <span>× {item.price}</span>}
                       </div>
                     </div>

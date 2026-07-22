@@ -51,51 +51,48 @@ export type Thread = {
 };
 
 export type OrderItem = {
-  line_item_id?: string | number;
-  name?: string;
-  price?: string | number;
-  product_id?: string | number;
-  quantity?: number;
-  variant_id?: string | number;
+  line_item_id: string;
+  name: string;
+  price: string;
+  product_id: number;
+  quantity: number;
+  variant_id: number;
 };
 export type OrderDetail = {
-  order_id?: string | number;
-  orderId?: string | number;
-  order_url?: string;
-  created_at?: string;
-  placedAt?: string;
-  financial_status?: string;
-  status?: string;
-  fulfillment_status?: string;
-  is_cancelable?: boolean;
-  is_returnable?: boolean;
-  cancel_reason?: string | null;
-  cancel_message?: string | null;
-  cancelled_at?: string | null;
-  return_message?: string | null;
-  discount?: string | number;
-  discount_codes?: string[];
-  subtotal?: string | number;
-  tax?: string | number;
-  total?: string | number;
+  order_id: string | number;
+  order_url: string;
+  created_at: string;
+  financial_status: string;
+  fulfillment_status: string;
+  is_cancelable: boolean;
+  is_returnable: boolean;
+  cancel_reason: string | null;
+  cancel_message: string | null;
+  cancelled_at: string | null;
+  return_message: string | null;
+  discount: string;
+  discount_codes: string[];
+  subtotal: string;
+  tax: string;
+  total: string;
   currency?: string;
-  email?: string;
-  note?: string | null;
-  payment_gateways?: string[];
-  items?: OrderItem[];
+  email: string;
+  note: string | null;
+  payment_gateways: string[];
+  items: OrderItem[];
 };
 
 export type CartItem = {
-  product_id: string | number;
   name: string;
-  price: string | number;
-  quantity: number;
   image: string;
+  price: string;
+  quantity: number;
+  product_id: number;
 };
 
 export type CartDetails = {
   items: CartItem[];
-  sub_total: string | number;
+  sub_total: string;
   checkout_url?: string;
 };
 
@@ -107,11 +104,6 @@ export type TicketDetails = {
   created_at: string;
 };
 
-export type RatingChoice = {
-  value: string;
-  label: string;
-  emoji: string;
-};
 
 export type ThreadJsonContent = {
   products?: ProductData[];
@@ -123,8 +115,6 @@ export type ThreadJsonContent = {
   order_verification_step?: string;
   suggestions?: string[];
   is_feedback_flow?: boolean;
-  feedback_step?: string;
-  rating_choices?: RatingChoice[];
 };
 
 export type ThreadMessage = {
@@ -138,29 +128,26 @@ export type ThreadMessage = {
 };
 
 export type ProductVariant = {
-  variant_id: string | number;
-  id?: string | number;
-  title?: string;
-  variant_name?: string;
-  variant_price?: string | number;
-  price?: {
+  variant_id: string;
+  title: string;
+  price: {
     amount: string;
     currency: string;
   };
-  options?: { name: string; value: string }[];
-  available_for_sale?: boolean;
-  compare_at_price?: string | null;
-  discount?: string | null;
+  options: { name: string; value: string }[];
+  available_for_sale: boolean;
+  compare_at_price: string | null;
+  discount: string | null;
 };
 
 export type ProductData = {
-  id: string | number;
+  id: string;
   name: string;
   image: string;
-  description?: string;
-  price: string | number;
+  description: string;
+  price: string;
   product_url: string;
-  available_for_sale?: boolean;
+  available_for_sale: boolean;
   variants?: ProductVariant[];
 };
 
@@ -268,31 +255,6 @@ export type CreateThreadResponse = {
 export type CreateThreadArgs = {
   store_code: string;
   is_test?: boolean;
-};
-
-export type SubmitMessageFeedbackArgs = {
-  rating: string;
-  thread_id: string;
-  chat_message_id: string | number;
-  feedback_message?: string;
-};
-
-export type SubmitThreadFeedbackArgs = {
-  rating: string;
-  thread_id: string;
-  feedback_message?: string;
-};
-
-export type SubmitThreadFeedbackResponse = {
-  message?: string;
-  message_id?: string | number;
-};
-
-export type SaveBotEventArgs = {
-  event_type: string;
-  thread_id: string;
-  product_name?: string;
-  category?: string;
 };
 
 export type OrderItemData = {
@@ -415,119 +377,6 @@ export const CreateThread = createAsyncThunk(
   },
 );
 
-export const SubmitMessageFeedback = createAsyncThunk(
-  "SubmitMessageFeedback",
-  async (
-    {
-      rating,
-      thread_id,
-      chat_message_id,
-      feedback_message = "",
-    }: SubmitMessageFeedbackArgs,
-    thunkAPI,
-  ) => {
-    try {
-      if (!rating || !thread_id || !chat_message_id) {
-        return false;
-      }
-
-      const response = await axiosInstance.post(ENDPOINTS.messageFeedback(), {
-        rating,
-        thread_id,
-        chat_message_id,
-        feedback_message,
-      });
-
-      return response.data?.status === "success";
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to submit message feedback, please try again later.",
-      });
-
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
-
-export const SubmitThreadFeedback = createAsyncThunk(
-  "SubmitThreadFeedback",
-  async (
-    { rating, thread_id, feedback_message }: SubmitThreadFeedbackArgs,
-    thunkAPI,
-  ) => {
-    try {
-      if (!rating || !thread_id) {
-        return null;
-      }
-
-      const response = await axiosInstance.post(ENDPOINTS.threadFeedback(), {
-        rating,
-        thread_id,
-        feedback_message,
-      });
-
-      return response.data?.status === "success"
-        ? (response.data?.data as SubmitThreadFeedbackResponse)
-        : null;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to submit thread feedback, please try again later.",
-      });
-
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
-
-export const SaveBotEvent = createAsyncThunk(
-  "SaveBotEvent",
-  async (
-    {
-      event_type,
-      thread_id,
-      product_name = "",
-      category = "",
-    }: SaveBotEventArgs,
-    thunkAPI,
-  ) => {
-    try {
-      if (!event_type || !thread_id) {
-        return false;
-      }
-
-      const payload: Record<string, string> = {
-        event_type,
-        thread_id,
-      };
-      if (product_name) payload.product_name = product_name;
-      if (category) payload.category = category;
-
-      const response = await axiosInstance.post(ENDPOINTS.botEvents(), payload);
-
-      return response.data?.status === "success";
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to save chat event, please try again later.",
-      });
-
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
 
 export const FetchThreadDetails = createAsyncThunk(
   "ThreadDetails",
@@ -830,24 +679,6 @@ const ThreadSlice = createSlice({
       CreateThreadIsError: null as null | string | object | unknown,
       CreateThreadData: null as null | CreateThreadResponse,
     },
-    SubmitMessageFeedbackState: {
-      SubmitMessageFeedbackIsLoading: false,
-      SubmitMessageFeedbackIsSuccess: false,
-      SubmitMessageFeedbackIsError: null as null | string | object | unknown,
-      SubmitMessageFeedbackData: false,
-    },
-    SubmitThreadFeedbackState: {
-      SubmitThreadFeedbackIsLoading: false,
-      SubmitThreadFeedbackIsSuccess: false,
-      SubmitThreadFeedbackIsError: null as null | string | object | unknown,
-      SubmitThreadFeedbackData: null as null | SubmitThreadFeedbackResponse,
-    },
-    SaveBotEventState: {
-      SaveBotEventIsLoading: false,
-      SaveBotEventIsSuccess: false,
-      SaveBotEventIsError: null as null | string | object | unknown,
-      SaveBotEventData: false,
-    },
     FetchThreadDetailsState: {
       FetchThreadDetailsIsLoading: false,
       FetchThreadDetailsIsSuccess: false,
@@ -945,55 +776,6 @@ const ThreadSlice = createSlice({
         state.CreateThreadState.CreateThreadIsLoading = false;
         state.CreateThreadState.CreateThreadIsError = action.payload;
         state.CreateThreadState.CreateThreadIsSuccess = false;
-      })
-      .addCase(SubmitMessageFeedback.pending, (state) => {
-        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsLoading = true;
-        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsError = null;
-        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsSuccess = false;
-      })
-      .addCase(SubmitMessageFeedback.fulfilled, (state, action) => {
-        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsLoading = false;
-        state.SubmitMessageFeedbackState.SubmitMessageFeedbackData =
-          action.payload;
-        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsSuccess = true;
-      })
-      .addCase(SubmitMessageFeedback.rejected, (state, action) => {
-        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsLoading = false;
-        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsError =
-          action.payload;
-        state.SubmitMessageFeedbackState.SubmitMessageFeedbackIsSuccess = false;
-      })
-      .addCase(SubmitThreadFeedback.pending, (state) => {
-        state.SubmitThreadFeedbackState.SubmitThreadFeedbackIsLoading = true;
-        state.SubmitThreadFeedbackState.SubmitThreadFeedbackIsError = null;
-        state.SubmitThreadFeedbackState.SubmitThreadFeedbackIsSuccess = false;
-      })
-      .addCase(SubmitThreadFeedback.fulfilled, (state, action) => {
-        state.SubmitThreadFeedbackState.SubmitThreadFeedbackIsLoading = false;
-        state.SubmitThreadFeedbackState.SubmitThreadFeedbackData =
-          action.payload;
-        state.SubmitThreadFeedbackState.SubmitThreadFeedbackIsSuccess = true;
-      })
-      .addCase(SubmitThreadFeedback.rejected, (state, action) => {
-        state.SubmitThreadFeedbackState.SubmitThreadFeedbackIsLoading = false;
-        state.SubmitThreadFeedbackState.SubmitThreadFeedbackIsError =
-          action.payload;
-        state.SubmitThreadFeedbackState.SubmitThreadFeedbackIsSuccess = false;
-      })
-      .addCase(SaveBotEvent.pending, (state) => {
-        state.SaveBotEventState.SaveBotEventIsLoading = true;
-        state.SaveBotEventState.SaveBotEventIsError = null;
-        state.SaveBotEventState.SaveBotEventIsSuccess = false;
-      })
-      .addCase(SaveBotEvent.fulfilled, (state, action) => {
-        state.SaveBotEventState.SaveBotEventIsLoading = false;
-        state.SaveBotEventState.SaveBotEventData = action.payload;
-        state.SaveBotEventState.SaveBotEventIsSuccess = true;
-      })
-      .addCase(SaveBotEvent.rejected, (state, action) => {
-        state.SaveBotEventState.SaveBotEventIsLoading = false;
-        state.SaveBotEventState.SaveBotEventIsError = action.payload;
-        state.SaveBotEventState.SaveBotEventIsSuccess = false;
       })
       .addCase(FetchThreadDetails.pending, (state) => {
         state.FetchThreadDetailsState.FetchThreadDetailsIsLoading = true;

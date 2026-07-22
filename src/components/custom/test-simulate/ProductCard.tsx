@@ -10,12 +10,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 function getVariantId(variant: ProductVariant, index: number) {
-  return variant.variant_id ?? variant.id ?? variant.variant_name ?? index;
+  return variant.variant_id ?? index;
 }
 
 function getVariantTitle(variant: ProductVariant) {
   return (
-    variant.variant_name ||
     variant.title ||
     variant.options?.map((option) => option.value).join(" / ") ||
     "Default"
@@ -23,7 +22,7 @@ function getVariantTitle(variant: ProductVariant) {
 }
 
 function getVariantPrice(variant: ProductVariant, fallback: string | number) {
-  return variant.variant_price ?? variant.price?.amount ?? fallback;
+  return variant.price?.amount ?? fallback;
 }
 
 function getInitialVariantId(product: ProductData) {

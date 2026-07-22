@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { toast } from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Check, Copy, ThumbsDown, ThumbsUp } from "lucide-react";
@@ -7,18 +6,13 @@ import { Button } from "@/components/ui/button";
 import {
   formatTimestamp,
   type Message,
-  useTestChatbotContext,
 } from "@/clients/test-simulate";
 import { cn } from "@/lib/utils";
 import { MessageAttachments } from "./MessageAttachments";
-import { SubmitMessageFeedback } from "@/redux/api-slice/thread-slice";
-import { useAppDispatch } from "@/redux/hooks";
 
 const SYNTHETIC_IMAGE_PATTERN = /\[Images? uploaded by user:[^\]]*\]/gi;
 
 export function MessageBubble({ message }: { message: Message }) {
-  const dispatch = useAppDispatch();
-  const { session } = useTestChatbotContext();
   const isUser = message.role === "user";
   const isGreeting = message.id === "greeting";
   const displayMessage = message.message
@@ -36,47 +30,6 @@ export function MessageBubble({ message }: { message: Message }) {
     navigator.clipboard.writeText(displayMessage);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleLike = () => {
-    try {
-      if (!liked) {
-        void dispatch(
-          SubmitMessageFeedback({
-            rating: "good",
-            thread_id: session?.session_id || "",
-            chat_message_id: message.id,
-          }),
-        );
-        toast.success("Thanks for your feedback!");
-      }
-    } catch (error) {
-      console.error("Message feedback failed, Error:", error);
-    } finally {
-      setLiked(!liked);
-      if (disliked) setDisliked(false);
-    }
-  };
-
-  const handleDislikeSubmit = async () => {
-    try {
-      await dispatch(
-        SubmitMessageFeedback({
-          rating: "bad",
-          thread_id: session?.session_id || "",
-          chat_message_id: message.id,
-          feedback_message: dislikeComment,
-        }),
-      ).unwrap();
-    } catch (error) {
-      console.error("Message feedback failed, Error:", error);
-    } finally {
-      toast("Thanks for your feedback. We'll improve.");
-      setDisliked(true);
-      if (liked) setLiked(false);
-      setDislikeModalOpen(false);
-      setDislikeComment("");
-    }
   };
 
   const showActionButtons = !isGreeting && hasContent;
@@ -145,7 +98,6 @@ export function MessageBubble({ message }: { message: Message }) {
                 variant="ghost"
                 size="icon-sm"
                 className={cn("size-7", liked && "text-primary")}
-                onClick={handleLike}
                 title="Like this message"
               >
                 <ThumbsUp className="size-3.5" />
@@ -206,7 +158,7 @@ export function MessageBubble({ message }: { message: Message }) {
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => void handleDislikeSubmit()}
+                  onClick={() => setDislikeModalOpen(false)}
                 >
                   Submit
                 </Button>

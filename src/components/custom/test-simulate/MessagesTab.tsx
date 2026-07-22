@@ -31,13 +31,9 @@ export function MessagesTab() {
     .find(
       (message) =>
         message.role === "assistant" &&
-        message.json_content?.is_feedback_flow === true &&
-        message.json_content?.feedback_step === "awaiting_rating",
+        message.json_content?.is_feedback_flow === true,
     );
 
-  const isFeedbackFlow =
-    latestAssistant?.json_content?.is_feedback_flow === true;
-  const feedbackStep = latestAssistant?.json_content?.feedback_step;
   const showFeedback = Boolean(feedbackAssistant);
   const showGreeting = messages.length === 0;
   const suggestions = showGreeting
@@ -46,14 +42,6 @@ export function MessagesTab() {
       ? latestAssistant?.json_content?.suggestions
       : [];
 
-  useEffect(() => {
-    if (isFeedbackFlow && feedbackStep === "done") {
-      const timer = window.setTimeout(() => {
-        void resetChat();
-      }, 2000);
-      return () => window.clearTimeout(timer);
-    }
-  }, [feedbackStep, isFeedbackFlow, resetChat]);
 
   useEffect(() => {
     handleScroll();
@@ -133,7 +121,6 @@ export function MessagesTab() {
       {showFeedback ? (
         <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
           <FeedbackCard
-            ratingChoices={feedbackAssistant?.json_content?.rating_choices}
             onDone={resetChat}
           />
         </div>

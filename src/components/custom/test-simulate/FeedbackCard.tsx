@@ -4,18 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { uid, useTestChatbotContext } from "@/clients/test-simulate";
 import { cn } from "@/lib/utils";
-import {
-  SubmitThreadFeedback,
-  RatingChoice,
-} from "@/redux/api-slice/thread-slice";
-import { useAppDispatch } from "@/redux/hooks";
 
 type FeedbackCardProps = {
   ratingChoices?: RatingChoice[];
   onDone: () => Promise<void> | void;
 };
 
-const FALLBACK_RATING_OPTIONS: RatingChoice[] = [
+export type RatingChoice = {
+  value: string;
+  label: string;
+  emoji: string;
+};
+
+const FALLBACK_RATING_OPTIONS = [
   { value: "very_bad", label: "Very Bad", emoji: "😞" },
   { value: "bad", label: "Bad", emoji: "😕" },
   { value: "neutral", label: "Neutral", emoji: "😐" },
@@ -26,7 +27,6 @@ const FALLBACK_RATING_OPTIONS: RatingChoice[] = [
 const MAX_FEEDBACK_LENGTH = 500;
 
 export function FeedbackCard({ ratingChoices, onDone }: FeedbackCardProps) {
-  const dispatch = useAppDispatch();
   const { session, addMessage } = useTestChatbotContext();
   const [selectedOption, setSelectedOption] = useState<RatingChoice | null>(
     null,
@@ -51,26 +51,8 @@ export function FeedbackCard({ ratingChoices, onDone }: FeedbackCardProps) {
         created_at: new Date(),
       });
 
-      const result = await dispatch(
-        SubmitThreadFeedback({
-          rating: selectedOption.value,
-          thread_id: session.session_id,
-          feedback_message: feedbackMessage.trim() || undefined,
-        }),
-      ).unwrap();
-
       setSubmitted(true);
-      toast.success(result?.message ?? "Thank you for your feedback!");
-      addMessage({
-        id: result?.message_id ?? uid(),
-        role: "assistant",
-        message: "",
-        created_at: new Date(),
-        json_content: {
-          is_feedback_flow: true,
-          feedback_step: "done",
-        },
-      });
+      toast.success("Thank you for your feedback!");
       await onDone();
     } catch (error) {
       console.error("Failed to save feedback", error);
@@ -114,7 +96,6 @@ export function FeedbackCard({ ratingChoices, onDone }: FeedbackCardProps) {
             )}
             onClick={() => !submitted && !loading && setSelectedOption(option)}
             disabled={submitted || loading}
-            title={option.label}
           >
             {option.emoji}
           </button>

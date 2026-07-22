@@ -40,15 +40,6 @@ export const ENDPOINTS = {
   // Chat thread creation (Django) — POST.
   createThread: () => "/chat/threads/create/",
 
-  // Chat message feedback (Django) — POST.
-  messageFeedback: () => "/chat/message-feedback/",
-
-  // Chat thread feedback (Django) — POST.
-  threadFeedback: () => "/chat/thread-feedback/",
-
-  // Chat bot event tracking (Django) — POST.
-  botEvents: () => "/chat/bot-events/",
-
   // Dashboard Websocket (Django)
   dashboardSocket: (storeCode: string, token: string) =>
     createWebSocketUrl(`/support/dashboard/${storeCode}/?token=${token}`),
