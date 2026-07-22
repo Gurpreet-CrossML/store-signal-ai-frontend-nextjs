@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
 import { IconAdjustments, IconGauge } from "@tabler/icons-react";
 
 type SliderDef = {
@@ -82,12 +83,9 @@ function ToneMetricSlider({
   value: number;
   minLabel: string;
   maxLabel: string;
-  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange: (val: number) => void;
   onBlur: (event: React.FocusEvent<HTMLInputElement>) => void;
 }) {
-  const baseId = useId();
-  const uid = `slider-${baseId.replace(/:/g, "")}`;
-
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
@@ -99,63 +97,17 @@ function ToneMetricSlider({
         </Badge>
       </div>
 
-      <style>{`
-        .${uid}::-webkit-slider-runnable-track {
-          height: 8px;
-          border-radius: 9999px;
-          background: linear-gradient(
-            to right,
-            var(--color-primary) ${value}%,
-            var(--color-border) ${value}%
-          );
-        }
-        .${uid}::-moz-range-track {
-          height: 8px;
-          border-radius: 9999px;
-          background: var(--color-border);
-        }
-        .${uid}::-moz-range-progress {
-          height: 8px;
-          border-radius: 9999px 0 0 9999px;
-          background: var(--color-primary);
-        }
-        .${uid}::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 18px;
-          height: 18px;
-          border-radius: 9999px;
-          background: var(--color-primary);
-          border: 2px solid var(--color-background);
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
-          margin-top: -5px;
-          cursor: pointer;
-        }
-        .${uid}::-moz-range-thumb {
-          width: 18px;
-          height: 18px;
-          border-radius: 9999px;
-          background: var(--color-primary);
-          border: 2px solid var(--color-background);
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
-          cursor: pointer;
-        }
-      `}</style>
-
-      <input
+      <Slider
         id={name}
-        name={name}
-        type="range"
         min={0}
         max={100}
         step={1}
-        value={value}
-        onChange={onChange}
-        onBlur={onBlur}
-        className={`${uid} w-full cursor-pointer appearance-none bg-transparent`}
+        value={[value]}
+        onValueChange={(vals) => onChange(vals[0])}
+        className="w-full"
       />
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
         <span>{minLabel}</span>
         <span>{maxLabel}</span>
       </div>
@@ -203,11 +155,13 @@ function ToneSelectField({
 type BrandVoiceToneControlsProps = {
   formik: ReturnType<typeof useFormik<ToneStylePayload>>;
   bulletPointsDescription: string;
+  onSliderChange: (key: keyof ToneStylePayload, value: number) => void;
 };
 
 export default function BrandVoiceToneControls({
   formik,
   bulletPointsDescription,
+  onSliderChange,
 }: BrandVoiceToneControlsProps) {
   const values = formik.values;
 
@@ -229,7 +183,7 @@ export default function BrandVoiceToneControls({
               value={Number(values[slider.key] ?? 50)}
               minLabel={slider.minLabel}
               maxLabel={slider.maxLabel}
-              onChange={formik.handleChange}
+              onChange={(val) => onSliderChange(slider.key, val)}
               onBlur={formik.handleBlur}
             />
           ))}

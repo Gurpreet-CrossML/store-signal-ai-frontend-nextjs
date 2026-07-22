@@ -9,8 +9,8 @@ import BrandVoiceVocabularySummary from "@/components/custom/brand-voice-vocabul
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  GetVocabulary,
-  SaveVocabulary,
+  fetchVocabulary,
+  CreateVocabulary,
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
@@ -66,34 +66,30 @@ const validationSchema = z
     });
   });
 
-// Root component (store selector shell)
-
 export default function BrandVoiceVocabularyEditor() {
-  const selectedStore = useAppSelector(
+  const dispatch = useAppDispatch();
+  const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
 
-  return <BrandVoiceVocabularyEditorView storeCode={selectedStore} />;
-}
-
-// Editor view (Formik + Redux orchestrator)
-
-function BrandVoiceVocabularyEditorView({ storeCode }: { storeCode: string }) {
-  const dispatch = useAppDispatch();
-  const {
-    GetVocabularyData: vocabData,
-    GetVocabularyIsLoading: fetchIsLoading,
-  } = useAppSelector((state) => state.GetBrandVoiceReducer.GetVocabularyState);
-  const { SaveVocabularyIsLoading: saveIsLoading } = useAppSelector(
-    (state) => state.GetBrandVoiceReducer.SaveVocabularyState,
+  const { FetchVocabularyData, FetchVocabularyIsLoading } = useAppSelector(
+    (state) => state.GetBrandVoiceReducer.FetchVocabularyState,
+  );
+  const { CreateVocabularyIsLoading } = useAppSelector(
+    (state) => state.GetBrandVoiceReducer.CreateVocabularyState,
   );
 
-  const updatedAt = vocabData?.updated_at ?? null;
+  const updatedAt = FetchVocabularyData?.updated_at ?? null;
 
-  // Formik
+  useEffect(() => {
+    if (storeCode) {
+      dispatch(fetchVocabulary(storeCode));
+    }
+  }, [dispatch, storeCode]);
+
   const formik = useFormik<VocabularyFormValues>({
     enableReinitialize: true,
-    initialValues: (vocabData as any as VocabularyFormValues) || {
+    initialValues: (FetchVocabularyData as any as VocabularyFormValues) || {
       preferred_phrases: [],
       banned_words: [],
       signature_phrases: [],
@@ -118,31 +114,27 @@ function BrandVoiceVocabularyEditorView({ storeCode }: { storeCode: string }) {
         ),
       };
       const result = await dispatch(
-        SaveVocabulary({
+        CreateVocabulary({
           storeCode: storeCode,
           payload,
         }),
       );
-      if (SaveVocabulary.fulfilled.match(result)) {
-        formik.resetForm({ values: result.payload });
+      if (CreateVocabulary.fulfilled.match(result)) {
+        formik.resetForm({ values: result.payload as VocabularyFormValues });
+      }
+      if (CreateVocabulary.rejected.match(result)) {
+        const payload = result.payload as Record<
+          string,
+          string | Record<string, string>
+        > | null;
+        const errors = (payload?.data as Record<string, string>) || {};
+        formik.setErrors({
+          ...errors,
+        });
       }
     },
   });
 
-  // Fetch on mount / store change
-  useEffect(() => {
-    if (!storeCode) return;
-    let active = true;
-    (async () => {
-      await dispatch(GetVocabulary(storeCode));
-      if (!active) return;
-    })();
-    return () => {
-      active = false;
-    };
-  }, [dispatch, storeCode]);
-
-  // Derived state
   const values = formik.values;
 
   const summary = [
@@ -157,74 +149,71 @@ function BrandVoiceVocabularyEditorView({ storeCode }: { storeCode: string }) {
     },
   ];
 
-  // Main layout
   return (
-    <form onSubmit={formik.handleSubmit} className="w-full px-4 pb-6 md:px-6">
-      {/* Page header */}
-      <div className="mt-3 flex flex-col gap-2">
-        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          The specific words that make your brand sound like you. Preferred
-          phrases to lean into, words to ban, signature expressions, and exact
-          swaps the AI always makes.
-        </p>
-      </div>
-
-      {/* Two-column grid */}
-      <div className="mt-4 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-        {/* Left column — chip lists + replacements */}
-        <BrandVoiceVocabularyChipLists
-          formik={formik}
-          preferredPhrases={values.preferred_phrases}
-          bannedWords={values.banned_words}
-          signaturePhrases={values.signature_phrases}
-          wordReplacements={values.word_replacements}
-          onPreferredChange={(v) =>
-            formik.setFieldValue("preferred_phrases", v)
-          }
-          onBannedChange={(v) => formik.setFieldValue("banned_words", v)}
-          onSignatureChange={(v) =>
-            formik.setFieldValue("signature_phrases", v)
-          }
-          onReplacementAdd={() =>
-            formik.setFieldValue("word_replacements", [
-              ...values.word_replacements,
-              { say_word: "", replace_word: "", is_active: true },
-            ])
-          }
-        />
-
-        {/* Right column — summary sidebar */}
-        <BrandVoiceVocabularySummary
-          summary={summary}
-          preferredPhrases={values.preferred_phrases}
-          updatedAt={updatedAt}
-        />
-      </div>
-
-      {/* Save / Reset buttons */}
-      <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => formik.resetForm()}
-          disabled={saveIsLoading || fetchIsLoading}
+    <div className="flex flex-col gap-4 p-4">
+      {FetchVocabularyIsLoading ? (
+        <div className="flex items-center justify-center gap-2 py-10">
+          <Spinner className="size-6" />
+          Loading vocabulary...
+        </div>
+      ) : (
+        <form
+          onSubmit={formik.handleSubmit}
+          className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]"
         >
-          Discard changes
-        </Button>
-        <Button
-          type="submit"
-          disabled={!formik.dirty || saveIsLoading || fetchIsLoading}
-        >
-          {saveIsLoading ? (
-            <>
-              <Spinner data-icon="inline-start" />
-              Saving...
-            </>
-          ) : (
-            "Save Changes"
-          )}
-        </Button>
-      </div>
-    </form>
+          <div className="flex flex-col gap-6">
+            <div className="mt-3 flex flex-col gap-2">
+              <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                The specific words that make your brand sound like you.
+                Preferred phrases to lean into, words to ban, signature
+                expressions, and exact swaps the AI always makes.
+              </p>
+            </div>
+
+            <BrandVoiceVocabularyChipLists
+              formik={formik}
+              preferredPhrases={values.preferred_phrases}
+              bannedWords={values.banned_words}
+              signaturePhrases={values.signature_phrases}
+              wordReplacements={values.word_replacements}
+              onPreferredChange={(v) =>
+                formik.setFieldValue("preferred_phrases", v)
+              }
+              onBannedChange={(v) => formik.setFieldValue("banned_words", v)}
+              onSignatureChange={(v) =>
+                formik.setFieldValue("signature_phrases", v)
+              }
+              onReplacementAdd={() =>
+                formik.setFieldValue("word_replacements", [
+                  ...values.word_replacements,
+                  { say_word: "", replace_word: "", is_active: true },
+                ])
+              }
+            />
+
+            <div className="sticky bottom-0 z-10 flex justify-start border-t border-border bg-background py-3">
+              <Button
+                type="submit"
+                size="lg"
+                disabled={CreateVocabularyIsLoading}
+              >
+                {CreateVocabularyIsLoading && (
+                  <Spinner data-icon="inline-start" />
+                )}
+                {CreateVocabularyIsLoading ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-6">
+            <BrandVoiceVocabularySummary
+              summary={summary}
+              preferredPhrases={values.preferred_phrases}
+              updatedAt={updatedAt}
+            />
+          </div>
+        </form>
+      )}
+    </div>
   );
 }

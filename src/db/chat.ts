@@ -104,50 +104,6 @@ export type VocabularyPayload = {
   word_replacements: WordReplacementPayload[];
 };
 
-// Defaults & Helpers
-
-const DEFAULT_TONE_STYLE = {
-  preset: 0,
-  warmth: 50,
-  formality: 50,
-  energy: 50,
-  playfulness: 50,
-  directness: 50,
-  answer_length: "standard",
-  regional_spelling: "auto",
-  use_bullet_points: true,
-  frequency_policy: "sparing",
-};
-
-const DEFAULT_VOCABULARY = {
-  preferred_phrases: [] as string[],
-  banned_words: [] as string[],
-  signature_phrases: [] as string[],
-  word_replacements: [] as WordReplacementRecord[],
-};
-
-function nowIso() {
-  return new Date().toISOString();
-}
-
-export function buildToneStyleDefaults(presetId = 0): ToneStyleRecord {
-  const timestamp = nowIso();
-  return {
-    ...DEFAULT_TONE_STYLE,
-    preset: presetId,
-    created_at: timestamp,
-    updated_at: timestamp,
-  };
-}
-
-export function buildVocabularyDefaults(): VocabularyRecord {
-  const timestamp = nowIso();
-  return {
-    ...DEFAULT_VOCABULARY,
-    created_at: timestamp,
-    updated_at: timestamp,
-  };
-}
 
 function canAccessStore(storeCode: string) {
   const scope = resolveStoreScope(storeCode);

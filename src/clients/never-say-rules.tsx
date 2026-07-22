@@ -31,7 +31,7 @@ const validationSchema = z.object({
   ),
 });
 
-function ChipList({
+export function ChipList({
   items,
   placeholder,
   onAdd,

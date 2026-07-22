@@ -8,111 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-// ChipListField
-
-type ChipKind = "preferred" | "banned" | "signature";
-
-function badgeVariant(kind: ChipKind) {
-  if (kind === "preferred") return "secondary" as const;
-  if (kind === "banned") return "destructive" as const;
-  return "default" as const;
-}
-
-type ChipListFieldProps = {
-  label: string;
-  description: string;
-  value: string[];
-  placeholder: string;
-  kind: ChipKind;
-  onChange: (value: string[]) => void;
-};
-
-function ChipListField({
-  label,
-  description,
-  value,
-  placeholder,
-  kind,
-  onChange,
-}: ChipListFieldProps) {
-  const [draft, setDraft] = useState("");
-
-  const addValue = (raw: string) => {
-    const next = raw
-      .split(/[\n,]/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-    if (!next.length) return;
-    onChange(Array.from(new Set([...value, ...next])));
-    setDraft("");
-  };
-
-  const removeValue = (item: string) =>
-    onChange(value.filter((e) => e !== item));
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter" || event.key === ",") {
-      event.preventDefault();
-      addValue(draft);
-    }
-    if (event.key === "Backspace" && !draft && value.length) {
-      onChange(value.slice(0, -1));
-    }
-  };
-
-  return (
-    <Card className="flex h-full min-h-0 flex-col gap-0 overflow-hidden">
-      <CardHeader className="px-5 py-4">
-        <CardTitle>{label}</CardTitle>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </CardHeader>
-      <CardContent className="flex flex-1 min-h-0 flex-col gap-4 px-5 pb-5">
-        <div className="flex min-h-24 max-h-24 flex-wrap content-start gap-2 overflow-y-auto rounded-xl border border-border/60 bg-muted/20 p-2">
-          {value.map((item) => (
-            <Badge
-              key={item}
-              variant={badgeVariant(kind)}
-              className="flex items-center gap-2 rounded-full px-3 py-1.5 font-normal"
-            >
-              <span>{item}</span>
-              <button
-                type="button"
-                className="ml-0.5 inline-flex items-center justify-center"
-                onClick={() => removeValue(item)}
-                aria-label={`Remove ${item}`}
-              >
-                <IconX className="size-3" />
-              </button>
-            </Badge>
-          ))}
-          {value.length === 0 && (
-            <span className="px-1 text-sm text-muted-foreground">
-              No entries yet.
-            </span>
-          )}
-        </div>
-        <div className="mt-auto grid gap-2 sm:grid-cols-[minmax(0,1fr)_4.75rem]">
-          <Input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            className="h-10"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => addValue(draft)}
-            className="h-10 shrink-0"
-          >
-            Add
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+import { ChipList } from "@/clients/never-say-rules";
 
 // ReplacementRow
 
@@ -225,30 +123,76 @@ export default function BrandVoiceVocabularyChipLists({
 }: BrandVoiceVocabularyChipListsProps) {
   return (
     <div className="grid grid-cols-1 items-stretch gap-6 lg:auto-rows-[20rem] lg:grid-cols-2">
-      <ChipListField
-        label="Preferred words & phrases"
-        description="The AI leans toward these when they fit naturally."
-        value={preferredPhrases}
-        placeholder="Add a preferred phrase and press Enter"
-        kind="preferred"
-        onChange={onPreferredChange}
-      />
-      <ChipListField
-        label="Banned words"
-        description="The AI never uses these. Checked deterministically."
-        value={bannedWords}
-        placeholder="Add a banned word and press Enter"
-        kind="banned"
-        onChange={onBannedChange}
-      />
-      <ChipListField
-        label="Signature phrases"
-        description="Brand catchphrases the AI sprinkles in naturally."
-        value={signaturePhrases}
-        placeholder="Add a signature phrase and press Enter"
-        kind="signature"
-        onChange={onSignatureChange}
-      />
+      <Card>
+        <CardContent className="flex h-full flex-col gap-3 pt-6">
+          <div className="flex flex-col gap-0.5">
+            <Label className="text-base font-semibold">
+              Preferred words & phrases
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              The AI leans toward these when they fit naturally.
+            </p>
+          </div>
+          <div className="flex-1 overflow-y-auto pr-1">
+            <ChipList
+              items={preferredPhrases}
+              placeholder="Add a preferred phrase and press Enter"
+              onAdd={(value) => onPreferredChange([...preferredPhrases, value])}
+              onRemove={(index) =>
+                onPreferredChange(
+                  preferredPhrases.filter((_, i) => i !== index),
+                )
+              }
+              chipClassName="bg-secondary text-secondary-foreground"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="flex h-full flex-col gap-3 pt-6">
+          <div className="flex flex-col gap-0.5">
+            <Label className="text-base font-semibold">Banned words</Label>
+            <p className="text-xs text-muted-foreground">
+              The AI never uses these. Checked deterministically.
+            </p>
+          </div>
+          <div className="flex-1 overflow-y-auto pr-1">
+            <ChipList
+              items={bannedWords}
+              placeholder="Add a banned word and press Enter"
+              onAdd={(value) => onBannedChange([...bannedWords, value])}
+              onRemove={(index) =>
+                onBannedChange(bannedWords.filter((_, i) => i !== index))
+              }
+              chipClassName="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="flex h-full flex-col gap-3 pt-6">
+          <div className="flex flex-col gap-0.5">
+            <Label className="text-base font-semibold">Signature phrases</Label>
+            <p className="text-xs text-muted-foreground">
+              Brand catchphrases the AI sprinkles in naturally.
+            </p>
+          </div>
+          <div className="flex-1 overflow-y-auto pr-1">
+            <ChipList
+              items={signaturePhrases}
+              placeholder="Add a signature phrase and press Enter"
+              onAdd={(value) => onSignatureChange([...signaturePhrases, value])}
+              onRemove={(index) =>
+                onSignatureChange(
+                  signaturePhrases.filter((_, i) => i !== index),
+                )
+              }
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Word Replacements */}
       <Card className="flex h-full min-h-0 flex-col gap-0 overflow-hidden">

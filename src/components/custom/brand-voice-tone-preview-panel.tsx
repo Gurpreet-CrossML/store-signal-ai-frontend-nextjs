@@ -8,8 +8,7 @@ import { cn } from "@/lib/utils";
 
 type ToneStylePreviewPanelProps = {
   preset: TonePresetRecord | null;
-  modeLabel: string;
-  modeDescription: string;
+
   presetOrder: readonly TonePresetRecord[];
   currentProfile: {
     preset: number;
@@ -24,8 +23,7 @@ type ToneStylePreviewPanelProps = {
 
 export default function ToneStylePreviewPanel({
   preset,
-  modeLabel,
-  modeDescription,
+
   presetOrder,
   currentProfile,
 }: ToneStylePreviewPanelProps) {
@@ -43,10 +41,12 @@ export default function ToneStylePreviewPanel({
                 Tone & Style
               </h2>
               <Badge variant="secondary" className="font-normal">
-                {modeLabel}
+                Preview
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">{modeDescription}</p>
+            <p className="text-sm text-muted-foreground">
+              Live view of the current tone settings.
+            </p>
           </div>
           <Badge variant="outline" className="capitalize font-normal">
             {presetLabel}
