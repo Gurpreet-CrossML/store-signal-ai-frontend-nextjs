@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
   fetchVocabulary,
-  CreateVocabulary,
+  createVocabulary,
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
@@ -114,15 +114,15 @@ export default function BrandVoiceVocabularyEditor() {
         ),
       };
       const result = await dispatch(
-        CreateVocabulary({
+        createVocabulary({
           storeCode: storeCode,
           payload,
         }),
       );
-      if (CreateVocabulary.fulfilled.match(result)) {
+      if (createVocabulary.fulfilled.match(result)) {
         formik.resetForm({ values: result.payload as VocabularyFormValues });
       }
-      if (CreateVocabulary.rejected.match(result)) {
+      if (createVocabulary.rejected.match(result)) {
         const payload = result.payload as Record<
           string,
           string | Record<string, string>

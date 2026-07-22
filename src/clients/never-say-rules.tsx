@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   fetchNeverSayRules,
-  CreateNeverSayRules,
+  createNeverSayRules,
   type NeverSayRulesData,
   type RequiredLegalPhrase,
 } from "@/redux/api-slice/brand-voice-slice";
@@ -158,9 +158,9 @@ export default function NeverSayRules() {
           .filter((item) => item.context && item.phrase),
       };
       const result = await dispatch(
-        CreateNeverSayRules({ storeCode, payload }),
+        createNeverSayRules({ storeCode, payload }),
       );
-      if (CreateNeverSayRules.fulfilled.match(result)) {
+      if (createNeverSayRules.fulfilled.match(result)) {
         formik.resetForm({ values: result.payload });
       }
     },

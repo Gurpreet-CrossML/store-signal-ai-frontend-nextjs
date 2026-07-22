@@ -38,7 +38,7 @@ export type NeverSayRulesData = {
 // Thunks — Persona Identity
 
 export const fetchPersonaIdentity = createAsyncThunk(
-  "brandVoice/fetchPersonaIdentity",
+  "fetchPersonaIdentity",
   async (storeCode: string, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
@@ -61,7 +61,7 @@ export const fetchPersonaIdentity = createAsyncThunk(
   },
 );
 
-export const CreatePersonaIdentity = createAsyncThunk(
+export const createPersonaIdentity = createAsyncThunk(
   "createPersonaIdentity",
   async (
     { storeCode, payload }: { storeCode: string; payload: PersonaIdentityData },
@@ -97,7 +97,7 @@ export const CreatePersonaIdentity = createAsyncThunk(
 // Thunks — Never Say Rules
 
 export const fetchNeverSayRules = createAsyncThunk(
-  "brandVoice/fetchNeverSayRules",
+  "fetchNeverSayRules",
   async (storeCode: string, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
@@ -120,7 +120,7 @@ export const fetchNeverSayRules = createAsyncThunk(
   },
 );
 
-export const CreateNeverSayRules = createAsyncThunk(
+export const createNeverSayRules = createAsyncThunk(
   "createNeverSayRules",
   async (
     { storeCode, payload }: { storeCode: string; payload: NeverSayRulesData },
@@ -201,7 +201,7 @@ export const fetchTonePresets = createAsyncThunk<TonePresetRecord[], void>(
   },
 );
 
-export const CreateToneStyle = createAsyncThunk<
+export const createToneStyle = createAsyncThunk<
   ToneStyleRecord,
   { storeCode: string; payload: ToneStylePayload }
 >("createToneStyle", async ({ storeCode, payload }, thunkAPI) => {
@@ -257,7 +257,7 @@ export const fetchVocabulary = createAsyncThunk<VocabularyRecord | null, string>
   },
 );
 
-export const CreateVocabulary = createAsyncThunk<
+export const createVocabulary = createAsyncThunk<
   VocabularyRecord,
   { storeCode: string; payload: VocabularyPayload }
 >("createVocabulary", async ({ storeCode, payload }, thunkAPI) => {
@@ -366,12 +366,12 @@ const BrandVoiceSlice = createSlice({
           action.payload  as string | object;
         state.FetchPersonaIdentityState.FetchPersonaIdentityIsSuccess = false;
       })
-      .addCase(CreatePersonaIdentity.pending, (state) => {
+      .addCase(createPersonaIdentity.pending, (state) => {
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsLoading = true;
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsError = null;
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsSuccess = false;
       })
-      .addCase(CreatePersonaIdentity.fulfilled, (state, action) => {
+      .addCase(createPersonaIdentity.fulfilled, (state, action) => {
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsLoading = false;
         state.CreatePersonaIdentityState.CreatePersonaIdentityData =
           action.payload;
@@ -379,7 +379,7 @@ const BrandVoiceSlice = createSlice({
           action.payload;
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsSuccess = true;
       })
-      .addCase(CreatePersonaIdentity.rejected, (state, action) => {
+      .addCase(createPersonaIdentity.rejected, (state, action) => {
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsLoading = false;
         state.CreatePersonaIdentityState.CreatePersonaIdentityIsError =
           action.payload as Record<
@@ -405,18 +405,18 @@ const BrandVoiceSlice = createSlice({
           action.payload as string | object;
         state.FetchNeverSayRulesState.FetchNeverSayRulesIsSuccess = false;
       })
-      .addCase(CreateNeverSayRules.pending, (state) => {
+      .addCase(createNeverSayRules.pending, (state) => {
         state.CreateNeverSayRulesState.CreateNeverSayRulesIsLoading = true;
         state.CreateNeverSayRulesState.CreateNeverSayRulesIsError = null;
         state.CreateNeverSayRulesState.CreateNeverSayRulesIsSuccess = false;
       })
-      .addCase(CreateNeverSayRules.fulfilled, (state, action) => {
+      .addCase(createNeverSayRules.fulfilled, (state, action) => {
         state.CreateNeverSayRulesState.CreateNeverSayRulesIsLoading = false;
         state.CreateNeverSayRulesState.CreateNeverSayRulesData = action.payload;
         state.FetchNeverSayRulesState.FetchNeverSayRulesData = action.payload;
         state.CreateNeverSayRulesState.CreateNeverSayRulesIsSuccess = true;
       })
-      .addCase(CreateNeverSayRules.rejected, (state, action) => {
+      .addCase(createNeverSayRules.rejected, (state, action) => {
         state.CreateNeverSayRulesState.CreateNeverSayRulesIsLoading = false;
         state.CreateNeverSayRulesState.CreateNeverSayRulesIsError =
           action.payload as string | object;
@@ -456,18 +456,18 @@ const BrandVoiceSlice = createSlice({
         state.FetchToneStyleState.FetchToneStyleIsError =
           action.payload as string | object;
       })
-      .addCase(CreateToneStyle.pending, (state) => {
+      .addCase(createToneStyle.pending, (state) => {
         state.CreateToneStyleState.CreateToneStyleIsLoading = true;
         state.CreateToneStyleState.CreateToneStyleIsSuccess = false;
         state.CreateToneStyleState.CreateToneStyleIsError = null;
       })
-      .addCase(CreateToneStyle.fulfilled, (state, action) => {
+      .addCase(createToneStyle.fulfilled, (state, action) => {
         state.CreateToneStyleState.CreateToneStyleIsLoading = false;
         state.CreateToneStyleState.CreateToneStyleIsSuccess = true;
         state.FetchToneStyleState.FetchToneStyleData = action.payload;
         state.CreateToneStyleState.CreateToneStyleData = action.payload;
       })
-      .addCase(CreateToneStyle.rejected, (state, action) => {
+      .addCase(createToneStyle.rejected, (state, action) => {
         state.CreateToneStyleState.CreateToneStyleIsLoading = false;
         state.CreateToneStyleState.CreateToneStyleIsSuccess = false;
         state.CreateToneStyleState.CreateToneStyleIsError =
@@ -490,18 +490,18 @@ const BrandVoiceSlice = createSlice({
         state.FetchVocabularyState.FetchVocabularyIsError =
           action.payload as string | object;
       })
-      .addCase(CreateVocabulary.pending, (state) => {
+      .addCase(createVocabulary.pending, (state) => {
         state.CreateVocabularyState.CreateVocabularyIsLoading = true;
         state.CreateVocabularyState.CreateVocabularyIsSuccess = false;
         state.CreateVocabularyState.CreateVocabularyIsError = null;
       })
-      .addCase(CreateVocabulary.fulfilled, (state, action) => {
+      .addCase(createVocabulary.fulfilled, (state, action) => {
         state.CreateVocabularyState.CreateVocabularyIsLoading = false;
         state.CreateVocabularyState.CreateVocabularyIsSuccess = true;
         state.FetchVocabularyState.FetchVocabularyData = action.payload;
         state.CreateVocabularyState.CreateVocabularyData = action.payload;
       })
-      .addCase(CreateVocabulary.rejected, (state, action) => {
+      .addCase(createVocabulary.rejected, (state, action) => {
         state.CreateVocabularyState.CreateVocabularyIsLoading = false;
         state.CreateVocabularyState.CreateVocabularyIsSuccess = false;
         state.CreateVocabularyState.CreateVocabularyIsError =

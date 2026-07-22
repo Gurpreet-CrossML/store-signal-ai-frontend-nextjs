@@ -12,7 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   fetchTonePresets,
   fetchToneStyle,
-  CreateToneStyle,
+  createToneStyle,
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { type ToneStylePayload } from "@/db/chat";
@@ -80,12 +80,12 @@ export default function BrandVoiceToneStyleEditor() {
     onSubmit: async (values) => {
       if (!storeCode) return;
       const result = await dispatch(
-        CreateToneStyle({ storeCode, payload: values }),
+        createToneStyle({ storeCode, payload: values }),
       );
-      if (CreateToneStyle.fulfilled.match(result)) {
+      if (createToneStyle.fulfilled.match(result)) {
         formik.resetForm({ values: result.payload as ToneStylePayload });
       }
-      if (CreateToneStyle.rejected.match(result)) {
+      if (createToneStyle.rejected.match(result)) {
         const payload = result.payload as Record<
           string,
           string | Record<string, string>
