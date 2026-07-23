@@ -1,45 +1,32 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
-  IconAdjustmentsHorizontal,
   IconArchive,
   IconArrowsDiagonal,
   IconBolt,
   IconBrandInstagram,
   IconBrandWhatsapp,
-  IconCalendarTime,
   IconCheck,
   IconChevronDown,
   IconClock,
-  IconClockHour4,
   IconDotsVertical,
   IconFilter,
   IconGift,
-  IconGridDots,
-  IconInbox,
   IconLanguage,
-  IconLayoutGrid,
   IconMail,
   IconMessage2,
   IconMessageChatbot,
   IconMoodSmile,
   IconPencil,
-  IconPlugConnected,
   IconReload,
-  IconRoute,
   IconSend,
-  IconSettingsAutomation,
   IconSparkles,
-  IconStar,
   IconTag,
-  IconTags,
   IconUser,
   IconUsers,
-  IconUsersGroup,
   IconWand,
 } from "@tabler/icons-react";
 
@@ -48,7 +35,6 @@ import { Button } from "@/components/ui/button";
 import {
   resolveTicketingSettingsSection,
   TicketingSettingsContent,
-  type SectionId,
 } from "@/components/custom/ticketing-settings";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -83,131 +69,6 @@ type ChatMessage = {
 
 const suggestedReply =
   "Hi Sarah - I completely understand, and I am sorry it has felt like a long wait. Good news: your order shipped Tuesday and is out for delivery with DHL today. I will keep an eye on it too.";
-
-const inboxes = [
-  {
-    label: "All open",
-    count: 34,
-    icon: IconInbox,
-    active: true,
-    href: "/helpdesk",
-  },
-  { label: "Unassigned", count: 9, icon: IconUser, alert: true },
-  { label: "My open tickets", count: 7, icon: IconCheck },
-  { label: "Mentions", count: 2, icon: IconMessage2, alert: true },
-];
-
-const savedViews = [
-  { label: "Urgent + SLA", count: 4, icon: IconBolt, alert: true },
-  { label: "VIP customers", count: 3, icon: IconStar },
-  { label: "Returns - waiting", count: 6, icon: IconReload },
-  { label: "AI-handled today", count: 218, icon: IconMessageChatbot },
-];
-
-const channels_views: {
-  label: string;
-  count: number;
-  icon: typeof IconPlugConnected;
-  color: string;
-  href: string;
-}[] = [
-  {
-    label: "Channels",
-    count: 12,
-    icon: IconPlugConnected,
-    color: "text-emerald-500",
-    href: "/helpdesk?section=channels",
-  },
-  {
-    label: "Views",
-    count: 5,
-    icon: IconLayoutGrid,
-    color: "text-blue-500",
-    href: "/helpdesk?section=views",
-  },
-  {
-    label: "Tags & Fields",
-    count: 3,
-    icon: IconTags,
-    color: "text-indigo-500",
-    href: "/helpdesk?section=tags-fields",
-  },
-];
-
-const automation: {
-  label: string;
-  count: number;
-  icon: typeof IconBolt;
-  color: string;
-  href?: string;
-}[] = [
-  {
-    label: "Macros",
-    count: 12,
-    icon: IconBolt,
-    color: "text-amber-500",
-  },
-  {
-    label: "Rules & Automations",
-    count: 5,
-    icon: IconSettingsAutomation,
-    color: "text-violet-500",
-    href: "/helpdesk?section=rules-automations",
-  },
-  {
-    label: "Routing & Assignment",
-    count: 3,
-    icon: IconRoute,
-    color: "text-cyan-500",
-    href: "/helpdesk?section=routing-assignment",
-  },
-];
-
-const service_levels: {
-  label: string;
-  count: number;
-  icon: typeof IconClockHour4;
-  color: string;
-  href: string;
-}[] = [
-  {
-    label: "SLA Policies",
-    count: 12,
-    icon: IconClockHour4,
-    color: "text-orange-500",
-    href: "/helpdesk?section=sla-policies",
-  },
-  {
-    label: "Business Hours",
-    count: 5,
-    icon: IconCalendarTime,
-    color: "text-sky-500",
-    href: "/helpdesk?section=business-hours",
-  },
-];
-
-const team_quality: {
-  label: string;
-  count: number;
-  icon: typeof IconUsersGroup;
-  color: string;
-  href: string;
-}[] = [
-  {
-    label: "Teams & Roles",
-    count: 12,
-    icon: IconUsersGroup,
-    color: "text-teal-500",
-    href: "/helpdesk?section=teams-roles",
-  },
-  {
-    label: "CSAT",
-    count: 5,
-    icon: IconMoodSmile,
-    color: "text-yellow-500",
-    href: "/helpdesk?section=csat",
-  },
-];
 
 const tickets: Ticket[] = [
   {
@@ -446,83 +307,6 @@ function Badge({
   );
 }
 
-function SideNavGroup({
-  title,
-  items,
-  canAdd,
-  activeSection,
-  onItemAction,
-}: {
-  title: string;
-  items: {
-    label: string;
-    count: number;
-    icon: typeof IconInbox;
-    active?: boolean;
-    alert?: boolean;
-    color?: string;
-    href?: string;
-  }[];
-  canAdd?: boolean;
-  activeSection?: SectionId | null;
-  onItemAction?: (label: string) => void;
-}) {
-  return (
-    <section>
-      <div className="mb-2 flex items-center justify-between px-2 text-[11px] font-bold uppercase text-slate-400">
-        <span>{title}</span>
-        {canAdd ? <span className="text-slate-400">+</span> : null}
-      </div>
-      <div className="space-y-1">
-        {items.map((item) => {
-          const itemSection = item.href
-            ? resolveTicketingSettingsSection(
-                new URL(item.href, "http://localhost").searchParams.get(
-                  "section",
-                ),
-              )
-            : null;
-          const isActive =
-            item.active || (!!itemSection && itemSection === activeSection);
-          const content = (
-            <>
-              <item.icon className={cn("size-4 shrink-0", item.color)} />
-              <span className="min-w-0 flex-1 truncate">{item.label}</span>
-              <span
-                className={cn(
-                  "rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500",
-                  isActive && "bg-white text-indigo-600",
-                  item.alert && "bg-red-50 text-red-500",
-                )}
-              >
-                {item.count}
-              </span>
-            </>
-          );
-          const className = cn(
-            "flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100",
-            isActive && "bg-indigo-50 text-indigo-700",
-          );
-
-          return item.href ? (
-            <Link key={item.label} href={item.href} className={className}>
-              {content}
-            </Link>
-          ) : (
-            <button
-              key={item.label}
-              className={className}
-              onClick={() => onItemAction?.(item.label)}
-            >
-              {content}
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 function TicketRow({
   ticket,
   active,
@@ -553,16 +337,16 @@ function TicketRow({
           <ChannelIcon
             className={cn("size-5 shrink-0", channelColor[ticket.channel])}
           />
-          <span className="truncate text-sm font-bold text-slate-950">
+          <span className="truncate text-sm font-medium text-slate-950">
             {ticket.customer}
           </span>
           {ticket.vip ? (
-            <span className="rounded bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+            <span className="rounded bg-orange-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
               VIP
             </span>
           ) : null}
         </div>
-        <p className="truncate text-sm font-semibold text-slate-950">
+        <p className="truncate text-sm font-medium text-slate-950">
           {ticket.subject}
         </p>
         <p className="mt-1 truncate text-xs text-slate-500">{ticket.preview}</p>
@@ -577,62 +361,12 @@ function TicketRow({
       <div className="flex flex-col items-end gap-8">
         <span className="text-xs text-slate-400">{ticket.time}</span>
         {ticket.sla ? (
-          <span className="rounded-md bg-orange-50 px-1.5 py-0.5 text-[11px] font-bold text-orange-600">
+          <span className="rounded-md bg-orange-50 px-1.5 py-0.5 text-[11px] font-medium text-orange-600">
             {ticket.sla}
           </span>
         ) : null}
       </div>
     </button>
-  );
-}
-
-function InboxPanel({
-  activeSection,
-  onInboxAction,
-}: {
-  activeSection?: SectionId | null;
-  onInboxAction: (label: string) => void;
-}) {
-  return (
-    <aside className="hidden w-[250px] shrink-0 border-r bg-slate-50/70 p-3 lg:block">
-      <div className="space-y-6 overflow-y-auto h-[90vh]!">
-        <SideNavGroup
-          title="Inboxes"
-          items={inboxes.map((item) => ({
-            ...item,
-            active: !activeSection && item.active,
-          }))}
-          onItemAction={onInboxAction}
-        />
-        <SideNavGroup
-          title="Saved views"
-          items={savedViews}
-          canAdd
-          onItemAction={onInboxAction}
-        />
-        <SideNavGroup
-          title="Channels & Views"
-          items={channels_views}
-          activeSection={activeSection}
-        />
-        <SideNavGroup
-          title="Automation"
-          items={automation}
-          activeSection={activeSection}
-          onItemAction={onInboxAction}
-        />
-        <SideNavGroup
-          title="Service Levels"
-          items={service_levels}
-          activeSection={activeSection}
-        />
-        <SideNavGroup
-          title="Team & Quality"
-          items={team_quality}
-          activeSection={activeSection}
-        />
-      </div>
-    </aside>
   );
 }
 
@@ -661,7 +395,7 @@ function TicketListPanel({
   return (
     <section className="hidden w-[336px] shrink-0 border-r bg-white md:block">
       <div className="flex h-14 items-center justify-between border-b px-3">
-        <h2 className="font-bold text-slate-950">All open</h2>
+        <h2 className="font-medium text-slate-950">All open</h2>
         <div className="flex gap-2">
           <Button variant="outline" size="icon-sm" className="bg-white">
             <IconFilter className="size-4" />
@@ -686,9 +420,9 @@ function TicketListPanel({
         ))}
       </div>
       <div className="h-[83vh]! overflow-y-auto">
-        {rows.map((ticket) => (
+        {rows.map((ticket, index) => (
           <TicketRow
-            key={`${ticket.id}-${ticket.customer}`}
+            key={`${ticket.id}-${ticket.customer}-${index}`}
             ticket={ticket}
             active={ticket.id === activeTicketId}
             onSelect={() => onSelectTicket(ticket.id)}
@@ -731,7 +465,7 @@ function ConversationPanel({
       <div className="border-b px-4 py-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="max-w-[280px] text-xl font-black leading-tight text-slate-950">
+            <h2 className="max-w-[280px] text-xl font-semibold leading-tight text-slate-950">
               {ticket.subject}
             </h2>
             <span className="mt-1 inline-block text-xs font-semibold text-slate-400">
@@ -808,7 +542,7 @@ function ConversationPanel({
             >
               {message.author === "customer" ? (
                 <Avatar className="size-8">
-                  <AvatarFallback className="bg-slate-500 text-xs font-bold text-white">
+                  <AvatarFallback className="bg-slate-500 text-xs font-medium text-white">
                     {ticket.initials}
                   </AvatarFallback>
                 </Avatar>
@@ -824,7 +558,7 @@ function ConversationPanel({
                     {message.author === "agent" ? "You" : ticket.customer} -{" "}
                     {message.time}
                   </span>
-                  <span className="font-bold uppercase tracking-wide">
+                  <span className="font-medium uppercase tracking-wide">
                     {message.author === "agent"
                       ? "Agent reply"
                       : ticket.channel}
@@ -950,12 +684,7 @@ function ConversationPanel({
             >
               Save draft
             </Button>
-            <Button
-              size="sm"
-              className="bg-indigo-600 hover:bg-indigo-700"
-              onClick={onSend}
-              disabled={isSending}
-            >
+            <Button size="sm" onClick={onSend} disabled={isSending}>
               <IconSend className="size-4" />
               {isSending ? "Sending..." : "Send"}
               <IconChevronDown className="size-4" />
@@ -976,7 +705,7 @@ function CopilotPanel({
 }) {
   return (
     <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
-      <div className="grid h-11 grid-cols-2 border-b text-sm font-bold">
+      <div className="grid h-11 grid-cols-2 border-b text-sm font-medium">
         <button className="flex items-center justify-center gap-2 border-b-2 border-indigo-600 text-indigo-600">
           <IconMessageChatbot className="size-4" />
           AI Copilot
@@ -1000,7 +729,7 @@ function CopilotPanel({
 
         <section className="rounded-lg border bg-white">
           <div className="flex items-center justify-between border-b px-3 py-3">
-            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-950">
+            <h3 className="flex items-center gap-2 text-sm font-medium text-slate-950">
               <IconMessageChatbot className="size-4 text-indigo-600" />
               Suggested reply
             </h3>
@@ -1021,14 +750,10 @@ function CopilotPanel({
               <div className="h-1 flex-1 rounded-full bg-slate-100">
                 <div className="h-1 w-[94%] rounded-full bg-emerald-500" />
               </div>
-              <span className="font-bold text-emerald-600">94%</span>
+              <span className="font-medium text-emerald-600">94%</span>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <Button
-                size="sm"
-                className="bg-indigo-600 hover:bg-indigo-700"
-                onClick={onAcceptDraft}
-              >
+              <Button size="sm" onClick={onAcceptDraft}>
                 <IconCheck className="size-4" />
                 Use draft
               </Button>
@@ -1046,7 +771,7 @@ function CopilotPanel({
         </section>
 
         <section className="rounded-lg border bg-white">
-          <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-bold text-slate-950">
+          <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-medium text-slate-950">
             <IconWand className="size-4 text-indigo-600" />
             Assist commands
           </h3>
@@ -1073,7 +798,7 @@ function CopilotPanel({
         </section>
 
         <section className="rounded-lg border bg-white">
-          <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-bold text-slate-950">
+          <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-medium text-slate-950">
             <IconBolt className="size-4 text-indigo-600" />
             What the AI checked
           </h3>
@@ -1126,12 +851,6 @@ export default function HelpDesk() {
 
     return [customerMessage, ...(extraMessages[activeTicket.id] ?? [])];
   }, [activeTicket, extraMessages]);
-
-  const handleInboxAction = (label: string) => {
-    toast.info(`${label} selected`, {
-      description: "This is a mock sidebar action for now.",
-    });
-  };
 
   const handleSelectTicket = (ticketId: string) => {
     const nextTicket = ticketRows.find((ticket) => ticket.id === ticketId);
@@ -1242,9 +961,8 @@ export default function HelpDesk() {
   };
 
   return (
-    <div className="-my-4 flex h-[calc(100vh-var(--header-height))] flex-col overflow-hidden border-y bg-white text-slate-950 md:-my-6">
+    <div className="-my-4 flex h-[calc(100vh-var(--header-height))] flex-col overflow-hidden border-y bg-white font-sans text-slate-950 md:-my-6">
       <div className="flex min-h-0 flex-1">
-        <InboxPanel activeSection={activeSection} />
         {activeSection ? (
           <TicketingSettingsContent active={activeSection} />
         ) : (
