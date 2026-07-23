@@ -337,16 +337,16 @@ function TicketRow({
           <ChannelIcon
             className={cn("size-5 shrink-0", channelColor[ticket.channel])}
           />
-          <span className="truncate text-sm font-bold text-slate-950">
+          <span className="truncate text-sm font-medium text-slate-950">
             {ticket.customer}
           </span>
           {ticket.vip ? (
-            <span className="rounded bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+            <span className="rounded bg-orange-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
               VIP
             </span>
           ) : null}
         </div>
-        <p className="truncate text-sm font-semibold text-slate-950">
+        <p className="truncate text-sm font-medium text-slate-950">
           {ticket.subject}
         </p>
         <p className="mt-1 truncate text-xs text-slate-500">{ticket.preview}</p>
@@ -361,7 +361,7 @@ function TicketRow({
       <div className="flex flex-col items-end gap-8">
         <span className="text-xs text-slate-400">{ticket.time}</span>
         {ticket.sla ? (
-          <span className="rounded-md bg-orange-50 px-1.5 py-0.5 text-[11px] font-bold text-orange-600">
+          <span className="rounded-md bg-orange-50 px-1.5 py-0.5 text-[11px] font-medium text-orange-600">
             {ticket.sla}
           </span>
         ) : null}
@@ -395,7 +395,7 @@ function TicketListPanel({
   return (
     <section className="hidden w-[336px] shrink-0 border-r bg-white md:block">
       <div className="flex h-14 items-center justify-between border-b px-3">
-        <h2 className="font-bold text-slate-950">All open</h2>
+        <h2 className="font-medium text-slate-950">All open</h2>
         <div className="flex gap-2">
           <Button variant="outline" size="icon-sm" className="bg-white">
             <IconFilter className="size-4" />
@@ -420,9 +420,9 @@ function TicketListPanel({
         ))}
       </div>
       <div className="h-[83vh]! overflow-y-auto">
-        {rows.map((ticket) => (
+        {rows.map((ticket, index) => (
           <TicketRow
-            key={`${ticket.id}-${ticket.customer}`}
+            key={`${ticket.id}-${ticket.customer}-${index}`}
             ticket={ticket}
             active={ticket.id === activeTicketId}
             onSelect={() => onSelectTicket(ticket.id)}
@@ -465,7 +465,7 @@ function ConversationPanel({
       <div className="border-b px-4 py-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="max-w-[280px] text-xl font-black leading-tight text-slate-950">
+            <h2 className="max-w-[280px] text-xl font-semibold leading-tight text-slate-950">
               {ticket.subject}
             </h2>
             <span className="mt-1 inline-block text-xs font-semibold text-slate-400">
@@ -542,7 +542,7 @@ function ConversationPanel({
             >
               {message.author === "customer" ? (
                 <Avatar className="size-8">
-                  <AvatarFallback className="bg-slate-500 text-xs font-bold text-white">
+                  <AvatarFallback className="bg-slate-500 text-xs font-medium text-white">
                     {ticket.initials}
                   </AvatarFallback>
                 </Avatar>
@@ -558,7 +558,7 @@ function ConversationPanel({
                     {message.author === "agent" ? "You" : ticket.customer} -{" "}
                     {message.time}
                   </span>
-                  <span className="font-bold uppercase tracking-wide">
+                  <span className="font-medium uppercase tracking-wide">
                     {message.author === "agent"
                       ? "Agent reply"
                       : ticket.channel}
@@ -686,7 +686,6 @@ function ConversationPanel({
             </Button>
             <Button
               size="sm"
-              className="bg-indigo-600 hover:bg-indigo-700"
               onClick={onSend}
               disabled={isSending}
             >
@@ -710,7 +709,7 @@ function CopilotPanel({
 }) {
   return (
     <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
-      <div className="grid h-11 grid-cols-2 border-b text-sm font-bold">
+      <div className="grid h-11 grid-cols-2 border-b text-sm font-medium">
         <button className="flex items-center justify-center gap-2 border-b-2 border-indigo-600 text-indigo-600">
           <IconMessageChatbot className="size-4" />
           AI Copilot
@@ -734,7 +733,7 @@ function CopilotPanel({
 
         <section className="rounded-lg border bg-white">
           <div className="flex items-center justify-between border-b px-3 py-3">
-            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-950">
+            <h3 className="flex items-center gap-2 text-sm font-medium text-slate-950">
               <IconMessageChatbot className="size-4 text-indigo-600" />
               Suggested reply
             </h3>
@@ -755,12 +754,11 @@ function CopilotPanel({
               <div className="h-1 flex-1 rounded-full bg-slate-100">
                 <div className="h-1 w-[94%] rounded-full bg-emerald-500" />
               </div>
-              <span className="font-bold text-emerald-600">94%</span>
+              <span className="font-medium text-emerald-600">94%</span>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <Button
                 size="sm"
-                className="bg-indigo-600 hover:bg-indigo-700"
                 onClick={onAcceptDraft}
               >
                 <IconCheck className="size-4" />
@@ -780,7 +778,7 @@ function CopilotPanel({
         </section>
 
         <section className="rounded-lg border bg-white">
-          <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-bold text-slate-950">
+          <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-medium text-slate-950">
             <IconWand className="size-4 text-indigo-600" />
             Assist commands
           </h3>
@@ -807,7 +805,7 @@ function CopilotPanel({
         </section>
 
         <section className="rounded-lg border bg-white">
-          <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-bold text-slate-950">
+          <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-medium text-slate-950">
             <IconBolt className="size-4 text-indigo-600" />
             What the AI checked
           </h3>
@@ -970,7 +968,7 @@ export default function HelpDesk() {
   };
 
   return (
-    <div className="-my-4 flex h-[calc(100vh-var(--header-height))] flex-col overflow-hidden border-y bg-white text-slate-950 md:-my-6">
+    <div className="-my-4 flex h-[calc(100vh-var(--header-height))] flex-col overflow-hidden border-y bg-white font-sans text-slate-950 md:-my-6">
       <div className="flex min-h-0 flex-1">
         {activeSection ? (
           <TicketingSettingsContent active={activeSection} />
