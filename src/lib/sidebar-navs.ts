@@ -44,6 +44,7 @@ export function findMenuItemByUrl(
     const match = item.items && findMenuItemByUrl(item.items, url);
     if (match) return match;
   }
+  return undefined;
 }
 
 export const sidebarMenus: SideBarMenus = {
@@ -77,32 +78,6 @@ export const sidebarMenus: SideBarMenus = {
       title: "Customisation",
       url: "/customisation",
       icon: IconImageGeneration,
-    },
-    {
-      title: "Brand Voice",
-      icon: IconMoodSmile,
-      items: [
-        {
-          title: "Persona Identity",
-          url: "/brand-voice/persona-identity",
-          icon: IconUser,
-        },
-        {
-          title: "Tone & Style",
-          url: "/brand-voice/tone-style",
-          icon: IconAdjustmentsHorizontal,
-        },
-        {
-          title: "Vocabulary",
-          url: "/brand-voice/vocabulary",
-          icon: IconNotebook,
-        },
-        {
-          title: "Never-Say Rules",
-          url: "/brand-voice/never-say-rules",
-          icon: IconBan,
-        },
-      ],
     },
   ],
 
