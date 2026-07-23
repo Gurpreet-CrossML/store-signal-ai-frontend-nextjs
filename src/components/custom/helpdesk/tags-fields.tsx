@@ -1,3 +1,5 @@
+import { IconX } from "@tabler/icons-react";
+
 import { Button } from "@/components/ui/button";
 import {
   StatusPill,
@@ -47,7 +49,7 @@ export function TagsFieldsSection() {
               <span
                 key={tag}
                 className={cn(
-                  "rounded-md px-3 py-1 text-xs font-bold",
+                  "inline-flex items-center gap-1 rounded-md px-3 py-1 text-xs font-bold",
                   color === "red" && "bg-red-50 text-red-600",
                   color === "orange" && "bg-orange-50 text-orange-600",
                   color === "cyan" && "bg-cyan-50 text-cyan-700",
@@ -56,7 +58,8 @@ export function TagsFieldsSection() {
                   color === "green" && "bg-emerald-50 text-emerald-700",
                 )}
               >
-                {tag} x
+                {tag}
+                <IconX size={15} stroke={2} />
               </span>
             ))}
           </div>
