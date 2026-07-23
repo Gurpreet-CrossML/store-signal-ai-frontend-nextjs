@@ -1,0 +1,77 @@
+"use client";
+
+import Image from "next/image";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { IconMoodSmile } from "@tabler/icons-react";
+import { cn } from "@/lib/utils";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import type { TonePresetRecord } from "@/db/chat";
+
+type BrandVoiceTonePresetSelectorProps = {
+  presets: readonly TonePresetRecord[];
+  activePreset: number;
+  onSelect: (presetId: number) => void;
+};
+
+export default function BrandVoiceTonePresetSelector({
+  presets,
+  activePreset,
+  onSelect,
+}: BrandVoiceTonePresetSelectorProps) {
+  return (
+    <Card className="gap-0 overflow-hidden border-border/60 bg-background/95 shadow-sm">
+      <CardHeader className="px-5 py-4">
+        <CardTitle className="flex items-center gap-2">
+          <IconMoodSmile className="size-4" />
+          Quick-start preset
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Pick a starter voice. If the store already has a saved profile, the
+          preview will stay synced to that data.
+        </p>
+      </CardHeader>
+      <CardContent className="px-5 pb-5">
+        <RadioGroup
+          value={activePreset.toString()}
+          onValueChange={(value) => onSelect(parseInt(value, 10))}
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3"
+        >
+          {presets.map((preset) => (
+            <div key={preset.id} className="relative h-full">
+              <RadioGroupItem
+                value={preset.id.toString()}
+                id={`preset-${preset.id}`}
+                className="peer sr-only"
+              />
+              <label
+                htmlFor={`preset-${preset.id}`}
+                className="flex h-full cursor-pointer flex-col gap-3 rounded-xl border border-border/70 bg-card px-4 py-4 text-card-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-sm peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-primary/20"
+              >
+                <div className="relative flex size-9 items-center justify-center overflow-hidden rounded-md bg-muted text-xs font-medium text-muted-foreground">
+                  {preset.icon ? (
+                    <Image
+                      src={preset.icon}
+                      alt=""
+                      fill
+                      sizes="36px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    preset.name.slice(0, 1).toUpperCase()
+                  )}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <h3 className="font-medium leading-tight">{preset.name}</h3>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    {preset.description}
+                  </p>
+                </div>
+              </label>
+            </div>
+          ))}
+        </RadioGroup>
+      </CardContent>
+    </Card>
+  );
+}
