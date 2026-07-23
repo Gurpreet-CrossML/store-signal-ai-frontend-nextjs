@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   fetchNeverSayRules,
-  CreateNeverSayRules,
+  createNeverSayRules,
   type NeverSayRulesData,
   type RequiredLegalPhrase,
 } from "@/redux/api-slice/brand-voice-slice";
@@ -158,9 +158,9 @@ export default function NeverSayRules() {
           .filter((item) => item.context && item.phrase),
       };
       const result = await dispatch(
-        CreateNeverSayRules({ storeCode, payload }),
+        createNeverSayRules({ storeCode, payload }),
       );
-      if (CreateNeverSayRules.fulfilled.match(result)) {
+      if (createNeverSayRules.fulfilled.match(result)) {
         formik.resetForm({ values: result.payload });
       }
     },
@@ -201,7 +201,7 @@ export default function NeverSayRules() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      {FetchNeverSayRulesIsLoading || !FetchNeverSayRulesData ? (
+      {FetchNeverSayRulesIsLoading ? (
         <div className="flex items-center justify-center gap-2 py-10">
           <Spinner className="size-6" />
           Loading Never-Say Rules...
