@@ -1,9 +1,6 @@
 "use client";
 
 import { IconChevronRight } from "@tabler/icons-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect } from "react";
 
 import {
   Select,
@@ -45,12 +42,17 @@ import {
   setSelectedStore,
   SELECTED_STORE_KEY,
 } from "@/redux/api-slice/stores-slice";
-import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useEffect } from "react";
 import { SideBarMenuItem } from "@/lib/sidebar-navs";
-import { cn } from "@/lib/utils";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 function StoreSelector() {
   const dispatch = useAppDispatch();
+
   const { GetStoresListData } = useAppSelector(
     (state) => state.GetStoresReducer.GetStoresState,
   );
@@ -58,28 +60,36 @@ function StoreSelector() {
     (state) => state.GetStoresReducer.selectedStore,
   );
 
+  // Fetch the store list once.
   useEffect(() => {
-    if (!GetStoresListData.length) dispatch(GetStores({}));
+    if (!GetStoresListData.length) {
+      dispatch(GetStores({}));
+    }
   }, [GetStoresListData.length, dispatch]);
 
+  // Hydrate the selection from localStorage once the list is available.
+  // Falls back to the first store if nothing is stored or the stored code
+  // is no longer valid (e.g. the store was removed).
   useEffect(() => {
     if (!GetStoresListData.length || selectedStore) return;
+
     const stored =
       typeof window !== "undefined"
         ? localStorage.getItem(SELECTED_STORE_KEY)
         : null;
     const isValid =
-      !!stored && GetStoresListData.some((store) => store.code === stored);
+      !!stored && GetStoresListData.some((s) => s.code === stored);
 
     dispatch(setSelectedStore(isValid ? stored! : GetStoresListData[0].code));
   }, [GetStoresListData, selectedStore, dispatch]);
 
+  const handelChange = (value: string) => {
+    dispatch(setSelectedStore(value));
+  };
+
   return (
-    <Select
-      value={selectedStore}
-      onValueChange={(value) => dispatch(setSelectedStore(value))}
-    >
-      <SelectTrigger className="mb-2 w-full">
+    <Select value={selectedStore} onValueChange={handelChange}>
+      <SelectTrigger className="w-full mb-2">
         <SelectValue placeholder="Select a Store" />
       </SelectTrigger>
       <SelectContent>
@@ -175,8 +185,8 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            ),
-          )}
+            );
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
