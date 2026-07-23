@@ -37,6 +37,7 @@ const validationSchema = z
     signature_phrases: z.array(z.string().trim().min(1)).default([]),
     word_replacements: z.array(replacementSchema),
   })
+  // Require both fields for each replacement row so the pair stays valid.
   .superRefine((values, ctx) => {
     values.word_replacements.forEach((row, index) => {
       const hasSayWord = row.say_word.trim().length > 0;
