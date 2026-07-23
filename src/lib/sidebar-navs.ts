@@ -56,6 +56,7 @@ export function findMenuItemByUrl(
     const match = item.items && findMenuItemByUrl(item.items, url);
     if (match) return match;
   }
+  return undefined;
 }
 
 export const sidebarMenus: SideBarMenus = {
