@@ -414,7 +414,7 @@ export function TicketingSettingsContent({ active }: { active: SectionId }) {
         </div>
         <SectionBody active={active} />
         <div className="sticky bottom-0 z-10 flex justify-end border-t border-border bg-background py-3">
-          <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
+          <Button size="sm" >
             Save changes
           </Button>
         </div>
