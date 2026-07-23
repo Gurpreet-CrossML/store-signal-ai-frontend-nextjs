@@ -155,15 +155,15 @@ export const createNeverSayRules = createAsyncThunk(
 
 // Thunks — Tone & Style
 
-export const fetchToneStyle = createAsyncThunk<ToneStyleRecord | null, string>(
+export const fetchToneStyle = createAsyncThunk(
   "fetchToneStyle",
-  async (storeCode, thunkAPI) => {
+  async (storeCode: string, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.toneStyle()}?store_code=${encodeURIComponent(storeCode)}`,
       );
       const data = response.data.data;
-      return data as ToneStyleRecord | null;
+      return data;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
@@ -179,13 +179,13 @@ export const fetchToneStyle = createAsyncThunk<ToneStyleRecord | null, string>(
   },
 );
 
-export const fetchTonePresets = createAsyncThunk<TonePresetRecord[], void>(
+export const fetchTonePresets = createAsyncThunk(
   "fetchTonePresets",
   async (_, thunkAPI) => {
     try {
       const response = await axiosInstance.get(ENDPOINTS.tonePresets());
       const data = response.data.data;
-      return Array.isArray(data) ? (data as TonePresetRecord[]) : [];
+      return data;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
@@ -201,10 +201,12 @@ export const fetchTonePresets = createAsyncThunk<TonePresetRecord[], void>(
   },
 );
 
-export const createToneStyle = createAsyncThunk<
-  ToneStyleRecord,
-  { storeCode: string; payload: ToneStylePayload }
->("createToneStyle", async ({ storeCode, payload }, thunkAPI) => {
+export const createToneStyle = createAsyncThunk(
+  "createToneStyle",
+  async (
+    { storeCode, payload }: { storeCode: string; payload: ToneStylePayload },
+    thunkAPI,
+  ) => {
   try {
     const response = await axiosInstance.post(
       `${ENDPOINTS.toneStyle()}?store_code=${encodeURIComponent(storeCode)}`,
@@ -216,7 +218,7 @@ export const createToneStyle = createAsyncThunk<
       response?.data?.message || "Tone & Style saved successfully!",
     );
 
-    return data as ToneStyleRecord;
+    return data;
   } catch (error) {
     const response = isAxiosError(error) ? error.response : undefined;
     const data = response?.data;
@@ -233,15 +235,15 @@ export const createToneStyle = createAsyncThunk<
 
 // Thunks — Vocabulary
 
-export const fetchVocabulary = createAsyncThunk<VocabularyRecord | null, string>(
+export const fetchVocabulary = createAsyncThunk(
   "fetchVocabulary",
-  async (storeCode, thunkAPI) => {
+  async (storeCode: string, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.vocabulary()}?store_code=${encodeURIComponent(storeCode)}`,
       );
       const data = response.data.data;
-      return data as VocabularyRecord | null;
+      return data;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
@@ -257,10 +259,12 @@ export const fetchVocabulary = createAsyncThunk<VocabularyRecord | null, string>
   },
 );
 
-export const createVocabulary = createAsyncThunk<
-  VocabularyRecord,
-  { storeCode: string; payload: VocabularyPayload }
->("createVocabulary", async ({ storeCode, payload }, thunkAPI) => {
+export const createVocabulary = createAsyncThunk(
+  "createVocabulary",
+  async (
+    { storeCode, payload }: { storeCode: string; payload: VocabularyPayload },
+    thunkAPI,
+  ) => {
   try {
     const response = await axiosInstance.post(
       `${ENDPOINTS.vocabulary()}?store_code=${encodeURIComponent(storeCode)}`,
@@ -270,7 +274,7 @@ export const createVocabulary = createAsyncThunk<
 
     toast.success(response?.data?.message || "Vocabulary saved successfully!");
 
-    return data as VocabularyRecord;
+    return data;
   } catch (error) {
     const response = isAxiosError(error) ? error.response : undefined;
     const data = response?.data;
@@ -294,25 +298,25 @@ const BrandVoiceSlice = createSlice({
       FetchPersonaIdentityIsLoading: false,
       FetchPersonaIdentityIsSuccess: false,
       FetchPersonaIdentityIsError: null as null | string | object,
-      FetchPersonaIdentityData: null as PersonaIdentityData | null,
+      FetchPersonaIdentityData: {} as PersonaIdentityData,
     },
     CreatePersonaIdentityState: {
       CreatePersonaIdentityIsLoading: false,
       CreatePersonaIdentityIsSuccess: false,
       CreatePersonaIdentityIsError: null as null | string | object,
-      CreatePersonaIdentityData: null as PersonaIdentityData | null,
+      CreatePersonaIdentityData: {} as PersonaIdentityData,
     },
     FetchNeverSayRulesState: {
       FetchNeverSayRulesIsLoading: false,
       FetchNeverSayRulesIsSuccess: false,
       FetchNeverSayRulesIsError: null as null | string | object,
-      FetchNeverSayRulesData: null as NeverSayRulesData | null,
+      FetchNeverSayRulesData: {} as NeverSayRulesData,
     },
     CreateNeverSayRulesState: {
       CreateNeverSayRulesIsLoading: false,
       CreateNeverSayRulesIsSuccess: false,
       CreateNeverSayRulesIsError: null as null | string | object,
-      CreateNeverSayRulesData: null as NeverSayRulesData | null,
+      CreateNeverSayRulesData: {} as NeverSayRulesData,
     },
     FetchTonePresetsState: {
       FetchTonePresetsIsLoading: false,
@@ -324,25 +328,25 @@ const BrandVoiceSlice = createSlice({
       FetchToneStyleIsLoading: false,
       FetchToneStyleIsSuccess: false,
       FetchToneStyleIsError: null as null | string | object,
-      FetchToneStyleData: null as ToneStyleRecord | null,
+      FetchToneStyleData: {} as ToneStyleRecord,
     },
     CreateToneStyleState: {
       CreateToneStyleIsLoading: false,
       CreateToneStyleIsSuccess: false,
       CreateToneStyleIsError: null as null | string | object,
-      CreateToneStyleData: null as ToneStyleRecord | null,
+      CreateToneStyleData: {} as ToneStyleRecord,
     },
     FetchVocabularyState: {
       FetchVocabularyIsLoading: false,
       FetchVocabularyIsSuccess: false,
       FetchVocabularyIsError: null as null | string | object,
-      FetchVocabularyData: null as VocabularyRecord | null,
+      FetchVocabularyData: {} as VocabularyRecord,
     },
     CreateVocabularyState: {
       CreateVocabularyIsLoading: false,
       CreateVocabularyIsSuccess: false,
       CreateVocabularyIsError: null as null | string | object,
-      CreateVocabularyData: null as VocabularyRecord | null,
+      CreateVocabularyData: {} as VocabularyRecord,
     },
   },
   reducers: {},

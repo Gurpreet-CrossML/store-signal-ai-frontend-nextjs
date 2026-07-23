@@ -2,7 +2,7 @@
 
 import { useState, type KeyboardEvent } from "react";
 import type { useFormik } from "formik";
-import { IconX, IconCheck, IconPlus } from "@tabler/icons-react";
+import { IconX, IconPlus } from "@tabler/icons-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,14 +17,12 @@ import { ChipList } from "@/clients/never-say-rules";
 type ReplacementRowItem = {
   say_word: string;
   replace_word: string;
-  is_active: boolean;
 };
 
 type ReplacementRowProps = {
   index: number;
   sayWord: string;
   replaceWord: string;
-  isActive: boolean;
   formik: ReturnType<typeof useFormik<any>>;
 };
 
@@ -32,7 +30,6 @@ function ReplacementRow({
   index,
   sayWord,
   replaceWord,
-  isActive,
   formik,
 }: ReplacementRowProps) {
   return (
@@ -65,33 +62,7 @@ function ReplacementRow({
           autoComplete="off"
         />
       </div>
-      <div className="flex items-center gap-1.5 lg:justify-end">
-        <Button
-          type="button"
-          size="sm"
-          variant={isActive ? "default" : "outline"}
-          onClick={() =>
-            formik.setFieldValue(
-              `word_replacements.${index}.is_active`,
-              !isActive,
-            )
-          }
-          className="h-6 min-w-[4rem] px-1.5 text-[10px]"
-          title={
-            isActive
-              ? "Active — click to deactivate"
-              : "Inactive — click to activate"
-          }
-        >
-          {isActive ? (
-            <>
-              <IconCheck className="size-2.5" /> Active
-            </>
-          ) : (
-            "Inactive"
-          )}
-        </Button>
-      </div>
+      <div className="flex items-center gap-1.5 lg:justify-end"></div>
     </div>
   );
 }
@@ -133,7 +104,7 @@ export default function BrandVoiceVocabularyChipLists({
               The AI leans toward these when they fit naturally.
             </p>
           </div>
-          <div className="flex-1 overflow-y-auto pr-1">
+          <div className="flex flex-1 flex-col overflow-y-auto pr-1 [&>div]:flex-1 [&_input]:mt-auto">
             <ChipList
               items={preferredPhrases}
               placeholder="Add a preferred phrase and press Enter"
@@ -157,7 +128,7 @@ export default function BrandVoiceVocabularyChipLists({
               The AI never uses these. Checked deterministically.
             </p>
           </div>
-          <div className="flex-1 overflow-y-auto pr-1">
+          <div className="flex flex-1 flex-col overflow-y-auto pr-1 [&>div]:flex-1 [&_input]:mt-auto">
             <ChipList
               items={bannedWords}
               placeholder="Add a banned word and press Enter"
@@ -179,7 +150,7 @@ export default function BrandVoiceVocabularyChipLists({
               Brand catchphrases the AI sprinkles in naturally.
             </p>
           </div>
-          <div className="flex-1 overflow-y-auto pr-1">
+          <div className="flex flex-1 flex-col overflow-y-auto pr-1 [&>div]:flex-1 [&_input]:mt-auto">
             <ChipList
               items={signaturePhrases}
               placeholder="Add a signature phrase and press Enter"
@@ -225,7 +196,6 @@ export default function BrandVoiceVocabularyChipLists({
                   index={index}
                   sayWord={row.say_word}
                   replaceWord={row.replace_word}
-                  isActive={row.is_active}
                   formik={formik}
                 />
               ))}

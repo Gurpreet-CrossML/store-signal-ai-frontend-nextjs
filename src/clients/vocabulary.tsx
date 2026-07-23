@@ -5,7 +5,6 @@ import { useFormik } from "formik";
 import z from "zod";
 
 import BrandVoiceVocabularyChipLists from "@/components/custom/brand-voice-vocabulary-chip-lists";
-import BrandVoiceVocabularySummary from "@/components/custom/brand-voice-vocabulary-summary";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -14,6 +13,7 @@ import {
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
+// Type definition for form values
 type VocabularyFormValues = {
   preferred_phrases: string[];
   banned_words: string[];
@@ -21,14 +21,12 @@ type VocabularyFormValues = {
   word_replacements: Array<{
     say_word: string;
     replace_word: string;
-    is_active: boolean;
   }>;
 };
 
 const replacementSchema = z.object({
   say_word: z.string().trim(),
   replace_word: z.string().trim(),
-  is_active: z.boolean(),
 });
 
 // Validation schema for the form using Zod
@@ -65,10 +63,12 @@ const validationSchema = z
 
 export default function BrandVoiceVocabularyEditor() {
   const dispatch = useAppDispatch();
+  // Fetch store code from Redux state
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
 
+  // Fetch Vocabulary state from Redux
   const { FetchVocabularyData, FetchVocabularyIsLoading } = useAppSelector(
     (state) => state.GetBrandVoiceReducer.FetchVocabularyState,
   );
@@ -78,19 +78,21 @@ export default function BrandVoiceVocabularyEditor() {
 
   const updatedAt = FetchVocabularyData?.updated_at ?? null;
 
+  // Fetch vocabulary data when the component mounts or store code changes
   useEffect(() => {
     if (storeCode) {
       dispatch(fetchVocabulary(storeCode));
     }
   }, [dispatch, storeCode]);
 
+  // Initialize formik for form state management
   const formik = useFormik<VocabularyFormValues>({
     enableReinitialize: true,
-    initialValues: (FetchVocabularyData as any as VocabularyFormValues) || {
-      preferred_phrases: [],
-      banned_words: [],
-      signature_phrases: [],
-      word_replacements: [],
+    initialValues: {
+      preferred_phrases: FetchVocabularyData?.preferred_phrases ?? [],
+      banned_words: FetchVocabularyData?.banned_words ?? [],
+      signature_phrases: FetchVocabularyData?.signature_phrases ?? [],
+      word_replacements: FetchVocabularyData?.word_replacements ?? [],
     },
     // Validation using Zod schema
     validate: (values) => {
@@ -139,18 +141,6 @@ export default function BrandVoiceVocabularyEditor() {
 
   const values = formik.values;
 
-  const summary = [
-    { label: "Preferred", value: values.preferred_phrases.length },
-    { label: "Blocked", value: values.banned_words.length },
-    { label: "Signature", value: values.signature_phrases.length },
-    {
-      label: "Replacements",
-      value: values.word_replacements.filter(
-        (row) => row.say_word.trim() && row.replace_word.trim(),
-      ).length,
-    },
-  ];
-
   return (
     <div className="flex flex-col gap-4 p-4">
       {FetchVocabularyIsLoading ? (
@@ -159,12 +149,9 @@ export default function BrandVoiceVocabularyEditor() {
           Loading vocabulary...
         </div>
       ) : (
-        <form
-          onSubmit={formik.handleSubmit}
-          className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]"
-        >
+        <form onSubmit={formik.handleSubmit} className="flex flex-col gap-6">
           <div className="flex flex-col gap-6">
-            <div className="mt-3 flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
               <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
                 The specific words that make your brand sound like you.
                 Preferred phrases to lean into, words to ban, signature
@@ -188,7 +175,7 @@ export default function BrandVoiceVocabularyEditor() {
               onReplacementAdd={() =>
                 formik.setFieldValue("word_replacements", [
                   ...values.word_replacements,
-                  { say_word: "", replace_word: "", is_active: true },
+                  { say_word: "", replace_word: "" },
                 ])
               }
             />
@@ -205,14 +192,6 @@ export default function BrandVoiceVocabularyEditor() {
                 {CreateVocabularyIsLoading ? "Saving..." : "Save Changes"}
               </Button>
             </div>
-          </div>
-
-          <div className="flex flex-col gap-6">
-            <BrandVoiceVocabularySummary
-              summary={summary}
-              preferredPhrases={values.preferred_phrases}
-              updatedAt={updatedAt}
-            />
           </div>
         </form>
       )}

@@ -15,59 +15,10 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
+import { TONE_SLIDERS, ANSWER_LENGTH_OPTIONS, FREQUENCY_OPTIONS, SPELLING_OPTIONS, SelectOption } from "@/lib/config";
+import { Switch } from "@/components/ui/switch";
 import { IconAdjustments, IconGauge } from "@tabler/icons-react";
 
-type SliderDef = {
-  key: keyof ToneStylePayload;
-  label: string;
-  minLabel: string;
-  maxLabel: string;
-};
-
-const SLIDERS: SliderDef[] = [
-  { key: "warmth", label: "Warmth", minLabel: "Reserved", maxLabel: "Warm" },
-  {
-    key: "formality",
-    label: "Formality",
-    minLabel: "Casual",
-    maxLabel: "Formal",
-  },
-  { key: "energy", label: "Energy", minLabel: "Calm", maxLabel: "Energetic" },
-  {
-    key: "playfulness",
-    label: "Playfulness",
-    minLabel: "Serious",
-    maxLabel: "Playful",
-  },
-  {
-    key: "directness",
-    label: "Directness",
-    minLabel: "Gentle",
-    maxLabel: "Direct",
-  },
-];
-
-type SelectOption = { value: string; label: string };
-
-const ANSWER_LENGTH_OPTIONS: readonly SelectOption[] = [
-  { value: "concise", label: "Concise" },
-  { value: "standard", label: "Standard" },
-  { value: "thorough", label: "Thorough" },
-];
-
-const FREQUENCY_OPTIONS: readonly SelectOption[] = [
-  { value: "none", label: "None" },
-  { value: "sparing", label: "Sparing" },
-  { value: "moderate", label: "Moderate" },
-  { value: "liberal", label: "Liberal" },
-  { value: "free", label: "Free" },
-];
-
-const SPELLING_OPTIONS: readonly SelectOption[] = [
-  { value: "uk", label: "UK" },
-  { value: "us", label: "US" },
-  { value: "auto", label: "Auto" },
-];
 
 function ToneMetricSlider({
   name,
@@ -175,7 +126,7 @@ export default function BrandVoiceToneControls({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6 px-5 pb-5">
-          {SLIDERS.map((slider) => (
+          {TONE_SLIDERS.map((slider) => (
             <ToneMetricSlider
               key={slider.key}
               name={slider.key}
@@ -227,20 +178,12 @@ export default function BrandVoiceToneControls({
 
           <Separator />
 
-          <button
-            type="button"
-            onClick={() =>
-              formik.setFieldValue(
-                "use_bullet_points",
-                !values.use_bullet_points,
-              )
-            }
+          <div
             className={
               values.use_bullet_points
                 ? "flex items-center justify-between rounded-xl border border-primary/50 bg-primary/10 px-4 py-3 text-left transition-colors"
                 : "flex items-center justify-between rounded-xl border border-border/70 bg-background px-4 py-3 text-left transition-colors"
             }
-            aria-pressed={values.use_bullet_points}
           >
             <div className="flex flex-col gap-1">
               <span className="text-sm font-medium">Use bullet points</span>
@@ -248,22 +191,12 @@ export default function BrandVoiceToneControls({
                 {bulletPointsDescription}
               </span>
             </div>
-            <span
-              className={
-                values.use_bullet_points
-                  ? "flex h-7 w-12 items-center rounded-full bg-primary p-1 transition-colors"
-                  : "flex h-7 w-12 items-center rounded-full bg-muted p-1 transition-colors"
-              }
-            >
-              <span
-                className={
-                  values.use_bullet_points
-                    ? "size-5 translate-x-5 rounded-full bg-background shadow-sm transition-transform"
-                    : "size-5 translate-x-0 rounded-full bg-background shadow-sm transition-transform"
-                }
-              />
-            </span>
-          </button>
+            <Switch
+              checked={values.use_bullet_points}
+              onCheckedChange={(checked) => formik.setFieldValue("use_bullet_points", checked)}
+              aria-label="Use bullet points"
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

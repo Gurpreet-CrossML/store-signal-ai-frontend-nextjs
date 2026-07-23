@@ -33,13 +33,16 @@ const validationSchema = z.object({
 
 export default function BrandVoiceToneStyleEditor() {
   const dispatch = useAppDispatch();
+  // Fetch store code from Redux state
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
 
+  // Fetch Tone Presets state from Redux
   const { FetchTonePresetsData, FetchTonePresetsIsLoading } = useAppSelector(
     (state) => state.GetBrandVoiceReducer.FetchTonePresetsState,
   );
+  // Fetch Tone & Style state from Redux
   const { FetchToneStyleData, FetchToneStyleIsLoading } = useAppSelector(
     (state) => state.GetBrandVoiceReducer.FetchToneStyleState,
   );
@@ -47,6 +50,7 @@ export default function BrandVoiceToneStyleEditor() {
     (state) => state.GetBrandVoiceReducer.CreateToneStyleState,
   );
 
+  // Fetch tone presets and style data when the component mounts or store code changes
   useEffect(() => {
     if (storeCode) {
       dispatch(fetchTonePresets());
@@ -54,15 +58,27 @@ export default function BrandVoiceToneStyleEditor() {
     }
   }, [dispatch, storeCode]);
 
+  // Initialize formik for form state management
   const formik = useFormik<ToneStylePayload>({
     enableReinitialize: true,
     initialValues: {
       preset: FetchToneStyleData?.preset ?? FetchTonePresetsData[0]?.id ?? 0,
-      warmth: FetchToneStyleData?.warmth ?? FetchTonePresetsData[0]?.warmth ?? 50,
-      formality: FetchToneStyleData?.formality ?? FetchTonePresetsData[0]?.formality ?? 50,
-      energy: FetchToneStyleData?.energy ?? FetchTonePresetsData[0]?.energy ?? 50,
-      playfulness: FetchToneStyleData?.playfulness ?? FetchTonePresetsData[0]?.playfulness ?? 50,
-      directness: FetchToneStyleData?.directness ?? FetchTonePresetsData[0]?.directness ?? 50,
+      warmth:
+        FetchToneStyleData?.warmth ?? FetchTonePresetsData[0]?.warmth ?? 50,
+      formality:
+        FetchToneStyleData?.formality ??
+        FetchTonePresetsData[0]?.formality ??
+        50,
+      energy:
+        FetchToneStyleData?.energy ?? FetchTonePresetsData[0]?.energy ?? 50,
+      playfulness:
+        FetchToneStyleData?.playfulness ??
+        FetchTonePresetsData[0]?.playfulness ??
+        50,
+      directness:
+        FetchToneStyleData?.directness ??
+        FetchTonePresetsData[0]?.directness ??
+        50,
       answer_length: FetchToneStyleData?.answer_length || "standard",
       frequency_policy: FetchToneStyleData?.frequency_policy || "sparing",
       regional_spelling: FetchToneStyleData?.regional_spelling || "auto",
@@ -197,7 +213,9 @@ export default function BrandVoiceToneStyleEditor() {
                 size="lg"
                 disabled={CreateToneStyleIsLoading}
               >
-                {CreateToneStyleIsLoading && <Spinner data-icon="inline-start" />}
+                {CreateToneStyleIsLoading && (
+                  <Spinner data-icon="inline-start" />
+                )}
                 {CreateToneStyleIsLoading ? "Saving..." : "Save Changes"}
               </Button>
             </div>

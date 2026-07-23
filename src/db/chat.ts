@@ -1,6 +1,6 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, SQL } from "drizzle-orm";
 
-import { getDb, resolveStoreScope } from "@/lib/tenant-context";
+import { getDb } from "@/lib/tenant-context";
 import {
   neverSayRules,
   personaIdentity,
@@ -12,6 +12,7 @@ import {
   wordReplacement,
 } from "@/lib/drizzle/schema";
 import { getAbsoluteS3Url } from "@/lib/url";
+import { storeIdScope } from "./access";
 
 // Persona Identity Types
 
@@ -83,7 +84,6 @@ export type WordReplacementRecord = {
   id: number;
   say_word: string;
   replace_word: string;
-  is_active: boolean;
 };
 
 export type WordReplacementPayload = Omit<WordReplacementRecord, "id">;
@@ -104,48 +104,17 @@ export type VocabularyPayload = {
   word_replacements: WordReplacementPayload[];
 };
 
-
-function canAccessStore(storeCode: string) {
-  const scope = resolveStoreScope(storeCode);
-  return scope === null || scope.includes(storeCode);
-}
-
-export type StoreRow = {
-  id: number;
-  code: string;
-  name: string;
-  platform: string;
-};
-
-export async function get_store_by_code(
-  store_code: string,
-): Promise<StoreRow | null> {
-  const db = getDb();
-  const scope = resolveStoreScope(store_code);
-  if (scope !== null && !scope.includes(store_code)) return null;
-
-  const rows = await db
-    .select({
-      id: store.id,
-      code: store.code,
-      name: store.name,
-      platform: store.platform,
-    })
-    .from(store)
-    .where(eq(store.code, store_code))
-    .limit(1);
-
-  return rows[0] ?? null;
-}
-
 // Queries
 
 export async function getPersonaIdentity(
   storeCode: string,
 ): Promise<PersonaIdentityRow | null> {
-  if (!canAccessStore(storeCode)) return null;
+  const db = getDb();
+  const conditions: SQL[] = [];
+  const scope = storeIdScope(personaIdentity.storeId, storeCode);
+  if (scope) conditions.push(scope);
 
-  const rows = await getDb()
+  const rows = await db
     .select({
       name: personaIdentity.name,
       role_description: personaIdentity.roleDescription,
@@ -156,8 +125,7 @@ export async function getPersonaIdentity(
       updated_at: personaIdentity.updatedAt,
     })
     .from(personaIdentity)
-    .innerJoin(store, eq(personaIdentity.storeId, store.id))
-    .where(and(eq(store.code, storeCode)))
+    .where(conditions.length ? and(...conditions) : undefined)
     .limit(1);
 
   return (rows[0] as PersonaIdentityRow | undefined) ?? null;
@@ -166,9 +134,12 @@ export async function getPersonaIdentity(
 export async function getNeverSayRules(
   storeCode: string,
 ): Promise<NeverSayRulesRow | null> {
-  if (!canAccessStore(storeCode)) return null;
+  const db = getDb();
+  const conditions: SQL[] = [];
+  const scope = storeIdScope(neverSayRules.storeId, storeCode);
+  if (scope) conditions.push(scope);
 
-  const rows = await getDb()
+  const rows = await db
     .select({
       no_hollow_apologies: neverSayRules.noHollowApologies,
       never_reveal_ai_unprompted: neverSayRules.neverRevealAiUnprompted,
@@ -179,8 +150,7 @@ export async function getNeverSayRules(
       updated_at: neverSayRules.updatedAt,
     })
     .from(neverSayRules)
-    .innerJoin(store, eq(neverSayRules.storeId, store.id))
-    .where(and(eq(store.code, storeCode)))
+    .where(conditions.length ? and(...conditions) : undefined)
     .limit(1);
 
   return (rows[0] as NeverSayRulesRow | undefined) ?? null;
@@ -189,12 +159,11 @@ export async function getNeverSayRules(
 export async function getToneStyle(
   store_code: string,
 ): Promise<ToneStyleRecord | null> {
-  const storeRow = await get_store_by_code(store_code);
-  if (!storeRow) {
-    return null;
-  }
-
   const db = getDb();
+  const conditions: SQL[] = [];
+  const scope = storeIdScope(toneStyle.storeId, store_code);
+  if (scope) conditions.push(scope);
+
   const rows = await db
     .select({
       preset: toneStyle.presetId,
@@ -211,7 +180,7 @@ export async function getToneStyle(
       updated_at: toneStyle.updatedAt,
     })
     .from(toneStyle)
-    .where(eq(toneStyle.storeId, storeRow.id))
+    .where(conditions.length ? and(...conditions) : undefined)
     .limit(1);
 
   return rows[0] ?? null;
@@ -245,12 +214,11 @@ export async function listTonePresets(): Promise<TonePresetRecord[]> {
 export async function getVocabulary(
   store_code: string,
 ): Promise<VocabularyRecord | null> {
-  const storeRow = await get_store_by_code(store_code);
-  if (!storeRow) {
-    return null;
-  }
-
   const db = getDb();
+  const conditions: SQL[] = [];
+  const scope = storeIdScope(vocabulary.storeId, store_code);
+  if (scope) conditions.push(scope);
+
   const rows = await db
     .select({
       id: vocabulary.id,
@@ -261,7 +229,7 @@ export async function getVocabulary(
       updated_at: vocabulary.updatedAt,
     })
     .from(vocabulary)
-    .where(eq(vocabulary.storeId, storeRow.id))
+    .where(conditions.length ? and(...conditions) : undefined)
     .limit(1);
 
   const row = rows[0];
@@ -273,7 +241,6 @@ export async function getVocabulary(
       id: wordReplacement.id,
       say_word: wordReplacement.sayWord,
       replace_word: wordReplacement.replaceWord,
-      is_active: wordReplacement.isActive,
     })
     .from(vocabularyWordReplacements)
     .innerJoin(

@@ -38,40 +38,37 @@ export default function BrandVoiceTonePresetSelector({
           className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3"
         >
           {presets.map((preset) => (
-            <label htmlFor={`preset-${preset.id}`} key={preset.id} className="cursor-pointer h-full block">
-              <Card
-                className={cn(
-                  "h-full border-border/70 transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-sm",
-                  activePreset === preset.id &&
-                    "border-primary bg-primary/10 ring-1 ring-primary/20",
-                )}
+            <div key={preset.id} className="relative h-full">
+              <RadioGroupItem
+                value={preset.id.toString()}
+                id={`preset-${preset.id}`}
+                className="peer sr-only"
+              />
+              <label
+                htmlFor={`preset-${preset.id}`}
+                className="flex h-full cursor-pointer flex-col gap-3 rounded-xl border border-border/70 bg-card px-4 py-4 text-card-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-sm peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-primary/20"
               >
-                <div className="flex h-full flex-col gap-3 px-4 py-4 relative">
-                  <div className="absolute top-4 right-4">
-                    <RadioGroupItem value={preset.id.toString()} id={`preset-${preset.id}`} />
-                  </div>
-                  <div className="relative flex size-9 items-center justify-center overflow-hidden rounded-md bg-muted text-xs font-medium text-muted-foreground">
-                    {preset.icon ? (
-                      <Image
-                        src={preset.icon}
-                        alt=""
-                        fill
-                        sizes="36px"
-                        className="object-cover"
-                      />
-                    ) : (
-                      preset.name.slice(0, 1).toUpperCase()
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-1 pr-6">
-                    <h3 className="font-medium leading-tight">{preset.name}</h3>
-                    <p className="text-xs leading-relaxed text-muted-foreground">
-                      {preset.description}
-                    </p>
-                  </div>
+                <div className="relative flex size-9 items-center justify-center overflow-hidden rounded-md bg-muted text-xs font-medium text-muted-foreground">
+                  {preset.icon ? (
+                    <Image
+                      src={preset.icon}
+                      alt=""
+                      fill
+                      sizes="36px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    preset.name.slice(0, 1).toUpperCase()
+                  )}
                 </div>
-              </Card>
-            </label>
+                <div className="flex flex-col gap-1">
+                  <h3 className="font-medium leading-tight">{preset.name}</h3>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    {preset.description}
+                  </p>
+                </div>
+              </label>
+            </div>
           ))}
         </RadioGroup>
       </CardContent>
