@@ -405,7 +405,7 @@ export function TicketingSettingsContent({ active }: { active: SectionId }) {
       </div> */}
       <div className="w-full max-w-[1060px] space-y-6 px-4 py-8 md:px-7">
         <div>
-          <h1 className="text-2xl font-black tracking-normal text-slate-950">
+          <h1 className="text-2xl font-semibold tracking-normal text-slate-950">
             {copy.title}
           </h1>
           <p className="mt-3 max-w-3xl text-sm font-medium leading-6 text-slate-700">
