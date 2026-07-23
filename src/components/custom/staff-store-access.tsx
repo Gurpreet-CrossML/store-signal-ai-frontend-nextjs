@@ -104,7 +104,7 @@ export default function StaffStoreAccess({
                     )}
                     <Select
                       value={store.level}
-                      onValueChange={(level) =>
+                      onValueChange={(level: string) =>
                         handleChange(
                           store.store_code,
                           level as StoreAccessLevel,

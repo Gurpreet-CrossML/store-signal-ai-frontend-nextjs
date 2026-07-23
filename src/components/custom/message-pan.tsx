@@ -91,8 +91,7 @@ export default function MessagePan({
                         (() => {
                           if (
                             message?.json_content?.order_details &&
-                            message.json_content.order_details?.items?.length >
-                              0
+                            message.json_content.order_details.items?.length > 0
                           ) {
                             return (
                               <>

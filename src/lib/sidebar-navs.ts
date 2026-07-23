@@ -14,6 +14,7 @@ import {
   IconUserHexagon,
   IconVolume,
   type Icon,
+  IconTestPipe,
 } from "@tabler/icons-react";
 
 export type SideBarMenuItem = {
@@ -72,6 +73,11 @@ export const sidebarMenus: SideBarMenus = {
       title: "Customisation",
       url: "/customisation",
       icon: IconImageGeneration,
+    },
+    {
+      title: "Test & Simulate",
+      url: "/test-simulate",
+      icon: IconTestPipe,
     },
   ],
 

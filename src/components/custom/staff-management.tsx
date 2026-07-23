@@ -97,7 +97,7 @@ export default function StaffManagement() {
       {/* Reset-password confirmation */}
       <AlertDialog
         open={Boolean(resetTarget)}
-        onOpenChange={(o) => !o && setResetTarget(null)}
+        onOpenChange={(o: boolean) => !o && setResetTarget(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -130,7 +130,7 @@ export default function StaffManagement() {
       {/* Activate / deactivate confirmation */}
       <AlertDialog
         open={Boolean(toggleTarget)}
-        onOpenChange={(o) => !o && setToggleTarget(null)}
+        onOpenChange={(o: boolean) => !o && setToggleTarget(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>

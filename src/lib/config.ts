@@ -34,8 +34,11 @@ export const ENDPOINTS = {
   profile: () => createAPIUrl("/auth/profile/", "django"),
 
   // Chat Websocket (Django)
-  chatSocket: (threadId: string, token: string) =>
-    createWebSocketUrl(`/chat/${threadId}/?role=agent&token=${token}`),
+  chatSocket: (threadId: string, role: string, token: string) =>
+    createWebSocketUrl(`/chat/${threadId}/?role=${role}&token=${token}`),
+
+  // Chat thread creation (Django) — POST.
+  createThread: () => "/chat/threads/create/",
 
   // Dashboard Websocket (Django)
   dashboardSocket: (storeCode: string, token: string) =>

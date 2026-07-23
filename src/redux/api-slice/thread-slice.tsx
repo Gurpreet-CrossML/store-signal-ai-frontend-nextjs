@@ -61,6 +61,7 @@ export type OrderItem = {
 export type OrderDetail = {
   order_id: string | number;
   order_url: string;
+  created_at: string;
   financial_status: string;
   fulfillment_status: string;
   is_cancelable: boolean;
@@ -74,6 +75,7 @@ export type OrderDetail = {
   subtotal: string;
   tax: string;
   total: string;
+  currency?: string;
   email: string;
   note: string | null;
   payment_gateways: string[];
@@ -91,15 +93,27 @@ export type CartItem = {
 export type CartDetails = {
   items: CartItem[];
   sub_total: string;
+  checkout_url?: string;
+};
+
+export type TicketDetails = {
+  ticket_id: string | number;
+  description: string;
+  customer_email: string;
+  customer_name: string;
+  created_at: string;
 };
 
 export type ThreadJsonContent = {
   products?: ProductData[];
+  related_products?: ProductData[];
   order_details?: OrderDetail;
   cart_details?: CartDetails;
+  ticket_details?: TicketDetails;
   order_id?: string;
   order_verification_step?: string;
   suggestions?: string[];
+  is_feedback_flow?: boolean;
 };
 
 export type ThreadMessage = {
@@ -233,6 +247,15 @@ export type ThreadTicketData = {
   updated_at: string;
 };
 
+export type CreateThreadResponse = {
+  thread_id: string;
+};
+
+export type CreateThreadArgs = {
+  store_code: string;
+  is_test?: boolean;
+};
+
 export type OrderItemData = {
   sku: string;
   name: string;
@@ -320,6 +343,32 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
         description:
           data?.message ||
           "Unable to fetch the threads, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const CreateThread = createAsyncThunk(
+  "CreateThread",
+  async ({ store_code, is_test }: CreateThreadArgs, thunkAPI) => {
+    try {
+      const response = await axiosInstance.post(ENDPOINTS.createThread(), {
+        store_code,
+        ...(is_test !== undefined && { is_test }),
+      });
+      const data = response.data.data as CreateThreadResponse;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to create a new conversation, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -622,6 +671,12 @@ const ThreadSlice = createSlice({
         results: [],
       } as ThreadsResponse,
     },
+    CreateThreadState: {
+      CreateThreadIsLoading: false,
+      CreateThreadIsSuccess: false,
+      CreateThreadIsError: null as null | string | object | unknown,
+      CreateThreadData: null as null | CreateThreadResponse,
+    },
     FetchThreadDetailsState: {
       FetchThreadDetailsIsLoading: false,
       FetchThreadDetailsIsSuccess: false,
@@ -704,6 +759,21 @@ const ThreadSlice = createSlice({
         state.FetchThreadsState.FetchThreadsIsLoading = false;
         state.FetchThreadsState.FetchThreadsIsError = action.payload;
         state.FetchThreadsState.FetchThreadsIsSuccess = false;
+      })
+      .addCase(CreateThread.pending, (state) => {
+        state.CreateThreadState.CreateThreadIsLoading = true;
+        state.CreateThreadState.CreateThreadIsError = null;
+        state.CreateThreadState.CreateThreadIsSuccess = false;
+      })
+      .addCase(CreateThread.fulfilled, (state, action) => {
+        state.CreateThreadState.CreateThreadIsLoading = false;
+        state.CreateThreadState.CreateThreadData = action.payload;
+        state.CreateThreadState.CreateThreadIsSuccess = true;
+      })
+      .addCase(CreateThread.rejected, (state, action) => {
+        state.CreateThreadState.CreateThreadIsLoading = false;
+        state.CreateThreadState.CreateThreadIsError = action.payload;
+        state.CreateThreadState.CreateThreadIsSuccess = false;
       })
       .addCase(FetchThreadDetails.pending, (state) => {
         state.FetchThreadDetailsState.FetchThreadDetailsIsLoading = true;
