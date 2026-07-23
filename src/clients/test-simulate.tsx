@@ -224,6 +224,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
   const streamBufferRef = useRef("");
   const selectedStoreRef = useRef<string | null>(null);
   const closedThreadResetTimerRef = useRef<number | null>(null);
+  const sessionInitializingRef = useRef(false);
   const sessionInitializationRef = useRef<() => Promise<void>>(async () => {});
   const closeChatSocket = useCallback(() => {
     if (!chatSocketRef.current) return;
@@ -365,7 +366,9 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sessionInitialization = useCallback(async () => {
-    if (!selectedStore) return;
+    if (!selectedStore || !accessToken || sessionInitializingRef.current)
+      return;
+    sessionInitializingRef.current = true;
 
     try {
       setLoading(true);
@@ -428,6 +431,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Session checking failed, Error:", error);
     } finally {
+      sessionInitializingRef.current = false;
       setLoading(false);
     }
   }, [accessToken, dispatch, handleSocketMessage, selectedStore]);
@@ -501,14 +505,26 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
 
         setResponseLoading(true);
 
+        const payload = JSON.stringify({
+          message,
+          image_url: imageUrl,
+        });
+
+        if (chatSocketRef.current?.readyState === WebSocket.CONNECTING) {
+          chatSocketRef.current.addEventListener(
+            "open",
+            () => {
+              chatSocketRef.current?.send(payload);
+            },
+            { once: true },
+          );
+          return;
+        }
+
         if (
           !chatSocketRef.current ||
           chatSocketRef.current.readyState !== WebSocket.OPEN
         ) {
-          const payload = JSON.stringify({
-            message,
-            image_url: imageUrl,
-          });
           const socket = connectWebSocket(sessionId, {
             token: accessToken,
             onMessage: handleSocketMessage,
@@ -528,12 +544,7 @@ function TestChatbotProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        chatSocketRef.current.send(
-          JSON.stringify({
-            message,
-            image_url: imageUrl,
-          }),
-        );
+        chatSocketRef.current.send(payload);
       } catch (error) {
         console.error("Message sending failed, Error:", error);
         setResponseLoading(false);
