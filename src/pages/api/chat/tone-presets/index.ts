@@ -5,6 +5,14 @@ import { APIResponse } from "@/lib/config";
 import { createAPIResponse, handleApiError } from "@/lib/helpers";
 import { withTenantRoute } from "@/lib/with-tenant-route";
 
+/**
+ * Port of Django `TonePresetsAPIView` — GET only.
+ * Serializer: TonePresetsSerializer.
+ *  - GET -> Returns the catalog of all available tone presets.
+ *
+ * This configuration is global config (not store-scoped) and read-only here; modifications
+ * are handled by the Django backend.
+ */
 export default withTenantRoute(handler);
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {

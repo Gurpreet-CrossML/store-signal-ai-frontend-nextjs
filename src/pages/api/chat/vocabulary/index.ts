@@ -5,6 +5,14 @@ import { APIResponse } from "@/lib/config";
 import { createAPIResponse, handleApiError } from "@/lib/helpers";
 import { withTenantRoute } from "@/lib/with-tenant-route";
 
+/**
+ * Port of Django `VocabularyAPIView` — GET only.
+ * Serializer: VocabularySerializer.
+ *  - GET -> Returns the vocabulary, replacements, and phrases for the specified store.
+ *
+ * This configuration is store-scoped and read-only here; modifications
+ * are handled by the Django backend.
+ */
 export default withTenantRoute(handler);
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {

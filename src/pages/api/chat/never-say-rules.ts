@@ -4,6 +4,14 @@ import { createAPIResponse } from "@/lib/helpers";
 import { withTenantRoute } from "@/lib/with-tenant-route";
 import type { NextApiRequest, NextApiResponse } from "next";
 
+/**
+ * Port of Django `NeverSayRulesAPIView` — GET only.
+ * Serializer: NeverSayRulesSerializer.
+ *  - GET -> Returns the never-say rules configuration for the specified store.
+ *
+ * This configuration is store-scoped and read-only here; modifications
+ * are handled by the Django backend.
+ */
 export default withTenantRoute(handler);
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {

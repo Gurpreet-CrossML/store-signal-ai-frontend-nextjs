@@ -106,6 +106,9 @@ export type VocabularyPayload = {
 
 // Queries
 
+/**
+ * Port of PersonaIdentity fetching logic.
+ */
 export async function getPersonaIdentity(
   storeCode: string,
 ): Promise<PersonaIdentityRow | null> {
@@ -131,6 +134,9 @@ export async function getPersonaIdentity(
   return (rows[0] as PersonaIdentityRow | undefined) ?? null;
 }
 
+/**
+ * Port of NeverSayRules fetching logic.
+ */
 export async function getNeverSayRules(
   storeCode: string,
 ): Promise<NeverSayRulesRow | null> {
@@ -156,6 +162,9 @@ export async function getNeverSayRules(
   return (rows[0] as NeverSayRulesRow | undefined) ?? null;
 }
 
+/**
+ * Port of ToneStyle fetching logic.
+ */
 export async function getToneStyle(
   store_code: string,
 ): Promise<ToneStyleRecord | null> {
@@ -186,6 +195,9 @@ export async function getToneStyle(
   return rows[0] ?? null;
 }
 
+/**
+ * Port of TonePresets listing logic.
+ */
 export async function listTonePresets(): Promise<TonePresetRecord[]> {
   const db = getDb();
   const rows = await db
@@ -211,6 +223,9 @@ export async function listTonePresets(): Promise<TonePresetRecord[]> {
   }));
 }
 
+/**
+ * Port of Vocabulary fetching logic.
+ */
 export async function getVocabulary(
   store_code: string,
 ): Promise<VocabularyRecord | null> {
