@@ -109,6 +109,7 @@ export default function BrandVoiceToneStyleEditor() {
       (preset) => preset.name.toLowerCase() === "custom",
     )?.id ?? null;
 
+  // Handle slider change and switch to custom preset if modified
   const handleSliderChange = (key: keyof ToneStylePayload, value: number) => {
     formik.setFieldValue(key, value);
 
@@ -140,6 +141,7 @@ export default function BrandVoiceToneStyleEditor() {
     FetchTonePresetsData.find((preset) => preset.id === formik.values.preset) ??
     FetchTonePresetsData[0];
 
+  // Handle preset selection and apply its values
   const handlePresetSelect = (presetId: number) => {
     const tonePreset = FetchTonePresetsData.find(
       (preset) => preset.id === presetId,
