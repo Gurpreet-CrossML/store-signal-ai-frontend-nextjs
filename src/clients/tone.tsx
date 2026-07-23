@@ -125,7 +125,7 @@ export default function BrandVoiceToneStyleEditor() {
       (preset) => preset.name.toLowerCase() === "custom",
     )?.id ?? null;
 
-  // Handle slider change and switch to custom preset if modified
+  // Update the active slider immediately in form state.
   const handleSliderChange = (key: keyof ToneStylePayload, value: number) => {
     formik.setFieldValue(key, value);
 
@@ -140,6 +140,7 @@ export default function BrandVoiceToneStyleEditor() {
       [key]: value,
     };
 
+    // If the sliders no longer match the selected preset, mark the form as Custom.
     if (
       currentPreset.warmth !== Number(updatedValues.warmth) ||
       currentPreset.formality !== Number(updatedValues.formality) ||
