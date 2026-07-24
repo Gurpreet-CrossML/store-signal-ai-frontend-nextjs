@@ -103,6 +103,11 @@ export const ENDPOINTS = {
   widgetCustomization: (storeId: number) =>
     `/store/widget-customization/${storeId}/`,
 
+  // Brand Voice. GET uses the local tenant-scoped API route; writes are routed
+  // to Django by axios-config so its serializer validation remains authoritative.
+  personaIdentity: () => "/chat/persona-identity/",
+  neverSayRules: () => "/chat/never-say-rules/",
+
   // Knowledge Base Management. Local GETs have no trailing slash; Django writes
   // (upload/create/update/delete) keep theirs (DRF requires it).
   fetchLibraryDocuments: () => `/knowledge/library-documents`,
@@ -160,3 +165,16 @@ export type APIResponse = {
   message?: string;
   data?: object | object[] | PaginationResponse | ErrorResponse | null;
 };
+
+export const SELF_REFERENCE_OPTIONS = [
+  {
+    value: "i",
+    label: '"I"',
+    description: "I can help with that",
+  },
+  {
+    value: "we",
+    label: '"We"',
+    description: "We can help with that",
+  },
+] as const;
