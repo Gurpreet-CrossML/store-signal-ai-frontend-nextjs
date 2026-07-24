@@ -97,9 +97,9 @@ function StoreSelector() {
 export function NavMain({ items }: { items: SideBarMenuItem[] }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentUrl = searchParams.toString()
-    ? `${pathname}?${searchParams.toString()}`
-    : pathname;
+  const queryString = searchParams?.toString() ?? "";
+
+  const currentUrl = queryString ? `${pathname}?${queryString}` : pathname;
 
   return (
     <SidebarGroup>
