@@ -2176,59 +2176,6 @@ export const personaIdentity = pgTable(
   ],
 );
 
-export const toneStyle = pgTable(
-  "tone_style",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "tone_style_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    presetId: bigint("preset_id", { mode: "number" }).notNull(),
-    warmth: smallint().notNull(),
-    formality: smallint().notNull(),
-    energy: smallint().notNull(),
-    playfulness: smallint().notNull(),
-    directness: smallint().notNull(),
-    answerLength: varchar("answer_length", { length: 10 }).notNull(),
-    regionalSpelling: varchar("regional_spelling", { length: 5 }).notNull(),
-    useBulletPoints: boolean("use_bullet_points").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    storeId: bigint("store_id", { mode: "number" }).notNull(),
-    frequencyPolicy: varchar("frequency_policy", { length: 10 }).notNull(),
-  },
-  (table) => [
-    index("tone_style_preset_id_4a487003").using(
-      "btree",
-      table.presetId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.storeId],
-      foreignColumns: [store.id],
-      name: "tone_style_store_id_b6e0aeaf_fk_store_id",
-    }),
-    unique("tone_style_store_id_key").on(table.storeId),
-    check("tone_style_directness_check", sql`directness >= 0`),
-    check("tone_style_energy_check", sql`energy >= 0`),
-    check("tone_style_formality_check", sql`formality >= 0`),
-    check("tone_style_playfulness_check", sql`playfulness >= 0`),
-    check("tone_style_warmth_check", sql`warmth >= 0`),
-  ],
-);
-
 export const vocabularyWordReplacements = pgTable(
   "vocabulary_word_replacements",
   {
@@ -2295,3 +2242,59 @@ export const wordReplacement = pgTable("word_replacement", {
     mode: "string",
   }).notNull(),
 });
+
+export const toneStyle = pgTable(
+  "tone_style",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "tone_style_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    presetId: bigint("preset_id", { mode: "number" }).notNull(),
+    warmth: smallint().notNull(),
+    formality: smallint().notNull(),
+    energy: smallint().notNull(),
+    playfulness: smallint().notNull(),
+    directness: smallint().notNull(),
+    answerLength: varchar("answer_length", { length: 10 }).notNull(),
+    regionalSpelling: varchar("regional_spelling", { length: 5 }).notNull(),
+    useBulletPoints: boolean("use_bullet_points").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+    emojiPolicy: varchar("emoji_policy", { length: 10 }).notNull(),
+    exclamationMarksPolicy: varchar("exclamation_marks_policy", {
+      length: 10,
+    }).notNull(),
+  },
+  (table) => [
+    index("tone_style_preset_id_4a487003").using(
+      "btree",
+      table.presetId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "tone_style_store_id_b6e0aeaf_fk_store_id",
+    }),
+    unique("tone_style_store_id_key").on(table.storeId),
+    check("tone_style_directness_check", sql`directness >= 0`),
+    check("tone_style_energy_check", sql`energy >= 0`),
+    check("tone_style_formality_check", sql`formality >= 0`),
+    check("tone_style_playfulness_check", sql`playfulness >= 0`),
+    check("tone_style_warmth_check", sql`warmth >= 0`),
+  ],
+);

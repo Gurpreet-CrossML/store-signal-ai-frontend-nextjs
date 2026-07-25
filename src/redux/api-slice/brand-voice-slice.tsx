@@ -207,31 +207,32 @@ export const createToneStyle = createAsyncThunk(
     { storeCode, payload }: { storeCode: string; payload: ToneStylePayload },
     thunkAPI,
   ) => {
-  try {
-    const response = await axiosInstance.post(
-      `${ENDPOINTS.toneStyle()}?store_code=${encodeURIComponent(storeCode)}`,
-      payload,
-    );
-    const data = response.data.data;
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.toneStyle()}?store_code=${encodeURIComponent(storeCode)}`,
+        payload,
+      );
+      const data = response.data.data;
 
-    toast.success(
-      response?.data?.message || "Tone & Style saved successfully!",
-    );
+      toast.success(
+        response?.data?.message || "Tone & Style saved successfully!",
+      );
 
-    return data;
-  } catch (error) {
-    const response = isAxiosError(error) ? error.response : undefined;
-    const data = response?.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
 
-    toast.error("Uh oh! Something went wrong.", {
-      description:
-        data?.message ||
-        "Unable to save the Tone & Style, please try again later.",
-    });
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to save the Tone & Style, please try again later.",
+      });
 
-    return thunkAPI.rejectWithValue(data || "Something went wrong");
-  }
-});
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
 
 // Thunks — Vocabulary
 
@@ -265,29 +266,32 @@ export const createVocabulary = createAsyncThunk(
     { storeCode, payload }: { storeCode: string; payload: VocabularyPayload },
     thunkAPI,
   ) => {
-  try {
-    const response = await axiosInstance.post(
-      `${ENDPOINTS.vocabulary()}?store_code=${encodeURIComponent(storeCode)}`,
-      payload,
-    );
-    const data = response.data.data;
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.vocabulary()}?store_code=${encodeURIComponent(storeCode)}`,
+        payload,
+      );
+      const data = response.data.data;
 
-    toast.success(response?.data?.message || "Vocabulary saved successfully!");
+      toast.success(
+        response?.data?.message || "Vocabulary saved successfully!",
+      );
 
-    return data;
-  } catch (error) {
-    const response = isAxiosError(error) ? error.response : undefined;
-    const data = response?.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
 
-    toast.error("Uh oh! Something went wrong.", {
-      description:
-        data?.message ||
-        "Unable to save the vocabulary, please try again later.",
-    });
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to save the vocabulary, please try again later.",
+      });
 
-    return thunkAPI.rejectWithValue(data || "Something went wrong");
-  }
-});
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
 
 // Slice
 
@@ -367,7 +371,7 @@ const BrandVoiceSlice = createSlice({
       .addCase(fetchPersonaIdentity.rejected, (state, action) => {
         state.FetchPersonaIdentityState.FetchPersonaIdentityIsLoading = false;
         state.FetchPersonaIdentityState.FetchPersonaIdentityIsError =
-          action.payload  as string | object;
+          action.payload as string | object;
         state.FetchPersonaIdentityState.FetchPersonaIdentityIsSuccess = false;
       })
       .addCase(createPersonaIdentity.pending, (state) => {
@@ -440,8 +444,9 @@ const BrandVoiceSlice = createSlice({
       .addCase(fetchTonePresets.rejected, (state, action) => {
         state.FetchTonePresetsState.FetchTonePresetsIsLoading = false;
         state.FetchTonePresetsState.FetchTonePresetsIsSuccess = false;
-        state.FetchTonePresetsState.FetchTonePresetsIsError =
-          action.payload as string | object;
+        state.FetchTonePresetsState.FetchTonePresetsIsError = action.payload as
+          | string
+          | object;
       })
       // Tone Style
       .addCase(fetchToneStyle.pending, (state) => {
@@ -457,8 +462,9 @@ const BrandVoiceSlice = createSlice({
       .addCase(fetchToneStyle.rejected, (state, action) => {
         state.FetchToneStyleState.FetchToneStyleIsLoading = false;
         state.FetchToneStyleState.FetchToneStyleIsSuccess = false;
-        state.FetchToneStyleState.FetchToneStyleIsError =
-          action.payload as string | object;
+        state.FetchToneStyleState.FetchToneStyleIsError = action.payload as
+          | string
+          | object;
       })
       .addCase(createToneStyle.pending, (state) => {
         state.CreateToneStyleState.CreateToneStyleIsLoading = true;
@@ -474,8 +480,9 @@ const BrandVoiceSlice = createSlice({
       .addCase(createToneStyle.rejected, (state, action) => {
         state.CreateToneStyleState.CreateToneStyleIsLoading = false;
         state.CreateToneStyleState.CreateToneStyleIsSuccess = false;
-        state.CreateToneStyleState.CreateToneStyleIsError =
-          action.payload as string | object;
+        state.CreateToneStyleState.CreateToneStyleIsError = action.payload as
+          | string
+          | object;
       })
       // Vocabulary
       .addCase(fetchVocabulary.pending, (state) => {
@@ -491,8 +498,9 @@ const BrandVoiceSlice = createSlice({
       .addCase(fetchVocabulary.rejected, (state, action) => {
         state.FetchVocabularyState.FetchVocabularyIsLoading = false;
         state.FetchVocabularyState.FetchVocabularyIsSuccess = false;
-        state.FetchVocabularyState.FetchVocabularyIsError =
-          action.payload as string | object;
+        state.FetchVocabularyState.FetchVocabularyIsError = action.payload as
+          | string
+          | object;
       })
       .addCase(createVocabulary.pending, (state) => {
         state.CreateVocabularyState.CreateVocabularyIsLoading = true;
@@ -508,8 +516,9 @@ const BrandVoiceSlice = createSlice({
       .addCase(createVocabulary.rejected, (state, action) => {
         state.CreateVocabularyState.CreateVocabularyIsLoading = false;
         state.CreateVocabularyState.CreateVocabularyIsSuccess = false;
-        state.CreateVocabularyState.CreateVocabularyIsError =
-          action.payload as string | object;
+        state.CreateVocabularyState.CreateVocabularyIsError = action.payload as
+          | string
+          | object;
       });
   },
 });

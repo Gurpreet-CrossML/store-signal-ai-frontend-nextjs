@@ -4,9 +4,15 @@ import Image from "next/image";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconMoodSmile } from "@tabler/icons-react";
-import { cn } from "@/lib/utils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { TonePresetRecord } from "@/db/chat";
+import {
+  Field,
+  FieldContent,
+  FieldLabel,
+  FieldTitle,
+  FieldDescription,
+} from "@/components/ui/field";
 
 type BrandVoiceTonePresetSelectorProps = {
   presets: readonly TonePresetRecord[];
@@ -20,8 +26,8 @@ export default function BrandVoiceTonePresetSelector({
   onSelect,
 }: BrandVoiceTonePresetSelectorProps) {
   return (
-    <Card className="gap-0 overflow-hidden border-border/60 bg-background/95 shadow-sm">
-      <CardHeader className="px-5 py-4">
+    <Card className="py-0">
+      <CardHeader className="px-5 pt-5 pb-0">
         <CardTitle className="flex items-center gap-2">
           <IconMoodSmile className="size-4" />
           Quick-start preset
@@ -33,42 +39,41 @@ export default function BrandVoiceTonePresetSelector({
       </CardHeader>
       <CardContent className="px-5 pb-5">
         <RadioGroup
-          value={activePreset.toString()}
+          defaultValue={activePreset.toString()}
           onValueChange={(value) => onSelect(parseInt(value, 10))}
-          className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-4 2xl:grid-cols-6"
         >
-          {presets.map((preset) => (
-            <div key={preset.id} className="relative h-full">
-              <RadioGroupItem
-                value={preset.id.toString()}
-                id={`preset-${preset.id}`}
-                className="peer sr-only"
-              />
-              <label
-                htmlFor={`preset-${preset.id}`}
-                className="flex h-full cursor-pointer flex-col gap-3 rounded-xl border border-border/70 bg-card px-4 py-4 text-card-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-sm peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-primary/20"
-              >
-                <div className="relative flex size-9 items-center justify-center overflow-hidden rounded-md bg-muted text-xs font-medium text-muted-foreground">
-                  {preset.icon ? (
+          {presets.map((preset: TonePresetRecord) => (
+            <FieldLabel
+              key={preset.id}
+              htmlFor={`preset-${preset.id}`}
+              className="cursor-pointer"
+            >
+              <Field orientation="horizontal">
+                <FieldContent>
+                  <FieldTitle className="flex flex-col justify-start items-start">
                     <Image
-                      src={preset.icon}
+                      src={
+                        preset.icon ||
+                        "/images/brand-voice-tone-presets/default.svg"
+                      }
                       alt=""
-                      fill
-                      sizes="36px"
-                      className="object-cover"
+                      width="25"
+                      height="25"
+                      className="object-contain"
                     />
-                  ) : (
-                    preset.name.slice(0, 1).toUpperCase()
-                  )}
-                </div>
-                <div className="flex flex-col gap-1">
-                  <h3 className="font-medium leading-tight">{preset.name}</h3>
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    {preset.description}
-                  </p>
-                </div>
-              </label>
-            </div>
+                    {preset.name}
+                  </FieldTitle>
+                  <FieldDescription>
+                    For individuals and small teams.
+                  </FieldDescription>
+                </FieldContent>
+                <RadioGroupItem
+                  value={preset.id.toString()}
+                  id={`preset-${preset.id}`}
+                />
+              </Field>
+            </FieldLabel>
           ))}
         </RadioGroup>
       </CardContent>

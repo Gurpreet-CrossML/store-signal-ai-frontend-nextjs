@@ -194,10 +194,25 @@ export type ToneSliderDef = {
 
 export const TONE_SLIDERS: ToneSliderDef[] = [
   { key: "warmth", label: "Warmth", minLabel: "Reserved", maxLabel: "Warm" },
-  { key: "formality", label: "Formality", minLabel: "Casual", maxLabel: "Formal" },
+  {
+    key: "formality",
+    label: "Formality",
+    minLabel: "Casual",
+    maxLabel: "Formal",
+  },
   { key: "energy", label: "Energy", minLabel: "Calm", maxLabel: "Energetic" },
-  { key: "playfulness", label: "Playfulness", minLabel: "Serious", maxLabel: "Playful" },
-  { key: "directness", label: "Directness", minLabel: "Gentle", maxLabel: "Direct" },
+  {
+    key: "playfulness",
+    label: "Playfulness",
+    minLabel: "Serious",
+    maxLabel: "Playful",
+  },
+  {
+    key: "directness",
+    label: "Directness",
+    minLabel: "Gentle",
+    maxLabel: "Direct",
+  },
 ];
 
 export type SelectOption = { value: string; label: string };

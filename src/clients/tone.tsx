@@ -26,7 +26,14 @@ const validationSchema = z.object({
   playfulness: z.coerce.number().min(0).max(100),
   directness: z.coerce.number().min(0).max(100),
   answer_length: z.enum(["concise", "standard", "thorough"]),
-  frequency_policy: z.enum(["none", "sparing", "moderate", "liberal", "free"]),
+  emoji_policy: z.enum(["none", "sparing", "moderate", "liberal", "free"]),
+  exclamation_marks_policy: z.enum([
+    "none",
+    "sparing",
+    "moderate",
+    "liberal",
+    "free",
+  ]),
   regional_spelling: z.enum(["uk", "us", "auto"]),
   use_bullet_points: z.boolean(),
 });
@@ -80,7 +87,9 @@ export default function BrandVoiceToneStyleEditor() {
         FetchTonePresetsData[0]?.directness ??
         50,
       answer_length: FetchToneStyleData?.answer_length || "standard",
-      frequency_policy: FetchToneStyleData?.frequency_policy || "sparing",
+      emoji_policy: FetchToneStyleData?.emoji_policy || "sparing",
+      exclamation_marks_policy:
+        FetchToneStyleData?.exclamation_marks_policy || "sparing",
       regional_spelling: FetchToneStyleData?.regional_spelling || "auto",
       use_bullet_points: FetchToneStyleData?.use_bullet_points ?? true,
     },
@@ -186,16 +195,9 @@ export default function BrandVoiceToneStyleEditor() {
       ) : (
         <form
           onSubmit={formik.handleSubmit}
-          className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(360px,0.7fr)]"
+          className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,0.5fr)]"
         >
           <div className="flex flex-col gap-6">
-            <div className="mt-3 flex flex-col gap-2">
-              <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-                Shape how every reply sounds. The live preview updates as you
-                adjust the settings.
-              </p>
-            </div>
-
             <BrandVoiceTonePresetSelector
               presets={FetchTonePresetsData}
               activePreset={formik.values.preset}
@@ -208,7 +210,7 @@ export default function BrandVoiceToneStyleEditor() {
               onSliderChange={handleSliderChange}
             />
 
-            <div className="sticky bottom-0 z-10 flex justify-start border-t border-border bg-background py-3">
+            <div className="sticky bottom-0 z-10 flex justify-end border-t border-border bg-background py-3">
               <Button
                 type="submit"
                 size="lg"

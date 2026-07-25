@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { cn } from "@/lib/utils";
 import type { useFormik } from "formik";
 import { type ToneStylePayload } from "@/db/chat";
 import { Badge } from "@/components/ui/badge";
@@ -15,10 +15,15 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
-import { TONE_SLIDERS, ANSWER_LENGTH_OPTIONS, FREQUENCY_OPTIONS, SPELLING_OPTIONS, SelectOption } from "@/lib/config";
+import {
+  TONE_SLIDERS,
+  ANSWER_LENGTH_OPTIONS,
+  FREQUENCY_OPTIONS,
+  SPELLING_OPTIONS,
+  SelectOption,
+} from "@/lib/config";
 import { Switch } from "@/components/ui/switch";
 import { IconAdjustments, IconGauge } from "@tabler/icons-react";
-
 
 function ToneMetricSlider({
   name,
@@ -28,6 +33,7 @@ function ToneMetricSlider({
   maxLabel,
   onChange,
   onBlur,
+  className,
 }: {
   name: string;
   label: string;
@@ -36,15 +42,16 @@ function ToneMetricSlider({
   maxLabel: string;
   onChange: (val: number) => void;
   onBlur: (event: React.FocusEvent<HTMLInputElement>) => void;
+  className?: string;
 }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex items-center justify-between gap-3">
         <Label htmlFor={name} className="text-sm font-medium">
           {label}
         </Label>
-        <Badge variant="outline" className="font-normal tabular-nums">
-          {value}
+        <Badge variant="ghost" className="font-normal tabular-nums">
+          {value}%
         </Badge>
       </div>
 
@@ -118,14 +125,17 @@ export default function BrandVoiceToneControls({
 
   return (
     <div className="flex flex-col gap-6">
-      <Card className="gap-0 overflow-hidden border-border/60 bg-background/95 shadow-sm">
-        <CardHeader className="px-5 py-4">
+      <Card className="py-0">
+        <CardHeader className="px-5 pt-4 pb-0">
           <CardTitle className="flex items-center gap-2">
             <IconGauge className="size-4" />
-            Tone dimensions
+            Tone Style
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Adjust the dimensions of your assistant&apos;s tone.
+          </p>
         </CardHeader>
-        <CardContent className="space-y-6 px-5 pb-5">
+        <CardContent className="flex flex-wrap gap-2 px-5 pb-5">
           {TONE_SLIDERS.map((slider) => (
             <ToneMetricSlider
               key={slider.key}
@@ -136,20 +146,24 @@ export default function BrandVoiceToneControls({
               maxLabel={slider.maxLabel}
               onChange={(val) => onSliderChange(slider.key, val)}
               onBlur={formik.handleBlur}
+              className="w-[49%] pb-5"
             />
           ))}
         </CardContent>
       </Card>
 
-      <Card className="gap-0 overflow-hidden border-border/60 bg-background/95 shadow-sm">
-        <CardHeader className="px-5 py-4">
+      <Card className="py-0">
+        <CardHeader className="px-5 pt-4 pb-0">
           <CardTitle className="flex items-center gap-2">
             <IconAdjustments className="size-4" />
-            Structure &amp; expression
+            Writing Preferences
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Set Preferences for how your assistant writes.
+          </p>
         </CardHeader>
         <CardContent className="space-y-6 px-5 pb-5">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <ToneSelectField
               name="answer_length"
               label="Answer length"
@@ -159,12 +173,22 @@ export default function BrandVoiceToneControls({
               onChange={(val) => formik.setFieldValue("answer_length", val)}
             />
             <ToneSelectField
-              name="frequency_policy"
-              label="Frequency policy"
-              description="Sets how often signature phrasing can repeat."
-              value={values.frequency_policy}
+              name="emoji_policy"
+              label="Emoji Usage"
+              description="Controls how often the assistant uses emojis."
+              value={values.emoji_policy}
               options={FREQUENCY_OPTIONS}
-              onChange={(val) => formik.setFieldValue("frequency_policy", val)}
+              onChange={(val) => formik.setFieldValue("emoji_policy", val)}
+            />
+            <ToneSelectField
+              name="exclamation_marks_policy"
+              label="Exclamation marks usage"
+              description="Controls how often the assistant uses exclamation marks."
+              value={values.exclamation_marks_policy}
+              options={FREQUENCY_OPTIONS}
+              onChange={(val) =>
+                formik.setFieldValue("exclamation_marks_policy", val)
+              }
             />
             <ToneSelectField
               name="regional_spelling"
@@ -193,7 +217,9 @@ export default function BrandVoiceToneControls({
             </div>
             <Switch
               checked={values.use_bullet_points}
-              onCheckedChange={(checked) => formik.setFieldValue("use_bullet_points", checked)}
+              onCheckedChange={(checked) =>
+                formik.setFieldValue("use_bullet_points", checked)
+              }
               aria-label="Use bullet points"
             />
           </div>

@@ -54,7 +54,8 @@ export type ToneStyleRecord = {
   answer_length: string;
   regional_spelling: string;
   use_bullet_points: boolean;
-  frequency_policy: string;
+  emoji_policy: string;
+  exclamation_marks_policy: string;
   created_at: string;
   updated_at: string;
 };
@@ -184,7 +185,8 @@ export async function getToneStyle(
       answer_length: toneStyle.answerLength,
       regional_spelling: toneStyle.regionalSpelling,
       use_bullet_points: toneStyle.useBulletPoints,
-      frequency_policy: toneStyle.frequencyPolicy,
+      emoji_policy: toneStyle.emojiPolicy,
+      exclamation_marks_policy: toneStyle.exclamationMarksPolicy,
       created_at: toneStyle.createdAt,
       updated_at: toneStyle.updatedAt,
     })

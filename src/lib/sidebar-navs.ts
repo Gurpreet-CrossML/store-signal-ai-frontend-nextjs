@@ -98,11 +98,11 @@ export const sidebarMenus: SideBarMenus = {
           url: "/brand-voice/vocabulary",
           icon: IconBook2,
         },
-        {
-          title: "Selling Style",
-          url: "/brand-voice/selling-style",
-          icon: IconShoppingBag,
-        },
+        // {
+        //   title: "Selling Style",
+        //   url: "/brand-voice/selling-style",
+        //   icon: IconShoppingBag,
+        // },
         {
           title: "Never-Say Rules",
           url: "/brand-voice/never-say-rules",

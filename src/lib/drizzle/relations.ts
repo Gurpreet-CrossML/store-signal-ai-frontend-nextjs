@@ -46,9 +46,9 @@ import {
   vocabulary,
   neverSayRules,
   personaIdentity,
-  toneStyle,
   vocabularyWordReplacements,
   wordReplacement,
+  toneStyle,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -533,13 +533,6 @@ export const personaIdentityRelations = relations(
   }),
 );
 
-export const toneStyleRelations = relations(toneStyle, ({ one }) => ({
-  store: one(store, {
-    fields: [toneStyle.storeId],
-    references: [store.id],
-  }),
-}));
-
 export const vocabularyWordReplacementsRelations = relations(
   vocabularyWordReplacements,
   ({ one }) => ({
@@ -560,3 +553,10 @@ export const wordReplacementRelations = relations(
     vocabularyWordReplacementss: many(vocabularyWordReplacements),
   }),
 );
+
+export const toneStyleRelations = relations(toneStyle, ({ one }) => ({
+  store: one(store, {
+    fields: [toneStyle.storeId],
+    references: [store.id],
+  }),
+}));
