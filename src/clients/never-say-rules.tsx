@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   fetchNeverSayRules,
   createNeverSayRules,
+  fetchNeverSayRulesPresets,
   type NeverSayRulesData,
   type RequiredLegalPhrase,
 } from "@/redux/api-slice/brand-voice-slice";
@@ -119,16 +120,59 @@ export default function NeverSayRules() {
     useAppSelector(
       (state) => state.GetBrandVoiceReducer.FetchNeverSayRulesState,
     );
+  const { FetchNeverSayRulesPresetsData, FetchNeverSayRulesPresetsIsLoading } =
+    useAppSelector(
+      (state) => state.GetBrandVoiceReducer.FetchNeverSayRulesPresetsState,
+    );
   const { CreateNeverSayRulesIsLoading } = useAppSelector(
     (state) => state.GetBrandVoiceReducer.CreateNeverSayRulesState,
   );
 
   useEffect(() => {
-    if (storeCode) dispatch(fetchNeverSayRules(storeCode));
+    if (storeCode) {
+      dispatch(fetchNeverSayRules(storeCode));
+      dispatch(fetchNeverSayRulesPresets());
+    }
   }, [dispatch, storeCode]);
 
+  const hasData =
+    FetchNeverSayRulesData && Object.keys(FetchNeverSayRulesData).length > 0;
+
+  // If the store has no saved data yet, we want to give them a starting template.
+  // We do this by taking ALL available global presets from the database and
+  // merging their arrays together into one massive preset object.
+  const mergedPresets = (FetchNeverSayRulesPresetsData || []).reduce(
+    (combinedRules: any, currentPreset: any) => ({
+      do_not_say_phrases: [
+        ...(combinedRules.do_not_say_phrases || []),
+        ...(currentPreset.do_not_say_phrases || []),
+      ],
+      forbidden_claims: [
+        ...(combinedRules.forbidden_claims || []),
+        ...(currentPreset.forbidden_claims || []),
+      ],
+      required_legal_phrases: [
+        ...(combinedRules.required_legal_phrases || []),
+        ...(currentPreset.required_legal_phrases || []),
+      ],
+      // For boolean toggles, if ANY preset has them turned on (true), we turn them on in the merged result.
+      no_hollow_apologies:
+        combinedRules.no_hollow_apologies || currentPreset.no_hollow_apologies || false,
+      never_reveal_ai_unprompted:
+        combinedRules.never_reveal_ai_unprompted ||
+        currentPreset.never_reveal_ai_unprompted ||
+        false,
+    }),
+    {},
+  );
+
+  // Use the store's actual saved data if it exists, otherwise fall back to our newly merged preset template.
+  const defaultInitialValues = hasData
+    ? FetchNeverSayRulesData
+    : (mergedPresets as NeverSayRulesData);
+
   const formik = useFormik<NeverSayRulesData>({
-    initialValues: FetchNeverSayRulesData ?? ({} as NeverSayRulesData),
+    initialValues: defaultInitialValues,
     enableReinitialize: true,
     validate: (values) => {
       const result = validationSchema.safeParse(values);
@@ -201,7 +245,7 @@ export default function NeverSayRules() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      {FetchNeverSayRulesIsLoading ? (
+      {FetchNeverSayRulesIsLoading || FetchNeverSayRulesPresetsIsLoading ? (
         <div className="flex items-center justify-center gap-2 py-10">
           <Spinner className="size-6" />
           Loading Never-Say Rules...

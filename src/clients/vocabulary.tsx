@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   fetchVocabulary,
   createVocabulary,
+  fetchVocabularyPresets,
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
@@ -73,6 +74,10 @@ export default function BrandVoiceVocabularyEditor() {
   const { FetchVocabularyData, FetchVocabularyIsLoading } = useAppSelector(
     (state) => state.GetBrandVoiceReducer.FetchVocabularyState,
   );
+  const { FetchVocabularyPresetsData, FetchVocabularyPresetsIsLoading } =
+    useAppSelector(
+      (state) => state.GetBrandVoiceReducer.FetchVocabularyPresetsState,
+    );
   const { CreateVocabularyIsLoading } = useAppSelector(
     (state) => state.GetBrandVoiceReducer.CreateVocabularyState,
   );
@@ -83,17 +88,52 @@ export default function BrandVoiceVocabularyEditor() {
   useEffect(() => {
     if (storeCode) {
       dispatch(fetchVocabulary(storeCode));
+      dispatch(fetchVocabularyPresets());
     }
   }, [dispatch, storeCode]);
+
+  const hasVocabData =
+    FetchVocabularyData && Object.keys(FetchVocabularyData).length > 0;
+
+  // If the store has no saved data yet, we generate a starting template.
+  // This reduces (merges) ALL the different global vocabulary presets into one single set of arrays.
+  const mergedVocabPresets = (FetchVocabularyPresetsData || []).reduce(
+    (combinedVocab: any, currentPreset: any) => ({
+      preferred_phrases: [
+        ...(combinedVocab.preferred_phrases || []),
+        ...(currentPreset.preferred_phrases || []),
+      ],
+      banned_words: [
+        ...(combinedVocab.banned_words || []),
+        ...(currentPreset.banned_words || []),
+      ],
+      signature_phrases: [
+        ...(combinedVocab.signature_phrases || []),
+        ...(currentPreset.signature_phrases || []),
+      ],
+      word_replacements: [
+        ...(combinedVocab.word_replacements || []),
+        // Note: The preset data returns replacement pairs under 'word_replacement_pairs',
+        // so we account for both possible key names when merging.
+        ...(currentPreset.word_replacement_pairs || currentPreset.word_replacements || []),
+      ],
+    }),
+    {},
+  );
+
+  // Apply the store's actual saved data if it has any; otherwise use the merged presets template.
+  const initialVocab = hasVocabData
+    ? FetchVocabularyData
+    : (mergedVocabPresets as VocabularyFormValues);
 
   // Initialize formik for form state management
   const formik = useFormik<VocabularyFormValues>({
     enableReinitialize: true,
     initialValues: {
-      preferred_phrases: FetchVocabularyData?.preferred_phrases ?? [],
-      banned_words: FetchVocabularyData?.banned_words ?? [],
-      signature_phrases: FetchVocabularyData?.signature_phrases ?? [],
-      word_replacements: FetchVocabularyData?.word_replacements ?? [],
+      preferred_phrases: initialVocab?.preferred_phrases ?? [],
+      banned_words: initialVocab?.banned_words ?? [],
+      signature_phrases: initialVocab?.signature_phrases ?? [],
+      word_replacements: initialVocab?.word_replacements ?? [],
     },
     // Validation using Zod schema
     validate: (values) => {
@@ -144,7 +184,7 @@ export default function BrandVoiceVocabularyEditor() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      {FetchVocabularyIsLoading ? (
+      {FetchVocabularyIsLoading || FetchVocabularyPresetsIsLoading ? (
         <div className="flex items-center justify-center gap-2 py-10">
           <Spinner className="size-6" />
           Loading vocabulary...
