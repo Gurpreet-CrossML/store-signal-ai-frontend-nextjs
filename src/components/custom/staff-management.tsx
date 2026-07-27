@@ -1,17 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { IconUserPlus } from "@tabler/icons-react";
-
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,8 +22,16 @@ import StaffForm from "@/components/custom/staff-form";
 import StaffStoreAccess from "@/components/custom/staff-store-access";
 import { StaffDataTable } from "@/components/custom/staff-data-table";
 import { getStaffColumns } from "@/components/custom/staff-columns";
+import { Spinner } from "../ui/spinner";
 
-export default function StaffManagement() {
+export default function StaffManagement(
+  {
+    className,
+    contentClassName,
+  }: {
+    className?: string;
+    contentClassName?: string;
+  }) {
   const dispatch = useAppDispatch();
   const { staff, staffLoading } = useAppSelector(
     (state) => state.GetTenancyReducer,
@@ -59,28 +56,33 @@ export default function StaffManagement() {
     [],
   );
 
+  if (staffLoading && !staff) {
+    return (
+      <div className="flex h-75 items-center justify-center gap-2 text-muted-foreground">
+        <Spinner className="size-5" />
+        Loading…
+      </div>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Staff</CardTitle>
-        <CardDescription>
+    <div className={className}>
+      <div className="mb-6">
+        <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
+          Staff Management
+        </h4>
+        <p className="text-sm text-muted-foreground">
           Manage your company&apos;s users. New staff receive an emailed
           temporary password.
-        </CardDescription>
-        <CardAction>
-          <Button size="sm" onClick={() => setFormOpen(true)}>
-            <IconUserPlus />
-            Add Staff
-          </Button>
-        </CardAction>
-      </CardHeader>
-      <CardContent>
+        </p>
+      </div>
+      <div className={contentClassName}>
         <StaffDataTable
           columns={columns}
           data={staff}
           isLoading={staffLoading}
         />
-      </CardContent>
+      </div>
 
       <StaffForm
         open={formOpen}
@@ -162,6 +164,6 @@ export default function StaffManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </div>
   );
 }

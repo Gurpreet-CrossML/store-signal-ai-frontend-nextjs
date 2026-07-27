@@ -44,7 +44,13 @@ const EDITABLE_FIELDS = [
   { name: "country", label: "Country", type: "text" },
 ] as const;
 
-export default function CompanyProfileForm() {
+export default function CompanyProfileForm({
+  className,
+  contentClassName,
+}: {
+  className?: string
+  contentClassName?: string
+}) {
   const dispatch = useAppDispatch();
   const { companyProfile, companyLoading, companySaving } = useAppSelector(
     (state) => state.GetTenancyReducer,
@@ -120,26 +126,26 @@ export default function CompanyProfileForm() {
 
   if (companyLoading && !companyProfile) {
     return (
-      <Card>
-        <CardContent className="flex h-[300px] items-center justify-center gap-2 text-muted-foreground">
-          <Spinner className="size-5" />
-          Loading…
-        </CardContent>
-      </Card>
+      <div className="flex w-full items-center justify-center gap-2 text-muted-foreground">
+        <Spinner className="size-5" />
+        Loading…
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Company Profile</CardTitle>
-        <CardDescription>
+    <div className={className}>
+      <div className="mb-6">
+        <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
+          Company Profile
+        </h4>
+        <p className="text-sm text-muted-foreground">
           Update your company&apos;s contact details and address. The company
           name and code are managed by the platform operator.
-        </CardDescription>
-      </CardHeader>
+        </p>
+      </div>
       <form onSubmit={formik.handleSubmit}>
-        <CardContent>
+        <div className={contentClassName}>
           <FieldGroup>
             {/* Logo (top) */}
             <Field>
@@ -251,8 +257,8 @@ export default function CompanyProfileForm() {
               ))}
             </div>
           </FieldGroup>
-        </CardContent>
-        <CardFooter className="mt-6">
+        </div>
+        <div className="mt-6">
           <Button
             type="submit"
             disabled={companySaving || (!formik.dirty && !hasLogoChange)}
@@ -269,8 +275,8 @@ export default function CompanyProfileForm() {
               </>
             )}
           </Button>
-        </CardFooter>
+        </div>
       </form>
-    </Card>
+    </div>
   );
 }
