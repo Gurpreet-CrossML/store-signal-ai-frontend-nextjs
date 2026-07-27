@@ -126,7 +126,16 @@ export default function PersonaIdentity() {
   });
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col gap-4 px-4">
+      <div>
+        <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
+          Persona Identity
+        </h4>
+        <p className="text-sm text-muted-foreground">
+          Who the AI is when it talks to your customers — its name, role, how it refers to itself, and how it signs off.
+        </p>
+      </div>
+
       {FetchPersonaIdentityIsLoading ? (
         <div className="flex items-center justify-center gap-2 py-10">
           <Spinner className="size-6" />
