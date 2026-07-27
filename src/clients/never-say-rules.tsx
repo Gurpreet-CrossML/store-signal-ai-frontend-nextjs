@@ -155,21 +155,22 @@ export default function NeverSayRules() {
         ...(combinedRules.required_legal_phrases || []),
         ...(currentPreset.required_legal_phrases || []),
       ],
-      // For boolean toggles, if ANY preset has them turned on (true), we turn them on in the merged result.
-      no_hollow_apologies:
-        combinedRules.no_hollow_apologies || currentPreset.no_hollow_apologies || false,
-      never_reveal_ai_unprompted:
-        combinedRules.never_reveal_ai_unprompted ||
-        currentPreset.never_reveal_ai_unprompted ||
-        false,
     }),
     {},
   );
 
+  // The database presets only contain lists. The boolean toggles are store-specific,
+  // so we just default them to false here when creating the starting template.
+  const presetTemplate = {
+    ...mergedPresets,
+    no_hollow_apologies: false,
+    never_reveal_ai_unprompted: false,
+  } as NeverSayRulesData;
+
   // Use the store's actual saved data if it exists, otherwise fall back to our newly merged preset template.
   const defaultInitialValues = hasData
     ? FetchNeverSayRulesData
-    : (mergedPresets as NeverSayRulesData);
+    : presetTemplate;
 
   const formik = useFormik<NeverSayRulesData>({
     initialValues: defaultInitialValues,

@@ -300,7 +300,9 @@ export async function getVocabulary(
   };
 }
 
-export async function listVocabularyPresets(): Promise<VocabularyPresetRecord[]> {
+export async function listVocabularyPresets(): Promise<
+  VocabularyPresetRecord[]
+> {
   const db = getDb();
   const rows = await db
     .select({
@@ -316,7 +318,9 @@ export async function listVocabularyPresets(): Promise<VocabularyPresetRecord[]>
   return rows as VocabularyPresetRecord[];
 }
 
-export async function listNeverSayRulesPresets(): Promise<NeverSayRulesPresetRecord[]> {
+export async function listNeverSayRulesPresets(): Promise<
+  NeverSayRulesPresetRecord[]
+> {
   const db = getDb();
   const rows = await db
     .select({

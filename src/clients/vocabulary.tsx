@@ -115,7 +115,9 @@ export default function BrandVoiceVocabularyEditor() {
         ...(combinedVocab.word_replacements || []),
         // Note: The preset data returns replacement pairs under 'word_replacement_pairs',
         // so we account for both possible key names when merging.
-        ...(currentPreset.word_replacement_pairs || currentPreset.word_replacements || []),
+        ...(currentPreset.word_replacement_pairs ||
+          currentPreset.word_replacements ||
+          []),
       ],
     }),
     {},

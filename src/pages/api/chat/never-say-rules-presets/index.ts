@@ -28,7 +28,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
     return res
       .status(200)
       .json(
-        createAPIResponse(true, "Never-say rules presets retrieved successfully", data),
+        createAPIResponse(
+          true,
+          "Never-say rules presets retrieved successfully",
+          data,
+        ),
       );
   } catch (e) {
     return handleApiError(res, e, "chat/never-say-rules-presets");

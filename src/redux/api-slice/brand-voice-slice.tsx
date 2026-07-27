@@ -320,7 +320,9 @@ export const fetchNeverSayRulesPresets = createAsyncThunk(
   "fetchNeverSayRulesPresets",
   async (_, thunkAPI) => {
     try {
-      const response = await axiosInstance.get(ENDPOINTS.neverSayRulesPresets());
+      const response = await axiosInstance.get(
+        ENDPOINTS.neverSayRulesPresets(),
+      );
       return response.data.data;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -584,27 +586,32 @@ const BrandVoiceSlice = createSlice({
       .addCase(fetchVocabularyPresets.fulfilled, (state, action) => {
         state.FetchVocabularyPresetsState.FetchVocabularyPresetsIsLoading = false;
         state.FetchVocabularyPresetsState.FetchVocabularyPresetsIsSuccess = true;
-        state.FetchVocabularyPresetsState.FetchVocabularyPresetsData = action.payload;
+        state.FetchVocabularyPresetsState.FetchVocabularyPresetsData =
+          action.payload;
       })
       .addCase(fetchVocabularyPresets.rejected, (state, action) => {
         state.FetchVocabularyPresetsState.FetchVocabularyPresetsIsLoading = false;
         state.FetchVocabularyPresetsState.FetchVocabularyPresetsIsSuccess = false;
-        state.FetchVocabularyPresetsState.FetchVocabularyPresetsIsError = action.payload as string | object;
+        state.FetchVocabularyPresetsState.FetchVocabularyPresetsIsError =
+          action.payload as string | object;
       })
       .addCase(fetchNeverSayRulesPresets.pending, (state) => {
         state.FetchNeverSayRulesPresetsState.FetchNeverSayRulesPresetsIsLoading = true;
         state.FetchNeverSayRulesPresetsState.FetchNeverSayRulesPresetsIsSuccess = false;
-        state.FetchNeverSayRulesPresetsState.FetchNeverSayRulesPresetsIsError = null;
+        state.FetchNeverSayRulesPresetsState.FetchNeverSayRulesPresetsIsError =
+          null;
       })
       .addCase(fetchNeverSayRulesPresets.fulfilled, (state, action) => {
         state.FetchNeverSayRulesPresetsState.FetchNeverSayRulesPresetsIsLoading = false;
         state.FetchNeverSayRulesPresetsState.FetchNeverSayRulesPresetsIsSuccess = true;
-        state.FetchNeverSayRulesPresetsState.FetchNeverSayRulesPresetsData = action.payload;
+        state.FetchNeverSayRulesPresetsState.FetchNeverSayRulesPresetsData =
+          action.payload;
       })
       .addCase(fetchNeverSayRulesPresets.rejected, (state, action) => {
         state.FetchNeverSayRulesPresetsState.FetchNeverSayRulesPresetsIsLoading = false;
         state.FetchNeverSayRulesPresetsState.FetchNeverSayRulesPresetsIsSuccess = false;
-        state.FetchNeverSayRulesPresetsState.FetchNeverSayRulesPresetsIsError = action.payload as string | object;
+        state.FetchNeverSayRulesPresetsState.FetchNeverSayRulesPresetsIsError =
+          action.payload as string | object;
       });
   },
 });
