@@ -384,11 +384,6 @@ export function IntegrationCard({
       <CardContent>
         <p>{integration.description}</p>
       </CardContent>
-      {isConnected && (
-        <CardFooter>
-          <Button>Configure</Button>
-        </CardFooter>
-      )}
     </Card>
   );
 }
@@ -416,32 +411,32 @@ export default function StoreIntegrationsTabContent() {
     }
   }, [storeCode, dispatch]);
 
+  if (FetchIntegrationsIsLoading || FetchStoreIntegrationsIsLoading) {
+    return (
+      <div className="flex w-full items-center justify-center gap-2 text-muted-foreground">
+        <Spinner className="size-5" />
+        Loading…
+      </div>
+    );
+  }
+
   return (
-    <>
-      {FetchIntegrationsIsLoading ? (
-        <div className="flex items-center justify-center py-10 gap-2">
-          <Spinner className="size-6" />
-          Loading Integrations...
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {FetchIntegrationsListData.map((integration) => (
-            <IntegrationCard
-              key={integration.id}
-              integration={integration}
-              storeCode={storeCode}
-              // The connected record's own id (StoreIntegration pk),
-              // used to disconnect; undefined when not connected.
-              storeIntegrationId={
-                FetchStoreIntegrationsListData.find(
-                  (connectedIntegration) =>
-                    connectedIntegration.integration === integration.id,
-                )?.id
-              }
-            />
-          ))}
-        </div>
-      )}
-    </>
+    <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      {FetchIntegrationsListData.map((integration) => (
+        <IntegrationCard
+          key={integration.id}
+          integration={integration}
+          storeCode={storeCode}
+          // The connected record's own id (StoreIntegration pk),
+          // used to disconnect; undefined when not connected.
+          storeIntegrationId={
+            FetchStoreIntegrationsListData.find(
+              (connectedIntegration) =>
+                connectedIntegration.integration === integration.id,
+            )?.id
+          }
+        />
+      ))}
+    </div>
   );
 }
