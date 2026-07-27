@@ -287,6 +287,7 @@ export default function Customization() {
     );
 
     const payload: UpdateWidgetCustomizationPayload = {
+      store: storeId,
       primary_color: themeColor,
       secondary_color: secondaryColor,
       tertiary_color: tertiaryColor,
