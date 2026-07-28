@@ -102,7 +102,7 @@ function ToggleRow({
 }) {
   return (
     <Card>
-      <CardContent className="flex items-center justify-between gap-4 py-4">
+      <CardContent className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-0.5">
           <span className="text-sm font-medium flex items-center gap-2">
             {labelIcon}
