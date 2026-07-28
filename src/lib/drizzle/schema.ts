@@ -2068,38 +2068,6 @@ export const vocabulary = pgTable(
   ],
 );
 
-export const tonePreset = pgTable(
-  "tone_preset",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "tone_preset_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    name: varchar({ length: 100 }).notNull(),
-    description: varchar({ length: 255 }).notNull(),
-    icon: varchar({ length: 100 }),
-    warmth: smallint().notNull(),
-    formality: smallint().notNull(),
-    energy: smallint().notNull(),
-    playfulness: smallint().notNull(),
-    directness: smallint().notNull(),
-    previewQuestion: varchar("preview_question", { length: 255 }).notNull(),
-    previewMessage: varchar("preview_message", { length: 500 }).notNull(),
-  },
-  (table) => [
-    check("tone_preset_directness_check", sql`directness >= 0`),
-    check("tone_preset_energy_check", sql`energy >= 0`),
-    check("tone_preset_formality_check", sql`formality >= 0`),
-    check("tone_preset_playfulness_check", sql`playfulness >= 0`),
-    check("tone_preset_warmth_check", sql`warmth >= 0`),
-  ],
-);
-
 export const neverSayRules = pgTable(
   "never_say_rules",
   {
@@ -2298,3 +2266,72 @@ export const toneStyle = pgTable(
     check("tone_style_warmth_check", sql`warmth >= 0`),
   ],
 );
+
+export const tonePreset = pgTable(
+  "tone_preset",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "tone_preset_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    name: varchar({ length: 100 }).notNull(),
+    description: varchar({ length: 255 }).notNull(),
+    icon: varchar({ length: 100 }),
+    warmth: smallint().notNull(),
+    formality: smallint().notNull(),
+    energy: smallint().notNull(),
+    playfulness: smallint().notNull(),
+    directness: smallint().notNull(),
+    previewQuestion: varchar("preview_question", { length: 255 }).notNull(),
+    previewMessage: varchar("preview_message", { length: 500 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }),
+  },
+  (table) => [
+    check("tone_preset_directness_check", sql`directness >= 0`),
+    check("tone_preset_energy_check", sql`energy >= 0`),
+    check("tone_preset_formality_check", sql`formality >= 0`),
+    check("tone_preset_playfulness_check", sql`playfulness >= 0`),
+    check("tone_preset_warmth_check", sql`warmth >= 0`),
+  ],
+);
+
+export const neverSayRulesPreset = pgTable("never_say_rules_preset", {
+  // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+  id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+    name: "never_say_rules_preset_id_seq",
+    startWith: 1,
+    increment: 1,
+    minValue: 1,
+    maxValue: 9223372036854775807,
+    cache: 1,
+  }),
+  doNotSayPhrases: jsonb("do_not_say_phrases").notNull(),
+  forbiddenClaims: jsonb("forbidden_claims").notNull(),
+  requiredLegalPhrases: jsonb("required_legal_phrases").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }),
+});
+
+export const vocabularyPreset = pgTable("vocabulary_preset", {
+  // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+  id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+    name: "vocabulary_preset_id_seq",
+    startWith: 1,
+    increment: 1,
+    minValue: 1,
+    maxValue: 9223372036854775807,
+    cache: 1,
+  }),
+  preferredPhrases: jsonb("preferred_phrases").notNull(),
+  bannedWords: jsonb("banned_words").notNull(),
+  signaturePhrases: jsonb("signature_phrases").notNull(),
+  wordReplacementPairs: jsonb("word_replacement_pairs").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }),
+});
