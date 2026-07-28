@@ -132,7 +132,8 @@ export default function PersonaIdentity() {
           Persona Identity
         </h4>
         <p className="text-sm text-muted-foreground">
-          Who the AI is when it talks to your customers — its name, role, how it refers to itself, and how it signs off.
+          Who the AI is when it talks to your customers — its name, role, how it
+          refers to itself, and how it signs off.
         </p>
       </div>
 
