@@ -19,11 +19,20 @@ type ReplacementRowItem = {
   replace_word: string;
 };
 
+// Mirrors VocabularyFormValues in src/clients/vocabulary.tsx (structurally
+// compatible, so the parent's formik instance is assignable).
+type VocabularyFormValues = {
+  preferred_phrases: string[];
+  banned_words: string[];
+  signature_phrases: string[];
+  word_replacements: ReplacementRowItem[];
+};
+
 type ReplacementRowProps = {
   index: number;
   sayWord: string;
   replaceWord: string;
-  formik: ReturnType<typeof useFormik<any>>;
+  formik: ReturnType<typeof useFormik<VocabularyFormValues>>;
 };
 
 function ReplacementRow({
@@ -70,7 +79,7 @@ function ReplacementRow({
 // BrandVoiceVocabularyChipLists
 
 type BrandVoiceVocabularyChipListsProps = {
-  formik: ReturnType<typeof useFormik<any>>;
+  formik: ReturnType<typeof useFormik<VocabularyFormValues>>;
   preferredPhrases: string[];
   bannedWords: string[];
   signaturePhrases: string[];

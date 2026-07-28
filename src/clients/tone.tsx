@@ -192,7 +192,8 @@ export default function BrandVoiceToneStyleEditor() {
           Tone & Style
         </h4>
         <p className="text-sm text-muted-foreground">
-          Define how your assistant communicates. Choose a preset and fine-tune the tone to match your brand and customers.
+          Define how your assistant communicates. Choose a preset and fine-tune
+          the tone to match your brand and customers.
         </p>
       </div>
 
