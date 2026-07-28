@@ -8,6 +8,8 @@ import {
   tonePreset,
   toneStyle,
   vocabulary,
+  vocabularyPreset,
+  neverSayRulesPreset,
   vocabularyWordReplacements,
   wordReplacement,
 } from "@/lib/drizzle/schema";
@@ -40,6 +42,13 @@ export type NeverSayRulesRow = {
   required_legal_phrases: RequiredLegalPhrase[];
   created_at: string;
   updated_at: string;
+};
+
+export type NeverSayRulesPresetRecord = {
+  id: number;
+  do_not_say_phrases: string[];
+  forbidden_claims: string[];
+  required_legal_phrases: RequiredLegalPhrase[];
 };
 
 // Tone & Style Types
@@ -96,6 +105,19 @@ export type VocabularyRecord = {
   word_replacements: WordReplacementRecord[];
   created_at: string;
   updated_at: string;
+};
+
+export type WordReplacementPair = {
+  say_word: string;
+  replace_word: string;
+};
+
+export type VocabularyPresetRecord = {
+  id: number;
+  preferred_phrases: string[];
+  banned_words: string[];
+  signature_phrases: string[];
+  word_replacement_pairs: WordReplacementPair[];
 };
 
 export type VocabularyPayload = {
@@ -276,4 +298,39 @@ export async function getVocabulary(
     signature_phrases: (row.signature_phrases ?? []) as string[],
     word_replacements: replacements,
   };
+}
+
+export async function listVocabularyPresets(): Promise<
+  VocabularyPresetRecord[]
+> {
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: vocabularyPreset.id,
+      preferred_phrases: vocabularyPreset.preferredPhrases,
+      banned_words: vocabularyPreset.bannedWords,
+      signature_phrases: vocabularyPreset.signaturePhrases,
+      word_replacement_pairs: vocabularyPreset.wordReplacementPairs,
+    })
+    .from(vocabularyPreset)
+    .orderBy(asc(vocabularyPreset.id));
+
+  return rows as VocabularyPresetRecord[];
+}
+
+export async function listNeverSayRulesPresets(): Promise<
+  NeverSayRulesPresetRecord[]
+> {
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: neverSayRulesPreset.id,
+      do_not_say_phrases: neverSayRulesPreset.doNotSayPhrases,
+      forbidden_claims: neverSayRulesPreset.forbiddenClaims,
+      required_legal_phrases: neverSayRulesPreset.requiredLegalPhrases,
+    })
+    .from(neverSayRulesPreset)
+    .orderBy(asc(neverSayRulesPreset.id));
+
+  return rows as unknown as NeverSayRulesPresetRecord[];
 }

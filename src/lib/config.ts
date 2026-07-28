@@ -132,6 +132,8 @@ export const ENDPOINTS = {
   // Brand Voice reads use the local DB-backed chat routes; writes go straight to
   // Django's upsert endpoints.
   tonePresets: () => `/chat/tone-presets/`,
+  vocabularyPresets: () => "/chat/vocabulary-presets/",
+  neverSayRulesPresets: () => "/chat/never-say-rules-presets/",
   toneStyle: () => `/chat/tone-style/`,
   vocabulary: () => `/chat/vocabulary/`,
 };
