@@ -316,7 +316,14 @@ export default function ThreadDetailDrawer({
           <div className="flex flex-col h-full overflow-hidden px-4 gap-2">
             <div className="mb-2 flex items-center justify-between gap-2">
               <h3 className="text-lg font-semibold">Thread Details</h3>
-              <CreateTicketDialog threadId={activeThreadId} />
+              <CreateTicketDialog
+                threadId={activeThreadId}
+                customerEmail={
+                  thread?.customer?.email ||
+                  FetchThreadDetailsData?.customer_email ||
+                  ""
+                }
+              />
             </div>
             <div className="h-full space-y-4 p-2 overflow-y-auto">
               <ThreadSummaryCard

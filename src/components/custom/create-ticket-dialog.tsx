@@ -19,12 +19,19 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
-export function CreateTicketDialog({ threadId }: { threadId: string }) {
+export function CreateTicketDialog({
+  threadId,
+  customerEmail: threadCustomerEmail = "",
+}: {
+  threadId: string;
+  customerEmail?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [customerEmail, setCustomerEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [generateDescription, setGenerateDescription] = useState(false);
+  const hasThreadCustomerEmail = Boolean(threadCustomerEmail);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -58,8 +65,9 @@ export function CreateTicketDialog({ threadId }: { threadId: string }) {
             <Input
               id="ticket-customer-email"
               type="email"
-              value={customerEmail}
+              value={hasThreadCustomerEmail ? threadCustomerEmail : customerEmail}
               onChange={(event) => setCustomerEmail(event.target.value)}
+              disabled={hasThreadCustomerEmail}
               placeholder="customer@example.com"
             />
           </div>
