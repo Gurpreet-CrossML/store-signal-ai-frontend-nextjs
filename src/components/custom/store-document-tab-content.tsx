@@ -35,9 +35,7 @@ export default function StoreDocumentTabContent() {
   return (
     <div className="flex w-full flex-col gap-4 py-4">
       <div className="flex items-center gap-2">
-        <div className="flex size-9 items-center justify-center bg-primary/10 text-primary">
-          <IconBook className="size-5" />
-        </div>
+        <IconBook className="size-5" />
         <div className="flex flex-col">
           <h2 className="font-heading text-sm font-medium">Library</h2>
           <p className="text-xs text-muted-foreground">

@@ -111,9 +111,7 @@ export default function StoreFaqTabContent() {
     <div className="flex w-full flex-col gap-4 py-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-2">
-          <div className="flex size-9 items-center justify-center bg-primary/10 text-primary">
-            <IconMessageQuestion className="size-5" />
-          </div>
+          <IconMessageQuestion className="size-5" />
           <div className="flex flex-col">
             <h2 className="font-heading font-medium">Quick Q&As</h2>
             <p className="text-muted-foreground">
@@ -180,7 +178,7 @@ export default function StoreFaqTabContent() {
           ))}
         </Accordion>
       ) : (
-        <div className="flex h-32 flex-col items-center justify-center border border-dashed border-border text-xs text-muted-foreground">
+        <div className="flex h-32 flex-col items-center justify-center border border-dashed border-border text-xs text-muted-foreground rounded-lg">
           No Quick Q&As added yet. Click the button above to add one.
         </div>
       )}
