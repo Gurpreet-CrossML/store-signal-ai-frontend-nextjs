@@ -18,17 +18,6 @@ export type WidgetQuickLink = {
   is_active: boolean;
 };
 
-export type CreateWidgetCustomizationPayload = {
-  store?: number;
-  primary_color?: string;
-  secondary_color?: string;
-  tertiary_color?: string;
-  welcome_message?: string;
-  greeting_message?: string;
-  quick_actions?: Omit<WidgetQuickAction, "id">[];
-  quick_links?: Omit<WidgetQuickLink, "id">[];
-};
-
 export type UpdateWidgetCustomizationPayload = {
   store?: number;
   primary_color?: string;
@@ -85,41 +74,6 @@ export const FetchWidgetCustomization = createAsyncThunk(
         description:
           data?.message ||
           "Unable to fetch customization metrics, please try again later.",
-      });
-
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
-
-export const CreateWidgetCustomization = createAsyncThunk(
-  "customization/createWidgetCustomization",
-  async (
-    {
-      storeId,
-      payload,
-    }: { storeId: number; payload: CreateWidgetCustomizationPayload },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.post(
-        `${ENDPOINTS.widgetCustomization(storeId)}`,
-        payload,
-      );
-      const data = response.data.data;
-
-      toast.success(
-        response?.data?.message || "Widget customization created successfully",
-      );
-      return data;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to create widget customization, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -239,11 +193,6 @@ const CustomizationSlice = createSlice({
       FetchWidgetCustomizationData:
         null as null | WidgetCustomizationDataResponse,
     },
-    CreateWidgetCustomizationState: {
-      CreateWidgetCustomizationIsLoading: false,
-      CreateWidgetCustomizationIsSuccess: false,
-      CreateWidgetCustomizationIsError: null as null | string | object,
-    },
     UpdateWidgetCustomizationState: {
       UpdateWidgetCustomizationIsLoading: false,
       UpdateWidgetCustomizationIsSuccess: false,
@@ -274,25 +223,6 @@ const CustomizationSlice = createSlice({
         state.FetchWidgetCustomizationState.FetchWidgetCustomizationIsLoading = false;
         state.FetchWidgetCustomizationState.FetchWidgetCustomizationIsSuccess = false;
         state.FetchWidgetCustomizationState.FetchWidgetCustomizationIsError =
-          action.payload || "Something went wrong";
-      })
-      // CreateWidgetCustomization
-      .addCase(CreateWidgetCustomization.pending, (state) => {
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsLoading = true;
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsSuccess = false;
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsError =
-          null;
-      })
-      .addCase(CreateWidgetCustomization.fulfilled, (state, action) => {
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsLoading = false;
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsSuccess = true;
-        state.FetchWidgetCustomizationState.FetchWidgetCustomizationData =
-          action.payload;
-      })
-      .addCase(CreateWidgetCustomization.rejected, (state, action) => {
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsLoading = false;
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsSuccess = false;
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsError =
           action.payload || "Something went wrong";
       })
       // UpdateWidgetCustomization
