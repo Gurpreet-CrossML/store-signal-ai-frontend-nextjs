@@ -81,7 +81,7 @@ export default function DropZone({ storeCode, onUploaded }: DropZoneProps) {
           }
         }}
         className={cn(
-          "flex cursor-pointer flex-col items-center justify-center gap-1.5 border-2 border-dashed px-6 py-6 text-center transition-colors",
+          "flex cursor-pointer flex-col items-center justify-center gap-1.5 border-2 border-dashed px-6 py-6 text-center transition-colors rounded-lg",
           dragOver
             ? "border-primary bg-primary/5"
             : "border-border hover:border-primary/40 hover:bg-muted/50",
