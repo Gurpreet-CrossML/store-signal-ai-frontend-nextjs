@@ -121,31 +121,85 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <SidebarMenuSub>
-                        {item.items?.map((subItem) => (
-                          <SidebarMenuSubItem key={subItem.title}>
-                            <SidebarMenuSubButton
-                              className={cn(
-                                pathname == subItem.url
-                                  ? "min-w-8 bg-purple-200 text-primary duration-200 ease-linear hover:bg-purple-200/90 hover:text-primary active:bg-purple-200/90 active:text-primary"
-                                  : "",
-                              )}
-                              asChild
-                            >
-                              <Link href={subItem.url}>
-                                {subItem.icon && (
-                                  <subItem.icon
-                                    className={cn(
-                                      pathname == subItem.url
-                                        ? "text-primary!"
-                                        : "",
-                                    )}
-                                  />
+                        {item.items?.map((subItem) => {
+                          if (subItem.items && subItem.items.length > 0) {
+                            return (
+                              <Collapsible
+                                key={subItem.title}
+                                asChild
+                                defaultOpen={subItem.isExpanded}
+                                className="group/sub-collapsible"
+                              >
+                                <SidebarMenuSubItem>
+                                  <CollapsibleTrigger asChild>
+                                    <SidebarMenuSubButton className="w-full flex justify-between cursor-pointer">
+                                      <div className="flex items-center gap-2">
+                                        {subItem.icon && <subItem.icon className="h-4 w-4" />}
+                                        <span>{subItem.title}</span>
+                                      </div>
+                                      <IconChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/sub-collapsible:rotate-90" />
+                                    </SidebarMenuSubButton>
+                                  </CollapsibleTrigger>
+                                  <CollapsibleContent>
+                                    <SidebarMenuSub>
+                                      {subItem.items.map((nestedItem) => (
+                                        <SidebarMenuSubItem key={nestedItem.title}>
+                                          <SidebarMenuSubButton
+                                            className={cn(
+                                              pathname == nestedItem.url
+                                                ? "min-w-8 bg-purple-200 text-primary duration-200 ease-linear hover:bg-purple-200/90 hover:text-primary active:bg-purple-200/90 active:text-primary"
+                                                : "",
+                                            )}
+                                            asChild
+                                          >
+                                            <Link href={nestedItem.url}>
+                                              {nestedItem.icon && (
+                                                <nestedItem.icon
+                                                  className={cn(
+                                                    pathname == nestedItem.url
+                                                      ? "text-primary! h-4 w-4"
+                                                      : "h-4 w-4",
+                                                  )}
+                                                />
+                                              )}
+                                              <span>{nestedItem.title}</span>
+                                            </Link>
+                                          </SidebarMenuSubButton>
+                                        </SidebarMenuSubItem>
+                                      ))}
+                                    </SidebarMenuSub>
+                                  </CollapsibleContent>
+                                </SidebarMenuSubItem>
+                              </Collapsible>
+                            );
+                          }
+
+                          return (
+                            <SidebarMenuSubItem key={subItem.title}>
+                              <SidebarMenuSubButton
+                                className={cn(
+                                  pathname == subItem.url
+                                    ? "min-w-8 bg-purple-200 text-primary duration-200 ease-linear hover:bg-purple-200/90 hover:text-primary active:bg-purple-200/90 active:text-primary"
+                                    : "",
                                 )}
-                                <span>{subItem.title}</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
+                                asChild
+                              >
+                                <Link href={subItem.url}>
+                                  {subItem.icon && (
+                                    <subItem.icon
+                                      className={cn(
+                                        pathname == subItem.url
+                                          ? "text-primary!"
+                                          : "",
+                                      )}
+                                    />
+                                  )}
+                                  <span>{subItem.title}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          );
+                        })}
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   </SidebarMenuItem>

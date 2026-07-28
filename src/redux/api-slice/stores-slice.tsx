@@ -34,8 +34,6 @@ export const GetStores = createAsyncThunk<Store[], GetStoresArgs>(
       );
       const data = response.data.data;
 
-      toast.success(response?.data?.message || "Stores fetched successfully!");
-
       return data;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
