@@ -46,9 +46,9 @@ import {
   vocabulary,
   neverSayRules,
   personaIdentity,
-  toneStyle,
   vocabularyWordReplacements,
   wordReplacement,
+  toneStyle,
 } from "./schema";
 
 export const authPermissionRelations = relations(

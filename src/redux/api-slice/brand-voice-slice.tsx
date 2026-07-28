@@ -1,8 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { axiosInstance } from "../axios-config";
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
-import { ENDPOINTS } from "@/lib/config";
 
 import { ENDPOINTS } from "@/lib/config";
 import { axiosInstance } from "@/redux/axios-config";

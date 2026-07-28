@@ -37,18 +37,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  GetStores,
-  setSelectedStore,
-  SELECTED_STORE_KEY,
-} from "@/redux/api-slice/stores-slice";
-import { useEffect } from "react";
-import { SideBarMenuItem } from "@/lib/sidebar-navs";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 
 function StoreSelector() {
   const dispatch = useAppDispatch();
@@ -141,7 +129,7 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
                           <SidebarMenuSubItem key={subItem.title}>
                             <SidebarMenuSubButton
                               className={cn(
-                                pathname == subItem.url
+                                currentUrl == subItem.url
                                   ? "min-w-8 bg-purple-200 text-primary duration-200 ease-linear hover:bg-purple-200/90 hover:text-primary active:bg-purple-200/90 active:text-primary"
                                   : "",
                               )}
@@ -151,7 +139,7 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
                                 {subItem.icon && (
                                   <subItem.icon
                                     className={cn(
-                                      pathname == subItem.url
+                                      currentUrl == subItem.url
                                         ? "text-primary!"
                                         : "",
                                     )}
