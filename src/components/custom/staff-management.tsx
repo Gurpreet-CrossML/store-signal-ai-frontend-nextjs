@@ -24,14 +24,13 @@ import { StaffDataTable } from "@/components/custom/staff-data-table";
 import { getStaffColumns } from "@/components/custom/staff-columns";
 import { Spinner } from "../ui/spinner";
 
-export default function StaffManagement(
-  {
-    className,
-    contentClassName,
-  }: {
-    className?: string;
-    contentClassName?: string;
-  }) {
+export default function StaffManagement({
+  className,
+  contentClassName,
+}: {
+  className?: string;
+  contentClassName?: string;
+}) {
   const dispatch = useAppDispatch();
   const { staff, staffLoading } = useAppSelector(
     (state) => state.GetTenancyReducer,
