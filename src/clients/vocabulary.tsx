@@ -97,33 +97,38 @@ export default function BrandVoiceVocabularyEditor() {
 
   // If the store has no saved data yet, we generate a starting template.
   // This reduces (merges) ALL the different global vocabulary presets into one single set of arrays.
-  const mergedVocabPresets = (FetchVocabularyPresetsData || []).reduce(
-    (combinedVocab: any, currentPreset: any) => ({
+  const mergedVocabPresets = (
+    FetchVocabularyPresetsData || []
+  ).reduce<VocabularyFormValues>(
+    (combinedVocab, currentPreset) => ({
       preferred_phrases: [
-        ...(combinedVocab.preferred_phrases || []),
+        ...combinedVocab.preferred_phrases,
         ...(currentPreset.preferred_phrases || []),
       ],
       banned_words: [
-        ...(combinedVocab.banned_words || []),
+        ...combinedVocab.banned_words,
         ...(currentPreset.banned_words || []),
       ],
       signature_phrases: [
-        ...(combinedVocab.signature_phrases || []),
+        ...combinedVocab.signature_phrases,
         ...(currentPreset.signature_phrases || []),
       ],
       word_replacements: [
-        ...(combinedVocab.word_replacements || []),
+        ...combinedVocab.word_replacements,
         // Note: The preset data returns replacement pairs under 'word_replacement_pairs'
         ...(currentPreset.word_replacement_pairs || []),
       ],
     }),
-    {},
+    {
+      preferred_phrases: [],
+      banned_words: [],
+      signature_phrases: [],
+      word_replacements: [],
+    },
   );
 
   // Apply the store's actual saved data if it has any; otherwise use the merged presets template.
-  const initialVocab = hasVocabData
-    ? FetchVocabularyData
-    : (mergedVocabPresets as VocabularyFormValues);
+  const initialVocab = hasVocabData ? FetchVocabularyData : mergedVocabPresets;
 
   // Initialize formik for form state management
   const formik = useFormik<VocabularyFormValues>({
