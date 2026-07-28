@@ -186,7 +186,7 @@ export default function BrandVoiceToneStyleEditor() {
   };
 
   return (
-    <div className="flex flex-col gap-4 px-4">
+    <div className="flex flex-col gap-4 p-4 pt-0">
       <div>
         <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
           Tone & Style
@@ -205,7 +205,7 @@ export default function BrandVoiceToneStyleEditor() {
       ) : (
         <form
           onSubmit={formik.handleSubmit}
-          className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,0.5fr)]"
+          className="grid grid-cols-1 gap-6" //xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,0.5fr)]
         >
           <div className="flex flex-col gap-6">
             <BrandVoiceTonePresetSelector
@@ -234,7 +234,7 @@ export default function BrandVoiceToneStyleEditor() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-6">
+          {/* <div className="flex flex-col gap-6">
             <ToneStylePreviewPanel
               preset={selectedPreset ?? null}
               presetOrder={FetchTonePresetsData}
@@ -248,7 +248,7 @@ export default function BrandVoiceToneStyleEditor() {
                 useBulletPoints: formik.values.use_bullet_points,
               }}
             />
-          </div>
+          </div> */}
         </form>
       )}
     </div>

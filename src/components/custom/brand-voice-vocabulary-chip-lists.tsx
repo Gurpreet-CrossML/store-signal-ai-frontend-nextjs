@@ -2,7 +2,7 @@
 
 import { useState, type KeyboardEvent } from "react";
 import type { useFormik } from "formik";
-import { IconX, IconPlus } from "@tabler/icons-react";
+import { IconX, IconPlus, IconTrash, IconTextSpellcheck, IconBan, IconSignature, IconReplace } from "@tabler/icons-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,36 +42,38 @@ function ReplacementRow({
   formik,
 }: ReplacementRowProps) {
   return (
-    <div className="grid gap-4 rounded-xl border border-border/60 bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
-      <div className="flex min-w-0 flex-col gap-2">
-        <FieldLabel htmlFor={`word_replacements.${index}.say_word`}>
-          Say word
-        </FieldLabel>
-        <Input
-          id={`word_replacements.${index}.say_word`}
-          name={`word_replacements.${index}.say_word`}
-          value={sayWord}
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-          placeholder="e.g. basket"
-          autoComplete="off"
-        />
-      </div>
-      <div className="flex min-w-0 flex-col gap-2">
-        <FieldLabel htmlFor={`word_replacements.${index}.replace_word`}>
-          Replace with
-        </FieldLabel>
-        <Input
-          id={`word_replacements.${index}.replace_word`}
-          name={`word_replacements.${index}.replace_word`}
-          value={replaceWord}
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-          placeholder="e.g. cart"
-          autoComplete="off"
-        />
-      </div>
-      <div className="flex items-center gap-1.5 lg:justify-end"></div>
+    <div className="flex justify-center items-center gap-2">
+      <Input
+        id={`word_replacements.${index}.say_word`}
+        name={`word_replacements.${index}.say_word`}
+        value={sayWord}
+        onChange={formik.handleChange}
+        onBlur={formik.handleBlur}
+        placeholder="e.g. basket"
+        autoComplete="off"
+      />
+      <Input
+        id={`word_replacements.${index}.replace_word`}
+        name={`word_replacements.${index}.replace_word`}
+        value={replaceWord}
+        onChange={formik.handleChange}
+        onBlur={formik.handleBlur}
+        placeholder="e.g. cart"
+        autoComplete="off"
+      />
+      <Button
+        variant="ghost"
+        size="icon"
+        type="button"
+        onClick={() => {
+          const updatedReplacements = formik.values.word_replacements.filter(
+            (_, i) => i !== index,
+          );
+          formik.setFieldValue("word_replacements", updatedReplacements);
+        }}
+      >
+        <IconTrash className="size-4" />
+      </Button>
     </div>
   );
 }
@@ -104,83 +106,88 @@ export default function BrandVoiceVocabularyChipLists({
   return (
     <div className="grid grid-cols-1 items-stretch gap-6 lg:auto-rows-[20rem] lg:grid-cols-2">
       <Card>
-        <CardContent className="flex h-full flex-col gap-3 pt-6">
+        <CardContent className="flex flex-col gap-3 justify-start pt-0">
           <div className="flex flex-col gap-0.5">
             <Label className="text-base font-semibold">
+              <IconTextSpellcheck className="size-4" />
               Preferred words & phrases
             </Label>
             <p className="text-xs text-muted-foreground">
               The AI leans toward these when they fit naturally.
             </p>
           </div>
-          <div className="flex flex-1 flex-col overflow-y-auto pr-1 [&>div]:flex-1 [&_input]:mt-auto">
-            <ChipList
-              items={preferredPhrases}
-              placeholder="Add a preferred phrase and press Enter"
-              onAdd={(value) => onPreferredChange([...preferredPhrases, value])}
-              onRemove={(index) =>
-                onPreferredChange(
-                  preferredPhrases.filter((_, i) => i !== index),
-                )
-              }
-              chipClassName="bg-secondary text-secondary-foreground"
-            />
-          </div>
+          <ChipList
+            items={preferredPhrases}
+            placeholder="Add a preferred phrase and press Enter"
+            onAdd={(value) => onPreferredChange([...preferredPhrases, value])}
+            onRemove={(index) =>
+              onPreferredChange(
+                preferredPhrases.filter((_, i) => i !== index),
+              )
+            }
+            chipClassName="bg-secondary text-secondary-foreground"
+          />
         </CardContent>
       </Card>
 
       <Card>
-        <CardContent className="flex h-full flex-col gap-3 pt-6">
+        <CardContent className="flex flex-col gap-3 justify-start pt-0">
           <div className="flex flex-col gap-0.5">
-            <Label className="text-base font-semibold">Banned words</Label>
+            <Label className="text-base font-semibold">
+              <IconBan className="size-4" />
+              Banned words
+            </Label>
             <p className="text-xs text-muted-foreground">
               The AI never uses these. Checked deterministically.
             </p>
           </div>
-          <div className="flex flex-1 flex-col overflow-y-auto pr-1 [&>div]:flex-1 [&_input]:mt-auto">
-            <ChipList
-              items={bannedWords}
-              placeholder="Add a banned word and press Enter"
-              onAdd={(value) => onBannedChange([...bannedWords, value])}
-              onRemove={(index) =>
-                onBannedChange(bannedWords.filter((_, i) => i !== index))
-              }
-              chipClassName="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
-            />
-          </div>
+          <ChipList
+            items={bannedWords}
+            placeholder="Add a banned word and press Enter"
+            onAdd={(value) => onBannedChange([...bannedWords, value])}
+            onRemove={(index) =>
+              onBannedChange(bannedWords.filter((_, i) => i !== index))
+            }
+            chipClassName="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
+          />
         </CardContent>
       </Card>
 
       <Card>
-        <CardContent className="flex h-full flex-col gap-3 pt-6">
+        <CardContent className="flex flex-col gap-3 justify-start pt-0">
           <div className="flex flex-col gap-0.5">
-            <Label className="text-base font-semibold">Signature phrases</Label>
+            <Label className="text-base font-semibold">
+              <IconSignature className="size-4" />
+              Signature phrases
+            </Label>
             <p className="text-xs text-muted-foreground">
               Brand catchphrases the AI sprinkles in naturally.
             </p>
           </div>
-          <div className="flex flex-1 flex-col overflow-y-auto pr-1 [&>div]:flex-1 [&_input]:mt-auto">
-            <ChipList
-              items={signaturePhrases}
-              placeholder="Add a signature phrase and press Enter"
-              onAdd={(value) => onSignatureChange([...signaturePhrases, value])}
-              onRemove={(index) =>
-                onSignatureChange(
-                  signaturePhrases.filter((_, i) => i !== index),
-                )
-              }
-            />
-          </div>
+          <ChipList
+            items={signaturePhrases}
+            placeholder="Add a signature phrase and press Enter"
+            onAdd={(value) => onSignatureChange([...signaturePhrases, value])}
+            onRemove={(index) =>
+              onSignatureChange(
+                signaturePhrases.filter((_, i) => i !== index),
+              )
+            }
+          />
         </CardContent>
       </Card>
 
       {/* Word Replacements */}
       <Card className="flex h-full min-h-0 flex-col gap-0 overflow-hidden">
-        <CardHeader className="px-5 py-4">
-          <div className="flex items-start justify-between gap-3">
+
+        <CardContent className="flex flex-1 min-h-0 flex-col gap-3 px-5 pb-5">
+          <div className="flex items-start justify-between gap-3 w-full">
             <div>
-              <CardTitle>Word replacements</CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <Label className="text-base font-semibold">
+                <IconReplace className="size-4" />
+                Word replacements
+              </Label>
+              <p className="text-xs text-muted-foreground">
                 Exact swaps the AI always makes.
               </p>
             </div>
@@ -189,14 +196,19 @@ export default function BrandVoiceVocabularyChipLists({
               variant="outline"
               size="sm"
               onClick={onReplacementAdd}
-              className="h-9 shrink-0"
             >
               <IconPlus className="size-4" />
               Add replacement
             </Button>
           </div>
-        </CardHeader>
-        <CardContent className="flex flex-1 min-h-0 flex-col gap-3 px-5 pb-5">
+          <div className="flex justify-center items-center gap-2 w-full">
+            <Label className="text-xs w-full font-bold">
+              Say Word
+            </Label>
+            <Label className="text-xs w-full font-bold -ml-8">
+              Replace With
+            </Label>
+          </div>
           {wordReplacements.length ? (
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
               {wordReplacements.map((row, index) => (

@@ -182,7 +182,17 @@ export default function BrandVoiceVocabularyEditor() {
   const values = formik.values;
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col gap-4 p-4 pt-0">
+      <div>
+        <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
+          Vocabulary
+        </h4>
+        <p className="text-sm text-muted-foreground">
+          The specific words that make your brand sound like you.
+          Preferred phrases to lean into, words to ban, signature
+          expressions, and exact swaps the AI always makes.
+        </p>
+      </div>
       {FetchVocabularyIsLoading || FetchVocabularyPresetsIsLoading ? (
         <div className="flex items-center justify-center gap-2 py-10">
           <Spinner className="size-6" />
@@ -191,14 +201,6 @@ export default function BrandVoiceVocabularyEditor() {
       ) : (
         <form onSubmit={formik.handleSubmit} className="flex flex-col gap-6">
           <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-                The specific words that make your brand sound like you.
-                Preferred phrases to lean into, words to ban, signature
-                expressions, and exact swaps the AI always makes.
-              </p>
-            </div>
-
             <BrandVoiceVocabularyChipLists
               formik={formik}
               preferredPhrases={values.preferred_phrases}

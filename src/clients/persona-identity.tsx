@@ -126,7 +126,7 @@ export default function PersonaIdentity() {
   });
 
   return (
-    <div className="flex flex-col gap-4 px-4">
+    <div className="flex flex-col gap-4 p-4 pt-0">
       <div>
         <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
           Persona Identity

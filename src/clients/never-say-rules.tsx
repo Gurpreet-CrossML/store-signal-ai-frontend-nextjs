@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import z from "zod";
-import { IconPlus, IconTrash, IconX } from "@tabler/icons-react";
+import { IconBrain, IconBrandTripadvisor, IconForbid, IconHandStop, IconPlus, IconScale, IconTrash, IconX } from "@tabler/icons-react";
 
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,17 @@ export function ChipList({
 
   return (
     <div className="flex flex-col gap-3">
+      <Input
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            commit();
+          }
+        }}
+        placeholder={placeholder}
+      />
       <div className="flex flex-wrap gap-2">
         {items.map((item, index) => (
           <span
@@ -72,27 +83,18 @@ export function ChipList({
           </span>
         ))}
       </div>
-      <Input
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            commit();
-          }
-        }}
-        placeholder={placeholder}
-      />
     </div>
   );
 }
 
 function ToggleRow({
+  labelIcon,
   label,
   description,
   checked,
   onCheckedChange,
 }: {
+  labelIcon?: React.ReactNode;
   label: string;
   description: string;
   checked: boolean;
@@ -102,7 +104,10 @@ function ToggleRow({
     <Card>
       <CardContent className="flex items-center justify-between gap-4 py-4">
         <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-medium">{label}</span>
+          <span className="text-sm font-medium flex items-center gap-2">
+            {labelIcon}
+            {label}
+          </span>
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
         <Switch checked={checked} onCheckedChange={onCheckedChange} />
@@ -245,7 +250,15 @@ export default function NeverSayRules() {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col gap-4 p-4 pt-0">
+      <div>
+        <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
+          Never-Say Rules
+        </h4>
+        <p className="text-sm text-muted-foreground">
+          These are language guardrails — kept separate from what the AI <em>does</em> (workflow guidance) and from hard action limits like refund caps (the Action Engine). Voice governs how it sounds; these govern what it must never say.
+        </p>
+      </div>
       {FetchNeverSayRulesIsLoading || FetchNeverSayRulesPresetsIsLoading ? (
         <div className="flex items-center justify-center gap-2 py-10">
           <Spinner className="size-6" />
@@ -254,25 +267,14 @@ export default function NeverSayRules() {
       ) : (
         <form onSubmit={formik.handleSubmit} className="flex flex-col gap-6">
           <div className="flex flex-col gap-6">
-            <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3">
-              <span className="mt-0.5 text-muted-foreground">ℹ</span>
-              <p className="text-sm text-muted-foreground">
-                These are{" "}
-                <span className="font-semibold text-foreground">
-                  language guardrails
-                </span>{" "}
-                — kept separate from what the AI <em>does</em> (workflow
-                guidance) and from hard action limits like refund caps (the
-                Action Engine). Voice governs how it sounds; these govern what
-                it must never say.
-              </p>
-            </div>
-
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Card>
-                <CardContent className="flex flex-col gap-3">
+                <CardContent className="flex flex-col gap-3 justify-start pt-0">
                   <div className="flex flex-col gap-0.5">
-                    <Label>Do-not-say list</Label>
+                    <Label>
+                      <IconHandStop className="size-4" />
+                      Do-not-say list
+                    </Label>
                     <p className="text-xs text-muted-foreground">
                       Phrases the AI is never allowed to use.
                     </p>
@@ -284,15 +286,17 @@ export default function NeverSayRules() {
                     onRemove={(index) =>
                       removePhrase("do_not_say_phrases", index)
                     }
-                    chipClassName="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
                   />
                 </CardContent>
               </Card>
 
               <Card>
-                <CardContent className="flex flex-col gap-3">
+                <CardContent className="flex flex-col gap-3 justify-start pt-0">
                   <div className="flex flex-col gap-0.5">
-                    <Label>Forbidden claims</Label>
+                    <Label>
+                      <IconForbid className="size-4" />
+                      Forbidden claims
+                    </Label>
                     <p className="text-xs text-muted-foreground">
                       Claims the AI must never make, for trust and legal safety.
                     </p>
@@ -308,22 +312,13 @@ export default function NeverSayRules() {
                   />
                 </CardContent>
               </Card>
-
-              <ToggleRow
-                label="No hollow apologies"
-                description={
-                  'Avoid over-apologising or empty "so sorry" filler'
-                }
-                checked={formik.values.no_hollow_apologies ?? false}
-                onCheckedChange={(value) =>
-                  formik.setFieldValue("no_hollow_apologies", value)
-                }
-              />
-
-              <Card>
+            </div>
+            <Card>
                 <CardContent className="flex flex-col gap-3">
                   <div className="flex flex-col gap-0.5">
-                    <Label>Required legal phrasing</Label>
+                    <Label>
+                      <IconScale className="size-4" />
+                      Required legal phrasing</Label>
                     <p className="text-xs text-muted-foreground">
                       Exact wording the AI must include in specific contexts.
                     </p>
@@ -401,9 +396,21 @@ export default function NeverSayRules() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
 
             <ToggleRow
+              labelIcon={<IconBrandTripadvisor className="size-4" />}
+              label="No hollow apologies"
+              description={
+                'Avoid over-apologising or empty "so sorry" filler'
+              }
+              checked={formik.values.no_hollow_apologies ?? false}
+              onCheckedChange={(value) =>
+                formik.setFieldValue("no_hollow_apologies", value)
+              }
+            />
+
+            <ToggleRow
+              labelIcon={<IconBrain className="size-4" />}
               label="Never reveal it's an AI unprompted"
               description="Stay in persona unless the customer asks directly"
               checked={formik.values.never_reveal_ai_unprompted ?? false}
