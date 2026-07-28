@@ -10,6 +10,7 @@ import { UploadLibraryDocument } from "@/redux/api-slice/knowledge-slice";
 
 const ACCEPTED_TYPES =
   ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
 type DropZoneProps = {
   storeCode: string;
@@ -31,6 +32,11 @@ export default function DropZone({ storeCode, onUploaded }: DropZoneProps) {
     const fileType = file.type;
     if (!fileType || !ACCEPTED_TYPES.includes(fileType)) {
       setError("Only PDF and DOCX files are supported.");
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      setError(`File size must not exceed ${MAX_FILE_SIZE}MB.`);
       return;
     }
 

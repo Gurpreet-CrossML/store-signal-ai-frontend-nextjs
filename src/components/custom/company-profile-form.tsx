@@ -48,8 +48,8 @@ export default function CompanyProfileForm({
   className,
   contentClassName,
 }: {
-  className?: string
-  contentClassName?: string
+  className?: string;
+  contentClassName?: string;
 }) {
   const dispatch = useAppDispatch();
   const { companyProfile, companyLoading, companySaving } = useAppSelector(
