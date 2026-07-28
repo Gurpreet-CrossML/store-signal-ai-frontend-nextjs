@@ -2,7 +2,15 @@
 
 import { useState, type KeyboardEvent } from "react";
 import type { useFormik } from "formik";
-import { IconX, IconPlus, IconTrash, IconTextSpellcheck, IconBan, IconSignature, IconReplace } from "@tabler/icons-react";
+import {
+  IconX,
+  IconPlus,
+  IconTrash,
+  IconTextSpellcheck,
+  IconBan,
+  IconSignature,
+  IconReplace,
+} from "@tabler/icons-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -121,9 +129,7 @@ export default function BrandVoiceVocabularyChipLists({
             placeholder="Add a preferred phrase and press Enter"
             onAdd={(value) => onPreferredChange([...preferredPhrases, value])}
             onRemove={(index) =>
-              onPreferredChange(
-                preferredPhrases.filter((_, i) => i !== index),
-              )
+              onPreferredChange(preferredPhrases.filter((_, i) => i !== index))
             }
             chipClassName="bg-secondary text-secondary-foreground"
           />
@@ -169,9 +175,7 @@ export default function BrandVoiceVocabularyChipLists({
             placeholder="Add a signature phrase and press Enter"
             onAdd={(value) => onSignatureChange([...signaturePhrases, value])}
             onRemove={(index) =>
-              onSignatureChange(
-                signaturePhrases.filter((_, i) => i !== index),
-              )
+              onSignatureChange(signaturePhrases.filter((_, i) => i !== index))
             }
           />
         </CardContent>
@@ -179,7 +183,6 @@ export default function BrandVoiceVocabularyChipLists({
 
       {/* Word Replacements */}
       <Card className="flex h-full min-h-0 flex-col gap-0 overflow-hidden">
-
         <CardContent className="flex flex-1 min-h-0 flex-col gap-3 px-5 pb-5">
           <div className="flex items-start justify-between gap-3 w-full">
             <div>
@@ -202,9 +205,7 @@ export default function BrandVoiceVocabularyChipLists({
             </Button>
           </div>
           <div className="flex justify-center items-center gap-2 w-full">
-            <Label className="text-xs w-full font-bold">
-              Say Word
-            </Label>
+            <Label className="text-xs w-full font-bold">Say Word</Label>
             <Label className="text-xs w-full font-bold -ml-8">
               Replace With
             </Label>

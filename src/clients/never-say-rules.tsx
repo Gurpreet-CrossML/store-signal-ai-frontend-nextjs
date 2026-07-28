@@ -3,7 +3,16 @@
 import { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import z from "zod";
-import { IconBrain, IconBrandTripadvisor, IconForbid, IconHandStop, IconPlus, IconScale, IconTrash, IconX } from "@tabler/icons-react";
+import {
+  IconBrain,
+  IconBrandTripadvisor,
+  IconForbid,
+  IconHandStop,
+  IconPlus,
+  IconScale,
+  IconTrash,
+  IconX,
+} from "@tabler/icons-react";
 
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -256,7 +265,10 @@ export default function NeverSayRules() {
           Never-Say Rules
         </h4>
         <p className="text-sm text-muted-foreground">
-          These are language guardrails — kept separate from what the AI <em>does</em> (workflow guidance) and from hard action limits like refund caps (the Action Engine). Voice governs how it sounds; these govern what it must never say.
+          These are language guardrails — kept separate from what the AI{" "}
+          <em>does</em> (workflow guidance) and from hard action limits like
+          refund caps (the Action Engine). Voice governs how it sounds; these
+          govern what it must never say.
         </p>
       </div>
       {FetchNeverSayRulesIsLoading || FetchNeverSayRulesPresetsIsLoading ? (
@@ -314,95 +326,92 @@ export default function NeverSayRules() {
               </Card>
             </div>
             <Card>
-                <CardContent className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-0.5">
-                    <Label>
-                      <IconScale className="size-4" />
-                      Required legal phrasing</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Exact wording the AI must include in specific contexts.
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    {(formik.values.required_legal_phrases ?? []).map(
-                      (item, index) => (
-                        <div
-                          key={index}
-                          className="flex flex-col gap-2 rounded-lg border border-border p-3"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex flex-1 flex-col gap-2">
-                              <div className="flex flex-col gap-1">
-                                <Label className="text-xs">Context</Label>
-                                <Input
-                                  value={item.context}
-                                  onChange={(event) =>
-                                    updateLegalPhrase(index, {
-                                      context: event.target.value,
-                                    })
-                                  }
-                                  placeholder="Health & safety questions"
-                                />
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <Label className="text-xs">Phrase</Label>
-                                <Input
-                                  value={item.phrase}
-                                  onChange={(event) =>
-                                    updateLegalPhrase(index, {
-                                      phrase: event.target.value,
-                                    })
-                                  }
-                                  placeholder="Please consult your paediatrician..."
-                                />
-                              </div>
+              <CardContent className="flex flex-col gap-3">
+                <div className="flex flex-col gap-0.5">
+                  <Label>
+                    <IconScale className="size-4" />
+                    Required legal phrasing
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Exact wording the AI must include in specific contexts.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {(formik.values.required_legal_phrases ?? []).map(
+                    (item, index) => (
+                      <div
+                        key={index}
+                        className="flex flex-col gap-2 rounded-lg border border-border p-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex flex-1 flex-col gap-2">
+                            <div className="flex flex-col gap-1">
+                              <Label className="text-xs">Context</Label>
+                              <Input
+                                value={item.context}
+                                onChange={(event) =>
+                                  updateLegalPhrase(index, {
+                                    context: event.target.value,
+                                  })
+                                }
+                                placeholder="Health & safety questions"
+                              />
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="shrink-0"
-                              onClick={() =>
-                                formik.setFieldValue(
-                                  "required_legal_phrases",
-                                  (
-                                    formik.values.required_legal_phrases ?? []
-                                  ).filter(
-                                    (_, itemIndex) => itemIndex !== index,
-                                  ),
-                                )
-                              }
-                            >
-                              <IconTrash className="size-4" />
-                            </Button>
+                            <div className="flex flex-col gap-1">
+                              <Label className="text-xs">Phrase</Label>
+                              <Input
+                                value={item.phrase}
+                                onChange={(event) =>
+                                  updateLegalPhrase(index, {
+                                    phrase: event.target.value,
+                                  })
+                                }
+                                placeholder="Please consult your paediatrician..."
+                              />
+                            </div>
                           </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0"
+                            onClick={() =>
+                              formik.setFieldValue(
+                                "required_legal_phrases",
+                                (
+                                  formik.values.required_legal_phrases ?? []
+                                ).filter((_, itemIndex) => itemIndex !== index),
+                              )
+                            }
+                          >
+                            <IconTrash className="size-4" />
+                          </Button>
                         </div>
-                      ),
-                    )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-fit"
-                      onClick={() =>
-                        formik.setFieldValue("required_legal_phrases", [
-                          ...(formik.values.required_legal_phrases ?? []),
-                          { context: "", phrase: "" },
-                        ])
-                      }
-                    >
-                      <IconPlus className="size-4" />
-                      Add required phrase
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                      </div>
+                    ),
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-fit"
+                    onClick={() =>
+                      formik.setFieldValue("required_legal_phrases", [
+                        ...(formik.values.required_legal_phrases ?? []),
+                        { context: "", phrase: "" },
+                      ])
+                    }
+                  >
+                    <IconPlus className="size-4" />
+                    Add required phrase
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
             <ToggleRow
               labelIcon={<IconBrandTripadvisor className="size-4" />}
               label="No hollow apologies"
-              description={
-                'Avoid over-apologising or empty "so sorry" filler'
-              }
+              description={'Avoid over-apologising or empty "so sorry" filler'}
               checked={formik.values.no_hollow_apologies ?? false}
               onCheckedChange={(value) =>
                 formik.setFieldValue("no_hollow_apologies", value)

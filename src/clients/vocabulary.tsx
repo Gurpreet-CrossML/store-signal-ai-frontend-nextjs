@@ -188,9 +188,9 @@ export default function BrandVoiceVocabularyEditor() {
           Vocabulary
         </h4>
         <p className="text-sm text-muted-foreground">
-          The specific words that make your brand sound like you.
-          Preferred phrases to lean into, words to ban, signature
-          expressions, and exact swaps the AI always makes.
+          The specific words that make your brand sound like you. Preferred
+          phrases to lean into, words to ban, signature expressions, and exact
+          swaps the AI always makes.
         </p>
       </div>
       {FetchVocabularyIsLoading || FetchVocabularyPresetsIsLoading ? (
