@@ -155,22 +155,31 @@ export default function NeverSayRules() {
   // If the store has no saved data yet, we want to give them a starting template.
   // We do this by taking ALL available global presets from the database and
   // merging their arrays together into one massive preset object.
-  const mergedPresets = (FetchNeverSayRulesPresetsData || []).reduce(
-    (combinedRules: any, currentPreset: any) => ({
+  const mergedPresets = (FetchNeverSayRulesPresetsData || []).reduce<
+    Pick<
+      NeverSayRulesData,
+      "do_not_say_phrases" | "forbidden_claims" | "required_legal_phrases"
+    >
+  >(
+    (combinedRules, currentPreset) => ({
       do_not_say_phrases: [
-        ...(combinedRules.do_not_say_phrases || []),
+        ...combinedRules.do_not_say_phrases,
         ...(currentPreset.do_not_say_phrases || []),
       ],
       forbidden_claims: [
-        ...(combinedRules.forbidden_claims || []),
+        ...combinedRules.forbidden_claims,
         ...(currentPreset.forbidden_claims || []),
       ],
       required_legal_phrases: [
-        ...(combinedRules.required_legal_phrases || []),
+        ...combinedRules.required_legal_phrases,
         ...(currentPreset.required_legal_phrases || []),
       ],
     }),
-    {},
+    {
+      do_not_say_phrases: [],
+      forbidden_claims: [],
+      required_legal_phrases: [],
+    },
   );
 
   // The database presets only contain lists. The boolean toggles are store-specific,
@@ -325,6 +334,25 @@ export default function NeverSayRules() {
                 </CardContent>
               </Card>
             </div>
+            <ToggleRow
+              labelIcon={<IconBrandTripadvisor className="size-4" />}
+              label="No hollow apologies"
+              description={'Avoid over-apologising or empty "so sorry" filler'}
+              checked={formik.values.no_hollow_apologies ?? false}
+              onCheckedChange={(value) =>
+                formik.setFieldValue("no_hollow_apologies", value)
+              }
+            />
+
+            <ToggleRow
+              labelIcon={<IconBrain className="size-4" />}
+              label="Never reveal it's an AI unprompted"
+              description="Stay in persona unless the customer asks directly"
+              checked={formik.values.never_reveal_ai_unprompted ?? false}
+              onCheckedChange={(value) =>
+                formik.setFieldValue("never_reveal_ai_unprompted", value)
+              }
+            />
             <Card>
               <CardContent className="flex flex-col gap-3">
                 <div className="flex flex-col gap-0.5">
@@ -407,26 +435,6 @@ export default function NeverSayRules() {
                 </div>
               </CardContent>
             </Card>
-
-            <ToggleRow
-              labelIcon={<IconBrandTripadvisor className="size-4" />}
-              label="No hollow apologies"
-              description={'Avoid over-apologising or empty "so sorry" filler'}
-              checked={formik.values.no_hollow_apologies ?? false}
-              onCheckedChange={(value) =>
-                formik.setFieldValue("no_hollow_apologies", value)
-              }
-            />
-
-            <ToggleRow
-              labelIcon={<IconBrain className="size-4" />}
-              label="Never reveal it's an AI unprompted"
-              description="Stay in persona unless the customer asks directly"
-              checked={formik.values.never_reveal_ai_unprompted ?? false}
-              onCheckedChange={(value) =>
-                formik.setFieldValue("never_reveal_ai_unprompted", value)
-              }
-            />
           </div>
           <div className="sticky bottom-0 z-10 flex justify-start border-t border-border bg-background py-3">
             <Button

@@ -45,7 +45,7 @@ export default function CustomizationBranding({
           <IconPhotoPlus className="size-4" />
           Chatbot Logo
         </Label>
-        <div className="flex flex-col gap-3 border border-dashed border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border border-dashed border-border p-4 sm:flex-row sm:items-center sm:justify-between rounded-lg">
           <div className="flex flex-col">
             <p className="text-xs font-medium">Upload logo</p>
             <p className="text-xs text-muted-foreground">
@@ -100,15 +100,13 @@ export default function CustomizationBranding({
             (shown when chat opens)
           </span>
         </Label>
-        <div className="border border-border p-3">
-          <CKEditorTextArea
-            id="greeting-message"
-            placeholder="Hi there! How can I help you today?"
-            value={greetingMessage}
-            useMarkdown
-            onChange={onGreetingChange}
-          />
-        </div>
+        <CKEditorTextArea
+          id="greeting-message"
+          placeholder="Hi there! How can I help you today?"
+          value={greetingMessage}
+          useMarkdown
+          onChange={onGreetingChange}
+        />
         <p className="text-xs text-muted-foreground">
           {greetingLength}/{GREETING_LIMIT} characters
         </p>

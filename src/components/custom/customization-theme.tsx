@@ -59,7 +59,7 @@ export default function CustomizationTheme({
         <IconPalette className="size-4" />
         Theme
       </Label>
-      <div className="border border-border p-4">
+      <div className="border border-border p-4 rounded-lg">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {swatches.map(({ which, label, color, hex, placeholder }) => (
             <div key={which} className="flex flex-col gap-2">
