@@ -103,6 +103,11 @@ export const ENDPOINTS = {
   widgetCustomization: (storeId: number) =>
     `/store/widget-customization/${storeId}/`,
 
+  // Brand Voice. GET uses the local tenant-scoped API route; writes are routed
+  // to Django by axios-config so its serializer validation remains authoritative.
+  personaIdentity: () => "/chat/persona-identity/",
+  neverSayRules: () => "/chat/never-say-rules/",
+
   // Knowledge Base Management. Local GETs have no trailing slash; Django writes
   // (upload/create/update/delete) keep theirs (DRF requires it).
   fetchLibraryDocuments: () => `/knowledge/library-documents`,
@@ -123,6 +128,14 @@ export const ENDPOINTS = {
   connectStoreIntegration: () => `/store/integrations/`,
   // Detail route — disconnect targets a StoreIntegration by its own object id.
   storeIntegrationDetail: (id: number) => `/store/integrations/${id}/`,
+
+  // Brand Voice reads use the local DB-backed chat routes; writes go straight to
+  // Django's upsert endpoints.
+  tonePresets: () => `/chat/tone-presets/`,
+  vocabularyPresets: () => "/chat/vocabulary-presets/",
+  neverSayRulesPresets: () => "/chat/never-say-rules-presets/",
+  toneStyle: () => `/chat/tone-style/`,
+  vocabulary: () => `/chat/vocabulary/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
@@ -160,3 +173,68 @@ export type APIResponse = {
   message?: string;
   data?: object | object[] | PaginationResponse | ErrorResponse | null;
 };
+
+export const SELF_REFERENCE_OPTIONS = [
+  {
+    value: "i",
+    label: '"I"',
+    description: "I can help with that",
+  },
+  {
+    value: "we",
+    label: '"We"',
+    description: "We can help with that",
+  },
+] as const;
+
+export type ToneSliderDef = {
+  key: "warmth" | "formality" | "energy" | "playfulness" | "directness";
+  label: string;
+  minLabel: string;
+  maxLabel: string;
+};
+
+export const TONE_SLIDERS: ToneSliderDef[] = [
+  { key: "warmth", label: "Warmth", minLabel: "Reserved", maxLabel: "Warm" },
+  {
+    key: "formality",
+    label: "Formality",
+    minLabel: "Casual",
+    maxLabel: "Formal",
+  },
+  { key: "energy", label: "Energy", minLabel: "Calm", maxLabel: "Energetic" },
+  {
+    key: "playfulness",
+    label: "Playfulness",
+    minLabel: "Serious",
+    maxLabel: "Playful",
+  },
+  {
+    key: "directness",
+    label: "Directness",
+    minLabel: "Gentle",
+    maxLabel: "Direct",
+  },
+];
+
+export type SelectOption = { value: string; label: string };
+
+export const ANSWER_LENGTH_OPTIONS: readonly SelectOption[] = [
+  { value: "concise", label: "Concise" },
+  { value: "standard", label: "Standard" },
+  { value: "thorough", label: "Thorough" },
+];
+
+export const FREQUENCY_OPTIONS: readonly SelectOption[] = [
+  { value: "none", label: "None" },
+  { value: "sparing", label: "Sparing" },
+  { value: "moderate", label: "Moderate" },
+  { value: "liberal", label: "Liberal" },
+  { value: "free", label: "Free" },
+];
+
+export const SPELLING_OPTIONS: readonly SelectOption[] = [
+  { value: "uk", label: "UK" },
+  { value: "us", label: "US" },
+  { value: "auto", label: "Auto" },
+];
