@@ -1,3 +1,4 @@
+import BrandVoiceToneStyleEditor from "@/clients/tone";
 import { Suspense } from "react";
 
 export const metadata = {
@@ -7,7 +8,7 @@ export const metadata = {
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <></>
+      <BrandVoiceToneStyleEditor />
     </Suspense>
   );
 }
