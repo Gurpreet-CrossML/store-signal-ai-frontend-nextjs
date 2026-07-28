@@ -128,9 +128,7 @@ export default function BrandVoiceVocabularyEditor() {
   );
 
   // Apply the store's actual saved data if it has any; otherwise use the merged presets template.
-  const initialVocab = hasVocabData
-    ? FetchVocabularyData
-    : mergedVocabPresets;
+  const initialVocab = hasVocabData ? FetchVocabularyData : mergedVocabPresets;
 
   // Initialize formik for form state management
   const formik = useFormik<VocabularyFormValues>({
