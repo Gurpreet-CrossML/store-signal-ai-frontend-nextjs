@@ -126,7 +126,7 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
                             <SidebarMenuSubButton
                               className={cn(
                                 pathname == subItem.url
-                                  ? "min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
+                                  ? "min-w-8 bg-purple-200 text-primary duration-200 ease-linear hover:bg-purple-200/90 hover:text-primary active:bg-purple-200/90 active:text-primary"
                                   : "",
                               )}
                               asChild
@@ -136,7 +136,7 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
                                   <subItem.icon
                                     className={cn(
                                       pathname == subItem.url
-                                        ? "text-primary-foreground!"
+                                        ? "text-primary!"
                                         : "",
                                     )}
                                   />
@@ -158,7 +158,7 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
                   tooltip={item.title}
                   className={cn(
                     pathname == item.url
-                      ? "min-w-8 bg-purple-200 text-primary duration-200 ease-linear hover:bg-purple-200/90 hover:text-primary active:bg-primary/90 active:text-primary-foreground"
+                      ? "min-w-8 bg-purple-200 text-primary duration-200 ease-linear hover:bg-purple-200/90 hover:text-primary active:bg-primary/90 active:text-primary"
                       : "",
                   )}
                   asChild
