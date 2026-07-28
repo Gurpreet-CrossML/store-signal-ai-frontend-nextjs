@@ -141,6 +141,7 @@ const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
                 onChange={(_event, editor) => {
                   onChange?.(editor.getData());
                 }}
+                className="rounded-lg"
               />
             )}
           </div>

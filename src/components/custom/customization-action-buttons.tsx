@@ -78,7 +78,7 @@ export default function CustomizationActionButtons({
         <IconMessageCircle className="size-4" />
         Action Buttons
       </Label>
-      <div className="flex flex-col gap-3 border border-border p-4">
+      <div className="flex flex-col gap-3 border border-border p-4 rounded-lg">
         <p className="text-xs text-muted-foreground">
           Quick-action buttons shown in the chatbot. Uncheck to remove one, or
           add new ones below.
