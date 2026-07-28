@@ -25,7 +25,6 @@ import {
   IconSend,
   IconSparkles,
   IconTag,
-  IconUser,
   IconUsers,
   IconWand,
 } from "@tabler/icons-react";
@@ -38,6 +37,7 @@ import {
 } from "@/components/custom/ticketing-settings";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { AssignStaffDropdown } from "@/components/custom/helpdesk/assign-staff-dropdown";
 
 type Channel = "whatsapp" | "email" | "instagram" | "webchat";
 
@@ -473,15 +473,7 @@ function ConversationPanel({
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-white"
-              onClick={() => onAction(`${ticket.customer} assigned to you`)}
-            >
-              <IconUser className="size-4" />
-              Assign
-            </Button>
+            <AssignStaffDropdown />
             <Button
               variant="outline"
               size="sm"
