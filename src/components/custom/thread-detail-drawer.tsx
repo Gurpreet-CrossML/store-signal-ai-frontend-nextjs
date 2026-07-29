@@ -318,6 +318,7 @@ export default function ThreadDetailDrawer({
               <h3 className="text-lg font-semibold">Thread Details</h3>
               <CreateTicketDialog
                 threadId={activeThreadId}
+                storeCode={storeCode || ""}
                 customerEmail={
                   thread?.customer?.email ||
                   FetchThreadDetailsData?.customer_email ||

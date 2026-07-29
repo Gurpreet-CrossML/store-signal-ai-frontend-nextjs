@@ -18,14 +18,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { GenerateTicketContent } from "@/redux/api-slice/thread-slice";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 export function CreateTicketDialog({
   threadId,
+  storeCode,
   customerEmail: threadCustomerEmail = "",
 }: {
   threadId: string;
+  storeCode: string;
   customerEmail?: string;
 }) {
+  const dispatch = useAppDispatch();
+  const { GenerateTicketContentIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.GenerateTicketContentState,
+  );
   const [open, setOpen] = useState(false);
   const [customerEmail, setCustomerEmail] = useState("");
   const [subject, setSubject] = useState("");
@@ -36,6 +44,21 @@ export function CreateTicketDialog({
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setOpen(false);
+  };
+
+  const handleGenerateDescription = async (checked: boolean) => {
+    setGenerateDescription(checked);
+    if (!checked || !threadId || !storeCode) return;
+
+    try {
+      const data = await dispatch(
+        GenerateTicketContent({ thread_id: threadId, store_code: storeCode }),
+      ).unwrap();
+      setSubject(data.subject || "");
+      setDescription(data.description || "");
+    } catch {
+      setGenerateDescription(false);
+    }
   };
 
   return (
@@ -95,12 +118,15 @@ export function CreateTicketDialog({
 
           <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
             <Label htmlFor="generate-description" className="text-sm">
-              Generate description using AI
+              {GenerateTicketContentIsLoading
+                ? "Generating description..."
+                : "Generate description using AI"}
             </Label>
             <Switch
               id="generate-description"
               checked={generateDescription}
-              onCheckedChange={setGenerateDescription}
+              onCheckedChange={handleGenerateDescription}
+              disabled={GenerateTicketContentIsLoading}
             />
           </div>
 

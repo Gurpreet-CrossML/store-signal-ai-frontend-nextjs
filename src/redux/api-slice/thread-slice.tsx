@@ -233,6 +233,11 @@ export type ThreadTicketData = {
   updated_at: string;
 };
 
+export type GenerateTicketContentData = {
+  subject: string;
+  description: string;
+};
+
 export type OrderItemData = {
   sku: string;
   name: string;
@@ -527,6 +532,41 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
   },
 );
 
+export const GenerateTicketContent = createAsyncThunk(
+  "GenerateTicketContent",
+  async (
+    {
+      thread_id,
+      store_code,
+    }: {
+      thread_id: string;
+      store_code: string;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.generateTicketContent()}/?store_code=${store_code}`,
+        { thread_id },
+      );
+      const data = response.data.data;
+
+      return data as GenerateTicketContentData;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to generate ticket content, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 export const UploadMessageAttachments = createAsyncThunk(
   "UploadMessageAttachments",
   async ({ formData }: { formData: FormData }, thunkAPI) => {
@@ -669,6 +709,11 @@ const ThreadSlice = createSlice({
       FetchFreshdeskTicketIdIsSuccess: false,
       FetchFreshdeskTicketIdIsError: null as null | string | object | unknown,
       FetchFreshdeskTicketIdData: [] as ThreadTicketData[],
+    },
+    GenerateTicketContentState: {
+      GenerateTicketContentIsLoading: false,
+      GenerateTicketContentIsSuccess: false,
+      GenerateTicketContentIsError: null as null | string | object | unknown,
     },
     UploadMessageAttachmentsState: {
       UploadMessageAttachmentsIsLoading: false,
@@ -832,6 +877,21 @@ const ThreadSlice = createSlice({
         state.FetchFreshdeskTicketIdState.FetchFreshdeskTicketIdIsError =
           action.payload;
         state.FetchFreshdeskTicketIdState.FetchFreshdeskTicketIdIsSuccess = false;
+      })
+      .addCase(GenerateTicketContent.pending, (state) => {
+        state.GenerateTicketContentState.GenerateTicketContentIsLoading = true;
+        state.GenerateTicketContentState.GenerateTicketContentIsError = null;
+        state.GenerateTicketContentState.GenerateTicketContentIsSuccess = false;
+      })
+      .addCase(GenerateTicketContent.fulfilled, (state) => {
+        state.GenerateTicketContentState.GenerateTicketContentIsLoading = false;
+        state.GenerateTicketContentState.GenerateTicketContentIsSuccess = true;
+      })
+      .addCase(GenerateTicketContent.rejected, (state, action) => {
+        state.GenerateTicketContentState.GenerateTicketContentIsLoading = false;
+        state.GenerateTicketContentState.GenerateTicketContentIsError =
+          action.payload;
+        state.GenerateTicketContentState.GenerateTicketContentIsSuccess = false;
       })
       .addCase(UploadMessageAttachments.pending, (state) => {
         state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsLoading = true;

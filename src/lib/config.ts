@@ -96,6 +96,8 @@ export const ENDPOINTS = {
     `/analytics/threads/${threadId}/cart-data`,
   fetchFreshdeskTicketId: (threadId: string) =>
     `/support/threads/${threadId}/tickets`,
+  generateTicketContent: () =>
+    `/support/tickets/generate-content`,
   fetchOrderData: (threadId: string) =>
     `/analytics/threads/${threadId}/order-data`,
 
