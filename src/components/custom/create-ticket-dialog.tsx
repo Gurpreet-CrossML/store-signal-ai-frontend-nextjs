@@ -50,6 +50,13 @@ export function CreateTicketDialog({
     ? threadCustomerEmail
     : customerEmail;
 
+  const resetForm = () => {
+    setCustomerEmail("");
+    setSubject("");
+    setDescription("");
+    setGenerateDescription(false);
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!threadId || !storeCode) return;
@@ -67,6 +74,7 @@ export function CreateTicketDialog({
         }),
       ).unwrap();
       setOpen(false);
+      resetForm();
     } catch {
       // Error toast is handled in the thunk.
     }
