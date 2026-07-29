@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+  type CSSProperties,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -72,12 +78,8 @@ import {
   type SupportTicketPriority,
   type SupportTicketTagsResponse,
 } from "@/redux/api-slice/support-ticket-slice";
-import {
-  FetchStaff,
-  type StaffMember,
-} from "@/redux/api-slice/tenancy-slice";
+import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import { formatRelativeDateTime } from "@/lib/helpers";
-
 
 type ActiveQueue = "open" | "pending" | "resolved" | "closed";
 
@@ -182,14 +184,16 @@ function TicketRow({
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {ticket.tags.slice(0, 3).map((tag) => (
-            <Badge key={tag.id} style={{color: tag.color}}>
+            <Badge key={tag.id} style={{ color: tag.color }}>
               {tag.name}
             </Badge>
           ))}
         </div>
       </div>
       <div className="flex flex-col items-end gap-8">
-        <span className="text-xs text-slate-400">{formatRelativeDateTime(ticket.last_message_at || ticket.created_at)}</span>
+        <span className="text-xs text-slate-400">
+          {formatRelativeDateTime(ticket.last_message_at || ticket.created_at)}
+        </span>
       </div>
     </button>
   );
@@ -257,7 +261,9 @@ function TicketListPanel({
           <Button
             key={queue.key}
             size="sm"
-            onClick={() => queue.key !== activeQueue && onQueueChange(queue.key)}
+            onClick={() =>
+              queue.key !== activeQueue && onQueueChange(queue.key)
+            }
             className={cn(
               "h-7 border",
               activeQueue === queue.key
@@ -269,10 +275,7 @@ function TicketListPanel({
           </Button>
         ))}
       </div>
-      <div
-        className="h-[83vh]! overflow-y-auto"
-        onScroll={handleScroll}
-      >
+      <div className="h-[83vh]! overflow-y-auto" onScroll={handleScroll}>
         {isLoading && rows?.length === 0 ? (
           <div className="flex min-h-[360px] items-center justify-center px-4 py-8">
             <div className="text-center">
@@ -280,7 +283,7 @@ function TicketListPanel({
               <p className="text-sm text-slate-500">Loading tickets...</p>
             </div>
           </div>
-        ) : (!rows || rows?.length === 0)? (
+        ) : !rows || rows?.length === 0 ? (
           <div className="flex min-h-[360px] items-center justify-center px-4 py-8">
             <p className="text-sm text-slate-500">No tickets found.</p>
           </div>
@@ -396,8 +399,12 @@ function ConversationPanel({
                 <div className="absolute right-0 z-10 mt-2 w-[260px] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-200/20">
                   <div className="mb-2 flex items-center justify-between gap-3 px-3 py-2">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">Choose staff</p>
-                      <p className="text-xs text-slate-500">Assign a staff to the current ticket.</p>
+                      <p className="text-sm font-semibold text-slate-900">
+                        Choose staff
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Assign a staff to the current ticket.
+                      </p>
                     </div>
                     <button
                       type="button"
@@ -414,11 +421,16 @@ function ConversationPanel({
                       Loading staff...
                     </div>
                   ) : availableStaff.length === 0 ? (
-                    <div className="px-3 py-4 text-sm text-slate-500">No tags available.</div>
+                    <div className="px-3 py-4 text-sm text-slate-500">
+                      No tags available.
+                    </div>
                   ) : (
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between">
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between"
+                        >
                           {ticket.internal_assignee?.name ?? "Select staff"}
                           <IconChevronDown className="h-4 w-4 opacity-50" />
                         </Button>
@@ -446,10 +458,9 @@ function ConversationPanel({
                                     "mr-2 h-4 w-4",
                                     ticket.internal_assignee?.id === staff.id
                                       ? "opacity-100"
-                                      : "opacity-0"
+                                      : "opacity-0",
                                   )}
                                 />
-
                                 {staff.first_name} {staff.last_name}
                               </CommandItem>
                             ))}
@@ -500,17 +511,22 @@ function ConversationPanel({
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          {!ticket.internal_assignee && ticket.status === "open" && 
+          {!ticket.internal_assignee && ticket.status === "open" && (
             <Badge className="border-indigo-200 bg-indigo-50 text-indigo-700">
               Open - Unassigned
             </Badge>
-          }
-          <Badge className={priorityBadgeClass[ticket.priority] ?? "border-slate-200 bg-slate-100 text-slate-700"}>
+          )}
+          <Badge
+            className={
+              priorityBadgeClass[ticket.priority] ??
+              "border-slate-200 bg-slate-100 text-slate-700"
+            }
+          >
             <span
               className={cn(
                 priorityBadgeClass[ticket.priority] ??
                   "border-slate-200 bg-slate-100 text-slate-700",
-                "capitalize"
+                "capitalize",
               )}
             />
             {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
@@ -543,14 +559,18 @@ function ConversationPanel({
               className="inline-flex h-6 items-center gap-1 rounded-md border px-2 text-[11px] font-semibold bg-white text-slate-700 hover:bg-slate-50"
               onClick={onToggleTagPicker}
             >
-              <IconPlus/> Tag
+              <IconPlus /> Tag
             </Button>
             {isTagPickerOpen ? (
               <div className="absolute right-0 z-10 mt-2 w-[260px] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-200/20">
                 <div className="mb-2 flex items-center justify-between gap-3 px-3 py-2">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">Choose tag</p>
-                    <p className="text-xs text-slate-500">Add a label to the current ticket.</p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      Choose tag
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Add a label to the current ticket.
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -562,28 +582,30 @@ function ConversationPanel({
                 </div>
                 <div className="border-t border-slate-200" />
                 <div className="border-t border-slate-200" />
-                  <div className="p-2">
-                    <div className="relative">
-                      <IconSearch
-                        size={16}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                      />
-                      <Input
-                        type="text"
-                        placeholder="Search tags..."
-                        value={tagSearch}
-                        onChange={(e) => setTagSearch(e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-primary"
-                      />
-                    </div>
+                <div className="p-2">
+                  <div className="relative">
+                    <IconSearch
+                      size={16}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                    <Input
+                      type="text"
+                      placeholder="Search tags..."
+                      value={tagSearch}
+                      onChange={(e) => setTagSearch(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-primary"
+                    />
                   </div>
+                </div>
                 {isTagPickerLoading ? (
                   <div className="flex min-h-[96px] items-center justify-center gap-2 px-3 py-4 text-sm text-slate-500">
                     <Spinner className="size-4" />
                     Loading tags...
                   </div>
                 ) : availableTags.length === 0 ? (
-                  <div className="px-3 py-4 text-sm text-slate-500">No tags available.</div>
+                  <div className="px-3 py-4 text-sm text-slate-500">
+                    No tags available.
+                  </div>
                 ) : (
                   <div className="space-y-2 max-h-56 overflow-y-auto p-2">
                     {filteredTags.length === 0 ? (
@@ -610,7 +632,9 @@ function ConversationPanel({
                               disabled={alreadyAdded}
                             >
                               <div className="flex min-w-0 items-center gap-2">
-                                <span className="truncate text-xs">{tag.name}</span>
+                                <span className="truncate text-xs">
+                                  {tag.name}
+                                </span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <span
@@ -927,12 +951,14 @@ export default function HelpDesk() {
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const { FetchSupportTicketsListData, FetchSupportTicketsLoading } = useAppSelector(
-    (state) => state.SupportTicketsSliceReducer.FetchSupportTicketsState,
-  );
-  const { FetchSupportTicketTagsData, FetchSupportTicketTagsIsLoading } = useAppSelector(
-    (state) => state.SupportTicketsSliceReducer.FetchSupportTicketTagsState,
-  );
+  const { FetchSupportTicketsListData, FetchSupportTicketsLoading } =
+    useAppSelector(
+      (state) => state.SupportTicketsSliceReducer.FetchSupportTicketsState,
+    );
+  const { FetchSupportTicketTagsData, FetchSupportTicketTagsIsLoading } =
+    useAppSelector(
+      (state) => state.SupportTicketsSliceReducer.FetchSupportTicketTagsState,
+    );
   const { staff, staffLoading } = useAppSelector(
     (state) => state.GetTenancyReducer,
   );
@@ -952,19 +978,14 @@ export default function HelpDesk() {
     Record<string, ChatMessage[]>
   >({});
 
-  const ticketRowsFromApi = useMemo(
-    () => FetchSupportTicketsListData.results,
-    [FetchSupportTicketsListData],
-  );
-
-  useEffect(() => {
-    setTicketRows(ticketRowsFromApi);
-  }, [ticketRowsFromApi]);
-
   useEffect(() => {
     if (!storeCode) return;
 
     dispatch(FetchStaff());
+  }, [dispatch, storeCode]);
+
+  useEffect(() => {
+    if (!storeCode) return;
 
     const fetchArgs = {
       store_code: storeCode,
@@ -976,35 +997,43 @@ export default function HelpDesk() {
       },
     };
 
-    const fetchPromise = dispatch(FetchSupportTickets(fetchArgs));
-    if (page > 1) {
-      setIsLoadingMore(true);
-      fetchPromise.finally(() => setIsLoadingMore(false));
-    }
+    const fetchTickets = async () => {
+      const isLoadMore = page > 1;
+
+      if (isLoadMore) {
+        setIsLoadingMore(true);
+      }
+
+      try {
+        const data = await dispatch(FetchSupportTickets(fetchArgs)).unwrap();
+
+        setTicketRows((prev) => {
+          const rows = page === 1 ? data.results : [...prev, ...data.results];
+
+          setActiveTicketId((current) => {
+            if (rows.length === 0) return null;
+
+            return current && rows.some((t) => t.id === current)
+              ? current
+              : rows[0].id;
+          });
+
+          return rows;
+        });
+      } finally {
+        if (isLoadMore) {
+          setIsLoadingMore(false);
+        }
+      }
+    };
+
+    fetchTickets();
   }, [dispatch, storeCode, page, activeQueue]);
 
   useEffect(() => {
     if (!storeCode) return;
     dispatch(FetchSupportTicketTags(storeCode));
   }, [dispatch, storeCode]);
-
-  useEffect(() => {
-    if (FetchSupportTicketsLoading) return;
-
-    if (ticketRows?.length === 0) {
-      setActiveTicketId(null);
-      return;
-    }
-
-    if (
-      (!activeTicketId ||
-      !ticketRows.some((ticket) => ticket.id === activeTicketId)) &&
-      ticketRows &&
-      ticketRows.length > 0
-    ) {
-      setActiveTicketId(ticketRows[0].id);
-    }
-  }, [FetchSupportTicketsLoading, ticketRows, activeTicketId]);
 
   const activeTicket = useMemo(
     () => ticketRows?.find((ticket) => ticket.id === activeTicketId) ?? null,
@@ -1085,7 +1114,8 @@ export default function HelpDesk() {
 
     setTicketRows((current) =>
       current.map((ticket) =>
-        ticket.id === activeTicket.id && !ticket.tags.some((existing) => existing.id === tag.id)
+        ticket.id === activeTicket.id &&
+        !ticket.tags.some((existing) => existing.id === tag.id)
           ? { ...ticket, tags: [...ticket.tags, tag] }
           : ticket,
       ),
@@ -1179,7 +1209,9 @@ export default function HelpDesk() {
               <div className="flex min-w-0 flex-1 items-center justify-center bg-slate-50">
                 <div className="text-center">
                   <Spinner className="mx-auto mb-4 size-8" />
-                  <p className="text-sm text-slate-500">Loading conversation...</p>
+                  <p className="text-sm text-slate-500">
+                    Loading conversation...
+                  </p>
                 </div>
               </div>
             ) : !activeTicket ? (
@@ -1224,14 +1256,18 @@ export default function HelpDesk() {
                 <div className="flex h-[calc(100vh-var(--header-height)-4rem)] items-center justify-center px-4 text-center">
                   <div>
                     <Spinner className="mx-auto mb-4 size-8" />
-                    <p className="text-sm text-slate-500">Loading AI Copilot...</p>
+                    <p className="text-sm text-slate-500">
+                      Loading AI Copilot...
+                    </p>
                   </div>
                 </div>
               </aside>
             ) : !activeTicket ? (
               <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
                 <div className="flex h-[calc(100vh-var(--header-height)-4rem)] items-center justify-center px-4 text-center">
-                  <p className="text-sm text-slate-500">Select a ticket to enable AI Copilot.</p>
+                  <p className="text-sm text-slate-500">
+                    Select a ticket to enable AI Copilot.
+                  </p>
                 </div>
               </aside>
             ) : (

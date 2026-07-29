@@ -96,7 +96,6 @@ export const custructTimeInHumanReadableFormat = (
   return `${value}m`;
 };
 
-
 /**
  * Format a date/time value as a compact relative time string.
  *

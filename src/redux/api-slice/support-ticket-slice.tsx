@@ -4,7 +4,6 @@ import { ENDPOINTS } from "@/lib/config";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 
-
 export type SupportTicketStatus = "open" | "pending" | "resolved" | "closed";
 export type SupportTicketPriority = "low" | "normal" | "high" | "urgent";
 export type SupportTicketChannel = "web" | "email" | "whatsapp" | "instagram";
@@ -22,7 +21,7 @@ type GetSupportTicketsArgs = {
 
 export type SupportTicketCustomer = {
   id: number;
-  addresses: any[];
+  addresses: unknown[];
   name: string;
   first_name: string;
   last_name: string;
@@ -45,10 +44,10 @@ export type SupportTicketTagsResponse = {
 };
 
 type SupportTicketAssignee = {
-    id: number;
-    name: string;
-    email: string;
-}
+  id: number;
+  name: string;
+  email: string;
+};
 
 export type SupportTicket = {
   id: number;
@@ -87,7 +86,10 @@ export type SupportTicketsResponse = {
   results: SupportTicket[];
 };
 
-export const FetchSupportTickets = createAsyncThunk<SupportTicketsResponse, GetSupportTicketsArgs>(
+export const FetchSupportTickets = createAsyncThunk<
+  SupportTicketsResponse,
+  GetSupportTicketsArgs
+>(
   "Threads",
   async (
     {
@@ -197,27 +199,31 @@ const SupportTicketsSlice = createSlice({
           state.FetchSupportTicketsState.FetchSupportTicketsListData = {
             ...action.payload,
             results: [
-              ...state.FetchSupportTicketsState.FetchSupportTicketsListData.results,
+              ...state.FetchSupportTicketsState.FetchSupportTicketsListData
+                .results,
               ...action.payload.results,
             ],
           };
         } else {
-          state.FetchSupportTicketsState.FetchSupportTicketsListData = action.payload;
+          state.FetchSupportTicketsState.FetchSupportTicketsListData =
+            action.payload;
         }
       })
       .addCase(FetchSupportTickets.rejected, (state, action) => {
         state.FetchSupportTicketsState.FetchSupportTicketsLoading = false;
-        state.FetchSupportTicketsState.FetchSupportTicketsIsError = action.payload;
+        state.FetchSupportTicketsState.FetchSupportTicketsIsError =
+          action.payload;
         state.FetchSupportTicketsState.FetchSupportTicketsIsSuccess = false;
       })
-       .addCase(FetchSupportTicketTags.pending, (state) => {
+      .addCase(FetchSupportTicketTags.pending, (state) => {
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsLoading = true;
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsError = null;
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsSuccess = false;
       })
       .addCase(FetchSupportTicketTags.fulfilled, (state, action) => {
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsLoading = false;
-        state.FetchSupportTicketTagsState.FetchSupportTicketTagsData = action.payload;
+        state.FetchSupportTicketTagsState.FetchSupportTicketTagsData =
+          action.payload;
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsSuccess = true;
       })
       .addCase(FetchSupportTicketTags.rejected, (state, action) => {
