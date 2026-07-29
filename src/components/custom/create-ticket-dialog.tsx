@@ -53,15 +53,17 @@ export function CreateTicketDialog({
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!threadId || !storeCode) return;
-
+    const payload = {
+      thread: threadId,
+      customer_email: ticketCustomerEmail,
+      subject,
+      description,
+    };
     try {
       await dispatch(
         CreateSupportTicket({
           store_code: storeCode,
-          thread: threadId,
-          customer_email: ticketCustomerEmail,
-          subject,
-          description,
+          payload,
         }),
       ).unwrap();
       setOpen(false);

@@ -233,8 +233,7 @@ export type ThreadTicketData = {
   updated_at: string;
 };
 
-export type CreateSupportTicketArgs = {
-  store_code: string;
+export type CreateSupportTicket = {
   thread: string;
   customer_email: string;
   subject: string;
@@ -575,22 +574,14 @@ export const CreateSupportTicket = createAsyncThunk(
   async (
     {
       store_code,
-      thread,
-      customer_email,
-      subject,
-      description,
-    }: CreateSupportTicketArgs,
+      payload,
+    }: { store_code: string; payload: CreateSupportTicket },
     thunkAPI,
   ) => {
     try {
       const response = await axiosInstance.post(
         `${ENDPOINTS.createTicket()}/?store_code=${store_code}`,
-        {
-          thread,
-          customer_email,
-          subject,
-          description,
-        },
+        payload,
       );
       const data = response.data.data;
 
