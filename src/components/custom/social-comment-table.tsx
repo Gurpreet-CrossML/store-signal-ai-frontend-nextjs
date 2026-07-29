@@ -1,10 +1,30 @@
 import { SocialComment } from "@/lib/mock-social-data";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { CustomerAvatar } from "./customer-avatar";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { IconSearch, IconAdjustmentsHorizontal, IconMessageCircle2, IconTag, IconMoodSmile, IconDotsVertical } from "@tabler/icons-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  IconSearch,
+  IconAdjustmentsHorizontal,
+  IconMessageCircle2,
+  IconTag,
+  IconMoodSmile,
+  IconDotsVertical,
+} from "@tabler/icons-react";
 
 interface SocialCommentTableProps {
   comments: SocialComment[];
@@ -12,7 +32,11 @@ interface SocialCommentTableProps {
   onSelectComment: (id: string) => void;
 }
 
-export function SocialCommentTable({ comments, selectedCommentId, onSelectComment }: SocialCommentTableProps) {
+export function SocialCommentTable({
+  comments,
+  selectedCommentId,
+  onSelectComment,
+}: SocialCommentTableProps) {
   const getBadgeVariant = (type: string) => {
     switch (type) {
       case "question":
@@ -48,12 +72,12 @@ export function SocialCommentTable({ comments, selectedCommentId, onSelectCommen
               </SelectContent>
             </Select>
           </div>
-          
+
           <Button variant="outline" className="h-9 gap-2">
             <IconAdjustmentsHorizontal className="w-4 h-4" />
             Filters
           </Button>
-          
+
           <div className="relative">
             <IconSearch className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
@@ -66,22 +90,40 @@ export function SocialCommentTable({ comments, selectedCommentId, onSelectCommen
       </div>
 
       <div className="p-4 border-b border-border/50 flex gap-2 overflow-x-auto flex-shrink-0">
-        <Badge variant="secondary" className="px-3 py-1.5 rounded-full bg-purple-100 text-purple-700 hover:bg-purple-100 font-medium cursor-pointer">
+        <Badge
+          variant="secondary"
+          className="px-3 py-1.5 rounded-full bg-purple-100 text-purple-700 hover:bg-purple-100 font-medium cursor-pointer"
+        >
           All <span className="ml-1.5 font-bold">128</span>
         </Badge>
-        <Badge variant="secondary" className="px-3 py-1.5 rounded-full bg-muted/50 text-foreground hover:bg-muted font-medium cursor-pointer">
+        <Badge
+          variant="secondary"
+          className="px-3 py-1.5 rounded-full bg-muted/50 text-foreground hover:bg-muted font-medium cursor-pointer"
+        >
           Unreplied <span className="ml-1.5 font-bold">32</span>
         </Badge>
-        <Badge variant="secondary" className="px-3 py-1.5 rounded-full bg-red-100 text-red-700 hover:bg-red-100 font-medium cursor-pointer">
+        <Badge
+          variant="secondary"
+          className="px-3 py-1.5 rounded-full bg-red-100 text-red-700 hover:bg-red-100 font-medium cursor-pointer"
+        >
           Critical <span className="ml-1.5 font-bold">6</span>
         </Badge>
-        <Badge variant="secondary" className="px-3 py-1.5 rounded-full bg-orange-100 text-orange-700 hover:bg-orange-100 font-medium cursor-pointer">
+        <Badge
+          variant="secondary"
+          className="px-3 py-1.5 rounded-full bg-orange-100 text-orange-700 hover:bg-orange-100 font-medium cursor-pointer"
+        >
           Escalations <span className="ml-1.5 font-bold">8</span>
         </Badge>
-        <Badge variant="secondary" className="px-3 py-1.5 rounded-full bg-muted/50 text-foreground hover:bg-muted font-medium cursor-pointer">
+        <Badge
+          variant="secondary"
+          className="px-3 py-1.5 rounded-full bg-muted/50 text-foreground hover:bg-muted font-medium cursor-pointer"
+        >
           Spam <span className="ml-1.5 font-bold">12</span>
         </Badge>
-        <Badge variant="secondary" className="px-3 py-1.5 rounded-full bg-green-100 text-green-700 hover:bg-green-100 font-medium cursor-pointer">
+        <Badge
+          variant="secondary"
+          className="px-3 py-1.5 rounded-full bg-green-100 text-green-700 hover:bg-green-100 font-medium cursor-pointer"
+        >
           Positive <span className="ml-1.5 font-bold">48</span>
         </Badge>
       </div>
@@ -100,7 +142,7 @@ export function SocialCommentTable({ comments, selectedCommentId, onSelectCommen
           </TableHeader>
           <TableBody>
             {comments.map((comment, index) => (
-              <TableRow 
+              <TableRow
                 key={comment.id}
                 onClick={() => onSelectComment(comment.id)}
                 className={`cursor-pointer transition-colors ${selectedCommentId === comment.id ? "bg-accent/50" : "hover:bg-muted/30"}`}
@@ -110,19 +152,27 @@ export function SocialCommentTable({ comments, selectedCommentId, onSelectCommen
                 </TableCell>
                 <TableCell>
                   <div className="flex items-start gap-3">
-                    <CustomerAvatar name={comment.author} src={comment.avatar} size="h-9 w-9" />
+                    <CustomerAvatar
+                      name={comment.author}
+                      src={comment.avatar}
+                      size="h-9 w-9"
+                    />
                     <div className="flex flex-col">
-                      <span className="font-semibold text-sm">{comment.author}</span>
-                      <span className="text-sm text-muted-foreground mt-0.5 line-clamp-1">{comment.content}</span>
+                      <span className="font-semibold text-sm">
+                        {comment.author}
+                      </span>
+                      <span className="text-sm text-muted-foreground mt-0.5 line-clamp-1">
+                        {comment.content}
+                      </span>
                     </div>
                   </div>
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1.5">
                     {comment.tags.map((tag, idx) => (
-                      <Badge 
-                        key={idx} 
-                        variant="secondary" 
+                      <Badge
+                        key={idx}
+                        variant="secondary"
                         className={`rounded-sm px-2 py-0.5 text-[10px] font-medium border-0 ${getBadgeVariant(tag.type)}`}
                       >
                         {tag.label}
@@ -132,13 +182,25 @@ export function SocialCommentTable({ comments, selectedCommentId, onSelectCommen
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1 opacity-60">
-                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full text-muted-foreground"
+                    >
                       <IconMessageCircle2 className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full text-muted-foreground"
+                    >
                       <IconTag className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full text-muted-foreground"
+                    >
                       <IconMoodSmile className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -147,7 +209,11 @@ export function SocialCommentTable({ comments, selectedCommentId, onSelectCommen
                   {comment.timeAgo}
                 </TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded-full text-muted-foreground"
+                  >
                     <IconDotsVertical className="h-3.5 w-3.5" />
                   </Button>
                 </TableCell>

@@ -134,7 +134,9 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
                                   <CollapsibleTrigger asChild>
                                     <SidebarMenuSubButton className="w-full flex justify-between cursor-pointer">
                                       <div className="flex items-center gap-2">
-                                        {subItem.icon && <subItem.icon className="h-4 w-4" />}
+                                        {subItem.icon && (
+                                          <subItem.icon className="h-4 w-4" />
+                                        )}
                                         <span>{subItem.title}</span>
                                       </div>
                                       <IconChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/sub-collapsible:rotate-90" />
@@ -143,7 +145,9 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
                                   <CollapsibleContent>
                                     <SidebarMenuSub>
                                       {subItem.items.map((nestedItem) => (
-                                        <SidebarMenuSubItem key={nestedItem.title}>
+                                        <SidebarMenuSubItem
+                                          key={nestedItem.title}
+                                        >
                                           <SidebarMenuSubButton
                                             className={cn(
                                               pathname == nestedItem.url

@@ -8,7 +8,11 @@ interface SocialPostItemProps {
   onClick: (id: string) => void;
 }
 
-export function SocialPostItem({ post, isActive, onClick }: SocialPostItemProps) {
+export function SocialPostItem({
+  post,
+  isActive,
+  onClick,
+}: SocialPostItemProps) {
   return (
     <button
       type="button"
@@ -17,7 +21,7 @@ export function SocialPostItem({ post, isActive, onClick }: SocialPostItemProps)
         "w-full flex text-left gap-3 p-3 rounded-xl cursor-pointer transition border-l-[3px]",
         isActive
           ? "border-l-primary bg-primary/[0.07] shadow-sm"
-          : "border-l-transparent hover:bg-muted/50"
+          : "border-l-transparent hover:bg-muted/50",
       )}
     >
       <div className="w-[60px] h-[60px] rounded-lg overflow-hidden flex-shrink-0 bg-muted relative">
@@ -28,7 +32,7 @@ export function SocialPostItem({ post, isActive, onClick }: SocialPostItemProps)
           className="object-cover w-full h-full"
         />
       </div>
-      
+
       <div className="flex flex-col flex-1 overflow-hidden">
         <h4 className="text-sm font-semibold line-clamp-2 leading-tight mb-1">
           {post.title}

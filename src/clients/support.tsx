@@ -48,7 +48,6 @@ import {
   IconRobot,
   IconSearch,
   IconSend,
-  
   IconX,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
@@ -618,7 +617,7 @@ export default function Support() {
 
   const handleThreadMessageAdded = useCallback((message: ThreadMessage) => {
     setThreadMessages((prev) => [...prev, message]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleTakeOver = useCallback(async () => {
@@ -808,7 +807,7 @@ export default function Support() {
   const handleEmojiSelect = useCallback((emoji: string) => {
     setAgentMessage((prev) => `${prev}${emoji}`);
     setIsEmojiPickerOpen(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const removeAttachment = useCallback((id: string) => {
@@ -817,7 +816,7 @@ export default function Support() {
       if (target) URL.revokeObjectURL(target.previewUrl);
       return prev.filter((attachment) => attachment.id !== id);
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const retryAttachment = useCallback(
@@ -852,7 +851,7 @@ export default function Support() {
     );
     setSelectedThreadId(threadId);
     setAttachments([]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Insert or patch a thread in localThreads based on an incoming dashboard
@@ -905,7 +904,7 @@ export default function Support() {
 
   const removeClosedThread = useCallback((threadId: string) => {
     setLocalThreads((prev) => prev.filter((t) => t.id !== threadId));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ---- Dashboard-wide socket: opens once the page has an authenticated

@@ -19,7 +19,12 @@ interface SocialAccountSelectorProps {
   label: string; // "Select Facebook Page" or "Select Instagram Account"
 }
 
-export function SocialAccountSelector({ accounts, selectedId, onSelect, label }: SocialAccountSelectorProps) {
+export function SocialAccountSelector({
+  accounts,
+  selectedId,
+  onSelect,
+  label,
+}: SocialAccountSelectorProps) {
   const selectedAccount = accounts.find((a) => a.id === selectedId);
 
   return (
@@ -30,37 +35,62 @@ export function SocialAccountSelector({ accounts, selectedId, onSelect, label }:
             <div className="flex items-center gap-2.5 text-left w-full pr-1">
               <Avatar className="h-6 w-6 shrink-0">
                 <AvatarImage src={selectedAccount.avatar} />
-                <AvatarFallback className="text-[10px]">{selectedAccount.name.charAt(0)}</AvatarFallback>
+                <AvatarFallback className="text-[10px]">
+                  {selectedAccount.name.charAt(0)}
+                </AvatarFallback>
               </Avatar>
               <div className="flex flex-col truncate">
-                <span className="text-sm font-medium leading-tight truncate">{selectedAccount.name}</span>
-                <span className="text-[10px] text-muted-foreground leading-tight truncate">{selectedAccount.handle}</span>
+                <span className="text-sm font-medium leading-tight truncate">
+                  {selectedAccount.name}
+                </span>
+                <span className="text-[10px] text-muted-foreground leading-tight truncate">
+                  {selectedAccount.handle}
+                </span>
               </div>
             </div>
           ) : (
             <SelectValue placeholder={label} />
           )}
         </SelectTrigger>
-        <SelectContent position="popper" align="start" className="w-[var(--radix-select-trigger-width)]">
+        <SelectContent
+          position="popper"
+          align="start"
+          className="w-[var(--radix-select-trigger-width)]"
+        >
           {accounts.map((account) => (
-            <SelectItem key={account.id} value={account.id} className="py-2 cursor-pointer">
+            <SelectItem
+              key={account.id}
+              value={account.id}
+              className="py-2 cursor-pointer"
+            >
               <div className="flex items-center gap-2.5">
                 <Avatar className="h-6 w-6 shrink-0">
                   <AvatarImage src={account.avatar} />
-                  <AvatarFallback className="text-[10px]">{account.name.charAt(0)}</AvatarFallback>
+                  <AvatarFallback className="text-[10px]">
+                    {account.name.charAt(0)}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium leading-tight">{account.name}</span>
-                  <span className="text-[10px] text-muted-foreground leading-tight">{account.handle}</span>
+                  <span className="text-sm font-medium leading-tight">
+                    {account.name}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground leading-tight">
+                    {account.handle}
+                  </span>
                 </div>
               </div>
             </SelectItem>
           ))}
-          
+
           <div className="p-1 mt-1 border-t">
-            <Button variant="ghost" className="w-full justify-start text-xs text-muted-foreground h-8 px-2" size="sm">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-xs text-muted-foreground h-8 px-2"
+              size="sm"
+            >
               <IconPlus className="w-3.5 h-3.5 mr-2" />
-              Connect {accounts[0]?.platform === "instagram" ? "account" : "page"}
+              Connect{" "}
+              {accounts[0]?.platform === "instagram" ? "account" : "page"}
             </Button>
           </div>
         </SelectContent>

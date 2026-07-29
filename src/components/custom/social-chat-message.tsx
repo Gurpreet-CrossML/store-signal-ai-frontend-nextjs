@@ -3,8 +3,12 @@ import { SocialMessage, SocialContact } from "@/lib/mock-social-data";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { cn } from "@/lib/utils";
 import { IconCheck, IconChecks, IconMoodSmile } from "@tabler/icons-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import EmojiPicker from 'emoji-picker-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import EmojiPicker from "emoji-picker-react";
 
 interface SocialChatMessageProps {
   message: SocialMessage;
@@ -16,7 +20,9 @@ export function SocialChatMessage({
   contact,
 }: SocialChatMessageProps) {
   const isAgent = message.sender === "agent";
-  const [reaction, setReaction] = useState<string | null>(message.reaction || null);
+  const [reaction, setReaction] = useState<string | null>(
+    message.reaction || null,
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
@@ -51,12 +57,19 @@ export function SocialChatMessage({
               <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                 <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
                   <PopoverTrigger asChild>
-                    <button className="text-muted-foreground hover:text-foreground transition-colors p-1" title="React">
+                    <button
+                      className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                      title="React"
+                    >
                       <IconMoodSmile className="w-4 h-4" />
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 border-none shadow-none bg-transparent" align="end" side="top">
-                    <EmojiPicker 
+                  <PopoverContent
+                    className="w-auto p-0 border-none shadow-none bg-transparent"
+                    align="end"
+                    side="top"
+                  >
+                    <EmojiPicker
                       onEmojiClick={(emojiData) => {
                         setReaction(emojiData.emoji);
                         setPickerOpen(false);
@@ -69,7 +82,7 @@ export function SocialChatMessage({
                 </Popover>
               </div>
             )}
-            
+
             <div className="relative">
               <div
                 className={cn(
@@ -81,12 +94,12 @@ export function SocialChatMessage({
               >
                 {message.content}
               </div>
-              
+
               {reaction && (
-                <div 
+                <div
                   className={cn(
                     "absolute -bottom-3 bg-background border rounded-full px-1.5 py-0.5 text-xs shadow-sm cursor-pointer hover:scale-110 transition-transform z-10",
-                    isAgent ? "left-2" : "right-2"
+                    isAgent ? "left-2" : "right-2",
                   )}
                   onClick={() => setReaction(null)}
                 >
@@ -99,12 +112,19 @@ export function SocialChatMessage({
               <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                 <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
                   <PopoverTrigger asChild>
-                    <button className="text-muted-foreground hover:text-foreground transition-colors p-1" title="React">
+                    <button
+                      className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                      title="React"
+                    >
                       <IconMoodSmile className="w-4 h-4" />
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 border-none shadow-none bg-transparent" align="start" side="top">
-                    <EmojiPicker 
+                  <PopoverContent
+                    className="w-auto p-0 border-none shadow-none bg-transparent"
+                    align="start"
+                    side="top"
+                  >
+                    <EmojiPicker
                       onEmojiClick={(emojiData) => {
                         setReaction(emojiData.emoji);
                         setPickerOpen(false);
@@ -118,7 +138,7 @@ export function SocialChatMessage({
               </div>
             )}
           </div>
-          
+
           <div className="flex items-center gap-2 mt-1 px-1 relative">
             <span className="text-[11px] text-muted-foreground mr-1">
               {message.time}

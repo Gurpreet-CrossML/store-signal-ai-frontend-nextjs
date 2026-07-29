@@ -10,7 +10,6 @@ import {
   IconMessageUser,
   IconSearch,
   IconSettings,
-  
   IconUserHexagon,
   IconVolume,
   IconSparkles,
@@ -148,7 +147,7 @@ export const sidebarMenus: SideBarMenus = {
         // {
         //   title: "Selling Style",
         //   url: "/brand-voice/selling-style",
-        //   icon: 
+        //   icon:
         // },
         {
           title: "Never-Say Rules",

@@ -1,4 +1,3 @@
-
 export type SocialPlatform = "facebook" | "instagram";
 
 export interface SocialAccount {
@@ -22,9 +21,20 @@ export interface SocialPost {
   engagement: string;
   postType?: string;
   labels?: string[];
-  moderationSummary?: { positive: number; neutral: number; negative: number; spam: number };
+  moderationSummary?: {
+    positive: number;
+    neutral: number;
+    negative: number;
+    spam: number;
+  };
   topQuestions?: string[];
-  relatedProducts?: { id: string; name: string; price: string; image: string; inStock: boolean }[];
+  relatedProducts?: {
+    id: string;
+    name: string;
+    price: string;
+    image: string;
+    inStock: boolean;
+  }[];
 }
 
 export interface SocialReply {
@@ -45,7 +55,10 @@ export interface SocialComment {
   timeAgo: string;
   content: string;
   avatar: string;
-  tags: { label: string; type: "question" | "feedback" | "positive" | "negative" | "neutral" }[];
+  tags: {
+    label: string;
+    type: "question" | "feedback" | "positive" | "negative" | "neutral";
+  }[];
   replies?: SocialReply[];
   internalNotes?: {
     id: string;
@@ -99,13 +112,37 @@ export interface SocialConversation {
 }
 
 export const MOCK_FB_ACCOUNTS: SocialAccount[] = [
-  { id: "fb1", name: "Safarnest Fashion", handle: "@safarnestfashion", avatar: "/fb-avatar-1.jpg", platform: "facebook" },
-  { id: "fb2", name: "Safarnest Home", handle: "@safarnesthome", avatar: "/fb-avatar-2.jpg", platform: "facebook" },
+  {
+    id: "fb1",
+    name: "Safarnest Fashion",
+    handle: "@safarnestfashion",
+    avatar: "/fb-avatar-1.jpg",
+    platform: "facebook",
+  },
+  {
+    id: "fb2",
+    name: "Safarnest Home",
+    handle: "@safarnesthome",
+    avatar: "/fb-avatar-2.jpg",
+    platform: "facebook",
+  },
 ];
 
 export const MOCK_IG_ACCOUNTS: SocialAccount[] = [
-  { id: "ig1", name: "Safarnest Fashion", handle: "@safarnest.fashion", avatar: "/ig-avatar-1.jpg", platform: "instagram" },
-  { id: "ig2", name: "Safarnest Home", handle: "@safarnest.home", avatar: "/ig-avatar-2.jpg", platform: "instagram" },
+  {
+    id: "ig1",
+    name: "Safarnest Fashion",
+    handle: "@safarnest.fashion",
+    avatar: "/ig-avatar-1.jpg",
+    platform: "instagram",
+  },
+  {
+    id: "ig2",
+    name: "Safarnest Home",
+    handle: "@safarnest.home",
+    avatar: "/ig-avatar-2.jpg",
+    platform: "instagram",
+  },
 ];
 
 export const MOCK_POSTS: SocialPost[] = [
@@ -121,10 +158,28 @@ export const MOCK_POSTS: SocialPost[] = [
     shares: "86",
     engagement: "8.7%",
     postType: "Image",
-    labels: ["Product Launch", "Summer Collection", "Top Performing", "Organic"],
+    labels: [
+      "Product Launch",
+      "Summer Collection",
+      "Top Performing",
+      "Organic",
+    ],
     moderationSummary: { positive: 81, neutral: 15, negative: 4, spam: 2 },
-    topQuestions: ["Available sizes", "Blue colour option", "Delivery time", "Fabric material"],
-    relatedProducts: [{ id: "prod1", name: "Summer Floral Dress", price: "₹1,599", image: "/post-1.jpg", inStock: true }]
+    topQuestions: [
+      "Available sizes",
+      "Blue colour option",
+      "Delivery time",
+      "Fabric material",
+    ],
+    relatedProducts: [
+      {
+        id: "prod1",
+        name: "Summer Floral Dress",
+        price: "₹1,599",
+        image: "/post-1.jpg",
+        inStock: true,
+      },
+    ],
   },
   {
     id: "p2",
@@ -134,7 +189,7 @@ export const MOCK_POSTS: SocialPost[] = [
     image: "/post-2.jpg",
     reach: "10.1K",
     likes: "950",
-    engagement: "7.2%"
+    engagement: "7.2%",
   },
   {
     id: "p3",
@@ -144,8 +199,8 @@ export const MOCK_POSTS: SocialPost[] = [
     image: "/post-3.jpg",
     reach: "8.5K",
     likes: "700",
-    engagement: "5.4%"
-  }
+    engagement: "5.4%",
+  },
 ];
 
 export const MOCK_COMMENTS: SocialComment[] = [
@@ -160,17 +215,36 @@ export const MOCK_COMMENTS: SocialComment[] = [
     tags: [
       { label: "Question", type: "question" },
       { label: "Product inquiry", type: "neutral" },
-      { label: "Positive", type: "positive" }
+      { label: "Positive", type: "positive" },
     ],
     replies: [
-      { id: "r1", author: "Agent (You)", role: "agent", timeAgo: "Just now", content: "Yes, we do! Size M is available.\nYou can order it from here:\n[product link]" },
-      { id: "r2", author: "Priya Sharma", role: "customer", timeAgo: "Just now", content: "Thanks! 😍" }
+      {
+        id: "r1",
+        author: "Agent (You)",
+        role: "agent",
+        timeAgo: "Just now",
+        content:
+          "Yes, we do! Size M is available.\nYou can order it from here:\n[product link]",
+      },
+      {
+        id: "r2",
+        author: "Priya Sharma",
+        role: "customer",
+        timeAgo: "Just now",
+        content: "Thanks! 😍",
+      },
     ],
     internalNotes: [
-      { id: "n1", content: "Customer asked about size M availability. Responded with product link.", author: "Added by you", time: "May 16, 10:31 AM" }
+      {
+        id: "n1",
+        content:
+          "Customer asked about size M availability. Responded with product link.",
+        author: "Added by you",
+        time: "May 16, 10:31 AM",
+      },
     ],
     aiIntent: "Product inquiry",
-    aiConfidence: 92
+    aiConfidence: 92,
   },
   {
     id: "c2",
@@ -182,12 +256,12 @@ export const MOCK_COMMENTS: SocialComment[] = [
     avatar: "/user-2.jpg",
     tags: [
       { label: "Feedback", type: "feedback" },
-      { label: "Price concern", type: "negative" }
+      { label: "Price concern", type: "negative" },
     ],
     replies: [],
     internalNotes: [],
     aiIntent: "Price concern",
-    aiConfidence: 85
+    aiConfidence: 85,
   },
   {
     id: "c3",
@@ -199,12 +273,12 @@ export const MOCK_COMMENTS: SocialComment[] = [
     avatar: "/user-3.jpg",
     tags: [
       { label: "Question", type: "question" },
-      { label: "Shipping", type: "neutral" }
+      { label: "Shipping", type: "neutral" },
     ],
     replies: [],
     aiIntent: "Shipping inquiry",
-    aiConfidence: 95
-  }
+    aiConfidence: 95,
+  },
 ];
 
 export const MOCK_CONTACT: SocialContact = {
@@ -223,13 +297,13 @@ export const MOCK_CONTACT: SocialContact = {
       date: "May 5, 2024",
       amount: "₹1,599.00",
       status: "Delivered",
-      image: "/post-1.jpg" // reusing post image for simplicity
-    }
+      image: "/post-1.jpg", // reusing post image for simplicity
+    },
   ],
   customFields: {
     customerType: "New",
-    preferredCategory: "Women Dresses"
-  }
+    preferredCategory: "Women Dresses",
+  },
 };
 
 export const MOCK_CONVERSATIONS: SocialConversation[] = [
@@ -240,29 +314,80 @@ export const MOCK_CONVERSATIONS: SocialConversation[] = [
     timeAgo: "2m",
     unreadCount: 1,
     messages: [
-      { id: "m1", sender: "customer", content: "Hey! Do you have this dress in size M?", time: "10:30 AM" },
-      { id: "m2", sender: "agent", content: "Yes, we do have it in size M. Would you like me to share more details or help you place an order?", time: "10:31 AM", isRead: true },
-      { id: "m3", sender: "customer", content: "Great! What is the fabric like?", time: "10:32 AM" },
-      { id: "m4", sender: "agent", content: "It's made from 100% organic cotton. Very soft and breathable, perfect for summer.", time: "10:33 AM", isRead: true },
-      { id: "m5", sender: "customer", content: "Sounds good. Do you offer cash on delivery?", time: "10:34 AM" },
-      { id: "m6", sender: "agent", content: "Yes, we do offer cash on delivery across India.", time: "10:34 AM", isRead: true },
-      { id: "m7", sender: "customer", content: "Awesome, thanks!", time: "10:35 AM", reaction: "❤️" }
-    ]
+      {
+        id: "m1",
+        sender: "customer",
+        content: "Hey! Do you have this dress in size M?",
+        time: "10:30 AM",
+      },
+      {
+        id: "m2",
+        sender: "agent",
+        content:
+          "Yes, we do have it in size M. Would you like me to share more details or help you place an order?",
+        time: "10:31 AM",
+        isRead: true,
+      },
+      {
+        id: "m3",
+        sender: "customer",
+        content: "Great! What is the fabric like?",
+        time: "10:32 AM",
+      },
+      {
+        id: "m4",
+        sender: "agent",
+        content:
+          "It's made from 100% organic cotton. Very soft and breathable, perfect for summer.",
+        time: "10:33 AM",
+        isRead: true,
+      },
+      {
+        id: "m5",
+        sender: "customer",
+        content: "Sounds good. Do you offer cash on delivery?",
+        time: "10:34 AM",
+      },
+      {
+        id: "m6",
+        sender: "agent",
+        content: "Yes, we do offer cash on delivery across India.",
+        time: "10:34 AM",
+        isRead: true,
+      },
+      {
+        id: "m7",
+        sender: "customer",
+        content: "Awesome, thanks!",
+        time: "10:35 AM",
+        reaction: "❤️",
+      },
+    ],
   },
   {
     id: "conv2",
-    contact: { ...MOCK_CONTACT, id: "contact2", name: "Rahul Verma", handle: "@rahul_v" },
+    contact: {
+      ...MOCK_CONTACT,
+      id: "contact2",
+      name: "Rahul Verma",
+      handle: "@rahul_v",
+    },
     lastMessage: "Can you help me track my order?",
     timeAgo: "15m",
     unreadCount: 2,
-    messages: []
+    messages: [],
   },
   {
     id: "conv3",
-    contact: { ...MOCK_CONTACT, id: "contact3", name: "Ananya Iyer", handle: "@ananya" },
+    contact: {
+      ...MOCK_CONTACT,
+      id: "contact3",
+      name: "Ananya Iyer",
+      handle: "@ananya",
+    },
     lastMessage: "Do you ship internationally?",
     timeAgo: "1h",
     unreadCount: 0,
-    messages: []
-  }
+    messages: [],
+  },
 ];

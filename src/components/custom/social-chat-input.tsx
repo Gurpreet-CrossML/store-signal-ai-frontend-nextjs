@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  IconSparkles, 
-  IconMoodSmile, 
-  IconPaperclip, 
+import {
+  IconSparkles,
+  IconMoodSmile,
+  IconPaperclip,
   IconSend,
 } from "@tabler/icons-react";
 import EmojiPicker, { Theme } from "emoji-picker-react";
@@ -42,7 +42,6 @@ export function SocialChatInput({ onSend }: SocialChatInputProps = {}) {
   return (
     <div className="relative border-t border-border/50 bg-background/95 p-4">
       <div className="rounded-2xl border border-border/60 bg-background shadow-sm transition-shadow focus-within:border-primary/50 focus-within:shadow-md">
-
         {/* Text input row */}
         <div className="px-3 pt-2">
           <textarea
@@ -53,7 +52,7 @@ export function SocialChatInput({ onSend }: SocialChatInputProps = {}) {
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
               }
@@ -83,10 +82,13 @@ export function SocialChatInput({ onSend }: SocialChatInputProps = {}) {
                   <IconMoodSmile className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-auto p-0 border-none shadow-none">
+              <DropdownMenuContent
+                align="start"
+                className="w-auto p-0 border-none shadow-none"
+              >
                 <EmojiPicker
                   onEmojiClick={(emojiData) => {
-                    setMessage(prev => prev + emojiData.emoji);
+                    setMessage((prev) => prev + emojiData.emoji);
                   }}
                   width={300}
                   height={400}
@@ -97,10 +99,17 @@ export function SocialChatInput({ onSend }: SocialChatInputProps = {}) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <input type="file" id="file-upload-dms" className="hidden" accept="image/*" />
+            <input
+              type="file"
+              id="file-upload-dms"
+              className="hidden"
+              accept="image/*"
+            />
             <button
               type="button"
-              onClick={() => document.getElementById('file-upload-dms')?.click()}
+              onClick={() =>
+                document.getElementById("file-upload-dms")?.click()
+              }
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80"
               title="Attach image or file"
             >
@@ -124,9 +133,7 @@ export function SocialChatInput({ onSend }: SocialChatInputProps = {}) {
         </div>
 
         <div className="flex items-center justify-between border-t border-border/50 px-3 py-1.5 text-[11px] text-muted-foreground">
-          <span>
-            Enter to send · Shift + Enter for a new line
-          </span>
+          <span>Enter to send · Shift + Enter for a new line</span>
         </div>
       </div>
     </div>
