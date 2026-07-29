@@ -25,6 +25,7 @@
     "ckeditor5": "^48.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "drizzle-orm": "^0.45.2",
     "emoji-picker-react": "^4.19.1",
     "formik": "^2.4.9",
