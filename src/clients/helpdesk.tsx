@@ -23,6 +23,7 @@ import {
   IconPencil,
   IconPlus,
   IconReload,
+  IconSearch,
   IconSend,
   IconSparkles,
   IconTag,
@@ -34,6 +35,7 @@ import {
 
 // import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
@@ -45,6 +47,19 @@ import {
 } from "@/components/custom/ticketing-settings";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandSeparator,
+} from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -57,6 +72,10 @@ import {
   type SupportTicketPriority,
   type SupportTicketTagsResponse,
 } from "@/redux/api-slice/support-ticket-slice";
+import {
+  FetchStaff,
+  type StaffMember,
+} from "@/redux/api-slice/tenancy-slice";
 import { formatRelativeDateTime } from "@/lib/helpers";
 
 
@@ -309,6 +328,10 @@ function ConversationPanel({
   onToggleTagPicker,
   onAddTag,
   onRemoveTag,
+  isStaffPickerOpen,
+  onToggleStaffPicker,
+  availableStaff,
+  isStaffPickerLoading,
 }: {
   ticket: SupportTicket;
   messages: ChatMessage[];
@@ -328,7 +351,17 @@ function ConversationPanel({
   onToggleTagPicker: () => void;
   onAddTag: (tag: SupportTicketTagsResponse) => void;
   onRemoveTag: (tagId: number) => void;
+  isStaffPickerOpen: boolean;
+  onToggleStaffPicker: () => void;
+  availableStaff: StaffMember[];
+  isStaffPickerLoading: boolean;
 }) {
+  const [tagSearch, setTagSearch] = useState("");
+
+  const filteredTags = availableTags.filter((tag) =>
+    tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
+  );
+
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-white">
       <div className="border-b px-4 py-4">
@@ -349,15 +382,95 @@ function ConversationPanel({
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-white"
-              onClick={() => onAction(`${ticket.customer} assigned to you`)}
-            >
-              <IconUser className="size-4" />
-              Assign
-            </Button>
+            <div className="relative flex">
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-white"
+                onClick={onToggleStaffPicker}
+              >
+                <IconUser className="size-4" />
+                Assign
+              </Button>
+              {isStaffPickerOpen ? (
+                <div className="absolute right-0 z-10 mt-2 w-[260px] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-200/20">
+                  <div className="mb-2 flex items-center justify-between gap-3 px-3 py-2">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Choose staff</p>
+                      <p className="text-xs text-slate-500">Assign a staff to the current ticket.</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                      onClick={onToggleStaffPicker}
+                    >
+                      <IconX size={16} />
+                    </button>
+                  </div>
+                  <div className="border-t border-slate-200" />
+                  {isStaffPickerLoading ? (
+                    <div className="flex min-h-[96px] items-center justify-center gap-2 px-3 py-4 text-sm text-slate-500">
+                      <Spinner className="size-4" />
+                      Loading staff...
+                    </div>
+                  ) : availableStaff.length === 0 ? (
+                    <div className="px-3 py-4 text-sm text-slate-500">No tags available.</div>
+                  ) : (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between">
+                          {ticket.internal_assignee?.name ?? "Select staff"}
+                          <IconChevronDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+
+                      <PopoverContent className="w-[320px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search staff..." />
+
+                          <CommandEmpty>No staff found.</CommandEmpty>
+
+                          <CommandGroup heading="Staff">
+                            {availableStaff.map((staff) => (
+                              <CommandItem
+                                key={staff.id}
+                                value={`${staff.first_name} ${staff.last_name}`}
+                                // onSelect={() =>
+                                //   onAssignStaff(
+                                //     selectedStaff?.id === staff.id ? null : staff.id
+                                //   )
+                                // }
+                              >
+                                <IconCheck
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    ticket.internal_assignee?.id === staff.id
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+
+                                {staff.first_name} {staff.last_name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+
+                          <CommandSeparator />
+
+                          <CommandItem
+                            className="text-red-600"
+                            // onSelect={() => onAssignStaff(null)}
+                          >
+                            <IconX className="mr-2 h-4 w-4" />
+                            Unassign
+                          </CommandItem>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
+              ) : null}
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -448,6 +561,22 @@ function ConversationPanel({
                   </button>
                 </div>
                 <div className="border-t border-slate-200" />
+                <div className="border-t border-slate-200" />
+                  <div className="p-2">
+                    <div className="relative">
+                      <IconSearch
+                        size={16}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+                      <Input
+                        type="text"
+                        placeholder="Search tags..."
+                        value={tagSearch}
+                        onChange={(e) => setTagSearch(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-primary"
+                      />
+                    </div>
+                  </div>
                 {isTagPickerLoading ? (
                   <div className="flex min-h-[96px] items-center justify-center gap-2 px-3 py-4 text-sm text-slate-500">
                     <Spinner className="size-4" />
@@ -457,36 +586,43 @@ function ConversationPanel({
                   <div className="px-3 py-4 text-sm text-slate-500">No tags available.</div>
                 ) : (
                   <div className="space-y-2 max-h-56 overflow-y-auto p-2">
-                    {availableTags.map((tag) => {
-                      const alreadyAdded = ticket.tags.some(
-                        (existingTag) => existingTag.id === tag.id,
-                      );
-
-                      return (
-                        <button
-                          key={tag.id}
-                          type="button"
-                          className={cn(
-                            "flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-left text-sm transition",
-                            alreadyAdded
-                              ? "border-slate-200 bg-slate-50 text-slate-500 line-through opacity-80"
-                              : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50",
-                          )}
-                          onClick={() => !alreadyAdded && onAddTag(tag)}
-                          disabled={alreadyAdded}
-                        >
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span className="truncate text-xs">{tag.name}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="h-2.5 w-2.5 rounded-full"
-                              style={{ backgroundColor: tag.color }}
-                            />
-                          </div>
-                        </button>
-                      );
-                    })}
+                    {filteredTags.length === 0 ? (
+                      <div className="py-6 text-center text-sm text-slate-500">
+                        No matching tags found.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {filteredTags.map((tag) => {
+                          const alreadyAdded = ticket.tags.some(
+                            (existingTag) => existingTag.id === tag.id,
+                          );
+                          return (
+                            <button
+                              key={tag.id}
+                              type="button"
+                              className={cn(
+                                "flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-left text-sm transition",
+                                alreadyAdded
+                                  ? "border-slate-200 bg-slate-50 text-slate-500 line-through opacity-80"
+                                  : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50",
+                              )}
+                              onClick={() => !alreadyAdded && onAddTag(tag)}
+                              disabled={alreadyAdded}
+                            >
+                              <div className="flex min-w-0 items-center gap-2">
+                                <span className="truncate text-xs">{tag.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="h-2.5 w-2.5 rounded-full"
+                                  style={{ backgroundColor: tag.color }}
+                                />
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -787,6 +923,7 @@ export default function HelpDesk() {
   );
 
   const dispatch = useAppDispatch();
+
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -796,10 +933,14 @@ export default function HelpDesk() {
   const { FetchSupportTicketTagsData, FetchSupportTicketTagsIsLoading } = useAppSelector(
     (state) => state.SupportTicketsSliceReducer.FetchSupportTicketTagsState,
   );
+  const { staff, staffLoading } = useAppSelector(
+    (state) => state.GetTenancyReducer,
+  );
 
   const [ticketRows, setTicketRows] = useState<SupportTicket[]>([]);
   const [page, setPage] = useState(1);
   const [showTagPicker, setShowTagPicker] = useState(false);
+  const [showStaffPicker, setShowStaffPicker] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
   const [activeQueue, setActiveQueue] = useState<ActiveQueue>("open");
@@ -822,6 +963,8 @@ export default function HelpDesk() {
 
   useEffect(() => {
     if (!storeCode) return;
+
+    dispatch(FetchStaff());
 
     const fetchArgs = {
       store_code: storeCode,
@@ -931,6 +1074,10 @@ export default function HelpDesk() {
 
   const handleToggleTagPicker = () => {
     setShowTagPicker((current) => !current);
+  };
+
+  const handleToggleStaffPicker = () => {
+    setShowStaffPicker((current) => !current);
   };
 
   const handleAddTag = (tag: SupportTicketTagsResponse) => {
@@ -1066,6 +1213,10 @@ export default function HelpDesk() {
                 onToggleTagPicker={handleToggleTagPicker}
                 onAddTag={handleAddTag}
                 onRemoveTag={handleRemoveTag}
+                isStaffPickerOpen={showStaffPicker}
+                onToggleStaffPicker={handleToggleStaffPicker}
+                availableStaff={staff}
+                isStaffPickerLoading={staffLoading}
               />
             )}
             {FetchSupportTicketsLoading && !activeTicket ? (
