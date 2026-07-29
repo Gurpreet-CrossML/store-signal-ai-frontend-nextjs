@@ -98,6 +98,7 @@ export const ENDPOINTS = {
     `/support/threads/${threadId}/tickets`,
   generateTicketContent: () =>
     `/support/tickets/generate-content`,
+  createTicket: () => `/support/tickets/create`,
   fetchOrderData: (threadId: string) =>
     `/analytics/threads/${threadId}/order-data`,
 

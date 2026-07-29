@@ -18,7 +18,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { GenerateTicketContent } from "@/redux/api-slice/thread-slice";
+import {
+  CreateSupportTicket,
+  GenerateTicketContent,
+} from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 export function CreateTicketDialog({
@@ -34,6 +37,9 @@ export function CreateTicketDialog({
   const { GenerateTicketContentIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.GenerateTicketContentState,
   );
+  const { CreateSupportTicketIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.CreateSupportTicketState,
+  );
   const [open, setOpen] = useState(false);
   const [customerEmail, setCustomerEmail] = useState("");
   const [subject, setSubject] = useState("");
@@ -44,9 +50,24 @@ export function CreateTicketDialog({
     ? threadCustomerEmail
     : customerEmail;
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setOpen(false);
+    if (!threadId || !storeCode) return;
+
+    try {
+      await dispatch(
+        CreateSupportTicket({
+          store_code: storeCode,
+          thread: threadId,
+          customer_email: ticketCustomerEmail,
+          subject,
+          description,
+        }),
+      ).unwrap();
+      setOpen(false);
+    } catch {
+      // Error toast is handled in the thunk.
+    }
   };
 
   const handleGenerateDescription = async (checked: boolean) => {
@@ -142,12 +163,13 @@ export function CreateTicketDialog({
             <Button
               type="submit"
               disabled={
+                CreateSupportTicketIsLoading ||
                 !ticketCustomerEmail.trim() ||
                 !subject.trim() ||
                 !description.trim()
               }
             >
-              Create Ticket
+              {CreateSupportTicketIsLoading ? "Creating..." : "Create Ticket"}
             </Button>
           </DialogFooter>
         </form>
