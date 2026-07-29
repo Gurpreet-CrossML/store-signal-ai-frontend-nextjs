@@ -78,6 +78,7 @@ export default function FbComments() {
             <SocialCommentThreadView
               comment={selectedComment}
               post={selectedPost}
+              platform="facebook"
               onClose={() => setSelectedCommentId(null)}
             />
           </Card>

@@ -32,10 +32,13 @@ export function SocialContactDetails({
   const [localTags, setLocalTags] = useState(contact.tags || []);
   const [newTagText, setNewTagText] = useState("");
 
-  useEffect(() => {
+  const [prevContactId, setPrevContactId] = useState(contact.id);
+
+  if (contact.id !== prevContactId) {
+    setPrevContactId(contact.id);
     setLocalTags(contact.tags || []);
     setNewTagText("");
-  }, [contact]);
+  }
 
   const handleAddTag = () => {
     if (newTagText.trim()) {
@@ -184,12 +187,14 @@ export function SocialContactDetails({
                 ),
                 gateway: "mock",
                 financial_status: "paid",
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
               }) as any,
           ) || []
         }
         loading={false}
         handleOrdersSync={() => {}}
         orderSyncLoading={false}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         custometData={{ email: "customer@example.com" } as any}
       />
     </div>

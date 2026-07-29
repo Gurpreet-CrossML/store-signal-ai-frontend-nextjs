@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { SocialComment, SocialReply } from "@/lib/mock-social-data";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
-import { IconUserPlus, IconMoodSmile, IconArrowForwardUp, IconMessageCircle2 } from "@tabler/icons-react";
+import { IconUserPlus, IconMoodSmile, IconArrowForwardUp, IconMessageCircle2, IconHeart } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
 export const renderWithMentions = (text: string) => {
@@ -35,18 +35,19 @@ interface ThreadActionRowProps {
   isAgent?: boolean;
   id: string;
   author: string;
+  platform?: "facebook" | "instagram";
   activeReplyId: string | null;
   onReplyClick: (id: string, author: string) => void;
   onSubmitReply: (text: string) => void;
 }
 
-export function ThreadActionRow({ isAgent, id, author, activeReplyId, onReplyClick, onSubmitReply }: ThreadActionRowProps) {
+export function ThreadActionRow({ isAgent, id, author, platform = "facebook", activeReplyId, onReplyClick, onSubmitReply }: ThreadActionRowProps) {
   const [reaction, setReaction] = useState<string | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [replyText, setReplyText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   
-  const hideTimeout = useRef<any>(null);
+  const hideTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const isReplying = activeReplyId === id;
 
@@ -95,26 +96,33 @@ export function ThreadActionRow({ isAgent, id, author, activeReplyId, onReplyCli
   return (
     <div className="flex flex-col w-full">
       <div className="flex items-center gap-2 mt-1 text-muted-foreground relative w-full">
-        {reaction && (
+        {reaction && platform === "facebook" && (
           <div className="bg-background border rounded-full px-1.5 py-0.5 text-[10px] shadow-sm cursor-pointer z-10 hover:scale-110 transition-transform" onClick={() => setReaction(null)}>
-            {reaction}
+            {reaction === 'like' ? '👍' : reaction === 'love' ? '❤️' : reaction === 'wow' ? '😮' : reaction === 'haha' ? '😂' : reaction === 'sad' ? '😢' : reaction}
           </div>
         )}
         
-        {showPicker && (
+        {showPicker && platform === "facebook" && (
           <div 
             className="absolute -top-10 left-0 bg-background border shadow-md rounded-full px-2 py-1 flex items-center gap-1 z-50 animate-in fade-in zoom-in-95 duration-150"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
-            {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+            {[
+              { emoji: '👍', value: 'like' },
+              { emoji: '❤️', value: 'love' },
+              { emoji: '😂', value: 'haha' },
+              { emoji: '😮', value: 'wow' },
+              { emoji: '😢', value: 'sad' }
+            ].map(({emoji, value}) => (
               <button 
-                key={emoji} 
+                key={value} 
                 type="button" 
                 onClick={() => {
-                  setReaction(emoji);
+                  setReaction(value);
                   setShowPicker(false);
                 }} 
+                title={value}
                 className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-muted hover:scale-125 transition-transform text-lg"
               >
                 {emoji}
@@ -125,12 +133,22 @@ export function ThreadActionRow({ isAgent, id, author, activeReplyId, onReplyCli
         
         <div 
           className="relative flex items-center ml-1"
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
+          onMouseEnter={platform === "facebook" ? handleMouseEnter : undefined}
+          onMouseLeave={platform === "facebook" ? handleMouseLeave : undefined}
         >
-          <button className="hover:text-foreground transition-colors" title="React">
-            <IconMoodSmile className="w-3.5 h-3.5" />
-          </button>
+          {platform === "facebook" ? (
+            <button className="hover:text-foreground transition-colors" title="React">
+              <IconMoodSmile className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            <button 
+              className={cn("hover:text-red-500 transition-colors", reaction === "like" ? "text-red-500" : "")}
+              onClick={() => setReaction(reaction === "like" ? null : "like")}
+              title="Like"
+            >
+              <IconHeart className={cn("w-3.5 h-3.5", reaction === "like" ? "fill-current" : "")} />
+            </button>
+          )}
         </div>
         
         <button 
@@ -179,6 +197,7 @@ interface SocialCommentNodeProps {
   comment: SocialComment;
   // If provided, uses these replies (e.g. from local state) instead of comment.replies
   replies?: SocialReply[];
+  platform?: "facebook" | "instagram";
   activeReplyId: string | null;
   onReplyClick: (id: string, author: string) => void;
   onSubmitReply: (commentId: string, text: string) => void;
@@ -187,6 +206,7 @@ interface SocialCommentNodeProps {
 export function SocialCommentNode({
   comment,
   replies,
+  platform = "facebook",
   activeReplyId,
   onReplyClick,
   onSubmitReply,
@@ -207,6 +227,7 @@ export function SocialCommentNode({
             <ThreadActionRow 
               id={comment.id}
               author={comment.author}
+              platform={platform}
               activeReplyId={activeReplyId}
               onReplyClick={onReplyClick}
               onSubmitReply={(text) => onSubmitReply(comment.id, text)}
@@ -243,6 +264,7 @@ export function SocialCommentNode({
                   isAgent={reply.role === "agent"}
                   id={reply.id}
                   author={reply.author}
+                  platform={platform}
                   activeReplyId={activeReplyId}
                   onReplyClick={onReplyClick}
                   onSubmitReply={(text) => onSubmitReply(comment.id, text)}

@@ -12,6 +12,7 @@ import { SocialCommentNode, renderWithMentions } from "@/components/custom/socia
 interface SocialCommentThreadViewProps {
   comment: SocialComment | null;
   post: SocialPost | null;
+  platform?: "facebook" | "instagram";
   onClose: () => void;
 }
 
@@ -34,22 +35,23 @@ const getBadgeVariant = (type: string) => {
   }
 };
 
-export function SocialCommentThreadView({ comment, post, onClose }: SocialCommentThreadViewProps) {
+export function SocialCommentThreadView({ comment, post, platform = "facebook", onClose }: SocialCommentThreadViewProps) {
   const [localReplies, setLocalReplies] = useState<SocialReply[]>([]);
   const [localTags, setLocalTags] = useState<{label: string, type: string}[]>([]);
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
   const [globalReplyText, setGlobalReplyText] = useState("");
   const [newTagText, setNewTagText] = useState("");
 
-  useEffect(() => {
-    if (comment) {
-      setLocalReplies(comment.replies || []);
-      setLocalTags(comment.tags || []);
-      setActiveReplyId(null);
-      setGlobalReplyText("");
-      setNewTagText("");
-    }
-  }, [comment]);
+  const [prevCommentId, setPrevCommentId] = useState<string | null | undefined>(comment?.id);
+
+  if (comment?.id !== prevCommentId) {
+    setPrevCommentId(comment?.id);
+    setLocalReplies(comment?.replies || []);
+    setLocalTags(comment?.tags || []);
+    setActiveReplyId(null);
+    setGlobalReplyText("");
+    setNewTagText("");
+  }
 
   if (!comment) {
     return (
@@ -59,7 +61,7 @@ export function SocialCommentThreadView({ comment, post, onClose }: SocialCommen
     );
   }
 
-  const handleReplyClick = (id: string, author: string) => {
+  const handleReplyClick = (id: string) => {
     setActiveReplyId(id === activeReplyId ? null : id);
   };
 
@@ -179,6 +181,7 @@ export function SocialCommentThreadView({ comment, post, onClose }: SocialCommen
             <SocialCommentNode 
               comment={comment}
               replies={localReplies}
+              platform={platform}
               activeReplyId={activeReplyId}
               onReplyClick={handleReplyClick}
               onSubmitReply={(commentId, text) => handleSubmitReply(text)}

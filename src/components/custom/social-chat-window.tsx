@@ -15,12 +15,12 @@ interface SocialChatWindowProps {
 
 export function SocialChatWindow({ conversation }: SocialChatWindowProps) {
   const [localMessages, setLocalMessages] = useState(conversation?.messages || []);
+  const [prevConversationId, setPrevConversationId] = useState(conversation?.id);
 
-  useEffect(() => {
-    if (conversation) {
-      setLocalMessages(conversation.messages);
-    }
-  }, [conversation]);
+  if (conversation?.id !== prevConversationId) {
+    setPrevConversationId(conversation?.id);
+    setLocalMessages(conversation?.messages || []);
+  }
 
   if (!conversation) {
     return (

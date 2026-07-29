@@ -22,10 +22,13 @@ export function SocialPostSidebar({ post }: SocialPostSidebarProps) {
   const [localLabels, setLocalLabels] = useState<string[]>(post.labels || []);
   const [newLabelText, setNewLabelText] = useState("");
 
-  useEffect(() => {
+  const [prevPostId, setPrevPostId] = useState(post.id);
+
+  if (post.id !== prevPostId) {
+    setPrevPostId(post.id);
     setLocalLabels(post.labels || []);
     setNewLabelText("");
-  }, [post]);
+  }
 
   const handleAddLabel = () => {
     if (newLabelText.trim()) {

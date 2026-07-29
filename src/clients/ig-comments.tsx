@@ -78,6 +78,7 @@ export default function IgComments() {
             <SocialCommentThreadView
               comment={selectedComment}
               post={selectedPost}
+              platform="instagram"
               onClose={() => setSelectedCommentId(null)}
             />
           </Card>

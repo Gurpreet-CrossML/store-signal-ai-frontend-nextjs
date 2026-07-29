@@ -1,4 +1,3 @@
-import { ReactNode } from "react";
 
 export type SocialPlatform = "facebook" | "instagram";
 
@@ -87,6 +86,7 @@ export interface SocialMessage {
   content: string;
   time: string;
   isRead?: boolean;
+  reaction?: string;
 }
 
 export interface SocialConversation {
@@ -246,7 +246,7 @@ export const MOCK_CONVERSATIONS: SocialConversation[] = [
       { id: "m4", sender: "agent", content: "It's made from 100% organic cotton. Very soft and breathable, perfect for summer.", time: "10:33 AM", isRead: true },
       { id: "m5", sender: "customer", content: "Sounds good. Do you offer cash on delivery?", time: "10:34 AM" },
       { id: "m6", sender: "agent", content: "Yes, we do offer cash on delivery across India.", time: "10:34 AM", isRead: true },
-      { id: "m7", sender: "customer", content: "Awesome, thanks!", time: "10:35 AM" }
+      { id: "m7", sender: "customer", content: "Awesome, thanks!", time: "10:35 AM", reaction: "❤️" }
     ]
   },
   {

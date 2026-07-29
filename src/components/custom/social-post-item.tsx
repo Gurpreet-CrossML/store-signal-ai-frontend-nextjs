@@ -1,7 +1,6 @@
 import { SocialPost } from "@/lib/mock-social-data";
 import { cn } from "@/lib/utils";
 import { IconMessageCircle2 } from "@tabler/icons-react";
-import Image from "next/image"; // Note: might need simple img if Image domain not configured, we'll use a div with bg-image or img
 
 interface SocialPostItemProps {
   post: SocialPost;
