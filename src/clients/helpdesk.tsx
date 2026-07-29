@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
   type CSSProperties,
+  useRef,
 } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -39,7 +40,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 
-// import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -72,32 +73,24 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   FetchSupportTickets,
   FetchSupportTicketTags,
+  SupportTicketStaffAssign,
+  FetchSupportTicketDetails,
+  SupportTicketMessageSend,
+  SupportTicketAgentDraftSave,
   type SupportTicket,
-  type SupportTicketCustomer,
   type SupportTicketChannel,
   type SupportTicketPriority,
   type SupportTicketTagsResponse,
+  type SupportTicketMessage,
+  type SupportTicketDraftMessage,
 } from "@/redux/api-slice/support-ticket-slice";
 import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
-import { formatRelativeDateTime } from "@/lib/helpers";
+import { formatRelativeDateTime, formatDateTime } from "@/lib/helpers";
 
 type ActiveQueue = "open" | "pending" | "resolved" | "closed";
 
-type ChatMessage = {
-  id: number | string;
-  author: "customer" | "agent";
-  body: string;
-  time: string;
-};
-
 const suggestedReply =
   "Hi Sarah - I completely understand, and I am sorry it has felt like a long wait. Good news: your order shipped Tuesday and is out for delivery with DHL today. I will keep an eye on it too.";
-
-function getCustomerName(customer: SupportTicketCustomer | null) {
-  if (!customer) return "Unknown customer";
-
-  return customer.name || customer.email || "Unknown customer";
-}
 
 const channelIcon = {
   whatsapp: IconBrandWhatsapp,
@@ -173,7 +166,7 @@ function TicketRow({
             className={cn("size-5 shrink-0", channelColor[ticket.channel])}
           />
           <span className="truncate text-sm font-medium text-slate-950">
-            {getCustomerName(ticket.customer)}
+            {ticket.customer || "Unknown customer"}
           </span>
         </div>
         <p className="truncate text-sm font-medium text-slate-950">
@@ -335,9 +328,10 @@ function ConversationPanel({
   onToggleStaffPicker,
   availableStaff,
   isStaffPickerLoading,
+  onAssignStaff,
 }: {
   ticket: SupportTicket;
-  messages: ChatMessage[];
+  messages: SupportTicketMessage[];
   reply: string;
   composerMode: "reply" | "note";
   isSending: boolean;
@@ -358,12 +352,29 @@ function ConversationPanel({
   onToggleStaffPicker: () => void;
   availableStaff: StaffMember[];
   isStaffPickerLoading: boolean;
+  onAssignStaff: (ticketId: number, staffId: number | null) => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollTop = messagesEndRef.current.scrollHeight;
+    }
+  }, [messages.length]);
 
   const filteredTags = availableTags.filter((tag) =>
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
   );
+
+  const customerInitials =
+  ticket.customer?.name
+    ?.trim()
+    .split(/\s+/)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() ?? "?";
 
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-white">
@@ -447,11 +458,13 @@ function ConversationPanel({
                               <CommandItem
                                 key={staff.id}
                                 value={`${staff.first_name} ${staff.last_name}`}
-                                // onSelect={() =>
-                                //   onAssignStaff(
-                                //     selectedStaff?.id === staff.id ? null : staff.id
-                                //   )
-                                // }
+                                onSelect={() =>
+                                  ticket.internal_assignee?.id !== staff.id &&
+                                  onAssignStaff(
+                                    ticket.id,
+                                    staff.id
+                                  )
+                                }
                               >
                                 <IconCheck
                                   className={cn(
@@ -470,7 +483,7 @@ function ConversationPanel({
 
                           <CommandItem
                             className="text-red-600"
-                            // onSelect={() => onAssignStaff(null)}
+                            onSelect={() => ticket.internal_assignee?.id && onAssignStaff(ticket.id, null)}
                           >
                             <IconX className="mr-2 h-4 w-4" />
                             Unassign
@@ -529,9 +542,9 @@ function ConversationPanel({
                 "capitalize",
               )}
             />
-            {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
+            {ticket?.priority?.charAt(0).toUpperCase() + ticket?.priority?.slice(1)}
           </Badge>
-          {ticket.tags.map((tag) => (
+          {ticket?.tags?.map((tag) => (
             <Badge
               key={tag.id}
               className="border-cyan-100 bg-cyan-50 text-cyan-700"
@@ -655,36 +668,71 @@ function ConversationPanel({
         </div>
       </div>
 
-      <div className="min-h-[360px] flex-1 overflow-y-auto bg-slate-50 px-4 py-5">
-        <div className="space-y-4">
+      <div className="min-h-[360px] flex-1 overflow-y-auto bg-slate-50 px-4 py-5" ref={messagesEndRef}>
+        {messages.length === 0 ? (
+          <div className="flex h-full min-h-[320px] items-center justify-center">
+            <div className="text-center">
+              <p className="text-sm font-medium text-slate-600">
+                No messages yet
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Messages exchanged with the customer will appear here.
+              </p>
+            </div>
+          </div>
+        ) : (
+        <div className="space-y-4 overflow-y-auto">
           {messages.map((message) => (
-            <div
+            message.message_type === "internal" ? (
+              <div key={message.id} className="py-2">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        className="border-amber-300 bg-amber-100 text-amber-800"
+                      >
+                        Internal note
+                      </Badge>
+                      <span className="text-xs text-slate-500">
+                        {formatDateTime(message.created_at)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="whitespace-pre-wrap text-sm text-slate-700">
+                    {message.message}
+                  </p>
+                </div>
+              </div>
+            )
+            :
+            (<div
               key={message.id}
               className={cn(
                 "flex items-start gap-3",
-                message.author === "agent" && "justify-end",
+                message.sender_type === "agent" && "justify-end",
               )}
             >
-              {/* {message.author === "customer" ? (
+              {message.sender_type === "customer" ? (
                 <Avatar className="size-8">
                   <AvatarFallback className="bg-slate-500 text-xs font-medium text-white">
-                    {ticket.initials}
+                    {customerInitials}
                   </AvatarFallback>
                 </Avatar>
-              ) : null} */}
+              ) : null}
               <div>
                 <div
                   className={cn(
                     "mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-500",
-                    message.author === "agent" && "justify-end",
+                    message.sender_type === "agent" && "justify-end",
                   )}
                 >
                   <span>
                     {/* {message.author === "agent" ? "You" : ticket.customer} -{" "} */}
-                    {message.time}
+                    {formatDateTime(message.created_at)}
                   </span>
                   <span className="font-medium uppercase tracking-wide">
-                    {message.author === "agent"
+                    {message.sender_type === "agent"
                       ? "Agent reply"
                       : ticket.channel}
                   </span>
@@ -692,22 +740,18 @@ function ConversationPanel({
                 <div
                   className={cn(
                     "max-w-[320px] rounded-xl border px-4 py-3 text-sm font-medium leading-6 shadow-sm",
-                    message.author === "agent"
+                    message.sender_type === "agent"
                       ? "bg-indigo-600 text-white"
                       : "bg-white text-slate-950",
                   )}
                 >
-                  {message.body}
+                  {message.message}
                 </div>
               </div>
-            </div>
+            </div>)
           ))}
-          {isSending ? (
-            <div className="text-sm font-medium text-slate-500">
-              Sending reply...
-            </div>
-          ) : null}
-        </div>
+        </div>)
+        }
       </div>
 
       <div className="border-t bg-white p-4">
@@ -955,6 +999,14 @@ export default function HelpDesk() {
     useAppSelector(
       (state) => state.SupportTicketsSliceReducer.FetchSupportTicketsState,
     );
+  const { FetchSupportTicketDetailsData, FetchSupportTicketDetailsIsLoading } =
+    useAppSelector(
+      (state) => state.SupportTicketsSliceReducer.FetchSupportTicketDetailsState,
+    );
+  const { SupportTicketMessageSendIsLoading } =
+    useAppSelector(
+      (state) => state.SupportTicketsSliceReducer.SupportTicketMessageSendState,
+    );
   const { FetchSupportTicketTagsData, FetchSupportTicketTagsIsLoading } =
     useAppSelector(
       (state) => state.SupportTicketsSliceReducer.FetchSupportTicketTagsState,
@@ -965,18 +1017,20 @@ export default function HelpDesk() {
 
   const [ticketRows, setTicketRows] = useState<SupportTicket[]>([]);
   const [page, setPage] = useState(1);
-  const [showTagPicker, setShowTagPicker] = useState(false);
-  const [showStaffPicker, setShowStaffPicker] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
   const [activeQueue, setActiveQueue] = useState<ActiveQueue>("open");
+  const [supportTikcetMessages, setSupportTicketMessage] = useState<SupportTicketMessage[]>([]);
+
+  const [showTagPicker, setShowTagPicker] = useState(false);
+  const [showStaffPicker, setShowStaffPicker] = useState(false);
+
   const [reply, setReply] = useState("");
   const [composerMode, setComposerMode] = useState<"reply" | "note">("reply");
-  const [isSending, setIsSending] = useState(false);
+
   const [isResolving, setIsResolving] = useState(false);
-  const [extraMessages, setExtraMessages] = useState<
-    Record<string, ChatMessage[]>
-  >({});
+
+  const activeSupportTicket: SupportTicket | null = FetchSupportTicketDetailsData;
 
   useEffect(() => {
     if (!storeCode) return;
@@ -992,7 +1046,6 @@ export default function HelpDesk() {
       page,
       limit: 20,
       filters: {
-        is_active: true,
         ...(activeQueue !== "open" ? { status: activeQueue } : {}),
       },
     };
@@ -1035,26 +1088,23 @@ export default function HelpDesk() {
     dispatch(FetchSupportTicketTags(storeCode));
   }, [dispatch, storeCode]);
 
-  const activeTicket = useMemo(
-    () => ticketRows?.find((ticket) => ticket.id === activeTicketId) ?? null,
-    [activeTicketId, ticketRows],
-  );
+  useEffect(()=>{
+    if (!storeCode || !activeTicketId) return;
 
-  const activeMessages = useMemo<ChatMessage[]>(() => {
-    if (!activeTicket) return [];
+    dispatch(FetchSupportTicketDetails({storeCode, ticketId: activeTicketId}));
+  }, [activeTicketId]);
 
-    const customerMessage = {
-      id: `${activeTicket.id}-customer`,
-      author: "customer" as const,
-      body:
-        activeTicket.id === 8821
-          ? "hi my order still has not arrived and i am getting a bit worried, it has been 5 days now."
-          : activeTicket.last_message || activeTicket.description,
-      time: "9:42 AM",
-    };
-
-    return [customerMessage, ...(extraMessages[activeTicket.id] ?? [])];
-  }, [activeTicket, extraMessages]);
+  useEffect(()=>{
+    if (activeSupportTicket?.messages) {
+      setSupportTicketMessage(activeSupportTicket?.messages);
+    }
+    if (activeSupportTicket?.drafts) {
+      const agentDraft = activeSupportTicket?.drafts?.find((draft) => draft.draft_type === "manual");
+      if (agentDraft?.message) {
+        setReply(agentDraft?.message);
+      }
+    }
+  }, [activeSupportTicket]);
 
   const activeQueueLabel = useMemo(
     () => queues.find((queue) => queue.key === activeQueue)?.label ?? "Open",
@@ -1079,7 +1129,7 @@ export default function HelpDesk() {
   };
 
   const handleAction = (message: string) => {
-    if (!activeTicket) {
+    if (!activeSupportTicket) {
       toast.error("No active ticket selected.");
       return;
     }
@@ -1110,11 +1160,11 @@ export default function HelpDesk() {
   };
 
   const handleAddTag = (tag: SupportTicketTagsResponse) => {
-    if (!activeTicket) return;
+    if (!activeSupportTicket) return;
 
     setTicketRows((current) =>
       current.map((ticket) =>
-        ticket.id === activeTicket.id &&
+        ticket.id === activeSupportTicket.id &&
         !ticket.tags.some((existing) => existing.id === tag.id)
           ? { ...ticket, tags: [...ticket.tags, tag] }
           : ticket,
@@ -1124,12 +1174,58 @@ export default function HelpDesk() {
     toast.success(`Tag added: ${tag.name}`);
   };
 
+  const handleStaffAssign = async (ticketId: number, staffId: number | null) => {
+    if (!storeCode) return;
+
+    try {
+      const payload = {
+        internal_assignee: staffId
+      };
+
+      await dispatch(
+        SupportTicketStaffAssign({
+          storeCode,
+          ticketId,
+          payload,
+        }),
+      ).unwrap();
+
+      const assignedStaff = staff.find((member) => member.id === staffId);
+
+      setTicketRows((current) =>
+        current.map((ticket) =>
+          ticket.id === ticketId
+            ? {
+              ...ticket,
+              internal_assignee: assignedStaff
+                ? {
+                    id: assignedStaff.id,
+                    name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
+                    email: assignedStaff.email,
+                  }
+                : null,
+            }
+          : ticket,
+        ),
+      );
+
+      toast.success(
+        staffId === null
+          ? "Staff unassigned successfully."
+          : "Staff assigned successfully.",
+      );
+    }
+    catch{
+      // 
+    }
+  };
+
   const handleRemoveTag = (tagId: number) => {
-    if (!activeTicket) return;
+    if (!activeSupportTicket) return;
 
     setTicketRows((current) =>
       current.map((ticket) =>
-        ticket.id === activeTicket.id
+        ticket.id === activeSupportTicket.id
           ? { ...ticket, tags: ticket.tags.filter((tag) => tag.id !== tagId) }
           : ticket,
       ),
@@ -1137,12 +1233,47 @@ export default function HelpDesk() {
     toast.success("Tag removed");
   };
 
-  const handleSaveDraft = () =>
-    toast.success("Draft saved", {
-      description: reply.trim() || "Empty draft placeholder saved.",
-    });
+  const handleSaveDraft = async () => {
+    if (!storeCode || !activeTicketId) return;
 
-  const handleSend = () => {
+    const trimmedReply = reply.trim();
+
+    if (!trimmedReply) {
+      toast.info("Nothing to save", {
+        description: "Type a message before saving a draft.",
+      });
+      return;
+    }
+
+    try {
+      const payload = {
+        message: reply
+      };
+
+      const savedDraft = await dispatch(
+        SupportTicketAgentDraftSave({
+          storeCode,
+          ticketId: activeTicketId,
+          payload,
+        }),
+      ).unwrap();
+
+      if (savedDraft && savedDraft?.draft_type === "manual" && savedDraft?.message) {
+        setReply(savedDraft.message);
+      }
+
+      toast.success("Draft saved", {
+        description: "Your reply has been saved as a draft.",
+      });
+    }
+    catch{
+      // 
+    }
+  }
+
+  const handleSend = async () => {
+    if (!storeCode) return;
+
     const trimmedReply = reply.trim();
     if (!trimmedReply) {
       toast.error("Write a reply first", {
@@ -1151,33 +1282,65 @@ export default function HelpDesk() {
       return;
     }
 
-    if (!activeTicket) {
+    if (!activeSupportTicket || !activeTicketId) {
       toast.error("No ticket selected to send a reply.");
       return;
     }
 
-    setIsSending(true);
-    setTimeout(() => {
-      const message: ChatMessage = {
-        id: activeTicket.id,
-        author: "agent",
-        body:
-          composerMode === "note"
-            ? `Internal note: ${trimmedReply}`
-            : trimmedReply,
-        time: "now",
-      };
+    const tempId = -Date.now();
+    const optimisticMessage: SupportTicketMessage = {
+      id: tempId,
+      sender_type: "agent",
+      message: trimmedReply,
+      message_type: composerMode === "note" ? "internal" : "external",
+      agent: tempId,
+      message_direction: "outgoing",
+      platform: "internal",
+      channel: "web",
+      content_type: "text/plain",
+      metadata: {},
+      attachments: [],
+      created_at: new Date().toISOString(),
+    };
 
-      setExtraMessages((current) => ({
-        ...current,
-        [activeTicket.id]: [...(current[activeTicket.id] ?? []), message],
-      }));
-      setReply("");
-      setIsSending(false);
+    setReply("");
+    setSupportTicketMessage((current) => [
+      ...current,
+      optimisticMessage,
+    ]);
+
+    try {
+      const formData = new FormData();
+      formData.append("message", trimmedReply);
+
+      if (composerMode === "note") {
+        formData.append("message_type", "internal");
+      }
+
+      const sentMessage = await dispatch(
+        SupportTicketMessageSend({
+          storeCode,
+          ticketId: activeTicketId,
+          formData,
+        }),
+      ).unwrap();
+
+      setSupportTicketMessage((current) =>
+        current.map((message) =>
+          message.id === tempId ? sentMessage : message,
+        ),
+      );
+
       toast.success(
         composerMode === "note" ? "Internal note added" : "Reply sent",
       );
-    }, 700);
+    }
+    catch {
+      setSupportTicketMessage((current) =>
+        current.filter((message) => message.id !== tempId),
+      );
+      setReply(trimmedReply);
+    }
   };
 
   return (
@@ -1189,7 +1352,7 @@ export default function HelpDesk() {
           <>
             <TicketListPanel
               rows={ticketRows}
-              activeTicketId={activeTicket?.id ?? null}
+              activeTicketId={activeSupportTicket?.id ?? null}
               activeQueue={activeQueue}
               queueLabel={activeQueueLabel}
               onQueueChange={handleQueueChange}
@@ -1205,7 +1368,7 @@ export default function HelpDesk() {
                 }
               }}
             />
-            {FetchSupportTicketsLoading && !activeTicket ? (
+            {FetchSupportTicketsLoading && !activeSupportTicket ? (
               <div className="flex min-w-0 flex-1 items-center justify-center bg-slate-50">
                 <div className="text-center">
                   <Spinner className="mx-auto mb-4 size-8" />
@@ -1214,7 +1377,7 @@ export default function HelpDesk() {
                   </p>
                 </div>
               </div>
-            ) : !activeTicket ? (
+            ) : !activeSupportTicket ? (
               <div className="flex min-w-0 flex-1 items-center justify-center bg-slate-50 px-6 text-center">
                 <div>
                   <p className="text-lg font-semibold text-slate-900">
@@ -1227,11 +1390,11 @@ export default function HelpDesk() {
               </div>
             ) : (
               <ConversationPanel
-                ticket={activeTicket}
-                messages={activeMessages}
+                ticket={activeSupportTicket}
+                messages={supportTikcetMessages}
                 reply={reply}
                 composerMode={composerMode}
-                isSending={isSending}
+                isSending={SupportTicketMessageSendIsLoading}
                 isResolving={isResolving}
                 onReplyChange={setReply}
                 onComposerModeChange={setComposerMode}
@@ -1249,9 +1412,10 @@ export default function HelpDesk() {
                 onToggleStaffPicker={handleToggleStaffPicker}
                 availableStaff={staff}
                 isStaffPickerLoading={staffLoading}
+                onAssignStaff={handleStaffAssign}
               />
             )}
-            {FetchSupportTicketsLoading && !activeTicket ? (
+            {FetchSupportTicketsLoading && !activeSupportTicket ? (
               <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
                 <div className="flex h-[calc(100vh-var(--header-height)-4rem)] items-center justify-center px-4 text-center">
                   <div>
@@ -1262,7 +1426,7 @@ export default function HelpDesk() {
                   </div>
                 </div>
               </aside>
-            ) : !activeTicket ? (
+            ) : !activeSupportTicket ? (
               <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
                 <div className="flex h-[calc(100vh-var(--header-height)-4rem)] items-center justify-center px-4 text-center">
                   <p className="text-sm text-slate-500">
