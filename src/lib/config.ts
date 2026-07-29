@@ -136,6 +136,10 @@ export const ENDPOINTS = {
   neverSayRulesPresets: () => "/chat/never-say-rules-presets/",
   toneStyle: () => `/chat/tone-style/`,
   vocabulary: () => `/chat/vocabulary/`,
+
+  // Helpdesk(Support) apis
+  fetchSupportTickets: () => createAPIUrl("/support/tickets", "django"),
+  fetchSupportTicketTags: () => createAPIUrl("/support/ticket-tags", "django"),
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

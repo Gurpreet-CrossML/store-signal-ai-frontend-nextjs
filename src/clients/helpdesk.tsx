@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+  type CSSProperties,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -21,47 +27,64 @@ import {
   IconMessageChatbot,
   IconMoodSmile,
   IconPencil,
+  IconPlus,
   IconReload,
+  IconSearch,
   IconSend,
   IconSparkles,
   IconTag,
   IconUser,
   IconUsers,
   IconWand,
+  IconX,
 } from "@tabler/icons-react";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+// import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   resolveTicketingSettingsSection,
   TicketingSettingsContent,
 } from "@/components/custom/ticketing-settings";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandSeparator,
+} from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
-type Channel = "whatsapp" | "email" | "instagram" | "webchat";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import {
+  FetchSupportTickets,
+  FetchSupportTicketTags,
+  type SupportTicket,
+  type SupportTicketCustomer,
+  type SupportTicketChannel,
+  type SupportTicketPriority,
+  type SupportTicketTagsResponse,
+} from "@/redux/api-slice/support-ticket-slice";
+import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
+import { formatRelativeDateTime } from "@/lib/helpers";
 
 type ActiveQueue = "open" | "pending" | "resolved" | "closed";
 
-type Ticket = {
-  id: string;
-  customer: string;
-  initials: string;
-  channel: Channel;
-  subject: string;
-  preview: string;
-  time: string;
-  unread?: boolean;
-  vip?: boolean;
-  tags: {
-    label: string;
-    tone: "blue" | "red" | "amber" | "green" | "cyan" | "orange";
-  }[];
-  sla?: string;
-};
-
 type ChatMessage = {
-  id: string;
+  id: number | string;
   author: "customer" | "agent";
   body: string;
   time: string;
@@ -70,230 +93,41 @@ type ChatMessage = {
 const suggestedReply =
   "Hi Sarah - I completely understand, and I am sorry it has felt like a long wait. Good news: your order shipped Tuesday and is out for delivery with DHL today. I will keep an eye on it too.";
 
-const tickets: Ticket[] = [
-  {
-    id: "8821",
-    customer: "Sarah Whelan",
-    initials: "SW",
-    channel: "whatsapp",
-    subject: "Where is my order? Been 5 days",
-    preview: "hi my order still hasn't arrived and i'm getting a bit wor...",
-    time: "2m",
-    unread: true,
-    tags: [
-      { label: "WISMO", tone: "cyan" },
-      { label: "Draft ready", tone: "blue" },
-    ],
-    sla: "12m",
-  },
-  {
-    id: "8818",
-    customer: "Emma O'Brien",
-    initials: "EO",
-    channel: "email",
-    subject: "This arrived damaged and I am really upset",
-    preview: "The changing bag came with a broken zip and a tear o...",
-    time: "22m",
-    unread: true,
-    tags: [
-      { label: "Complaint", tone: "red" },
-      { label: "Escalated", tone: "amber" },
-      { label: "Breached", tone: "red" },
-    ],
-  },
-  {
-    id: "8811",
-    customer: "Liam Murphy",
-    initials: "LM",
-    channel: "instagram",
-    subject: "Is the bottle set BPA-free?",
-    preview: "saw your feeding set on the story, are they BPA free?",
-    time: "31m",
-    tags: [
-      { label: "Product", tone: "blue" },
-      { label: "Draft ready", tone: "blue" },
-    ],
-    sla: "38m",
-  },
-  {
-    id: "8807",
-    customer: "Niamh Doyle",
-    initials: "ND",
-    channel: "email",
-    subject: "Bulk order for a new nursery (30+ items)",
-    preview: "We're opening a nursery in Cork and need to order cot...",
-    time: "1h",
-    unread: true,
-    vip: true,
-    tags: [
-      { label: "B2B", tone: "green" },
-      { label: "VIP", tone: "orange" },
-    ],
-    sla: "1h 40m",
-  },
-  {
-    id: "8799",
-    customer: "Ciara Kelly",
-    initials: "CK",
-    channel: "whatsapp",
-    subject: "Where's my refund?",
-    preview: "you said 3-5 days for the refund and it's been a week ...",
-    time: "1h",
-    unread: true,
-    tags: [
-      { label: "Refund", tone: "red" },
-      { label: "Draft ready", tone: "blue" },
-    ],
-    sla: "25m",
-  },
-  {
-    id: "8788",
-    customer: "Aoife Ryan",
-    initials: "AR",
-    channel: "webchat",
-    subject: "Can I return a sleepsuit? Wrong size",
-    preview: "Resolved by AI - exchange initiated for size 3-6m",
-    time: "2h",
-    tags: [
-      { label: "Returns", tone: "orange" },
-      { label: "AI resolved", tone: "green" },
-    ],
-  },
-  {
-    id: "8788",
-    customer: "Aoife Ryan",
-    initials: "AR",
-    channel: "webchat",
-    subject: "Can I return a sleepsuit? Wrong size",
-    preview: "Resolved by AI - exchange initiated for size 3-6m",
-    time: "2h",
-    tags: [
-      { label: "Returns", tone: "orange" },
-      { label: "AI resolved", tone: "green" },
-    ],
-  },
-  {
-    id: "8788",
-    customer: "Aoife Ryan",
-    initials: "AR",
-    channel: "webchat",
-    subject: "Can I return a sleepsuit? Wrong size",
-    preview: "Resolved by AI - exchange initiated for size 3-6m",
-    time: "2h",
-    tags: [
-      { label: "Returns", tone: "orange" },
-      { label: "AI resolved", tone: "green" },
-    ],
-  },
-  {
-    id: "8788",
-    customer: "Aoife Ryan",
-    initials: "AR",
-    channel: "webchat",
-    subject: "Can I return a sleepsuit? Wrong size",
-    preview: "Resolved by AI - exchange initiated for size 3-6m",
-    time: "2h",
-    tags: [
-      { label: "Returns", tone: "orange" },
-      { label: "AI resolved", tone: "green" },
-    ],
-  },
-  {
-    id: "8788",
-    customer: "Aoife Ryan",
-    initials: "AR",
-    channel: "webchat",
-    subject: "Can I return a sleepsuit? Wrong size",
-    preview: "Resolved by AI - exchange initiated for size 3-6m",
-    time: "2h",
-    tags: [
-      { label: "Returns", tone: "orange" },
-      { label: "AI resolved", tone: "green" },
-    ],
-  },
-  {
-    id: "8788",
-    customer: "Aoife Ryan",
-    initials: "AR",
-    channel: "webchat",
-    subject: "Can I return a sleepsuit? Wrong size",
-    preview: "Resolved by AI - exchange initiated for size 3-6m",
-    time: "2h",
-    tags: [
-      { label: "Returns", tone: "orange" },
-      { label: "AI resolved", tone: "green" },
-    ],
-  },
-  {
-    id: "8788",
-    customer: "Aoife Ryan",
-    initials: "AR",
-    channel: "webchat",
-    subject: "Can I return a sleepsuit? Wrong size",
-    preview: "Resolved by AI - exchange initiated for size 3-6m",
-    time: "2h",
-    tags: [
-      { label: "Returns", tone: "orange" },
-      { label: "AI resolved", tone: "green" },
-    ],
-  },
-  {
-    id: "8788",
-    customer: "Aoife Ryan",
-    initials: "AR",
-    channel: "webchat",
-    subject: "Can I return a sleepsuit? Wrong size",
-    preview: "Resolved by AI - exchange initiated for size 3-6m",
-    time: "2h",
-    tags: [
-      { label: "Returns", tone: "orange" },
-      { label: "AI resolved", tone: "green" },
-    ],
-  },
-  {
-    id: "8788",
-    customer: "Aoife Ryan",
-    initials: "AR",
-    channel: "webchat",
-    subject: "Can I return a sleepsuit? Wrong size",
-    preview: "Resolved by AI - exchange initiated for size 3-6m",
-    time: "2h",
-    tags: [
-      { label: "Returns", tone: "orange" },
-      { label: "AI resolved", tone: "green" },
-    ],
-  },
-];
+function getCustomerName(customer: SupportTicketCustomer | null) {
+  if (!customer) return "Unknown customer";
 
-const tagStyles = {
-  blue: "bg-indigo-50 text-indigo-700 border-indigo-100",
-  red: "bg-red-50 text-red-700 border-red-100",
-  amber: "bg-amber-50 text-amber-700 border-amber-100",
-  green: "bg-emerald-50 text-emerald-700 border-emerald-100",
-  cyan: "bg-cyan-50 text-cyan-700 border-cyan-100",
-  orange: "bg-orange-50 text-orange-700 border-orange-100",
-} satisfies Record<Ticket["tags"][number]["tone"], string>;
+  return customer.name || customer.email || "Unknown customer";
+}
 
 const channelIcon = {
   whatsapp: IconBrandWhatsapp,
   email: IconMail,
   instagram: IconBrandInstagram,
-  webchat: IconMessage2,
-} satisfies Record<Channel, typeof IconBrandWhatsapp>;
+  web: IconMessage2,
+} satisfies Record<SupportTicketChannel, typeof IconBrandWhatsapp>;
 
 const channelColor = {
   whatsapp: "text-emerald-500",
   email: "text-orange-500",
   instagram: "text-rose-500",
-  webchat: "text-indigo-500",
-} satisfies Record<Channel, string>;
+  web: "text-indigo-500",
+} satisfies Record<SupportTicketChannel, string>;
+
+const priorityBadgeClass = {
+  low: "border-emerald-100 bg-emerald-50 text-emerald-700",
+  normal: "border-slate-200 bg-slate-100 text-slate-700",
+  high: "border-amber-100 bg-amber-50 text-amber-700",
+  urgent: "border-red-100 bg-red-50 text-red-700",
+} satisfies Record<SupportTicketPriority, string>;
 
 function Badge({
   children,
   className,
+  style,
 }: {
   children: ReactNode;
   className?: string;
+  style?: CSSProperties;
 }) {
   return (
     <span
@@ -301,6 +135,7 @@ function Badge({
         "inline-flex h-6 items-center gap-1 rounded-md border px-2 text-[11px] font-semibold",
         className,
       )}
+      style={style}
     >
       {children}
     </span>
@@ -312,7 +147,7 @@ function TicketRow({
   active,
   onSelect,
 }: {
-  ticket: Ticket;
+  ticket: SupportTicket;
   active?: boolean;
   onSelect: () => void;
 }) {
@@ -329,7 +164,7 @@ function TicketRow({
       <span
         className={cn(
           "mt-2 size-2 rounded-full",
-          ticket.unread ? "bg-red-500" : "bg-slate-300",
+          ticket.is_read ? "bg-slate-300" : "bg-red-500",
         )}
       />
       <div className="min-w-0">
@@ -338,33 +173,27 @@ function TicketRow({
             className={cn("size-5 shrink-0", channelColor[ticket.channel])}
           />
           <span className="truncate text-sm font-medium text-slate-950">
-            {ticket.customer}
+            {getCustomerName(ticket.customer)}
           </span>
-          {ticket.vip ? (
-            <span className="rounded bg-orange-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
-              VIP
-            </span>
-          ) : null}
         </div>
         <p className="truncate text-sm font-medium text-slate-950">
           {ticket.subject}
         </p>
-        <p className="mt-1 truncate text-xs text-slate-500">{ticket.preview}</p>
+        <p className="mt-1 truncate text-xs text-slate-500">
+          {ticket.last_message || ticket.description}
+        </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {ticket.tags.map((tag) => (
-            <Badge key={tag.label} className={tagStyles[tag.tone]}>
-              {tag.label}
+          {ticket.tags.slice(0, 3).map((tag) => (
+            <Badge key={tag.id} style={{ color: tag.color }}>
+              {tag.name}
             </Badge>
           ))}
         </div>
       </div>
       <div className="flex flex-col items-end gap-8">
-        <span className="text-xs text-slate-400">{ticket.time}</span>
-        {ticket.sla ? (
-          <span className="rounded-md bg-orange-50 px-1.5 py-0.5 text-[11px] font-medium text-orange-600">
-            {ticket.sla}
-          </span>
-        ) : null}
+        <span className="text-xs text-slate-400">
+          {formatRelativeDateTime(ticket.last_message_at || ticket.created_at)}
+        </span>
       </div>
     </button>
   );
@@ -381,21 +210,46 @@ function TicketListPanel({
   rows,
   activeTicketId,
   activeQueue,
+  queueLabel,
   onQueueChange,
   onSelectTicket,
   onUtilityAction,
+  count,
+  isLoading,
+  isLoadingMore,
+  hasMore,
+  onLoadMore,
 }: {
-  rows: Ticket[];
-  activeTicketId: string;
+  rows: SupportTicket[];
+  activeTicketId: number | null;
   activeQueue: ActiveQueue;
+  queueLabel: string;
   onQueueChange: (queue: ActiveQueue) => void;
-  onSelectTicket: (ticketId: string) => void;
+  onSelectTicket: (ticketId: number) => void;
   onUtilityAction: (action: string) => void;
+  count: number;
+  isLoading: boolean;
+  isLoadingMore: boolean;
+  hasMore: boolean;
+  onLoadMore: () => void;
 }) {
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    if (!hasMore || isLoading || isLoadingMore) return;
+    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 120) {
+      onLoadMore();
+    }
+  };
+
   return (
     <section className="hidden w-[336px] shrink-0 border-r bg-white md:block">
       <div className="flex h-14 items-center justify-between border-b px-3">
-        <h2 className="font-medium text-slate-950">All open</h2>
+        <div>
+          <div className="flex items-baseline gap-2">
+            <h2 className="font-medium text-slate-950">All {queueLabel}</h2>
+            <span className="text-sm text-slate-500">{count}</span>
+          </div>
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" size="icon-sm" className="bg-white">
             <IconFilter className="size-4" />
@@ -407,7 +261,9 @@ function TicketListPanel({
           <Button
             key={queue.key}
             size="sm"
-            onClick={() => onQueueChange(queue.key)}
+            onClick={() =>
+              queue.key !== activeQueue && onQueueChange(queue.key)
+            }
             className={cn(
               "h-7 border",
               activeQueue === queue.key
@@ -419,15 +275,38 @@ function TicketListPanel({
           </Button>
         ))}
       </div>
-      <div className="h-[83vh]! overflow-y-auto">
-        {rows.map((ticket, index) => (
-          <TicketRow
-            key={`${ticket.id}-${ticket.customer}-${index}`}
-            ticket={ticket}
-            active={ticket.id === activeTicketId}
-            onSelect={() => onSelectTicket(ticket.id)}
-          />
-        ))}
+      <div className="h-[83vh]! overflow-y-auto" onScroll={handleScroll}>
+        {isLoading && rows?.length === 0 ? (
+          <div className="flex min-h-[360px] items-center justify-center px-4 py-8">
+            <div className="text-center">
+              <Spinner className="mx-auto mb-3 size-6" />
+              <p className="text-sm text-slate-500">Loading tickets...</p>
+            </div>
+          </div>
+        ) : !rows || rows?.length === 0 ? (
+          <div className="flex min-h-[360px] items-center justify-center px-4 py-8">
+            <p className="text-sm text-slate-500">No tickets found.</p>
+          </div>
+        ) : (
+          rows?.map((ticket, index) => (
+            <TicketRow
+              key={`${ticket.id}-${ticket.customer}-${index}`}
+              ticket={ticket}
+              active={ticket.id === activeTicketId}
+              onSelect={() => onSelectTicket(ticket.id)}
+            />
+          ))
+        )}
+        {rows?.length > 0 && hasMore ? (
+          <div className="flex items-center justify-center py-4">
+            {isLoadingMore ? (
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <Spinner className="size-4" />
+                Loading more tickets...
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -446,8 +325,18 @@ function ConversationPanel({
   onAcceptDraft,
   onSaveDraft,
   onAction,
+  availableTags,
+  isTagPickerOpen,
+  isTagPickerLoading,
+  onToggleTagPicker,
+  onAddTag,
+  onRemoveTag,
+  isStaffPickerOpen,
+  onToggleStaffPicker,
+  availableStaff,
+  isStaffPickerLoading,
 }: {
-  ticket: Ticket;
+  ticket: SupportTicket;
   messages: ChatMessage[];
   reply: string;
   composerMode: "reply" | "note";
@@ -459,29 +348,140 @@ function ConversationPanel({
   onAcceptDraft: () => void;
   onSaveDraft: () => void;
   onAction: (action: string) => void;
+  availableTags: SupportTicketTagsResponse[];
+  isTagPickerOpen: boolean;
+  isTagPickerLoading: boolean;
+  onToggleTagPicker: () => void;
+  onAddTag: (tag: SupportTicketTagsResponse) => void;
+  onRemoveTag: (tagId: number) => void;
+  isStaffPickerOpen: boolean;
+  onToggleStaffPicker: () => void;
+  availableStaff: StaffMember[];
+  isStaffPickerLoading: boolean;
 }) {
+  const [tagSearch, setTagSearch] = useState("");
+
+  const filteredTags = availableTags.filter((tag) =>
+    tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
+  );
+
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-white">
       <div className="border-b px-4 py-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="max-w-[280px] text-xl font-semibold leading-tight text-slate-950">
-              {ticket.subject}
-            </h2>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <h2 className="truncate max-w-[400px] text-xl font-semibold leading-tight text-slate-950">
+                  {ticket.subject}
+                </h2>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[320px]">
+                <p>{ticket.subject}</p>
+              </TooltipContent>
+            </Tooltip>
             <span className="mt-1 inline-block text-xs font-semibold text-slate-400">
               #{ticket.id}
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-white"
-              onClick={() => onAction(`${ticket.customer} assigned to you`)}
-            >
-              <IconUser className="size-4" />
-              Assign
-            </Button>
+            <div className="relative flex">
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-white"
+                onClick={onToggleStaffPicker}
+              >
+                <IconUser className="size-4" />
+                Assign
+              </Button>
+              {isStaffPickerOpen ? (
+                <div className="absolute right-0 z-10 mt-2 w-[260px] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-200/20">
+                  <div className="mb-2 flex items-center justify-between gap-3 px-3 py-2">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        Choose staff
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Assign a staff to the current ticket.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                      onClick={onToggleStaffPicker}
+                    >
+                      <IconX size={16} />
+                    </button>
+                  </div>
+                  <div className="border-t border-slate-200" />
+                  {isStaffPickerLoading ? (
+                    <div className="flex min-h-[96px] items-center justify-center gap-2 px-3 py-4 text-sm text-slate-500">
+                      <Spinner className="size-4" />
+                      Loading staff...
+                    </div>
+                  ) : availableStaff.length === 0 ? (
+                    <div className="px-3 py-4 text-sm text-slate-500">
+                      No tags available.
+                    </div>
+                  ) : (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between"
+                        >
+                          {ticket.internal_assignee?.name ?? "Select staff"}
+                          <IconChevronDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+
+                      <PopoverContent className="w-[320px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search staff..." />
+
+                          <CommandEmpty>No staff found.</CommandEmpty>
+
+                          <CommandGroup heading="Staff">
+                            {availableStaff.map((staff) => (
+                              <CommandItem
+                                key={staff.id}
+                                value={`${staff.first_name} ${staff.last_name}`}
+                                // onSelect={() =>
+                                //   onAssignStaff(
+                                //     selectedStaff?.id === staff.id ? null : staff.id
+                                //   )
+                                // }
+                              >
+                                <IconCheck
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    ticket.internal_assignee?.id === staff.id
+                                      ? "opacity-100"
+                                      : "opacity-0",
+                                  )}
+                                />
+                                {staff.first_name} {staff.last_name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+
+                          <CommandSeparator />
+
+                          <CommandItem
+                            className="text-red-600"
+                            // onSelect={() => onAssignStaff(null)}
+                          >
+                            <IconX className="mr-2 h-4 w-4" />
+                            Unassign
+                          </CommandItem>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
+              ) : null}
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -511,22 +511,147 @@ function ConversationPanel({
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Badge className="border-indigo-200 bg-indigo-50 text-indigo-700">
-            Open - unassigned
+          {!ticket.internal_assignee && ticket.status === "open" && (
+            <Badge className="border-indigo-200 bg-indigo-50 text-indigo-700">
+              Open - Unassigned
+            </Badge>
+          )}
+          <Badge
+            className={
+              priorityBadgeClass[ticket.priority] ??
+              "border-slate-200 bg-slate-100 text-slate-700"
+            }
+          >
+            <span
+              className={cn(
+                priorityBadgeClass[ticket.priority] ??
+                  "border-slate-200 bg-slate-100 text-slate-700",
+                "capitalize",
+              )}
+            />
+            {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
           </Badge>
-          <Badge className="border-red-100 bg-red-50 text-red-700">
-            <span className="size-2 rounded-full bg-red-500" />
-            Urgent
-          </Badge>
-          <Badge className="border-cyan-100 bg-cyan-50 text-cyan-700">
-            WISMO
-          </Badge>
-          <Badge className="border-slate-200 bg-white text-slate-700">
-            <IconTag className="size-3" /> + Tag
-          </Badge>
-          <Badge className="border-orange-100 bg-orange-50 text-orange-600">
-            First response due in 12m
-          </Badge>
+          {ticket.tags.map((tag) => (
+            <Badge
+              key={tag.id}
+              className="border-cyan-100 bg-cyan-50 text-cyan-700"
+            >
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <IconTag className="size-3" />
+                  <span>{tag.name}</span>
+                </div>
+                <button
+                  type="button"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
+                  onClick={() => onRemoveTag(tag.id)}
+                  aria-label={`Remove ${tag.name}`}
+                >
+                  <IconX className="size-3" />
+                </button>
+              </div>
+            </Badge>
+          ))}
+          <div className="relative flex">
+            <Button
+              variant="outline"
+              size="sm"
+              className="inline-flex h-6 items-center gap-1 rounded-md border px-2 text-[11px] font-semibold bg-white text-slate-700 hover:bg-slate-50"
+              onClick={onToggleTagPicker}
+            >
+              <IconPlus /> Tag
+            </Button>
+            {isTagPickerOpen ? (
+              <div className="absolute right-0 z-10 mt-2 w-[260px] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-200/20">
+                <div className="mb-2 flex items-center justify-between gap-3 px-3 py-2">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      Choose tag
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Add a label to the current ticket.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                    onClick={onToggleTagPicker}
+                  >
+                    <IconX size={16} />
+                  </button>
+                </div>
+                <div className="border-t border-slate-200" />
+                <div className="border-t border-slate-200" />
+                <div className="p-2">
+                  <div className="relative">
+                    <IconSearch
+                      size={16}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                    <Input
+                      type="text"
+                      placeholder="Search tags..."
+                      value={tagSearch}
+                      onChange={(e) => setTagSearch(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-primary"
+                    />
+                  </div>
+                </div>
+                {isTagPickerLoading ? (
+                  <div className="flex min-h-[96px] items-center justify-center gap-2 px-3 py-4 text-sm text-slate-500">
+                    <Spinner className="size-4" />
+                    Loading tags...
+                  </div>
+                ) : availableTags.length === 0 ? (
+                  <div className="px-3 py-4 text-sm text-slate-500">
+                    No tags available.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-56 overflow-y-auto p-2">
+                    {filteredTags.length === 0 ? (
+                      <div className="py-6 text-center text-sm text-slate-500">
+                        No matching tags found.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {filteredTags.map((tag) => {
+                          const alreadyAdded = ticket.tags.some(
+                            (existingTag) => existingTag.id === tag.id,
+                          );
+                          return (
+                            <button
+                              key={tag.id}
+                              type="button"
+                              className={cn(
+                                "flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-left text-sm transition",
+                                alreadyAdded
+                                  ? "border-slate-200 bg-slate-50 text-slate-500 line-through opacity-80"
+                                  : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50",
+                              )}
+                              onClick={() => !alreadyAdded && onAddTag(tag)}
+                              disabled={alreadyAdded}
+                            >
+                              <div className="flex min-w-0 items-center gap-2">
+                                <span className="truncate text-xs">
+                                  {tag.name}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="h-2.5 w-2.5 rounded-full"
+                                  style={{ backgroundColor: tag.color }}
+                                />
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -540,13 +665,13 @@ function ConversationPanel({
                 message.author === "agent" && "justify-end",
               )}
             >
-              {message.author === "customer" ? (
+              {/* {message.author === "customer" ? (
                 <Avatar className="size-8">
                   <AvatarFallback className="bg-slate-500 text-xs font-medium text-white">
                     {ticket.initials}
                   </AvatarFallback>
                 </Avatar>
-              ) : null}
+              ) : null} */}
               <div>
                 <div
                   className={cn(
@@ -555,7 +680,7 @@ function ConversationPanel({
                   )}
                 >
                   <span>
-                    {message.author === "agent" ? "You" : ticket.customer} -{" "}
+                    {/* {message.author === "agent" ? "You" : ticket.customer} -{" "} */}
                     {message.time}
                   </span>
                   <span className="font-medium uppercase tracking-wide">
@@ -820,8 +945,30 @@ export default function HelpDesk() {
   const activeSection = resolveTicketingSettingsSection(
     searchParams?.get("section") ?? null,
   );
-  const [ticketRows, setTicketRows] = useState(tickets);
-  const [activeTicketId, setActiveTicketId] = useState(tickets[0].id);
+
+  const dispatch = useAppDispatch();
+
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
+  const { FetchSupportTicketsListData, FetchSupportTicketsLoading } =
+    useAppSelector(
+      (state) => state.SupportTicketsSliceReducer.FetchSupportTicketsState,
+    );
+  const { FetchSupportTicketTagsData, FetchSupportTicketTagsIsLoading } =
+    useAppSelector(
+      (state) => state.SupportTicketsSliceReducer.FetchSupportTicketTagsState,
+    );
+  const { staff, staffLoading } = useAppSelector(
+    (state) => state.GetTenancyReducer,
+  );
+
+  const [ticketRows, setTicketRows] = useState<SupportTicket[]>([]);
+  const [page, setPage] = useState(1);
+  const [showTagPicker, setShowTagPicker] = useState(false);
+  const [showStaffPicker, setShowStaffPicker] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
   const [activeQueue, setActiveQueue] = useState<ActiveQueue>("open");
   const [reply, setReply] = useState("");
   const [composerMode, setComposerMode] = useState<"reply" | "note">("reply");
@@ -831,69 +978,116 @@ export default function HelpDesk() {
     Record<string, ChatMessage[]>
   >({});
 
+  useEffect(() => {
+    if (!storeCode) return;
+
+    dispatch(FetchStaff());
+  }, [dispatch, storeCode]);
+
+  useEffect(() => {
+    if (!storeCode) return;
+
+    const fetchArgs = {
+      store_code: storeCode,
+      page,
+      limit: 20,
+      filters: {
+        is_active: true,
+        ...(activeQueue !== "open" ? { status: activeQueue } : {}),
+      },
+    };
+
+    const fetchTickets = async () => {
+      const isLoadMore = page > 1;
+
+      if (isLoadMore) {
+        setIsLoadingMore(true);
+      }
+
+      try {
+        const data = await dispatch(FetchSupportTickets(fetchArgs)).unwrap();
+
+        setTicketRows((prev) => {
+          const rows = page === 1 ? data.results : [...prev, ...data.results];
+
+          setActiveTicketId((current) => {
+            if (rows.length === 0) return null;
+
+            return current && rows.some((t) => t.id === current)
+              ? current
+              : rows[0].id;
+          });
+
+          return rows;
+        });
+      } finally {
+        if (isLoadMore) {
+          setIsLoadingMore(false);
+        }
+      }
+    };
+
+    fetchTickets();
+  }, [dispatch, storeCode, page, activeQueue]);
+
+  useEffect(() => {
+    if (!storeCode) return;
+    dispatch(FetchSupportTicketTags(storeCode));
+  }, [dispatch, storeCode]);
+
   const activeTicket = useMemo(
-    () =>
-      ticketRows.find((ticket) => ticket.id === activeTicketId) ??
-      ticketRows[0],
+    () => ticketRows?.find((ticket) => ticket.id === activeTicketId) ?? null,
     [activeTicketId, ticketRows],
   );
 
   const activeMessages = useMemo<ChatMessage[]>(() => {
+    if (!activeTicket) return [];
+
     const customerMessage = {
       id: `${activeTicket.id}-customer`,
       author: "customer" as const,
       body:
-        activeTicket.id === "8821"
+        activeTicket.id === 8821
           ? "hi my order still has not arrived and i am getting a bit worried, it has been 5 days now."
-          : activeTicket.preview,
+          : activeTicket.last_message || activeTicket.description,
       time: "9:42 AM",
     };
 
     return [customerMessage, ...(extraMessages[activeTicket.id] ?? [])];
   }, [activeTicket, extraMessages]);
 
-  const handleSelectTicket = (ticketId: string) => {
+  const activeQueueLabel = useMemo(
+    () => queues.find((queue) => queue.key === activeQueue)?.label ?? "Open",
+    [activeQueue],
+  );
+
+  const handleSelectTicket = (ticketId: number) => {
     const nextTicket = ticketRows.find((ticket) => ticket.id === ticketId);
     if (!nextTicket) return;
     setActiveTicketId(ticketId);
     setReply("");
-    setTicketRows((rows) =>
-      rows.map((ticket) =>
-        ticket.id === ticketId ? { ...ticket, unread: false } : ticket,
-      ),
-    );
-    toast.info(`Opened ${nextTicket.customer}`, {
-      description: nextTicket.subject,
-    });
   };
 
   const handleQueueChange = (queue: ActiveQueue) => {
     setActiveQueue(queue);
+    setPage(1);
+    setActiveTicketId(null);
+    setTicketRows([]);
     toast.info(`${queue[0].toUpperCase()}${queue.slice(1)} tickets loaded`, {
-      description: "Using the same mock tickets for this demo.",
+      description: "Fetching support tickets for the selected queue.",
     });
   };
 
   const handleAction = (message: string) => {
+    if (!activeTicket) {
+      toast.error("No active ticket selected.");
+      return;
+    }
+
     if (message.endsWith("resolved")) {
       setIsResolving(true);
       setTimeout(() => {
         setIsResolving(false);
-        setTicketRows((rows) =>
-          rows.map((ticket) =>
-            ticket.id === activeTicket.id
-              ? {
-                  ...ticket,
-                  unread: false,
-                  preview: "Resolved by agent - mock status updated",
-                  tags: [
-                    ...ticket.tags.filter((tag) => tag.label !== "Resolved"),
-                    { label: "Resolved", tone: "green" },
-                  ],
-                }
-              : ticket,
-          ),
-        );
         toast.success(message);
       }, 650);
       return;
@@ -907,11 +1101,46 @@ export default function HelpDesk() {
     toast.success("AI draft added to the composer");
   };
 
-  const handleSaveDraft = () => {
+  const handleToggleTagPicker = () => {
+    setShowTagPicker((current) => !current);
+  };
+
+  const handleToggleStaffPicker = () => {
+    setShowStaffPicker((current) => !current);
+  };
+
+  const handleAddTag = (tag: SupportTicketTagsResponse) => {
+    if (!activeTicket) return;
+
+    setTicketRows((current) =>
+      current.map((ticket) =>
+        ticket.id === activeTicket.id &&
+        !ticket.tags.some((existing) => existing.id === tag.id)
+          ? { ...ticket, tags: [...ticket.tags, tag] }
+          : ticket,
+      ),
+    );
+    setShowTagPicker(false);
+    toast.success(`Tag added: ${tag.name}`);
+  };
+
+  const handleRemoveTag = (tagId: number) => {
+    if (!activeTicket) return;
+
+    setTicketRows((current) =>
+      current.map((ticket) =>
+        ticket.id === activeTicket.id
+          ? { ...ticket, tags: ticket.tags.filter((tag) => tag.id !== tagId) }
+          : ticket,
+      ),
+    );
+    toast.success("Tag removed");
+  };
+
+  const handleSaveDraft = () =>
     toast.success("Draft saved", {
       description: reply.trim() || "Empty draft placeholder saved.",
     });
-  };
 
   const handleSend = () => {
     const trimmedReply = reply.trim();
@@ -922,10 +1151,15 @@ export default function HelpDesk() {
       return;
     }
 
+    if (!activeTicket) {
+      toast.error("No ticket selected to send a reply.");
+      return;
+    }
+
     setIsSending(true);
     setTimeout(() => {
       const message: ChatMessage = {
-        id: `${activeTicket.id}-${Date.now()}`,
+        id: activeTicket.id,
         author: "agent",
         body:
           composerMode === "note"
@@ -938,20 +1172,6 @@ export default function HelpDesk() {
         ...current,
         [activeTicket.id]: [...(current[activeTicket.id] ?? []), message],
       }));
-      setTicketRows((rows) =>
-        rows.map((ticket) =>
-          ticket.id === activeTicket.id
-            ? {
-                ...ticket,
-                unread: false,
-                preview:
-                  composerMode === "note"
-                    ? "Internal note added"
-                    : trimmedReply,
-              }
-            : ticket,
-        ),
-      );
       setReply("");
       setIsSending(false);
       toast.success(
@@ -969,30 +1189,93 @@ export default function HelpDesk() {
           <>
             <TicketListPanel
               rows={ticketRows}
-              activeTicketId={activeTicket.id}
+              activeTicketId={activeTicket?.id ?? null}
               activeQueue={activeQueue}
+              queueLabel={activeQueueLabel}
               onQueueChange={handleQueueChange}
               onSelectTicket={handleSelectTicket}
               onUtilityAction={handleAction}
+              count={FetchSupportTicketsListData?.count ?? 0}
+              isLoading={FetchSupportTicketsLoading}
+              isLoadingMore={isLoadingMore}
+              hasMore={Boolean(FetchSupportTicketsListData?.next)}
+              onLoadMore={() => {
+                if (Boolean(FetchSupportTicketsListData?.next)) {
+                  setPage((current) => current + 1);
+                }
+              }}
             />
-            <ConversationPanel
-              ticket={activeTicket}
-              messages={activeMessages}
-              reply={reply}
-              composerMode={composerMode}
-              isSending={isSending}
-              isResolving={isResolving}
-              onReplyChange={setReply}
-              onComposerModeChange={setComposerMode}
-              onSend={handleSend}
-              onAcceptDraft={handleAcceptDraft}
-              onSaveDraft={handleSaveDraft}
-              onAction={handleAction}
-            />
-            <CopilotPanel
-              onAcceptDraft={handleAcceptDraft}
-              onAction={handleAction}
-            />
+            {FetchSupportTicketsLoading && !activeTicket ? (
+              <div className="flex min-w-0 flex-1 items-center justify-center bg-slate-50">
+                <div className="text-center">
+                  <Spinner className="mx-auto mb-4 size-8" />
+                  <p className="text-sm text-slate-500">
+                    Loading conversation...
+                  </p>
+                </div>
+              </div>
+            ) : !activeTicket ? (
+              <div className="flex min-w-0 flex-1 items-center justify-center bg-slate-50 px-6 text-center">
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">
+                    Select a ticket to view
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Open a ticket from the left panel to see the conversation.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <ConversationPanel
+                ticket={activeTicket}
+                messages={activeMessages}
+                reply={reply}
+                composerMode={composerMode}
+                isSending={isSending}
+                isResolving={isResolving}
+                onReplyChange={setReply}
+                onComposerModeChange={setComposerMode}
+                onSend={handleSend}
+                onAcceptDraft={handleAcceptDraft}
+                onSaveDraft={handleSaveDraft}
+                onAction={handleAction}
+                availableTags={FetchSupportTicketTagsData}
+                isTagPickerOpen={showTagPicker}
+                isTagPickerLoading={FetchSupportTicketTagsIsLoading}
+                onToggleTagPicker={handleToggleTagPicker}
+                onAddTag={handleAddTag}
+                onRemoveTag={handleRemoveTag}
+                isStaffPickerOpen={showStaffPicker}
+                onToggleStaffPicker={handleToggleStaffPicker}
+                availableStaff={staff}
+                isStaffPickerLoading={staffLoading}
+              />
+            )}
+            {FetchSupportTicketsLoading && !activeTicket ? (
+              <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
+                <div className="flex h-[calc(100vh-var(--header-height)-4rem)] items-center justify-center px-4 text-center">
+                  <div>
+                    <Spinner className="mx-auto mb-4 size-8" />
+                    <p className="text-sm text-slate-500">
+                      Loading AI Copilot...
+                    </p>
+                  </div>
+                </div>
+              </aside>
+            ) : !activeTicket ? (
+              <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
+                <div className="flex h-[calc(100vh-var(--header-height)-4rem)] items-center justify-center px-4 text-center">
+                  <p className="text-sm text-slate-500">
+                    Select a ticket to enable AI Copilot.
+                  </p>
+                </div>
+              </aside>
+            ) : (
+              <CopilotPanel
+                onAcceptDraft={handleAcceptDraft}
+                onAction={handleAction}
+              />
+            )}
           </>
         )}
       </div>
