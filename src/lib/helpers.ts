@@ -95,3 +95,44 @@ export const custructTimeInHumanReadableFormat = (
   }
   return `${value}m`;
 };
+
+
+/**
+ * Format a date/time value as a compact relative time string.
+ *
+ * Examples:
+ * - 5m
+ * - 2h
+ * - 3d
+ * - 1w
+ * - 2mo
+ *
+ * Returns an em dash (`—`) if the input is null, undefined, or an invalid date.
+ *
+ * @param value - ISO date string or other valid date string.
+ * @returns A compact relative time representation.
+ */
+export function formatRelativeDateTime(
+  value: string | null | undefined,
+): string {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 60) return `${diffMinutes}m`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d`;
+
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 4) return `${diffWeeks}w`;
+
+  return `${Math.max(1, Math.floor(diffDays / 30))}mo`;
+}
