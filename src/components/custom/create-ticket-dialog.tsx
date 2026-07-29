@@ -40,6 +40,9 @@ export function CreateTicketDialog({
   const [description, setDescription] = useState("");
   const [generateDescription, setGenerateDescription] = useState(false);
   const hasThreadCustomerEmail = Boolean(threadCustomerEmail);
+  const ticketCustomerEmail = hasThreadCustomerEmail
+    ? threadCustomerEmail
+    : customerEmail;
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -88,7 +91,7 @@ export function CreateTicketDialog({
             <Input
               id="ticket-customer-email"
               type="email"
-              value={hasThreadCustomerEmail ? threadCustomerEmail : customerEmail}
+              value={ticketCustomerEmail}
               onChange={(event) => setCustomerEmail(event.target.value)}
               disabled={hasThreadCustomerEmail}
               placeholder="customer@example.com"
@@ -136,7 +139,14 @@ export function CreateTicketDialog({
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={!subject.trim()}>
+            <Button
+              type="submit"
+              disabled={
+                !ticketCustomerEmail.trim() ||
+                !subject.trim() ||
+                !description.trim()
+              }
+            >
               Create Ticket
             </Button>
           </DialogFooter>
