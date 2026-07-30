@@ -9,11 +9,13 @@ import {
   useRef,
 } from "react";
 import { useSearchParams } from "next/navigation";
+import { useFormik } from "formik";
 import { toast } from "sonner";
 import {
   IconArchive,
   IconArrowsDiagonal,
   IconBolt,
+  IconBrandFacebook,
   IconBrandInstagram,
   IconBrandWhatsapp,
   IconCheck,
@@ -60,6 +62,18 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/components/ui/combobox";
+import {
   Command,
   CommandEmpty,
   CommandGroup,
@@ -79,6 +93,7 @@ import {
   SupportTicketAgentDraftSave,
   type SupportTicket,
   type SupportTicketChannel,
+  type SupportTicketFilters,
   type SupportTicketPriority,
   type SupportTicketTagsResponse,
   type SupportTicketMessage,
@@ -95,6 +110,7 @@ const suggestedReply =
 const channelIcon = {
   whatsapp: IconBrandWhatsapp,
   email: IconMail,
+  facebook: IconBrandFacebook,
   instagram: IconBrandInstagram,
   web: IconMessage2,
 } satisfies Record<SupportTicketChannel, typeof IconBrandWhatsapp>;
@@ -102,6 +118,7 @@ const channelIcon = {
 const channelColor = {
   whatsapp: "text-emerald-500",
   email: "text-orange-500",
+  facebook: "text-blue-600",
   instagram: "text-rose-500",
   web: "text-indigo-500",
 } satisfies Record<SupportTicketChannel, string>;
@@ -135,6 +152,11 @@ function Badge({
   );
 }
 
+function getCustomerName(customer: SupportTicket["customer"]) {
+  if (typeof customer === "string") return customer;
+  return customer?.name || "Unknown customer";
+}
+
 function TicketRow({
   ticket,
   active,
@@ -166,7 +188,7 @@ function TicketRow({
             className={cn("size-5 shrink-0", channelColor[ticket.channel])}
           />
           <span className="truncate text-sm font-medium text-slate-950">
-            {ticket.customer || "Unknown customer"}
+            {getCustomerName(ticket.customer)}
           </span>
         </div>
         <p className="truncate text-sm font-medium text-slate-950">
@@ -199,6 +221,113 @@ const queues = [
   { key: "closed", label: "Closed" },
 ] as const;
 
+type TicketFilterSelection = {
+  channels: SupportTicketChannel[];
+  tags: string[];
+  priorities: SupportTicketPriority[];
+  fromDate: string;
+  toDate: string;
+};
+
+const emptyTicketFilters: TicketFilterSelection = {
+  channels: [],
+  tags: [],
+  priorities: [],
+  fromDate: "",
+  toDate: "",
+};
+
+const channelOptions: { value: SupportTicketChannel; label: string }[] = [
+  { value: "web", label: "Web" },
+  { value: "email", label: "Email" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "facebook", label: "Facebook" },
+  { value: "instagram", label: "Instagram" },
+];
+
+const priorityOptions: { value: SupportTicketPriority; label: string }[] = [
+  { value: "low", label: "Low" },
+  { value: "normal", label: "Normal" },
+  { value: "high", label: "High" },
+  { value: "urgent", label: "Urgent" },
+];
+
+function MultiSelectCombobox({
+  options,
+  value,
+  onValueChange,
+  placeholder,
+  emptyMessage,
+  onSearchChange,
+  hasMore = false,
+  isLoading = false,
+  onLoadMore,
+}: {
+  options: { value: string; label: string }[];
+  value: string[];
+  onValueChange: (value: string[]) => void;
+  placeholder: string;
+  emptyMessage: string;
+  onSearchChange?: (value: string) => void;
+  hasMore?: boolean;
+  isLoading?: boolean;
+  onLoadMore?: () => void;
+}) {
+  const anchor = useComboboxAnchor();
+  const optionLabels = new Map(
+    options.map((option) => [option.value, option.label]),
+  );
+  const values = options.map((option) => option.value);
+
+  return (
+    <Combobox
+      multiple
+      autoHighlight
+      items={values}
+      value={value}
+      onValueChange={onValueChange}
+      itemToStringLabel={(item) => optionLabels.get(item) ?? item}
+      onInputValueChange={(inputValue) => onSearchChange?.(inputValue)}
+    >
+      <ComboboxChips ref={anchor} className="w-full">
+        <ComboboxValue>
+          {(selectedValues) => (
+            <>
+              {(selectedValues as string[]).map((selectedValue) => (
+                <ComboboxChip key={selectedValue}>
+                  {optionLabels.get(selectedValue) ?? selectedValue}
+                </ComboboxChip>
+              ))}
+              <ComboboxChipsInput placeholder={placeholder} />
+            </>
+          )}
+        </ComboboxValue>
+      </ComboboxChips>
+      <ComboboxContent anchor={anchor}>
+        <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
+        <ComboboxList
+          onScroll={(event) => {
+            const target = event.currentTarget;
+            if (
+              hasMore &&
+              !isLoading &&
+              target.scrollHeight - target.scrollTop <= target.clientHeight + 40
+            ) {
+              onLoadMore?.();
+            }
+          }}
+        >
+          {(item) => (
+            <ComboboxItem key={item} value={item}>
+              {optionLabels.get(item) ?? item}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
 function TicketListPanel({
   rows,
   activeTicketId,
@@ -212,6 +341,20 @@ function TicketListPanel({
   isLoadingMore,
   hasMore,
   onLoadMore,
+  searchValue,
+  onSearchChange,
+  availableTags,
+  filters,
+  isFilterOpen,
+  onFilterOpenChange,
+  onFiltersChange,
+  onApplyFilters,
+  onClearFilters,
+  dateError,
+  hasMoreTags,
+  isTagListLoading,
+  onTagSearchChange,
+  onLoadMoreTags,
 }: {
   rows: SupportTicket[];
   activeTicketId: number | null;
@@ -225,7 +368,27 @@ function TicketListPanel({
   isLoadingMore: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
+  searchValue: string;
+  onSearchChange: (value: string) => void;
+  availableTags: SupportTicketTagsResponse[];
+  filters: TicketFilterSelection;
+  isFilterOpen: boolean;
+  onFilterOpenChange: (open: boolean) => void;
+  onFiltersChange: (filters: TicketFilterSelection) => void;
+  onApplyFilters: () => void;
+  onClearFilters: () => void;
+  dateError?: string;
+  hasMoreTags: boolean;
+  isTagListLoading: boolean;
+  onTagSearchChange: (value: string) => void;
+  onLoadMoreTags: () => void;
 }) {
+  const activeFilterCount =
+    filters.channels.length +
+    filters.tags.length +
+    filters.priorities.length +
+    Number(Boolean(filters.fromDate || filters.toDate));
+
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
     if (!hasMore || isLoading || isLoadingMore) return;
@@ -244,9 +407,135 @@ function TicketListPanel({
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="icon-sm" className="bg-white">
-            <IconFilter className="size-4" />
-          </Button>
+          <Popover open={isFilterOpen} onOpenChange={onFilterOpenChange}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="relative bg-white"
+                aria-label="Filter tickets"
+              >
+                <IconFilter className="size-4" />
+                {activeFilterCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-indigo-600 text-[9px] text-white">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 p-0">
+              <div className="border-b px-4 py-3">
+                <p className="text-sm font-semibold">Filter tickets</p>
+              </div>
+              <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4">
+                <fieldset>
+                  <legend className="mb-2 text-xs font-semibold text-slate-700">
+                    Channel
+                  </legend>
+                  <MultiSelectCombobox
+                    options={channelOptions}
+                    value={filters.channels}
+                    onValueChange={(channels) =>
+                      onFiltersChange({
+                        ...filters,
+                        channels: channels as SupportTicketChannel[],
+                      })
+                    }
+                    placeholder="Search channels..."
+                    emptyMessage="No channels found."
+                  />
+                </fieldset>
+
+                <fieldset>
+                  <legend className="mb-2 text-xs font-semibold text-slate-700">
+                    Tags
+                  </legend>
+                  <MultiSelectCombobox
+                    options={availableTags.map((tag) => ({
+                      value: tag.name,
+                      label: tag.name,
+                    }))}
+                    value={filters.tags}
+                    onValueChange={(tags) =>
+                      onFiltersChange({
+                        ...filters,
+                        tags,
+                      })
+                    }
+                    placeholder="Search tags..."
+                    emptyMessage="No tags found."
+                    onSearchChange={onTagSearchChange}
+                    hasMore={hasMoreTags}
+                    isLoading={isTagListLoading}
+                    onLoadMore={onLoadMoreTags}
+                  />
+                </fieldset>
+
+                <fieldset>
+                  <legend className="mb-2 text-xs font-semibold text-slate-700">
+                    Last message date
+                  </legend>
+                  <div className="grid gap-2">
+                    <label className="grid gap-1 text-xs text-slate-500">
+                      From
+                      <Input
+                        type="datetime-local"
+                        value={filters.fromDate}
+                        onChange={(event) =>
+                          onFiltersChange({
+                            ...filters,
+                            fromDate: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="grid gap-1 text-xs text-slate-500">
+                      To
+                      <Input
+                        type="datetime-local"
+                        value={filters.toDate}
+                        onChange={(event) =>
+                          onFiltersChange({
+                            ...filters,
+                            toDate: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                    {dateError ? (
+                      <p className="text-xs text-red-600">{dateError}</p>
+                    ) : null}
+                  </div>
+                </fieldset>
+
+                <fieldset>
+                  <legend className="mb-2 text-xs font-semibold text-slate-700">
+                    Priority
+                  </legend>
+                  <MultiSelectCombobox
+                    options={priorityOptions}
+                    value={filters.priorities}
+                    onValueChange={(priorities) =>
+                      onFiltersChange({
+                        ...filters,
+                        priorities: priorities as SupportTicketPriority[],
+                      })
+                    }
+                    placeholder="Search priorities..."
+                    emptyMessage="No priorities found."
+                  />
+                </fieldset>
+              </div>
+              <div className="flex justify-between border-t p-3">
+                <Button variant="ghost" size="sm" onClick={onClearFilters}>
+                  Clear
+                </Button>
+                <Button size="sm" onClick={onApplyFilters}>
+                  Apply filters
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
       <div className="flex gap-2 border-b px-3 py-2">
@@ -268,7 +557,29 @@ function TicketListPanel({
           </Button>
         ))}
       </div>
-      <div className="h-[83vh]! overflow-y-auto" onScroll={handleScroll}>
+      <div className="border-b px-3 py-2">
+        <div className="relative">
+          <IconSearch className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            value={searchValue}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Search tickets..."
+            aria-label="Search tickets"
+            className="h-8 pl-8"
+          />
+          {searchValue ? (
+            <button
+              type="button"
+              onClick={() => onSearchChange("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+              aria-label="Clear ticket search"
+            >
+              <IconX className="size-4" />
+            </button>
+          ) : null}
+        </div>
+      </div>
+      <div className="h-[calc(83vh-49px)]! overflow-y-auto" onScroll={handleScroll}>
         {isLoading && rows?.length === 0 ? (
           <div className="flex min-h-[360px] items-center justify-center px-4 py-8">
             <div className="text-center">
@@ -367,8 +678,7 @@ function ConversationPanel({
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
   );
 
-  const customerInitials =
-  ticket.customer?.name
+  const customerInitials = getCustomerName(ticket.customer)
     ?.trim()
     .split(/\s+/)
     .map((part) => part[0])
@@ -499,7 +809,11 @@ function ConversationPanel({
               variant="outline"
               size="sm"
               className="bg-white"
-              onClick={() => onAction(`${ticket.customer} snoozed for 1 hour`)}
+              onClick={() =>
+                onAction(
+                  `${getCustomerName(ticket.customer)} snoozed for 1 hour`,
+                )
+              }
             >
               <IconClock className="size-4" />
               Snooze
@@ -1007,7 +1321,11 @@ export default function HelpDesk() {
     useAppSelector(
       (state) => state.SupportTicketsSliceReducer.SupportTicketMessageSendState,
     );
-  const { FetchSupportTicketTagsData, FetchSupportTicketTagsIsLoading } =
+  const {
+    FetchSupportTicketTagsData,
+    FetchSupportTicketTagsIsLoading,
+    FetchSupportTicketTagsNext,
+  } =
     useAppSelector(
       (state) => state.SupportTicketsSliceReducer.FetchSupportTicketTagsState,
     );
@@ -1021,6 +1339,32 @@ export default function HelpDesk() {
   const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
   const [activeQueue, setActiveQueue] = useState<ActiveQueue>("open");
   const [supportTikcetMessages, setSupportTicketMessage] = useState<SupportTicketMessage[]>([]);
+  const [searchValue, setSearchValue] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [tagSearch, setTagSearch] = useState("");
+  const [debouncedTagSearch, setDebouncedTagSearch] = useState("");
+  const [tagPage, setTagPage] = useState(1);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [appliedFilters, setAppliedFilters] =
+    useState<TicketFilterSelection>(emptyTicketFilters);
+  const filterFormik = useFormik<TicketFilterSelection>({
+    initialValues: emptyTicketFilters,
+    validate: (values) => {
+      if (
+        values.fromDate &&
+        values.toDate &&
+        new Date(values.fromDate) > new Date(values.toDate)
+      ) {
+        return { toDate: "The To date must be after the From date." };
+      }
+      return {};
+    },
+    onSubmit: (values) => {
+      setAppliedFilters(values);
+      setPage(1);
+      setIsFilterOpen(false);
+    },
+  });
 
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showStaffPicker, setShowStaffPicker] = useState(false);
@@ -1041,13 +1385,31 @@ export default function HelpDesk() {
   useEffect(() => {
     if (!storeCode) return;
 
+    const filters: SupportTicketFilters = {
+      status: activeQueue,
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      ...(appliedFilters.channels.length
+        ? { channel: appliedFilters.channels.join(",") }
+        : {}),
+      ...(appliedFilters.tags.length
+        ? { tags: appliedFilters.tags.join(",") }
+        : {}),
+      ...(appliedFilters.fromDate
+        ? { from_date: new Date(appliedFilters.fromDate).toISOString() }
+        : {}),
+      ...(appliedFilters.toDate
+        ? { to_date: new Date(appliedFilters.toDate).toISOString() }
+        : {}),
+      ...(appliedFilters.priorities.length
+        ? { priority: appliedFilters.priorities.join(",") }
+        : {}),
+    };
+
     const fetchArgs = {
       store_code: storeCode,
       page,
       limit: 20,
-      filters: {
-        ...(activeQueue !== "open" ? { status: activeQueue } : {}),
-      },
+      filters,
     };
 
     const fetchTickets = async () => {
@@ -1081,12 +1443,54 @@ export default function HelpDesk() {
     };
 
     fetchTickets();
-  }, [dispatch, storeCode, page, activeQueue]);
+  }, [
+    dispatch,
+    storeCode,
+    page,
+    activeQueue,
+    debouncedSearch,
+    appliedFilters,
+  ]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const nextSearch = searchValue.trim();
+      if (nextSearch === debouncedSearch) return;
+
+      setDebouncedSearch(nextSearch);
+      setPage(1);
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [searchValue, debouncedSearch]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const nextSearch = tagSearch.trim();
+      if (nextSearch === debouncedTagSearch) return;
+      setDebouncedTagSearch(nextSearch);
+      setTagPage(1);
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [tagSearch, debouncedTagSearch]);
 
   useEffect(() => {
     if (!storeCode) return;
-    dispatch(FetchSupportTicketTags(storeCode));
-  }, [dispatch, storeCode]);
+    dispatch(
+      FetchSupportTicketTags({
+        storeCode,
+        search: debouncedTagSearch,
+        page: tagPage,
+        limit: 20,
+      }),
+    );
+  }, [
+    dispatch,
+    storeCode,
+    debouncedTagSearch,
+    tagPage,
+  ]);
 
   useEffect(()=>{
     if (!storeCode || !activeTicketId) return;
@@ -1126,6 +1530,27 @@ export default function HelpDesk() {
     toast.info(`${queue[0].toUpperCase()}${queue.slice(1)} tickets loaded`, {
       description: "Fetching support tickets for the selected queue.",
     });
+  };
+
+  const handleFilterOpenChange = (open: boolean) => {
+    setIsFilterOpen(open);
+    if (open) {
+      filterFormik.resetForm({ values: appliedFilters });
+      setTagSearch("");
+      setDebouncedTagSearch("");
+      setTagPage(1);
+    }
+  };
+
+  const handleApplyFilters = () => {
+    filterFormik.handleSubmit();
+  };
+
+  const handleClearFilters = () => {
+    filterFormik.resetForm({ values: emptyTicketFilters });
+    setAppliedFilters(emptyTicketFilters);
+    setPage(1);
+    setIsFilterOpen(false);
   };
 
   const handleAction = (message: string) => {
@@ -1362,6 +1787,24 @@ export default function HelpDesk() {
               isLoading={FetchSupportTicketsLoading}
               isLoadingMore={isLoadingMore}
               hasMore={Boolean(FetchSupportTicketsListData?.next)}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              availableTags={FetchSupportTicketTagsData}
+              filters={filterFormik.values}
+              isFilterOpen={isFilterOpen}
+              onFilterOpenChange={handleFilterOpenChange}
+              onFiltersChange={(filters) => filterFormik.setValues(filters)}
+              onApplyFilters={handleApplyFilters}
+              onClearFilters={handleClearFilters}
+              dateError={filterFormik.errors.toDate}
+              hasMoreTags={Boolean(FetchSupportTicketTagsNext)}
+              isTagListLoading={FetchSupportTicketTagsIsLoading}
+              onTagSearchChange={setTagSearch}
+              onLoadMoreTags={() => {
+                if (FetchSupportTicketTagsNext) {
+                  setTagPage((current) => current + 1);
+                }
+              }}
               onLoadMore={() => {
                 if (Boolean(FetchSupportTicketsListData?.next)) {
                   setPage((current) => current + 1);

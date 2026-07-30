@@ -6,7 +6,12 @@ import { isAxiosError } from "axios";
 
 export type SupportTicketStatus = "open" | "pending" | "resolved" | "closed";
 export type SupportTicketPriority = "low" | "normal" | "high" | "urgent";
-export type SupportTicketChannel = "web" | "email" | "whatsapp" | "instagram";
+export type SupportTicketChannel =
+  | "web"
+  | "email"
+  | "whatsapp"
+  | "facebook"
+  | "instagram";
 export type SupportTicketMessageType = "external" | "internal";
 export type SupportTicketMessageSenderType = "customer" | "agent";
 export type SupportTicketMessageDirection = "incoming" | "outgoing";
@@ -15,8 +20,14 @@ export type SupportTicketMessageContentType = "text/plain" | "multipart";
 export type SupportTicketMessageAttachment = "text/plain" | "multipart";
 export type SupportTicketDraftType = "manual" | "ai";
 
-type SupportTicketFilters = {
+export type SupportTicketFilters = {
   status?: SupportTicketStatus;
+  search?: string;
+  channel?: string;
+  tags?: string;
+  from_date?: string;
+  to_date?: string;
+  priority?: string;
 };
 
 type GetSupportTicketsArgs = {
@@ -43,9 +54,16 @@ export type SupportTicketCustomer = {
 export type SupportTicketTagsResponse = {
   id: number;
   name: string;
-  color: string;
+
+export type SupportTicketTagsListResponse = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: SupportTicketTagsResponse[];
+};  color: string;
   description: string;
 };
+
 
 type SupportTicketAssignee = {
   id: number;
@@ -142,14 +160,18 @@ export const FetchSupportTickets = createAsyncThunk<
     thunkAPI,
   ) => {
     try {
-      const filteration =
-        "&" +
-        Object.entries(filters)
-          .map(([key, value]) => `${key}=${value}`)
-          .join("&");
+      const queryParams = new URLSearchParams({
+        store_code,
+        page: String(page),
+        page_size: String(limit),
+      });
+
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) queryParams.set(key, value);
+      });
 
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchSupportTickets()}?store_code=${store_code}&page=${page}&page_size=${limit}${filteration !== "&" ? filteration : ""}`,
+        `${ENDPOINTS.fetchSupportTickets()}?${queryParams.toString()}`,
       );
       const data = response.data.data;
 
@@ -231,12 +253,22 @@ export const SupportTicketMessageSend = createAsyncThunk(
   },
 );
 
-export const FetchSupportTicketTags = createAsyncThunk(
+export const FetchSupportTicketTags = createAsyncThunk<
+  SupportTicketTagsListResponse,
+  { storeCode: string; search?: string; page?: number; limit?: number }
+>(
   "SupportTicketTags",
-  async (storeCode: string, thunkAPI) => {
+  async ({ storeCode, search = "", page = 1, limit = 20 }, thunkAPI) => {
     try {
+      const queryParams = new URLSearchParams({
+        store_code: storeCode,
+        page: String(page),
+        page_size: String(limit),
+      });
+      if (search) queryParams.set("search", search);
+
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchSupportTicketTags()}?store_code=${storeCode}`,
+        `${ENDPOINTS.fetchSupportTicketTags()}?${queryParams.toString()}`,
       );
       const data = response.data.data;
 
@@ -345,6 +377,7 @@ const SupportTicketsSlice = createSlice({
       FetchSupportTicketTagsIsSuccess: false,
       FetchSupportTicketTagsIsError: null as null | string | object | unknown,
       FetchSupportTicketTagsData: [] as SupportTicketTagsResponse[],
+      FetchSupportTicketTagsNext: null as string | null,
     },
     SupportTicketStaffAssignState: {
       SupportTicketStaffAssignIsLoading: false,
@@ -434,15 +467,31 @@ const SupportTicketsSlice = createSlice({
           action.payload;
         state.SupportTicketMessageSendState.SupportTicketMessageSendIsSuccess = false;
       })
-      .addCase(FetchSupportTicketTags.pending, (state) => {
+      .addCase(FetchSupportTicketTags.pending, (state, action) => {
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsLoading = true;
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsError = null;
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsSuccess = false;
+        if ((action.meta.arg.page ?? 1) === 1) {
+          state.FetchSupportTicketTagsState.FetchSupportTicketTagsData = [];
+          state.FetchSupportTicketTagsState.FetchSupportTicketTagsNext = null;
+        }
       })
       .addCase(FetchSupportTicketTags.fulfilled, (state, action) => {
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsLoading = false;
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsData =
-          action.payload;
+          (action.meta.arg.page ?? 1) > 1
+            ? [
+                ...state.FetchSupportTicketTagsState.FetchSupportTicketTagsData,
+                ...action.payload.results.filter(
+                  (tag) =>
+                    !state.FetchSupportTicketTagsState.FetchSupportTicketTagsData.some(
+                      (existing) => existing.name === tag.name,
+                    ),
+                ),
+              ]
+            : action.payload.results;
+        state.FetchSupportTicketTagsState.FetchSupportTicketTagsNext =
+          action.payload.next;
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsSuccess = true;
       })
       .addCase(FetchSupportTicketTags.rejected, (state, action) => {
