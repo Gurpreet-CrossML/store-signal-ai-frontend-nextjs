@@ -546,13 +546,13 @@ function getPriceBreakdownRows(
 
 function OrderDetails({ order }: { order: OrderData }) {
   const breakdownRows = getPriceBreakdownRows(order);
-
+  const items = order.items ?? [];
   return (
     <div className="mt-1.5 space-y-3 rounded-xl border border-border/50 bg-muted/20 p-3">
       <div>
         <p className="text-[11px] font-medium text-muted-foreground">Items</p>
         <div className="mt-1.5 space-y-2">
-          {order.items.map((item, idx) => {
+          {items.map((item, idx) => {
             const unitPrice =
               typeof item.price === "number" ? item.price : Number(item.price);
             const lineTotal =
@@ -687,6 +687,7 @@ export function OrdersCard({
           <div className="space-y-1.5">
             {orderList?.map((order) => {
               const isExpanded = expandedId === order.id;
+              const itemCount = order.items?.length ?? 0;
 
               return (
                 <div key={order.id}>
@@ -703,16 +704,15 @@ export function OrdersCard({
                       <IconPackage className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-xs font-semibold text-foreground">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="break-all text-xs font-semibold text-foreground">
                           #{order.order_number}
                         </p>
                         <FulfillmentBadge status={order.fulfillment_status} />
                       </div>
                       <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        {formatDate(order.created_at)} · {order.items.length}{" "}
-                        item
-                        {order.items.length !== 1 ? "s" : ""}
+                        {formatDate(order.created_at)} · {itemCount} item
+                        {itemCount !== 1 ? "s" : ""}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">

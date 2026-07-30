@@ -68,6 +68,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { OrdersCard } from "@/components/custom/thread-detail-panels";
 
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
@@ -77,6 +78,7 @@ import {
   FetchSupportTicketDetails,
   SupportTicketMessageSend,
   SupportTicketAgentDraftSave,
+  FetchTicketCustomerOrders,
   type SupportTicket,
   type SupportTicketChannel,
   type SupportTicketPriority,
@@ -112,6 +114,31 @@ const priorityBadgeClass = {
   high: "border-amber-100 bg-amber-50 text-amber-700",
   urgent: "border-red-100 bg-red-50 text-red-700",
 } satisfies Record<SupportTicketPriority, string>;
+
+const getCustomerName = (ticket: SupportTicket) => {
+  if (typeof ticket.customer === "string") return ticket.customer;
+  if (!ticket.customer) return "Unknown customer";
+
+  const fullName =
+    ticket.customer.name ||
+    `${ticket.customer.first_name || ""} ${ticket.customer.last_name || ""}`.trim();
+
+  return fullName || ticket.customer.email || "Unknown customer";
+};
+
+const getCustomerEmail = (ticket: SupportTicket) =>
+  typeof ticket.customer === "object" && ticket.customer
+    ? ticket.customer.email
+    : "";
+
+const getCustomerInitials = (name: string) =>
+  name
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "?";
 
 function Badge({
   children,
@@ -367,14 +394,7 @@ function ConversationPanel({
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
   );
 
-  const customerInitials =
-  ticket.customer?.name
-    ?.trim()
-    .split(/\s+/)
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase() ?? "?";
+  const customerInitials = getCustomerInitials(getCustomerName(ticket));
 
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-white">
@@ -460,10 +480,7 @@ function ConversationPanel({
                                 value={`${staff.first_name} ${staff.last_name}`}
                                 onSelect={() =>
                                   ticket.internal_assignee?.id !== staff.id &&
-                                  onAssignStaff(
-                                    ticket.id,
-                                    staff.id
-                                  )
+                                  onAssignStaff(ticket.id, staff.id)
                                 }
                               >
                                 <IconCheck
@@ -483,7 +500,10 @@ function ConversationPanel({
 
                           <CommandItem
                             className="text-red-600"
-                            onSelect={() => ticket.internal_assignee?.id && onAssignStaff(ticket.id, null)}
+                            onSelect={() =>
+                              ticket.internal_assignee?.id &&
+                              onAssignStaff(ticket.id, null)
+                            }
                           >
                             <IconX className="mr-2 h-4 w-4" />
                             Unassign
@@ -542,7 +562,8 @@ function ConversationPanel({
                 "capitalize",
               )}
             />
-            {ticket?.priority?.charAt(0).toUpperCase() + ticket?.priority?.slice(1)}
+            {ticket?.priority?.charAt(0).toUpperCase() +
+              ticket?.priority?.slice(1)}
           </Badge>
           {ticket?.tags?.map((tag) => (
             <Badge
@@ -668,7 +689,10 @@ function ConversationPanel({
         </div>
       </div>
 
-      <div className="min-h-[360px] flex-1 overflow-y-auto bg-slate-50 px-4 py-5" ref={messagesEndRef}>
+      <div
+        className="min-h-[360px] flex-1 overflow-y-auto bg-slate-50 px-4 py-5"
+        ref={messagesEndRef}
+      >
         {messages.length === 0 ? (
           <div className="flex h-full min-h-[320px] items-center justify-center">
             <div className="text-center">
@@ -681,77 +705,75 @@ function ConversationPanel({
             </div>
           </div>
         ) : (
-        <div className="space-y-4 overflow-y-auto">
-          {messages.map((message) => (
-            message.message_type === "internal" ? (
-              <div key={message.id} className="py-2">
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        className="border-amber-300 bg-amber-100 text-amber-800"
-                      >
-                        Internal note
-                      </Badge>
-                      <span className="text-xs text-slate-500">
-                        {formatDateTime(message.created_at)}
-                      </span>
+          <div className="space-y-4 overflow-y-auto">
+            {messages.map((message) =>
+              message.message_type === "internal" ? (
+                <div key={message.id} className="py-2">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className="border-amber-300 bg-amber-100 text-amber-800">
+                          Internal note
+                        </Badge>
+                        <span className="text-xs text-slate-500">
+                          {formatDateTime(message.created_at)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
 
-                  <p className="whitespace-pre-wrap text-sm text-slate-700">
-                    {message.message}
-                  </p>
+                    <p className="whitespace-pre-wrap text-sm text-slate-700">
+                      {message.message}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )
-            :
-            (<div
-              key={message.id}
-              className={cn(
-                "flex items-start gap-3",
-                message.sender_type === "agent" && "justify-end",
-              )}
-            >
-              {message.sender_type === "customer" ? (
-                <Avatar className="size-8">
-                  <AvatarFallback className="bg-slate-500 text-xs font-medium text-white">
-                    {customerInitials}
-                  </AvatarFallback>
-                </Avatar>
-              ) : null}
-              <div>
+              ) : (
                 <div
+                  key={message.id}
                   className={cn(
-                    "mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-500",
+                    "flex items-start gap-3",
                     message.sender_type === "agent" && "justify-end",
                   )}
                 >
-                  <span>
-                    {/* {message.author === "agent" ? "You" : ticket.customer} -{" "} */}
-                    {formatDateTime(message.created_at)}
-                  </span>
-                  <span className="font-medium uppercase tracking-wide">
-                    {message.sender_type === "agent"
-                      ? "Agent reply"
-                      : ticket.channel}
-                  </span>
+                  {message.sender_type === "customer" ? (
+                    <Avatar className="size-8">
+                      <AvatarFallback className="bg-slate-500 text-xs font-medium text-white">
+                        {customerInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : null}
+                  <div>
+                    <div
+                      className={cn(
+                        "mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-500",
+                        message.sender_type === "agent" && "justify-end",
+                      )}
+                    >
+                      <span>
+                        {/* {message.author === "agent" ? "You" : ticket.customer} -{" "} */}
+                        {formatDateTime(message.created_at)}
+                      </span>
+                      <span className="font-medium uppercase tracking-wide">
+                        {message.sender_type === "agent"
+                          ? "Agent reply"
+                          : ticket.channel}
+                      </span>
+                    </div>
+                    <div
+                      className={cn(
+                        "max-w-[320px] rounded-xl border px-4 py-3 text-sm font-medium leading-6 shadow-sm",
+                        message.sender_type === "agent"
+                          ? "bg-indigo-600 text-white"
+                          : "bg-white text-slate-950",
+                      )}
+                    >
+                      {message.message}
+                    </div>
+                  </div>
                 </div>
-                <div
-                  className={cn(
-                    "max-w-[320px] rounded-xl border px-4 py-3 text-sm font-medium leading-6 shadow-sm",
-                    message.sender_type === "agent"
-                      ? "bg-indigo-600 text-white"
-                      : "bg-white text-slate-950",
-                  )}
-                >
-                  {message.message}
-                </div>
-              </div>
-            </div>)
-          ))}
-        </div>)
-        }
+              ),
+            )}
+          </div>
+        )}
       </div>
 
       <div className="border-t bg-white p-4">
@@ -866,120 +888,185 @@ function ConversationPanel({
 }
 
 function CopilotPanel({
+  ticket,
+  orders,
+  ordersLoading,
+  orderSyncLoading,
+  onOrdersSync,
   onAcceptDraft,
   onAction,
 }: {
+  ticket: SupportTicket;
+  orders: Parameters<typeof OrdersCard>[0]["orders"];
+  ordersLoading: boolean;
+  orderSyncLoading: boolean;
+  onOrdersSync: () => void;
   onAcceptDraft: () => void;
   onAction: (action: string) => void;
 }) {
+  const [activeTab, setActiveTab] = useState<"copilot" | "customer">("copilot");
+  const customerName = getCustomerName(ticket);
+  const customerEmail = getCustomerEmail(ticket);
+  const customerInitials = getCustomerInitials(customerName);
+  const customerData = customerEmail
+    ? { name: customerName, email: customerEmail }
+    : null;
+
   return (
     <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
       <div className="grid h-11 grid-cols-2 border-b text-sm font-medium">
-        <button className="flex items-center justify-center gap-2 border-b-2 border-indigo-600 text-indigo-600">
+        <button
+          className={cn(
+            "flex items-center justify-center gap-2",
+            activeTab === "copilot"
+              ? "border-b-2 border-indigo-600 text-indigo-600"
+              : "text-slate-500",
+          )}
+          onClick={() => setActiveTab("copilot")}
+        >
           <IconMessageChatbot className="size-4" />
           AI Copilot
         </button>
-        <button className="flex items-center justify-center gap-2 text-slate-500">
+        <button
+          className={cn(
+            "flex items-center justify-center gap-2",
+            activeTab === "customer"
+              ? "border-b-2 border-indigo-600 text-indigo-600"
+              : "text-slate-500",
+          )}
+          onClick={() => setActiveTab("customer")}
+        >
           <IconUsers className="size-4" />
           Customer
         </button>
       </div>
-      <div className="space-y-3 overflow-y-auto p-4 h-[88vh]!">
-        <section className="rounded-lg border bg-white">
-          <div className="border-b px-3 py-3">
-            <IconSparkles className="size-4 text-indigo-600" />
-          </div>
-          <p className="px-3 py-4 text-sm leading-6 text-slate-700">
-            Sarah is asking where her order #8821 is - it&apos;s been 5 days and
-            she&apos;s worried. The order shipped Tuesday via DHL and is out for
-            delivery today. No action needed beyond reassurance + tracking.
-          </p>
-        </section>
-
-        <section className="rounded-lg border bg-white">
-          <div className="flex items-center justify-between border-b px-3 py-3">
-            <h3 className="flex items-center gap-2 text-sm font-medium text-slate-950">
-              <IconMessageChatbot className="size-4 text-indigo-600" />
-              Suggested reply
-            </h3>
-            <span className="text-[11px] font-semibold text-slate-400">
-              brand voice
-            </span>
-          </div>
-          <div className="p-3">
-            <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-3 text-sm leading-6 text-slate-950">
-              Hi Sarah - I completely understand, and I&apos;m sorry it&apos;s
-              felt like a long wait. Good news: your order #8821 shipped Tuesday
-              and it&apos;s out for delivery with DHL today, before 6pm.
-              Here&apos;s your live tracking: DHL 4429 8817 22. I&apos;ll keep
-              an eye on it too.
+      {activeTab === "customer" ? (
+        <div className="h-[88vh]! overflow-y-auto p-4">
+          <div className="flex items-center gap-3">
+            <Avatar className="size-12">
+              <AvatarFallback className="bg-teal-600 text-base font-semibold text-white">
+                {customerInitials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-semibold text-slate-950">
+                {customerName}
+              </h3>
+              <p className="truncate text-xs text-slate-500">
+                {customerEmail || "No email available"} · {ticket.channel}
+              </p>
             </div>
-            <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-              Confidence
-              <div className="h-1 flex-1 rounded-full bg-slate-100">
-                <div className="h-1 w-[94%] rounded-full bg-emerald-500" />
+          </div>
+
+          <div className="mt-4">
+            <OrdersCard
+              orders={orders}
+              loading={ordersLoading}
+              handleOrdersSync={onOrdersSync}
+              orderSyncLoading={orderSyncLoading}
+              custometData={customerData}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3 overflow-y-auto p-4 h-[88vh]!">
+          <section className="rounded-lg border bg-white">
+            <div className="border-b px-3 py-3">
+              <IconSparkles className="size-4 text-indigo-600" />
+            </div>
+            <p className="px-3 py-4 text-sm leading-6 text-slate-700">
+              Sarah is asking where her order #8821 is - it&apos;s been 5 days
+              and she&apos;s worried. The order shipped Tuesday via DHL and is
+              out for delivery today. No action needed beyond reassurance +
+              tracking.
+            </p>
+          </section>
+
+          <section className="rounded-lg border bg-white">
+            <div className="flex items-center justify-between border-b px-3 py-3">
+              <h3 className="flex items-center gap-2 text-sm font-medium text-slate-950">
+                <IconMessageChatbot className="size-4 text-indigo-600" />
+                Suggested reply
+              </h3>
+              <span className="text-[11px] font-semibold text-slate-400">
+                brand voice
+              </span>
+            </div>
+            <div className="p-3">
+              <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-3 text-sm leading-6 text-slate-950">
+                Hi Sarah - I completely understand, and I&apos;m sorry it&apos;s
+                felt like a long wait. Good news: your order #8821 shipped
+                Tuesday and it&apos;s out for delivery with DHL today, before
+                6pm. Here&apos;s your live tracking: DHL 4429 8817 22. I&apos;ll
+                keep an eye on it too.
               </div>
-              <span className="font-medium text-emerald-600">94%</span>
+              <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                Confidence
+                <div className="h-1 flex-1 rounded-full bg-slate-100">
+                  <div className="h-1 w-[94%] rounded-full bg-emerald-500" />
+                </div>
+                <span className="font-medium text-emerald-600">94%</span>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button size="sm" onClick={onAcceptDraft}>
+                  <IconCheck className="size-4" />
+                  Use draft
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-white"
+                  onClick={() => onAction("Suggested reply regenerated")}
+                >
+                  <IconReload className="size-4" />
+                  Regenerate
+                </Button>
+              </div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <Button size="sm" onClick={onAcceptDraft}>
-                <IconCheck className="size-4" />
-                Use draft
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-white"
-                onClick={() => onAction("Suggested reply regenerated")}
-              >
-                <IconReload className="size-4" />
-                Regenerate
-              </Button>
+          </section>
+
+          <section className="rounded-lg border bg-white">
+            <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-medium text-slate-950">
+              <IconWand className="size-4 text-indigo-600" />
+              Assist commands
+            </h3>
+            <div className="grid grid-cols-2 gap-2 p-3">
+              {[
+                ["Expand bullets", IconArrowsDiagonal],
+                ["Summarise thread", IconArchive],
+                ["Translate", IconLanguage],
+                ["Adjust tone", IconMoodSmile],
+              ].map(([label, Icon]) => (
+                <Button
+                  key={label as string}
+                  variant="outline"
+                  className="h-12 justify-start bg-white text-xs"
+                  onClick={() => onAction(`${label as string} applied`)}
+                >
+                  <Icon className="size-4" />
+                  <span className="whitespace-normal text-left leading-tight">
+                    {label as string}
+                  </span>
+                </Button>
+              ))}
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="rounded-lg border bg-white">
-          <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-medium text-slate-950">
-            <IconWand className="size-4 text-indigo-600" />
-            Assist commands
-          </h3>
-          <div className="grid grid-cols-2 gap-2 p-3">
-            {[
-              ["Expand bullets", IconArrowsDiagonal],
-              ["Summarise thread", IconArchive],
-              ["Translate", IconLanguage],
-              ["Adjust tone", IconMoodSmile],
-            ].map(([label, Icon]) => (
-              <Button
-                key={label as string}
-                variant="outline"
-                className="h-12 justify-start bg-white text-xs"
-                onClick={() => onAction(`${label as string} applied`)}
-              >
-                <Icon className="size-4" />
-                <span className="whitespace-normal text-left leading-tight">
-                  {label as string}
-                </span>
-              </Button>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-lg border bg-white">
-          <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-medium text-slate-950">
-            <IconBolt className="size-4 text-indigo-600" />
-            What the AI checked
-          </h3>
-          <ul className="space-y-1 px-3 py-3 text-xs font-medium leading-5 text-slate-700">
-            <li>Checked: Pulled order #8821 - in transit</li>
-            <li>Checked: Verified customer identity</li>
-            <li>Checked: Checked 2 past tickets from this customer</li>
-            <li>Checked: Applied brand voice profile</li>
-            <li>Checked: 18 safety checks passed</li>
-          </ul>
-        </section>
-      </div>
+          <section className="rounded-lg border bg-white">
+            <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-medium text-slate-950">
+              <IconBolt className="size-4 text-indigo-600" />
+              What the AI checked
+            </h3>
+            <ul className="space-y-1 px-3 py-3 text-xs font-medium leading-5 text-slate-700">
+              <li>Checked: Pulled order #8821 - in transit</li>
+              <li>Checked: Verified customer identity</li>
+              <li>Checked: Checked 2 past tickets from this customer</li>
+              <li>Checked: Applied brand voice profile</li>
+              <li>Checked: 18 safety checks passed</li>
+            </ul>
+          </section>
+        </div>
+      )}
     </aside>
   );
 }
@@ -1001,12 +1088,12 @@ export default function HelpDesk() {
     );
   const { FetchSupportTicketDetailsData, FetchSupportTicketDetailsIsLoading } =
     useAppSelector(
-      (state) => state.SupportTicketsSliceReducer.FetchSupportTicketDetailsState,
+      (state) =>
+        state.SupportTicketsSliceReducer.FetchSupportTicketDetailsState,
     );
-  const { SupportTicketMessageSendIsLoading } =
-    useAppSelector(
-      (state) => state.SupportTicketsSliceReducer.SupportTicketMessageSendState,
-    );
+  const { SupportTicketMessageSendIsLoading } = useAppSelector(
+    (state) => state.SupportTicketsSliceReducer.SupportTicketMessageSendState,
+  );
   const { FetchSupportTicketTagsData, FetchSupportTicketTagsIsLoading } =
     useAppSelector(
       (state) => state.SupportTicketsSliceReducer.FetchSupportTicketTagsState,
@@ -1014,13 +1101,20 @@ export default function HelpDesk() {
   const { staff, staffLoading } = useAppSelector(
     (state) => state.GetTenancyReducer,
   );
+  const { FetchTicketCustomerOrdersData, FetchTicketCustomerOrdersIsLoading } =
+    useAppSelector(
+      (state) =>
+        state.SupportTicketsSliceReducer.FetchTicketCustomerOrdersState,
+    );
 
   const [ticketRows, setTicketRows] = useState<SupportTicket[]>([]);
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
   const [activeQueue, setActiveQueue] = useState<ActiveQueue>("open");
-  const [supportTikcetMessages, setSupportTicketMessage] = useState<SupportTicketMessage[]>([]);
+  const [supportTikcetMessages, setSupportTicketMessage] = useState<
+    SupportTicketMessage[]
+  >([]);
 
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showStaffPicker, setShowStaffPicker] = useState(false);
@@ -1030,7 +1124,8 @@ export default function HelpDesk() {
 
   const [isResolving, setIsResolving] = useState(false);
 
-  const activeSupportTicket: SupportTicket | null = FetchSupportTicketDetailsData;
+  const activeSupportTicket: SupportTicket | null =
+    FetchSupportTicketDetailsData;
 
   useEffect(() => {
     if (!storeCode) return;
@@ -1088,18 +1183,30 @@ export default function HelpDesk() {
     dispatch(FetchSupportTicketTags(storeCode));
   }, [dispatch, storeCode]);
 
-  useEffect(()=>{
+  useEffect(() => {
     if (!storeCode || !activeTicketId) return;
 
-    dispatch(FetchSupportTicketDetails({storeCode, ticketId: activeTicketId}));
+    dispatch(
+      FetchSupportTicketDetails({ storeCode, ticketId: activeTicketId }),
+    );
   }, [activeTicketId]);
 
-  useEffect(()=>{
+  useEffect(() => {
+    if (!storeCode || !activeTicketId) return;
+
+    dispatch(
+      FetchTicketCustomerOrders({ ticketId: activeTicketId, storeCode }),
+    );
+  }, [dispatch, activeTicketId, storeCode]);
+
+  useEffect(() => {
     if (activeSupportTicket?.messages) {
       setSupportTicketMessage(activeSupportTicket?.messages);
     }
     if (activeSupportTicket?.drafts) {
-      const agentDraft = activeSupportTicket?.drafts?.find((draft) => draft.draft_type === "manual");
+      const agentDraft = activeSupportTicket?.drafts?.find(
+        (draft) => draft.draft_type === "manual",
+      );
       if (agentDraft?.message) {
         setReply(agentDraft?.message);
       }
@@ -1174,12 +1281,15 @@ export default function HelpDesk() {
     toast.success(`Tag added: ${tag.name}`);
   };
 
-  const handleStaffAssign = async (ticketId: number, staffId: number | null) => {
+  const handleStaffAssign = async (
+    ticketId: number,
+    staffId: number | null,
+  ) => {
     if (!storeCode) return;
 
     try {
       const payload = {
-        internal_assignee: staffId
+        internal_assignee: staffId,
       };
 
       await dispatch(
@@ -1196,16 +1306,16 @@ export default function HelpDesk() {
         current.map((ticket) =>
           ticket.id === ticketId
             ? {
-              ...ticket,
-              internal_assignee: assignedStaff
-                ? {
-                    id: assignedStaff.id,
-                    name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
-                    email: assignedStaff.email,
-                  }
-                : null,
-            }
-          : ticket,
+                ...ticket,
+                internal_assignee: assignedStaff
+                  ? {
+                      id: assignedStaff.id,
+                      name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
+                      email: assignedStaff.email,
+                    }
+                  : null,
+              }
+            : ticket,
         ),
       );
 
@@ -1214,10 +1324,17 @@ export default function HelpDesk() {
           ? "Staff unassigned successfully."
           : "Staff assigned successfully.",
       );
+    } catch {
+      //
     }
-    catch{
-      // 
-    }
+  };
+
+  const handleOrdersSync = async () => {
+    if (!storeCode || !activeTicketId) return;
+
+    dispatch(
+      FetchTicketCustomerOrders({ ticketId: activeTicketId, storeCode }),
+    );
   };
 
   const handleRemoveTag = (tagId: number) => {
@@ -1247,7 +1364,7 @@ export default function HelpDesk() {
 
     try {
       const payload = {
-        message: reply
+        message: reply,
       };
 
       const savedDraft = await dispatch(
@@ -1258,18 +1375,21 @@ export default function HelpDesk() {
         }),
       ).unwrap();
 
-      if (savedDraft && savedDraft?.draft_type === "manual" && savedDraft?.message) {
+      if (
+        savedDraft &&
+        savedDraft?.draft_type === "manual" &&
+        savedDraft?.message
+      ) {
         setReply(savedDraft.message);
       }
 
       toast.success("Draft saved", {
         description: "Your reply has been saved as a draft.",
       });
+    } catch {
+      //
     }
-    catch{
-      // 
-    }
-  }
+  };
 
   const handleSend = async () => {
     if (!storeCode) return;
@@ -1304,10 +1424,7 @@ export default function HelpDesk() {
     };
 
     setReply("");
-    setSupportTicketMessage((current) => [
-      ...current,
-      optimisticMessage,
-    ]);
+    setSupportTicketMessage((current) => [...current, optimisticMessage]);
 
     try {
       const formData = new FormData();
@@ -1334,8 +1451,7 @@ export default function HelpDesk() {
       toast.success(
         composerMode === "note" ? "Internal note added" : "Reply sent",
       );
-    }
-    catch {
+    } catch {
       setSupportTicketMessage((current) =>
         current.filter((message) => message.id !== tempId),
       );
@@ -1436,6 +1552,11 @@ export default function HelpDesk() {
               </aside>
             ) : (
               <CopilotPanel
+                ticket={activeSupportTicket}
+                orders={FetchTicketCustomerOrdersData}
+                ordersLoading={FetchTicketCustomerOrdersIsLoading}
+                orderSyncLoading={FetchTicketCustomerOrdersIsLoading}
+                onOrdersSync={handleOrdersSync}
                 onAcceptDraft={handleAcceptDraft}
                 onAction={handleAction}
               />
