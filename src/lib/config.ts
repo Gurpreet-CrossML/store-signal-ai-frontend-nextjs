@@ -98,6 +98,8 @@ export const ENDPOINTS = {
     `/support/threads/${threadId}/tickets`,
   fetchOrderData: (threadId: string) =>
     `/analytics/threads/${threadId}/order-data`,
+  fetchTicketCustomerOrders: (ticketId: number) =>
+    `/support/tickets/${ticketId}/customer/orders/`,
 
   // Chatbot Customization (Django via useBackend — keep trailing slash).
   widgetCustomization: (storeId: number) =>

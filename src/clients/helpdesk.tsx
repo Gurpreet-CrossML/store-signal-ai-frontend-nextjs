@@ -78,6 +78,7 @@ import {
   FetchSupportTicketDetails,
   SupportTicketMessageSend,
   SupportTicketAgentDraftSave,
+  FetchTicketCustomerOrders,
   type SupportTicket,
   type SupportTicketChannel,
   type SupportTicketPriority,
@@ -86,7 +87,6 @@ import {
   type SupportTicketDraftMessage,
 } from "@/redux/api-slice/support-ticket-slice";
 import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
-import { FetchOrders, SyncOrders } from "@/redux/api-slice/thread-slice";
 import { formatRelativeDateTime, formatDateTime } from "@/lib/helpers";
 
 type ActiveQueue = "open" | "pending" | "resolved" | "closed";
@@ -130,9 +130,6 @@ const getCustomerEmail = (ticket: SupportTicket) =>
   typeof ticket.customer === "object" && ticket.customer
     ? ticket.customer.email
     : "";
-
-const getCustomerThreadId = (ticket: SupportTicket) =>
-  ticket.thread_id
 
 const getCustomerInitials = (name: string) =>
   name
@@ -1103,11 +1100,11 @@ export default function HelpDesk() {
   const { staff, staffLoading } = useAppSelector(
     (state) => state.GetTenancyReducer,
   );
-  const { FetchOrderData, FetchOrderDataIsLoading } = useAppSelector(
-    (state) => state.GetThreadReducer.FetchOrderDataState,
-  );
-  const { SyncOrdersIsLoading } = useAppSelector(
-    (state) => state.GetThreadReducer.SyncOrdersState,
+  const {
+    FetchTicketCustomerOrdersData,
+    FetchTicketCustomerOrdersIsLoading,
+  } = useAppSelector(
+    (state) => state.SupportTicketsSliceReducer.FetchTicketCustomerOrdersState,
   );
 
   const [ticketRows, setTicketRows] = useState<SupportTicket[]>([]);
@@ -1126,9 +1123,6 @@ export default function HelpDesk() {
   const [isResolving, setIsResolving] = useState(false);
 
   const activeSupportTicket: SupportTicket | null = FetchSupportTicketDetailsData;
-  const activeCustomerThreadId = activeSupportTicket
-    ? getCustomerThreadId(activeSupportTicket)
-    : "";
 
   useEffect(() => {
     if (!storeCode) return;
@@ -1193,10 +1187,10 @@ export default function HelpDesk() {
   }, [activeTicketId]);
 
   useEffect(() => {
-    if (!activeCustomerThreadId) return;
+    if (!storeCode || !activeTicketId) return;
 
-    dispatch(FetchOrders(activeCustomerThreadId));
-  }, [dispatch, activeCustomerThreadId]);
+    dispatch(FetchTicketCustomerOrders({ ticketId: activeTicketId, storeCode }));
+  }, [dispatch, activeTicketId, storeCode]);
 
   useEffect(()=>{
     if (activeSupportTicket?.messages) {
@@ -1325,10 +1319,9 @@ export default function HelpDesk() {
   };
 
   const handleOrdersSync = async () => {
-    if (!activeCustomerThreadId) return;
+    if (!storeCode || !activeTicketId) return;
 
-    await dispatch(SyncOrders({ threadID: activeCustomerThreadId })).unwrap();
-    dispatch(FetchOrders(activeCustomerThreadId));
+    dispatch(FetchTicketCustomerOrders({ ticketId: activeTicketId, storeCode }));
   };
 
   const handleRemoveTag = (tagId: number) => {
@@ -1548,9 +1541,9 @@ export default function HelpDesk() {
             ) : (
               <CopilotPanel
                 ticket={activeSupportTicket}
-                orders={FetchOrderData}
-                ordersLoading={FetchOrderDataIsLoading}
-                orderSyncLoading={SyncOrdersIsLoading}
+                orders={FetchTicketCustomerOrdersData}
+                ordersLoading={FetchTicketCustomerOrdersIsLoading}
+                orderSyncLoading={FetchTicketCustomerOrdersIsLoading}
                 onOrdersSync={handleOrdersSync}
                 onAcceptDraft={handleAcceptDraft}
                 onAction={handleAction}

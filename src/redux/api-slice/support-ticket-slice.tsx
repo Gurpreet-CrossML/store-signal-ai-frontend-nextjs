@@ -3,6 +3,7 @@ import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
+import type { OrderData } from "./thread-slice";
 
 export type SupportTicketStatus = "open" | "pending" | "resolved" | "closed";
 export type SupportTicketPriority = "low" | "normal" | "high" | "urgent";
@@ -86,6 +87,7 @@ export type SupportTicketDraftMessage = {
 
 export type SupportTicket = {
   id: number;
+  thread_id: string;
   customer: string | SupportTicketCustomer | null;
   internal_assignee: SupportTicketAssignee | null;
 
@@ -314,6 +316,37 @@ export const SupportTicketAgentDraftSave = createAsyncThunk(
   },
 );
 
+export const FetchTicketCustomerOrders = createAsyncThunk(
+  "TicketCustomerOrders",
+  async (
+    { ticketId, storeCode }: { ticketId: number; storeCode: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchTicketCustomerOrders(ticketId)}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      const data = response.data.data;
+
+      return data as OrderData[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      if (response?.status !== 404) {
+        toast.error("Uh oh! Something went wrong.", {
+          description:
+            data?.message ||
+            "Unable to fetch customer orders, please try again later.",
+        });
+      }
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 const SupportTicketsSlice = createSlice({
   name: "SupportTicketsSlice",
   initialState: {
@@ -357,6 +390,12 @@ const SupportTicketsSlice = createSlice({
       SupportTicketAgentDraftSaveIsSuccess: false,
       SupportTicketAgentDraftSaveIsError: null as null | string | object | unknown,
       SupportTicketAgentDraftSaveData: {} as SupportTicketDraftMessage,
+    },
+    FetchTicketCustomerOrdersState: {
+      FetchTicketCustomerOrdersIsLoading: false,
+      FetchTicketCustomerOrdersIsSuccess: false,
+      FetchTicketCustomerOrdersIsError: null as null | string | object | unknown,
+      FetchTicketCustomerOrdersData: [] as OrderData[],
     },
   },
   reducers: {},
@@ -484,6 +523,23 @@ const SupportTicketsSlice = createSlice({
         state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveIsError =
           action.payload;
         state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveIsSuccess = false;
+      })
+      .addCase(FetchTicketCustomerOrders.pending, (state) => {
+        state.FetchTicketCustomerOrdersState.FetchTicketCustomerOrdersIsLoading = true;
+        state.FetchTicketCustomerOrdersState.FetchTicketCustomerOrdersIsError = null;
+        state.FetchTicketCustomerOrdersState.FetchTicketCustomerOrdersIsSuccess = false;
+      })
+      .addCase(FetchTicketCustomerOrders.fulfilled, (state, action) => {
+        state.FetchTicketCustomerOrdersState.FetchTicketCustomerOrdersIsLoading = false;
+        state.FetchTicketCustomerOrdersState.FetchTicketCustomerOrdersData =
+          action.payload;
+        state.FetchTicketCustomerOrdersState.FetchTicketCustomerOrdersIsSuccess = true;
+      })
+      .addCase(FetchTicketCustomerOrders.rejected, (state, action) => {
+        state.FetchTicketCustomerOrdersState.FetchTicketCustomerOrdersIsLoading = false;
+        state.FetchTicketCustomerOrdersState.FetchTicketCustomerOrdersIsError =
+          action.payload;
+        state.FetchTicketCustomerOrdersState.FetchTicketCustomerOrdersIsSuccess = false;
       });
   },
 });
