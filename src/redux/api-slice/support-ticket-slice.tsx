@@ -15,7 +15,13 @@ export type SupportTicketChannel =
 export type SupportTicketMessageType = "external" | "internal";
 export type SupportTicketMessageSenderType = "customer" | "agent";
 export type SupportTicketMessageDirection = "incoming" | "outgoing";
-export type SupportTicketPlatfrom = "internal" | "zendesk" | "freshdesk" | "zoho_desk" | "gorgias" | "intercom";
+export type SupportTicketPlatfrom =
+  | "internal"
+  | "zendesk"
+  | "freshdesk"
+  | "zoho_desk"
+  | "gorgias"
+  | "intercom";
 export type SupportTicketMessageContentType = "text/plain" | "multipart";
 export type SupportTicketMessageAttachment = "text/plain" | "multipart";
 export type SupportTicketDraftType = "manual" | "ai";
@@ -54,16 +60,16 @@ export type SupportTicketCustomer = {
 export type SupportTicketTagsResponse = {
   id: number;
   name: string;
+  color: string;
+  description: string;
+};
 
 export type SupportTicketTagsListResponse = {
   count: number;
   next: string | null;
   previous: string | null;
   results: SupportTicketTagsResponse[];
-};  color: string;
-  description: string;
 };
-
 
 type SupportTicketAssignee = {
   id: number;
@@ -92,7 +98,7 @@ export type SupportTicketMessage = {
   created_at: string;
   metadata: object;
   attachments: SupportTicketMessageAttachments[];
-}
+};
 
 export type SupportTicketDraftMessage = {
   id: number;
@@ -143,7 +149,7 @@ export type SupportTicketsResponse = {
 
 type SupportTicketStaffAssignData = {
   internal_assignee: number | null;
-}
+};
 
 export const FetchSupportTickets = createAsyncThunk<
   SupportTicketsResponse,
@@ -222,7 +228,11 @@ export const FetchSupportTicketDetails = createAsyncThunk(
 export const SupportTicketMessageSend = createAsyncThunk(
   "SupportTicketMessageSend",
   async (
-    { storeCode, ticketId, formData }: { storeCode: string; ticketId: number, formData: FormData },
+    {
+      storeCode,
+      ticketId,
+      formData,
+    }: { storeCode: string; ticketId: number; formData: FormData },
     thunkAPI,
   ) => {
     try {
@@ -244,8 +254,7 @@ export const SupportTicketMessageSend = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
-          data?.message ||
-          "Unable to send message, please try again later.",
+          data?.message || "Unable to send message, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -291,7 +300,15 @@ export const FetchSupportTicketTags = createAsyncThunk<
 export const SupportTicketStaffAssign = createAsyncThunk(
   "SupportTicketStaffAssign",
   async (
-    { storeCode, ticketId, payload }: { storeCode: string; ticketId: number; payload: SupportTicketStaffAssignData },
+    {
+      storeCode,
+      ticketId,
+      payload,
+    }: {
+      storeCode: string;
+      ticketId: number;
+      payload: SupportTicketStaffAssignData;
+    },
     thunkAPI,
   ) => {
     try {
@@ -320,7 +337,11 @@ export const SupportTicketStaffAssign = createAsyncThunk(
 export const SupportTicketAgentDraftSave = createAsyncThunk(
   "SupportTicketAgentDraftSave",
   async (
-    { storeCode, ticketId, payload }: { storeCode: string; ticketId: number; payload: {message: string} },
+    {
+      storeCode,
+      ticketId,
+      payload,
+    }: { storeCode: string; ticketId: number; payload: { message: string } },
     thunkAPI,
   ) => {
     try {
@@ -363,7 +384,11 @@ const SupportTicketsSlice = createSlice({
     FetchSupportTicketDetailsState: {
       FetchSupportTicketDetailsIsLoading: false,
       FetchSupportTicketDetailsIsSuccess: false,
-      FetchSupportTicketDetailsIsError: null as null | string | object | unknown,
+      FetchSupportTicketDetailsIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
       FetchSupportTicketDetailsData: {} as SupportTicket,
     },
     SupportTicketMessageSendState: {
@@ -388,7 +413,11 @@ const SupportTicketsSlice = createSlice({
     SupportTicketAgentDraftSaveState: {
       SupportTicketAgentDraftSaveIsLoading: false,
       SupportTicketAgentDraftSaveIsSuccess: false,
-      SupportTicketAgentDraftSaveIsError: null as null | string | object | unknown,
+      SupportTicketAgentDraftSaveIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
       SupportTicketAgentDraftSaveData: {} as SupportTicketDraftMessage,
     },
   },
@@ -435,7 +464,8 @@ const SupportTicketsSlice = createSlice({
       })
       .addCase(FetchSupportTicketDetails.pending, (state) => {
         state.FetchSupportTicketDetailsState.FetchSupportTicketDetailsIsLoading = true;
-        state.FetchSupportTicketDetailsState.FetchSupportTicketDetailsIsError = null;
+        state.FetchSupportTicketDetailsState.FetchSupportTicketDetailsIsError =
+          null;
         state.FetchSupportTicketDetailsState.FetchSupportTicketDetailsIsSuccess = false;
       })
       .addCase(FetchSupportTicketDetails.fulfilled, (state, action) => {
@@ -452,7 +482,8 @@ const SupportTicketsSlice = createSlice({
       })
       .addCase(SupportTicketMessageSend.pending, (state) => {
         state.SupportTicketMessageSendState.SupportTicketMessageSendIsLoading = true;
-        state.SupportTicketMessageSendState.SupportTicketMessageSendIsError = null;
+        state.SupportTicketMessageSendState.SupportTicketMessageSendIsError =
+          null;
         state.SupportTicketMessageSendState.SupportTicketMessageSendIsSuccess = false;
       })
       .addCase(SupportTicketMessageSend.fulfilled, (state, action) => {
@@ -502,7 +533,8 @@ const SupportTicketsSlice = createSlice({
       })
       .addCase(SupportTicketStaffAssign.pending, (state) => {
         state.SupportTicketStaffAssignState.SupportTicketStaffAssignIsLoading = true;
-        state.SupportTicketStaffAssignState.SupportTicketStaffAssignIsError = null;
+        state.SupportTicketStaffAssignState.SupportTicketStaffAssignIsError =
+          null;
         state.SupportTicketStaffAssignState.SupportTicketStaffAssignIsSuccess = false;
       })
       .addCase(SupportTicketStaffAssign.fulfilled, (state, action) => {
@@ -519,7 +551,8 @@ const SupportTicketsSlice = createSlice({
       })
       .addCase(SupportTicketAgentDraftSave.pending, (state) => {
         state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveIsLoading = true;
-        state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveIsError = null;
+        state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveIsError =
+          null;
         state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveIsSuccess = false;
       })
       .addCase(SupportTicketAgentDraftSave.fulfilled, (state, action) => {

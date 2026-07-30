@@ -97,7 +97,6 @@ import {
   type SupportTicketPriority,
   type SupportTicketTagsResponse,
   type SupportTicketMessage,
-  type SupportTicketDraftMessage,
 } from "@/redux/api-slice/support-ticket-slice";
 import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import { formatRelativeDateTime, formatDateTime } from "@/lib/helpers";
@@ -335,7 +334,6 @@ function TicketListPanel({
   queueLabel,
   onQueueChange,
   onSelectTicket,
-  onUtilityAction,
   count,
   isLoading,
   isLoadingMore,
@@ -362,7 +360,6 @@ function TicketListPanel({
   queueLabel: string;
   onQueueChange: (queue: ActiveQueue) => void;
   onSelectTicket: (ticketId: number) => void;
-  onUtilityAction: (action: string) => void;
   count: number;
   isLoading: boolean;
   isLoadingMore: boolean;
@@ -579,7 +576,10 @@ function TicketListPanel({
           ) : null}
         </div>
       </div>
-      <div className="h-[calc(83vh-49px)]! overflow-y-auto" onScroll={handleScroll}>
+      <div
+        className="h-[calc(83vh-49px)]! overflow-y-auto"
+        onScroll={handleScroll}
+      >
         {isLoading && rows?.length === 0 ? (
           <div className="flex min-h-[360px] items-center justify-center px-4 py-8">
             <div className="text-center">
@@ -678,13 +678,14 @@ function ConversationPanel({
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
   );
 
-  const customerInitials = getCustomerName(ticket.customer)
-    ?.trim()
-    .split(/\s+/)
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase() ?? "?";
+  const customerInitials =
+    getCustomerName(ticket.customer)
+      ?.trim()
+      .split(/\s+/)
+      .map((part) => part[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() ?? "?";
 
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-white">
@@ -770,10 +771,7 @@ function ConversationPanel({
                                 value={`${staff.first_name} ${staff.last_name}`}
                                 onSelect={() =>
                                   ticket.internal_assignee?.id !== staff.id &&
-                                  onAssignStaff(
-                                    ticket.id,
-                                    staff.id
-                                  )
+                                  onAssignStaff(ticket.id, staff.id)
                                 }
                               >
                                 <IconCheck
@@ -793,7 +791,10 @@ function ConversationPanel({
 
                           <CommandItem
                             className="text-red-600"
-                            onSelect={() => ticket.internal_assignee?.id && onAssignStaff(ticket.id, null)}
+                            onSelect={() =>
+                              ticket.internal_assignee?.id &&
+                              onAssignStaff(ticket.id, null)
+                            }
                           >
                             <IconX className="mr-2 h-4 w-4" />
                             Unassign
@@ -856,7 +857,8 @@ function ConversationPanel({
                 "capitalize",
               )}
             />
-            {ticket?.priority?.charAt(0).toUpperCase() + ticket?.priority?.slice(1)}
+            {ticket?.priority?.charAt(0).toUpperCase() +
+              ticket?.priority?.slice(1)}
           </Badge>
           {ticket?.tags?.map((tag) => (
             <Badge
@@ -982,7 +984,10 @@ function ConversationPanel({
         </div>
       </div>
 
-      <div className="min-h-[360px] flex-1 overflow-y-auto bg-slate-50 px-4 py-5" ref={messagesEndRef}>
+      <div
+        className="min-h-[360px] flex-1 overflow-y-auto bg-slate-50 px-4 py-5"
+        ref={messagesEndRef}
+      >
         {messages.length === 0 ? (
           <div className="flex h-full min-h-[320px] items-center justify-center">
             <div className="text-center">
@@ -995,77 +1000,75 @@ function ConversationPanel({
             </div>
           </div>
         ) : (
-        <div className="space-y-4 overflow-y-auto">
-          {messages.map((message) => (
-            message.message_type === "internal" ? (
-              <div key={message.id} className="py-2">
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        className="border-amber-300 bg-amber-100 text-amber-800"
-                      >
-                        Internal note
-                      </Badge>
-                      <span className="text-xs text-slate-500">
-                        {formatDateTime(message.created_at)}
-                      </span>
+          <div className="space-y-4 overflow-y-auto">
+            {messages.map((message) =>
+              message.message_type === "internal" ? (
+                <div key={message.id} className="py-2">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className="border-amber-300 bg-amber-100 text-amber-800">
+                          Internal note
+                        </Badge>
+                        <span className="text-xs text-slate-500">
+                          {formatDateTime(message.created_at)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
 
-                  <p className="whitespace-pre-wrap text-sm text-slate-700">
-                    {message.message}
-                  </p>
+                    <p className="whitespace-pre-wrap text-sm text-slate-700">
+                      {message.message}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )
-            :
-            (<div
-              key={message.id}
-              className={cn(
-                "flex items-start gap-3",
-                message.sender_type === "agent" && "justify-end",
-              )}
-            >
-              {message.sender_type === "customer" ? (
-                <Avatar className="size-8">
-                  <AvatarFallback className="bg-slate-500 text-xs font-medium text-white">
-                    {customerInitials}
-                  </AvatarFallback>
-                </Avatar>
-              ) : null}
-              <div>
+              ) : (
                 <div
+                  key={message.id}
                   className={cn(
-                    "mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-500",
+                    "flex items-start gap-3",
                     message.sender_type === "agent" && "justify-end",
                   )}
                 >
-                  <span>
-                    {/* {message.author === "agent" ? "You" : ticket.customer} -{" "} */}
-                    {formatDateTime(message.created_at)}
-                  </span>
-                  <span className="font-medium uppercase tracking-wide">
-                    {message.sender_type === "agent"
-                      ? "Agent reply"
-                      : ticket.channel}
-                  </span>
+                  {message.sender_type === "customer" ? (
+                    <Avatar className="size-8">
+                      <AvatarFallback className="bg-slate-500 text-xs font-medium text-white">
+                        {customerInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : null}
+                  <div>
+                    <div
+                      className={cn(
+                        "mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-500",
+                        message.sender_type === "agent" && "justify-end",
+                      )}
+                    >
+                      <span>
+                        {/* {message.author === "agent" ? "You" : ticket.customer} -{" "} */}
+                        {formatDateTime(message.created_at)}
+                      </span>
+                      <span className="font-medium uppercase tracking-wide">
+                        {message.sender_type === "agent"
+                          ? "Agent reply"
+                          : ticket.channel}
+                      </span>
+                    </div>
+                    <div
+                      className={cn(
+                        "max-w-[320px] rounded-xl border px-4 py-3 text-sm font-medium leading-6 shadow-sm",
+                        message.sender_type === "agent"
+                          ? "bg-indigo-600 text-white"
+                          : "bg-white text-slate-950",
+                      )}
+                    >
+                      {message.message}
+                    </div>
+                  </div>
                 </div>
-                <div
-                  className={cn(
-                    "max-w-[320px] rounded-xl border px-4 py-3 text-sm font-medium leading-6 shadow-sm",
-                    message.sender_type === "agent"
-                      ? "bg-indigo-600 text-white"
-                      : "bg-white text-slate-950",
-                  )}
-                >
-                  {message.message}
-                </div>
-              </div>
-            </div>)
-          ))}
-        </div>)
-        }
+              ),
+            )}
+          </div>
+        )}
       </div>
 
       <div className="border-t bg-white p-4">
@@ -1313,22 +1316,19 @@ export default function HelpDesk() {
     useAppSelector(
       (state) => state.SupportTicketsSliceReducer.FetchSupportTicketsState,
     );
-  const { FetchSupportTicketDetailsData, FetchSupportTicketDetailsIsLoading } =
-    useAppSelector(
-      (state) => state.SupportTicketsSliceReducer.FetchSupportTicketDetailsState,
-    );
-  const { SupportTicketMessageSendIsLoading } =
-    useAppSelector(
-      (state) => state.SupportTicketsSliceReducer.SupportTicketMessageSendState,
-    );
+  const { FetchSupportTicketDetailsData } = useAppSelector(
+    (state) => state.SupportTicketsSliceReducer.FetchSupportTicketDetailsState,
+  );
+  const { SupportTicketMessageSendIsLoading } = useAppSelector(
+    (state) => state.SupportTicketsSliceReducer.SupportTicketMessageSendState,
+  );
   const {
     FetchSupportTicketTagsData,
     FetchSupportTicketTagsIsLoading,
     FetchSupportTicketTagsNext,
-  } =
-    useAppSelector(
-      (state) => state.SupportTicketsSliceReducer.FetchSupportTicketTagsState,
-    );
+  } = useAppSelector(
+    (state) => state.SupportTicketsSliceReducer.FetchSupportTicketTagsState,
+  );
   const { staff, staffLoading } = useAppSelector(
     (state) => state.GetTenancyReducer,
   );
@@ -1338,7 +1338,9 @@ export default function HelpDesk() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
   const [activeQueue, setActiveQueue] = useState<ActiveQueue>("open");
-  const [supportTikcetMessages, setSupportTicketMessage] = useState<SupportTicketMessage[]>([]);
+  const [supportTikcetMessages, setSupportTicketMessage] = useState<
+    SupportTicketMessage[]
+  >([]);
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
@@ -1374,7 +1376,8 @@ export default function HelpDesk() {
 
   const [isResolving, setIsResolving] = useState(false);
 
-  const activeSupportTicket: SupportTicket | null = FetchSupportTicketDetailsData;
+  const activeSupportTicket: SupportTicket | null =
+    FetchSupportTicketDetailsData;
 
   useEffect(() => {
     if (!storeCode) return;
@@ -1443,14 +1446,7 @@ export default function HelpDesk() {
     };
 
     fetchTickets();
-  }, [
-    dispatch,
-    storeCode,
-    page,
-    activeQueue,
-    debouncedSearch,
-    appliedFilters,
-  ]);
+  }, [dispatch, storeCode, page, activeQueue, debouncedSearch, appliedFilters]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -1485,30 +1481,30 @@ export default function HelpDesk() {
         limit: 20,
       }),
     );
-  }, [
-    dispatch,
-    storeCode,
-    debouncedTagSearch,
-    tagPage,
-  ]);
+  }, [dispatch, storeCode, debouncedTagSearch, tagPage]);
 
-  useEffect(()=>{
+  useEffect(() => {
     if (!storeCode || !activeTicketId) return;
 
-    dispatch(FetchSupportTicketDetails({storeCode, ticketId: activeTicketId}));
-  }, [activeTicketId]);
+    let isCurrent = true;
+    dispatch(FetchSupportTicketDetails({ storeCode, ticketId: activeTicketId }))
+      .unwrap()
+      .then((ticket: SupportTicket) => {
+        if (!isCurrent) return;
+        setSupportTicketMessage(ticket.messages ?? []);
+        const agentDraft = ticket.drafts?.find(
+          (draft) => draft.draft_type === "manual",
+        );
+        if (agentDraft?.message) setReply(agentDraft.message);
+      })
+      .catch(() => {
+        // The thunk displays the API error toast.
+      });
 
-  useEffect(()=>{
-    if (activeSupportTicket?.messages) {
-      setSupportTicketMessage(activeSupportTicket?.messages);
-    }
-    if (activeSupportTicket?.drafts) {
-      const agentDraft = activeSupportTicket?.drafts?.find((draft) => draft.draft_type === "manual");
-      if (agentDraft?.message) {
-        setReply(agentDraft?.message);
-      }
-    }
-  }, [activeSupportTicket]);
+    return () => {
+      isCurrent = false;
+    };
+  }, [activeTicketId, dispatch, storeCode]);
 
   const activeQueueLabel = useMemo(
     () => queues.find((queue) => queue.key === activeQueue)?.label ?? "Open",
@@ -1599,12 +1595,15 @@ export default function HelpDesk() {
     toast.success(`Tag added: ${tag.name}`);
   };
 
-  const handleStaffAssign = async (ticketId: number, staffId: number | null) => {
+  const handleStaffAssign = async (
+    ticketId: number,
+    staffId: number | null,
+  ) => {
     if (!storeCode) return;
 
     try {
       const payload = {
-        internal_assignee: staffId
+        internal_assignee: staffId,
       };
 
       await dispatch(
@@ -1621,16 +1620,16 @@ export default function HelpDesk() {
         current.map((ticket) =>
           ticket.id === ticketId
             ? {
-              ...ticket,
-              internal_assignee: assignedStaff
-                ? {
-                    id: assignedStaff.id,
-                    name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
-                    email: assignedStaff.email,
-                  }
-                : null,
-            }
-          : ticket,
+                ...ticket,
+                internal_assignee: assignedStaff
+                  ? {
+                      id: assignedStaff.id,
+                      name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
+                      email: assignedStaff.email,
+                    }
+                  : null,
+              }
+            : ticket,
         ),
       );
 
@@ -1639,9 +1638,8 @@ export default function HelpDesk() {
           ? "Staff unassigned successfully."
           : "Staff assigned successfully.",
       );
-    }
-    catch{
-      // 
+    } catch {
+      //
     }
   };
 
@@ -1672,7 +1670,7 @@ export default function HelpDesk() {
 
     try {
       const payload = {
-        message: reply
+        message: reply,
       };
 
       const savedDraft = await dispatch(
@@ -1683,18 +1681,21 @@ export default function HelpDesk() {
         }),
       ).unwrap();
 
-      if (savedDraft && savedDraft?.draft_type === "manual" && savedDraft?.message) {
+      if (
+        savedDraft &&
+        savedDraft?.draft_type === "manual" &&
+        savedDraft?.message
+      ) {
         setReply(savedDraft.message);
       }
 
       toast.success("Draft saved", {
         description: "Your reply has been saved as a draft.",
       });
+    } catch {
+      //
     }
-    catch{
-      // 
-    }
-  }
+  };
 
   const handleSend = async () => {
     if (!storeCode) return;
@@ -1729,10 +1730,7 @@ export default function HelpDesk() {
     };
 
     setReply("");
-    setSupportTicketMessage((current) => [
-      ...current,
-      optimisticMessage,
-    ]);
+    setSupportTicketMessage((current) => [...current, optimisticMessage]);
 
     try {
       const formData = new FormData();
@@ -1759,8 +1757,7 @@ export default function HelpDesk() {
       toast.success(
         composerMode === "note" ? "Internal note added" : "Reply sent",
       );
-    }
-    catch {
+    } catch {
       setSupportTicketMessage((current) =>
         current.filter((message) => message.id !== tempId),
       );
@@ -1782,7 +1779,6 @@ export default function HelpDesk() {
               queueLabel={activeQueueLabel}
               onQueueChange={handleQueueChange}
               onSelectTicket={handleSelectTicket}
-              onUtilityAction={handleAction}
               count={FetchSupportTicketsListData?.count ?? 0}
               isLoading={FetchSupportTicketsLoading}
               isLoadingMore={isLoadingMore}
