@@ -113,6 +113,31 @@ const priorityBadgeClass = {
   urgent: "border-red-100 bg-red-50 text-red-700",
 } satisfies Record<SupportTicketPriority, string>;
 
+const getCustomerName = (ticket: SupportTicket) => {
+  if (typeof ticket.customer === "string") return ticket.customer;
+  if (!ticket.customer) return "Unknown customer";
+
+  const fullName =
+    ticket.customer.name ||
+    `${ticket.customer.first_name || ""} ${ticket.customer.last_name || ""}`.trim();
+
+  return fullName || ticket.customer.email || "Unknown customer";
+};
+
+const getCustomerEmail = (ticket: SupportTicket) =>
+  typeof ticket.customer === "object" && ticket.customer
+    ? ticket.customer.email
+    : "";
+
+const getCustomerInitials = (name: string) =>
+  name
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "?";
+
 function Badge({
   children,
   className,
@@ -367,14 +392,7 @@ function ConversationPanel({
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
   );
 
-  const customerInitials =
-  ticket.customer?.name
-    ?.trim()
-    .split(/\s+/)
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase() ?? "?";
+  const customerInitials = getCustomerInitials(getCustomerName(ticket));
 
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-white">
@@ -866,24 +884,121 @@ function ConversationPanel({
 }
 
 function CopilotPanel({
+  ticket,
   onAcceptDraft,
   onAction,
 }: {
+  ticket: SupportTicket;
   onAcceptDraft: () => void;
   onAction: (action: string) => void;
 }) {
+  const [activeTab, setActiveTab] = useState<"copilot" | "customer">(
+    "copilot",
+  );
+  const customerName = getCustomerName(ticket);
+  const customerEmail = getCustomerEmail(ticket);
+  const customerInitials = getCustomerInitials(customerName);
+
   return (
     <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
       <div className="grid h-11 grid-cols-2 border-b text-sm font-medium">
-        <button className="flex items-center justify-center gap-2 border-b-2 border-indigo-600 text-indigo-600">
+        <button
+          className={cn(
+            "flex items-center justify-center gap-2",
+            activeTab === "copilot"
+              ? "border-b-2 border-indigo-600 text-indigo-600"
+              : "text-slate-500",
+          )}
+          onClick={() => setActiveTab("copilot")}
+        >
           <IconMessageChatbot className="size-4" />
           AI Copilot
         </button>
-        <button className="flex items-center justify-center gap-2 text-slate-500">
+        <button
+          className={cn(
+            "flex items-center justify-center gap-2",
+            activeTab === "customer"
+              ? "border-b-2 border-indigo-600 text-indigo-600"
+              : "text-slate-500",
+          )}
+          onClick={() => setActiveTab("customer")}
+        >
           <IconUsers className="size-4" />
           Customer
         </button>
       </div>
+      {activeTab === "customer" ? (
+        <div className="h-[88vh]! overflow-y-auto p-4">
+          <div className="flex items-center gap-3">
+            <Avatar className="size-12">
+              <AvatarFallback className="bg-teal-600 text-base font-semibold text-white">
+                {customerInitials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-semibold text-slate-950">
+                {customerName}
+              </h3>
+              <p className="truncate text-xs text-slate-500">
+                {customerEmail || "No email available"} · {ticket.channel}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {[
+              ["3", "Orders"],
+              ["€340", "Lifetime"],
+              ["3", "Contacts"],
+            ].map(([value, label]) => (
+              <div
+                key={label}
+                className="rounded-lg border bg-white px-3 py-3 text-center"
+              >
+                <div className="text-base font-semibold text-slate-950">
+                  {value}
+                </div>
+                <div className="mt-1 text-[10px] font-semibold uppercase text-slate-400">
+                  {label}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4">
+            <div className="text-xs font-semibold uppercase text-slate-400">
+              Order in question
+            </div>
+            <div className="mt-2 rounded-lg border bg-white p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-slate-950">
+                  #{ticket.id}
+                </span>
+                <Badge className="border-cyan-100 bg-cyan-50 text-cyan-700">
+                  {ticket.status}
+                </Badge>
+              </div>
+              <p className="mt-2 truncate text-xs text-slate-500">
+                {ticket.subject}
+              </p>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <Button variant="outline" size="sm" className="h-8 bg-white text-xs">
+                  <IconClock className="size-3" />
+                  Track
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 bg-white text-xs">
+                  <IconReload className="size-3" />
+                  Refund
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 bg-white text-xs">
+                  <IconX className="size-3" />
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="space-y-3 overflow-y-auto p-4 h-[88vh]!">
         <section className="rounded-lg border bg-white">
           <div className="border-b px-3 py-3">
@@ -980,6 +1095,7 @@ function CopilotPanel({
           </ul>
         </section>
       </div>
+      )}
     </aside>
   );
 }
@@ -1436,6 +1552,7 @@ export default function HelpDesk() {
               </aside>
             ) : (
               <CopilotPanel
+                ticket={activeSupportTicket}
                 onAcceptDraft={handleAcceptDraft}
                 onAction={handleAction}
               />
