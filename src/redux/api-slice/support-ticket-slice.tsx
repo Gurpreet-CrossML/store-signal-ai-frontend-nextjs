@@ -29,11 +29,11 @@ export type SupportTicketDraftType = "manual" | "ai";
 export type SupportTicketFilters = {
   status?: SupportTicketStatus;
   search?: string;
-  channel?: string;
-  tags?: string;
+  channel?: SupportTicketChannel[];
+  tags?: string[];
   from_date?: string;
   to_date?: string;
-  priority?: string;
+  priority?: SupportTicketPriority[];
 };
 
 type GetSupportTicketsArgs = {
@@ -173,7 +173,9 @@ export const FetchSupportTickets = createAsyncThunk<
       });
 
       Object.entries(filters).forEach(([key, value]) => {
-        if (value) queryParams.set(key, value);
+        if (value) {
+          queryParams.set(key, Array.isArray(value) ? value.join(",") : value);
+        }
       });
 
       const response = await axiosInstance.get(

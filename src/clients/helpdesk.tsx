@@ -151,11 +151,6 @@ function Badge({
   );
 }
 
-function getCustomerName(customer: SupportTicket["customer"]) {
-  if (typeof customer === "string") return customer;
-  return customer?.name || "Unknown customer";
-}
-
 function TicketRow({
   ticket,
   active,
@@ -187,7 +182,9 @@ function TicketRow({
             className={cn("size-5 shrink-0", channelColor[ticket.channel])}
           />
           <span className="truncate text-sm font-medium text-slate-950">
-            {getCustomerName(ticket.customer)}
+            {typeof ticket.customer === "string"
+              ? ticket.customer
+              : ticket.customer?.name || "Unknown customer"}
           </span>
         </div>
         <p className="truncate text-sm font-medium text-slate-950">
@@ -679,7 +676,9 @@ function ConversationPanel({
   );
 
   const customerInitials =
-    getCustomerName(ticket.customer)
+    (typeof ticket.customer === "string"
+      ? ticket.customer
+      : ticket.customer?.name)
       ?.trim()
       .split(/\s+/)
       .map((part) => part[0])
@@ -812,7 +811,11 @@ function ConversationPanel({
               className="bg-white"
               onClick={() =>
                 onAction(
-                  `${getCustomerName(ticket.customer)} snoozed for 1 hour`,
+                  `${
+                    typeof ticket.customer === "string"
+                      ? ticket.customer
+                      : ticket.customer?.name || "Unknown customer"
+                  } snoozed for 1 hour`,
                 )
               }
             >
@@ -1392,10 +1395,10 @@ export default function HelpDesk() {
       status: activeQueue,
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
       ...(appliedFilters.channels.length
-        ? { channel: appliedFilters.channels.join(",") }
+        ? { channel: appliedFilters.channels }
         : {}),
       ...(appliedFilters.tags.length
-        ? { tags: appliedFilters.tags.join(",") }
+        ? { tags: appliedFilters.tags }
         : {}),
       ...(appliedFilters.fromDate
         ? { from_date: new Date(appliedFilters.fromDate).toISOString() }
@@ -1404,7 +1407,7 @@ export default function HelpDesk() {
         ? { to_date: new Date(appliedFilters.toDate).toISOString() }
         : {}),
       ...(appliedFilters.priorities.length
-        ? { priority: appliedFilters.priorities.join(",") }
+        ? { priority: appliedFilters.priorities }
         : {}),
     };
 
