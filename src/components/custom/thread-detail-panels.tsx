@@ -711,8 +711,7 @@ export function OrdersCard({
                         <FulfillmentBadge status={order.fulfillment_status} />
                       </div>
                       <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        {formatDate(order.created_at)} · {itemCount}{" "}
-                        item
+                        {formatDate(order.created_at)} · {itemCount} item
                         {itemCount !== 1 ? "s" : ""}
                       </p>
                     </div>

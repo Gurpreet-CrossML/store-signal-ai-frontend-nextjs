@@ -141,11 +141,18 @@ export const ENDPOINTS = {
 
   // Helpdesk(Support) apis
   fetchSupportTickets: () => createAPIUrl("/support/tickets", "django"),
-  fetchSupportTicketDeatils: (ticket_id: number) => createAPIUrl(`/support/tickets/${ticket_id}/`, "django"),
-  supportTicketMessageSend: (ticket_id: number) => createAPIUrl(`/support/tickets/${ticket_id}/messages/`, "django"),
+  fetchSupportTicketDeatils: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/`, "django"),
+  supportTicketMessageSend: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/messages/`, "django"),
   fetchSupportTicketTags: () => createAPIUrl("/support/ticket-tags", "django"),
-  supportTicketStaffAssign: (ticket_id: number) => createAPIUrl(`/support/tickets/${ticket_id}/assignee/`, "django"),
-  supportTicketAgentDraftSave: (ticket_id: number) => createAPIUrl(`/support/tickets/${ticket_id}/draft-messages/agent/`, "django"),
+  supportTicketStaffAssign: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/assignee/`, "django"),
+  supportTicketAgentDraftSave: (ticket_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/draft-messages/agent/`,
+      "django",
+    ),
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
