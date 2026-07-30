@@ -548,8 +548,7 @@ export const GenerateTicketContent = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.post(
-        `${ENDPOINTS.generateTicketContent()}/?store_code=${store_code}`,
-        { thread_id },
+        `${ENDPOINTS.generateTicketContent(thread_id)}?store_code=${store_code}`,
       );
       const data = response.data.data;
 
@@ -580,7 +579,7 @@ export const CreateSupportTicket = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.post(
-        `${ENDPOINTS.createTicket()}/?store_code=${store_code}`,
+        `${ENDPOINTS.createTicket(payload.thread)}?store_code=${store_code}`,
         payload,
       );
       const data = response.data.data;
