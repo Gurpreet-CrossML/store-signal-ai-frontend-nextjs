@@ -68,6 +68,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { OrdersCard } from "@/components/custom/thread-detail-panels";
 
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
@@ -85,6 +86,7 @@ import {
   type SupportTicketDraftMessage,
 } from "@/redux/api-slice/support-ticket-slice";
 import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
+import { FetchOrders, SyncOrders } from "@/redux/api-slice/thread-slice";
 import { formatRelativeDateTime, formatDateTime } from "@/lib/helpers";
 
 type ActiveQueue = "open" | "pending" | "resolved" | "closed";
@@ -128,6 +130,9 @@ const getCustomerEmail = (ticket: SupportTicket) =>
   typeof ticket.customer === "object" && ticket.customer
     ? ticket.customer.email
     : "";
+
+const getCustomerThreadId = (ticket: SupportTicket) =>
+  ticket.thread_id
 
 const getCustomerInitials = (name: string) =>
   name
@@ -885,10 +890,18 @@ function ConversationPanel({
 
 function CopilotPanel({
   ticket,
+  orders,
+  ordersLoading,
+  orderSyncLoading,
+  onOrdersSync,
   onAcceptDraft,
   onAction,
 }: {
   ticket: SupportTicket;
+  orders: Parameters<typeof OrdersCard>[0]["orders"];
+  ordersLoading: boolean;
+  orderSyncLoading: boolean;
+  onOrdersSync: () => void;
   onAcceptDraft: () => void;
   onAction: (action: string) => void;
 }) {
@@ -898,6 +911,9 @@ function CopilotPanel({
   const customerName = getCustomerName(ticket);
   const customerEmail = getCustomerEmail(ticket);
   const customerInitials = getCustomerInitials(customerName);
+  const customerData = customerEmail
+    ? { name: customerName, email: customerEmail }
+    : null;
 
   return (
     <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
@@ -945,57 +961,14 @@ function CopilotPanel({
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {[
-              ["3", "Orders"],
-              ["€340", "Lifetime"],
-              ["3", "Contacts"],
-            ].map(([value, label]) => (
-              <div
-                key={label}
-                className="rounded-lg border bg-white px-3 py-3 text-center"
-              >
-                <div className="text-base font-semibold text-slate-950">
-                  {value}
-                </div>
-                <div className="mt-1 text-[10px] font-semibold uppercase text-slate-400">
-                  {label}
-                </div>
-              </div>
-            ))}
-          </div>
-
           <div className="mt-4">
-            <div className="text-xs font-semibold uppercase text-slate-400">
-              Order in question
-            </div>
-            <div className="mt-2 rounded-lg border bg-white p-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-slate-950">
-                  #{ticket.id}
-                </span>
-                <Badge className="border-cyan-100 bg-cyan-50 text-cyan-700">
-                  {ticket.status}
-                </Badge>
-              </div>
-              <p className="mt-2 truncate text-xs text-slate-500">
-                {ticket.subject}
-              </p>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <Button variant="outline" size="sm" className="h-8 bg-white text-xs">
-                  <IconClock className="size-3" />
-                  Track
-                </Button>
-                <Button variant="outline" size="sm" className="h-8 bg-white text-xs">
-                  <IconReload className="size-3" />
-                  Refund
-                </Button>
-                <Button variant="outline" size="sm" className="h-8 bg-white text-xs">
-                  <IconX className="size-3" />
-                  Cancel
-                </Button>
-              </div>
-            </div>
+            <OrdersCard
+              orders={orders}
+              loading={ordersLoading}
+              handleOrdersSync={onOrdersSync}
+              orderSyncLoading={orderSyncLoading}
+              custometData={customerData}
+            />
           </div>
         </div>
       ) : (
@@ -1130,6 +1103,12 @@ export default function HelpDesk() {
   const { staff, staffLoading } = useAppSelector(
     (state) => state.GetTenancyReducer,
   );
+  const { FetchOrderData, FetchOrderDataIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchOrderDataState,
+  );
+  const { SyncOrdersIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.SyncOrdersState,
+  );
 
   const [ticketRows, setTicketRows] = useState<SupportTicket[]>([]);
   const [page, setPage] = useState(1);
@@ -1147,6 +1126,9 @@ export default function HelpDesk() {
   const [isResolving, setIsResolving] = useState(false);
 
   const activeSupportTicket: SupportTicket | null = FetchSupportTicketDetailsData;
+  const activeCustomerThreadId = activeSupportTicket
+    ? getCustomerThreadId(activeSupportTicket)
+    : "";
 
   useEffect(() => {
     if (!storeCode) return;
@@ -1209,6 +1191,12 @@ export default function HelpDesk() {
 
     dispatch(FetchSupportTicketDetails({storeCode, ticketId: activeTicketId}));
   }, [activeTicketId]);
+
+  useEffect(() => {
+    if (!activeCustomerThreadId) return;
+
+    dispatch(FetchOrders(activeCustomerThreadId));
+  }, [dispatch, activeCustomerThreadId]);
 
   useEffect(()=>{
     if (activeSupportTicket?.messages) {
@@ -1334,6 +1322,13 @@ export default function HelpDesk() {
     catch{
       // 
     }
+  };
+
+  const handleOrdersSync = async () => {
+    if (!activeCustomerThreadId) return;
+
+    await dispatch(SyncOrders({ threadID: activeCustomerThreadId })).unwrap();
+    dispatch(FetchOrders(activeCustomerThreadId));
   };
 
   const handleRemoveTag = (tagId: number) => {
@@ -1553,6 +1548,10 @@ export default function HelpDesk() {
             ) : (
               <CopilotPanel
                 ticket={activeSupportTicket}
+                orders={FetchOrderData}
+                ordersLoading={FetchOrderDataIsLoading}
+                orderSyncLoading={SyncOrdersIsLoading}
+                onOrdersSync={handleOrdersSync}
                 onAcceptDraft={handleAcceptDraft}
                 onAction={handleAction}
               />
