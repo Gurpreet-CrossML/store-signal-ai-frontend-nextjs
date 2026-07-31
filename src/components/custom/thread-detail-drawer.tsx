@@ -51,6 +51,7 @@ import {
   ThreadSummaryCard,
   UserMetadataCard,
 } from "@/components/custom/thread-detail-panels";
+import { CreateTicketDialog } from "@/components/custom/create-ticket-dialog";
 
 export default function ThreadDetailDrawer({
   open,
@@ -313,7 +314,18 @@ export default function ThreadDetailDrawer({
           </div>
 
           <div className="flex flex-col h-full overflow-hidden px-4 gap-2">
-            <h3 className="text-lg font-semibold mb-2">Thread Details</h3>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h3 className="text-lg font-semibold">Thread Details</h3>
+              <CreateTicketDialog
+                threadId={activeThreadId}
+                storeCode={storeCode || ""}
+                customerEmail={
+                  thread?.customer?.email ||
+                  FetchThreadDetailsData?.customer_email ||
+                  ""
+                }
+              />
+            </div>
             <div className="h-full space-y-4 p-2 overflow-y-auto">
               <ThreadSummaryCard
                 summary={

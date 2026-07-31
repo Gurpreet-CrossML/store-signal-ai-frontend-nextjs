@@ -233,6 +233,13 @@ export type ThreadTicketData = {
   updated_at: string;
 };
 
+export type CreateSupportTicket = {
+  thread: string;
+  customer_email: string;
+  subject: string;
+  description: string;
+};
+
 export type OrderItemData = {
   sku: string;
   name: string;
@@ -527,6 +534,76 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
   },
 );
 
+export const GenerateTicketContent = createAsyncThunk(
+  "GenerateTicketContent",
+  async (
+    {
+      thread_id,
+      store_code,
+    }: {
+      thread_id: string;
+      store_code: string;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.generateTicketContent(thread_id)}?store_code=${store_code}`,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to generate ticket content, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const CreateSupportTicket = createAsyncThunk(
+  "CreateSupportTicket",
+  async (
+    {
+      store_code,
+      payload,
+    }: { store_code: string; payload: CreateSupportTicket },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.createTicket(payload.thread)}?store_code=${store_code}`,
+        payload,
+      );
+      const data = response.data.data;
+
+      toast.success(
+        response.data?.message || "Support ticket created successfully.",
+      );
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to create support ticket, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 export const UploadMessageAttachments = createAsyncThunk(
   "UploadMessageAttachments",
   async ({ formData }: { formData: FormData }, thunkAPI) => {
@@ -669,6 +746,16 @@ const ThreadSlice = createSlice({
       FetchFreshdeskTicketIdIsSuccess: false,
       FetchFreshdeskTicketIdIsError: null as null | string | object | unknown,
       FetchFreshdeskTicketIdData: [] as ThreadTicketData[],
+    },
+    GenerateTicketContentState: {
+      GenerateTicketContentIsLoading: false,
+      GenerateTicketContentIsSuccess: false,
+      GenerateTicketContentIsError: null as null | string | object | unknown,
+    },
+    CreateSupportTicketState: {
+      CreateSupportTicketIsLoading: false,
+      CreateSupportTicketIsSuccess: false,
+      CreateSupportTicketIsError: null as null | string | object | unknown,
     },
     UploadMessageAttachmentsState: {
       UploadMessageAttachmentsIsLoading: false,
@@ -832,6 +919,36 @@ const ThreadSlice = createSlice({
         state.FetchFreshdeskTicketIdState.FetchFreshdeskTicketIdIsError =
           action.payload;
         state.FetchFreshdeskTicketIdState.FetchFreshdeskTicketIdIsSuccess = false;
+      })
+      .addCase(GenerateTicketContent.pending, (state) => {
+        state.GenerateTicketContentState.GenerateTicketContentIsLoading = true;
+        state.GenerateTicketContentState.GenerateTicketContentIsError = null;
+        state.GenerateTicketContentState.GenerateTicketContentIsSuccess = false;
+      })
+      .addCase(GenerateTicketContent.fulfilled, (state) => {
+        state.GenerateTicketContentState.GenerateTicketContentIsLoading = false;
+        state.GenerateTicketContentState.GenerateTicketContentIsSuccess = true;
+      })
+      .addCase(GenerateTicketContent.rejected, (state, action) => {
+        state.GenerateTicketContentState.GenerateTicketContentIsLoading = false;
+        state.GenerateTicketContentState.GenerateTicketContentIsError =
+          action.payload;
+        state.GenerateTicketContentState.GenerateTicketContentIsSuccess = false;
+      })
+      .addCase(CreateSupportTicket.pending, (state) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = true;
+        state.CreateSupportTicketState.CreateSupportTicketIsError = null;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = false;
+      })
+      .addCase(CreateSupportTicket.fulfilled, (state) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = false;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = true;
+      })
+      .addCase(CreateSupportTicket.rejected, (state, action) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = false;
+        state.CreateSupportTicketState.CreateSupportTicketIsError =
+          action.payload;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = false;
       })
       .addCase(UploadMessageAttachments.pending, (state) => {
         state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsLoading = true;
