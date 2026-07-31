@@ -20,6 +20,7 @@ import {
   IconMessageChatbot,
   IconMoodSmile,
   IconPencil,
+  IconPhoto,
   IconPlus,
   IconReload,
   IconSearch,
@@ -358,6 +359,8 @@ function ConversationPanel({
   onMessageImprove,
   isMessageImproving,
   onTicketSnooze,
+  selectedImage,
+  onImageChange,
 }: {
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
@@ -381,9 +384,12 @@ function ConversationPanel({
   onMessageImprove: (action: string) => void;
   isMessageImproving: boolean;
   onTicketSnooze: (snoozeTime: number | null) => void;
+  selectedImage: File | null;
+  onImageChange: (file: File | null) => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -863,17 +869,55 @@ function ConversationPanel({
             Translate
           </Button>
         </div>
-        <Textarea
-          value={reply}
-          onChange={(event) => onReplyChange(event.target.value)}
-          className="min-h-20 resize-none rounded-lg bg-white text-sm"
-          disabled={isMessageImproving}
-          placeholder={
-            composerMode === "note"
-              ? "Write an internal note..."
-              : "Write a reply, or accept the AI draft..."
-          }
-        />
+        <div className="relative">
+          <Textarea
+            value={reply}
+            onChange={(event) => onReplyChange(event.target.value)}
+            className="min-h-24 resize-none rounded-lg bg-white pb-11 text-sm"
+            disabled={isMessageImproving}
+            placeholder={
+              composerMode === "note"
+                ? "Write an internal note..."
+                : "Write a reply, or accept the AI draft..."
+            }
+          />
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              onImageChange(event.target.files?.[0] ?? null);
+              event.target.value = "";
+            }}
+          />
+          <div className="absolute inset-x-2 bottom-2 flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Upload image"
+              title="Upload image"
+              disabled={isSending}
+              onClick={() => imageInputRef.current?.click()}
+            >
+              <IconPhoto className="size-4" />
+            </Button>
+            {selectedImage ? (
+              <div className="flex min-w-0 items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-700">
+                <span className="max-w-48 truncate">{selectedImage.name}</span>
+                <button
+                  type="button"
+                  aria-label="Remove selected image"
+                  className="text-slate-400 hover:text-slate-700"
+                  onClick={() => onImageChange(null)}
+                >
+                  <IconX className="size-3.5" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <p className="max-w-[240px] text-xs text-slate-500">
             An AI draft in your brand voice is ready - click Accept
@@ -1103,6 +1147,7 @@ export default function HelpDesk() {
   const currentActiveSupportTicketIdRef = useRef<number | null>(null);
 
   const [showTagPicker, setShowTagPicker] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
 
   const [reply, setReply] = useState("");
   const [composerMode, setComposerMode] = useState<"reply" | "note">("reply");
@@ -1551,6 +1596,7 @@ export default function HelpDesk() {
     try {
       const formData = new FormData();
       formData.append("message", trimmedReply);
+      if (selectedImage) formData.append("attachments", selectedImage);
 
       if (composerMode === "note") {
         formData.append("message_type", "internal");
@@ -1569,6 +1615,7 @@ export default function HelpDesk() {
           message.id === tempId ? sentMessage : message,
         ),
       );
+      setSelectedImage(null);
 
       toast.success(
         composerMode === "note" ? "Internal note added" : "Reply sent",
@@ -1746,6 +1793,8 @@ export default function HelpDesk() {
                 onMessageImprove={handleMessageImprove}
                 isMessageImproving={SupportMessageImproveIsLoading}
                 onTicketSnooze={handleTicketSnooze}
+                selectedImage={selectedImage}
+                onImageChange={setSelectedImage}
               />
             )}
             {(FetchSupportTicketsLoading ||
