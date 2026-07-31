@@ -22,13 +22,6 @@ export type SupportTicketPlatfrom =
   | "zoho_desk"
   | "gorgias"
   | "intercom";
-export type SupportTicketPlatfrom =
-  | "internal"
-  | "zendesk"
-  | "freshdesk"
-  | "zoho_desk"
-  | "gorgias"
-  | "intercom";
 export type SupportTicketMessageContentType = "text/plain" | "multipart";
 export type SupportTicketMessageAttachment = "text/plain" | "multipart";
 export type SupportTicketDraftType = "manual" | "ai";
