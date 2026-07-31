@@ -1555,6 +1555,8 @@ export default function HelpDesk() {
 
           return rows;
         });
+      } catch {
+        // The thunk displays the API error toast.
       } finally {
         if (isLoadMore) {
           setIsLoadingMore(false);
