@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils";
 export type SectionId =
   | "channels"
   | "views"
-  | "tags-fields"
+  | "tags"
   | "rules-automations"
   | "routing-assignment"
   | "sla-policies"
@@ -54,7 +54,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
     items: [
       { id: "channels", label: "Channels", icon: IconLink },
       { id: "views", label: "Views", icon: IconTextSize },
-      { id: "tags-fields", label: "Tags & Fields", icon: IconTag },
+      { id: "tags", label: "Tags", icon: IconTag },
     ],
   },
   {
@@ -99,10 +99,9 @@ const sectionCopy: Record<SectionId, { title: string; description: string }> = {
     description:
       "Saved, filtered slices of the queue. A strong default set ships with every workspace; agents and admins can add their own.",
   },
-  "tags-fields": {
-    title: "Tags & Custom Fields",
-    description:
-      'A governed taxonomy - a fixed, admin-managed set so tags never "mean three different things." This keeps every downstream report and SLA honest.',
+  tags: {
+    title: "Tags",
+    description: "Manage tags to organize and categorize support tickets.",
   },
   "rules-automations": {
     title: "Rules & Automations",
@@ -139,7 +138,7 @@ const sectionCopy: Record<SectionId, { title: string; description: string }> = {
 const validSections = new Set<SectionId>([
   "channels",
   "views",
-  "tags-fields",
+  "tags",
   "rules-automations",
   "routing-assignment",
   "sla-policies",
@@ -354,7 +353,7 @@ function SectionBody({ active }: { active: SectionId }) {
   switch (active) {
     case "views":
       return <ViewsSection />;
-    case "tags-fields":
+    case "tags":
       return <TagsFieldsSection />;
     case "rules-automations":
       return <RulesAutomationsSection />;
@@ -394,16 +393,8 @@ export function TicketingSettingsContent({ active }: { active: SectionId }) {
   const copy = sectionCopy[active];
 
   return (
-    <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50">
-      {/* <div className="sticky top-0 z-10 flex h-14 items-center justify-between border-b bg-white px-4 md:px-7">
-        <div className="text-sm font-medium text-slate-500">
-          <span className="font-bold text-slate-950">{copy.title}</span>
-        </div>
-        <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
-          Save changes
-        </Button>
-      </div> */}
-      <div className="w-full max-w-[1060px] space-y-6 px-4 py-8 md:px-7">
+    <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 h-[88vh]!">
+      <div className="w-full max-w-[1060px] space-y-6 px-4 py-8 md:px-7 h-[88vh]!">
         <div>
           <h1 className="text-2xl font-semibold tracking-normal text-slate-950">
             {copy.title}
@@ -413,9 +404,6 @@ export function TicketingSettingsContent({ active }: { active: SectionId }) {
           </p>
         </div>
         <SectionBody active={active} />
-        <div className="sticky bottom-0 z-10 flex justify-end border-t border-border bg-background py-3">
-          <Button size="sm">Save changes</Button>
-        </div>
       </div>
     </main>
   );

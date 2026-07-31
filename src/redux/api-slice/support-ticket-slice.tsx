@@ -3,6 +3,7 @@ import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
+import { OrderData } from "@/redux/api-slice/thread-slice";
 
 export type SupportTicketStatus = "open" | "pending" | "resolved" | "closed";
 export type SupportTicketPriority = "low" | "normal" | "high" | "urgent";
@@ -34,6 +35,8 @@ export type SupportTicketFilters = {
   from_date?: string;
   to_date?: string;
   priority?: SupportTicketPriority[];
+  is_assigned?: boolean;
+  is_snoozed?: boolean;
 };
 
 type GetSupportTicketsArgs = {
@@ -55,20 +58,28 @@ export type SupportTicketCustomer = {
   created_at: string;
   updated_at: string;
   thread_id: string;
+  orders: OrderData[];
 };
 
-export type SupportTicketTagsResponse = {
+type GetSupportTicketTagsArgs = {
+  storeCode: string;
+  page?: number;
+  limit?: number;
+  search?: string;
+};
+
+export type SupportTicketTagData = {
   id?: number;
   name: string;
   color: string;
   description: string;
 };
 
-export type SupportTicketTagsListResponse = {
+export type SupportTicketTagsResponse = {
   count: number;
   next: string | null;
   previous: string | null;
-  results: SupportTicketTagsResponse[];
+  results: SupportTicketTagData[];
 };
 
 export type SupportMessageImproveResponse = {
@@ -129,7 +140,7 @@ export type SupportTicket = {
   status: SupportTicketStatus;
   priority: SupportTicketPriority;
 
-  tags: SupportTicketTagsResponse[];
+  tags: SupportTicketTagData[];
 
   is_read: boolean;
   channel: SupportTicketChannel;
@@ -172,7 +183,7 @@ export const FetchSupportTickets = createAsyncThunk<
     {
       store_code = "",
       page = 1,
-      limit = 10,
+      limit = 15,
       filters = {},
     }: GetSupportTicketsArgs = {},
     thunkAPI,
@@ -276,12 +287,12 @@ export const SupportTicketMessageSend = createAsyncThunk(
   },
 );
 
-export const FetchSupportTicketTags = createAsyncThunk<
-  SupportTicketTagsListResponse,
-  { storeCode: string; search?: string; page?: number; limit?: number }
->(
-  "SupportTicketTags",
-  async ({ storeCode, search = "", page = 1, limit = 20 }, thunkAPI) => {
+export const FetchSupportTicketTags = createAsyncThunk(
+  "FetchSupportTicketTags",
+  async (
+    { storeCode, page = 1, limit = 15, search = "" }: GetSupportTicketTagsArgs,
+    thunkAPI,
+  ) => {
     try {
       const queryParams = new URLSearchParams({
         store_code: storeCode,
@@ -291,7 +302,15 @@ export const FetchSupportTicketTags = createAsyncThunk<
       if (search) queryParams.set("search", search);
 
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchSupportTicketTags()}?${queryParams.toString()}`,
+        ENDPOINTS.fetchSupportTicketTags(),
+        {
+          params: {
+            store_code: storeCode,
+            page,
+            page_size: limit,
+            ...(search && { search }),
+          },
+        },
       );
       const data = response.data.data;
 
@@ -579,7 +598,7 @@ export const TicketTagCreate = createAsyncThunk(
     {
       storeCode,
       payload,
-    }: { storeCode: string; payload: SupportTicketTagsResponse },
+    }: { storeCode: string; payload: SupportTicketTagData },
     thunkAPI,
   ) => {
     try {
@@ -611,11 +630,11 @@ export const TicketTagUpdate = createAsyncThunk(
       storeCode,
       tagId,
       payload,
-    }: { storeCode: string; tagId: number; payload: SupportTicketTagsResponse },
+    }: { storeCode: string; tagId: number; payload: SupportTicketTagData },
     thunkAPI,
   ) => {
     try {
-      const response = await axiosInstance.post(
+      const response = await axiosInstance.patch(
         `${ENDPOINTS.ticketTagUpdate(tagId)}?store_code=${storeCode}`,
         payload,
       );
@@ -664,6 +683,108 @@ export const SupportTicketAIMessageDraftGenerate = createAsyncThunk(
   },
 );
 
+export const SupportTicketCustomerOrderSync = createAsyncThunk(
+  "SupportTicketCustomerOrderSync",
+  async (
+    { storeCode, ticketId }: { storeCode: string; ticketId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.supportTicketCustomerOrderSync(ticketId)}?store_code=${storeCode}`,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to sync customer orders, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const SupportTicketStatusUpdate = createAsyncThunk(
+  "SupportTicketStatusUpdate",
+  async (
+    {
+      storeCode,
+      ticketId,
+      payload,
+    }: {
+      storeCode: string;
+      ticketId: number;
+      payload: { status: SupportTicketStatus };
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.supportTicketStatusUpdate(ticketId)}?store_code=${storeCode}`,
+        payload,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to update ticket status, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const SupportTicketPriorityUpdate = createAsyncThunk(
+  "SupportTicketPriorityUpdate",
+  async (
+    {
+      storeCode,
+      ticketId,
+      payload,
+    }: {
+      storeCode: string;
+      ticketId: number;
+      payload: { priority: SupportTicketPriority };
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.supportTicketPriorityUpdate(ticketId)}?store_code=${storeCode}`,
+        payload,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to update ticket priority, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 const SupportTicketsSlice = createSlice({
   name: "SupportTicketsSlice",
   initialState: {
@@ -698,8 +819,12 @@ const SupportTicketsSlice = createSlice({
       FetchSupportTicketTagsIsLoading: false,
       FetchSupportTicketTagsIsSuccess: false,
       FetchSupportTicketTagsIsError: null as null | string | object | unknown,
-      FetchSupportTicketTagsData: [] as SupportTicketTagsResponse[],
-      FetchSupportTicketTagsNext: null as string | null,
+      FetchSupportTicketTagsData: {
+        count: 0,
+        next: null,
+        previous: null,
+        results: [],
+      } as SupportTicketTagsResponse,
     },
     SupportTicketStaffAssignState: {
       SupportTicketStaffAssignIsLoading: false,
@@ -721,13 +846,13 @@ const SupportTicketsSlice = createSlice({
       SupportTicketTagAssignIsLoading: false,
       SupportTicketTagAssignIsSuccess: false,
       SupportTicketTagAssignIsError: null as null | string | object | unknown,
-      SupportTicketTagAssignData: {} as SupportTicketTagsResponse,
+      SupportTicketTagAssignData: {} as SupportTicketTagData,
     },
     SupportTicketTagRemoveState: {
       SupportTicketTagRemoveIsLoading: false,
       SupportTicketTagRemoveIsSuccess: false,
       SupportTicketTagRemoveIsError: null as null | string | object | unknown,
-      SupportTicketTagRemoveData: {} as SupportTicketTagsResponse,
+      SupportTicketTagRemoveData: {} as SupportTicketTagData,
     },
     SupportMessageImproveState: {
       SupportMessageImproveIsLoading: false,
@@ -751,19 +876,19 @@ const SupportTicketsSlice = createSlice({
       TicketTagDeleteIsLoading: false,
       TicketTagDeleteIsSuccess: false,
       TicketTagDeleteIsError: null as null | string | object | unknown,
-      TicketTagDeleteData: {} as SupportTicketTagsResponse,
+      TicketTagDeleteData: {} as SupportTicketTagData,
     },
     TicketTagCreateState: {
       TicketTagCreateIsLoading: false,
       TicketTagCreateIsSuccess: false,
       TicketTagCreateIsError: null as null | string | object | unknown,
-      TicketTagCreateData: {} as SupportTicketTagsResponse,
+      TicketTagCreateData: {} as SupportTicketTagData,
     },
     TicketTagUpdateState: {
       TicketTagUpdateIsLoading: false,
       TicketTagUpdateIsSuccess: false,
       TicketTagUpdateIsError: null as null | string | object | unknown,
-      TicketTagUpdateData: {} as SupportTicketTagsResponse,
+      TicketTagUpdateData: {} as SupportTicketTagData,
     },
     SupportTicketAIMessageDraftGenerateState: {
       SupportTicketAIMessageDraftGenerateIsLoading: false,
@@ -774,6 +899,36 @@ const SupportTicketsSlice = createSlice({
         | object
         | unknown,
       SupportTicketAIMessageDraftGenerateData: {} as SupportTicketDraftMessage,
+    },
+    SupportTicketCustomerOrderSyncState: {
+      SupportTicketCustomerOrderSyncIsLoading: false,
+      SupportTicketCustomerOrderSyncIsSuccess: false,
+      SupportTicketCustomerOrderSyncIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      SupportTicketCustomerOrderSyncData: [] as OrderData[],
+    },
+    SupportTicketStatusUpdateState: {
+      SupportTicketStatusUpdateIsLoading: false,
+      SupportTicketStatusUpdateIsSuccess: false,
+      SupportTicketStatusUpdateIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      SupportTicketStatusUpdateData: {} as { status: SupportTicketStatus },
+    },
+    SupportTicketPriorityUpdateState: {
+      SupportTicketPriorityUpdateIsLoading: false,
+      SupportTicketPriorityUpdateIsSuccess: false,
+      SupportTicketPriorityUpdateIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      SupportTicketPriorityUpdateData: {} as { status: SupportTicketPriority },
     },
   },
   reducers: {},
@@ -1074,7 +1229,61 @@ const SupportTicketsSlice = createSlice({
             action.payload;
           state.SupportTicketAIMessageDraftGenerateState.SupportTicketAIMessageDraftGenerateIsSuccess = false;
         },
-      );
+      )
+      .addCase(SupportTicketCustomerOrderSync.pending, (state) => {
+        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsLoading = true;
+        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsError =
+          null;
+        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsSuccess = false;
+      })
+      .addCase(SupportTicketCustomerOrderSync.fulfilled, (state, action) => {
+        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsLoading = false;
+        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncData =
+          action.payload;
+        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsSuccess = true;
+      })
+      .addCase(SupportTicketCustomerOrderSync.rejected, (state, action) => {
+        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsLoading = false;
+        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsError =
+          action.payload;
+        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsSuccess = false;
+      })
+      .addCase(SupportTicketStatusUpdate.pending, (state) => {
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsLoading = true;
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsError =
+          null;
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsSuccess = false;
+      })
+      .addCase(SupportTicketStatusUpdate.fulfilled, (state, action) => {
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsLoading = false;
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateData =
+          action.payload;
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsSuccess = true;
+      })
+      .addCase(SupportTicketStatusUpdate.rejected, (state, action) => {
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsLoading = false;
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsError =
+          action.payload;
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsSuccess = false;
+      })
+      .addCase(SupportTicketPriorityUpdate.pending, (state) => {
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsLoading = true;
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsError =
+          null;
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsSuccess = false;
+      })
+      .addCase(SupportTicketPriorityUpdate.fulfilled, (state, action) => {
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsLoading = false;
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateData =
+          action.payload;
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsSuccess = true;
+      })
+      .addCase(SupportTicketPriorityUpdate.rejected, (state, action) => {
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsLoading = false;
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsError =
+          action.payload;
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsSuccess = false;
+      });
   },
 });
 

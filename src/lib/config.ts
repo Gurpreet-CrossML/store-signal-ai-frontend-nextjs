@@ -174,6 +174,15 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/ticket-tags/${tag_id}/delete/`, "django"),
   supportTicketAIMessageDraftGenerate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/draft-messages/ai/`, "django"),
+  supportTicketCustomerOrderSync: (ticket_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/customer/order-sync/`,
+      "django",
+    ),
+  supportTicketStatusUpdate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/status/`, "django"),
+  supportTicketPriorityUpdate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/priority/`, "django"),
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
