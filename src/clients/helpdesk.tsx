@@ -1458,7 +1458,7 @@ export default function HelpDesk() {
 
       setDebouncedSearch(nextSearch);
       setPage(1);
-    }, 350);
+    }, 800);
 
     return () => window.clearTimeout(timeout);
   }, [searchValue, debouncedSearch]);
@@ -1469,7 +1469,7 @@ export default function HelpDesk() {
       if (nextSearch === debouncedTagSearch) return;
       setDebouncedTagSearch(nextSearch);
       setTagPage(1);
-    }, 350);
+    }, 800);
 
     return () => window.clearTimeout(timeout);
   }, [tagSearch, debouncedTagSearch]);
