@@ -1,3 +1,5 @@
+import { Icon, IconBrandFacebook, IconBrandInstagram, IconBrandWhatsapp } from "@tabler/icons-react";
+
 const DJANGO_BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000";
 const LOCAL_BASE_URL = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
@@ -136,6 +138,10 @@ export const ENDPOINTS = {
   neverSayRulesPresets: () => "/chat/never-say-rules-presets/",
   toneStyle: () => `/chat/tone-style/`,
   vocabulary: () => `/chat/vocabulary/`,
+
+  // Social AI (Django via useBackend — keep trailing slash).
+  createMetaOAuthUrl: () => `/social/meta/oauth/`,
+  fetchSocialAccountsSubscriptions: () => `/social/subscriptions/connected-accounts/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
@@ -238,3 +244,29 @@ export const SPELLING_OPTIONS: readonly SelectOption[] = [
   { value: "us", label: "US" },
   { value: "auto", label: "Auto" },
 ];
+
+export const SocialAIPlatformOptions: { readonly [key: string]: { label: string; icon: Icon; color: string } } = {
+  "facebook": {
+    label: "Facebook",
+    icon: IconBrandFacebook,
+    color: "text-[#1877F2]"
+  },
+  "instagram": {
+    label: "Instagram",
+    icon: IconBrandInstagram,
+    color: "text-[#E4405F]"
+  },
+  "whatsapp": {
+    label: "WhatsApp",
+    icon: IconBrandWhatsapp,
+    color: "text-[#25D366]"
+  },
+};
+
+export const StatusBadges: { readonly [key: string]: { label: string; bg: string; text: string } } = {
+  active: {
+    label: "Active",
+    bg: "bg-green-100",
+    text: "text-green-800",
+  },
+};
