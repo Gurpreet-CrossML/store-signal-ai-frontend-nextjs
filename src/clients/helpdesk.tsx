@@ -64,6 +64,15 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { OrdersCard } from "@/components/custom/thread-detail-panels";
 import { cn } from "@/lib/utils";
 
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -80,20 +89,20 @@ import {
   SupportTicketSnooze,
   SupportTicketMarkRead,
   SupportTicketAIMessageDraftGenerate,
+  SupportTicketCustomerOrderSync,
+  SupportTicketStatusUpdate,
+  SupportTicketPriorityUpdate,
   type SupportTicket,
   type SupportTicketChannel,
   type SupportTicketPriority,
-  type SupportTicketTagsResponse,
+  type SupportTicketTagData,
   type SupportTicketMessage,
-  SupportTicketDraftMessage,
+  type SupportTicketDraftMessage,
+  type SupportTicketCustomer,
+  SupportTicketStatus,
 } from "@/redux/api-slice/support-ticket-slice";
 import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import { formatRelativeDateTime, formatDateTime } from "@/lib/helpers";
-
-type ActiveQueue = "open" | "pending" | "resolved" | "closed";
-
-const suggestedReply =
-  "Hi Sarah - I completely understand, and I am sorry it has felt like a long wait. Good news: your order shipped Tuesday and is out for delivery with DHL today. I will keep an eye on it too.";
 
 // Max tags to show in ticket row for `TicketListPanel`
 const MAX_VISIBLE_TKT_ROW_TAGS = 2;
@@ -131,6 +140,34 @@ const priorityBadgeClass = {
   high: "border-amber-100 bg-amber-50 text-amber-700",
   urgent: "border-red-100 bg-red-50 text-red-700",
 } satisfies Record<SupportTicketPriority, string>;
+
+function getCustomerInitials(
+  customer: SupportTicketCustomer | null | string,
+): string {
+  if (!customer) return "C";
+
+  if (typeof customer === "object") {
+    const name = customer.name?.trim();
+
+    // Use name if available
+    if (name) {
+      const parts = name.split(/\s+/);
+
+      if (parts.length === 1) {
+        return parts[0].charAt(0).toUpperCase();
+      }
+
+      return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+    }
+
+    // Fallback to email
+    if (customer.email) {
+      return customer.email.charAt(0).toUpperCase();
+    }
+  }
+
+  return "C";
+}
 
 function TicketRow({
   ticket,
@@ -245,9 +282,9 @@ function TicketListPanel({
 }: {
   rows: SupportTicket[];
   activeTicketId: number | null;
-  activeQueue: ActiveQueue;
+  activeQueue: SupportTicketStatus;
   queueLabel: string;
-  onQueueChange: (queue: ActiveQueue) => void;
+  onQueueChange: (queue: SupportTicketStatus) => void;
   onSelectTicket: (ticketId: number) => void;
   onUtilityAction: (action: string) => void;
   count: number;
@@ -370,7 +407,7 @@ function ConversationPanel({
   onSend: () => void;
   onAcceptDraft: () => void;
   onSaveDraft: () => void;
-  availableTags: SupportTicketTagsResponse[];
+  availableTags: SupportTicketTagData[];
   isTagPickerOpen: boolean;
   isTagPickerLoading: boolean;
   onToggleTagPicker: () => void;
@@ -398,10 +435,7 @@ function ConversationPanel({
   const visibleTags = ticket.tags?.slice(0, MAX_VISIBLE_TKT_CONV_TAGS);
   const hiddenTags = ticket.tags?.slice(MAX_VISIBLE_TKT_CONV_TAGS);
 
-  const customerInitials =
-    typeof ticket.customer === "object" && ticket.customer
-      ? ticket.customer.email.split("@")[0].charAt(0).toUpperCase()
-      : "C";
+  const customerInitials = getCustomerInitials(ticket.customer);
 
   const snoozeLabel = (() => {
     if (!ticket?.is_snoozed || !ticket.snoozed_until) {
@@ -459,7 +493,7 @@ function ConversationPanel({
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Combobox items={availableStaff}>
+            {/* <Combobox items={availableStaff}>
               <ComboboxInput
                 className="h-8 w-40"
                 placeholder={
@@ -485,7 +519,7 @@ function ConversationPanel({
                   )}
                 </ComboboxList>
               </ComboboxContent>
-            </Combobox>
+            </Combobox> */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="bg-white">
@@ -903,111 +937,303 @@ function ConversationPanel({
   );
 }
 
-function CopilotPanel({
+function TicketInsights({
+  ticket,
   onAcceptDraft,
   onAIDraftGenerate,
   isAIDraftLoading,
   aiDraft,
+  isOrdersLoading,
+  isOrderSyncLoading,
+  onOrdersSync,
+  availableStaff,
+  onAssignStaff,
+  onTicketStatusUpdate,
+  onTicketPriorityUpdate,
 }: {
+  ticket: SupportTicket;
   onAcceptDraft: () => void;
   onAIDraftGenerate: () => void;
   isAIDraftLoading: boolean;
   aiDraft: SupportTicketDraftMessage | null;
+  isOrdersLoading: boolean;
+  isOrderSyncLoading: boolean;
+  onOrdersSync: () => void;
+  availableStaff: StaffMember[];
+  onAssignStaff: (staffId: number | null) => void;
+  onTicketStatusUpdate: (status: SupportTicketStatus) => void;
+  onTicketPriorityUpdate: (priority: SupportTicketPriority) => void;
 }) {
+  const [activeTab, setActiveTab] = useState<"ticket" | "customer">("ticket");
+
+  const customerInitials = getCustomerInitials(ticket.customer);
+  const customerData =
+    ticket.customer && typeof ticket.customer === "object"
+      ? ticket.customer
+      : null;
+
+  const customerName = customerData?.name ?? null;
+  const customerEmail = customerData?.email ?? null;
+
   return (
-    <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
+    <aside className="hidden w-[380px] shrink-0 border-l bg-white xl:block">
       <div className="grid h-11 grid-cols-2 border-b text-sm font-medium">
-        <button className="flex items-center justify-center gap-2 border-b-2 border-indigo-600 text-indigo-600">
+        <button
+          className={cn(
+            "flex items-center justify-center gap-2",
+            activeTab === "ticket"
+              ? "border-b-2 border-indigo-600 text-indigo-600"
+              : "text-slate-500",
+          )}
+          onClick={() => setActiveTab("ticket")}
+        >
           <IconMessageChatbot className="size-4" />
-          AI Copilot
+          Ticket
         </button>
-        <button className="flex items-center justify-center gap-2 text-slate-500">
+        <button
+          className={cn(
+            "flex items-center justify-center gap-2",
+            activeTab === "customer"
+              ? "border-b-2 border-indigo-600 text-indigo-600"
+              : "text-slate-500",
+          )}
+          onClick={() => setActiveTab("customer")}
+        >
           <IconUsers className="size-4" />
           Customer
         </button>
       </div>
       <div className="space-y-3 overflow-y-auto p-4 h-[88vh]!">
-        <section className="rounded-lg border bg-white">
-          <div className="flex items-center justify-between border-b px-3 py-3">
-            <h3 className="flex items-center gap-2 text-sm font-medium text-slate-950">
-              <IconMessageChatbot className="size-4 text-indigo-600" />
-              Suggested reply
-            </h3>
-          </div>
-          <div className="p-3">
-            {isAIDraftLoading ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm font-medium text-indigo-600">
-                  <IconLoader2 className="size-4 animate-spin" />
-                  Generating AI reply...
-                </div>
-
-                <div className="space-y-2 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
-                  <div className="h-4 w-full animate-pulse rounded bg-slate-200" />
-                  <div className="h-4 w-5/6 animate-pulse rounded bg-slate-200" />
-                  <div className="h-4 w-4/6 animate-pulse rounded bg-slate-200" />
-                  <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
-                </div>
-
-                <Button size="sm" disabled className="w-full">
-                  <IconLoader2 className="size-4 animate-spin" />
-                  Generating...
-                </Button>
+        {activeTab === "ticket" ? (
+          <>
+            <section className="rounded-lg border bg-white">
+              <div className="flex items-center justify-between border-b px-3 py-3">
+                <h3 className="flex items-center gap-2 text-sm font-medium text-slate-950">
+                  <IconMessageChatbot className="size-4 text-indigo-600" />
+                  Suggested reply
+                </h3>
               </div>
-            ) : aiDraft ? (
-              <>
-                <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-3 text-sm leading-6 text-slate-950">
-                  {aiDraft?.message}
-                </div>
+              <div className="p-3">
+                {isAIDraftLoading ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-indigo-600">
+                      <IconLoader2 className="size-4 animate-spin" />
+                      Generating AI reply...
+                    </div>
 
-                <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-                  Confidence
-                  <div className="h-1 flex-1 rounded-full bg-slate-100">
-                    <div className="h-1 w-[94%] rounded-full bg-emerald-500" />
+                    <div className="space-y-2 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
+                      <div className="h-4 w-full animate-pulse rounded bg-slate-200" />
+                      <div className="h-4 w-5/6 animate-pulse rounded bg-slate-200" />
+                      <div className="h-4 w-4/6 animate-pulse rounded bg-slate-200" />
+                      <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+                    </div>
+
+                    <Button size="sm" disabled className="w-full">
+                      <IconLoader2 className="size-4 animate-spin" />
+                      Generating...
+                    </Button>
                   </div>
-                  <span className="font-medium text-emerald-600">94%</span>
-                </div>
+                ) : aiDraft ? (
+                  <>
+                    <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-3 text-sm leading-6 text-slate-950">
+                      {aiDraft?.message}
+                    </div>
 
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <Button size="sm" onClick={onAcceptDraft}>
-                    <IconCheck className="size-4" />
-                    Use draft
-                  </Button>
+                    <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                      Confidence
+                      <div className="h-1 flex-1 rounded-full bg-slate-100">
+                        <div className="h-1 w-[94%] rounded-full bg-emerald-500" />
+                      </div>
+                      <span className="font-medium text-emerald-600">94%</span>
+                    </div>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-white"
-                    onClick={onAIDraftGenerate}
-                  >
-                    <IconReload className="size-4" />
-                    Regenerate
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-slate-50 px-6 py-10 text-center">
-                <div className="flex size-12 items-center justify-center rounded-full bg-indigo-100">
-                  <IconMessageChatbot className="size-6 text-indigo-600" />
-                </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <Button size="sm" onClick={onAcceptDraft}>
+                        <IconCheck className="size-4" />
+                        Use draft
+                      </Button>
 
-                <h4 className="mt-4 text-sm font-semibold text-slate-900">
-                  No AI draft available
-                </h4>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-white"
+                        onClick={onAIDraftGenerate}
+                      >
+                        <IconReload className="size-4" />
+                        Regenerate
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-slate-50 px-6 py-10 text-center">
+                    <div className="flex size-12 items-center justify-center rounded-full bg-indigo-100">
+                      <IconMessageChatbot className="size-6 text-indigo-600" />
+                    </div>
 
-                <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">
-                  Generate an AI-powered reply based on the customer&apos;s
-                  conversation. You can review and edit it before sending.
-                </p>
+                    <h4 className="mt-4 text-sm font-semibold text-slate-900">
+                      No AI draft available
+                    </h4>
 
-                <Button className="mt-5" size="sm" onClick={onAIDraftGenerate}>
-                  <IconSparkles className="size-4" />
-                  Generate draft
-                </Button>
+                    <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">
+                      Generate an AI-powered reply based on the customer&apos;s
+                      conversation. You can review and edit it before sending.
+                    </p>
+
+                    <Button
+                      className="mt-5"
+                      size="sm"
+                      onClick={onAIDraftGenerate}
+                    >
+                      <IconSparkles className="size-4" />
+                      Generate draft
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </section>
+            </section>
+            <section className="rounded-lg border bg-white">
+              <div className="border-b px-3 py-3">
+                <h3 className="text-sm font-medium text-slate-950">Actions</h3>
+              </div>
+
+              <div className="space-y-4 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="text-sm text-slate-500">Status</Label>
+
+                  <Select
+                    value={ticket.status}
+                    onValueChange={onTicketStatusUpdate}
+                  >
+                    <SelectTrigger className="h-8 w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="text-sm text-slate-500">Priority</Label>
+
+                  <Select
+                    value={ticket.priority}
+                    onValueChange={onTicketPriorityUpdate}
+                  >
+                    <SelectTrigger className="h-8 w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="text-sm text-slate-500">Asignee</Label>
+
+                  <Combobox items={availableStaff}>
+                    <ComboboxInput
+                      className="h-8 w-40"
+                      placeholder={
+                        ticket?.internal_assignee?.id
+                          ? ticket?.internal_assignee?.name
+                          : "Assign staff..."
+                      }
+                    />
+                    <ComboboxContent>
+                      <ComboboxEmpty>No items found.</ComboboxEmpty>
+                      <ComboboxList>
+                        {(staff) => (
+                          <ComboboxItem
+                            key={staff.id}
+                            value={`${staff.first_name} ${staff.last_name}`}
+                            onClick={() =>
+                              staff.id !== ticket?.internal_assignee?.id &&
+                              onAssignStaff(staff.id)
+                            }
+                          >
+                            {staff.first_name} {staff.last_name}
+                          </ComboboxItem>
+                        )}
+                      </ComboboxList>
+                    </ComboboxContent>
+                  </Combobox>
+                </div>
+              </div>
+            </section>
+            <section className="rounded-xl border bg-white">
+              <div className="flex items-center gap-2 border-b px-4 py-3">
+                <IconClock className="size-4 text-indigo-600" />
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Ticket insights
+                </h3>
+              </div>
+
+              <div className="space-y-4 p-4">
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">First response</span>
+                    <span className="font-medium text-slate-900">1h 25m</span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">Last response</span>
+                    <span className="font-medium text-slate-900">30m</span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">Channel</span>
+                    <span className="font-medium text-slate-900">Web</span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">Customer</span>
+                    <span className="truncate text-right font-medium text-slate-900">
+                      ajay.verma@crossml.com
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-3">
+              <Avatar className="size-8">
+                <AvatarFallback className="bg-slate-500 text-xs font-medium text-white">
+                  {customerInitials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <h3 className="truncate text-base font-semibold text-slate-950">
+                  {customerName || "No name available"}
+                </h3>
+                <p className="truncate text-xs text-slate-500">
+                  {customerEmail || "No email available"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <OrdersCard
+                orders={customerData?.orders}
+                loading={isOrdersLoading}
+                handleOrdersSync={onOrdersSync}
+                orderSyncLoading={isOrderSyncLoading}
+                custometData={customerData}
+              />
+            </div>
+          </>
+        )}
 
         {/* <section className="rounded-lg border bg-white">
           <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-medium text-slate-950">
@@ -1059,6 +1285,7 @@ export default function HelpDesk() {
   const activeSection = resolveTicketingSettingsSection(
     searchParams?.get("section") ?? null,
   );
+  const activeFilter = searchParams?.get("filter") ?? "";
 
   const dispatch = useAppDispatch();
 
@@ -1088,13 +1315,17 @@ export default function HelpDesk() {
     (state) =>
       state.SupportTicketsSliceReducer.SupportTicketAIMessageDraftGenerateState,
   );
+  const { SupportTicketCustomerOrderSyncIsLoading } = useAppSelector(
+    (state) =>
+      state.SupportTicketsSliceReducer.SupportTicketCustomerOrderSyncState,
+  );
   const { staff } = useAppSelector((state) => state.GetTenancyReducer);
 
   const [ticketRows, setTicketRows] = useState<SupportTicket[]>([]);
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
-  const [activeQueue, setActiveQueue] = useState<ActiveQueue>("open");
+  const [activeQueue, setActiveQueue] = useState<SupportTicketStatus>("open");
   const [supportTikcetMessages, setSupportTicketMessage] = useState<
     SupportTicketMessage[]
   >([]);
@@ -1109,6 +1340,8 @@ export default function HelpDesk() {
 
   const [isResolving, setIsResolving] = useState(false);
 
+  const ticketTags = FetchSupportTicketTagsData?.results;
+
   useEffect(() => {
     if (!storeCode) return;
 
@@ -1118,13 +1351,23 @@ export default function HelpDesk() {
   useEffect(() => {
     if (!storeCode) return;
 
+    const filters: Record<string, unknown> = {
+      status: activeQueue,
+    };
+
+    if (activeFilter === "unassigned") {
+      filters.is_assigned = false;
+    }
+
+    if (activeFilter === "snoozed") {
+      filters.is_snoozed = true;
+    }
+
     const fetchArgs = {
       store_code: storeCode,
       page,
       limit: 20,
-      filters: {
-        ...(activeQueue !== "open" ? { status: activeQueue } : {}),
-      },
+      filters,
     };
 
     const fetchTickets = async () => {
@@ -1166,11 +1409,18 @@ export default function HelpDesk() {
     };
 
     fetchTickets();
-  }, [dispatch, storeCode, page, activeQueue]);
+  }, [dispatch, storeCode, page, activeQueue, activeFilter]);
 
   useEffect(() => {
     if (!storeCode) return;
-    dispatch(FetchSupportTicketTags(storeCode));
+    // dispatch(FetchSupportTicketTags({storeCode}));
+    dispatch(
+      FetchSupportTicketTags({
+        storeCode,
+        page: 1,
+        limit: 20,
+      }),
+    );
   }, [dispatch, storeCode]);
 
   useEffect(() => {
@@ -1249,7 +1499,7 @@ export default function HelpDesk() {
     setReply("");
   };
 
-  const handleQueueChange = (queue: ActiveQueue) => {
+  const handleQueueChange = (queue: SupportTicketStatus) => {
     setActiveQueue(queue);
     setPage(1);
     setActiveTicketId(null);
@@ -1310,8 +1560,18 @@ export default function HelpDesk() {
   };
 
   const handleAcceptDraft = () => {
-    setReply(suggestedReply);
-    toast.success("AI draft added to the composer");
+    const aiDraft = activeSupportTicket?.drafts?.find(
+      (draft) => draft.draft_type === "ai",
+    );
+
+    if (aiDraft?.message) {
+      setReply(aiDraft.message);
+      toast.success("AI draft added to the composer");
+    } else {
+      toast.info("AI generated draft not found", {
+        description: "Click on Generate draft to accept ai generated draft.",
+      });
+    }
   };
 
   const handleToggleTagPicker = () => {
@@ -1675,6 +1935,138 @@ export default function HelpDesk() {
     }
   };
 
+  const handleCustomerOrderSync = async () => {
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+
+    try {
+      const syncedOrders = await dispatch(
+        SupportTicketCustomerOrderSync({
+          storeCode,
+          ticketId: currentActiveSupportTicketIdRef.current,
+        }),
+      ).unwrap();
+
+      if (syncedOrders) {
+        setActiveSupportTicket((current) =>
+          current
+            ? {
+                ...current,
+                customer:
+                  current.customer && typeof current.customer !== "string"
+                    ? {
+                        ...current.customer,
+                        orders: syncedOrders,
+                      }
+                    : current.customer,
+              }
+            : current,
+        );
+
+        toast.success("Order sync", {
+          description: "Customer orders synced successfully.",
+        });
+      }
+    } catch {
+      //
+    }
+  };
+
+  const handleSupportTicketStatusUpdate = async (
+    status: SupportTicketStatus,
+  ) => {
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+
+    try {
+      const payload = {
+        status: status,
+      };
+
+      const updatedStatus = await dispatch(
+        SupportTicketStatusUpdate({
+          storeCode,
+          ticketId: currentActiveSupportTicketIdRef.current,
+          payload,
+        }),
+      ).unwrap();
+
+      if (updatedStatus) {
+        setTicketRows((current) =>
+          current.map((ticket) =>
+            ticket.id === currentActiveSupportTicketIdRef.current
+              ? {
+                  ...ticket,
+                  status: updatedStatus.status,
+                }
+              : ticket,
+          ),
+        );
+
+        setActiveSupportTicket((current) =>
+          current
+            ? {
+                ...current,
+                status: updatedStatus.status,
+              }
+            : current,
+        );
+
+        toast.success("Ticket status", {
+          description: `Ticket status updated to ${updatedStatus.status}.`,
+        });
+      }
+    } catch {
+      //
+    }
+  };
+
+  const handleSupportTicketPriorityUpdate = async (
+    priority: SupportTicketPriority,
+  ) => {
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+
+    try {
+      const payload = {
+        priority: priority,
+      };
+
+      const updatedPriority = await dispatch(
+        SupportTicketPriorityUpdate({
+          storeCode,
+          ticketId: currentActiveSupportTicketIdRef.current,
+          payload,
+        }),
+      ).unwrap();
+
+      if (updatedPriority) {
+        setTicketRows((current) =>
+          current.map((ticket) =>
+            ticket.id === currentActiveSupportTicketIdRef.current
+              ? {
+                  ...ticket,
+                  priority: updatedPriority.priority,
+                }
+              : ticket,
+          ),
+        );
+
+        setActiveSupportTicket((current) =>
+          current
+            ? {
+                ...current,
+                priority: updatedPriority.priority,
+              }
+            : current,
+        );
+
+        toast.success("Ticket priority", {
+          description: `Ticket priority updated to ${updatedPriority.priority}.`,
+        });
+      }
+    } catch {
+      //
+    }
+  };
+
   return (
     <div className="-my-4 flex h-[calc(100vh-var(--header-height))] flex-col overflow-hidden border-y bg-white font-sans text-slate-950 md:-my-6">
       <div className="flex min-h-0 flex-1">
@@ -1735,7 +2127,7 @@ export default function HelpDesk() {
                 onSend={handleSend}
                 onAcceptDraft={handleAcceptDraft}
                 onSaveDraft={handleSaveDraft}
-                availableTags={FetchSupportTicketTagsData}
+                availableTags={ticketTags}
                 isTagPickerOpen={showTagPicker}
                 isTagPickerLoading={FetchSupportTicketTagsIsLoading}
                 onToggleTagPicker={handleToggleTagPicker}
@@ -1770,7 +2162,8 @@ export default function HelpDesk() {
                 </div>
               </aside>
             ) : (
-              <CopilotPanel
+              <TicketInsights
+                ticket={activeSupportTicket}
                 onAcceptDraft={handleAcceptDraft}
                 onAIDraftGenerate={handleAiDraftGenerate}
                 isAIDraftLoading={SupportTicketAIMessageDraftGenerateIsLoading}
@@ -1779,6 +2172,13 @@ export default function HelpDesk() {
                     (draft) => draft.draft_type === "ai",
                   ) ?? null
                 }
+                isOrdersLoading={FetchSupportTicketDetailsIsLoading}
+                isOrderSyncLoading={SupportTicketCustomerOrderSyncIsLoading}
+                onOrdersSync={handleCustomerOrderSync}
+                availableStaff={staff}
+                onAssignStaff={handleStaffAssign}
+                onTicketStatusUpdate={handleSupportTicketStatusUpdate}
+                onTicketPriorityUpdate={handleSupportTicketPriorityUpdate}
               />
             )}
           </>
