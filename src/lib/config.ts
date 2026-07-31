@@ -139,11 +139,41 @@ export const ENDPOINTS = {
 
   // Helpdesk(Support) apis
   fetchSupportTickets: () => createAPIUrl("/support/tickets", "django"),
-  fetchSupportTicketDeatils: (ticket_id: number) => createAPIUrl(`/support/tickets/${ticket_id}/`, "django"),
-  supportTicketMessageSend: (ticket_id: number) => createAPIUrl(`/support/tickets/${ticket_id}/messages/`, "django"),
+  fetchSupportTicketDeatils: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/`, "django"),
+  supportTicketMessageSend: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/messages/`, "django"),
   fetchSupportTicketTags: () => createAPIUrl("/support/ticket-tags", "django"),
-  supportTicketStaffAssign: (ticket_id: number) => createAPIUrl(`/support/tickets/${ticket_id}/assignee/`, "django"),
-  supportTicketAgentDraftSave: (ticket_id: number) => createAPIUrl(`/support/tickets/${ticket_id}/draft-messages/agent/`, "django"),
+  supportTicketStaffAssign: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/assignee/`, "django"),
+  supportTicketAgentDraftSave: (ticket_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/draft-messages/agent/`,
+      "django",
+    ),
+  supportTicketTagAssign: (ticket_id: number, tag_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/tags/${tag_id}/assign/`,
+      "django",
+    ),
+  supportTicketTagRemove: (ticket_id: number, tag_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/tags/${tag_id}/remove/`,
+      "django",
+    ),
+  supportMessageImprove: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/message/improve/`, "django"),
+  supportTicketSnooze: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/snooze/`, "django"),
+  supportTicketMarkRead: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/mark/read/`, "django"),
+  ticketTagCreate: () => createAPIUrl("/support/ticket-tags/", "django"),
+  ticketTagUpdate: (tag_id: number) =>
+    createAPIUrl(`/support/ticket-tags/${tag_id}/`, "django"),
+  ticketTagDelete: (tag_id: number) =>
+    createAPIUrl(`/support/ticket-tags/${tag_id}/delete/`, "django"),
+  supportTicketAIMessageDraftGenerate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/draft-messages/ai/`, "django"),
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
