@@ -7,7 +7,7 @@ import { OrderData } from "@/redux/api-slice/thread-slice";
 
 export type SupportTicketStatus = "open" | "pending" | "resolved" | "closed";
 export type SupportTicketPriority = "low" | "normal" | "high" | "urgent";
-export type SupportTicketChannel = "web" | "email" | "whatsapp" | "instagram";
+export type SupportTicketChannel = "web" | "email" | "whatsapp" | "instagram" | "facebook";
 export type SupportTicketMessageType = "external" | "internal";
 export type SupportTicketMessageSenderType = "customer" | "agent";
 export type SupportTicketMessageDirection = "incoming" | "outgoing";
@@ -22,8 +22,14 @@ export type SupportTicketMessageContentType = "text/plain" | "multipart";
 export type SupportTicketMessageAttachment = "text/plain" | "multipart";
 export type SupportTicketDraftType = "manual" | "ai";
 
-type SupportTicketFilters = {
+export type SupportTicketFilters = {
   status?: SupportTicketStatus;
+  search?: string;
+  channel?: SupportTicketChannel[];
+  tags?: string[];
+  from_date?: string;
+  to_date?: string;
+  priority?: SupportTicketPriority[];
   is_assigned?: boolean;
   is_snoozed?: boolean;
 };

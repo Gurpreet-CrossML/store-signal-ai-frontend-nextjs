@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useRef, startTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
+  IconBrandFacebook,
   IconBrandInstagram,
   IconBrandWhatsapp,
   IconCheck,
@@ -29,6 +30,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 
+import { useFormik } from "formik";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,7 +53,17 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxValue,
+  useComboboxAnchor,
 } from "@/components/ui/combobox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -99,10 +111,11 @@ import {
   type SupportTicketMessage,
   type SupportTicketDraftMessage,
   type SupportTicketCustomer,
-  SupportTicketStatus,
+  type SupportTicketStatus,
+  type SupportTicketFilters,
 } from "@/redux/api-slice/support-ticket-slice";
 import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
-import { formatRelativeDateTime, formatDateTime } from "@/lib/helpers";
+import { formatRelativeDateTime, formatDateTime, capitalizeText } from "@/lib/helpers";
 
 // Max tags to show in ticket row for `TicketListPanel`
 const MAX_VISIBLE_TKT_ROW_TAGS = 2;
@@ -125,6 +138,7 @@ const channelIcon = {
   email: IconMail,
   instagram: IconBrandInstagram,
   web: IconMessage2,
+  facebook: IconBrandFacebook,
 } satisfies Record<SupportTicketChannel, typeof IconBrandWhatsapp>;
 
 const channelColor = {
@@ -132,6 +146,7 @@ const channelColor = {
   email: "text-orange-500",
   instagram: "text-rose-500",
   web: "text-indigo-500",
+  facebook: "text-blue-600",
 } satisfies Record<SupportTicketChannel, string>;
 
 const priorityBadgeClass = {
@@ -266,6 +281,113 @@ const queues = [
   { key: "closed", label: "Closed" },
 ] as const;
 
+type TicketFilterSelection = {
+  channels: SupportTicketChannel[];
+  tags: string[];
+  priorities: SupportTicketPriority[];
+  fromDate: string;
+  toDate: string;
+};
+
+const emptyTicketFilters: TicketFilterSelection = {
+  channels: [],
+  tags: [],
+  priorities: [],
+  fromDate: "",
+  toDate: "",
+};
+
+const channelOptions: { value: SupportTicketChannel; label: string }[] = [
+  { value: "web", label: "Web" },
+  { value: "email", label: "Email" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "facebook", label: "Facebook" },
+  { value: "instagram", label: "Instagram" },
+];
+
+const priorityOptions: { value: SupportTicketPriority; label: string }[] = [
+  { value: "low", label: "Low" },
+  { value: "normal", label: "Normal" },
+  { value: "high", label: "High" },
+  { value: "urgent", label: "Urgent" },
+];
+
+function MultiSelectCombobox({
+  options,
+  value,
+  onValueChange,
+  placeholder,
+  emptyMessage,
+  onSearchChange,
+  hasMore = false,
+  isLoading = false,
+  onLoadMore,
+}: {
+  options: { value: string; label: string }[];
+  value: string[];
+  onValueChange: (value: string[]) => void;
+  placeholder: string;
+  emptyMessage: string;
+  onSearchChange?: (value: string) => void;
+  hasMore?: boolean;
+  isLoading?: boolean;
+  onLoadMore?: () => void;
+}) {
+  const anchor = useComboboxAnchor();
+  const optionLabels = new Map(
+    options.map((option) => [option.value, option.label]),
+  );
+  const values = options.map((option) => option.value);
+
+  return (
+    <Combobox
+      multiple
+      autoHighlight
+      items={values}
+      value={value}
+      onValueChange={onValueChange}
+      itemToStringLabel={(item) => optionLabels.get(item) ?? item}
+      onInputValueChange={(inputValue) => onSearchChange?.(inputValue)}
+    >
+      <ComboboxChips ref={anchor} className="w-full">
+        <ComboboxValue>
+          {(selectedValues) => (
+            <>
+              {(selectedValues as string[]).map((selectedValue) => (
+                <ComboboxChip key={selectedValue}>
+                  {optionLabels.get(selectedValue) ?? selectedValue}
+                </ComboboxChip>
+              ))}
+              <ComboboxChipsInput placeholder={placeholder} />
+            </>
+          )}
+        </ComboboxValue>
+      </ComboboxChips>
+      <ComboboxContent anchor={anchor}>
+        <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
+        <ComboboxList
+          onScroll={(event) => {
+            const target = event.currentTarget;
+            if (
+              hasMore &&
+              !isLoading &&
+              target.scrollHeight - target.scrollTop <= target.clientHeight + 40
+            ) {
+              onLoadMore?.();
+            }
+          }}
+        >
+          {(item) => (
+            <ComboboxItem key={item} value={item}>
+              {optionLabels.get(item) ?? item}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
 function TicketListPanel({
   rows,
   activeTicketId,
@@ -273,12 +395,25 @@ function TicketListPanel({
   queueLabel,
   onQueueChange,
   onSelectTicket,
-  onUtilityAction,
   count,
   isLoading,
   isLoadingMore,
   hasMore,
   onLoadMore,
+  searchValue,
+  onSearchChange,
+  availableTags,
+  filters,
+  isFilterOpen,
+  onFilterOpenChange,
+  onFiltersChange,
+  onApplyFilters,
+  onClearFilters,
+  dateError,
+  hasMoreTags,
+  isTagListLoading,
+  onTagSearchChange,
+  onLoadMoreTags,
 }: {
   rows: SupportTicket[];
   activeTicketId: number | null;
@@ -286,13 +421,32 @@ function TicketListPanel({
   queueLabel: string;
   onQueueChange: (queue: SupportTicketStatus) => void;
   onSelectTicket: (ticketId: number) => void;
-  onUtilityAction: (action: string) => void;
   count: number;
   isLoading: boolean;
   isLoadingMore: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
+  searchValue: string;
+  onSearchChange: (value: string) => void;
+  availableTags: SupportTicketTagData[];
+  filters: TicketFilterSelection;
+  isFilterOpen: boolean;
+  onFilterOpenChange: (open: boolean) => void;
+  onFiltersChange: (filters: TicketFilterSelection) => void;
+  onApplyFilters: () => void;
+  onClearFilters: () => void;
+  dateError?: string;
+  hasMoreTags: boolean;
+  isTagListLoading: boolean;
+  onTagSearchChange: (value: string) => void;
+  onLoadMoreTags: () => void;
 }) {
+  const activeFilterCount =
+    filters.channels.length +
+    filters.tags.length +
+    filters.priorities.length +
+    Number(Boolean(filters.fromDate || filters.toDate));
+
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
     if (!hasMore || isLoading || isLoadingMore) return;
@@ -311,9 +465,135 @@ function TicketListPanel({
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="icon-sm" className="bg-white">
-            <IconFilter className="size-4" />
-          </Button>
+          <Popover open={isFilterOpen} onOpenChange={onFilterOpenChange}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="relative bg-white"
+                aria-label="Filter tickets"
+              >
+                <IconFilter className="size-4" />
+                {activeFilterCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-indigo-600 text-[9px] text-white">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 p-0">
+              <div className="border-b px-4 py-3">
+                <p className="text-sm font-semibold">Filter tickets</p>
+              </div>
+              <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4">
+                <fieldset>
+                  <legend className="mb-2 text-xs font-semibold text-slate-700">
+                    Channel
+                  </legend>
+                  <MultiSelectCombobox
+                    options={channelOptions}
+                    value={filters.channels}
+                    onValueChange={(channels) =>
+                      onFiltersChange({
+                        ...filters,
+                        channels: channels as SupportTicketChannel[],
+                      })
+                    }
+                    placeholder="Search channels..."
+                    emptyMessage="No channels found."
+                  />
+                </fieldset>
+
+                <fieldset>
+                  <legend className="mb-2 text-xs font-semibold text-slate-700">
+                    Tags
+                  </legend>
+                  <MultiSelectCombobox
+                    options={availableTags.map((tag) => ({
+                      value: tag.name,
+                      label: tag.name,
+                    }))}
+                    value={filters.tags}
+                    onValueChange={(tags) =>
+                      onFiltersChange({
+                        ...filters,
+                        tags,
+                      })
+                    }
+                    placeholder="Search tags..."
+                    emptyMessage="No tags found."
+                    onSearchChange={onTagSearchChange}
+                    hasMore={hasMoreTags}
+                    isLoading={isTagListLoading}
+                    onLoadMore={onLoadMoreTags}
+                  />
+                </fieldset>
+
+                <fieldset>
+                  <legend className="mb-2 text-xs font-semibold text-slate-700">
+                    Last message date
+                  </legend>
+                  <div className="grid gap-2">
+                    <label className="grid gap-1 text-xs text-slate-500">
+                      From
+                      <Input
+                        type="datetime-local"
+                        value={filters.fromDate}
+                        onChange={(event) =>
+                          onFiltersChange({
+                            ...filters,
+                            fromDate: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="grid gap-1 text-xs text-slate-500">
+                      To
+                      <Input
+                        type="datetime-local"
+                        value={filters.toDate}
+                        onChange={(event) =>
+                          onFiltersChange({
+                            ...filters,
+                            toDate: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                    {dateError ? (
+                      <p className="text-xs text-red-600">{dateError}</p>
+                    ) : null}
+                  </div>
+                </fieldset>
+
+                <fieldset>
+                  <legend className="mb-2 text-xs font-semibold text-slate-700">
+                    Priority
+                  </legend>
+                  <MultiSelectCombobox
+                    options={priorityOptions}
+                    value={filters.priorities}
+                    onValueChange={(priorities) =>
+                      onFiltersChange({
+                        ...filters,
+                        priorities: priorities as SupportTicketPriority[],
+                      })
+                    }
+                    placeholder="Search priorities..."
+                    emptyMessage="No priorities found."
+                  />
+                </fieldset>
+              </div>
+              <div className="flex justify-between border-t p-3">
+                <Button variant="ghost" size="sm" onClick={onClearFilters}>
+                  Clear
+                </Button>
+                <Button size="sm" onClick={onApplyFilters}>
+                  Apply filters
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
       <div className="flex gap-2 border-b px-3 py-2">
@@ -334,6 +614,28 @@ function TicketListPanel({
             {queue.label}
           </Button>
         ))}
+      </div>
+      <div className="border-b px-3 py-2">
+        <div className="relative">
+          <IconSearch className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            value={searchValue}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Search tickets..."
+            aria-label="Search tickets"
+            className="h-8 pl-8"
+          />
+          {searchValue ? (
+            <button
+              type="button"
+              onClick={() => onSearchChange("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+              aria-label="Clear ticket search"
+            >
+              <IconX className="size-4" />
+            </button>
+          ) : null}
+        </div>
       </div>
       <div className="h-[83vh]! overflow-y-auto" onScroll={handleScroll}>
         {isLoading && rows?.length === 0 ? (
@@ -975,6 +1277,12 @@ function TicketInsights({
   const customerName = customerData?.name ?? null;
   const customerEmail = customerData?.email ?? null;
 
+  const totalAttachments =
+    ticket.messages?.reduce(
+      (count, message) => count + (message.attachments?.length ?? 0),
+      0,
+    ) ?? 0;
+
   return (
     <aside className="hidden w-[380px] shrink-0 border-l bg-white xl:block">
       <div className="grid h-11 grid-cols-2 border-b text-sm font-medium">
@@ -1181,24 +1489,66 @@ function TicketInsights({
               <div className="space-y-4 p-4">
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-500">First response</span>
-                    <span className="font-medium text-slate-900">1h 25m</span>
+                    <span className="text-slate-500">Status</span>
+                    <span className="font-medium text-slate-900">{capitalizeText(ticket.status)}</span>
                   </div>
 
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-500">Last response</span>
-                    <span className="font-medium text-slate-900">30m</span>
+                    <span className="text-slate-500">Priority</span>
+                    <span className="font-medium text-slate-900">{capitalizeText(ticket.priority)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">Assignee</span>
+                    <span className="font-medium text-slate-900">{ticket.internal_assignee?.name || ticket.internal_assignee?.name || "-"}</span>
                   </div>
 
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-slate-500">Channel</span>
-                    <span className="font-medium text-slate-900">Web</span>
+                    <span className="truncate text-right font-medium text-slate-900">
+                      {capitalizeText(ticket.channel)}
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-slate-500">Customer</span>
                     <span className="truncate text-right font-medium text-slate-900">
-                      ajay.verma@crossml.com
+                      {customerName || customerEmail || "-"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">Created At</span>
+                    <span className="truncate text-right font-medium text-slate-900">
+                      {formatDateTime(ticket.created_at)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">Last activity</span>
+                    <span className="truncate text-right font-medium text-slate-900">
+                      {formatDateTime(ticket.last_message_at ?? ticket.updated_at ?? null)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">Messages</span>
+                    <span className="truncate text-right font-medium text-slate-900">
+                      {ticket.messages?.length} message{ticket.messages?.length || 0 > 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">Attachments</span>
+                    <span className="truncate text-right font-medium text-slate-900">
+                      {totalAttachments} attachment{totalAttachments > 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">Tags</span>
+                    <span className="truncate text-right font-medium text-slate-900">
+                      {ticket.tags?.length} tag{ticket.tags?.length > 1 ? "s" : ""}
                     </span>
                   </div>
                 </div>
@@ -1340,6 +1690,35 @@ export default function HelpDesk() {
 
   const [isResolving, setIsResolving] = useState(false);
 
+  // Support Ticket Search Filters
+  const [searchValue, setSearchValue] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [tagSearch, setTagSearch] = useState("");
+  const [debouncedTagSearch, setDebouncedTagSearch] = useState("");
+  const [tagPage, setTagPage] = useState(1);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [appliedFilters, setAppliedFilters] =
+    useState<TicketFilterSelection>(emptyTicketFilters);
+
+  const filterFormik = useFormik<TicketFilterSelection>({
+    initialValues: emptyTicketFilters,
+    validate: (values) => {
+      if (
+        values.fromDate &&
+        values.toDate &&
+        new Date(values.fromDate) > new Date(values.toDate)
+      ) {
+        return { toDate: "The To date must be after the From date." };
+      }
+      return {};
+    },
+    onSubmit: (values) => {
+      setAppliedFilters(values);
+      setPage(1);
+      setIsFilterOpen(false);
+    },
+  });
+
   const ticketTags = FetchSupportTicketTagsData?.results;
 
   useEffect(() => {
@@ -1351,8 +1730,24 @@ export default function HelpDesk() {
   useEffect(() => {
     if (!storeCode) return;
 
-    const filters: Record<string, unknown> = {
+    const filters: SupportTicketFilters = {
       status: activeQueue,
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      ...(appliedFilters.channels.length
+        ? { channel: appliedFilters.channels }
+        : {}),
+      ...(appliedFilters.tags.length
+        ? { tags: appliedFilters.tags }
+        : {}),
+      ...(appliedFilters.fromDate
+        ? { from_date: new Date(appliedFilters.fromDate).toISOString() }
+        : {}),
+      ...(appliedFilters.toDate
+        ? { to_date: new Date(appliedFilters.toDate).toISOString() }
+        : {}),
+      ...(appliedFilters.priorities.length
+        ? { priority: appliedFilters.priorities }
+        : {}),
     };
 
     if (activeFilter === "unassigned") {
@@ -1361,6 +1756,18 @@ export default function HelpDesk() {
 
     if (activeFilter === "snoozed") {
       filters.is_snoozed = true;
+    }
+
+    if (activeFilter === "Order_Return") {
+      filters.tags = [...(filters.tags ?? []), "Order Return"];
+    }
+
+    if (activeFilter === "Payment_Failed") {
+      filters.tags = [...(filters.tags ?? []), "Payment Failed"];
+    }
+
+    if (activeFilter === "Exchange_Request") {
+      filters.tags = [...(filters.tags ?? []), "Exchange Request"];
     }
 
     const fetchArgs = {
@@ -1409,11 +1816,22 @@ export default function HelpDesk() {
     };
 
     fetchTickets();
-  }, [dispatch, storeCode, page, activeQueue, activeFilter]);
+  }, [dispatch, storeCode, page, activeQueue, activeFilter, debouncedSearch, appliedFilters]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const nextSearch = searchValue.trim();
+      if (nextSearch === debouncedSearch) return;
+
+      setDebouncedSearch(nextSearch);
+      setPage(1);
+    }, 800);
+
+    return () => window.clearTimeout(timeout);
+  }, [searchValue, debouncedSearch]);
 
   useEffect(() => {
     if (!storeCode) return;
-    // dispatch(FetchSupportTicketTags({storeCode}));
     dispatch(
       FetchSupportTicketTags({
         storeCode,
@@ -2067,6 +2485,28 @@ export default function HelpDesk() {
     }
   };
 
+  // Support Ticket Filter Utilities
+  const handleFilterOpenChange = (open: boolean) => {
+    setIsFilterOpen(open);
+    if (open) {
+      filterFormik.resetForm({ values: appliedFilters });
+      setTagSearch("");
+      setDebouncedTagSearch("");
+      setTagPage(1);
+    }
+  };
+
+  const handleApplyFilters = () => {
+    filterFormik.handleSubmit();
+  };
+
+  const handleClearFilters = () => {
+    filterFormik.resetForm({ values: emptyTicketFilters });
+    setAppliedFilters(emptyTicketFilters);
+    setPage(1);
+    setIsFilterOpen(false);
+  };
+
   return (
     <div className="-my-4 flex h-[calc(100vh-var(--header-height))] flex-col overflow-hidden border-y bg-white font-sans text-slate-950 md:-my-6">
       <div className="flex min-h-0 flex-1">
@@ -2081,7 +2521,6 @@ export default function HelpDesk() {
               queueLabel={activeQueueLabel}
               onQueueChange={handleQueueChange}
               onSelectTicket={handleSelectTicket}
-              onUtilityAction={() => {}}
               count={FetchSupportTicketsListData?.count ?? 0}
               isLoading={FetchSupportTicketsLoading}
               isLoadingMore={isLoadingMore}
@@ -2089,6 +2528,24 @@ export default function HelpDesk() {
               onLoadMore={() => {
                 if (Boolean(FetchSupportTicketsListData?.next)) {
                   setPage((current) => current + 1);
+                }
+              }}
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              availableTags={ticketTags}
+              filters={filterFormik.values}
+              isFilterOpen={isFilterOpen}
+              onFilterOpenChange={handleFilterOpenChange}
+              onFiltersChange={(filters) => filterFormik.setValues(filters)}
+              onApplyFilters={handleApplyFilters}
+              onClearFilters={handleClearFilters}
+              dateError={filterFormik.errors.toDate}
+              hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
+              isTagListLoading={FetchSupportTicketTagsIsLoading}
+              onTagSearchChange={setTagSearch}
+              onLoadMoreTags={() => {
+                if (FetchSupportTicketTagsData?.next) {
+                  setTagPage((current) => current + 1);
                 }
               }}
             />
