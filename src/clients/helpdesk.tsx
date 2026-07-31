@@ -7,6 +7,7 @@ import {
   type ReactNode,
   type CSSProperties,
   useRef,
+  startTransition,
 } from "react";
 import { useSearchParams } from "next/navigation";
 import { useFormik } from "formik";
@@ -21,10 +22,12 @@ import {
   IconCheck,
   IconChevronDown,
   IconClock,
+  IconClockOff,
   IconDotsVertical,
   IconFilter,
   IconGift,
   IconLanguage,
+  IconLoader2,
   IconMail,
   IconMessage2,
   IconMessageChatbot,
@@ -68,6 +71,7 @@ import {
   ComboboxChipsInput,
   ComboboxContent,
   ComboboxEmpty,
+  ComboboxInput,
   ComboboxItem,
   ComboboxList,
   ComboboxValue,
@@ -81,6 +85,19 @@ import {
   CommandItem,
   CommandSeparator,
 } from "@/components/ui/command";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -91,12 +108,19 @@ import {
   FetchSupportTicketDetails,
   SupportTicketMessageSend,
   SupportTicketAgentDraftSave,
+  SupportTicketTagAssign,
+  SupportTicketTagRemove,
+  SupportMessageImprove,
+  SupportTicketSnooze,
+  SupportTicketMarkRead,
+  SupportTicketAIMessageDraftGenerate,
   type SupportTicket,
   type SupportTicketChannel,
   type SupportTicketFilters,
   type SupportTicketPriority,
   type SupportTicketTagsResponse,
   type SupportTicketMessage,
+  SupportTicketDraftMessage,
 } from "@/redux/api-slice/support-ticket-slice";
 import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import { formatRelativeDateTime, formatDateTime } from "@/lib/helpers";
@@ -105,6 +129,22 @@ type ActiveQueue = "open" | "pending" | "resolved" | "closed";
 
 const suggestedReply =
   "Hi Sarah - I completely understand, and I am sorry it has felt like a long wait. Good news: your order shipped Tuesday and is out for delivery with DHL today. I will keep an eye on it too.";
+
+// Max tags to show in ticket row for `TicketListPanel`
+const MAX_VISIBLE_TKT_ROW_TAGS = 2;
+
+// Max tags to show in ticket conversation for `ConversationPanel`
+const MAX_VISIBLE_TKT_CONV_TAGS = 4;
+
+// Snooze time presets
+const SNOOZE_PRESETS = [
+  { label: "5 minutes", ms: 5 * 60 * 1000 },
+  { label: "10 minutes", ms: 10 * 60 * 1000 },
+  { label: "30 minutes", ms: 30 * 60 * 1000 },
+  { label: "1 day", ms: 24 * 60 * 60 * 1000 },
+  { label: "1 week", ms: 7 * 24 * 60 * 60 * 1000 },
+  { label: "1 month", ms: 30 * 24 * 60 * 60 * 1000 },
+];
 
 const channelIcon = {
   whatsapp: IconBrandWhatsapp,
@@ -129,28 +169,6 @@ const priorityBadgeClass = {
   urgent: "border-red-100 bg-red-50 text-red-700",
 } satisfies Record<SupportTicketPriority, string>;
 
-function Badge({
-  children,
-  className,
-  style,
-}: {
-  children: ReactNode;
-  className?: string;
-  style?: CSSProperties;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex h-6 items-center gap-1 rounded-md border px-2 text-[11px] font-semibold",
-        className,
-      )}
-      style={style}
-    >
-      {children}
-    </span>
-  );
-}
-
 function TicketRow({
   ticket,
   active,
@@ -161,6 +179,13 @@ function TicketRow({
   onSelect: () => void;
 }) {
   const ChannelIcon = channelIcon[ticket.channel];
+  const visibleTags = ticket.tags?.slice(0, MAX_VISIBLE_TKT_ROW_TAGS);
+  const hiddenTags = ticket.tags?.slice(MAX_VISIBLE_TKT_ROW_TAGS);
+
+  const customerName =
+    typeof ticket.customer === "string"
+      ? ticket.customer
+      : ticket.customer?.name || ticket.customer?.email;
 
   return (
     <button
@@ -182,9 +207,7 @@ function TicketRow({
             className={cn("size-5 shrink-0", channelColor[ticket.channel])}
           />
           <span className="truncate text-sm font-medium text-slate-950">
-            {typeof ticket.customer === "string"
-              ? ticket.customer
-              : ticket.customer?.name || "Unknown customer"}
+            {customerName || "Unknown customer"}
           </span>
         </div>
         <p className="truncate text-sm font-medium text-slate-950">
@@ -194,11 +217,37 @@ function TicketRow({
           {ticket.last_message || ticket.description}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {ticket.tags.slice(0, 3).map((tag) => (
-            <Badge key={tag.id} style={{ color: tag.color }}>
+          {visibleTags?.map((tag) => (
+            <Badge key={tag.id} variant="outline" style={{ color: tag.color }}>
               {tag.name}
             </Badge>
           ))}
+          {hiddenTags?.length > 0 && (
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <Badge
+                  variant="outline"
+                  className="cursor-default font-normal hover:bg-accent"
+                >
+                  +{hiddenTags.length} more
+                </Badge>
+              </HoverCardTrigger>
+              <HoverCardContent
+                align="start"
+                className="flex w-auto max-w-xs flex-wrap gap-1.5"
+              >
+                {hiddenTags.map((tag) => (
+                  <Badge
+                    key={tag.id}
+                    variant="outline"
+                    style={{ color: tag.color }}
+                  >
+                    {tag.name}
+                  </Badge>
+                ))}
+              </HoverCardContent>
+            </HoverCard>
+          )}
         </div>
       </div>
       <div className="flex flex-col items-end gap-8">
@@ -632,11 +681,11 @@ function ConversationPanel({
   onToggleTagPicker,
   onAddTag,
   onRemoveTag,
-  isStaffPickerOpen,
-  onToggleStaffPicker,
   availableStaff,
-  isStaffPickerLoading,
   onAssignStaff,
+  onMessageImprove,
+  isMessageImproving,
+  onTicketSnooze,
 }: {
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
@@ -654,13 +703,13 @@ function ConversationPanel({
   isTagPickerOpen: boolean;
   isTagPickerLoading: boolean;
   onToggleTagPicker: () => void;
-  onAddTag: (tag: SupportTicketTagsResponse) => void;
+  onAddTag: (tagId: number) => void;
   onRemoveTag: (tagId: number) => void;
-  isStaffPickerOpen: boolean;
-  onToggleStaffPicker: () => void;
   availableStaff: StaffMember[];
-  isStaffPickerLoading: boolean;
-  onAssignStaff: (ticketId: number, staffId: number | null) => void;
+  onAssignStaff: (staffId: number | null) => void;
+  onMessageImprove: (action: string) => void;
+  isMessageImproving: boolean;
+  onTicketSnooze: (snoozeTime: number | null) => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -675,16 +724,49 @@ function ConversationPanel({
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
   );
 
+  const visibleTags = ticket.tags?.slice(0, MAX_VISIBLE_TKT_CONV_TAGS);
+  const hiddenTags = ticket.tags?.slice(MAX_VISIBLE_TKT_CONV_TAGS);
+
   const customerInitials =
-    (typeof ticket.customer === "string"
-      ? ticket.customer
-      : ticket.customer?.name)
-      ?.trim()
-      .split(/\s+/)
-      .map((part) => part[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase() ?? "?";
+    typeof ticket.customer === "object" && ticket.customer
+      ? ticket.customer.email.split("@")[0].charAt(0).toUpperCase()
+      : "C";
+
+  const snoozeLabel = (() => {
+    if (!ticket?.is_snoozed || !ticket.snoozed_until) {
+      return "Snooze";
+    }
+
+    const snoozedUntil = new Date(ticket.snoozed_until);
+    const now = new Date();
+
+    const isToday = snoozedUntil.toDateString() === now.toDateString();
+
+    const tomorrow = new Date();
+    tomorrow.setDate(now.getDate() + 1);
+
+    const isTomorrow = snoozedUntil.toDateString() === tomorrow.toDateString();
+
+    const timeFormatter = new Intl.DateTimeFormat("en-IN", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
+    if (isToday) {
+      return `Snoozed until ${timeFormatter.format(snoozedUntil)}`;
+    }
+
+    if (isTomorrow) {
+      return `Snoozed until Tomorrow, ${timeFormatter.format(snoozedUntil)}`;
+    }
+
+    return `Snoozed until ${new Intl.DateTimeFormat("en-IN", {
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(snoozedUntil)}`;
+  })();
 
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-white">
@@ -706,122 +788,63 @@ function ConversationPanel({
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
-            <div className="relative flex">
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-white"
-                onClick={onToggleStaffPicker}
-              >
-                <IconUser className="size-4" />
-                Assign
-              </Button>
-              {isStaffPickerOpen ? (
-                <div className="absolute right-0 z-10 mt-2 w-[260px] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-200/20">
-                  <div className="mb-2 flex items-center justify-between gap-3 px-3 py-2">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">
-                        Choose staff
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Assign a staff to the current ticket.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                      onClick={onToggleStaffPicker}
+            <Combobox items={availableStaff}>
+              <ComboboxInput
+                className="h-8 w-40"
+                placeholder={
+                  ticket?.internal_assignee?.id
+                    ? ticket?.internal_assignee?.name
+                    : "Assign staff..."
+                }
+              />
+              <ComboboxContent>
+                <ComboboxEmpty>No items found.</ComboboxEmpty>
+                <ComboboxList>
+                  {(staff) => (
+                    <ComboboxItem
+                      key={staff.id}
+                      value={`${staff.first_name} ${staff.last_name}`}
+                      onClick={() =>
+                        staff.id !== ticket?.internal_assignee?.id &&
+                        onAssignStaff(staff.id)
+                      }
                     >
-                      <IconX size={16} />
-                    </button>
-                  </div>
-                  <div className="border-t border-slate-200" />
-                  {isStaffPickerLoading ? (
-                    <div className="flex min-h-[96px] items-center justify-center gap-2 px-3 py-4 text-sm text-slate-500">
-                      <Spinner className="size-4" />
-                      Loading staff...
-                    </div>
-                  ) : availableStaff.length === 0 ? (
-                    <div className="px-3 py-4 text-sm text-slate-500">
-                      No tags available.
-                    </div>
-                  ) : (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-between"
-                        >
-                          {ticket.internal_assignee?.name ?? "Select staff"}
-                          <IconChevronDown className="h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-
-                      <PopoverContent className="w-[320px] p-0">
-                        <Command>
-                          <CommandInput placeholder="Search staff..." />
-
-                          <CommandEmpty>No staff found.</CommandEmpty>
-
-                          <CommandGroup heading="Staff">
-                            {availableStaff.map((staff) => (
-                              <CommandItem
-                                key={staff.id}
-                                value={`${staff.first_name} ${staff.last_name}`}
-                                onSelect={() =>
-                                  ticket.internal_assignee?.id !== staff.id &&
-                                  onAssignStaff(ticket.id, staff.id)
-                                }
-                              >
-                                <IconCheck
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    ticket.internal_assignee?.id === staff.id
-                                      ? "opacity-100"
-                                      : "opacity-0",
-                                  )}
-                                />
-                                {staff.first_name} {staff.last_name}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-
-                          <CommandSeparator />
-
-                          <CommandItem
-                            className="text-red-600"
-                            onSelect={() =>
-                              ticket.internal_assignee?.id &&
-                              onAssignStaff(ticket.id, null)
-                            }
-                          >
-                            <IconX className="mr-2 h-4 w-4" />
-                            Unassign
-                          </CommandItem>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                      {staff.first_name} {staff.last_name}
+                    </ComboboxItem>
                   )}
-                </div>
-              ) : null}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-white"
-              onClick={() =>
-                onAction(
-                  `${
-                    typeof ticket.customer === "string"
-                      ? ticket.customer
-                      : ticket.customer?.name || "Unknown customer"
-                  } snoozed for 1 hour`,
-                )
-              }
-            >
-              <IconClock className="size-4" />
-              Snooze
-            </Button>
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="bg-white">
+                  <IconClock className="size-4" />
+                  {snoozeLabel}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                {SNOOZE_PRESETS.map((preset) => (
+                  <DropdownMenuItem
+                    key={preset.label}
+                    onClick={() => onTicketSnooze(preset.ms)}
+                  >
+                    {preset.label}
+                  </DropdownMenuItem>
+                ))}
+                {ticket?.is_snoozed && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-red-600 focus:text-red-600"
+                      onClick={() => onTicketSnooze(null)}
+                    >
+                      <IconClockOff className="mr-2 size-4" />
+                      Remove snooze
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               variant="outline"
               size="icon-sm"
@@ -863,27 +886,51 @@ function ConversationPanel({
             {ticket?.priority?.charAt(0).toUpperCase() +
               ticket?.priority?.slice(1)}
           </Badge>
-          {ticket?.tags?.map((tag) => (
+          {visibleTags?.map((tag) => (
             <Badge
               key={tag.id}
-              className="border-cyan-100 bg-cyan-50 text-cyan-700"
+              variant="outline"
+              className="cursor-default hover:bg-accent"
+              style={{ color: tag.color }}
             >
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                  <IconTag className="size-3" />
-                  <span>{tag.name}</span>
-                </div>
-                <button
-                  type="button"
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
-                  onClick={() => onRemoveTag(tag.id)}
-                  aria-label={`Remove ${tag.name}`}
-                >
-                  <IconX className="size-3" />
-                </button>
-              </div>
+              {tag.name}
+              <IconX
+                className="!pointer-events-auto cursor-pointer"
+                onClick={() => tag.id && onRemoveTag(tag.id)}
+              />
             </Badge>
           ))}
+          {hiddenTags?.length > 0 && (
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <Badge
+                  variant="outline"
+                  className="cursor-default font-normal hover:bg-accent"
+                >
+                  +{hiddenTags.length} more
+                </Badge>
+              </HoverCardTrigger>
+              <HoverCardContent
+                align="start"
+                className="flex w-auto max-w-xs flex-wrap gap-1.5"
+              >
+                {hiddenTags.map((tag) => (
+                  <Badge
+                    key={tag.id}
+                    variant="outline"
+                    className="cursor-default hover:bg-accent"
+                    style={{ color: tag.color }}
+                  >
+                    {tag.name}
+                    <IconX
+                      className="!pointer-events-auto cursor-pointer"
+                      onClick={() => tag.id && onRemoveTag(tag.id)}
+                    />
+                  </Badge>
+                ))}
+              </HoverCardContent>
+            </HoverCard>
+          )}
           <div className="relative flex">
             <Button
               variant="outline"
@@ -960,7 +1007,9 @@ function ConversationPanel({
                                   ? "border-slate-200 bg-slate-50 text-slate-500 line-through opacity-80"
                                   : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50",
                               )}
-                              onClick={() => !alreadyAdded && onAddTag(tag)}
+                              onClick={() =>
+                                !alreadyAdded && tag.id && onAddTag(tag.id)
+                              }
                               disabled={alreadyAdded}
                             >
                               <div className="flex min-w-0 items-center gap-2">
@@ -1122,24 +1171,33 @@ function ConversationPanel({
             <IconGift className="size-3" />
             Macro
           </Button>
-          <Button
-            variant="outline"
-            size="xs"
-            className="bg-white"
-            onClick={() => onAction("Reply rephrased")}
-          >
-            <IconReload className="size-3" />
-            Rephrase
-          </Button>
-          <Button
-            variant="outline"
-            size="xs"
-            className="bg-white"
-            onClick={() => onReplyChange(`${reply} Thanks again.`.trim())}
-          >
-            <IconMoodSmile className="size-3" />
-            Warmer
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button disabled={isMessageImproving} variant="outline" size="xs">
+                <IconSparkles className="size-3" />
+                {isMessageImproving ? "AI is improving..." : "Improve"}
+                <IconChevronDown className="size-3" />
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem
+                onClick={() => onMessageImprove("rephrase")}
+                className="cursor-pointer"
+              >
+                <IconReload className="mr-2 size-4" />
+                Rephrase
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => onMessageImprove("warmer")}
+                className="cursor-pointer"
+              >
+                <IconMoodSmile className="mr-2 size-4" />
+                Warmer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="outline"
             size="xs"
@@ -1154,6 +1212,7 @@ function ConversationPanel({
           value={reply}
           onChange={(event) => onReplyChange(event.target.value)}
           className="min-h-20 resize-none rounded-lg bg-white text-sm"
+          disabled={isMessageImproving}
           placeholder={
             composerMode === "note"
               ? "Write an internal note..."
@@ -1173,7 +1232,11 @@ function ConversationPanel({
             >
               Save draft
             </Button>
-            <Button size="sm" onClick={onSend} disabled={isSending}>
+            <Button
+              size="sm"
+              onClick={onSend}
+              disabled={isSending || isMessageImproving}
+            >
               <IconSend className="size-4" />
               {isSending ? "Sending..." : "Send"}
               <IconChevronDown className="size-4" />
@@ -1188,9 +1251,15 @@ function ConversationPanel({
 function CopilotPanel({
   onAcceptDraft,
   onAction,
+  onAIDraftGenerate,
+  isAIDraftLoading,
+  aiDraft,
 }: {
   onAcceptDraft: () => void;
   onAction: (action: string) => void;
+  onAIDraftGenerate: () => void;
+  isAIDraftLoading: boolean;
+  aiDraft: SupportTicketDraftMessage | null;
 }) {
   return (
     <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
@@ -1206,56 +1275,84 @@ function CopilotPanel({
       </div>
       <div className="space-y-3 overflow-y-auto p-4 h-[88vh]!">
         <section className="rounded-lg border bg-white">
-          <div className="border-b px-3 py-3">
-            <IconSparkles className="size-4 text-indigo-600" />
-          </div>
-          <p className="px-3 py-4 text-sm leading-6 text-slate-700">
-            Sarah is asking where her order #8821 is - it&apos;s been 5 days and
-            she&apos;s worried. The order shipped Tuesday via DHL and is out for
-            delivery today. No action needed beyond reassurance + tracking.
-          </p>
-        </section>
-
-        <section className="rounded-lg border bg-white">
           <div className="flex items-center justify-between border-b px-3 py-3">
             <h3 className="flex items-center gap-2 text-sm font-medium text-slate-950">
               <IconMessageChatbot className="size-4 text-indigo-600" />
               Suggested reply
             </h3>
-            <span className="text-[11px] font-semibold text-slate-400">
-              brand voice
-            </span>
           </div>
           <div className="p-3">
-            <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-3 text-sm leading-6 text-slate-950">
-              Hi Sarah - I completely understand, and I&apos;m sorry it&apos;s
-              felt like a long wait. Good news: your order #8821 shipped Tuesday
-              and it&apos;s out for delivery with DHL today, before 6pm.
-              Here&apos;s your live tracking: DHL 4429 8817 22. I&apos;ll keep
-              an eye on it too.
-            </div>
-            <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-              Confidence
-              <div className="h-1 flex-1 rounded-full bg-slate-100">
-                <div className="h-1 w-[94%] rounded-full bg-emerald-500" />
+            {isAIDraftLoading ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm font-medium text-indigo-600">
+                  <IconLoader2 className="size-4 animate-spin" />
+                  Generating AI reply...
+                </div>
+
+                <div className="space-y-2 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
+                  <div className="h-4 w-full animate-pulse rounded bg-slate-200" />
+                  <div className="h-4 w-5/6 animate-pulse rounded bg-slate-200" />
+                  <div className="h-4 w-4/6 animate-pulse rounded bg-slate-200" />
+                  <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+                </div>
+
+                <Button size="sm" disabled className="w-full">
+                  <IconLoader2 className="size-4 animate-spin" />
+                  Generating...
+                </Button>
               </div>
-              <span className="font-medium text-emerald-600">94%</span>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <Button size="sm" onClick={onAcceptDraft}>
-                <IconCheck className="size-4" />
-                Use draft
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-white"
-                onClick={() => onAction("Suggested reply regenerated")}
-              >
-                <IconReload className="size-4" />
-                Regenerate
-              </Button>
-            </div>
+            ) : aiDraft ? (
+              <>
+                <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-3 text-sm leading-6 text-slate-950">
+                  {aiDraft?.message}
+                </div>
+
+                <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                  Confidence
+                  <div className="h-1 flex-1 rounded-full bg-slate-100">
+                    <div className="h-1 w-[94%] rounded-full bg-emerald-500" />
+                  </div>
+                  <span className="font-medium text-emerald-600">94%</span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Button size="sm" onClick={onAcceptDraft}>
+                    <IconCheck className="size-4" />
+                    Use draft
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-white"
+                    onClick={onAIDraftGenerate}
+                  >
+                    <IconReload className="size-4" />
+                    Regenerate
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-slate-50 px-6 py-10 text-center">
+                <div className="flex size-12 items-center justify-center rounded-full bg-indigo-100">
+                  <IconMessageChatbot className="size-6 text-indigo-600" />
+                </div>
+
+                <h4 className="mt-4 text-sm font-semibold text-slate-900">
+                  No AI draft available
+                </h4>
+
+                <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">
+                  Generate an AI-powered reply based on the customer&apos;s
+                  conversation. You can review and edit it before sending.
+                </p>
+
+                <Button className="mt-5" size="sm" onClick={onAIDraftGenerate}>
+                  <IconSparkles className="size-4" />
+                  Generate draft
+                </Button>
+              </div>
+            )}
           </div>
         </section>
 
@@ -1319,9 +1416,11 @@ export default function HelpDesk() {
     useAppSelector(
       (state) => state.SupportTicketsSliceReducer.FetchSupportTicketsState,
     );
-  const { FetchSupportTicketDetailsData } = useAppSelector(
-    (state) => state.SupportTicketsSliceReducer.FetchSupportTicketDetailsState,
-  );
+  const { FetchSupportTicketDetailsData, FetchSupportTicketDetailsIsLoading } =
+    useAppSelector(
+      (state) =>
+        state.SupportTicketsSliceReducer.FetchSupportTicketDetailsState,
+    );
   const { SupportTicketMessageSendIsLoading } = useAppSelector(
     (state) => state.SupportTicketsSliceReducer.SupportTicketMessageSendState,
   );
@@ -1331,6 +1430,13 @@ export default function HelpDesk() {
     FetchSupportTicketTagsNext,
   } = useAppSelector(
     (state) => state.SupportTicketsSliceReducer.FetchSupportTicketTagsState,
+  );
+  const { SupportMessageImproveIsLoading } = useAppSelector(
+    (state) => state.SupportTicketsSliceReducer.SupportMessageImproveState,
+  );
+  const { SupportTicketAIMessageDraftGenerateIsLoading } = useAppSelector(
+    (state) =>
+      state.SupportTicketsSliceReducer.SupportTicketAIMessageDraftGenerateState,
   );
   const { staff, staffLoading } = useAppSelector(
     (state) => state.GetTenancyReducer,
@@ -1344,6 +1450,10 @@ export default function HelpDesk() {
   const [supportTikcetMessages, setSupportTicketMessage] = useState<
     SupportTicketMessage[]
   >([]);
+  const [activeSupportTicket, setActiveSupportTicket] =
+    useState<SupportTicket | null>(null);
+  const currentActiveSupportTicketIdRef = useRef<number | null>(null);
+
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
@@ -1372,15 +1482,11 @@ export default function HelpDesk() {
   });
 
   const [showTagPicker, setShowTagPicker] = useState(false);
-  const [showStaffPicker, setShowStaffPicker] = useState(false);
 
   const [reply, setReply] = useState("");
   const [composerMode, setComposerMode] = useState<"reply" | "note">("reply");
 
   const [isResolving, setIsResolving] = useState(false);
-
-  const activeSupportTicket: SupportTicket | null =
-    FetchSupportTicketDetailsData;
 
   useEffect(() => {
     if (!storeCode) return;
@@ -1439,6 +1545,14 @@ export default function HelpDesk() {
               : rows[0].id;
           });
 
+          setActiveSupportTicket((current) => {
+            if (rows.length === 0) return null;
+
+            return current && rows.some((t) => t.id === current.id)
+              ? current
+              : rows[0];
+          });
+
           return rows;
         });
       } finally {
@@ -1487,27 +1601,68 @@ export default function HelpDesk() {
   }, [dispatch, storeCode, debouncedTagSearch, tagPage]);
 
   useEffect(() => {
+    currentActiveSupportTicketIdRef.current = activeTicketId || null;
     if (!storeCode || !activeTicketId) return;
 
-    let isCurrent = true;
-    dispatch(FetchSupportTicketDetails({ storeCode, ticketId: activeTicketId }))
-      .unwrap()
-      .then((ticket: SupportTicket) => {
-        if (!isCurrent) return;
-        setSupportTicketMessage(ticket.messages ?? []);
-        const agentDraft = ticket.drafts?.find(
-          (draft) => draft.draft_type === "manual",
-        );
-        if (agentDraft?.message) setReply(agentDraft.message);
-      })
-      .catch(() => {
-        // The thunk displays the API error toast.
-      });
+    dispatch(
+      FetchSupportTicketDetails({ storeCode, ticketId: activeTicketId }),
+    );
+  }, [activeTicketId]);
 
-    return () => {
-      isCurrent = false;
-    };
-  }, [activeTicketId, dispatch, storeCode]);
+  const handleSupportTicketMarkRead = async () => {
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+
+    try {
+      const markReadTicket = await dispatch(
+        SupportTicketMarkRead({
+          storeCode,
+          ticketId: currentActiveSupportTicketIdRef.current,
+        }),
+      ).unwrap();
+
+      if (markReadTicket) {
+        setTicketRows((current) =>
+          current.map((ticket) =>
+            ticket.id === currentActiveSupportTicketIdRef.current
+              ? { ...ticket, is_read: markReadTicket.is_read }
+              : ticket,
+          ),
+        );
+
+        setActiveSupportTicket((current) =>
+          current
+            ? {
+                ...current,
+                is_read: markReadTicket.is_read,
+              }
+            : current,
+        );
+      }
+    } catch {
+      //
+    }
+  };
+
+  useEffect(() => {
+    if (!FetchSupportTicketDetailsData) return;
+
+    startTransition(() => {
+      setActiveSupportTicket(FetchSupportTicketDetailsData);
+      setSupportTicketMessage(FetchSupportTicketDetailsData.messages ?? []);
+
+      const agentDraft = FetchSupportTicketDetailsData.drafts?.find(
+        (draft) => draft.draft_type === "manual",
+      );
+
+      if (agentDraft?.message) {
+        setReply(agentDraft.message);
+      }
+    });
+
+    if (!FetchSupportTicketDetailsData.is_read) {
+      handleSupportTicketMarkRead();
+    }
+  }, [FetchSupportTicketDetailsData]);
 
   const activeQueueLabel = useMemo(
     () => queues.find((queue) => queue.key === activeQueue)?.label ?? "Open",
@@ -1570,6 +1725,56 @@ export default function HelpDesk() {
     toast.success(message);
   };
 
+  const handleAiDraftGenerate = async () => {
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+
+    try {
+      const generatedDraft = await dispatch(
+        SupportTicketAIMessageDraftGenerate({
+          storeCode,
+          ticketId: currentActiveSupportTicketIdRef.current,
+        }),
+      ).unwrap();
+
+      if (generatedDraft && generatedDraft?.draft_type === "ai") {
+        setActiveSupportTicket((current) => {
+          if (!current) return current;
+
+          const drafts = current.drafts ?? [];
+
+          const aiDraftIndex = drafts.findIndex(
+            (draft) => draft.draft_type === "ai",
+          );
+
+          if (aiDraftIndex === -1) {
+            return {
+              ...current,
+              drafts: [...drafts, generatedDraft],
+            };
+          }
+
+          const updatedDrafts = [...drafts];
+          updatedDrafts[aiDraftIndex] = generatedDraft;
+
+          return {
+            ...current,
+            drafts: updatedDrafts,
+          };
+        });
+
+        toast.success("AI draft generated", {
+          description: "A new AI draft is ready to review.",
+        });
+      } else {
+        toast.error("Draft generate", {
+          description: "Failed to generate ai draft. Please try again.",
+        });
+      }
+    } catch {
+      //
+    }
+  };
+
   const handleAcceptDraft = () => {
     setReply(suggestedReply);
     toast.success("AI draft added to the composer");
@@ -1579,30 +1784,102 @@ export default function HelpDesk() {
     setShowTagPicker((current) => !current);
   };
 
-  const handleToggleStaffPicker = () => {
-    setShowStaffPicker((current) => !current);
+  const handleAddTag = async (tagId: number) => {
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+
+    try {
+      const assignedTag = await dispatch(
+        SupportTicketTagAssign({
+          storeCode,
+          ticketId: currentActiveSupportTicketIdRef.current,
+          tagId,
+        }),
+      ).unwrap();
+
+      if (assignedTag && assignedTag?.id === tagId) {
+        setTicketRows((current) =>
+          current.map((ticket) =>
+            ticket.id === currentActiveSupportTicketIdRef.current &&
+            !ticket.tags.some((existing) => existing.id === assignedTag.id)
+              ? { ...ticket, tags: [...ticket.tags, assignedTag] }
+              : ticket,
+          ),
+        );
+
+        setActiveSupportTicket((current) => {
+          if (!current) return current;
+
+          if (current.tags.some((tag) => tag.id === assignedTag.id)) {
+            return current;
+          }
+
+          return {
+            ...current,
+            tags: [...current.tags, assignedTag],
+          };
+        });
+
+        setShowTagPicker(false);
+
+        toast.success(`Tag assigned: ${assignedTag.name}`);
+      } else {
+        toast.error("Failed to assign tag", {
+          description: "The tag could not be assigned. Please try again.",
+        });
+      }
+    } catch {
+      //
+    }
   };
 
-  const handleAddTag = (tag: SupportTicketTagsResponse) => {
-    if (!activeSupportTicket) return;
+  const handleRemoveTag = async (tagId: number) => {
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
 
-    setTicketRows((current) =>
-      current.map((ticket) =>
-        ticket.id === activeSupportTicket.id &&
-        !ticket.tags.some((existing) => existing.id === tag.id)
-          ? { ...ticket, tags: [...ticket.tags, tag] }
-          : ticket,
-      ),
-    );
-    setShowTagPicker(false);
-    toast.success(`Tag added: ${tag.name}`);
+    try {
+      const assignedTag = await dispatch(
+        SupportTicketTagRemove({
+          storeCode,
+          ticketId: currentActiveSupportTicketIdRef.current,
+          tagId,
+        }),
+      ).unwrap();
+
+      if (assignedTag && assignedTag?.id === tagId) {
+        setTicketRows((current) =>
+          current.map((ticket) =>
+            ticket.id === currentActiveSupportTicketIdRef.current
+              ? {
+                  ...ticket,
+                  tags: ticket.tags.filter((tag) => tag.id !== tagId),
+                }
+              : ticket,
+          ),
+        );
+
+        setActiveSupportTicket((current) =>
+          current
+            ? {
+                ...current,
+                tags: current.tags.filter((tag) => tag.id !== assignedTag.id),
+              }
+            : current,
+        );
+
+        setShowTagPicker(false);
+
+        toast.success("Tag removed");
+      } else {
+        toast.error("Failed to remove tag", {
+          description: "The tag could not be removed. Please try again.",
+        });
+      }
+    } catch {
+      //
+    }
   };
 
-  const handleStaffAssign = async (
-    ticketId: number,
-    staffId: number | null,
-  ) => {
-    if (!storeCode) return;
+  const handleStaffAssign = async (staffId: number | null) => {
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
 
     try {
       const payload = {
@@ -1612,7 +1889,7 @@ export default function HelpDesk() {
       await dispatch(
         SupportTicketStaffAssign({
           storeCode,
-          ticketId,
+          ticketId: currentActiveSupportTicketIdRef.current,
           payload,
         }),
       ).unwrap();
@@ -1621,7 +1898,7 @@ export default function HelpDesk() {
 
       setTicketRows((current) =>
         current.map((ticket) =>
-          ticket.id === ticketId
+          ticket.id === currentActiveSupportTicketIdRef.current
             ? {
                 ...ticket,
                 internal_assignee: assignedStaff
@@ -1636,6 +1913,21 @@ export default function HelpDesk() {
         ),
       );
 
+      setActiveSupportTicket((current) =>
+        current
+          ? {
+              ...current,
+              internal_assignee: assignedStaff
+                ? {
+                    id: assignedStaff.id,
+                    name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
+                    email: assignedStaff.email,
+                  }
+                : null,
+            }
+          : current,
+      );
+
       toast.success(
         staffId === null
           ? "Staff unassigned successfully."
@@ -1646,21 +1938,8 @@ export default function HelpDesk() {
     }
   };
 
-  const handleRemoveTag = (tagId: number) => {
-    if (!activeSupportTicket) return;
-
-    setTicketRows((current) =>
-      current.map((ticket) =>
-        ticket.id === activeSupportTicket.id
-          ? { ...ticket, tags: ticket.tags.filter((tag) => tag.id !== tagId) }
-          : ticket,
-      ),
-    );
-    toast.success("Tag removed");
-  };
-
   const handleSaveDraft = async () => {
-    if (!storeCode || !activeTicketId) return;
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
 
     const trimmedReply = reply.trim();
 
@@ -1673,13 +1952,13 @@ export default function HelpDesk() {
 
     try {
       const payload = {
-        message: reply,
+        message: trimmedReply,
       };
 
       const savedDraft = await dispatch(
         SupportTicketAgentDraftSave({
           storeCode,
-          ticketId: activeTicketId,
+          ticketId: currentActiveSupportTicketIdRef.current,
           payload,
         }),
       ).unwrap();
@@ -1711,7 +1990,7 @@ export default function HelpDesk() {
       return;
     }
 
-    if (!activeSupportTicket || !activeTicketId) {
+    if (!currentActiveSupportTicketIdRef.current) {
       toast.error("No ticket selected to send a reply.");
       return;
     }
@@ -1746,7 +2025,7 @@ export default function HelpDesk() {
       const sentMessage = await dispatch(
         SupportTicketMessageSend({
           storeCode,
-          ticketId: activeTicketId,
+          ticketId: currentActiveSupportTicketIdRef.current,
           formData,
         }),
       ).unwrap();
@@ -1765,6 +2044,100 @@ export default function HelpDesk() {
         current.filter((message) => message.id !== tempId),
       );
       setReply(trimmedReply);
+    }
+  };
+
+  const handleMessageImprove = async (action: string) => {
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+
+    const trimmedReply = reply.trim();
+
+    if (!trimmedReply) {
+      toast.info("Nothing to improve", {
+        description: "Type a message before before imrove a message.",
+      });
+      return;
+    }
+
+    try {
+      const payload = {
+        message: trimmedReply,
+        action: action,
+      };
+
+      const improvedMessage = await dispatch(
+        SupportMessageImprove({
+          storeCode,
+          ticketId: currentActiveSupportTicketIdRef.current,
+          payload,
+        }),
+      ).unwrap();
+
+      if (improvedMessage && improvedMessage?.message) {
+        setReply(improvedMessage?.message);
+      }
+
+      toast.success("Message improved", {
+        description: "Your message has been improved by AI.",
+      });
+    } catch {
+      //
+    }
+  };
+
+  const handleTicketSnooze = async (snoozeTime: number | null) => {
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+
+    try {
+      const payload = {
+        snoozed_until: snoozeTime
+          ? new Date(Date.now() + snoozeTime).toISOString()
+          : null,
+      };
+
+      const ticketSnoozed = await dispatch(
+        SupportTicketSnooze({
+          storeCode,
+          ticketId: currentActiveSupportTicketIdRef.current,
+          payload,
+        }),
+      ).unwrap();
+
+      if (ticketSnoozed) {
+        setTicketRows((current) =>
+          current.map((ticket) =>
+            ticket.id === currentActiveSupportTicketIdRef.current
+              ? { ...ticket, is_snoozed: !!ticketSnoozed?.snoozed_until }
+              : ticket,
+          ),
+        );
+
+        setActiveSupportTicket((current) =>
+          current
+            ? {
+                ...current,
+                is_snoozed: !!ticketSnoozed?.snoozed_until,
+                snoozed_until: ticketSnoozed?.snoozed_until,
+              }
+            : current,
+        );
+
+        toast.success(
+          snoozeTime === null ? "Snooze removed" : "Ticket snoozed",
+          {
+            description:
+              snoozeTime === null
+                ? "The ticket is no longer snoozed."
+                : "The ticket has been snoozed successfully.",
+          },
+        );
+      } else {
+        toast.success("Ticket snooze", {
+          description: "Failed to snooze this ticket.",
+        });
+      }
+    } catch {
+      //
     }
   };
 
@@ -1810,7 +2183,9 @@ export default function HelpDesk() {
                 }
               }}
             />
-            {FetchSupportTicketsLoading && !activeSupportTicket ? (
+            {(FetchSupportTicketsLoading ||
+              FetchSupportTicketDetailsIsLoading) &&
+            activeSupportTicket?.id !== activeTicketId ? (
               <div className="flex min-w-0 flex-1 items-center justify-center bg-slate-50">
                 <div className="text-center">
                   <Spinner className="mx-auto mb-4 size-8" />
@@ -1850,14 +2225,16 @@ export default function HelpDesk() {
                 onToggleTagPicker={handleToggleTagPicker}
                 onAddTag={handleAddTag}
                 onRemoveTag={handleRemoveTag}
-                isStaffPickerOpen={showStaffPicker}
-                onToggleStaffPicker={handleToggleStaffPicker}
                 availableStaff={staff}
-                isStaffPickerLoading={staffLoading}
                 onAssignStaff={handleStaffAssign}
+                onMessageImprove={handleMessageImprove}
+                isMessageImproving={SupportMessageImproveIsLoading}
+                onTicketSnooze={handleTicketSnooze}
               />
             )}
-            {FetchSupportTicketsLoading && !activeSupportTicket ? (
+            {(FetchSupportTicketsLoading ||
+              FetchSupportTicketDetailsIsLoading) &&
+            activeSupportTicket?.id !== activeTicketId ? (
               <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
                 <div className="flex h-[calc(100vh-var(--header-height)-4rem)] items-center justify-center px-4 text-center">
                   <div>
@@ -1880,6 +2257,13 @@ export default function HelpDesk() {
               <CopilotPanel
                 onAcceptDraft={handleAcceptDraft}
                 onAction={handleAction}
+                onAIDraftGenerate={handleAiDraftGenerate}
+                isAIDraftLoading={SupportTicketAIMessageDraftGenerateIsLoading}
+                aiDraft={
+                  activeSupportTicket?.drafts?.find(
+                    (draft) => draft.draft_type === "ai",
+                  ) ?? null
+                }
               />
             )}
           </>
