@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef, startTransition } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { toast } from "sonner";
 import {
   IconBrandFacebook,
@@ -21,6 +22,7 @@ import {
   IconMessageChatbot,
   IconMoodSmile,
   IconPencil,
+  IconPhoto,
   IconPlus,
   IconReload,
   IconSearch,
@@ -697,6 +699,8 @@ function ConversationPanel({
   onMessageImprove,
   isMessageImproving,
   onTicketSnooze,
+  selectedImage,
+  onImageChange,
 }: {
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
@@ -720,9 +724,22 @@ function ConversationPanel({
   onMessageImprove: (action: string) => void;
   isMessageImproving: boolean;
   onTicketSnooze: (snoozeTime: number | null) => void;
+  selectedImage: File | null;
+  onImageChange: (file: File | null) => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const selectedImagePreviewUrl = useMemo(
+    () => (selectedImage ? URL.createObjectURL(selectedImage) : null),
+    [selectedImage],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (selectedImagePreviewUrl) URL.revokeObjectURL(selectedImagePreviewUrl);
+    };
+  }, [selectedImagePreviewUrl]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -1072,6 +1089,27 @@ function ConversationPanel({
                     <p className="whitespace-pre-wrap text-sm text-slate-700">
                       {message.message}
                     </p>
+                    {message.attachments?.map((attachment) => {
+                      const imageUrl = attachment.file_url;
+                      return imageUrl ? (
+                        <a
+                          key={attachment.id}
+                          href={imageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 block"
+                        >
+                          <Image
+                            src={imageUrl}
+                            alt="Message attachment"
+                            width={240}
+                            height={180}
+                            unoptimized
+                            className="h-auto max-h-48 w-full rounded-lg object-cover"
+                          />
+                        </a>
+                      ) : null;
+                    })}
                   </div>
                 </div>
               ) : (
@@ -1114,7 +1152,28 @@ function ConversationPanel({
                           : "bg-white text-slate-950",
                       )}
                     >
-                      {message.message}
+                      <p className="whitespace-pre-wrap">{message.message}</p>
+                      {message.attachments?.map((attachment) => {
+                        const imageUrl = attachment.file_url;
+                        return imageUrl ? (
+                          <a
+                            key={attachment.id}
+                            href={imageUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 block"
+                          >
+                            <Image
+                              src={imageUrl}
+                              alt="Message attachment"
+                              width={240}
+                              height={180}
+                              unoptimized
+                              className="h-auto max-h-48 w-full rounded-lg object-cover"
+                            />
+                          </a>
+                        ) : null;
+                      })}
                     </div>
                   </div>
                 </div>
@@ -1199,17 +1258,65 @@ function ConversationPanel({
             Translate
           </Button>
         </div>
-        <Textarea
-          value={reply}
-          onChange={(event) => onReplyChange(event.target.value)}
-          className="min-h-20 resize-none rounded-lg bg-white text-sm"
-          disabled={isMessageImproving}
-          placeholder={
-            composerMode === "note"
-              ? "Write an internal note..."
-              : "Write a reply, or accept the AI draft..."
-          }
-        />
+        <div className="relative">
+          <Textarea
+            value={reply}
+            onChange={(event) => onReplyChange(event.target.value)}
+            className={cn(
+              "min-h-24 resize-none rounded-lg bg-white text-sm",
+              selectedImage ? "pb-20" : "pb-11",
+            )}
+            disabled={isMessageImproving}
+            placeholder={
+              composerMode === "note"
+                ? "Write an internal note..."
+                : "Write a reply, or accept the AI draft..."
+            }
+          />
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              onImageChange(event.target.files?.[0] ?? null);
+              event.target.value = "";
+            }}
+          />
+          <div className="absolute inset-x-2 bottom-2 flex items-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Upload image"
+              title="Upload image"
+              disabled={isSending}
+              onClick={() => imageInputRef.current?.click()}
+            >
+              <IconPhoto className="size-4" />
+            </Button>
+            {selectedImage && selectedImagePreviewUrl ? (
+              <div className="relative overflow-hidden rounded-lg border bg-slate-100">
+                <Image
+                  src={selectedImagePreviewUrl}
+                  alt={selectedImage.name}
+                  width={72}
+                  height={72}
+                  unoptimized
+                  className="size-18 object-cover"
+                />
+                <button
+                  type="button"
+                  aria-label="Remove selected image"
+                  className="absolute right-1 top-1 rounded-full bg-white/90 p-0.5 text-slate-700 shadow hover:bg-white"
+                  onClick={() => onImageChange(null)}
+                >
+                  <IconX className="size-4" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <p className="max-w-[240px] text-xs text-slate-500">
             An AI draft in your brand voice is ready - click Accept
@@ -1684,6 +1791,7 @@ export default function HelpDesk() {
   const currentActiveSupportTicketIdRef = useRef<number | null>(null);
 
   const [showTagPicker, setShowTagPicker] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
 
   const [reply, setReply] = useState("");
   const [composerMode, setComposerMode] = useState<"reply" | "note">("reply");
@@ -2229,6 +2337,7 @@ export default function HelpDesk() {
     try {
       const formData = new FormData();
       formData.append("message", trimmedReply);
+      if (selectedImage) formData.append("attachments", selectedImage);
 
       if (composerMode === "note") {
         formData.append("message_type", "internal");
@@ -2247,6 +2356,7 @@ export default function HelpDesk() {
           message.id === tempId ? sentMessage : message,
         ),
       );
+      setSelectedImage(null);
 
       toast.success(
         composerMode === "note" ? "Internal note added" : "Reply sent",
@@ -2595,6 +2705,8 @@ export default function HelpDesk() {
                 onMessageImprove={handleMessageImprove}
                 isMessageImproving={SupportMessageImproveIsLoading}
                 onTicketSnooze={handleTicketSnooze}
+                selectedImage={selectedImage}
+                onImageChange={setSelectedImage}
               />
             )}
             {(FetchSupportTicketsLoading ||
