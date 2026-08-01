@@ -7,9 +7,40 @@ import {
   socialMessage,
   socialPost,
   socialPostMedia,
+  socialReaction,
   socialSubscription,
   socialUser,
 } from "@/lib/drizzle/schema";
+
+/**
+ * Reactions for a batch of messages, split by who reacted. `social_reaction`
+ * allows at most one owner (agent) reaction and one contact reaction per
+ * message (DB unique indexes), so a plain map per side is enough — no fan-out
+ * risk the way joining it directly into the message select would have.
+ */
+async function reactionsByMessage(messageIds: number[]): Promise<{
+  owner: Map<number, string>;
+  contact: Map<number, string>;
+}> {
+  const owner = new Map<number, string>();
+  const contact = new Map<number, string>();
+  if (messageIds.length === 0) return { owner, contact };
+
+  const db = getDb();
+  const reactions = await db
+    .select({
+      message_id: socialReaction.messageId,
+      is_owner_reaction: socialReaction.isOwnerReaction,
+      emoji: socialReaction.emoji,
+    })
+    .from(socialReaction)
+    .where(inArray(socialReaction.messageId, messageIds));
+
+  for (const r of reactions) {
+    (r.is_owner_reaction ? owner : contact).set(r.message_id, r.emoji);
+  }
+  return { owner, contact };
+}
 
 /**
  * Read-only access to the `social_*` tables (ingested by the Django/webhook
@@ -230,6 +261,8 @@ export type FacebookDmRow = {
   contact_name: string | null;
   contact_username: string | null;
   contact_avatar: string | null;
+  owner_reaction: string | null;
+  contact_reaction: string | null;
 };
 
 /**
@@ -246,7 +279,7 @@ export async function list_facebook_dms(
   const account = await get_accessible_facebook_page(account_id, store_code);
   if (!account) return [];
 
-  return db
+  const dms = await db
     .select({
       id: socialMessage.id,
       external_message_id: socialMessage.externalMessageId,
@@ -269,6 +302,16 @@ export async function list_facebook_dms(
       ),
     )
     .orderBy(asc(socialMessage.externalCreatedAt));
+
+  if (dms.length === 0) return [];
+
+  const { owner, contact } = await reactionsByMessage(dms.map((d) => d.id));
+
+  return dms.map((dm) => ({
+    ...dm,
+    owner_reaction: owner.get(dm.id) ?? null,
+    contact_reaction: contact.get(dm.id) ?? null,
+  }));
 }
 
 export type InstagramPageRow = {
@@ -473,6 +516,8 @@ export type InstagramDmRow = {
   contact_name: string | null;
   contact_username: string | null;
   contact_avatar: string | null;
+  owner_reaction: string | null;
+  contact_reaction: string | null;
 };
 
 export async function list_instagram_dms(
@@ -483,7 +528,7 @@ export async function list_instagram_dms(
   const account = await get_accessible_instagram_page(account_id, store_code);
   if (!account) return [];
 
-  return db
+  const dms = await db
     .select({
       id: socialMessage.id,
       external_message_id: socialMessage.externalMessageId,
@@ -506,4 +551,14 @@ export async function list_instagram_dms(
       ),
     )
     .orderBy(asc(socialMessage.externalCreatedAt));
+
+  if (dms.length === 0) return [];
+
+  const { owner, contact } = await reactionsByMessage(dms.map((d) => d.id));
+
+  return dms.map((dm) => ({
+    ...dm,
+    owner_reaction: owner.get(dm.id) ?? null,
+    contact_reaction: contact.get(dm.id) ?? null,
+  }));
 }

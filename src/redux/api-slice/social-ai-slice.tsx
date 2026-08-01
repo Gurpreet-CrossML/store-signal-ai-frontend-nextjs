@@ -29,6 +29,10 @@ export type SocialAccountsSubscriptionsResponse = {
   previous?: string | null;
 };
 
+// Shared row shape — Facebook and Instagram pages/posts/comments/DMs come back
+// identically shaped from the API; only the endpoint (and therefore the
+// platform they're scoped to) differs. See ENDPOINTS.fetch{Facebook,Instagram}*
+// in src/lib/config.ts.
 export type MetaPage = {
   id: number;
   external_id: string;
@@ -81,6 +85,10 @@ export type MetaDm = {
   contact_name: string | null;
   contact_username: string | null;
   contact_avatar: string | null;
+  // Set on `is_owner_reaction` / the contact's own reaction row, respectively —
+  // at most one of each per message (DB unique indexes). See ENDPOINTS.reactMessage.
+  owner_reaction: string | null;
+  contact_reaction: string | null;
 };
 
 export const fetchSocialAccountsSubscriptions = createAsyncThunk(
@@ -137,12 +145,14 @@ export const createMetaOAuthUrl = createAsyncThunk(
   },
 );
 
-export const fetchMetaPages = createAsyncThunk(
-  "fetchMetaPages",
+// ---- Pages (page/account switcher) ----
+
+export const fetchFacebookPages = createAsyncThunk(
+  "fetchFacebookPages",
   async (storeCode: string, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchMetaPages()}?store_code=${storeCode}`,
+        `${ENDPOINTS.fetchFacebookPages()}?store_code=${storeCode}`,
       );
       return response.data.data;
     } catch (error) {
@@ -152,7 +162,7 @@ export const fetchMetaPages = createAsyncThunk(
       toast.error("Uh oh! Something went wrong.", {
         description:
           data?.message ||
-          "Unable to fetch Meta pages, please try again later.",
+          "Unable to fetch Facebook pages, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -160,14 +170,12 @@ export const fetchMetaPages = createAsyncThunk(
   },
 );
 
-type FetchMetaPostsArgs = { accountId: number; storeCode: string };
-
-export const fetchMetaPosts = createAsyncThunk(
-  "fetchMetaPosts",
-  async ({ accountId, storeCode }: FetchMetaPostsArgs, thunkAPI) => {
+export const fetchInstagramPages = createAsyncThunk(
+  "fetchInstagramPages",
+  async (storeCode: string, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchMetaPosts()}?account_id=${accountId}&store_code=${storeCode}`,
+        `${ENDPOINTS.fetchInstagramPages()}?store_code=${storeCode}`,
       );
       return response.data.data;
     } catch (error) {
@@ -177,7 +185,7 @@ export const fetchMetaPosts = createAsyncThunk(
       toast.error("Uh oh! Something went wrong.", {
         description:
           data?.message ||
-          "Unable to fetch Meta posts, please try again later.",
+          "Unable to fetch Instagram pages, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -185,14 +193,16 @@ export const fetchMetaPosts = createAsyncThunk(
   },
 );
 
-type FetchMetaCommentsArgs = { postId: number; storeCode: string };
+// ---- Posts ----
 
-export const fetchMetaComments = createAsyncThunk(
-  "fetchMetaComments",
-  async ({ postId, storeCode }: FetchMetaCommentsArgs, thunkAPI) => {
+type FetchFacebookPostsArgs = { accountId: number; storeCode: string };
+
+export const fetchFacebookPosts = createAsyncThunk(
+  "fetchFacebookPosts",
+  async ({ accountId, storeCode }: FetchFacebookPostsArgs, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchMetaComments()}?post_id=${postId}&store_code=${storeCode}`,
+        `${ENDPOINTS.fetchFacebookPosts()}?account_id=${accountId}&store_code=${storeCode}`,
       );
       return response.data.data;
     } catch (error) {
@@ -202,7 +212,7 @@ export const fetchMetaComments = createAsyncThunk(
       toast.error("Uh oh! Something went wrong.", {
         description:
           data?.message ||
-          "Unable to fetch Meta comments, please try again later.",
+          "Unable to fetch Facebook posts, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -210,14 +220,14 @@ export const fetchMetaComments = createAsyncThunk(
   },
 );
 
-type FetchMetaDmsArgs = { accountId: number; storeCode: string };
+type FetchInstagramPostsArgs = { accountId: number; storeCode: string };
 
-export const fetchMetaDms = createAsyncThunk(
-  "fetchMetaDms",
-  async ({ accountId, storeCode }: FetchMetaDmsArgs, thunkAPI) => {
+export const fetchInstagramPosts = createAsyncThunk(
+  "fetchInstagramPosts",
+  async ({ accountId, storeCode }: FetchInstagramPostsArgs, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchMetaDms()}?account_id=${accountId}&store_code=${storeCode}`,
+        `${ENDPOINTS.fetchInstagramPosts()}?account_id=${accountId}&store_code=${storeCode}`,
       );
       return response.data.data;
     } catch (error) {
@@ -226,7 +236,112 @@ export const fetchMetaDms = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
-          data?.message || "Unable to fetch Meta DMs, please try again later.",
+          data?.message ||
+          "Unable to fetch Instagram posts, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+// ---- Comments ----
+
+type FetchFacebookCommentsArgs = { postId: number; storeCode: string };
+
+export const fetchFacebookComments = createAsyncThunk(
+  "fetchFacebookComments",
+  async ({ postId, storeCode }: FetchFacebookCommentsArgs, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchFacebookComments()}?post_id=${postId}&store_code=${storeCode}`,
+      );
+      return response.data.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch Facebook comments, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+type FetchInstagramCommentsArgs = { postId: number; storeCode: string };
+
+export const fetchInstagramComments = createAsyncThunk(
+  "fetchInstagramComments",
+  async ({ postId, storeCode }: FetchInstagramCommentsArgs, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchInstagramComments()}?post_id=${postId}&store_code=${storeCode}`,
+      );
+      return response.data.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch Instagram comments, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+// ---- DMs ----
+
+type FetchFacebookDmsArgs = { accountId: number; storeCode: string };
+
+export const fetchFacebookDms = createAsyncThunk(
+  "fetchFacebookDms",
+  async ({ accountId, storeCode }: FetchFacebookDmsArgs, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchFacebookDms()}?account_id=${accountId}&store_code=${storeCode}`,
+      );
+      return response.data.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch Facebook DMs, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+type FetchInstagramDmsArgs = { accountId: number; storeCode: string };
+
+export const fetchInstagramDms = createAsyncThunk(
+  "fetchInstagramDms",
+  async ({ accountId, storeCode }: FetchInstagramDmsArgs, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchInstagramDms()}?account_id=${accountId}&store_code=${storeCode}`,
+      );
+      return response.data.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch Instagram DMs, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -387,29 +502,53 @@ const SocialAISlice = createSlice({
       FetchSocialAccountsSubscriptionsData:
         {} as SocialAccountsSubscriptionsResponse,
     },
-    FetchMetaPagesState: {
-      FetchMetaPagesIsLoading: false,
-      FetchMetaPagesIsSuccess: false,
-      FetchMetaPagesIsError: null as null | string | object,
-      FetchMetaPagesData: [] as MetaPage[],
+    FetchFacebookPagesState: {
+      FetchFacebookPagesIsLoading: false,
+      FetchFacebookPagesIsSuccess: false,
+      FetchFacebookPagesIsError: null as null | string | object,
+      FetchFacebookPagesData: [] as MetaPage[],
     },
-    FetchMetaPostsState: {
-      FetchMetaPostsIsLoading: false,
-      FetchMetaPostsIsSuccess: false,
-      FetchMetaPostsIsError: null as null | string | object,
-      FetchMetaPostsData: [] as MetaPost[],
+    FetchInstagramPagesState: {
+      FetchInstagramPagesIsLoading: false,
+      FetchInstagramPagesIsSuccess: false,
+      FetchInstagramPagesIsError: null as null | string | object,
+      FetchInstagramPagesData: [] as MetaPage[],
     },
-    FetchMetaCommentsState: {
-      FetchMetaCommentsIsLoading: false,
-      FetchMetaCommentsIsSuccess: false,
-      FetchMetaCommentsIsError: null as null | string | object,
-      FetchMetaCommentsData: [] as MetaComment[],
+    FetchFacebookPostsState: {
+      FetchFacebookPostsIsLoading: false,
+      FetchFacebookPostsIsSuccess: false,
+      FetchFacebookPostsIsError: null as null | string | object,
+      FetchFacebookPostsData: [] as MetaPost[],
     },
-    FetchMetaDmsState: {
-      FetchMetaDmsIsLoading: false,
-      FetchMetaDmsIsSuccess: false,
-      FetchMetaDmsIsError: null as null | string | object,
-      FetchMetaDmsData: [] as MetaDm[],
+    FetchInstagramPostsState: {
+      FetchInstagramPostsIsLoading: false,
+      FetchInstagramPostsIsSuccess: false,
+      FetchInstagramPostsIsError: null as null | string | object,
+      FetchInstagramPostsData: [] as MetaPost[],
+    },
+    FetchFacebookCommentsState: {
+      FetchFacebookCommentsIsLoading: false,
+      FetchFacebookCommentsIsSuccess: false,
+      FetchFacebookCommentsIsError: null as null | string | object,
+      FetchFacebookCommentsData: [] as MetaComment[],
+    },
+    FetchInstagramCommentsState: {
+      FetchInstagramCommentsIsLoading: false,
+      FetchInstagramCommentsIsSuccess: false,
+      FetchInstagramCommentsIsError: null as null | string | object,
+      FetchInstagramCommentsData: [] as MetaComment[],
+    },
+    FetchFacebookDmsState: {
+      FetchFacebookDmsIsLoading: false,
+      FetchFacebookDmsIsSuccess: false,
+      FetchFacebookDmsIsError: null as null | string | object,
+      FetchFacebookDmsData: [] as MetaDm[],
+    },
+    FetchInstagramDmsState: {
+      FetchInstagramDmsIsLoading: false,
+      FetchInstagramDmsIsSuccess: false,
+      FetchInstagramDmsIsError: null as null | string | object,
+      FetchInstagramDmsData: [] as MetaDm[],
     },
     LikeMetaCommentState: {
       isLoading: false,
@@ -479,72 +618,136 @@ const SocialAISlice = createSlice({
         state.FetchSocialAccountSubscriptionsState.FetchSocialAccountsSubscriptionsIsError =
           action.payload as string | object;
       })
-      .addCase(fetchMetaPages.pending, (state) => {
-        state.FetchMetaPagesState.FetchMetaPagesIsLoading = true;
-        state.FetchMetaPagesState.FetchMetaPagesIsSuccess = false;
-        state.FetchMetaPagesState.FetchMetaPagesIsError = null;
+      .addCase(fetchFacebookPages.pending, (state) => {
+        state.FetchFacebookPagesState.FetchFacebookPagesIsLoading = true;
+        state.FetchFacebookPagesState.FetchFacebookPagesIsSuccess = false;
+        state.FetchFacebookPagesState.FetchFacebookPagesIsError = null;
       })
-      .addCase(fetchMetaPages.fulfilled, (state, action) => {
-        state.FetchMetaPagesState.FetchMetaPagesIsLoading = false;
-        state.FetchMetaPagesState.FetchMetaPagesIsSuccess = true;
-        state.FetchMetaPagesState.FetchMetaPagesData = action.payload;
+      .addCase(fetchFacebookPages.fulfilled, (state, action) => {
+        state.FetchFacebookPagesState.FetchFacebookPagesIsLoading = false;
+        state.FetchFacebookPagesState.FetchFacebookPagesIsSuccess = true;
+        state.FetchFacebookPagesState.FetchFacebookPagesData = action.payload;
       })
-      .addCase(fetchMetaPages.rejected, (state, action) => {
-        state.FetchMetaPagesState.FetchMetaPagesIsLoading = false;
-        state.FetchMetaPagesState.FetchMetaPagesIsSuccess = false;
-        state.FetchMetaPagesState.FetchMetaPagesIsError = action.payload as
-          | string
-          | object;
-      })
-      .addCase(fetchMetaPosts.pending, (state) => {
-        state.FetchMetaPostsState.FetchMetaPostsIsLoading = true;
-        state.FetchMetaPostsState.FetchMetaPostsIsSuccess = false;
-        state.FetchMetaPostsState.FetchMetaPostsIsError = null;
-      })
-      .addCase(fetchMetaPosts.fulfilled, (state, action) => {
-        state.FetchMetaPostsState.FetchMetaPostsIsLoading = false;
-        state.FetchMetaPostsState.FetchMetaPostsIsSuccess = true;
-        state.FetchMetaPostsState.FetchMetaPostsData = action.payload;
-      })
-      .addCase(fetchMetaPosts.rejected, (state, action) => {
-        state.FetchMetaPostsState.FetchMetaPostsIsLoading = false;
-        state.FetchMetaPostsState.FetchMetaPostsIsSuccess = false;
-        state.FetchMetaPostsState.FetchMetaPostsIsError = action.payload as
-          | string
-          | object;
-      })
-      .addCase(fetchMetaComments.pending, (state) => {
-        state.FetchMetaCommentsState.FetchMetaCommentsIsLoading = true;
-        state.FetchMetaCommentsState.FetchMetaCommentsIsSuccess = false;
-        state.FetchMetaCommentsState.FetchMetaCommentsIsError = null;
-      })
-      .addCase(fetchMetaComments.fulfilled, (state, action) => {
-        state.FetchMetaCommentsState.FetchMetaCommentsIsLoading = false;
-        state.FetchMetaCommentsState.FetchMetaCommentsIsSuccess = true;
-        state.FetchMetaCommentsState.FetchMetaCommentsData = action.payload;
-      })
-      .addCase(fetchMetaComments.rejected, (state, action) => {
-        state.FetchMetaCommentsState.FetchMetaCommentsIsLoading = false;
-        state.FetchMetaCommentsState.FetchMetaCommentsIsSuccess = false;
-        state.FetchMetaCommentsState.FetchMetaCommentsIsError =
+      .addCase(fetchFacebookPages.rejected, (state, action) => {
+        state.FetchFacebookPagesState.FetchFacebookPagesIsLoading = false;
+        state.FetchFacebookPagesState.FetchFacebookPagesIsSuccess = false;
+        state.FetchFacebookPagesState.FetchFacebookPagesIsError =
           action.payload as string | object;
       })
-      .addCase(fetchMetaDms.pending, (state) => {
-        state.FetchMetaDmsState.FetchMetaDmsIsLoading = true;
-        state.FetchMetaDmsState.FetchMetaDmsIsSuccess = false;
-        state.FetchMetaDmsState.FetchMetaDmsIsError = null;
+      .addCase(fetchInstagramPages.pending, (state) => {
+        state.FetchInstagramPagesState.FetchInstagramPagesIsLoading = true;
+        state.FetchInstagramPagesState.FetchInstagramPagesIsSuccess = false;
+        state.FetchInstagramPagesState.FetchInstagramPagesIsError = null;
       })
-      .addCase(fetchMetaDms.fulfilled, (state, action) => {
-        state.FetchMetaDmsState.FetchMetaDmsIsLoading = false;
-        state.FetchMetaDmsState.FetchMetaDmsIsSuccess = true;
-        state.FetchMetaDmsState.FetchMetaDmsData = action.payload;
+      .addCase(fetchInstagramPages.fulfilled, (state, action) => {
+        state.FetchInstagramPagesState.FetchInstagramPagesIsLoading = false;
+        state.FetchInstagramPagesState.FetchInstagramPagesIsSuccess = true;
+        state.FetchInstagramPagesState.FetchInstagramPagesData = action.payload;
       })
-      .addCase(fetchMetaDms.rejected, (state, action) => {
-        state.FetchMetaDmsState.FetchMetaDmsIsLoading = false;
-        state.FetchMetaDmsState.FetchMetaDmsIsSuccess = false;
-        state.FetchMetaDmsState.FetchMetaDmsIsError = action.payload as
+      .addCase(fetchInstagramPages.rejected, (state, action) => {
+        state.FetchInstagramPagesState.FetchInstagramPagesIsLoading = false;
+        state.FetchInstagramPagesState.FetchInstagramPagesIsSuccess = false;
+        state.FetchInstagramPagesState.FetchInstagramPagesIsError =
+          action.payload as string | object;
+      })
+      .addCase(fetchFacebookPosts.pending, (state) => {
+        state.FetchFacebookPostsState.FetchFacebookPostsIsLoading = true;
+        state.FetchFacebookPostsState.FetchFacebookPostsIsSuccess = false;
+        state.FetchFacebookPostsState.FetchFacebookPostsIsError = null;
+      })
+      .addCase(fetchFacebookPosts.fulfilled, (state, action) => {
+        state.FetchFacebookPostsState.FetchFacebookPostsIsLoading = false;
+        state.FetchFacebookPostsState.FetchFacebookPostsIsSuccess = true;
+        state.FetchFacebookPostsState.FetchFacebookPostsData = action.payload;
+      })
+      .addCase(fetchFacebookPosts.rejected, (state, action) => {
+        state.FetchFacebookPostsState.FetchFacebookPostsIsLoading = false;
+        state.FetchFacebookPostsState.FetchFacebookPostsIsSuccess = false;
+        state.FetchFacebookPostsState.FetchFacebookPostsIsError =
+          action.payload as string | object;
+      })
+      .addCase(fetchInstagramPosts.pending, (state) => {
+        state.FetchInstagramPostsState.FetchInstagramPostsIsLoading = true;
+        state.FetchInstagramPostsState.FetchInstagramPostsIsSuccess = false;
+        state.FetchInstagramPostsState.FetchInstagramPostsIsError = null;
+      })
+      .addCase(fetchInstagramPosts.fulfilled, (state, action) => {
+        state.FetchInstagramPostsState.FetchInstagramPostsIsLoading = false;
+        state.FetchInstagramPostsState.FetchInstagramPostsIsSuccess = true;
+        state.FetchInstagramPostsState.FetchInstagramPostsData = action.payload;
+      })
+      .addCase(fetchInstagramPosts.rejected, (state, action) => {
+        state.FetchInstagramPostsState.FetchInstagramPostsIsLoading = false;
+        state.FetchInstagramPostsState.FetchInstagramPostsIsSuccess = false;
+        state.FetchInstagramPostsState.FetchInstagramPostsIsError =
+          action.payload as string | object;
+      })
+      .addCase(fetchFacebookComments.pending, (state) => {
+        state.FetchFacebookCommentsState.FetchFacebookCommentsIsLoading = true;
+        state.FetchFacebookCommentsState.FetchFacebookCommentsIsSuccess = false;
+        state.FetchFacebookCommentsState.FetchFacebookCommentsIsError = null;
+      })
+      .addCase(fetchFacebookComments.fulfilled, (state, action) => {
+        state.FetchFacebookCommentsState.FetchFacebookCommentsIsLoading = false;
+        state.FetchFacebookCommentsState.FetchFacebookCommentsIsSuccess = true;
+        state.FetchFacebookCommentsState.FetchFacebookCommentsData =
+          action.payload;
+      })
+      .addCase(fetchFacebookComments.rejected, (state, action) => {
+        state.FetchFacebookCommentsState.FetchFacebookCommentsIsLoading = false;
+        state.FetchFacebookCommentsState.FetchFacebookCommentsIsSuccess = false;
+        state.FetchFacebookCommentsState.FetchFacebookCommentsIsError =
+          action.payload as string | object;
+      })
+      .addCase(fetchInstagramComments.pending, (state) => {
+        state.FetchInstagramCommentsState.FetchInstagramCommentsIsLoading = true;
+        state.FetchInstagramCommentsState.FetchInstagramCommentsIsSuccess = false;
+        state.FetchInstagramCommentsState.FetchInstagramCommentsIsError = null;
+      })
+      .addCase(fetchInstagramComments.fulfilled, (state, action) => {
+        state.FetchInstagramCommentsState.FetchInstagramCommentsIsLoading = false;
+        state.FetchInstagramCommentsState.FetchInstagramCommentsIsSuccess = true;
+        state.FetchInstagramCommentsState.FetchInstagramCommentsData =
+          action.payload;
+      })
+      .addCase(fetchInstagramComments.rejected, (state, action) => {
+        state.FetchInstagramCommentsState.FetchInstagramCommentsIsLoading = false;
+        state.FetchInstagramCommentsState.FetchInstagramCommentsIsSuccess = false;
+        state.FetchInstagramCommentsState.FetchInstagramCommentsIsError =
+          action.payload as string | object;
+      })
+      .addCase(fetchFacebookDms.pending, (state) => {
+        state.FetchFacebookDmsState.FetchFacebookDmsIsLoading = true;
+        state.FetchFacebookDmsState.FetchFacebookDmsIsSuccess = false;
+        state.FetchFacebookDmsState.FetchFacebookDmsIsError = null;
+      })
+      .addCase(fetchFacebookDms.fulfilled, (state, action) => {
+        state.FetchFacebookDmsState.FetchFacebookDmsIsLoading = false;
+        state.FetchFacebookDmsState.FetchFacebookDmsIsSuccess = true;
+        state.FetchFacebookDmsState.FetchFacebookDmsData = action.payload;
+      })
+      .addCase(fetchFacebookDms.rejected, (state, action) => {
+        state.FetchFacebookDmsState.FetchFacebookDmsIsLoading = false;
+        state.FetchFacebookDmsState.FetchFacebookDmsIsSuccess = false;
+        state.FetchFacebookDmsState.FetchFacebookDmsIsError = action.payload as
           | string
           | object;
+      })
+      .addCase(fetchInstagramDms.pending, (state) => {
+        state.FetchInstagramDmsState.FetchInstagramDmsIsLoading = true;
+        state.FetchInstagramDmsState.FetchInstagramDmsIsSuccess = false;
+        state.FetchInstagramDmsState.FetchInstagramDmsIsError = null;
+      })
+      .addCase(fetchInstagramDms.fulfilled, (state, action) => {
+        state.FetchInstagramDmsState.FetchInstagramDmsIsLoading = false;
+        state.FetchInstagramDmsState.FetchInstagramDmsIsSuccess = true;
+        state.FetchInstagramDmsState.FetchInstagramDmsData = action.payload;
+      })
+      .addCase(fetchInstagramDms.rejected, (state, action) => {
+        state.FetchInstagramDmsState.FetchInstagramDmsIsLoading = false;
+        state.FetchInstagramDmsState.FetchInstagramDmsIsSuccess = false;
+        state.FetchInstagramDmsState.FetchInstagramDmsIsError =
+          action.payload as string | object;
       })
       .addCase(likeMetaComment.pending, (state) => {
         state.LikeMetaCommentState.isLoading = true;
