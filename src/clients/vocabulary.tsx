@@ -81,6 +81,9 @@ export default function BrandVoiceVocabularyEditor() {
   const { CreateVocabularyIsLoading } = useAppSelector(
     (state) => state.GetBrandVoiceReducer.CreateVocabularyState,
   );
+
+  const updatedAt = FetchVocabularyData?.updated_at ?? null;
+
   // Fetch vocabulary data when the component mounts or store code changes
   useEffect(() => {
     if (storeCode) {
