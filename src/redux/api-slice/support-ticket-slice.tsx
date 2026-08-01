@@ -826,7 +826,7 @@ const SupportTicketsSlice = createSlice({
       .addCase(FetchSupportTicketTags.fulfilled, (state, action) => {
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsLoading = false;
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsData =
-          action.payload;
+          action.payload?.results ?? action.payload ?? [];
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsSuccess = true;
       })
       .addCase(FetchSupportTicketTags.rejected, (state, action) => {
