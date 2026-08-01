@@ -18,8 +18,16 @@ if (!REF_SCHEMA) {
 // `sslmode=verify-full` URL makes drizzle-kit die with an empty error and exit 1.
 // Relax verification for introspection the same way scripts/db-connection.ts does
 // for the other db:* tooling — this is read-only, not the request data plane.
+// Local Postgres (`sslmode=disable`, or `localhost`/`127.0.0.1`) typically has no
+// SSL support at all, so leave it alone there instead of forcing `no-verify`.
 const DB_URL = new URL(process.env.DATABASE_URL!);
-DB_URL.searchParams.set("sslmode", "no-verify");
+const disableSsl =
+  DB_URL.searchParams.get("sslmode") === "disable" ||
+  DB_URL.hostname === "localhost" ||
+  DB_URL.hostname === "127.0.0.1";
+if (!disableSsl) {
+  DB_URL.searchParams.set("sslmode", "no-verify");
+}
 
 export default defineConfig({
   // Overridable so db:check can introspect into a throwaway dir for drift checks.
