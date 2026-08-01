@@ -449,7 +449,7 @@ function TicketListPanel({
     Number(Boolean(filters.fromDate || filters.toDate));
 
   return (
-    <section className="hidden w-[336px] shrink-0 border-r bg-white md:block">
+    <section className="hidden h-full w-[336px] shrink-0 flex-col border-r bg-white md:flex">
       <div className="flex h-14 items-center justify-between border-b px-3">
         <div>
           <div className="flex items-baseline gap-2">
@@ -630,7 +630,7 @@ function TicketListPanel({
           ) : null}
         </div>
       </div>
-      <div className="no-scrollbar h-[83vh]! overflow-y-auto">
+      <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
         {isLoading && rows?.length === 0 ? (
           <div className="flex min-h-[360px] items-center justify-center px-4 py-8">
             <div className="text-center">
@@ -652,20 +652,20 @@ function TicketListPanel({
             />
           ))
         )}
-        {rows?.length > 0 && hasMore ? (
-          <div className="flex items-center justify-center py-4">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onLoadMore}
-              disabled={isLoadingMore}
-            >
-              {isLoadingMore ? "Loading..." : "Load more"}
-            </Button>
-          </div>
-        ) : null}
       </div>
+      {rows?.length > 0 && hasMore ? (
+        <div className="flex shrink-0 items-center justify-center border-t bg-white py-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+          >
+            {isLoadingMore ? "Loading..." : "Load more"}
+          </Button>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -2521,7 +2521,7 @@ export default function HelpDesk() {
   };
 
   return (
-    <div className="-my-4 flex h-[calc(100vh-var(--header-height))] flex-col overflow-hidden border-y bg-white font-sans text-slate-950 md:-my-6">
+    <div className="-my-4 flex h-[calc(100vh-var(--header-height))] flex-col overflow-hidden border-y bg-white font-sans text-slate-950 md:-my-6 md:h-[calc(100vh-var(--header-height)-1rem)]">
       <div className="flex min-h-0 flex-1">
         {activeSection ? (
           <TicketingSettingsContent active={activeSection} />
