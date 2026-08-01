@@ -3,7 +3,7 @@ import { SocialComment, SocialReply } from "@/lib/mock-social-data";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import {
   IconUserPlus,
-  IconMoodSmile,
+  IconThumbUp,
   IconArrowForwardUp,
   IconMessageCircle2,
   IconHeart,
@@ -57,11 +57,8 @@ export function ThreadActionRow({
   onSubmitReply,
 }: ThreadActionRowProps) {
   const [reaction, setReaction] = useState<string | null>(null);
-  const [showPicker, setShowPicker] = useState(false);
   const [replyText, setReplyText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const hideTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const isReplying = activeReplyId === id;
 
@@ -70,15 +67,6 @@ export function ThreadActionRow({
       inputRef.current.focus();
     }
   }, [isReplying]);
-
-  const handleMouseEnter = () => {
-    if (hideTimeout.current) clearTimeout(hideTimeout.current);
-    setShowPicker(true);
-  };
-
-  const handleMouseLeave = () => {
-    hideTimeout.current = setTimeout(() => setShowPicker(false), 300);
-  };
 
   const handleReplyClick = () => {
     if (isReplying) {
@@ -110,65 +98,22 @@ export function ThreadActionRow({
   return (
     <div className="flex flex-col w-full">
       <div className="flex items-center gap-2 mt-1 text-muted-foreground relative w-full">
-        {reaction && platform === "facebook" && (
-          <div
-            className="bg-background border rounded-full px-1.5 py-0.5 text-[10px] shadow-sm cursor-pointer z-10 hover:scale-110 transition-transform"
-            onClick={() => setReaction(null)}
-          >
-            {reaction === "like"
-              ? "👍"
-              : reaction === "love"
-                ? "❤️"
-                : reaction === "wow"
-                  ? "😮"
-                  : reaction === "haha"
-                    ? "😂"
-                    : reaction === "sad"
-                      ? "😢"
-                      : reaction}
-          </div>
-        )}
-
-        {showPicker && platform === "facebook" && (
-          <div
-            className="absolute -top-10 left-0 bg-background border shadow-md rounded-full px-2 py-1 flex items-center gap-1 z-50 animate-in fade-in zoom-in-95 duration-150"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
-            {[
-              { emoji: "👍", value: "like" },
-              { emoji: "❤️", value: "love" },
-              { emoji: "😂", value: "haha" },
-              { emoji: "😮", value: "wow" },
-              { emoji: "😢", value: "sad" },
-            ].map(({ emoji, value }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => {
-                  setReaction(value);
-                  setShowPicker(false);
-                }}
-                title={value}
-                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-muted hover:scale-125 transition-transform text-lg"
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div
-          className="relative flex items-center ml-1"
-          onMouseEnter={platform === "facebook" ? handleMouseEnter : undefined}
-          onMouseLeave={platform === "facebook" ? handleMouseLeave : undefined}
-        >
+        <div className="relative flex items-center ml-1">
           {platform === "facebook" ? (
             <button
-              className="hover:text-foreground transition-colors"
-              title="React"
+              className={cn(
+                "hover:text-blue-500 transition-colors",
+                reaction === "like" ? "text-blue-500" : "",
+              )}
+              onClick={() => setReaction(reaction === "like" ? null : "like")}
+              title="Like"
             >
-              <IconMoodSmile className="w-3.5 h-3.5" />
+              <IconThumbUp
+                className={cn(
+                  "w-3.5 h-3.5",
+                  reaction === "like" ? "fill-current" : "",
+                )}
+              />
             </button>
           ) : (
             <button
