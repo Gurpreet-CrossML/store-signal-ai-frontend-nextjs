@@ -135,3 +135,30 @@ export function formatRelativeDateTime(
 
   return `${Math.max(1, Math.floor(diffDays / 30))}mo`;
 }
+
+/**
+ * Converts a string to title case by capitalizing the first letter of
+ * each word. Also converts snake_case and kebab-case to spaced words.
+ *
+ * @param value The string to format.
+ * @returns The formatted string.
+ *
+ * @example
+ * capitalizeText("active");
+ * // "Active"
+ *
+ * @example
+ * capitalizeText("payment_failed");
+ * // "Payment Failed"
+ *
+ * @example
+ * capitalizeText("exchange-request");
+ * // "Exchange Request"
+ */
+export function capitalizeText(value: string): string {
+  if (!value) return "";
+
+  return value
+    .replace(/[_-]/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
