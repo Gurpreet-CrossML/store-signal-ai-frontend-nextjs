@@ -535,19 +535,9 @@ export function TagsFieldsSection() {
                     Color <span className="text-red-500">*</span>
                   </Label>
                   <div className="flex items-center gap-2">
-                    {/* native color picker swatch */}
-                    <input
-                      id="color"
-                      type="color"
-                      disabled
-                      value={
-                        HEX_REGEX.test(values.color) ? values.color : "#000000"
-                      }
-                      onChange={(e) => setFieldValue("color", e.target.value)}
-                      className="size-9 shrink-0 cursor-pointer rounded-md border p-0.5"
-                    />
                     {/* editable hex value */}
                     <Input
+                      id="color"
                       value={values.color}
                       onChange={(e) => setFieldValue("color", e.target.value)}
                       placeholder="#000000"
