@@ -12,9 +12,6 @@ import {
   IconSettings,
   IconUserHexagon,
   IconVolume,
-  IconSparkles,
-  IconBrandFacebook,
-  IconBrandInstagram,
   type Icon,
 } from "@tabler/icons-react";
 
@@ -75,50 +72,7 @@ export const sidebarMenus: SideBarMenus = {
       url: "/customisation",
       icon: IconImageGeneration,
     },
-    {
-      title: "Social AI",
-      url: "#",
-      icon: IconSparkles,
-      isExpanded: true,
-      items: [
-        {
-          title: "Facebook",
-          url: "#",
-          icon: IconBrandFacebook,
-          isExpanded: true,
-          items: [
-            {
-              title: "Comments",
-              url: "/social-ai/facebook-comments",
-              icon: IconMessage2,
-            },
-            {
-              title: "DMs",
-              url: "/social-ai/facebook-dms",
-              icon: IconMessageUser,
-            },
-          ],
-        },
-        {
-          title: "Instagram",
-          url: "#",
-          icon: IconBrandInstagram,
-          isExpanded: true,
-          items: [
-            {
-              title: "Comments",
-              url: "/social-ai/instagram-comments",
-              icon: IconMessage2,
-            },
-            {
-              title: "DMs",
-              url: "/social-ai/instagram-dms",
-              icon: IconMessageUser,
-            },
-          ],
-        },
-      ],
-    },
+
   ],
 
   // Company-admin only (is_staff). Gated in AppSidebar by the session role.

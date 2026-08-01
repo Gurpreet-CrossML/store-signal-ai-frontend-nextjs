@@ -1,4 +1,9 @@
-import { Icon, IconBrandFacebook, IconBrandInstagram, IconBrandWhatsapp } from "@tabler/icons-react";
+import {
+  Icon,
+  IconBrandFacebook,
+  IconBrandInstagram,
+  IconBrandWhatsapp,
+} from "@tabler/icons-react";
 
 const DJANGO_BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000";
@@ -141,7 +146,27 @@ export const ENDPOINTS = {
 
   // Social AI (Django via useBackend — keep trailing slash).
   createMetaOAuthUrl: () => `/social/meta/oauth/`,
-  fetchSocialAccountsSubscriptions: () => `/social/subscriptions/connected-accounts/`,
+  fetchSocialAccountsSubscriptions: () =>
+    `/social/subscriptions/connected-accounts/`,
+  fetchFacebookPages: () => `/social/facebook/pages`,
+  fetchFacebookPosts: () => `/social/facebook/posts`,
+  fetchFacebookComments: () => `/social/facebook/comments`,
+  fetchFacebookDms: () => `/social/facebook/dms`,
+  fetchInstagramPages: () => `/social/instagram/pages`,
+  fetchInstagramPosts: () => `/social/instagram/posts`,
+  fetchInstagramComments: () => `/social/instagram/comments`,
+  fetchInstagramDms: () => `/social/instagram/dms`,
+  likeMessage: (messageId: string) =>
+    `/social/meta/messages/${messageId}/like/`,
+  hideMessage: (messageId: string) =>
+    `/social/meta/messages/${messageId}/hide/`,
+  deleteMessage: (messageId: string) => `/social/meta/messages/${messageId}/`,
+  replyMessage: (messageId: string) =>
+    `/social/meta/messages/${messageId}/reply/`,
+  reactMessage: (messageId: string) =>
+    `/social/meta/messages/${messageId}/react/`,
+  replyComment: (messageId: string) =>
+    `/social/meta/comments/${messageId}/reply/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
@@ -245,25 +270,29 @@ export const SPELLING_OPTIONS: readonly SelectOption[] = [
   { value: "auto", label: "Auto" },
 ];
 
-export const SocialAIPlatformOptions: { readonly [key: string]: { label: string; icon: Icon; color: string } } = {
-  "facebook": {
+export const SocialAIPlatformOptions: {
+  readonly [key: string]: { label: string; icon: Icon; color: string };
+} = {
+  facebook: {
     label: "Facebook",
     icon: IconBrandFacebook,
-    color: "text-[#1877F2]"
+    color: "text-[#1877F2]",
   },
-  "instagram": {
+  instagram: {
     label: "Instagram",
     icon: IconBrandInstagram,
-    color: "text-[#E4405F]"
+    color: "text-[#E4405F]",
   },
-  "whatsapp": {
+  whatsapp: {
     label: "WhatsApp",
     icon: IconBrandWhatsapp,
-    color: "text-[#25D366]"
+    color: "text-[#25D366]",
   },
 };
 
-export const StatusBadges: { readonly [key: string]: { label: string; bg: string; text: string } } = {
+export const StatusBadges: {
+  readonly [key: string]: { label: string; bg: string; text: string };
+} = {
   active: {
     label: "Active",
     bg: "bg-green-100",
