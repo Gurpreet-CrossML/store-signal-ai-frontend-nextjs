@@ -82,7 +82,7 @@ const COLOR_PRESETS = [
 const HEX_REGEX = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
 
 // keep in sync with the thunk's default `limit`
-const PER_PAGE_OPTIONS = [10, 15, 25, 50, 100] as const;
+const PER_PAGE_OPTIONS = [15, 25, 50, 100] as const;
 const DEFAULT_PER_PAGE = PER_PAGE_OPTIONS[0];
 
 const tagSchema = z.object({
