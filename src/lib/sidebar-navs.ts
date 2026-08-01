@@ -10,6 +10,7 @@ import {
   IconMessageUser,
   IconSearch,
   IconSettings,
+  IconShoppingBag,
   IconUserHexagon,
   IconVolume,
   type Icon,
@@ -72,7 +73,6 @@ export const sidebarMenus: SideBarMenus = {
       url: "/customisation",
       icon: IconImageGeneration,
     },
-
   ],
 
   // Company-admin only (is_staff). Gated in AppSidebar by the session role.
@@ -101,7 +101,7 @@ export const sidebarMenus: SideBarMenus = {
         // {
         //   title: "Selling Style",
         //   url: "/brand-voice/selling-style",
-        //   icon:
+        //   icon: IconShoppingBag,
         // },
         {
           title: "Never-Say Rules",
