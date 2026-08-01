@@ -7,7 +7,12 @@ import { OrderData } from "@/redux/api-slice/thread-slice";
 
 export type SupportTicketStatus = "open" | "pending" | "resolved" | "closed";
 export type SupportTicketPriority = "low" | "normal" | "high" | "urgent";
-export type SupportTicketChannel = "web" | "email" | "whatsapp" | "instagram" | "facebook";
+export type SupportTicketChannel =
+  | "web"
+  | "email"
+  | "whatsapp"
+  | "instagram"
+  | "facebook";
 export type SupportTicketMessageType = "external" | "internal";
 export type SupportTicketMessageSenderType = "customer" | "agent";
 export type SupportTicketMessageDirection = "incoming" | "outgoing";
@@ -158,11 +163,19 @@ export type SupportTicket = {
   snoozed_until: string;
 };
 
+export type SupportTicketStatusCounts = {
+  closed: number;
+  open: number;
+  pending: number;
+  resolved: number;
+};
+
 export type SupportTicketsResponse = {
   count: number;
   next: string | null;
   previous: string | null;
   results: SupportTicket[];
+  status_counts: SupportTicketStatusCounts;
 };
 
 type SupportTicketStaffAssignData = {
@@ -203,7 +216,7 @@ export const FetchSupportTickets = createAsyncThunk<
       toast.error("Uh oh! Something went wrong.", {
         description:
           data?.message ||
-          "Unable to fetch the threads, please try again later.",
+          "Unable to fetch the support ticket, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -779,6 +792,12 @@ const SupportTicketsSlice = createSlice({
         next: null,
         previous: null,
         results: [],
+        status_counts: {
+          open: 0,
+          pending: 0,
+          resolved: 0,
+          closed: 0,
+        },
       } as SupportTicketsResponse,
     },
     FetchSupportTicketDetailsState: {
@@ -789,7 +808,7 @@ const SupportTicketsSlice = createSlice({
         | string
         | object
         | unknown,
-      FetchSupportTicketDetailsData: {} as SupportTicket,
+      FetchSupportTicketDetailsData: null as SupportTicket | null,
     },
     SupportTicketMessageSendState: {
       SupportTicketMessageSendIsLoading: false,
@@ -927,6 +946,12 @@ const SupportTicketsSlice = createSlice({
             next: null,
             previous: null,
             results: [],
+            status_counts: {
+              open: 0,
+              pending: 0,
+              resolved: 0,
+              closed: 0,
+            },
           };
         }
       })
