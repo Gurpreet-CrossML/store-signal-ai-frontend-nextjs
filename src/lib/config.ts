@@ -142,6 +142,9 @@ export const ENDPOINTS = {
   // Social AI (Django via useBackend — keep trailing slash).
   createMetaOAuthUrl: () => `/social/meta/oauth/`,
   fetchSocialAccountsSubscriptions: () => `/social/subscriptions/connected-accounts/`,
+  fetchMetaPages: () => `/social/meta/pages/`,
+  fetchSocialPosts: ({accountId}: {accountId: string}) => `/social/meta/pages/${accountId}/posts/`,
+  fetchPostComments: ({postId}: {postId: string}) => `/social/meta/posts/${postId}/comments/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

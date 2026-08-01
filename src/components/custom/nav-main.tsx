@@ -184,9 +184,23 @@ function SidebarGroupWrapper({ item, pathname }: { item: SideBarMenuItem, pathna
       <SidebarGroupLabel>{item.title}</SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
-          {item.items?.map((subItem) => (
-            <SidebarMenuItemWrapper key={subItem.title} item={subItem} pathname={pathname} />
-          ))}
+          {item.items?.map((subItem) => {
+            if (subItem.items && subItem.items.length > 0) {
+              return (
+                <CollapsibleMenuItem
+                  key={subItem.title}
+                  pathname={pathname}
+                  title={subItem.title}
+                  icon={subItem.icon}
+                  defaultOpen={subItem.isExpanded}
+                  items={subItem.items}
+                />
+              );
+            }
+            return (
+              <SidebarMenuItemWrapper key={subItem.title} item={subItem} pathname={pathname} />
+            );
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
