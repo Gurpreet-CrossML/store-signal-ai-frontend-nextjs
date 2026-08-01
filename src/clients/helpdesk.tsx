@@ -365,24 +365,25 @@ function MultiSelectCombobox({
       </ComboboxChips>
       <ComboboxContent anchor={anchor}>
         <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
-        <ComboboxList
-          onScroll={(event) => {
-            const target = event.currentTarget;
-            if (
-              hasMore &&
-              !isLoading &&
-              target.scrollHeight - target.scrollTop <= target.clientHeight + 40
-            ) {
-              onLoadMore?.();
-            }
-          }}
-        >
+        <ComboboxList>
           {(item) => (
             <ComboboxItem key={item} value={item}>
               {optionLabels.get(item) ?? item}
             </ComboboxItem>
           )}
         </ComboboxList>
+        {hasMore ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full"
+            onClick={onLoadMore}
+            disabled={isLoading}
+          >
+            {isLoading ? "Loading..." : "Load more"}
+          </Button>
+        ) : null}
       </ComboboxContent>
     </Combobox>
   );
@@ -446,14 +447,6 @@ function TicketListPanel({
     filters.tags.length +
     filters.priorities.length +
     Number(Boolean(filters.fromDate || filters.toDate));
-
-  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
-    const target = event.currentTarget;
-    if (!hasMore || isLoading || isLoadingMore) return;
-    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 120) {
-      onLoadMore();
-    }
-  };
 
   return (
     <section className="hidden w-[336px] shrink-0 border-r bg-white md:block">
@@ -637,7 +630,7 @@ function TicketListPanel({
           ) : null}
         </div>
       </div>
-      <div className="h-[83vh]! overflow-y-auto" onScroll={handleScroll}>
+      <div className="no-scrollbar h-[83vh]! overflow-y-auto">
         {isLoading && rows?.length === 0 ? (
           <div className="flex min-h-[360px] items-center justify-center px-4 py-8">
             <div className="text-center">
@@ -661,12 +654,15 @@ function TicketListPanel({
         )}
         {rows?.length > 0 && hasMore ? (
           <div className="flex items-center justify-center py-4">
-            {isLoadingMore ? (
-              <div className="flex items-center gap-2 text-sm text-slate-500">
-                <Spinner className="size-4" />
-                Loading more tickets...
-              </div>
-            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onLoadMore}
+              disabled={isLoadingMore}
+            >
+              {isLoadingMore ? "Loading..." : "Load more"}
+            </Button>
           </div>
         ) : null}
       </div>
@@ -689,6 +685,8 @@ function ConversationPanel({
   availableTags,
   isTagPickerOpen,
   isTagPickerLoading,
+  hasMoreTags,
+  onLoadMoreTags,
   onToggleTagPicker,
   onAddTag,
   onRemoveTag,
@@ -712,6 +710,8 @@ function ConversationPanel({
   availableTags: SupportTicketTagData[];
   isTagPickerOpen: boolean;
   isTagPickerLoading: boolean;
+  hasMoreTags: boolean;
+  onLoadMoreTags: () => void;
   onToggleTagPicker: () => void;
   onAddTag: (tagId: number) => void;
   onRemoveTag: (tagId: number) => void;
@@ -977,7 +977,7 @@ function ConversationPanel({
                     />
                   </div>
                 </div>
-                {isTagPickerLoading ? (
+                {isTagPickerLoading && availableTags.length === 0 ? (
                   <div className="flex min-h-[96px] items-center justify-center gap-2 px-3 py-4 text-sm text-slate-500">
                     <Spinner className="size-4" />
                     Loading tags...
@@ -1027,6 +1027,18 @@ function ConversationPanel({
                             </button>
                           );
                         })}
+                        {hasMoreTags && !tagSearch ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={onLoadMoreTags}
+                            disabled={isTagPickerLoading}
+                          >
+                            {isTagPickerLoading ? "Loading..." : "Load more"}
+                          </Button>
+                        ) : null}
                       </div>
                     )}
                   </div>
@@ -1835,11 +1847,12 @@ export default function HelpDesk() {
     dispatch(
       FetchSupportTicketTags({
         storeCode,
-        page: 1,
+        page: tagPage,
         limit: 20,
+        append: tagPage > 1,
       }),
     );
-  }, [dispatch, storeCode]);
+  }, [dispatch, storeCode, tagPage]);
 
   useEffect(() => {
     currentActiveSupportTicketIdRef.current = activeTicketId || null;
@@ -2587,6 +2600,12 @@ export default function HelpDesk() {
                 availableTags={ticketTags}
                 isTagPickerOpen={showTagPicker}
                 isTagPickerLoading={FetchSupportTicketTagsIsLoading}
+                hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
+                onLoadMoreTags={() => {
+                  if (FetchSupportTicketTagsData?.next) {
+                    setTagPage((current) => current + 1);
+                  }
+                }}
                 onToggleTagPicker={handleToggleTagPicker}
                 onAddTag={handleAddTag}
                 onRemoveTag={handleRemoveTag}

@@ -61,6 +61,7 @@ type GetSupportTicketTagsArgs = {
   page?: number;
   limit?: number;
   search?: string;
+  append?: boolean;
 };
 
 export type SupportTicketTagData = {
@@ -997,8 +998,17 @@ const SupportTicketsSlice = createSlice({
       })
       .addCase(FetchSupportTicketTags.fulfilled, (state, action) => {
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsLoading = false;
-        state.FetchSupportTicketTagsState.FetchSupportTicketTagsData =
-          action.payload;
+        state.FetchSupportTicketTagsState.FetchSupportTicketTagsData = action
+          .meta.arg.append
+          ? {
+              ...action.payload,
+              results: [
+                ...state.FetchSupportTicketTagsState.FetchSupportTicketTagsData
+                  .results,
+                ...action.payload.results,
+              ],
+            }
+          : action.payload;
         state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsSuccess = true;
       })
       .addCase(FetchSupportTicketTags.rejected, (state, action) => {

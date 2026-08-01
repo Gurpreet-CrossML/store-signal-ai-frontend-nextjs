@@ -393,7 +393,7 @@ export function TicketingSettingsContent({ active }: { active: SectionId }) {
   const copy = sectionCopy[active];
 
   return (
-    <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 h-[88vh]!">
+    <main className="no-scrollbar min-w-0 flex-1 overflow-y-auto bg-slate-50 h-[88vh]!">
       <div className="w-full max-w-[1060px] space-y-6 px-4 py-8 md:px-7 h-[88vh]!">
         <div>
           <h1 className="text-2xl font-semibold tracking-normal text-slate-950">
