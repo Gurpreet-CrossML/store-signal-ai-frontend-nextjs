@@ -26,11 +26,11 @@ import {
   IconTags,
   IconUsersGroup,
   type Icon,
-  IconClockOff,
   IconUser,
   IconPackageOff,
   IconCreditCardOff,
   IconArrowsExchange,
+  IconAlarmSnoozeFilled,
 } from "@tabler/icons-react";
 
 export type SideBarMenuItem = {
@@ -117,7 +117,7 @@ export const sidebarMenus: SideBarMenus = {
           title: "Snoozed",
           count: 34,
           url: "/helpdesk?filter=snoozed",
-          icon: IconClockOff,
+          icon: IconAlarmSnoozeFilled,
         },
         {
           title: "Order Return",

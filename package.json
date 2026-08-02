@@ -17,6 +17,7 @@
     "db:smoke": "node --env-file-if-exists=.env --import tsx scripts/smoke-tenant.ts"
   },
   "dependencies": {
+    "@base-ui/react": "^1.6.0",
     "@ckeditor/ckeditor5-react": "^11.1.2",
     "@reduxjs/toolkit": "^2.12.0",
     "@tabler/icons-react": "^3.44.0",

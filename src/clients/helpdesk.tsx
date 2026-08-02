@@ -229,7 +229,7 @@ function TicketRow({
           </span>
           <div className="flex items-center gap-1 shrink-0">
             {ticket.is_snoozed ? (
-              <IconAlarmSnoozeFilled className="size-3 text-amber-500" />
+              <IconAlarmSnoozeFilled className="size-3 text-primary" />
             ) : null}
             <span className="text-[11px] text-slate-400">
               {formatRelativeDateTime(
@@ -731,6 +731,8 @@ function ConversationPanel({
   isAIDraftLoading,
   aiDraft,
   isClosed,
+  menuOpen,
+  onChangeMenuOpen,
 }: {
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
@@ -759,13 +761,34 @@ function ConversationPanel({
   isAIDraftLoading: boolean;
   aiDraft: SupportTicketDraftMessage | null;
   isClosed: boolean;
+  menuOpen: boolean,
+  onChangeMenuOpen: (value: boolean) => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const tagPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
   }, [ticket.id, messages.length]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        isTagPickerOpen &&
+        tagPickerRef.current &&
+        !tagPickerRef.current.contains(event.target as Node)
+      ) {
+        onToggleTagPicker();
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isTagPickerOpen]);
 
   const filteredTags = availableTags.filter((tag) =>
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
@@ -890,7 +913,7 @@ function ConversationPanel({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-            <DropdownMenu>
+            <DropdownMenu open={menuOpen} onOpenChange={onChangeMenuOpen}>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon-sm" className="bg-white">
                   <IconDotsVertical className="size-4" />
@@ -1011,7 +1034,7 @@ function ConversationPanel({
               </HoverCardContent>
             </HoverCard>
           )}
-          <div className="relative flex">
+          <div className="relative flex" ref={tagPickerRef}>
             <Button
               variant="outline"
               size="sm"
@@ -1705,6 +1728,7 @@ export default function HelpDesk() {
   const [activeSupportTicket, setActiveSupportTicket] =
     useState<SupportTicket | null>(null);
   const currentActiveSupportTicketIdRef = useRef<number | null>(null);
+  const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   const [showTagPicker, setShowTagPicker] = useState(false);
 
@@ -2472,6 +2496,9 @@ export default function HelpDesk() {
     } catch {
       //
     }
+    finally {
+      setMenuOpen(false);
+    }
   };
 
   const handleSupportTicketPriorityUpdate = async (
@@ -2519,6 +2546,9 @@ export default function HelpDesk() {
       }
     } catch {
       //
+    }
+    finally {
+      setMenuOpen(false);
     }
   };
 
@@ -2643,6 +2673,8 @@ export default function HelpDesk() {
                   ) ?? null
                 }
                 isClosed={activeSupportTicket.status === "closed"}
+                menuOpen={menuOpen}
+                onChangeMenuOpen={setMenuOpen}
               />
             )}
             {(FetchSupportTicketsLoading ||
