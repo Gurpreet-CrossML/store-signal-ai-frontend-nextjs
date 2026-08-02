@@ -27,6 +27,12 @@ export type SupportTicketMessageContentType = "text/plain" | "multipart";
 export type SupportTicketMessageAttachment = "text/plain" | "multipart";
 export type SupportTicketDraftType = "manual" | "ai";
 
+export type SupportSocketPayload = {
+  event?: "ticket_created" | "customer_message";
+  ticket?: SupportTicket;
+  message?: SupportTicketMessage;
+};
+
 export type SupportTicketFilters = {
   status?: SupportTicketStatus;
   search?: string;

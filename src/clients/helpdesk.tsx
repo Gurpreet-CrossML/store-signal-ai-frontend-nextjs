@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef, startTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  startTransition,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
+import { useSession } from "next-auth/react";
 import {
   IconCheck,
   IconChevronDown,
@@ -85,6 +93,7 @@ import { cn } from "@/lib/utils";
 
 import { OrdersCard } from "@/components/custom/thread-detail-panels";
 
+import { ENDPOINTS } from "@/lib/config";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   FetchSupportTickets,
@@ -112,6 +121,7 @@ import {
   type SupportTicketStatus,
   type SupportTicketFilters,
   type SupportTicketStatusCounts,
+  type SupportSocketPayload,
 } from "@/redux/api-slice/support-ticket-slice";
 import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import {
@@ -1684,6 +1694,7 @@ export default function HelpDesk() {
   const activeFilter = searchParams?.get("filter") ?? "";
 
   const dispatch = useAppDispatch();
+  const { data: session } = useSession();
 
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -1728,6 +1739,8 @@ export default function HelpDesk() {
   const [activeSupportTicket, setActiveSupportTicket] =
     useState<SupportTicket | null>(null);
   const currentActiveSupportTicketIdRef = useRef<number | null>(null);
+  const supportSocketRef = useRef<WebSocket | null>(null);
+  const supportSocketReconnectTimerRef = useRef<number | null>(null);
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   const [showTagPicker, setShowTagPicker] = useState(false);
@@ -1765,6 +1778,275 @@ export default function HelpDesk() {
   });
 
   const ticketTags = FetchSupportTicketTagsData?.results;
+
+  const upsertSocketTicket = useCallback(
+    (incomingTicket: SupportTicket) => {
+      setTicketRows((currentRows) => {
+        const existedIndex = currentRows.findIndex(
+          (row) => row.id === incomingTicket.id,
+        );
+
+        if (existedIndex !== -1) {
+          const existingTicket = currentRows[existedIndex];
+          const updatedTicket = {
+            ...existingTicket,
+            ...incomingTicket,
+            tags: incomingTicket.tags.length
+              ? incomingTicket.tags
+              : existingTicket.tags,
+            messages: incomingTicket.messages?.length
+              ? incomingTicket.messages
+              : existingTicket.messages,
+            drafts: incomingTicket.drafts?.length
+              ? incomingTicket.drafts
+              : existingTicket.drafts,
+            last_message:
+              incomingTicket.last_message ??
+              existingTicket.last_message ??
+              incomingTicket.description,
+            last_message_at:
+              incomingTicket.last_message_at ??
+              existingTicket.last_message_at ??
+              incomingTicket.created_at,
+          };
+
+          return currentRows.map((row) =>
+            row.id === incomingTicket.id ? updatedTicket : row,
+          );
+        }
+
+        if (incomingTicket.status !== activeQueue) {
+          return currentRows;
+        }
+
+        return [
+          {
+            ...incomingTicket,
+            tags: incomingTicket.tags ?? [],
+            messages: incomingTicket.messages ?? [],
+            drafts: incomingTicket.drafts ?? [],
+            last_message:
+              incomingTicket.last_message ?? incomingTicket.description,
+            last_message_at:
+              incomingTicket.last_message_at ?? incomingTicket.created_at,
+          },
+          ...currentRows,
+        ];
+      });
+
+      setActiveSupportTicket((current) => {
+        if (!current || current.id !== incomingTicket.id) {
+          return current;
+        }
+
+        return {
+          ...current,
+          ...incomingTicket,
+          tags: incomingTicket.tags.length
+            ? incomingTicket.tags
+            : current.tags,
+          messages: incomingTicket.messages?.length
+            ? incomingTicket.messages
+            : current.messages,
+          drafts: incomingTicket.drafts?.length
+            ? incomingTicket.drafts
+            : current.drafts,
+          last_message:
+            incomingTicket.last_message ?? current.last_message,
+          last_message_at:
+            incomingTicket.last_message_at ?? current.last_message_at,
+        };
+      });
+    },
+    [activeQueue],
+  );
+
+  const appendSocketMessage = useCallback(
+    (ticketId: number, incomingMessage: SupportTicketMessage) => {
+      if (currentActiveSupportTicketIdRef.current !== ticketId) {
+        return;
+      }
+
+      setSupportTicketMessage((currentMessages) => [
+        ...currentMessages,
+        incomingMessage,
+      ]);
+
+      setActiveSupportTicket((current) => {
+        if (!current || current.id !== ticketId) {
+          return current;
+        }
+
+        return {
+          ...current,
+          messages: [...(current.messages ?? []), incomingMessage],
+          last_message: incomingMessage.message,
+          last_message_at: incomingMessage.created_at,
+        };
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!storeCode || !session?.user?.access_token) {
+      if (supportSocketRef.current) {
+        supportSocketRef.current.close();
+        supportSocketRef.current = null;
+      }
+
+      if (supportSocketReconnectTimerRef.current) {
+        window.clearTimeout(supportSocketReconnectTimerRef.current);
+        supportSocketReconnectTimerRef.current = null;
+      }
+
+      return;
+    }
+
+    let isMounted = true;
+
+    const connectSocket = () => {
+      if (!isMounted) return;
+
+      const token = session?.user?.access_token;
+      if (!token) {
+        return;
+      }
+
+      if (supportSocketRef.current) {
+        supportSocketRef.current.close();
+        supportSocketRef.current = null;
+      }
+
+      const socketUrl = ENDPOINTS.supportSocket(storeCode, token);
+      const socket = new WebSocket(socketUrl);
+      supportSocketRef.current = socket;
+
+      socket.onopen = () => {
+        console.info("Support socket connected");
+        if (supportSocketReconnectTimerRef.current) {
+          window.clearTimeout(supportSocketReconnectTimerRef.current);
+          supportSocketReconnectTimerRef.current = null;
+        }
+      };
+
+      socket.onmessage = (event) => {
+        let payload: SupportSocketPayload;
+
+        try {
+          payload = JSON.parse(event.data) as SupportSocketPayload;
+        } catch (error) {
+          console.error("Failed to parse support socket message", error);
+          return;
+        }
+
+        if (!payload.ticket) return;
+
+        if (payload.event === "ticket_created") {
+          upsertSocketTicket(payload.ticket);
+          return;
+        }
+
+        if (payload.event === "customer_message") {
+          const incomingTicket = payload.ticket;
+          const incomingMessage = payload.message;
+
+          if (!incomingMessage) return;
+
+          setTicketRows((currentRows) => {
+            const existingIndex = currentRows.findIndex(
+              (row) => row.id === incomingTicket.id,
+            );
+
+            if (existingIndex !== -1) {
+              const existingTicket = currentRows[existingIndex];
+              const updatedTicket = {
+                ...existingTicket,
+                ...incomingTicket,
+                last_message: incomingMessage.message,
+                last_message_at: incomingMessage.created_at,
+                is_read: incomingTicket.is_read ?? existingTicket.is_read,
+                tags: incomingTicket.tags.length
+                  ? incomingTicket.tags
+                  : existingTicket.tags,
+                messages: existingTicket.messages ?? incomingTicket.messages,
+                drafts: existingTicket.drafts ?? incomingTicket.drafts,
+              };
+
+              const rowsWithoutTicket = currentRows.filter(
+                (row) => row.id !== incomingTicket.id,
+              );
+
+              if (incomingTicket.is_snoozed) {
+                return currentRows.map((row) =>
+                  row.id === incomingTicket.id ? updatedTicket : row,
+                );
+              }
+
+              return [updatedTicket, ...rowsWithoutTicket];
+            }
+
+            if (incomingTicket.status !== activeQueue) {
+              return currentRows;
+            }
+
+            if (incomingTicket.is_snoozed) {
+              return currentRows;
+            }
+
+            return [
+              {
+                ...incomingTicket,
+                tags: incomingTicket.tags ?? [],
+                messages: incomingTicket.messages ?? [],
+                drafts: incomingTicket.drafts ?? [],
+                last_message: incomingMessage.message,
+                last_message_at: incomingMessage.created_at,
+              },
+              ...currentRows,
+            ];
+          });
+
+          if (currentActiveSupportTicketIdRef.current === incomingTicket.id) {
+            appendSocketMessage(incomingTicket.id, incomingMessage);
+            void handleSupportTicketMarkRead();
+          }
+        }
+      };
+
+      socket.onclose = () => {
+        if (supportSocketRef.current === socket) {
+          supportSocketRef.current = null;
+        }
+
+        if (!isMounted) return;
+
+        supportSocketReconnectTimerRef.current = window.setTimeout(() => {
+          connectSocket();
+        }, 5000);
+      };
+
+      socket.onerror = (error) => {
+        // console.error("Support socket error", error);
+      };
+    };
+
+    connectSocket();
+
+    return () => {
+      isMounted = false;
+
+      if (supportSocketReconnectTimerRef.current) {
+        window.clearTimeout(supportSocketReconnectTimerRef.current);
+        supportSocketReconnectTimerRef.current = null;
+      }
+
+      if (supportSocketRef.current) {
+        supportSocketRef.current.close();
+        supportSocketRef.current = null;
+      }
+    };
+  }, [activeQueue, appendSocketMessage, session?.user?.access_token, storeCode, upsertSocketTicket]);
 
   useEffect(() => {
     if (!storeCode) return;

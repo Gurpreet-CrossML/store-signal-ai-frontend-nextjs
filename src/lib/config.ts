@@ -183,6 +183,10 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/tickets/${ticket_id}/status/`, "django"),
   supportTicketPriorityUpdate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/priority/`, "django"),
+
+    // Helpdesk support ticket websocket (Django)
+  supportSocket: (store_code: string, token: string) =>
+    createWebSocketUrl(`/support/${store_code}/?token=${token}`),
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
