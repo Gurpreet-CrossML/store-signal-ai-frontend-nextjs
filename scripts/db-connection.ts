@@ -12,6 +12,7 @@ export function scriptPoolConfig() {
   const sslmode = url.searchParams.get("sslmode");
   // node-postgres doesn't understand libpq's sslmode/channel_binding query
   // params; strip them and drive SSL through the explicit `ssl` option.
+  const sslDisabled = url.searchParams.get("sslmode") === "disable";
   url.searchParams.delete("sslmode");
   url.searchParams.delete("channel_binding");
   return {

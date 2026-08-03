@@ -75,23 +75,6 @@ export const sidebarMenus: SideBarMenus = {
       icon: IconBooks,
     },
     {
-      title: "Social AI",
-      url: "#",
-      icon: IconMessage2,
-      items: [
-        {
-          title: "Facebook DMs",
-          url: "/social-ai/facebook-dms",
-          icon: IconBrandFacebook,
-        },
-        {
-          title: "Instagram DMs",
-          url: "/social-ai/instagram-dms",
-          icon: IconBrandInstagram,
-        },
-      ],
-    },
-    {
       title: "Customisation",
       url: "/customisation",
       icon: IconImageGeneration,

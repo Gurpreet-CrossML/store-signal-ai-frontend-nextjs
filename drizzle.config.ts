@@ -24,6 +24,9 @@ const DB_URL = new URL(process.env.DATABASE_URL!);
 if (DB_URL.searchParams.get("sslmode") !== "disable") {
   DB_URL.searchParams.set("sslmode", "no-verify");
 }
+if (DB_URL.searchParams.get("sslmode") !== "disable") {
+  DB_URL.searchParams.set("sslmode", "no-verify");
+}
 
 export default defineConfig({
   // Overridable so db:check can introspect into a throwaway dir for drift checks.
