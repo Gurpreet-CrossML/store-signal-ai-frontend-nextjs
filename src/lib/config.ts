@@ -183,6 +183,8 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/tickets/${ticket_id}/status/`, "django"),
   supportTicketPriorityUpdate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/priority/`, "django"),
+  supportTicketMessagesTranslate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/messages/translate/`, "django"),
 
   // Helpdesk support ticket websocket (Django)
   supportSocket: (store_code: string, token: string) =>
