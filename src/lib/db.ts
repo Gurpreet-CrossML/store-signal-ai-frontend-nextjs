@@ -7,10 +7,14 @@ import path from "path";
 // params, and `sslmode` in the URL can override (and discard) the explicit
 // `ssl` config below — so strip them and drive SSL ourselves.
 const databaseUrl = new URL(process.env.DATABASE_URL!);
+const sslmode = databaseUrl.searchParams.get("sslmode");
 databaseUrl.searchParams.delete("sslmode");
 databaseUrl.searchParams.delete("channel_binding");
 
 // SSL depends on how we reach Postgres:
+//  - Local Postgres (`sslmode=disable`) doesn't speak TLS at all — forcing
+//    the `ssl` option here makes node-postgres send an SSL negotiation
+//    packet the server rejects outright ("does not support SSL connections").
 //  - Neon (managed, publicly-trusted cert; the host we connect to IS the DB
 //    host) → standard verification against the system CA store.
 //  - Amazon RDS via the nginx TCP passthrough presents RDS's own cert
@@ -19,6 +23,9 @@ databaseUrl.searchParams.delete("channel_binding");
 //    bundle (proves it's a genuine RDS cert, blocks MITM) but skip the hostname
 //    check, which can't pass through the proxy.
 function sslConfig(): PoolConfig["ssl"] {
+  if (sslmode === "disable") {
+    return false;
+  }
   if (databaseUrl.hostname.endsWith(".neon.tech")) {
     return { rejectUnauthorized: true };
   }

@@ -145,7 +145,7 @@ export function SocialChatWindow({
       <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
         <div
           ref={containerRef}
-          className="flex-1 min-h-0 space-y-3 overflow-y-auto p-4"
+          className="h-0 flex-1 space-y-3 overflow-y-auto p-4"
         >
           {localMessages.length > 0 ? (
             localMessages.map((message) => {
