@@ -1326,7 +1326,12 @@ function ConversationPanel({
             onClick={() =>
               aiDraft?.message ? onAcceptDraft() : onAIDraftGenerate()
             }
-            disabled={isAIDraftLoading || isMessageImproving || isClosed || isTranslating}
+            disabled={
+              isAIDraftLoading ||
+              isMessageImproving ||
+              isClosed ||
+              isTranslating
+            }
           >
             <IconMessageChatbot className="size-3" />
             {isAIDraftLoading
@@ -1367,34 +1372,22 @@ function ConversationPanel({
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>
-            {/* <Tooltip delayDuration={500}> */}
-              {/* <TooltipTrigger asChild> */}
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="xs"
-                    className="bg-white"
-                    disabled={isClosed || isTranslating}
-                  >
-                    {isTranslating ? (
-                      <IconLoader2 className="size-3 animate-spin" />
-                    ) : (
-                      <IconLanguage className="size-3" />
-                    )}
-                    {isTranslating ? "Translating..." : "Translate"}
-                    <IconChevronDown className="size-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-              {/* </TooltipTrigger> */}
-
-              {/* <TooltipContent side="top" className="max-w-xs">
-                <p className="text-medium">
-                  Translates all messages in this ticket into the selected language.
-                  Original messages remain unchanged.
-                </p>
-              </TooltipContent> */}
-            {/* </Tooltip> */}
-
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="xs"
+                className="bg-white"
+                disabled={isClosed || isTranslating}
+              >
+                {isTranslating ? (
+                  <IconLoader2 className="size-3 animate-spin" />
+                ) : (
+                  <IconLanguage className="size-3" />
+                )}
+                {isTranslating ? "Translating..." : "Translate"}
+                <IconChevronDown className="size-3" />
+              </Button>
+            </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuLabel>Available languages</DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -1438,7 +1431,9 @@ function ConversationPanel({
             <Button
               size="sm"
               onClick={onSend}
-              disabled={isSending || isMessageImproving || isClosed || isTranslating}
+              disabled={
+                isSending || isMessageImproving || isClosed || isTranslating
+              }
             >
               <IconSend className="size-4" />
               {isSending ? "Sending..." : "Send"}
@@ -1750,7 +1745,8 @@ export default function HelpDesk() {
       state.SupportTicketsSliceReducer.SupportTicketCustomerOrderSyncState,
   );
   const { SupportTicketMessagesTranslateIsLoading } = useAppSelector(
-    (state) => state.SupportTicketsSliceReducer.SupportTicketMessagesTranslateState,
+    (state) =>
+      state.SupportTicketsSliceReducer.SupportTicketMessagesTranslateState,
   );
   const { staff } = useAppSelector((state) => state.GetTenancyReducer);
 
@@ -2871,7 +2867,9 @@ export default function HelpDesk() {
       return;
     }
 
-    const language = translationLanguages.find((language) => language.code === code);
+    const language = translationLanguages.find(
+      (language) => language.code === code,
+    );
 
     if (!language) return;
 
@@ -2899,7 +2897,9 @@ export default function HelpDesk() {
 
         const applyTranslations = (messages: SupportTicketMessage[] = []) =>
           messages.map((message) => {
-            const translatedMessage = translatedMessageMap.get(String(message.id));
+            const translatedMessage = translatedMessageMap.get(
+              String(message.id),
+            );
 
             return translatedMessage
               ? {

@@ -802,14 +802,7 @@ export const SupportTicketMessagesTranslate = createAsyncThunk<
   }
 >(
   "SupportTicketMessagesTranslate",
-  async (
-    {
-      storeCode,
-      ticketId,
-      payload,
-    },
-    thunkAPI,
-  ) => {
+  async ({ storeCode, ticketId, payload }, thunkAPI) => {
     try {
       const response = await axiosInstance.post(
         `${ENDPOINTS.supportTicketMessagesTranslate(ticketId)}?store_code=${storeCode}`,
