@@ -79,6 +79,7 @@ export const ENDPOINTS = {
   fetchConversaionRateData: () => "/analytics/conversion-rate",
   fetchQueryCategoryInsights: () => "/analytics/query-category-insights",
   fetchConversationHistory: () => "/analytics/chat-history",
+  fetchAIUsage: () => "/analytics/ai-usage",
 
   // Thread-level Analytics (local GETs — no trailing slash).
   fetchThreads: () => "/analytics/threads",
