@@ -257,11 +257,11 @@ function TicketRow({
         >
           {customerName}
         </p>
-        <p className="mt-0.5 truncate text-xs text-slate-400">
+        <div className="mt-0.5 truncate text-xs text-slate-400 [&_p]:inline">
           <ReactMarkdown>
             {ticket.last_message || ticket.description}
           </ReactMarkdown>
-        </p>
+        </div>
 
         {(visibleTags?.length ?? 0) > 0 || (hiddenTags?.length ?? 0) > 0 ? (
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
@@ -480,7 +480,7 @@ function TicketListPanel({
     Number(Boolean(filters.fromDate || filters.toDate));
 
   return (
-    <section className="hidden w-[336px] shrink-0 border-r bg-white md:block">
+    <section className="hidden h-full min-h-0 w-[336px] shrink-0 flex-col border-r bg-white md:flex">
       <div className="flex h-14 items-center justify-between border-b px-4">
         <h2 className="font-medium text-slate-950">Your inbox</h2>
       </div>
@@ -664,7 +664,7 @@ function TicketListPanel({
           ) : null}
         </div>
       </div>
-      <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {isLoading && rows?.length === 0 ? (
           <div className="flex min-h-[360px] items-center justify-center px-4 py-8">
             <div className="text-center">
@@ -2176,7 +2176,7 @@ export default function HelpDesk() {
       FetchSupportTicketTags({
         storeCode,
         page: tagPage,
-        limit: 20,
+        limit: 15,
         append: tagPage > 1,
       }),
     );
