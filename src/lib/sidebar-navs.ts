@@ -11,7 +11,6 @@ import {
   IconMessageUser,
   IconSearch,
   IconSettings,
-  IconShoppingBag,
   IconUserHexagon,
   IconVolume,
   IconBolt,
@@ -38,6 +37,7 @@ export type SideBarMenuItem = {
   url: string;
   icon: Icon;
   count?: number; // Optional property for count
+  isMenuHeading?: boolean; // Optional property to indicate if the menu item is a heading
   isExpanded?: boolean; // Optional property to indicate if the menu item is expanded
   items?: SideBarMenuItem[]; // Optional property for nested items
 };
@@ -212,6 +212,7 @@ export const sidebarMenus: SideBarMenus = {
       title: "Brand Voice",
       url: "#",
       icon: IconVolume,
+      isMenuHeading: true,
       isExpanded: true,
       items: [
         {
@@ -229,11 +230,6 @@ export const sidebarMenus: SideBarMenus = {
           url: "/brand-voice/vocabulary",
           icon: IconBook2,
         },
-        // {
-        //   title: "Selling Style",
-        //   url: "/brand-voice/selling-style",
-        //   icon: IconShoppingBag,
-        // },
         {
           title: "Never-Say Rules",
           url: "/brand-voice/never-say-rules",
@@ -243,8 +239,16 @@ export const sidebarMenus: SideBarMenus = {
     },
     {
       title: "Settings",
-      url: "/settings",
+      url: "#",
       icon: IconSettings,
+      isMenuHeading: true,
+      items: [
+        {
+          title: "Settings",
+          url: "/settings",
+          icon: IconSettings,
+        }
+      ],
     },
   ],
 
