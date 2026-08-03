@@ -4,12 +4,6 @@ import {
   IconBrandInstagram,
   IconBrandWhatsapp,
 } from "@tabler/icons-react";
-import {
-  Icon,
-  IconBrandFacebook,
-  IconBrandInstagram,
-  IconBrandWhatsapp,
-} from "@tabler/icons-react";
 
 const DJANGO_BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000";
@@ -331,34 +325,22 @@ export const SocialAIPlatformOptions: {
   readonly [key: string]: { label: string; icon: Icon; color: string };
 } = {
   facebook: {
-export const SocialAIPlatformOptions: {
-  readonly [key: string]: { label: string; icon: Icon; color: string };
-} = {
-  facebook: {
     label: "Facebook",
     icon: IconBrandFacebook,
     color: "text-[#1877F2]",
-    color: "text-[#1877F2]",
   },
-  instagram: {
   instagram: {
     label: "Instagram",
     icon: IconBrandInstagram,
     color: "text-[#E4405F]",
-    color: "text-[#E4405F]",
   },
-  whatsapp: {
   whatsapp: {
     label: "WhatsApp",
     icon: IconBrandWhatsapp,
     color: "text-[#25D366]",
-    color: "text-[#25D366]",
   },
 };
 
-export const StatusBadges: {
-  readonly [key: string]: { label: string; bg: string; text: string };
-} = {
 export const StatusBadges: {
   readonly [key: string]: { label: string; bg: string; text: string };
 } = {
