@@ -146,15 +146,11 @@ export const ENDPOINTS = {
 
   // Social AI (Django via useBackend — keep trailing slash).
   createMetaOAuthUrl: () => `/social/meta/oauth/`,
-  fetchSocialAccountsSubscriptions: () =>
-    `/social/subscriptions/connected-accounts/`,
-  fetchFacebookPages: () => `/social/facebook/pages`,
-  fetchFacebookPosts: () => `/social/facebook/posts`,
-  fetchFacebookComments: () => `/social/facebook/comments`,
+  fetchSocialAccountsSubscriptions: () => `/social/subscriptions/connected-accounts/`,
+  fetchMetaPages: () => `/social/meta/pages/`,
+  fetchSocialPosts: ({accountId}: {accountId: string}) => `/social/meta/pages/${accountId}/posts/`,
+  fetchPostComments: ({postId}: {postId: string}) => `/social/meta/posts/${postId}/comments/`,
   fetchFacebookDms: () => `/social/facebook/dms`,
-  fetchInstagramPages: () => `/social/instagram/pages`,
-  fetchInstagramPosts: () => `/social/instagram/posts`,
-  fetchInstagramComments: () => `/social/instagram/comments`,
   fetchInstagramDms: () => `/social/instagram/dms`,
   likeMessage: (messageId: string) =>
     `/social/meta/messages/${messageId}/like/`,

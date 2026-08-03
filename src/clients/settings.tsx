@@ -22,7 +22,7 @@ import StoreIntegrationsTabContent from "@/components/custom/store-integrations-
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import SocialAITabContent from "@/components/custom/social-ai/store-social-ai-tab-content";
+import SocialAITabContent from "@/components/custom/settings/social-ai/store-social-ai-tab-content";
 import { useAppSelector } from "@/redux/hooks";
 
 const SETTINGSNAV = [

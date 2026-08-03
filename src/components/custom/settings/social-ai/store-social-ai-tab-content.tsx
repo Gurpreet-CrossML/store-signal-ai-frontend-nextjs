@@ -32,7 +32,7 @@ export default function SocialAITabContent(
 ) {
     const dispatch = useAppDispatch();
     const searchParams = useSearchParams();
-    const { FetchMetaOauthURLData, FetchMetaOauthURLIsLoading } = useAppSelector(
+    const { FetchMetaOauthURLIsLoading } = useAppSelector(
         (state) => state.GetSocialAIReducer.FetchMetaOauthURLState,
     );
     const { FetchSocialAccountsSubscriptionsData, FetchSocialAccountsSubscriptionsIsLoading } = useAppSelector(
@@ -53,9 +53,26 @@ export default function SocialAITabContent(
     const [activeTab, setActiveTab] = useState("all");
     const [search, setSearch] = useState("");
 
-    const handleConnectMeta = () => {
+    // Fetch the authorize URL and open it in the SAME click flow — routing
+    // it through the store + an effect made the popup re-open on every tab
+    // mount, since the last URL never left the store.
+    const handleConnectMeta = async () => {
         try {
-            dispatch(createMetaOAuthUrl(storeCode));
+            const data = await dispatch(createMetaOAuthUrl(storeCode)).unwrap();
+            if (!data?.authorize_url) return;
+            // A features string makes window.open spawn a popup window;
+            // without one the browser opens a full tab instead. Centered on
+            // the parent window; the fixed name reuses the same popup if
+            // "Connect" is clicked again instead of stacking new ones.
+            const width = 600;
+            const height = 750;
+            const left = window.screenX + (window.outerWidth - width) / 2;
+            const top = window.screenY + (window.outerHeight - height) / 2;
+            window.open(
+                data.authorize_url,
+                "meta-oauth-connect",
+                `popup=yes,width=${width},height=${height},left=${left},top=${top}`,
+            );
         } catch (error) {
             console.error("Failed to connect Meta:", error);
         }
@@ -66,12 +83,6 @@ export default function SocialAITabContent(
             dispatch(fetchSocialAccountsSubscriptions(storeCode));
         }
     }
-
-    useEffect(() => {
-        if (FetchMetaOauthURLData?.authorize_url) {
-            window.open(FetchMetaOauthURLData.authorize_url, "_blank");
-        }
-    }, [FetchMetaOauthURLData]);
 
     useEffect(() => {
         if (storeCode) {

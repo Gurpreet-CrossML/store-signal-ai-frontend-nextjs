@@ -5,14 +5,17 @@ import {
   IconBooks,
   IconBrandFacebook,
   IconBrandInstagram,
+  IconBrandMessenger,
+  IconBrandMeta,
   IconDashboard,
   IconHelp,
   IconImageGeneration,
   IconMessage2,
   IconMessageUser,
+  IconPhotoVideo,
   IconSearch,
+  IconSend,
   IconSettings,
-  IconShoppingBag,
   IconUserHexagon,
   IconVolume,
   type Icon,
@@ -22,6 +25,7 @@ export type SideBarMenuItem = {
   title: string;
   url: string;
   icon: Icon;
+  isMenuHeading?: boolean; // Optional property to indicate if the menu item is a heading
   isExpanded?: boolean; // Optional property to indicate if the menu item is expanded
   items?: SideBarMenuItem[]; // Optional property for nested items
 };
@@ -92,6 +96,51 @@ export const sidebarMenus: SideBarMenus = {
       url: "/customisation",
       icon: IconImageGeneration,
     },
+    {
+      title: "Social AI",
+      url: "#",
+      icon: IconBrandMeta,
+      isMenuHeading: true,
+      isExpanded: true,
+      items: [
+        {
+          title: "Facebook",
+          url: "#",
+          icon: IconBrandFacebook,
+          isExpanded: true,
+          items: [
+            {
+              title: "Facebook Posts",
+              url: "/social-ai/facebook-post",
+              icon: IconPhotoVideo,
+            },
+            {
+              title: "Facebook Messages",
+              url: "/social-ai/facebook-messages",
+              icon: IconBrandMessenger,
+            },
+          ],
+        },
+        {
+          title: "Instagram",
+          url: "#",
+          icon: IconBrandInstagram,
+          isExpanded: true,
+          items: [
+            {
+              title: "Instagram Posts",
+              url: "/social-ai/instagram-post",
+              icon: IconPhotoVideo,
+            },
+            {
+              title: "Instagram Messages",
+              url: "/social-ai/instagram-messages",
+              icon: IconSend,
+            },
+          ],
+        },
+      ],
+    },
   ],
 
   // Company-admin only (is_staff). Gated in AppSidebar by the session role.
@@ -100,6 +149,7 @@ export const sidebarMenus: SideBarMenus = {
       title: "Brand Voice",
       url: "#",
       icon: IconVolume,
+      isMenuHeading: true,
       isExpanded: true,
       items: [
         {
@@ -117,11 +167,6 @@ export const sidebarMenus: SideBarMenus = {
           url: "/brand-voice/vocabulary",
           icon: IconBook2,
         },
-        // {
-        //   title: "Selling Style",
-        //   url: "/brand-voice/selling-style",
-        //   icon: IconShoppingBag,
-        // },
         {
           title: "Never-Say Rules",
           url: "/brand-voice/never-say-rules",
@@ -131,8 +176,16 @@ export const sidebarMenus: SideBarMenus = {
     },
     {
       title: "Settings",
-      url: "/settings",
+      url: "#",
       icon: IconSettings,
+      isMenuHeading: true,
+      items: [
+        {
+          title: "Settings",
+          url: "/settings",
+          icon: IconSettings,
+        }
+      ],
     },
   ],
 
