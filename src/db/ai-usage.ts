@@ -36,6 +36,7 @@ export type AIUsageSummary = {
 };
 
 export type AIUsageCharts = {
+  daily_usage: { date: string; usage: number; consumption: number }[];
   workflow_costs: { workflow: string; cost: number }[];
   agent_calls: { agent: string; calls: number }[];
   model_tokens: {
@@ -173,11 +174,32 @@ export async function listAIUsage(
     .orderBy(sql`date_trunc('day', ${aiUsage.createdAt})`)
     .limit(90);
 
+  const dailyUsage = await db
+    .select({
+      date: sql<string>`to_char(date_trunc('day', ${aiUsage.createdAt}), 'YYYY-MM-DD')`,
+      usage: sql<number>`count(*)::int`,
+      consumption: sql<number>`coalesce(sum(${aiUsage.totalTokens}), 0)::bigint`,
+    })
+    .from(aiUsage)
+    .innerJoin(chatHistory, eq(aiUsage.chatHistoryId, chatHistory.id))
+    .innerJoin(chatThread, eq(chatHistory.threadId, chatThread.id))
+    .where(where)
+    .groupBy(sql`date_trunc('day', ${aiUsage.createdAt})`)
+    .orderBy(desc(sql`date_trunc('day', ${aiUsage.createdAt})`))
+    .limit(90);
+
   return {
     count: summary.total_records,
     results: rows,
     summary,
     charts: {
+      daily_usage: dailyUsage
+        .map((item) => ({
+          date: item.date,
+          usage: Number(item.usage),
+          consumption: Number(item.consumption),
+        }))
+        .reverse(),
       workflow_costs: workflowCosts.map((item) => ({
         workflow: item.workflow || "Unspecified",
         cost: Number(item.cost),

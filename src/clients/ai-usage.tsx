@@ -9,7 +9,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 
-import AIUsageCharts from "@/components/custom/ai-usage-charts";
+import AIUsageCharts from "@/components/custom/ai-usage/ai-usage-charts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";

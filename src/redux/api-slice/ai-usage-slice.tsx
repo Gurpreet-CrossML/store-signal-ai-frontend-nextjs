@@ -32,6 +32,7 @@ export type AIUsageResponse = {
   results: AIUsageRow[];
   summary: AIUsageSummary;
   charts: {
+    daily_usage: { date: string; usage: number; consumption: number }[];
     workflow_costs: { workflow: string; cost: number }[];
     agent_calls: { agent: string; calls: number }[];
     model_tokens: {
@@ -99,6 +100,7 @@ const slice = createSlice({
       results: [],
       summary: emptySummary,
       charts: {
+        daily_usage: [],
         workflow_costs: [],
         agent_calls: [],
         model_tokens: [],
