@@ -877,6 +877,16 @@ function ConversationPanel({
               />
               <ComboboxContent>
                 <ComboboxEmpty>No items found.</ComboboxEmpty>
+                <div className="p-1">
+                  {ticket?.internal_assignee?.id && (
+                    <ComboboxItem
+                      className="hover:bg-muted"
+                      onClick={() => onAssignStaff(null)}
+                    >
+                      Unassign
+                    </ComboboxItem>
+                  )}
+                </div>
                 <ComboboxList>
                   {(staff) => (
                     <ComboboxItem
@@ -2424,7 +2434,6 @@ export default function HelpDesk() {
   };
 
   const handleStaffAssign = async (staffId: number | null) => {
-    alert();
     if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
 
     try {
