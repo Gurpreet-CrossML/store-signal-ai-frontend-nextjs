@@ -1,6 +1,6 @@
 "use client";
 
-import { IconChevronRight } from "@tabler/icons-react";
+import { Icon, IconChevronRight } from "@tabler/icons-react";
 
 import {
   Select,
@@ -14,6 +14,7 @@ import {
 import {
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -22,7 +23,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
@@ -30,7 +31,7 @@ import {
   setSelectedStore,
   SELECTED_STORE_KEY,
 } from "@/redux/api-slice/stores-slice";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { SideBarMenuItem } from "@/lib/sidebar-navs";
 import {
   Collapsible,
@@ -94,8 +95,132 @@ function StoreSelector() {
   );
 }
 
+function CollapsibleMenuItem({
+  pathname,
+  title,
+  icon: ItemIcon,
+  defaultOpen,
+  items,
+}: {
+  pathname: string | null;
+  title: string;
+  icon?: Icon;
+  defaultOpen?: boolean;
+  items?: SideBarMenuItem[];
+}) {
+  return (
+    <Collapsible
+      asChild
+      defaultOpen={defaultOpen}
+      className="group/collapsible"
+    >
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton tooltip={title}>
+            {ItemIcon && <ItemIcon />}
+            <span>{title}</span>
+            <IconChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            {items?.map((subItem) => (
+              <SidebarMenuSubItem key={subItem.title}>
+                <SidebarMenuSubButton
+                  className={cn(
+                    pathname == subItem.url
+                      ? "min-w-8 bg-purple-200 text-primary duration-200 ease-linear hover:bg-purple-200/90 hover:text-primary active:bg-purple-200/90 active:text-primary"
+                      : "",
+                  )}
+                  asChild
+                >
+                  <Link href={subItem.url}>
+                    {subItem.icon && (
+                      <subItem.icon
+                        className={cn(
+                          pathname == subItem.url ? "text-primary!" : "",
+                        )}
+                      />
+                    )}
+                    <span>{subItem.title}</span>
+                  </Link>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            ))}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
+  );
+}
+
+function SidebarMenuItemWrapper({
+  item,
+  pathname,
+}: {
+  item: SideBarMenuItem;
+  pathname: string | null;
+}) {
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        tooltip={item.title}
+        className={cn(
+          pathname == item.url
+            ? "min-w-8 bg-purple-200 text-primary duration-200 ease-linear hover:bg-purple-200/90 hover:text-primary active:bg-primary/90 active:text-primary"
+            : "",
+        )}
+        asChild
+      >
+        <Link href={item.url}>
+          {item.icon && <item.icon />}
+          <span>{item.title}</span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+function SidebarGroupWrapper({
+  item,
+  pathname,
+}: {
+  item: SideBarMenuItem;
+  pathname: string | null;
+}) {
+  return (
+    <SidebarGroup className="-ml-2">
+      <SidebarGroupLabel>{item.title}</SidebarGroupLabel>
+      <SidebarGroupContent className="flex flex-col gap-2">
+        <SidebarMenu>
+          {item.items?.map((subItem) => (
+            <SidebarMenuItemWrapper
+              key={subItem.title}
+              item={subItem}
+              pathname={pathname}
+            />
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
 export function NavMain({ items }: { items: SideBarMenuItem[] }) {
+  return (
+    <Suspense fallback={null}>
+      <NavMainContent items={items} />
+    </Suspense>
+  );
+}
+
+function NavMainContent({ items }: { items: SideBarMenuItem[] }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const currentUrl = searchParams?.toString()
+    ? `${pathname}?${searchParams.toString()}`
+    : pathname;
 
   return (
     <SidebarGroup>
@@ -103,72 +228,35 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
         <StoreSelector />
         <SidebarMenu>
           {items.map((item) => {
-            if (item.items && item.items.length > 0) {
+            if (item.items && item.items.length > 0 && item.isMenuHeading) {
               return (
-                <Collapsible
+                <SidebarGroupWrapper
                   key={item.title}
-                  asChild
-                  defaultOpen={item.isExpanded}
-                  className="group/collapsible"
-                >
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton tooltip={item.title}>
-                        {item.icon && <item.icon />}
-                        <span>{item.title}</span>
-                        <IconChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
-                        {item.items?.map((subItem) => (
-                          <SidebarMenuSubItem key={subItem.title}>
-                            <SidebarMenuSubButton
-                              className={cn(
-                                pathname == subItem.url
-                                  ? "min-w-8 bg-purple-200 text-primary duration-200 ease-linear hover:bg-purple-200/90 hover:text-primary active:bg-purple-200/90 active:text-primary"
-                                  : "",
-                              )}
-                              asChild
-                            >
-                              <Link href={subItem.url}>
-                                {subItem.icon && (
-                                  <subItem.icon
-                                    className={cn(
-                                      pathname == subItem.url
-                                        ? "text-primary!"
-                                        : "",
-                                    )}
-                                  />
-                                )}
-                                <span>{subItem.title}</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
+                  item={item}
+                  pathname={currentUrl}
+                />
               );
             }
+
+            if (item.items && item.items.length > 0) {
+              return (
+                <CollapsibleMenuItem
+                  key={item.title}
+                  pathname={currentUrl}
+                  title={item.title}
+                  icon={item.icon}
+                  defaultOpen={item.isExpanded}
+                  items={item.items}
+                />
+              );
+            }
+
             return (
-              <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton
-                  tooltip={item.title}
-                  className={cn(
-                    pathname == item.url
-                      ? "min-w-8 bg-purple-200 text-primary duration-200 ease-linear hover:bg-purple-200/90 hover:text-primary active:bg-primary/90 active:text-primary"
-                      : "",
-                  )}
-                  asChild
-                >
-                  <Link href={item.url}>
-                    {item.icon && <item.icon />}
-                    <span>{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <SidebarMenuItemWrapper
+                key={item.title}
+                item={item}
+                pathname={currentUrl}
+              />
             );
           })}
         </SidebarMenu>

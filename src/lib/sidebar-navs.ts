@@ -5,21 +5,29 @@ import {
   IconBooks,
   IconDashboard,
   IconHelp,
+  IconHeadset,
   IconImageGeneration,
   IconMessage2,
   IconMessageUser,
   IconSearch,
   IconSettings,
-  IconShoppingBag,
   IconUserHexagon,
   IconVolume,
+  IconInbox,
+  IconTags,
   type Icon,
+  IconUser,
+  IconPackageOff,
+  IconCreditCardOff,
+  IconArrowsExchange,
+  IconAlarmSnoozeFilled,
 } from "@tabler/icons-react";
 
 export type SideBarMenuItem = {
   title: string;
   url: string;
   icon: Icon;
+  isMenuHeading?: boolean; // Optional property to indicate if the menu item is a heading
   isExpanded?: boolean; // Optional property to indicate if the menu item is expanded
   items?: SideBarMenuItem[]; // Optional property for nested items
 };
@@ -78,9 +86,54 @@ export const sidebarMenus: SideBarMenus = {
   // Company-admin only (is_staff). Gated in AppSidebar by the session role.
   navAdmin: [
     {
+      title: "Help Desk",
+      url: "#",
+      icon: IconHeadset,
+      isMenuHeading: true,
+      isExpanded: true,
+      items: [
+        {
+          title: "All Open",
+          url: "/helpdesk",
+          icon: IconInbox,
+        },
+        {
+          title: "Unassigned",
+          url: "/helpdesk?filter=unassigned",
+          icon: IconUser,
+        },
+        {
+          title: "Snoozed",
+          url: "/helpdesk?filter=snoozed",
+          icon: IconAlarmSnoozeFilled,
+        },
+        {
+          title: "Order Return",
+          icon: IconPackageOff,
+          url: "/helpdesk?filter=Order_Return",
+        },
+        {
+          title: "Payment Failed",
+          icon: IconCreditCardOff,
+          url: "/helpdesk?filter=Payment_Failed",
+        },
+        {
+          title: "Exchange Request",
+          icon: IconArrowsExchange,
+          url: "/helpdesk?filter=Exchange_Request",
+        },
+        {
+          title: "Tags",
+          icon: IconTags,
+          url: "/helpdesk/tags",
+        },
+      ],
+    },
+    {
       title: "Brand Voice",
       url: "#",
       icon: IconVolume,
+      isMenuHeading: true,
       isExpanded: true,
       items: [
         {
@@ -98,11 +151,6 @@ export const sidebarMenus: SideBarMenus = {
           url: "/brand-voice/vocabulary",
           icon: IconBook2,
         },
-        // {
-        //   title: "Selling Style",
-        //   url: "/brand-voice/selling-style",
-        //   icon: IconShoppingBag,
-        // },
         {
           title: "Never-Say Rules",
           url: "/brand-voice/never-say-rules",
@@ -112,8 +160,16 @@ export const sidebarMenus: SideBarMenus = {
     },
     {
       title: "Settings",
-      url: "/settings",
+      url: "#",
       icon: IconSettings,
+      isMenuHeading: true,
+      items: [
+        {
+          title: "Settings",
+          url: "/settings",
+          icon: IconSettings,
+        },
+      ],
     },
   ],
 
