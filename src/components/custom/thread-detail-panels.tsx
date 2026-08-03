@@ -662,7 +662,7 @@ export function OrdersCard({
         <CardHeader className="flex items-center justify-between p-0">
           <CardTitle className="flex items-center gap-2">
             <IconPackage className="h-4 w-4" />
-            Orders ({orderList?.length})
+            Orders{orderList?.length ? ` (${orderList.length})` : ""}
           </CardTitle>
           <Button
             type="button"
@@ -677,11 +677,11 @@ export function OrdersCard({
           <p className="text-sm text-muted-foreground italic">
             Loading orders…
           </p>
-        ) : orderList?.length === 0 ? (
+        ) : !orderList || orderList?.length === 0 ? (
           <p className="text-sm text-muted-foreground italic">
             {!custometData?.email
               ? "Customer not registered."
-              : "No orders found. Click Sync to fetch them."}
+              : "No orders found."}
           </p>
         ) : (
           <div className="space-y-1.5">
