@@ -9,6 +9,7 @@ import {
   IconBrandMeta,
   IconDashboard,
   IconHelp,
+  IconHeadset,
   IconImageGeneration,
   IconMessage2,
   IconMessageUser,
@@ -18,7 +19,14 @@ import {
   IconSettings,
   IconUserHexagon,
   IconVolume,
+  IconInbox,
+  IconTags,
   type Icon,
+  IconUser,
+  IconPackageOff,
+  IconCreditCardOff,
+  IconArrowsExchange,
+  IconAlarmSnoozeFilled,
 } from "@tabler/icons-react";
 
 export type SideBarMenuItem = {
@@ -129,6 +137,50 @@ export const sidebarMenus: SideBarMenus = {
   // Company-admin only (is_staff). Gated in AppSidebar by the session role.
   navAdmin: [
     {
+      title: "Help Desk",
+      url: "#",
+      icon: IconHeadset,
+      isMenuHeading: true,
+      isExpanded: true,
+      items: [
+        {
+          title: "All Open",
+          url: "/helpdesk",
+          icon: IconInbox,
+        },
+        {
+          title: "Unassigned",
+          url: "/helpdesk?filter=unassigned",
+          icon: IconUser,
+        },
+        {
+          title: "Snoozed",
+          url: "/helpdesk?filter=snoozed",
+          icon: IconAlarmSnoozeFilled,
+        },
+        {
+          title: "Order Return",
+          icon: IconPackageOff,
+          url: "/helpdesk?filter=Order_Return",
+        },
+        {
+          title: "Payment Failed",
+          icon: IconCreditCardOff,
+          url: "/helpdesk?filter=Payment_Failed",
+        },
+        {
+          title: "Exchange Request",
+          icon: IconArrowsExchange,
+          url: "/helpdesk?filter=Exchange_Request",
+        },
+        {
+          title: "Tags",
+          icon: IconTags,
+          url: "/helpdesk/tags",
+        },
+      ],
+    },
+    {
       title: "Brand Voice",
       url: "#",
       icon: IconVolume,
@@ -167,7 +219,7 @@ export const sidebarMenus: SideBarMenus = {
           title: "Settings",
           url: "/settings",
           icon: IconSettings,
-        }
+        },
       ],
     },
   ],

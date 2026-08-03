@@ -57,6 +57,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
+import { formatRelativeDateTime } from "@/lib/helpers";
 
 // Extends the shared Thread type with a local read-state flag. Ideally
 // `is_read` becomes a real field on Thread (and maybe comes from the API),
@@ -68,29 +69,6 @@ function normalizeThreads(threads: Thread[] | undefined) {
     ...thread,
     is_read: (thread as ThreadWithReadState).is_read ?? true,
   }));
-}
-
-function formatRelativeTime(value: string | null | undefined) {
-  if (!value) return "—";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-
-  const diffMs = Date.now() - date.getTime();
-  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
-
-  if (diffMinutes < 60) return `${diffMinutes}m`;
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h`;
-
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}d`;
-
-  const diffWeeks = Math.floor(diffDays / 7);
-  if (diffWeeks < 4) return `${diffWeeks}w`;
-
-  return `${Math.max(1, Math.floor(diffDays / 30))}mo`;
 }
 
 // Deterministic avatar accent so the same customer always gets the same color.
@@ -1282,7 +1260,7 @@ export default function Support() {
                               </p>
                             </div>
                             <span className="shrink-0 text-[11px] text-muted-foreground">
-                              {formatRelativeTime(thread.created_at)}
+                              {formatRelativeDateTime(thread.created_at)}
                             </span>
                           </div>
                           <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">

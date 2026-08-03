@@ -17,6 +17,7 @@
     "db:smoke": "node --env-file-if-exists=.env --import tsx scripts/smoke-tenant.ts"
   },
   "dependencies": {
+    "@base-ui/react": "^1.6.0",
     "@ckeditor/ckeditor5-react": "^11.1.2",
     "@reduxjs/toolkit": "^2.12.0",
     "@tabler/icons-react": "^3.44.0",
@@ -25,6 +26,7 @@
     "ckeditor5": "^48.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "drizzle-orm": "^0.45.2",
     "embla-carousel-react": "^8.6.0",
     "emoji-picker-react": "^4.19.1",
