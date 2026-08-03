@@ -70,6 +70,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
   HoverCard,
@@ -107,6 +108,7 @@ import {
   SupportTicketCustomerOrderSync,
   SupportTicketStatusUpdate,
   SupportTicketPriorityUpdate,
+  SupportTicketMessagesTranslate,
   type SupportTicket,
   type SupportTicketChannel,
   type SupportTicketPriority,
@@ -147,6 +149,29 @@ const SNOOZE_PRESETS = [
   { label: "1 day", ms: 24 * 60 * 60 * 1000 },
   { label: "1 week", ms: 7 * 24 * 60 * 60 * 1000 },
   { label: "1 month", ms: 30 * 24 * 60 * 60 * 1000 },
+];
+
+// Message transalte languages
+const translationLanguages = [
+  { code: "en", name: "English" },
+  { code: "es", name: "Spanish" },
+  { code: "fr", name: "French" },
+  { code: "de", name: "German" },
+  { code: "it", name: "Italian" },
+  { code: "ru", name: "Russian" },
+  { code: "uk", name: "Ukrainian" },
+  { code: "tr", name: "Turkish" },
+  { code: "ar", name: "Arabic" },
+  { code: "hi", name: "Hindi" },
+  { code: "bn", name: "Bengali" },
+  { code: "ur", name: "Urdu" },
+  { code: "ta", name: "Tamil" },
+  { code: "te", name: "Telugu" },
+  { code: "mr", name: "Marathi" },
+  { code: "gu", name: "Gujarati" },
+  { code: "kn", name: "Kannada" },
+  { code: "ml", name: "Malayalam" },
+  { code: "pa", name: "Punjabi" },
 ];
 
 const priorityBadgeClass = {
@@ -732,6 +757,8 @@ function ConversationPanel({
   isClosed,
   menuOpen,
   onChangeMenuOpen,
+  onTranslate,
+  isTranslating,
 }: {
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
@@ -764,6 +791,8 @@ function ConversationPanel({
   isClosed: boolean;
   menuOpen: boolean;
   onChangeMenuOpen: (value: boolean) => void;
+  onTranslate: (code: string) => void;
+  isTranslating: boolean;
 }) {
   const [tagSearch, setTagSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -1297,7 +1326,7 @@ function ConversationPanel({
             onClick={() =>
               aiDraft?.message ? onAcceptDraft() : onAIDraftGenerate()
             }
-            disabled={isAIDraftLoading || isClosed}
+            disabled={isAIDraftLoading || isMessageImproving || isClosed || isTranslating}
           >
             <IconMessageChatbot className="size-3" />
             {isAIDraftLoading
@@ -1306,19 +1335,10 @@ function ConversationPanel({
                 ? "Accept AI draft"
                 : "Generate AI draft"}
           </Button>
-          <Button
-            variant="outline"
-            size="xs"
-            className="bg-white"
-            disabled={isClosed}
-          >
-            <IconGift className="size-3" />
-            Macro
-          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                disabled={isMessageImproving || isClosed}
+                disabled={isMessageImproving || isClosed || isTranslating}
                 variant="outline"
                 size="xs"
               >
@@ -1346,15 +1366,49 @@ function ConversationPanel({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button
-            variant="outline"
-            size="xs"
-            className="bg-white"
-            disabled={isClosed}
-          >
-            <IconLanguage className="size-3" />
-            Translate
-          </Button>
+          <DropdownMenu>
+            {/* <Tooltip delayDuration={500}> */}
+              {/* <TooltipTrigger asChild> */}
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    className="bg-white"
+                    disabled={isClosed || isTranslating}
+                  >
+                    {isTranslating ? (
+                      <IconLoader2 className="size-3 animate-spin" />
+                    ) : (
+                      <IconLanguage className="size-3" />
+                    )}
+                    {isTranslating ? "Translating..." : "Translate"}
+                    <IconChevronDown className="size-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+              {/* </TooltipTrigger> */}
+
+              {/* <TooltipContent side="top" className="max-w-xs">
+                <p className="text-medium">
+                  Translates all messages in this ticket into the selected language.
+                  Original messages remain unchanged.
+                </p>
+              </TooltipContent> */}
+            {/* </Tooltip> */}
+
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel>Available languages</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+
+              {translationLanguages.map((language) => (
+                <DropdownMenuItem
+                  key={language.code}
+                  onClick={() => onTranslate(language.code)}
+                >
+                  {language.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <div className="composer-editor rounded-lg border bg-white text-sm">
           <CKEditorTextArea
@@ -1362,7 +1416,7 @@ function ConversationPanel({
             value={reply}
             onChange={onReplyChange}
             useMarkdown
-            disabled={isMessageImproving || isClosed}
+            disabled={isMessageImproving || isClosed || isTranslating}
             placeholder={
               composerMode === "note"
                 ? "Write an internal note..."
@@ -1377,14 +1431,14 @@ function ConversationPanel({
               size="sm"
               className="bg-white"
               onClick={onSaveDraft}
-              disabled={isClosed}
+              disabled={isClosed || isTranslating}
             >
               Save draft
             </Button>
             <Button
               size="sm"
               onClick={onSend}
-              disabled={isSending || isMessageImproving || isClosed}
+              disabled={isSending || isMessageImproving || isClosed || isTranslating}
             >
               <IconSend className="size-4" />
               {isSending ? "Sending..." : "Send"}
@@ -1695,6 +1749,9 @@ export default function HelpDesk() {
     (state) =>
       state.SupportTicketsSliceReducer.SupportTicketCustomerOrderSyncState,
   );
+  const { SupportTicketMessagesTranslateIsLoading } = useAppSelector(
+    (state) => state.SupportTicketsSliceReducer.SupportTicketMessagesTranslateState,
+  );
   const { staff } = useAppSelector((state) => state.GetTenancyReducer);
 
   const [ticketRows, setTicketRows] = useState<SupportTicket[]>([]);
@@ -1702,7 +1759,7 @@ export default function HelpDesk() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
   const [activeQueue, setActiveQueue] = useState<SupportTicketStatus>("open");
-  const [supportTikcetMessages, setSupportTicketMessage] = useState<
+  const [supportTikcetMessages, setSupportTicketMessages] = useState<
     SupportTicketMessage[]
   >([]);
   const [activeSupportTicket, setActiveSupportTicket] =
@@ -1833,7 +1890,7 @@ export default function HelpDesk() {
         return;
       }
 
-      setSupportTicketMessage((currentMessages) => [
+      setSupportTicketMessages((currentMessages) => [
         ...currentMessages,
         incomingMessage,
       ]);
@@ -2195,7 +2252,7 @@ export default function HelpDesk() {
 
     startTransition(() => {
       setActiveSupportTicket(FetchSupportTicketDetailsData);
-      setSupportTicketMessage(FetchSupportTicketDetailsData.messages ?? []);
+      setSupportTicketMessages(FetchSupportTicketDetailsData.messages ?? []);
 
       const agentDraft = FetchSupportTicketDetailsData.drafts?.find(
         (draft) => draft.draft_type === "manual",
@@ -2530,7 +2587,7 @@ export default function HelpDesk() {
     };
 
     setReply("");
-    setSupportTicketMessage((current) => [...current, optimisticMessage]);
+    setSupportTicketMessages((current) => [...current, optimisticMessage]);
 
     try {
       const formData = new FormData();
@@ -2548,7 +2605,7 @@ export default function HelpDesk() {
         }),
       ).unwrap();
 
-      setSupportTicketMessage((current) =>
+      setSupportTicketMessages((current) =>
         current.map((message) =>
           message.id === tempId ? sentMessage : message,
         ),
@@ -2558,7 +2615,7 @@ export default function HelpDesk() {
         composerMode === "note" ? "Internal note added" : "Reply sent",
       );
     } catch {
-      setSupportTicketMessage((current) =>
+      setSupportTicketMessages((current) =>
         current.filter((message) => message.id !== tempId),
       );
       setReply(trimmedReply);
@@ -2804,6 +2861,78 @@ export default function HelpDesk() {
     }
   };
 
+  const handleSupportTicketMessagesTranslate = async (code: string) => {
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+
+    if (supportTikcetMessages?.length === 0) {
+      toast.success("Messages translation", {
+        description: "No messages to translate.",
+      });
+      return;
+    }
+
+    const language = translationLanguages.find((language) => language.code === code);
+
+    if (!language) return;
+
+    try {
+      const payload = {
+        language_code: language.code,
+        language_name: language.name,
+      };
+
+      const translatedMessages = await dispatch(
+        SupportTicketMessagesTranslate({
+          storeCode,
+          ticketId: currentActiveSupportTicketIdRef.current,
+          payload,
+        }),
+      ).unwrap();
+
+      if (translatedMessages?.messages?.length) {
+        const translatedMessageMap = new Map<string, string>(
+          translatedMessages.messages.map((message) => [
+            String(message.id),
+            message.message,
+          ]),
+        );
+
+        const applyTranslations = (messages: SupportTicketMessage[] = []) =>
+          messages.map((message) => {
+            const translatedMessage = translatedMessageMap.get(String(message.id));
+
+            return translatedMessage
+              ? {
+                  ...message,
+                  message: translatedMessage,
+                }
+              : message;
+          });
+
+        setSupportTicketMessages((currentMessages) =>
+          applyTranslations(currentMessages),
+        );
+
+        setActiveSupportTicket((current) =>
+          current
+            ? {
+                ...current,
+                messages: applyTranslations(current.messages),
+              }
+            : current,
+        );
+
+        toast.success("Messages translated", {
+          description: `Translated to ${language.name}.`,
+        });
+      }
+    } catch {
+      //
+    } finally {
+      setMenuOpen(false);
+    }
+  };
+
   // Support Ticket Filter Utilities
   const handleFilterOpenChange = (open: boolean) => {
     setIsFilterOpen(open);
@@ -2924,6 +3053,8 @@ export default function HelpDesk() {
             isClosed={activeSupportTicket.status === "closed"}
             menuOpen={menuOpen}
             onChangeMenuOpen={setMenuOpen}
+            onTranslate={handleSupportTicketMessagesTranslate}
+            isTranslating={SupportTicketMessagesTranslateIsLoading}
           />
         )}
         {(FetchSupportTicketsLoading || FetchSupportTicketDetailsIsLoading) &&

@@ -98,6 +98,12 @@ export type SupportTicketSnoozeResponse = {
   snoozed_until: string | null;
 };
 
+export type SupportTicketTranslateResponse = {
+  language_name: string;
+  language_code: string;
+  messages: Array<{ id: number | string; message: string }>;
+};
+
 type SupportTicketAssignee = {
   id: number;
   name: string;
@@ -787,6 +793,46 @@ export const SupportTicketPriorityUpdate = createAsyncThunk(
   },
 );
 
+export const SupportTicketMessagesTranslate = createAsyncThunk<
+  SupportTicketTranslateResponse,
+  {
+    storeCode: string;
+    ticketId: number;
+    payload: { language_code: string; language_name: string };
+  }
+>(
+  "SupportTicketMessagesTranslate",
+  async (
+    {
+      storeCode,
+      ticketId,
+      payload,
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.supportTicketMessagesTranslate(ticketId)}?store_code=${storeCode}`,
+        payload,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to translate ticket messages, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 const SupportTicketsSlice = createSlice({
   name: "SupportTicketsSlice",
   initialState: {
@@ -937,6 +983,16 @@ const SupportTicketsSlice = createSlice({
         | object
         | unknown,
       SupportTicketPriorityUpdateData: {} as { status: SupportTicketPriority },
+    },
+    SupportTicketMessagesTranslateState: {
+      SupportTicketMessagesTranslateIsLoading: false,
+      SupportTicketMessagesTranslateIsSuccess: false,
+      SupportTicketMessagesTranslateIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      SupportTicketMessagesTranslateData: {} as SupportTicketTranslateResponse,
     },
   },
   reducers: {},
@@ -1290,6 +1346,24 @@ const SupportTicketsSlice = createSlice({
         state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsError =
           action.payload;
         state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsSuccess = false;
+      })
+      .addCase(SupportTicketMessagesTranslate.pending, (state) => {
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsLoading = true;
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsError =
+          null;
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsSuccess = false;
+      })
+      .addCase(SupportTicketMessagesTranslate.fulfilled, (state, action) => {
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsLoading = false;
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateData =
+          action.payload;
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsSuccess = true;
+      })
+      .addCase(SupportTicketMessagesTranslate.rejected, (state, action) => {
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsLoading = false;
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsError =
+          action.payload;
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsSuccess = false;
       });
   },
 });
