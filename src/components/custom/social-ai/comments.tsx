@@ -35,11 +35,11 @@ function CommentSkeleton() {
 
 function CommentItem({
     comment,
-    postExternalId,
+    postId,
     nested = false,
 }: {
     comment: SocialComment;
-    postExternalId: string;
+    postId: number;
     nested?: boolean;
 }) {
     const account = useAccountIdentity();
@@ -121,7 +121,7 @@ function CommentItem({
                         </CollapsibleTrigger>
                         <CollapsibleContent className="mt-2 border-l-2 pl-3">
                             <CommentsList
-                                postExternalId={postExternalId}
+                                postId={postId}
                                 parentId={comment.id}
                             />
                         </CollapsibleContent>
@@ -135,10 +135,10 @@ function CommentItem({
 // Paginated comment list — top-level comments without `parentId`, a
 // comment's replies with it. Pages accumulate locally, de-duplicated by id.
 function CommentsList({
-    postExternalId,
+    postId,
     parentId,
 }: {
-    postExternalId: string;
+    postId: number;
     parentId?: number;
 }) {
     const dispatch = useAppDispatch();
@@ -161,7 +161,7 @@ function CommentsList({
             const data = await dispatch(
                 fetchPostComments({
                     storeCode,
-                    postId: postExternalId,
+                    postId,
                     page: nextPage,
                     pageSize: COMMENTS_PAGE_SIZE,
                     parentId,
@@ -182,7 +182,7 @@ function CommentsList({
         } finally {
             setLoading(false);
         }
-    }, [dispatch, storeCode, postExternalId, parentId]);
+    }, [dispatch, storeCode, postId, parentId]);
 
     useEffect(() => {
         if (requestedRef.current) return;
@@ -206,7 +206,7 @@ function CommentsList({
                 <CommentItem
                     key={comment.id}
                     comment={comment}
-                    postExternalId={postExternalId}
+                    postId={postId}
                     nested={Boolean(parentId)}
                 />
             ))}
@@ -234,12 +234,12 @@ function CommentsList({
 }
 
 // The comments area under a post's footer.
-export function CommentsSection({ postExternalId }: { postExternalId: string }) {
+export function CommentsSection({ postId }: { postId: number }) {
     return (
         <div>
             <Separator className="mb-3" />
             <div className="px-(--card-spacing)">
-                <CommentsList postExternalId={postExternalId} />
+                <CommentsList postId={postId} />
             </div>
         </div>
     );

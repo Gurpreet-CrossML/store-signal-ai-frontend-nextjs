@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { ConnectedAccount } from "@/redux/api-slice/social-ai-slice";
 
 import { useAccountIdentity, useChannel } from "./channel-context";
@@ -17,17 +18,19 @@ export function AccountCard({
     accounts,
     selectedAccount,
     onSelectAccount,
+    className,
 }: {
     loading: boolean;
     accounts: ConnectedAccount[];
     selectedAccount: ConnectedAccount | null;
     onSelectAccount: (accountId: string) => void;
+    className?: string;
 }) {
     const account = useAccountIdentity();
     const channel = useChannel();
 
     return (
-        <Card size="sm" className="w-full max-w-xl md:w-72 h-fit">
+        <Card size="sm" className={cn("w-full max-w-xl md:w-72 h-fit", className)}>
             <CardContent className="flex flex-col gap-3">
                 {loading ? (
                     <div className="flex items-center gap-3">

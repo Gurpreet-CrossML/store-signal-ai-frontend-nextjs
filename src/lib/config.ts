@@ -144,14 +144,15 @@ export const ENDPOINTS = {
   toneStyle: () => `/chat/tone-style/`,
   vocabulary: () => `/chat/vocabulary/`,
 
-  // Social AI (Django via useBackend — keep trailing slash).
+  // Social AI (Django via useBackend — keep trailing slash). Posts/comments
+  // are flat, filtered by query params (store_code/channel_type/post) —
+  // there's no per-account or per-post nesting on the backend.
   createMetaOAuthUrl: () => `/social/meta/oauth/`,
   fetchSocialAccountsSubscriptions: () => `/social/subscriptions/connected-accounts/`,
   fetchMetaPages: () => `/social/meta/pages/`,
-  fetchSocialPosts: ({accountId}: {accountId: string}) => `/social/meta/pages/${accountId}/posts/`,
-  fetchPostComments: ({postId}: {postId: string}) => `/social/meta/posts/${postId}/comments/`,
-  fetchFacebookDms: () => `/social/facebook/dms`,
-  fetchInstagramDms: () => `/social/instagram/dms`,
+  fetchSocialPosts: () => `/social/meta/posts/`,
+  fetchPostComments: () => `/social/meta/comments/`,
+  fetchSocialDms: () => `/social/meta/messages/`,
   likeMessage: (messageId: string) =>
     `/social/meta/messages/${messageId}/like/`,
   hideMessage: (messageId: string) =>

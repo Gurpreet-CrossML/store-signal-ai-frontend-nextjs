@@ -91,7 +91,7 @@ export function SocialPostCard({ post }: { post: SocialPost }) {
                     </CollapsibleTrigger>
                 </CardFooter>
                 <CollapsibleContent className="pt-3">
-                    <CommentsSection postExternalId={post.external_id} />
+                    <CommentsSection postId={post.id} />
                 </CollapsibleContent>
             </Collapsible>
         </Card>

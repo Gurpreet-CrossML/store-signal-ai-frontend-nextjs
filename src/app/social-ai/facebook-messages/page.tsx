@@ -1,15 +1,13 @@
-import { Suspense } from "react";
-
-import FbDms from "@/clients/facebook-dms";
+import FacebookMessages from "@/clients/facebook-messages";
 
 export const metadata = {
-  title: "Facebook Messages",
+    title: "Facebook Messages",
 };
 
 export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <FbDms />
-    </Suspense>
-  );
+    return (
+        <>
+            <FacebookMessages />
+        </>
+    );
 }

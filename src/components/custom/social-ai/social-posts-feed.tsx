@@ -38,7 +38,6 @@ export default function SocialPostsFeed({ channelType }: { channelType: SocialCh
         accounts.find((acc) => String(acc.id) === selectedAccountId) ??
         accounts[0] ??
         null;
-    const selectedExternalId = selectedAccount?.external_id ?? null;
 
     useEffect(() => {
         if (storeCode) {
@@ -48,11 +47,12 @@ export default function SocialPostsFeed({ channelType }: { channelType: SocialCh
     }, [storeCode, channelType, dispatch]);
 
     useEffect(() => {
-        if (storeCode && selectedExternalId) {
-            // Fetch posts for the currently selected account.
-            dispatch(fetchSocialPosts({ storeCode, accountId: selectedExternalId, channelType }));
+        if (storeCode) {
+            // Backend has no per-account scoping for posts — this fetches every
+            // post for the channel, regardless of which account is selected.
+            dispatch(fetchSocialPosts({ storeCode, channelType }));
         }
-    }, [storeCode, selectedExternalId, channelType, dispatch]);
+    }, [storeCode, channelType, dispatch]);
 
     const rows = useMemo(
         () =>
