@@ -23,7 +23,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
@@ -138,9 +138,7 @@ function CollapsibleMenuItem({
                     {subItem.icon && (
                       <subItem.icon
                         className={cn(
-                          pathname == subItem.url
-                            ? "text-primary!"
-                            : "",
+                          pathname == subItem.url ? "text-primary!" : "",
                         )}
                       />
                     )}
@@ -156,7 +154,13 @@ function CollapsibleMenuItem({
   );
 }
 
-function SidebarMenuItemWrapper({ item, pathname }: { item: SideBarMenuItem, pathname: string | null }) {
+function SidebarMenuItemWrapper({
+  item,
+  pathname,
+}: {
+  item: SideBarMenuItem;
+  pathname: string | null;
+}) {
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
@@ -174,18 +178,27 @@ function SidebarMenuItemWrapper({ item, pathname }: { item: SideBarMenuItem, pat
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
-
   );
 }
 
-function SidebarGroupWrapper({ item, pathname }: { item: SideBarMenuItem, pathname: string | null }) {
+function SidebarGroupWrapper({
+  item,
+  pathname,
+}: {
+  item: SideBarMenuItem;
+  pathname: string | null;
+}) {
   return (
     <SidebarGroup className="-ml-2">
       <SidebarGroupLabel>{item.title}</SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
           {item.items?.map((subItem) => (
-            <SidebarMenuItemWrapper key={subItem.title} item={subItem} pathname={pathname} />
+            <SidebarMenuItemWrapper
+              key={subItem.title}
+              item={subItem}
+              pathname={pathname}
+            />
           ))}
         </SidebarMenu>
       </SidebarGroupContent>
@@ -193,9 +206,13 @@ function SidebarGroupWrapper({ item, pathname }: { item: SideBarMenuItem, pathna
   );
 }
 
-
 export function NavMain({ items }: { items: SideBarMenuItem[] }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const currentUrl = searchParams?.toString()
+    ? `${pathname}?${searchParams.toString()}`
+    : pathname;
 
   return (
     <SidebarGroup>
@@ -208,7 +225,7 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
                 <SidebarGroupWrapper
                   key={item.title}
                   item={item}
-                  pathname={pathname}
+                  pathname={currentUrl}
                 />
               );
             }
@@ -217,7 +234,7 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
               return (
                 <CollapsibleMenuItem
                   key={item.title}
-                  pathname={pathname}
+                  pathname={currentUrl}
                   title={item.title}
                   icon={item.icon}
                   defaultOpen={item.isExpanded}
@@ -230,7 +247,7 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
               <SidebarMenuItemWrapper
                 key={item.title}
                 item={item}
-                pathname={pathname}
+                pathname={currentUrl}
               />
             );
           })}

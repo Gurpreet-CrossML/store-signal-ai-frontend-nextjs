@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import {
   IconX,
@@ -82,7 +84,7 @@ const COLOR_PRESETS = [
 const HEX_REGEX = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
 
 // keep in sync with the thunk's default `limit`
-const PER_PAGE_OPTIONS = [15, 25, 50, 100] as const;
+const PER_PAGE_OPTIONS = [10, 15, 20, 25, 50] as const;
 const DEFAULT_PER_PAGE = PER_PAGE_OPTIONS[0];
 
 const tagSchema = z.object({
@@ -106,7 +108,7 @@ const validateWithZod = (values: TagFormValues) => {
   }, {});
 };
 
-export function TagsFieldsSection() {
+export default function Tags() {
   const dispatch = useAppDispatch();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -283,7 +285,16 @@ export function TagsFieldsSection() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4 p-4 pt-0">
+      <div>
+        <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
+          Tags
+        </h4>
+        <p className="text-sm text-muted-foreground">
+          Organize support tickets with tags. Create, edit, and manage tags to
+          categorize conversations and make them easier to filter and find.
+        </p>
+      </div>
       <div className="rounded-xl border bg-white">
         <div className="flex items-center justify-between border-b p-4">
           <div className="relative w-full max-w-xs">
@@ -305,191 +316,191 @@ export function TagsFieldsSection() {
           </Button>
         </div>
 
-        <div className="max-h-[520px] overflow-y-auto">
+        <div className="overflow-y-auto">
           <Table>
             <TableHeader>
-            <TableRow>
-              <TableHead className="w-16">Sno</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="w-28">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {FetchSupportTicketTagsIsLoading ? (
               <TableRow>
-                <TableCell
-                  colSpan={4}
-                  className="py-10 text-center text-slate-400"
-                >
-                  <div className="text-center">
-                    <Spinner className="mx-auto mb-3 size-6" />
-                    <p className="text-sm text-slate-500">Loading tags...</p>
-                  </div>
-                </TableCell>
+                <TableHead className="w-16">Sno</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="w-28">Action</TableHead>
               </TableRow>
-            ) : tags.length ? (
-              tags.map((tag, index) => (
-                <TableRow key={tag.id}>
-                  <TableCell className="text-slate-500">
-                    {rangeStart + index}
-                  </TableCell>
-                  <TableCell>
-                    <span className="flex items-center gap-2 font-medium text-slate-900">
-                      <span
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      {tag.name}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-slate-600">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <p className="max-w-xs truncate cursor-default">
-                          {tag.description || "-"}
-                        </p>
-                      </TooltipTrigger>
-
-                      {tag.description && (
-                        <TooltipContent className="max-w-sm">
-                          <p className="whitespace-normal break-words">
-                            {tag.description}
-                          </p>
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="size-8"
-                        onClick={() => openEditDialog(tag)}
-                        aria-label={`Edit ${tag.name}`}
-                      >
-                        <IconPencil size={14} stroke={2} />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="size-8 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-600"
-                        onClick={() => requestRemoveTag(tag)}
-                        aria-label={`Remove ${tag.name}`}
-                      >
-                        <IconX size={14} stroke={2} />
-                      </Button>
+            </TableHeader>
+            <TableBody>
+              {FetchSupportTicketTagsIsLoading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="py-10 text-center text-slate-400"
+                  >
+                    <div className="text-center">
+                      <Spinner className="mx-auto mb-3 size-6" />
+                      <p className="text-sm text-slate-500">Loading tags...</p>
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={4} className="py-10 text-center">
-                  <p className="text-sm font-medium text-slate-900">
-                    {debouncedSearch ? "No matching tags" : "No tags created"}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {debouncedSearch
-                      ? "Try a different search term."
-                      : "Create your first tag to organize support tickets."}
-                  </p>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
+              ) : tags.length ? (
+                tags.map((tag, index) => (
+                  <TableRow key={tag.id}>
+                    <TableCell className="text-slate-500">
+                      {rangeStart + index}
+                    </TableCell>
+                    <TableCell>
+                      <span className="flex items-center gap-2 font-medium text-slate-900">
+                        <span
+                          className="size-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: tag.color }}
+                        />
+                        {tag.name}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-slate-600">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="max-w-xs truncate cursor-default">
+                            {tag.description || "-"}
+                          </p>
+                        </TooltipTrigger>
+
+                        {tag.description && (
+                          <TooltipContent className="max-w-sm">
+                            <p className="whitespace-normal break-words">
+                              {tag.description}
+                            </p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="size-8"
+                          onClick={() => openEditDialog(tag)}
+                          aria-label={`Edit ${tag.name}`}
+                        >
+                          <IconPencil size={14} stroke={2} />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="size-8 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-600"
+                          onClick={() => requestRemoveTag(tag)}
+                          aria-label={`Remove ${tag.name}`}
+                        >
+                          <IconX size={14} stroke={2} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-10 text-center">
+                    <p className="text-sm font-medium text-slate-900">
+                      {debouncedSearch ? "No matching tags" : "No tags created"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {debouncedSearch
+                        ? "Try a different search term."
+                        : "Create your first tag to organize support tickets."}
+                    </p>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
           </Table>
         </div>
       </div>
 
       <div className="flex flex-col gap-4 px-2 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm text-muted-foreground">
-            {total} {total === 1 ? "tag" : "tags"} total
+        <div className="text-sm text-muted-foreground">
+          {total} {total === 1 ? "tag" : "tags"} total
+        </div>
+
+        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:gap-6">
+          {/* Page size selector */}
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium whitespace-nowrap">
+              Rows per page
+            </p>
+            <Select
+              value={`${limit}`}
+              onValueChange={(value) => {
+                setLimit(Number(value));
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="h-8 w-18">
+                <SelectValue placeholder={limit} />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {PER_PAGE_OPTIONS.map((size) => (
+                  <SelectItem key={size} value={`${size}`}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:gap-6">
-            {/* Page size selector */}
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium whitespace-nowrap">
-                Rows per page
-              </p>
-              <Select
-                value={`${limit}`}
-                onValueChange={(value) => {
-                  setLimit(Number(value));
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="h-8 w-18">
-                  <SelectValue placeholder={limit} />
-                </SelectTrigger>
-                <SelectContent side="top">
-                  {PER_PAGE_OPTIONS.map((size) => (
-                    <SelectItem key={size} value={`${size}`}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Page indicator */}
+          <div className="flex items-center justify-center text-sm font-medium whitespace-nowrap">
+            Page {page} of {totalPages}
+          </div>
 
-            {/* Page indicator */}
-            <div className="flex items-center justify-center text-sm font-medium whitespace-nowrap">
-              Page {page} of {totalPages}
-            </div>
-
-            {/* Navigation */}
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="hidden h-8 w-8 lg:flex"
-                onClick={() => setPage(1)}
-                disabled={page <= 1}
-                aria-label="Go to first page"
-              >
-                <IconChevronsLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                aria-label="Go to previous page"
-              >
-                <IconChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                aria-label="Go to next page"
-              >
-                <IconChevronRight className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="hidden h-8 w-8 lg:flex"
-                onClick={() => setPage(totalPages)}
-                disabled={page >= totalPages}
-                aria-label="Go to last page"
-              >
-                <IconChevronsRight className="h-4 w-4" />
-              </Button>
-            </div>
+          {/* Navigation */}
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="hidden h-8 w-8 lg:flex"
+              onClick={() => setPage(1)}
+              disabled={page <= 1}
+              aria-label="Go to first page"
+            >
+              <IconChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              aria-label="Go to previous page"
+            >
+              <IconChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              aria-label="Go to next page"
+            >
+              <IconChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="hidden h-8 w-8 lg:flex"
+              onClick={() => setPage(totalPages)}
+              disabled={page >= totalPages}
+              aria-label="Go to last page"
+            >
+              <IconChevronsRight className="h-4 w-4" />
+            </Button>
           </div>
         </div>
+      </div>
 
       {/* create / edit dialog */}
       <Dialog

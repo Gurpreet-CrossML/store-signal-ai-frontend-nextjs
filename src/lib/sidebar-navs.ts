@@ -13,17 +13,8 @@ import {
   IconSettings,
   IconUserHexagon,
   IconVolume,
-  IconBolt,
-  IconCalendarTime,
-  IconClockHour4,
   IconInbox,
-  IconLayoutGrid,
-  IconMoodSmile,
-  IconPlugConnected,
-  IconRoute,
-  IconSettingsAutomation,
   IconTags,
-  IconUsersGroup,
   type Icon,
   IconUser,
   IconPackageOff,
@@ -36,7 +27,6 @@ export type SideBarMenuItem = {
   title: string;
   url: string;
   icon: Icon;
-  count?: number; // Optional property for count
   isMenuHeading?: boolean; // Optional property to indicate if the menu item is a heading
   isExpanded?: boolean; // Optional property to indicate if the menu item is expanded
   items?: SideBarMenuItem[]; // Optional property for nested items
@@ -97,115 +87,46 @@ export const sidebarMenus: SideBarMenus = {
   navAdmin: [
     {
       title: "Help Desk",
-      url: "/helpdesk",
+      url: "#",
       icon: IconHeadset,
+      isMenuHeading: true,
       isExpanded: true,
       items: [
         {
           title: "All Open",
-          count: 34,
           url: "/helpdesk",
           icon: IconInbox,
         },
         {
           title: "Unassigned",
-          count: 34,
           url: "/helpdesk?filter=unassigned",
           icon: IconUser,
         },
         {
           title: "Snoozed",
-          count: 34,
           url: "/helpdesk?filter=snoozed",
           icon: IconAlarmSnoozeFilled,
         },
         {
           title: "Order Return",
-          count: 3,
           icon: IconPackageOff,
           url: "/helpdesk?filter=Order_Return",
         },
         {
           title: "Payment Failed",
-          count: 3,
           icon: IconCreditCardOff,
           url: "/helpdesk?filter=Payment_Failed",
         },
         {
           title: "Exchange Request",
-          count: 3,
           icon: IconArrowsExchange,
           url: "/helpdesk?filter=Exchange_Request",
         },
         {
           title: "Tags",
-          count: 3,
           icon: IconTags,
-          url: "/helpdesk?section=tags",
+          url: "/helpdesk/tags",
         },
-        // { title: "Urgent + SLA", count: 4, url: "#", icon: IconBolt },
-        // { title: "VIP customers", count: 3, url: "#", icon: IconStar },
-        // { title: "Returns - waiting", count: 6, url: "#", icon: IconReload },
-        // {
-        //   title: "AI-handled today",
-        //   count: 218,
-        //   url: "#",
-        //   icon: IconMessageChatbot,
-        // },
-        // {
-        //   title: "Channels",
-        //   count: 12,
-        //   icon: IconPlugConnected,
-        //   url: "/helpdesk?section=channels",
-        // },
-        // {
-        //   title: "Views",
-        //   count: 5,
-        //   icon: IconLayoutGrid,
-        //   url: "/helpdesk?section=views",
-        // },
-        // {
-        //   title: "Macros",
-        //   count: 12,
-        //   icon: IconBolt,
-        //   url: "#",
-        // },
-        // {
-        //   title: "Rules & Automations",
-        //   count: 5,
-        //   icon: IconSettingsAutomation,
-        //   url: "/helpdesk?section=rules-automations",
-        // },
-        // {
-        //   title: "Routing & Assignment",
-        //   count: 3,
-        //   icon: IconRoute,
-        //   url: "/helpdesk?section=routing-assignment",
-        // },
-        // {
-        //   title: "SLA Policies",
-        //   count: 12,
-        //   icon: IconClockHour4,
-        //   url: "/helpdesk?section=sla-policies",
-        // },
-        // {
-        //   title: "Business Hours",
-        //   count: 5,
-        //   icon: IconCalendarTime,
-        //   url: "/helpdesk?section=business-hours",
-        // },
-        // {
-        //   title: "Teams & Roles",
-        //   count: 12,
-        //   icon: IconUsersGroup,
-        //   url: "/helpdesk?section=teams-roles",
-        // },
-        // {
-        //   title: "CSAT",
-        //   count: 5,
-        //   icon: IconMoodSmile,
-        //   url: "/helpdesk?section=csat",
-        // },
       ],
     },
     {
@@ -247,7 +168,7 @@ export const sidebarMenus: SideBarMenus = {
           title: "Settings",
           url: "/settings",
           icon: IconSettings,
-        }
+        },
       ],
     },
   ],

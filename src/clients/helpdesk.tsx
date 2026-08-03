@@ -45,10 +45,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  resolveTicketingSettingsSection,
-  TicketingSettingsContent,
-} from "@/components/custom/ticketing-settings";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Combobox,
@@ -766,7 +762,7 @@ function ConversationPanel({
   isAIDraftLoading: boolean;
   aiDraft: SupportTicketDraftMessage | null;
   isClosed: boolean;
-  menuOpen: boolean,
+  menuOpen: boolean;
   onChangeMenuOpen: (value: boolean) => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
@@ -1657,47 +1653,6 @@ function TicketInsights({
             </div>
           </>
         )}
-
-        {/* <section className="rounded-lg border bg-white">
-          <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-medium text-slate-950">
-            <IconWand className="size-4 text-indigo-600" />
-            Assist commands
-          </h3>
-          <div className="grid grid-cols-2 gap-2 p-3">
-            {[
-              ["Expand bullets", IconArrowsDiagonal],
-              ["Summarise thread", IconArchive],
-              ["Translate", IconLanguage],
-              ["Adjust tone", IconMoodSmile],
-            ].map(([label, Icon]) => (
-              <Button
-                key={label as string}
-                variant="outline"
-                className="h-12 justify-start bg-white text-xs"
-                onClick={() => onAction(`${label as string} applied`)}
-              >
-                <Icon className="size-4" />
-                <span className="whitespace-normal text-left leading-tight">
-                  {label as string}
-                </span>
-              </Button>
-            ))}
-          </div>
-        </section> */}
-
-        {/* <section className="rounded-lg border bg-white">
-          <h3 className="flex items-center gap-2 border-b px-3 py-3 text-sm font-medium text-slate-950">
-            <IconBolt className="size-4 text-indigo-600" />
-            What the AI checked
-          </h3>
-          <ul className="space-y-1 px-3 py-3 text-xs font-medium leading-5 text-slate-700">
-            <li>Checked: Pulled order #8821 - in transit</li>
-            <li>Checked: Verified customer identity</li>
-            <li>Checked: Checked 2 past tickets from this customer</li>
-            <li>Checked: Applied brand voice profile</li>
-            <li>Checked: 18 safety checks passed</li>
-          </ul>
-        </section> */}
       </div>
     </aside>
   );
@@ -1705,9 +1660,6 @@ function TicketInsights({
 
 export default function HelpDesk() {
   const searchParams = useSearchParams();
-  const activeSection = resolveTicketingSettingsSection(
-    searchParams?.get("section") ?? null,
-  );
   const activeFilter = searchParams?.get("filter") ?? "";
 
   const dispatch = useAppDispatch();
@@ -1859,17 +1811,14 @@ export default function HelpDesk() {
         return {
           ...current,
           ...incomingTicket,
-          tags: incomingTicket.tags.length
-            ? incomingTicket.tags
-            : current.tags,
+          tags: incomingTicket.tags.length ? incomingTicket.tags : current.tags,
           messages: incomingTicket.messages?.length
             ? incomingTicket.messages
             : current.messages,
           drafts: incomingTicket.drafts?.length
             ? incomingTicket.drafts
             : current.drafts,
-          last_message:
-            incomingTicket.last_message ?? current.last_message,
+          last_message: incomingTicket.last_message ?? current.last_message,
           last_message_at:
             incomingTicket.last_message_at ?? current.last_message_at,
         };
@@ -1904,6 +1853,40 @@ export default function HelpDesk() {
     },
     [],
   );
+
+  const handleSupportTicketMarkRead = async () => {
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+
+    try {
+      const markReadTicket = await dispatch(
+        SupportTicketMarkRead({
+          storeCode,
+          ticketId: currentActiveSupportTicketIdRef.current,
+        }),
+      ).unwrap();
+
+      if (markReadTicket) {
+        setTicketRows((current) =>
+          current.map((ticket) =>
+            ticket.id === currentActiveSupportTicketIdRef.current
+              ? { ...ticket, is_read: markReadTicket.is_read }
+              : ticket,
+          ),
+        );
+
+        setActiveSupportTicket((current) =>
+          current
+            ? {
+                ...current,
+                is_read: markReadTicket.is_read,
+              }
+            : current,
+        );
+      }
+    } catch {
+      //
+    }
+  };
 
   useEffect(() => {
     if (!storeCode || !session?.user?.access_token) {
@@ -2063,7 +2046,13 @@ export default function HelpDesk() {
         supportSocketRef.current = null;
       }
     };
-  }, [activeQueue, appendSocketMessage, session?.user?.access_token, storeCode, upsertSocketTicket]);
+  }, [
+    activeQueue,
+    appendSocketMessage,
+    session?.user?.access_token,
+    storeCode,
+    upsertSocketTicket,
+  ]);
 
   useEffect(() => {
     if (!storeCode) return;
@@ -2200,40 +2189,6 @@ export default function HelpDesk() {
       FetchSupportTicketDetails({ storeCode, ticketId: activeTicketId }),
     );
   }, [activeTicketId]);
-
-  const handleSupportTicketMarkRead = async () => {
-    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
-
-    try {
-      const markReadTicket = await dispatch(
-        SupportTicketMarkRead({
-          storeCode,
-          ticketId: currentActiveSupportTicketIdRef.current,
-        }),
-      ).unwrap();
-
-      if (markReadTicket) {
-        setTicketRows((current) =>
-          current.map((ticket) =>
-            ticket.id === currentActiveSupportTicketIdRef.current
-              ? { ...ticket, is_read: markReadTicket.is_read }
-              : ticket,
-          ),
-        );
-
-        setActiveSupportTicket((current) =>
-          current
-            ? {
-                ...current,
-                is_read: markReadTicket.is_read,
-              }
-            : current,
-        );
-      }
-    } catch {
-      //
-    }
-  };
 
   useEffect(() => {
     if (!FetchSupportTicketDetailsData) return;
@@ -2794,8 +2749,7 @@ export default function HelpDesk() {
       }
     } catch {
       //
-    }
-    finally {
+    } finally {
       setMenuOpen(false);
     }
   };
@@ -2845,8 +2799,7 @@ export default function HelpDesk() {
       }
     } catch {
       //
-    }
-    finally {
+    } finally {
       setMenuOpen(false);
     }
   };
@@ -2876,151 +2829,137 @@ export default function HelpDesk() {
   return (
     <div className="-my-4 flex h-[calc(100vh-var(--header-height))] flex-col overflow-hidden border-y bg-white font-sans text-slate-950 md:-my-6 md:h-[calc(100vh-var(--header-height)-1rem)]">
       <div className="flex min-h-0 flex-1">
-        {activeSection ? (
-          <TicketingSettingsContent active={activeSection} />
+        <TicketListPanel
+          rows={ticketRows}
+          activeTicketId={activeSupportTicket?.id ?? null}
+          activeQueue={activeQueue}
+          queueLabel={activeQueueLabel}
+          onQueueChange={handleQueueChange}
+          onSelectTicket={handleSelectTicket}
+          isLoading={FetchSupportTicketsLoading}
+          isLoadingMore={isLoadingMore}
+          hasMore={Boolean(FetchSupportTicketsListData?.next)}
+          onLoadMore={() => {
+            if (Boolean(FetchSupportTicketsListData?.next)) {
+              setPage((current) => current + 1);
+            }
+          }}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          availableTags={ticketTags}
+          filters={filterFormik.values}
+          isFilterOpen={isFilterOpen}
+          onFilterOpenChange={handleFilterOpenChange}
+          onFiltersChange={(filters) => filterFormik.setValues(filters)}
+          onApplyFilters={handleApplyFilters}
+          onClearFilters={handleClearFilters}
+          dateError={filterFormik.errors.toDate}
+          hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
+          isTagListLoading={FetchSupportTicketTagsIsLoading}
+          onTagSearchChange={setTagSearch}
+          onLoadMoreTags={() => {
+            if (FetchSupportTicketTagsData?.next) {
+              setTagPage((current) => current + 1);
+            }
+          }}
+          supportTicketStatusCount={FetchSupportTicketsListData.status_counts}
+        />
+        {(FetchSupportTicketsLoading || FetchSupportTicketDetailsIsLoading) &&
+        activeSupportTicket?.id !== activeTicketId ? (
+          <div className="flex min-w-0 flex-1 items-center justify-center bg-slate-50">
+            <div className="text-center">
+              <Spinner className="mx-auto mb-4 size-8" />
+              <p className="text-sm text-slate-500">Loading conversation...</p>
+            </div>
+          </div>
+        ) : !activeSupportTicket ? (
+          <div className="flex min-w-0 flex-1 items-center justify-center bg-slate-50 px-6 text-center">
+            <div>
+              <p className="text-lg font-semibold text-slate-900">
+                Select a ticket to view
+              </p>
+              <p className="mt-2 text-sm text-slate-500">
+                Open a ticket from the left panel to see the conversation.
+              </p>
+            </div>
+          </div>
         ) : (
-          <>
-            <TicketListPanel
-              rows={ticketRows}
-              activeTicketId={activeSupportTicket?.id ?? null}
-              activeQueue={activeQueue}
-              queueLabel={activeQueueLabel}
-              onQueueChange={handleQueueChange}
-              onSelectTicket={handleSelectTicket}
-              isLoading={FetchSupportTicketsLoading}
-              isLoadingMore={isLoadingMore}
-              hasMore={Boolean(FetchSupportTicketsListData?.next)}
-              onLoadMore={() => {
-                if (Boolean(FetchSupportTicketsListData?.next)) {
-                  setPage((current) => current + 1);
-                }
-              }}
-              searchValue={searchValue}
-              onSearchChange={setSearchValue}
-              availableTags={ticketTags}
-              filters={filterFormik.values}
-              isFilterOpen={isFilterOpen}
-              onFilterOpenChange={handleFilterOpenChange}
-              onFiltersChange={(filters) => filterFormik.setValues(filters)}
-              onApplyFilters={handleApplyFilters}
-              onClearFilters={handleClearFilters}
-              dateError={filterFormik.errors.toDate}
-              hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
-              isTagListLoading={FetchSupportTicketTagsIsLoading}
-              onTagSearchChange={setTagSearch}
-              onLoadMoreTags={() => {
-                if (FetchSupportTicketTagsData?.next) {
-                  setTagPage((current) => current + 1);
-                }
-              }}
-              supportTicketStatusCount={
-                FetchSupportTicketsListData.status_counts
+          <ConversationPanel
+            ticket={activeSupportTicket}
+            messages={supportTikcetMessages}
+            reply={reply}
+            composerMode={composerMode}
+            isSending={SupportTicketMessageSendIsLoading}
+            onReplyChange={setReply}
+            onComposerModeChange={setComposerMode}
+            onSend={handleSend}
+            onAcceptDraft={handleAcceptDraft}
+            onSaveDraft={handleSaveDraft}
+            availableTags={ticketTags}
+            isTagPickerOpen={showTagPicker}
+            isTagPickerLoading={FetchSupportTicketTagsIsLoading}
+            hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
+            onLoadMoreTags={() => {
+              if (FetchSupportTicketTagsData?.next) {
+                setTagPage((current) => current + 1);
               }
-            />
-            {(FetchSupportTicketsLoading ||
-              FetchSupportTicketDetailsIsLoading) &&
-            activeSupportTicket?.id !== activeTicketId ? (
-              <div className="flex min-w-0 flex-1 items-center justify-center bg-slate-50">
-                <div className="text-center">
-                  <Spinner className="mx-auto mb-4 size-8" />
-                  <p className="text-sm text-slate-500">
-                    Loading conversation...
-                  </p>
-                </div>
+            }}
+            onToggleTagPicker={handleToggleTagPicker}
+            onAddTag={handleAddTag}
+            onRemoveTag={handleRemoveTag}
+            availableStaff={staff}
+            onAssignStaff={handleStaffAssign}
+            onMessageImprove={handleMessageImprove}
+            isMessageImproving={SupportMessageImproveIsLoading}
+            onTicketSnooze={handleTicketSnooze}
+            onTicketStatusUpdate={handleSupportTicketStatusUpdate}
+            onTicketPriorityUpdate={handleSupportTicketPriorityUpdate}
+            onAIDraftGenerate={handleAiDraftGenerate}
+            isAIDraftLoading={SupportTicketAIMessageDraftGenerateIsLoading}
+            aiDraft={
+              activeSupportTicket?.drafts?.find(
+                (draft) => draft.draft_type === "ai",
+              ) ?? null
+            }
+            isClosed={activeSupportTicket.status === "closed"}
+            menuOpen={menuOpen}
+            onChangeMenuOpen={setMenuOpen}
+          />
+        )}
+        {(FetchSupportTicketsLoading || FetchSupportTicketDetailsIsLoading) &&
+        activeSupportTicket?.id !== activeTicketId ? (
+          <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
+            <div className="flex h-[calc(100vh-var(--header-height)-4rem)] items-center justify-center px-4 text-center">
+              <div>
+                <Spinner className="mx-auto mb-4 size-8" />
+                <p className="text-sm text-slate-500">Loading AI Copilot...</p>
               </div>
-            ) : !activeSupportTicket ? (
-              <div className="flex min-w-0 flex-1 items-center justify-center bg-slate-50 px-6 text-center">
-                <div>
-                  <p className="text-lg font-semibold text-slate-900">
-                    Select a ticket to view
-                  </p>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Open a ticket from the left panel to see the conversation.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <ConversationPanel
-                ticket={activeSupportTicket}
-                messages={supportTikcetMessages}
-                reply={reply}
-                composerMode={composerMode}
-                isSending={SupportTicketMessageSendIsLoading}
-                onReplyChange={setReply}
-                onComposerModeChange={setComposerMode}
-                onSend={handleSend}
-                onAcceptDraft={handleAcceptDraft}
-                onSaveDraft={handleSaveDraft}
-                availableTags={ticketTags}
-                isTagPickerOpen={showTagPicker}
-                isTagPickerLoading={FetchSupportTicketTagsIsLoading}
-                hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
-                onLoadMoreTags={() => {
-                  if (FetchSupportTicketTagsData?.next) {
-                    setTagPage((current) => current + 1);
-                  }
-                }}
-                onToggleTagPicker={handleToggleTagPicker}
-                onAddTag={handleAddTag}
-                onRemoveTag={handleRemoveTag}
-                availableStaff={staff}
-                onAssignStaff={handleStaffAssign}
-                onMessageImprove={handleMessageImprove}
-                isMessageImproving={SupportMessageImproveIsLoading}
-                onTicketSnooze={handleTicketSnooze}
-                onTicketStatusUpdate={handleSupportTicketStatusUpdate}
-                onTicketPriorityUpdate={handleSupportTicketPriorityUpdate}
-                onAIDraftGenerate={handleAiDraftGenerate}
-                isAIDraftLoading={SupportTicketAIMessageDraftGenerateIsLoading}
-                aiDraft={
-                  activeSupportTicket?.drafts?.find(
-                    (draft) => draft.draft_type === "ai",
-                  ) ?? null
-                }
-                isClosed={activeSupportTicket.status === "closed"}
-                menuOpen={menuOpen}
-                onChangeMenuOpen={setMenuOpen}
-              />
-            )}
-            {(FetchSupportTicketsLoading ||
-              FetchSupportTicketDetailsIsLoading) &&
-            activeSupportTicket?.id !== activeTicketId ? (
-              <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
-                <div className="flex h-[calc(100vh-var(--header-height)-4rem)] items-center justify-center px-4 text-center">
-                  <div>
-                    <Spinner className="mx-auto mb-4 size-8" />
-                    <p className="text-sm text-slate-500">
-                      Loading AI Copilot...
-                    </p>
-                  </div>
-                </div>
-              </aside>
-            ) : !activeSupportTicket ? (
-              <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
-                <div className="flex h-[calc(100vh-var(--header-height)-4rem)] items-center justify-center px-4 text-center">
-                  <p className="text-sm text-slate-500">
-                    Select a ticket to enable AI Copilot.
-                  </p>
-                </div>
-              </aside>
-            ) : (
-              <TicketInsights
-                ticket={activeSupportTicket}
-                onAcceptDraft={handleAcceptDraft}
-                onAIDraftGenerate={handleAiDraftGenerate}
-                isAIDraftLoading={SupportTicketAIMessageDraftGenerateIsLoading}
-                aiDraft={
-                  activeSupportTicket?.drafts?.find(
-                    (draft) => draft.draft_type === "ai",
-                  ) ?? null
-                }
-                isOrdersLoading={FetchSupportTicketDetailsIsLoading}
-                isOrderSyncLoading={SupportTicketCustomerOrderSyncIsLoading}
-                onOrdersSync={handleCustomerOrderSync}
-                isClosed={activeSupportTicket.status === "closed"}
-              />
-            )}
-          </>
+            </div>
+          </aside>
+        ) : !activeSupportTicket ? (
+          <aside className="hidden w-[340px] shrink-0 border-l bg-white xl:block">
+            <div className="flex h-[calc(100vh-var(--header-height)-4rem)] items-center justify-center px-4 text-center">
+              <p className="text-sm text-slate-500">
+                Select a ticket to enable AI Copilot.
+              </p>
+            </div>
+          </aside>
+        ) : (
+          <TicketInsights
+            ticket={activeSupportTicket}
+            onAcceptDraft={handleAcceptDraft}
+            onAIDraftGenerate={handleAiDraftGenerate}
+            isAIDraftLoading={SupportTicketAIMessageDraftGenerateIsLoading}
+            aiDraft={
+              activeSupportTicket?.drafts?.find(
+                (draft) => draft.draft_type === "ai",
+              ) ?? null
+            }
+            isOrdersLoading={FetchSupportTicketDetailsIsLoading}
+            isOrderSyncLoading={SupportTicketCustomerOrderSyncIsLoading}
+            onOrdersSync={handleCustomerOrderSync}
+            isClosed={activeSupportTicket.status === "closed"}
+          />
         )}
       </div>
     </div>
