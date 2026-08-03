@@ -1,23 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef, startTransition } from "react";
-import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
 import {
-  IconBrandFacebook,
-  IconBrandInstagram,
-  IconBrandWhatsapp,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  startTransition,
+} from "react";
+import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
+import { toast } from "sonner";
+import { useSession } from "next-auth/react";
+import {
   IconCheck,
   IconChevronDown,
   IconClock,
-  IconClockOff,
   IconDotsVertical,
   IconFilter,
   IconGift,
   IconLanguage,
   IconLoader2,
-  IconMail,
-  IconMessage2,
   IconMessageChatbot,
   IconMoodSmile,
   IconPencil,
@@ -28,7 +31,9 @@ import {
   IconSparkles,
   IconUsers,
   IconX,
+  IconAlarmSnoozeFilled,
 } from "@tabler/icons-react";
+import ReactMarkdown from "react-markdown";
 
 import { useFormik } from "formik";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -45,7 +50,6 @@ import {
   TicketingSettingsContent,
 } from "@/components/custom/ticketing-settings";
 import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Combobox,
   ComboboxContent,
@@ -84,9 +88,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { OrdersCard } from "@/components/custom/thread-detail-panels";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
+import { OrdersCard } from "@/components/custom/thread-detail-panels";
+
+import { ENDPOINTS } from "@/lib/config";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   FetchSupportTickets,
@@ -113,9 +120,22 @@ import {
   type SupportTicketCustomer,
   type SupportTicketStatus,
   type SupportTicketFilters,
+  type SupportTicketStatusCounts,
+  type SupportSocketPayload,
 } from "@/redux/api-slice/support-ticket-slice";
 import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
-import { formatRelativeDateTime, formatDateTime, capitalizeText } from "@/lib/helpers";
+import {
+  formatRelativeDateTime,
+  formatDateTime,
+  capitalizeText,
+} from "@/lib/helpers";
+
+const CKEditorTextArea = dynamic(
+  () => import("@/components/custom/ckeditor-text-area"),
+  {
+    ssr: false,
+  },
+);
 
 // Max tags to show in ticket row for `TicketListPanel`
 const MAX_VISIBLE_TKT_ROW_TAGS = 2;
@@ -132,22 +152,6 @@ const SNOOZE_PRESETS = [
   { label: "1 week", ms: 7 * 24 * 60 * 60 * 1000 },
   { label: "1 month", ms: 30 * 24 * 60 * 60 * 1000 },
 ];
-
-const channelIcon = {
-  whatsapp: IconBrandWhatsapp,
-  email: IconMail,
-  instagram: IconBrandInstagram,
-  web: IconMessage2,
-  facebook: IconBrandFacebook,
-} satisfies Record<SupportTicketChannel, typeof IconBrandWhatsapp>;
-
-const channelColor = {
-  whatsapp: "text-emerald-500",
-  email: "text-orange-500",
-  instagram: "text-rose-500",
-  web: "text-indigo-500",
-  facebook: "text-blue-600",
-} satisfies Record<SupportTicketChannel, string>;
 
 const priorityBadgeClass = {
   low: "border-emerald-100 bg-emerald-50 text-emerald-700",
@@ -179,6 +183,8 @@ function getCustomerInitials(
     if (customer.email) {
       return customer.email.charAt(0).toUpperCase();
     }
+  } else {
+    return customer.charAt(0).toUpperCase();
   }
 
   return "C";
@@ -193,7 +199,6 @@ function TicketRow({
   active?: boolean;
   onSelect: () => void;
 }) {
-  const ChannelIcon = channelIcon[ticket.channel];
   const visibleTags = ticket.tags?.slice(0, MAX_VISIBLE_TKT_ROW_TAGS);
   const hiddenTags = ticket.tags?.slice(MAX_VISIBLE_TKT_ROW_TAGS);
 
@@ -202,73 +207,98 @@ function TicketRow({
       ? ticket.customer
       : ticket.customer?.name || ticket.customer?.email;
 
+  const customerInitials = getCustomerInitials(ticket.customer);
+
   return (
     <button
       onClick={onSelect}
       className={cn(
-        "grid w-full grid-cols-[16px_1fr_auto] gap-2 border-b px-3 py-3 text-left transition hover:bg-slate-50",
-        active && "bg-indigo-50/70 hover:bg-indigo-50",
+        "group flex w-full gap-3 rounded-xl px-3 py-3 text-left transition",
+        active ? "bg-indigo-50" : "hover:bg-slate-50",
       )}
     >
-      <span
-        className={cn(
-          "mt-2 size-2 rounded-full",
-          ticket.is_read ? "bg-slate-300" : "bg-red-500",
-        )}
-      />
-      <div className="min-w-0">
-        <div className="mb-1 flex items-center gap-2">
-          <ChannelIcon
-            className={cn("size-5 shrink-0", channelColor[ticket.channel])}
-          />
-          <span className="truncate text-sm font-medium text-slate-950">
-            {customerName || "Unknown customer"}
-          </span>
-        </div>
-        <p className="truncate text-sm font-medium text-slate-950">
-          {ticket.subject}
-        </p>
-        <p className="mt-1 truncate text-xs text-slate-500">
-          {ticket.last_message || ticket.description}
-        </p>
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {visibleTags?.map((tag) => (
-            <Badge key={tag.id} variant="outline" style={{ color: tag.color }}>
-              {tag.name}
-            </Badge>
-          ))}
-          {hiddenTags?.length > 0 && (
-            <HoverCard>
-              <HoverCardTrigger asChild>
-                <Badge
-                  variant="outline"
-                  className="cursor-default font-normal hover:bg-accent"
-                >
-                  +{hiddenTags.length} more
-                </Badge>
-              </HoverCardTrigger>
-              <HoverCardContent
-                align="start"
-                className="flex w-auto max-w-xs flex-wrap gap-1.5"
-              >
-                {hiddenTags.map((tag) => (
-                  <Badge
-                    key={tag.id}
-                    variant="outline"
-                    style={{ color: tag.color }}
-                  >
-                    {tag.name}
-                  </Badge>
-                ))}
-              </HoverCardContent>
-            </HoverCard>
-          )}
-        </div>
+      <div className="relative shrink-0">
+        <Avatar className={cn("size-9")}>
+          <AvatarFallback className="bg-slate-500 text-xs font-medium text-white">
+            {customerInitials}
+          </AvatarFallback>
+        </Avatar>
       </div>
-      <div className="flex flex-col items-end gap-8">
-        <span className="text-xs text-slate-400">
-          {formatRelativeDateTime(ticket.last_message_at || ticket.created_at)}
-        </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <span
+            className={cn(
+              "truncate text-sm",
+              ticket.is_read
+                ? "font-medium text-slate-700"
+                : "font-semibold text-slate-950",
+            )}
+          >
+            {ticket.subject}
+          </span>
+          <div className="flex items-center gap-1 shrink-0">
+            {ticket.is_snoozed ? (
+              <IconAlarmSnoozeFilled className="size-3 text-primary" />
+            ) : null}
+            <span className="text-[11px] text-slate-400">
+              {formatRelativeDateTime(
+                ticket.last_message_at || ticket.created_at,
+              )}
+            </span>
+          </div>
+        </div>
+
+        <p
+          className={cn(
+            "mt-0.5 truncate text-xs",
+            ticket.is_read ? "text-slate-500" : "text-slate-600",
+          )}
+        >
+          {customerName}
+        </p>
+        <p className="mt-0.5 truncate text-xs text-slate-400">
+          <ReactMarkdown>
+            {ticket.last_message || ticket.description}
+          </ReactMarkdown>
+        </p>
+
+        {(visibleTags?.length ?? 0) > 0 || (hiddenTags?.length ?? 0) > 0 ? (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            {visibleTags?.map((tag) => (
+              <span
+                key={tag.id}
+                className="inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium"
+                style={{ color: tag.color, borderColor: tag.color + "40" }}
+              >
+                {tag.name}
+              </span>
+            ))}
+            {hiddenTags?.length > 0 && (
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <span className="inline-flex items-center rounded-full border border-slate-200 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                    +{hiddenTags.length}
+                  </span>
+                </HoverCardTrigger>
+                <HoverCardContent
+                  align="start"
+                  className="flex w-auto max-w-xs flex-wrap gap-1.5"
+                >
+                  {hiddenTags.map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      variant="outline"
+                      style={{ color: tag.color }}
+                    >
+                      {tag.name}
+                    </Badge>
+                  ))}
+                </HoverCardContent>
+              </HoverCard>
+            )}
+          </div>
+        ) : null}
       </div>
     </button>
   );
@@ -396,7 +426,6 @@ function TicketListPanel({
   queueLabel,
   onQueueChange,
   onSelectTicket,
-  count,
   isLoading,
   isLoadingMore,
   hasMore,
@@ -415,14 +444,15 @@ function TicketListPanel({
   isTagListLoading,
   onTagSearchChange,
   onLoadMoreTags,
+  supportTicketStatusCount,
 }: {
+  // ...same prop types as before, unchanged
   rows: SupportTicket[];
   activeTicketId: number | null;
   activeQueue: SupportTicketStatus;
   queueLabel: string;
   onQueueChange: (queue: SupportTicketStatus) => void;
   onSelectTicket: (ticketId: number) => void;
-  count: number;
   isLoading: boolean;
   isLoadingMore: boolean;
   hasMore: boolean;
@@ -441,6 +471,7 @@ function TicketListPanel({
   isTagListLoading: boolean;
   onTagSearchChange: (value: string) => void;
   onLoadMoreTags: () => void;
+  supportTicketStatusCount: SupportTicketStatusCounts;
 }) {
   const activeFilterCount =
     filters.channels.length +
@@ -449,180 +480,183 @@ function TicketListPanel({
     Number(Boolean(filters.fromDate || filters.toDate));
 
   return (
-    <section className="hidden h-full w-[336px] shrink-0 flex-col border-r bg-white md:flex">
-      <div className="flex h-14 items-center justify-between border-b px-3">
-        <div>
-          <div className="flex items-baseline gap-2">
-            <h2 className="font-medium text-slate-950">All {queueLabel}</h2>
-            <span className="text-sm text-slate-500">{count}</span>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Popover open={isFilterOpen} onOpenChange={onFilterOpenChange}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="relative bg-white"
-                aria-label="Filter tickets"
+    <section className="hidden w-[336px] shrink-0 border-r bg-white md:block">
+      <div className="flex h-14 items-center justify-between border-b px-4">
+        <h2 className="font-medium text-slate-950">Your inbox</h2>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-2.5">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-1 text-sm font-semibold text-slate-950 hover:text-slate-700">
+              {supportTicketStatusCount?.[activeQueue] ?? 0} {queueLabel}
+              <IconChevronDown className="size-3.5 text-slate-400" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-40">
+            {queues.map((queue) => (
+              <DropdownMenuItem
+                key={queue.key}
+                onClick={() =>
+                  queue.key !== activeQueue && onQueueChange(queue.key)
+                }
+                className={cn(
+                  "justify-between",
+                  activeQueue === queue.key && "font-medium text-indigo-600",
+                )}
               >
-                <IconFilter className="size-4" />
-                {activeFilterCount > 0 ? (
-                  <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-indigo-600 text-[9px] text-white">
-                    {activeFilterCount}
-                  </span>
-                ) : null}
+                {queue.label}
+                <span className="text-slate-400">
+                  {supportTicketStatusCount?.[queue.key] ?? 0}
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Popover open={isFilterOpen} onOpenChange={onFilterOpenChange}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              className="relative bg-white"
+              aria-label="Filter tickets"
+            >
+              <IconFilter className="size-4" />
+              {activeFilterCount > 0 ? (
+                <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-indigo-600 text-[9px] text-white">
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 p-0">
+            <div className="border-b px-4 py-3">
+              <p className="text-sm font-semibold">Filter tickets</p>
+            </div>
+            <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4">
+              <fieldset>
+                <legend className="mb-2 text-xs font-semibold text-slate-700">
+                  Channel
+                </legend>
+                <MultiSelectCombobox
+                  options={channelOptions}
+                  value={filters.channels}
+                  onValueChange={(channels) =>
+                    onFiltersChange({
+                      ...filters,
+                      channels: channels as SupportTicketChannel[],
+                    })
+                  }
+                  placeholder="Search channels..."
+                  emptyMessage="No channels found."
+                />
+              </fieldset>
+
+              <fieldset>
+                <legend className="mb-2 text-xs font-semibold text-slate-700">
+                  Tags
+                </legend>
+                <MultiSelectCombobox
+                  options={availableTags.map((tag) => ({
+                    value: tag.name,
+                    label: tag.name,
+                  }))}
+                  value={filters.tags}
+                  onValueChange={(tags) =>
+                    onFiltersChange({ ...filters, tags })
+                  }
+                  placeholder="Search tags..."
+                  emptyMessage="No tags found."
+                  onSearchChange={onTagSearchChange}
+                  hasMore={hasMoreTags}
+                  isLoading={isTagListLoading}
+                  onLoadMore={onLoadMoreTags}
+                />
+              </fieldset>
+
+              <fieldset>
+                <legend className="mb-2 text-xs font-semibold text-slate-700">
+                  Last message date
+                </legend>
+                <div className="grid gap-2">
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    From
+                    <Input
+                      type="datetime-local"
+                      value={filters.fromDate}
+                      onChange={(event) =>
+                        onFiltersChange({
+                          ...filters,
+                          fromDate: event.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    To
+                    <Input
+                      type="datetime-local"
+                      value={filters.toDate}
+                      onChange={(event) =>
+                        onFiltersChange({
+                          ...filters,
+                          toDate: event.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                  {dateError ? (
+                    <p className="text-xs text-red-600">{dateError}</p>
+                  ) : null}
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend className="mb-2 text-xs font-semibold text-slate-700">
+                  Priority
+                </legend>
+                <MultiSelectCombobox
+                  options={priorityOptions}
+                  value={filters.priorities}
+                  onValueChange={(priorities) =>
+                    onFiltersChange({
+                      ...filters,
+                      priorities: priorities as SupportTicketPriority[],
+                    })
+                  }
+                  placeholder="Search priorities..."
+                  emptyMessage="No priorities found."
+                />
+              </fieldset>
+            </div>
+            <div className="flex justify-between border-t p-3">
+              <Button variant="ghost" size="sm" onClick={onClearFilters}>
+                Clear
               </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-80 p-0">
-              <div className="border-b px-4 py-3">
-                <p className="text-sm font-semibold">Filter tickets</p>
-              </div>
-              <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4">
-                <fieldset>
-                  <legend className="mb-2 text-xs font-semibold text-slate-700">
-                    Channel
-                  </legend>
-                  <MultiSelectCombobox
-                    options={channelOptions}
-                    value={filters.channels}
-                    onValueChange={(channels) =>
-                      onFiltersChange({
-                        ...filters,
-                        channels: channels as SupportTicketChannel[],
-                      })
-                    }
-                    placeholder="Search channels..."
-                    emptyMessage="No channels found."
-                  />
-                </fieldset>
-
-                <fieldset>
-                  <legend className="mb-2 text-xs font-semibold text-slate-700">
-                    Tags
-                  </legend>
-                  <MultiSelectCombobox
-                    options={availableTags.map((tag) => ({
-                      value: tag.name,
-                      label: tag.name,
-                    }))}
-                    value={filters.tags}
-                    onValueChange={(tags) =>
-                      onFiltersChange({
-                        ...filters,
-                        tags,
-                      })
-                    }
-                    placeholder="Search tags..."
-                    emptyMessage="No tags found."
-                    onSearchChange={onTagSearchChange}
-                    hasMore={hasMoreTags}
-                    isLoading={isTagListLoading}
-                    onLoadMore={onLoadMoreTags}
-                  />
-                </fieldset>
-
-                <fieldset>
-                  <legend className="mb-2 text-xs font-semibold text-slate-700">
-                    Last message date
-                  </legend>
-                  <div className="grid gap-2">
-                    <label className="grid gap-1 text-xs text-slate-500">
-                      From
-                      <Input
-                        type="datetime-local"
-                        value={filters.fromDate}
-                        onChange={(event) =>
-                          onFiltersChange({
-                            ...filters,
-                            fromDate: event.target.value,
-                          })
-                        }
-                      />
-                    </label>
-                    <label className="grid gap-1 text-xs text-slate-500">
-                      To
-                      <Input
-                        type="datetime-local"
-                        value={filters.toDate}
-                        onChange={(event) =>
-                          onFiltersChange({
-                            ...filters,
-                            toDate: event.target.value,
-                          })
-                        }
-                      />
-                    </label>
-                    {dateError ? (
-                      <p className="text-xs text-red-600">{dateError}</p>
-                    ) : null}
-                  </div>
-                </fieldset>
-
-                <fieldset>
-                  <legend className="mb-2 text-xs font-semibold text-slate-700">
-                    Priority
-                  </legend>
-                  <MultiSelectCombobox
-                    options={priorityOptions}
-                    value={filters.priorities}
-                    onValueChange={(priorities) =>
-                      onFiltersChange({
-                        ...filters,
-                        priorities: priorities as SupportTicketPriority[],
-                      })
-                    }
-                    placeholder="Search priorities..."
-                    emptyMessage="No priorities found."
-                  />
-                </fieldset>
-              </div>
-              <div className="flex justify-between border-t p-3">
-                <Button variant="ghost" size="sm" onClick={onClearFilters}>
-                  Clear
-                </Button>
-                <Button size="sm" onClick={onApplyFilters}>
-                  Apply filters
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
+              <Button size="sm" onClick={onApplyFilters}>
+                Apply filters
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
-      <div className="flex gap-2 border-b px-3 py-2">
-        {queues.map((queue) => (
-          <Button
-            key={queue.key}
-            size="sm"
-            onClick={() =>
-              queue.key !== activeQueue && onQueueChange(queue.key)
-            }
-            className={cn(
-              "h-7 border",
-              activeQueue === queue.key
-                ? "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100",
-            )}
-          >
-            {queue.label}
-          </Button>
-        ))}
-      </div>
-      <div className="border-b px-3 py-2">
+
+      {/* Search */}
+      <div className="border-b px-4 py-2.5">
         <div className="relative">
-          <IconSearch className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <IconSearch className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           <Input
             value={searchValue}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search tickets..."
             aria-label="Search tickets"
-            className="h-8 pl-8"
+            className="h-9 rounded-full bg-slate-50 pl-9 focus-visible:bg-white"
           />
           {searchValue ? (
             <button
               type="button"
               onClick={() => onSearchChange("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
               aria-label="Clear ticket search"
             >
               <IconX className="size-4" />
@@ -676,7 +710,6 @@ function ConversationPanel({
   reply,
   composerMode,
   isSending,
-  isResolving,
   onReplyChange,
   onComposerModeChange,
   onSend,
@@ -695,13 +728,20 @@ function ConversationPanel({
   onMessageImprove,
   isMessageImproving,
   onTicketSnooze,
+  onTicketStatusUpdate,
+  onTicketPriorityUpdate,
+  onAIDraftGenerate,
+  isAIDraftLoading,
+  aiDraft,
+  isClosed,
+  menuOpen,
+  onChangeMenuOpen,
 }: {
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
   reply: string;
   composerMode: "reply" | "note";
   isSending: boolean;
-  isResolving: boolean;
   onReplyChange: (value: string) => void;
   onComposerModeChange: (mode: "reply" | "note") => void;
   onSend: () => void;
@@ -720,15 +760,40 @@ function ConversationPanel({
   onMessageImprove: (action: string) => void;
   isMessageImproving: boolean;
   onTicketSnooze: (snoozeTime: number | null) => void;
+  onTicketStatusUpdate: (status: SupportTicketStatus) => void;
+  onTicketPriorityUpdate: (priority: SupportTicketPriority) => void;
+  onAIDraftGenerate: () => void;
+  isAIDraftLoading: boolean;
+  aiDraft: SupportTicketDraftMessage | null;
+  isClosed: boolean;
+  menuOpen: boolean,
+  onChangeMenuOpen: (value: boolean) => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const tagPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollTop = messagesEndRef.current.scrollHeight;
+    messagesEndRef.current?.scrollIntoView({ block: "end" });
+  }, [ticket.id, messages.length]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        isTagPickerOpen &&
+        tagPickerRef.current &&
+        !tagPickerRef.current.contains(event.target as Node)
+      ) {
+        onToggleTagPicker();
+      }
     }
-  }, [messages.length]);
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isTagPickerOpen]);
 
   const filteredTags = availableTags.filter((tag) =>
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
@@ -795,7 +860,7 @@ function ConversationPanel({
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {/* <Combobox items={availableStaff}>
+            <Combobox items={availableStaff}>
               <ComboboxInput
                 className="h-8 w-40"
                 placeholder={
@@ -803,6 +868,7 @@ function ConversationPanel({
                     ? ticket?.internal_assignee?.name
                     : "Assign staff..."
                 }
+                disabled={isClosed}
               />
               <ComboboxContent>
                 <ComboboxEmpty>No items found.</ComboboxEmpty>
@@ -821,11 +887,11 @@ function ConversationPanel({
                   )}
                 </ComboboxList>
               </ComboboxContent>
-            </Combobox> */}
+            </Combobox>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger asChild disabled={isClosed}>
                 <Button variant="outline" size="sm" className="bg-white">
-                  <IconClock className="size-4" />
+                  <IconAlarmSnoozeFilled className="size-4" />
                   {snoozeLabel}
                 </Button>
               </DropdownMenuTrigger>
@@ -845,24 +911,65 @@ function ConversationPanel({
                       className="text-red-600 focus:text-red-600"
                       onClick={() => onTicketSnooze(null)}
                     >
-                      <IconClockOff className="mr-2 size-4" />
+                      <IconAlarmSnoozeFilled className="mr-2 size-4" />
                       Remove snooze
                     </DropdownMenuItem>
                   </>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="outline" size="icon-sm" className="bg-white">
-              <IconDotsVertical className="size-4" />
-            </Button>
-            <Button
-              size="sm"
-              className="bg-emerald-600 hover:bg-emerald-700"
-              disabled={isResolving}
-            >
-              <IconCheck className="size-4" />
-              {isResolving ? "Resolving..." : "Resolve"}
-            </Button>
+            <DropdownMenu open={menuOpen} onOpenChange={onChangeMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon-sm" className="bg-white">
+                  <IconDotsVertical className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72">
+                <div className="space-y-4 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="text-sm text-slate-500">Status</Label>
+
+                    <Select
+                      value={ticket.status}
+                      onValueChange={onTicketStatusUpdate}
+                      disabled={isClosed}
+                    >
+                      <SelectTrigger className="h-8 w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="resolved">Resolved</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="text-sm text-slate-500">Priority</Label>
+
+                    <Select
+                      value={ticket.priority}
+                      onValueChange={onTicketPriorityUpdate}
+                      disabled={isClosed}
+                    >
+                      <SelectTrigger className="h-8 w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="normal">Normal</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="urgent">Urgent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -897,7 +1004,7 @@ function ConversationPanel({
               {tag.name}
               <IconX
                 className="!pointer-events-auto cursor-pointer"
-                onClick={() => tag.id && onRemoveTag(tag.id)}
+                onClick={() => tag.id && !isClosed && onRemoveTag(tag.id)}
               />
             </Badge>
           ))}
@@ -925,19 +1032,20 @@ function ConversationPanel({
                     {tag.name}
                     <IconX
                       className="!pointer-events-auto cursor-pointer"
-                      onClick={() => tag.id && onRemoveTag(tag.id)}
+                      onClick={() => tag.id && !isClosed && onRemoveTag(tag.id)}
                     />
                   </Badge>
                 ))}
               </HoverCardContent>
             </HoverCard>
           )}
-          <div className="relative flex">
+          <div className="relative flex" ref={tagPickerRef}>
             <Button
               variant="outline"
               size="sm"
               className="inline-flex h-5 items-center gap-1 rounded-md border px-2 text-[11px] font-semibold bg-white text-slate-700 hover:bg-slate-50"
               onClick={onToggleTagPicker}
+              disabled={isClosed}
             >
               <IconPlus /> Tag
             </Button>
@@ -1049,92 +1157,100 @@ function ConversationPanel({
         </div>
       </div>
 
-      <div
-        className="min-h-[360px] flex-1 overflow-y-auto bg-slate-50 px-4 py-5"
-        ref={messagesEndRef}
-      >
-        {messages.length === 0 ? (
-          <div className="flex h-full min-h-[320px] items-center justify-center">
-            <div className="text-center">
-              <p className="text-sm font-medium text-slate-600">
-                No messages yet
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                Messages exchanged with the customer will appear here.
-              </p>
+      <ScrollArea className="min-h-[360px] flex-1 bg-slate-50/60">
+        <div className="px-5 py-6">
+          {messages.length === 0 ? (
+            <div className="flex h-full min-h-[320px] items-center justify-center">
+              <div className="text-center">
+                <p className="text-sm font-medium text-slate-600">
+                  No messages yet
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Messages exchanged with the customer will appear here.
+                </p>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-4 overflow-y-auto">
-            {messages.map((message) =>
-              message.message_type === "internal" ? (
-                <div key={message.id} className="py-2">
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                    <div className="mb-2 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge className="border-amber-300 bg-amber-100 text-amber-800">
+          ) : (
+            <div className="space-y-5">
+              {messages.map((message) =>
+                message.message_type === "internal" ? (
+                  <div key={message.id} className="flex justify-center">
+                    <div className="w-full max-w-[480px] rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                      <div className="mb-1.5 flex items-center gap-2">
+                        <Badge className="rounded-full border-amber-300 bg-amber-100 text-[10px] text-amber-800">
                           Internal note
                         </Badge>
-                        <span className="text-xs text-slate-500">
+                        <span className="text-[11px] text-slate-500">
                           {formatDateTime(message.created_at)}
                         </span>
                       </div>
+                      <div className="text-sm leading-6 text-slate-700">
+                        <ReactMarkdown>{message.message}</ReactMarkdown>
+                      </div>
                     </div>
-
-                    <p className="whitespace-pre-wrap text-sm text-slate-700">
-                      {message.message}
-                    </p>
                   </div>
-                </div>
-              ) : (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex items-start gap-3",
-                    message.sender_type === "agent" && "justify-end",
-                  )}
-                >
-                  {message.sender_type === "customer" ? (
-                    <Avatar className="size-8">
-                      <AvatarFallback className="bg-slate-500 text-xs font-medium text-white">
-                        {customerInitials}
+                ) : (
+                  <div
+                    key={message.id}
+                    className={cn(
+                      "flex items-end gap-2.5",
+                      message.sender_type === "agent" && "flex-row-reverse",
+                    )}
+                  >
+                    <Avatar className="size-7 shrink-0">
+                      <AvatarFallback
+                        className={cn(
+                          "text-[10px] font-medium text-white",
+                          message.sender_type === "agent"
+                            ? "bg-indigo-600"
+                            : "bg-slate-500",
+                        )}
+                      >
+                        {message.sender_type === "agent"
+                          ? "A"
+                          : customerInitials}
                       </AvatarFallback>
                     </Avatar>
-                  ) : null}
-                  <div>
+
                     <div
                       className={cn(
-                        "mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-500",
-                        message.sender_type === "agent" && "justify-end",
+                        "flex max-w-[75%] flex-col gap-1",
+                        message.sender_type === "agent" && "items-end",
                       )}
                     >
-                      <span>
-                        {/* {message.author === "agent" ? "You" : ticket.customer} -{" "} */}
+                      <div
+                        className={cn(
+                          "rounded-2xl px-3.5 py-2.5 text-sm leading-6 shadow-sm",
+                          message.sender_type === "agent"
+                            ? "rounded-br-md border border-indigo-200 bg-indigo-50 text-slate-900"
+                            : "rounded-bl-md border border-slate-200 bg-white text-slate-900",
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            message.sender_type === "agent" &&
+                              "[&_strong]:text-indigo-900",
+                          )}
+                        >
+                          <ReactMarkdown>{message.message}</ReactMarkdown>
+                        </div>
+                      </div>
+                      <span className="px-1 text-[11px] text-slate-400">
+                        {message.sender_type === "agent"
+                          ? "You"
+                          : ticket.channel}
+                        {" · "}
                         {formatDateTime(message.created_at)}
                       </span>
-                      <span className="font-medium uppercase tracking-wide">
-                        {message.sender_type === "agent"
-                          ? "Agent reply"
-                          : ticket.channel}
-                      </span>
-                    </div>
-                    <div
-                      className={cn(
-                        "max-w-[320px] rounded-xl border px-4 py-3 text-sm font-medium leading-6 shadow-sm",
-                        message.sender_type === "agent"
-                          ? "bg-indigo-600 text-white"
-                          : "bg-white text-slate-950",
-                      )}
-                    >
-                      {message.message}
                     </div>
                   </div>
-                </div>
-              ),
-            )}
-          </div>
-        )}
-      </div>
+                ),
+              )}
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
 
       <div className="border-t bg-white p-4">
         <div className="mb-2 flex flex-wrap gap-2">
@@ -1146,6 +1262,7 @@ function ConversationPanel({
                 ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
                 : "bg-white text-slate-700 hover:bg-slate-100",
             )}
+            disabled={isClosed}
           >
             <IconReload className="size-4" />
             Reply
@@ -1160,6 +1277,7 @@ function ConversationPanel({
                 : "bg-white text-slate-700",
             )}
             onClick={() => onComposerModeChange("note")}
+            disabled={isClosed}
           >
             <IconPencil className="size-4" />
             Internal note
@@ -1170,18 +1288,34 @@ function ConversationPanel({
             variant="outline"
             size="xs"
             className="bg-white text-indigo-700"
-            onClick={onAcceptDraft}
+            onClick={() =>
+              aiDraft?.message ? onAcceptDraft() : onAIDraftGenerate()
+            }
+            disabled={isAIDraftLoading || isClosed}
           >
             <IconMessageChatbot className="size-3" />
-            Accept AI draft
+            {isAIDraftLoading
+              ? "Generating..."
+              : aiDraft?.message
+                ? "Accept AI draft"
+                : "Generate AI draft"}
           </Button>
-          <Button variant="outline" size="xs" className="bg-white">
+          <Button
+            variant="outline"
+            size="xs"
+            className="bg-white"
+            disabled={isClosed}
+          >
             <IconGift className="size-3" />
             Macro
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button disabled={isMessageImproving} variant="outline" size="xs">
+              <Button
+                disabled={isMessageImproving || isClosed}
+                variant="outline"
+                size="xs"
+              >
                 <IconSparkles className="size-3" />
                 {isMessageImproving ? "AI is improving..." : "Improve"}
                 <IconChevronDown className="size-3" />
@@ -1206,39 +1340,45 @@ function ConversationPanel({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="xs" className="bg-white">
+          <Button
+            variant="outline"
+            size="xs"
+            className="bg-white"
+            disabled={isClosed}
+          >
             <IconLanguage className="size-3" />
             Translate
           </Button>
         </div>
-        <Textarea
-          value={reply}
-          onChange={(event) => onReplyChange(event.target.value)}
-          className="min-h-20 resize-none rounded-lg bg-white text-sm"
-          disabled={isMessageImproving}
-          placeholder={
-            composerMode === "note"
-              ? "Write an internal note..."
-              : "Write a reply, or accept the AI draft..."
-          }
-        />
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <p className="max-w-[240px] text-xs text-slate-500">
-            An AI draft in your brand voice is ready - click Accept
-          </p>
+        <div className="composer-editor rounded-lg border bg-white text-sm">
+          <CKEditorTextArea
+            id="ticket-reply-editor"
+            value={reply}
+            onChange={onReplyChange}
+            useMarkdown
+            disabled={isMessageImproving || isClosed}
+            placeholder={
+              composerMode === "note"
+                ? "Write an internal note..."
+                : "Write a reply, or accept the AI draft..."
+            }
+          />
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
           <div className="flex gap-2 mb-3">
             <Button
               variant="outline"
               size="sm"
               className="bg-white"
               onClick={onSaveDraft}
+              disabled={isClosed}
             >
               Save draft
             </Button>
             <Button
               size="sm"
               onClick={onSend}
-              disabled={isSending || isMessageImproving}
+              disabled={isSending || isMessageImproving || isClosed}
             >
               <IconSend className="size-4" />
               {isSending ? "Sending..." : "Send"}
@@ -1260,10 +1400,7 @@ function TicketInsights({
   isOrdersLoading,
   isOrderSyncLoading,
   onOrdersSync,
-  availableStaff,
-  onAssignStaff,
-  onTicketStatusUpdate,
-  onTicketPriorityUpdate,
+  isClosed,
 }: {
   ticket: SupportTicket;
   onAcceptDraft: () => void;
@@ -1273,10 +1410,7 @@ function TicketInsights({
   isOrdersLoading: boolean;
   isOrderSyncLoading: boolean;
   onOrdersSync: () => void;
-  availableStaff: StaffMember[];
-  onAssignStaff: (staffId: number | null) => void;
-  onTicketStatusUpdate: (status: SupportTicketStatus) => void;
-  onTicketPriorityUpdate: (priority: SupportTicketPriority) => void;
+  isClosed: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<"ticket" | "customer">("ticket");
 
@@ -1347,28 +1481,19 @@ function TicketInsights({
                       <div className="h-4 w-4/6 animate-pulse rounded bg-slate-200" />
                       <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
                     </div>
-
-                    <Button size="sm" disabled className="w-full">
-                      <IconLoader2 className="size-4 animate-spin" />
-                      Generating...
-                    </Button>
                   </div>
-                ) : aiDraft ? (
+                ) : aiDraft?.message ? (
                   <>
                     <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-3 text-sm leading-6 text-slate-950">
                       {aiDraft?.message}
                     </div>
 
-                    <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-                      Confidence
-                      <div className="h-1 flex-1 rounded-full bg-slate-100">
-                        <div className="h-1 w-[94%] rounded-full bg-emerald-500" />
-                      </div>
-                      <span className="font-medium text-emerald-600">94%</span>
-                    </div>
-
                     <div className="mt-3 grid grid-cols-2 gap-2">
-                      <Button size="sm" onClick={onAcceptDraft}>
+                      <Button
+                        size="sm"
+                        onClick={onAcceptDraft}
+                        disabled={isClosed}
+                      >
                         <IconCheck className="size-4" />
                         Use draft
                       </Button>
@@ -1378,6 +1503,7 @@ function TicketInsights({
                         size="sm"
                         className="bg-white"
                         onClick={onAIDraftGenerate}
+                        disabled={isClosed}
                       >
                         <IconReload className="size-4" />
                         Regenerate
@@ -1398,96 +1524,8 @@ function TicketInsights({
                       Generate an AI-powered reply based on the customer&apos;s
                       conversation. You can review and edit it before sending.
                     </p>
-
-                    <Button
-                      className="mt-5"
-                      size="sm"
-                      onClick={onAIDraftGenerate}
-                    >
-                      <IconSparkles className="size-4" />
-                      Generate draft
-                    </Button>
                   </div>
                 )}
-              </div>
-            </section>
-            <section className="rounded-lg border bg-white">
-              <div className="border-b px-3 py-3">
-                <h3 className="text-sm font-medium text-slate-950">Actions</h3>
-              </div>
-
-              <div className="space-y-4 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <Label className="text-sm text-slate-500">Status</Label>
-
-                  <Select
-                    value={ticket.status}
-                    onValueChange={onTicketStatusUpdate}
-                  >
-                    <SelectTrigger className="h-8 w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      <SelectItem value="open">Open</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="resolved">Resolved</SelectItem>
-                      <SelectItem value="closed">Closed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <Label className="text-sm text-slate-500">Priority</Label>
-
-                  <Select
-                    value={ticket.priority}
-                    onValueChange={onTicketPriorityUpdate}
-                  >
-                    <SelectTrigger className="h-8 w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="normal">Normal</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="urgent">Urgent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <Label className="text-sm text-slate-500">Asignee</Label>
-
-                  <Combobox items={availableStaff}>
-                    <ComboboxInput
-                      className="h-8 w-40"
-                      placeholder={
-                        ticket?.internal_assignee?.id
-                          ? ticket?.internal_assignee?.name
-                          : "Assign staff..."
-                      }
-                    />
-                    <ComboboxContent>
-                      <ComboboxEmpty>No items found.</ComboboxEmpty>
-                      <ComboboxList>
-                        {(staff) => (
-                          <ComboboxItem
-                            key={staff.id}
-                            value={`${staff.first_name} ${staff.last_name}`}
-                            onClick={() =>
-                              staff.id !== ticket?.internal_assignee?.id &&
-                              onAssignStaff(staff.id)
-                            }
-                          >
-                            {staff.first_name} {staff.last_name}
-                          </ComboboxItem>
-                        )}
-                      </ComboboxList>
-                    </ComboboxContent>
-                  </Combobox>
-                </div>
               </div>
             </section>
             <section className="rounded-xl border bg-white">
@@ -1502,17 +1540,25 @@ function TicketInsights({
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-slate-500">Status</span>
-                    <span className="font-medium text-slate-900">{capitalizeText(ticket.status)}</span>
+                    <span className="font-medium text-slate-900">
+                      {capitalizeText(ticket.status)}
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-slate-500">Priority</span>
-                    <span className="font-medium text-slate-900">{capitalizeText(ticket.priority)}</span>
+                    <span className="font-medium text-slate-900">
+                      {capitalizeText(ticket.priority)}
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-slate-500">Assignee</span>
-                    <span className="font-medium text-slate-900">{ticket.internal_assignee?.name || ticket.internal_assignee?.name || "-"}</span>
+                    <span className="font-medium text-slate-900">
+                      {ticket.internal_assignee?.name ||
+                        ticket.internal_assignee?.name ||
+                        "-"}
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-4">
@@ -1539,28 +1585,33 @@ function TicketInsights({
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-slate-500">Last activity</span>
                     <span className="truncate text-right font-medium text-slate-900">
-                      {formatDateTime(ticket.last_message_at ?? ticket.updated_at ?? null)}
+                      {formatDateTime(
+                        ticket.last_message_at ?? ticket.updated_at ?? null,
+                      )}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-slate-500">Messages</span>
                     <span className="truncate text-right font-medium text-slate-900">
-                      {ticket.messages?.length} message{ticket.messages?.length || 0 > 1 ? "s" : ""}
+                      {ticket.messages?.length} message
+                      {ticket.messages?.length || 0 > 1 ? "s" : ""}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-slate-500">Attachments</span>
                     <span className="truncate text-right font-medium text-slate-900">
-                      {totalAttachments} attachment{totalAttachments > 1 ? "s" : ""}
+                      {totalAttachments} attachment
+                      {totalAttachments > 1 ? "s" : ""}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-slate-500">Tags</span>
                     <span className="truncate text-right font-medium text-slate-900">
-                      {ticket.tags?.length} tag{ticket.tags?.length > 1 ? "s" : ""}
+                      {ticket.tags?.length} tag
+                      {ticket.tags?.length > 1 ? "s" : ""}
                     </span>
                   </div>
                 </div>
@@ -1589,7 +1640,7 @@ function TicketInsights({
               <OrdersCard
                 orders={customerData?.orders}
                 loading={isOrdersLoading}
-                handleOrdersSync={onOrdersSync}
+                handleOrdersSync={() => !isClosed && onOrdersSync()}
                 orderSyncLoading={isOrderSyncLoading}
                 custometData={customerData}
               />
@@ -1650,6 +1701,7 @@ export default function HelpDesk() {
   const activeFilter = searchParams?.get("filter") ?? "";
 
   const dispatch = useAppDispatch();
+  const { data: session } = useSession();
 
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -1694,13 +1746,14 @@ export default function HelpDesk() {
   const [activeSupportTicket, setActiveSupportTicket] =
     useState<SupportTicket | null>(null);
   const currentActiveSupportTicketIdRef = useRef<number | null>(null);
+  const supportSocketRef = useRef<WebSocket | null>(null);
+  const supportSocketReconnectTimerRef = useRef<number | null>(null);
+  const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   const [showTagPicker, setShowTagPicker] = useState(false);
 
   const [reply, setReply] = useState("");
   const [composerMode, setComposerMode] = useState<"reply" | "note">("reply");
-
-  const [isResolving, setIsResolving] = useState(false);
 
   // Support Ticket Search Filters
   const [searchValue, setSearchValue] = useState("");
@@ -1733,6 +1786,275 @@ export default function HelpDesk() {
 
   const ticketTags = FetchSupportTicketTagsData?.results;
 
+  const upsertSocketTicket = useCallback(
+    (incomingTicket: SupportTicket) => {
+      setTicketRows((currentRows) => {
+        const existedIndex = currentRows.findIndex(
+          (row) => row.id === incomingTicket.id,
+        );
+
+        if (existedIndex !== -1) {
+          const existingTicket = currentRows[existedIndex];
+          const updatedTicket = {
+            ...existingTicket,
+            ...incomingTicket,
+            tags: incomingTicket.tags.length
+              ? incomingTicket.tags
+              : existingTicket.tags,
+            messages: incomingTicket.messages?.length
+              ? incomingTicket.messages
+              : existingTicket.messages,
+            drafts: incomingTicket.drafts?.length
+              ? incomingTicket.drafts
+              : existingTicket.drafts,
+            last_message:
+              incomingTicket.last_message ??
+              existingTicket.last_message ??
+              incomingTicket.description,
+            last_message_at:
+              incomingTicket.last_message_at ??
+              existingTicket.last_message_at ??
+              incomingTicket.created_at,
+          };
+
+          return currentRows.map((row) =>
+            row.id === incomingTicket.id ? updatedTicket : row,
+          );
+        }
+
+        if (incomingTicket.status !== activeQueue) {
+          return currentRows;
+        }
+
+        return [
+          {
+            ...incomingTicket,
+            tags: incomingTicket.tags ?? [],
+            messages: incomingTicket.messages ?? [],
+            drafts: incomingTicket.drafts ?? [],
+            last_message:
+              incomingTicket.last_message ?? incomingTicket.description,
+            last_message_at:
+              incomingTicket.last_message_at ?? incomingTicket.created_at,
+          },
+          ...currentRows,
+        ];
+      });
+
+      setActiveSupportTicket((current) => {
+        if (!current || current.id !== incomingTicket.id) {
+          return current;
+        }
+
+        return {
+          ...current,
+          ...incomingTicket,
+          tags: incomingTicket.tags.length
+            ? incomingTicket.tags
+            : current.tags,
+          messages: incomingTicket.messages?.length
+            ? incomingTicket.messages
+            : current.messages,
+          drafts: incomingTicket.drafts?.length
+            ? incomingTicket.drafts
+            : current.drafts,
+          last_message:
+            incomingTicket.last_message ?? current.last_message,
+          last_message_at:
+            incomingTicket.last_message_at ?? current.last_message_at,
+        };
+      });
+    },
+    [activeQueue],
+  );
+
+  const appendSocketMessage = useCallback(
+    (ticketId: number, incomingMessage: SupportTicketMessage) => {
+      if (currentActiveSupportTicketIdRef.current !== ticketId) {
+        return;
+      }
+
+      setSupportTicketMessage((currentMessages) => [
+        ...currentMessages,
+        incomingMessage,
+      ]);
+
+      setActiveSupportTicket((current) => {
+        if (!current || current.id !== ticketId) {
+          return current;
+        }
+
+        return {
+          ...current,
+          messages: [...(current.messages ?? []), incomingMessage],
+          last_message: incomingMessage.message,
+          last_message_at: incomingMessage.created_at,
+        };
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!storeCode || !session?.user?.access_token) {
+      if (supportSocketRef.current) {
+        supportSocketRef.current.close();
+        supportSocketRef.current = null;
+      }
+
+      if (supportSocketReconnectTimerRef.current) {
+        window.clearTimeout(supportSocketReconnectTimerRef.current);
+        supportSocketReconnectTimerRef.current = null;
+      }
+
+      return;
+    }
+
+    let isMounted = true;
+
+    const connectSocket = () => {
+      if (!isMounted) return;
+
+      const token = session?.user?.access_token;
+      if (!token) {
+        return;
+      }
+
+      if (supportSocketRef.current) {
+        supportSocketRef.current.close();
+        supportSocketRef.current = null;
+      }
+
+      const socketUrl = ENDPOINTS.supportSocket(storeCode, token);
+      const socket = new WebSocket(socketUrl);
+      supportSocketRef.current = socket;
+
+      socket.onopen = () => {
+        console.info("Support socket connected");
+        if (supportSocketReconnectTimerRef.current) {
+          window.clearTimeout(supportSocketReconnectTimerRef.current);
+          supportSocketReconnectTimerRef.current = null;
+        }
+      };
+
+      socket.onmessage = (event) => {
+        let payload: SupportSocketPayload;
+
+        try {
+          payload = JSON.parse(event.data) as SupportSocketPayload;
+        } catch (error) {
+          console.error("Failed to parse support socket message", error);
+          return;
+        }
+
+        if (!payload.ticket) return;
+
+        if (payload.event === "ticket_created") {
+          upsertSocketTicket(payload.ticket);
+          return;
+        }
+
+        if (payload.event === "customer_message") {
+          const incomingTicket = payload.ticket;
+          const incomingMessage = payload.message;
+
+          if (!incomingMessage) return;
+
+          setTicketRows((currentRows) => {
+            const existingIndex = currentRows.findIndex(
+              (row) => row.id === incomingTicket.id,
+            );
+
+            if (existingIndex !== -1) {
+              const existingTicket = currentRows[existingIndex];
+              const updatedTicket = {
+                ...existingTicket,
+                ...incomingTicket,
+                last_message: incomingMessage.message,
+                last_message_at: incomingMessage.created_at,
+                is_read: incomingTicket.is_read ?? existingTicket.is_read,
+                tags: incomingTicket.tags.length
+                  ? incomingTicket.tags
+                  : existingTicket.tags,
+                messages: existingTicket.messages ?? incomingTicket.messages,
+                drafts: existingTicket.drafts ?? incomingTicket.drafts,
+              };
+
+              const rowsWithoutTicket = currentRows.filter(
+                (row) => row.id !== incomingTicket.id,
+              );
+
+              if (incomingTicket.is_snoozed) {
+                return currentRows.map((row) =>
+                  row.id === incomingTicket.id ? updatedTicket : row,
+                );
+              }
+
+              return [updatedTicket, ...rowsWithoutTicket];
+            }
+
+            if (incomingTicket.status !== activeQueue) {
+              return currentRows;
+            }
+
+            if (incomingTicket.is_snoozed) {
+              return currentRows;
+            }
+
+            return [
+              {
+                ...incomingTicket,
+                tags: incomingTicket.tags ?? [],
+                messages: incomingTicket.messages ?? [],
+                drafts: incomingTicket.drafts ?? [],
+                last_message: incomingMessage.message,
+                last_message_at: incomingMessage.created_at,
+              },
+              ...currentRows,
+            ];
+          });
+
+          if (currentActiveSupportTicketIdRef.current === incomingTicket.id) {
+            appendSocketMessage(incomingTicket.id, incomingMessage);
+            void handleSupportTicketMarkRead();
+          }
+        }
+      };
+
+      socket.onclose = () => {
+        if (supportSocketRef.current === socket) {
+          supportSocketRef.current = null;
+        }
+
+        if (!isMounted) return;
+
+        supportSocketReconnectTimerRef.current = window.setTimeout(() => {
+          connectSocket();
+        }, 5000);
+      };
+
+      socket.onerror = (error) => {
+        // console.error("Support socket error", error);
+      };
+    };
+
+    connectSocket();
+
+    return () => {
+      isMounted = false;
+
+      if (supportSocketReconnectTimerRef.current) {
+        window.clearTimeout(supportSocketReconnectTimerRef.current);
+        supportSocketReconnectTimerRef.current = null;
+      }
+
+      if (supportSocketRef.current) {
+        supportSocketRef.current.close();
+        supportSocketRef.current = null;
+      }
+    };
+  }, [activeQueue, appendSocketMessage, session?.user?.access_token, storeCode, upsertSocketTicket]);
+
   useEffect(() => {
     if (!storeCode) return;
 
@@ -1748,9 +2070,7 @@ export default function HelpDesk() {
       ...(appliedFilters.channels.length
         ? { channel: appliedFilters.channels }
         : {}),
-      ...(appliedFilters.tags.length
-        ? { tags: appliedFilters.tags }
-        : {}),
+      ...(appliedFilters.tags.length ? { tags: appliedFilters.tags } : {}),
       ...(appliedFilters.fromDate
         ? { from_date: new Date(appliedFilters.fromDate).toISOString() }
         : {}),
@@ -1828,7 +2148,15 @@ export default function HelpDesk() {
     };
 
     fetchTickets();
-  }, [dispatch, storeCode, page, activeQueue, activeFilter, debouncedSearch, appliedFilters]);
+  }, [
+    dispatch,
+    storeCode,
+    page,
+    activeQueue,
+    activeFilter,
+    debouncedSearch,
+    appliedFilters,
+  ]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -2104,6 +2432,7 @@ export default function HelpDesk() {
   };
 
   const handleStaffAssign = async (staffId: number | null) => {
+    alert();
     if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
 
     try {
@@ -2412,34 +2741,43 @@ export default function HelpDesk() {
         status: status,
       };
 
+      const ticketId = currentActiveSupportTicketIdRef.current;
+
       const updatedStatus = await dispatch(
         SupportTicketStatusUpdate({
           storeCode,
-          ticketId: currentActiveSupportTicketIdRef.current,
+          ticketId,
           payload,
         }),
       ).unwrap();
 
       if (updatedStatus) {
-        setTicketRows((current) =>
-          current.map((ticket) =>
-            ticket.id === currentActiveSupportTicketIdRef.current
-              ? {
-                  ...ticket,
-                  status: updatedStatus.status,
-                }
-              : ticket,
-          ),
-        );
+        setTicketRows((current) => {
+          const remainingRows = current.filter(
+            (ticket) => ticket.id !== ticketId,
+          );
 
-        setActiveSupportTicket((current) =>
-          current
-            ? {
-                ...current,
-                status: updatedStatus.status,
-              }
-            : current,
-        );
+          const nextTicket =
+            ticketId === currentActiveSupportTicketIdRef.current
+              ? (remainingRows[0] ?? null)
+              : undefined;
+
+          if (nextTicket !== undefined) {
+            setActiveSupportTicket((activeCurrent) =>
+              activeCurrent && activeCurrent.id === ticketId
+                ? nextTicket
+                : activeCurrent,
+            );
+
+            setActiveTicketId((activeIdCurrent) =>
+              activeIdCurrent === ticketId
+                ? (nextTicket?.id ?? null)
+                : activeIdCurrent,
+            );
+          }
+
+          return remainingRows;
+        });
 
         toast.success("Ticket status", {
           description: `Ticket status updated to ${updatedStatus.status}.`,
@@ -2447,6 +2785,9 @@ export default function HelpDesk() {
       }
     } catch {
       //
+    }
+    finally {
+      setMenuOpen(false);
     }
   };
 
@@ -2496,6 +2837,9 @@ export default function HelpDesk() {
     } catch {
       //
     }
+    finally {
+      setMenuOpen(false);
+    }
   };
 
   // Support Ticket Filter Utilities
@@ -2534,7 +2878,6 @@ export default function HelpDesk() {
               queueLabel={activeQueueLabel}
               onQueueChange={handleQueueChange}
               onSelectTicket={handleSelectTicket}
-              count={FetchSupportTicketsListData?.count ?? 0}
               isLoading={FetchSupportTicketsLoading}
               isLoadingMore={isLoadingMore}
               hasMore={Boolean(FetchSupportTicketsListData?.next)}
@@ -2561,6 +2904,9 @@ export default function HelpDesk() {
                   setTagPage((current) => current + 1);
                 }
               }}
+              supportTicketStatusCount={
+                FetchSupportTicketsListData.status_counts
+              }
             />
             {(FetchSupportTicketsLoading ||
               FetchSupportTicketDetailsIsLoading) &&
@@ -2591,7 +2937,6 @@ export default function HelpDesk() {
                 reply={reply}
                 composerMode={composerMode}
                 isSending={SupportTicketMessageSendIsLoading}
-                isResolving={isResolving}
                 onReplyChange={setReply}
                 onComposerModeChange={setComposerMode}
                 onSend={handleSend}
@@ -2614,6 +2959,18 @@ export default function HelpDesk() {
                 onMessageImprove={handleMessageImprove}
                 isMessageImproving={SupportMessageImproveIsLoading}
                 onTicketSnooze={handleTicketSnooze}
+                onTicketStatusUpdate={handleSupportTicketStatusUpdate}
+                onTicketPriorityUpdate={handleSupportTicketPriorityUpdate}
+                onAIDraftGenerate={handleAiDraftGenerate}
+                isAIDraftLoading={SupportTicketAIMessageDraftGenerateIsLoading}
+                aiDraft={
+                  activeSupportTicket?.drafts?.find(
+                    (draft) => draft.draft_type === "ai",
+                  ) ?? null
+                }
+                isClosed={activeSupportTicket.status === "closed"}
+                menuOpen={menuOpen}
+                onChangeMenuOpen={setMenuOpen}
               />
             )}
             {(FetchSupportTicketsLoading ||
@@ -2651,10 +3008,7 @@ export default function HelpDesk() {
                 isOrdersLoading={FetchSupportTicketDetailsIsLoading}
                 isOrderSyncLoading={SupportTicketCustomerOrderSyncIsLoading}
                 onOrdersSync={handleCustomerOrderSync}
-                availableStaff={staff}
-                onAssignStaff={handleStaffAssign}
-                onTicketStatusUpdate={handleSupportTicketStatusUpdate}
-                onTicketPriorityUpdate={handleSupportTicketPriorityUpdate}
+                isClosed={activeSupportTicket.status === "closed"}
               />
             )}
           </>
