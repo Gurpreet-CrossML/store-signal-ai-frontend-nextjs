@@ -686,20 +686,20 @@ function TicketListPanel({
             />
           ))
         )}
+        {rows?.length > 0 && hasMore ? (
+          <div className="flex items-center justify-center border-t bg-white py-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onLoadMore}
+              disabled={isLoadingMore}
+            >
+              {isLoadingMore ? "Loading..." : "Load more"}
+            </Button>
+          </div>
+        ) : null}
       </div>
-      {rows?.length > 0 && hasMore ? (
-        <div className="flex shrink-0 items-center justify-center border-t bg-white py-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onLoadMore}
-            disabled={isLoadingMore}
-          >
-            {isLoadingMore ? "Loading..." : "Load more"}
-          </Button>
-        </div>
-      ) : null}
     </section>
   );
 }

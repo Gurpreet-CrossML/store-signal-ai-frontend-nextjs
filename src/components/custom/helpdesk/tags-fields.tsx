@@ -535,14 +535,14 @@ export function TagsFieldsSection() {
                     Color <span className="text-red-500">*</span>
                   </Label>
                   <div className="flex items-center gap-2">
-                    {/* editable hex value */}
+                    {/* selected color hex value */}
                     <Input
                       id="color"
                       value={values.color}
-                      onChange={(e) => setFieldValue("color", e.target.value)}
+                      readOnly
                       placeholder="#000000"
                       maxLength={7}
-                      className="flex-1 font-mono"
+                      className="flex-1 cursor-default font-mono"
                     />
                   </div>
 
