@@ -31,7 +31,7 @@ import {
   setSelectedStore,
   SELECTED_STORE_KEY,
 } from "@/redux/api-slice/stores-slice";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { SideBarMenuItem } from "@/lib/sidebar-navs";
 import {
   Collapsible,
@@ -207,6 +207,14 @@ function SidebarGroupWrapper({
 }
 
 export function NavMain({ items }: { items: SideBarMenuItem[] }) {
+  return (
+    <Suspense fallback={null}>
+      <NavMainContent items={items} />
+    </Suspense>
+  );
+}
+
+function NavMainContent({ items }: { items: SideBarMenuItem[] }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
