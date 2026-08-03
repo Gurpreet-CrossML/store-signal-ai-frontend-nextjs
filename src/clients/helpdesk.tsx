@@ -1719,34 +1719,33 @@ export default function HelpDesk() {
   );
   const { FetchSupportTicketsListData, FetchSupportTicketsLoading } =
     useAppSelector(
-      (state) => state.SupportTicketsSliceReducer.FetchSupportTicketsState,
+      (state) => state.GetSupportTicketsReducer.FetchSupportTicketsState,
     );
   const { FetchSupportTicketDetailsData, FetchSupportTicketDetailsIsLoading } =
     useAppSelector(
-      (state) =>
-        state.SupportTicketsSliceReducer.FetchSupportTicketDetailsState,
+      (state) => state.GetSupportTicketsReducer.FetchSupportTicketDetailsState,
     );
   const { SupportTicketMessageSendIsLoading } = useAppSelector(
-    (state) => state.SupportTicketsSliceReducer.SupportTicketMessageSendState,
+    (state) => state.GetSupportTicketsReducer.SupportTicketMessageSendState,
   );
   const { FetchSupportTicketTagsData, FetchSupportTicketTagsIsLoading } =
     useAppSelector(
-      (state) => state.SupportTicketsSliceReducer.FetchSupportTicketTagsState,
+      (state) => state.GetSupportTicketsReducer.FetchSupportTicketTagsState,
     );
   const { SupportMessageImproveIsLoading } = useAppSelector(
-    (state) => state.SupportTicketsSliceReducer.SupportMessageImproveState,
+    (state) => state.GetSupportTicketsReducer.SupportMessageImproveState,
   );
   const { SupportTicketAIMessageDraftGenerateIsLoading } = useAppSelector(
     (state) =>
-      state.SupportTicketsSliceReducer.SupportTicketAIMessageDraftGenerateState,
+      state.GetSupportTicketsReducer.SupportTicketAIMessageDraftGenerateState,
   );
   const { SupportTicketCustomerOrderSyncIsLoading } = useAppSelector(
     (state) =>
-      state.SupportTicketsSliceReducer.SupportTicketCustomerOrderSyncState,
+      state.GetSupportTicketsReducer.SupportTicketCustomerOrderSyncState,
   );
   const { SupportTicketMessagesTranslateIsLoading } = useAppSelector(
     (state) =>
-      state.SupportTicketsSliceReducer.SupportTicketMessagesTranslateState,
+      state.GetSupportTicketsReducer.SupportTicketMessagesTranslateState,
   );
   const { staff } = useAppSelector((state) => state.GetTenancyReducer);
 

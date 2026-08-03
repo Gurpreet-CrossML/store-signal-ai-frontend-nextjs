@@ -45,7 +45,7 @@ const SETTINGSNAV = [
     key: "social_ai",
     value: "Social AI",
     icon: IconBrandMeta,
-  }
+  },
 ];
 
 function SidebarNav({
@@ -150,7 +150,9 @@ export default function Settings() {
           <StaffManagement className="lg:w-full" />
         )}
         {activeTab === "store_integrations" && <StoreIntegrationsTabContent />}
-        {activeTab === "social_ai" && <SocialAITabContent storeCode={storeCode} />}
+        {activeTab === "social_ai" && (
+          <SocialAITabContent storeCode={storeCode} />
+        )}
       </div>
     </div>
   );

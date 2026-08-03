@@ -208,10 +208,10 @@ function SidebarGroupWrapper({
             }
             return (
               <SidebarMenuItemWrapper
-              key={subItem.title}
-              item={subItem}
-              pathname={pathname}
-            />
+                key={subItem.title}
+                item={subItem}
+                pathname={pathname}
+              />
             );
           })}
         </SidebarMenu>

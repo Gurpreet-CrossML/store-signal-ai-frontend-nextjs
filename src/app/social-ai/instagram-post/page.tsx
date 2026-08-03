@@ -1,14 +1,13 @@
 import InstagramPosts from "@/clients/instagram-post";
 
-
 export const metadata = {
-    title: "Instagram Posts",
+  title: "Instagram Posts",
 };
 
 export default function Page() {
-    return (
-        <>
-            <InstagramPosts />
-        </>
-    );
+  return (
+    <>
+      <InstagramPosts />
+    </>
+  );
 }
