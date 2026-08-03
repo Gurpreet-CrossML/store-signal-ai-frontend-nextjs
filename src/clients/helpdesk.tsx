@@ -257,11 +257,11 @@ function TicketRow({
         >
           {customerName}
         </p>
-        <p className="mt-0.5 truncate text-xs text-slate-400">
+        <div className="mt-0.5 truncate text-xs text-slate-400 [&_p]:inline">
           <ReactMarkdown>
             {ticket.last_message || ticket.description}
           </ReactMarkdown>
-        </p>
+        </div>
 
         {(visibleTags?.length ?? 0) > 0 || (hiddenTags?.length ?? 0) > 0 ? (
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
@@ -395,24 +395,25 @@ function MultiSelectCombobox({
       </ComboboxChips>
       <ComboboxContent anchor={anchor}>
         <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
-        <ComboboxList
-          onScroll={(event) => {
-            const target = event.currentTarget;
-            if (
-              hasMore &&
-              !isLoading &&
-              target.scrollHeight - target.scrollTop <= target.clientHeight + 40
-            ) {
-              onLoadMore?.();
-            }
-          }}
-        >
+        <ComboboxList>
           {(item) => (
             <ComboboxItem key={item} value={item}>
               {optionLabels.get(item) ?? item}
             </ComboboxItem>
           )}
         </ComboboxList>
+        {hasMore ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full"
+            onClick={onLoadMore}
+            disabled={isLoading}
+          >
+            {isLoading ? "Loading..." : "Load more"}
+          </Button>
+        ) : null}
       </ComboboxContent>
     </Combobox>
   );
@@ -478,16 +479,8 @@ function TicketListPanel({
     filters.priorities.length +
     Number(Boolean(filters.fromDate || filters.toDate));
 
-  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
-    const target = event.currentTarget;
-    if (!hasMore || isLoading || isLoadingMore) return;
-    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 120) {
-      onLoadMore();
-    }
-  };
-
   return (
-    <section className="hidden w-[336px] shrink-0 border-r bg-white md:block">
+    <section className="hidden h-full min-h-0 w-[336px] shrink-0 flex-col border-r bg-white md:flex">
       <div className="flex h-14 items-center justify-between border-b px-4">
         <h2 className="font-medium text-slate-950">Your inbox</h2>
       </div>
@@ -671,12 +664,7 @@ function TicketListPanel({
           ) : null}
         </div>
       </div>
-
-      {/* List */}
-      <div
-        className="h-[80vh]! overflow-y-auto px-2 py-1"
-        onScroll={handleScroll}
-      >
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {isLoading && rows?.length === 0 ? (
           <div className="flex min-h-[360px] items-center justify-center px-4 py-8">
             <div className="text-center">
@@ -699,13 +687,16 @@ function TicketListPanel({
           ))
         )}
         {rows?.length > 0 && hasMore ? (
-          <div className="flex items-center justify-center py-4">
-            {isLoadingMore ? (
-              <div className="flex items-center gap-2 text-sm text-slate-500">
-                <Spinner className="size-4" />
-                Loading more tickets...
-              </div>
-            ) : null}
+          <div className="flex items-center justify-center border-t bg-white py-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onLoadMore}
+              disabled={isLoadingMore}
+            >
+              {isLoadingMore ? "Loading..." : "Load more"}
+            </Button>
           </div>
         ) : null}
       </div>
@@ -727,6 +718,8 @@ function ConversationPanel({
   availableTags,
   isTagPickerOpen,
   isTagPickerLoading,
+  hasMoreTags,
+  onLoadMoreTags,
   onToggleTagPicker,
   onAddTag,
   onRemoveTag,
@@ -757,6 +750,8 @@ function ConversationPanel({
   availableTags: SupportTicketTagData[];
   isTagPickerOpen: boolean;
   isTagPickerLoading: boolean;
+  hasMoreTags: boolean;
+  onLoadMoreTags: () => void;
   onToggleTagPicker: () => void;
   onAddTag: (tagId: number) => void;
   onRemoveTag: (tagId: number) => void;
@@ -1100,7 +1095,7 @@ function ConversationPanel({
                     />
                   </div>
                 </div>
-                {isTagPickerLoading ? (
+                {isTagPickerLoading && availableTags.length === 0 ? (
                   <div className="flex min-h-[96px] items-center justify-center gap-2 px-3 py-4 text-sm text-slate-500">
                     <Spinner className="size-4" />
                     Loading tags...
@@ -1150,6 +1145,18 @@ function ConversationPanel({
                             </button>
                           );
                         })}
+                        {hasMoreTags && !tagSearch ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={onLoadMoreTags}
+                            disabled={isTagPickerLoading}
+                          >
+                            {isTagPickerLoading ? "Loading..." : "Load more"}
+                          </Button>
+                        ) : null}
                       </div>
                     )}
                   </div>
@@ -2178,11 +2185,12 @@ export default function HelpDesk() {
     dispatch(
       FetchSupportTicketTags({
         storeCode,
-        page: 1,
-        limit: 20,
+        page: tagPage,
+        limit: 15,
+        append: tagPage > 1,
       }),
     );
-  }, [dispatch, storeCode]);
+  }, [dispatch, storeCode, tagPage]);
 
   useEffect(() => {
     currentActiveSupportTicketIdRef.current = activeTicketId || null;
@@ -2866,7 +2874,7 @@ export default function HelpDesk() {
   };
 
   return (
-    <div className="-my-4 flex h-[calc(100vh-var(--header-height))] flex-col overflow-hidden border-y bg-white font-sans text-slate-950 md:-my-6">
+    <div className="-my-4 flex h-[calc(100vh-var(--header-height))] flex-col overflow-hidden border-y bg-white font-sans text-slate-950 md:-my-6 md:h-[calc(100vh-var(--header-height)-1rem)]">
       <div className="flex min-h-0 flex-1">
         {activeSection ? (
           <TicketingSettingsContent active={activeSection} />
@@ -2946,6 +2954,12 @@ export default function HelpDesk() {
                 availableTags={ticketTags}
                 isTagPickerOpen={showTagPicker}
                 isTagPickerLoading={FetchSupportTicketTagsIsLoading}
+                hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
+                onLoadMoreTags={() => {
+                  if (FetchSupportTicketTagsData?.next) {
+                    setTagPage((current) => current + 1);
+                  }
+                }}
                 onToggleTagPicker={handleToggleTagPicker}
                 onAddTag={handleAddTag}
                 onRemoveTag={handleRemoveTag}

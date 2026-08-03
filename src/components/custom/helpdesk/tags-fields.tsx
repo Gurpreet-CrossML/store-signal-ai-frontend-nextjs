@@ -6,6 +6,8 @@ import {
   IconSearch,
   IconChevronLeft,
   IconChevronRight,
+  IconChevronsLeft,
+  IconChevronsRight,
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 import { Formik, Form, Field, type FieldProps } from "formik";
@@ -14,6 +16,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -64,6 +73,10 @@ const COLOR_PRESETS = [
   "#8b5cf6", // violet
   "#6366f1", // indigo
   "#22c55e", // green
+  "#eab308", // yellow
+  "#ec4899", // pink
+  "#14b8a6", // teal
+  "#64748b", // slate
 ] as const;
 
 const HEX_REGEX = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
@@ -91,23 +104,6 @@ const validateWithZod = (values: TagFormValues) => {
     if (!acc[key]) acc[key] = issue.message;
     return acc;
   }, {});
-};
-
-// builds a compact list of page numbers to render, e.g. [1,2,3,4,5]
-// or [1, "...", 4, 5, 6, "...", 12] for larger sets
-const getPageNumbers = (current: number, total: number): (number | "...")[] => {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-
-  const pages: (number | "...")[] = [1];
-  const start = Math.max(2, current - 1);
-  const end = Math.min(total - 1, current + 1);
-
-  if (start > 2) pages.push("...");
-  for (let p = start; p <= end; p++) pages.push(p);
-  if (end < total - 1) pages.push("...");
-  pages.push(total);
-
-  return pages;
 };
 
 export function TagsFieldsSection() {
@@ -309,8 +305,9 @@ export function TagsFieldsSection() {
           </Button>
         </div>
 
-        <Table>
-          <TableHeader>
+        <div className="max-h-[520px] overflow-y-auto">
+          <Table>
+            <TableHeader>
             <TableRow>
               <TableHead className="w-16">Sno</TableHead>
               <TableHead>Name</TableHead>
@@ -404,80 +401,95 @@ export function TagsFieldsSection() {
               </TableRow>
             )}
           </TableBody>
-        </Table>
-
-        <div className="flex items-center justify-between border-t p-4 text-sm text-slate-500">
-          <span>
-            {total === 0
-              ? "No tags found"
-              : `Showing ${rangeStart} to ${rangeEnd} of ${total} tags`}
-          </span>
-
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="size-8"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              aria-label="Previous page"
-            >
-              <IconChevronLeft size={16} stroke={2} />
-            </Button>
-
-            {getPageNumbers(page, totalPages).map((p, i) =>
-              p === "..." ? (
-                <span key={`ellipsis-${i}`} className="px-1 text-slate-400">
-                  ...
-                </span>
-              ) : (
-                <Button
-                  key={p}
-                  type="button"
-                  variant={p === page ? "secondary" : "outline"}
-                  size="icon"
-                  className={cn(
-                    "size-8",
-                    p === page &&
-                      "border-violet-300 bg-violet-100 text-violet-700 hover:bg-violet-100 hover:text-violet-700",
-                  )}
-                  onClick={() => setPage(p)}
-                >
-                  {p}
-                </Button>
-              ),
-            )}
-
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="size-8"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              aria-label="Next page"
-            >
-              <IconChevronRight size={16} stroke={2} />
-            </Button>
-
-            <select
-              value={limit}
-              onChange={(e) => {
-                setLimit(Number(e.target.value));
-                setPage(1);
-              }}
-              className="h-8 rounded-md border bg-white px-2 text-sm"
-            >
-              {PER_PAGE_OPTIONS.map((n) => (
-                <option key={n} value={n}>
-                  {n} / page
-                </option>
-              ))}
-            </select>
-          </div>
+          </Table>
         </div>
       </div>
+
+      <div className="flex flex-col gap-4 px-2 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-muted-foreground">
+            {total} {total === 1 ? "tag" : "tags"} total
+          </div>
+
+          <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:gap-6">
+            {/* Page size selector */}
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium whitespace-nowrap">
+                Rows per page
+              </p>
+              <Select
+                value={`${limit}`}
+                onValueChange={(value) => {
+                  setLimit(Number(value));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-18">
+                  <SelectValue placeholder={limit} />
+                </SelectTrigger>
+                <SelectContent side="top">
+                  {PER_PAGE_OPTIONS.map((size) => (
+                    <SelectItem key={size} value={`${size}`}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Page indicator */}
+            <div className="flex items-center justify-center text-sm font-medium whitespace-nowrap">
+              Page {page} of {totalPages}
+            </div>
+
+            {/* Navigation */}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="hidden h-8 w-8 lg:flex"
+                onClick={() => setPage(1)}
+                disabled={page <= 1}
+                aria-label="Go to first page"
+              >
+                <IconChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                aria-label="Go to previous page"
+              >
+                <IconChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                aria-label="Go to next page"
+              >
+                <IconChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="hidden h-8 w-8 lg:flex"
+                onClick={() => setPage(totalPages)}
+                disabled={page >= totalPages}
+                aria-label="Go to last page"
+              >
+                <IconChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
 
       {/* create / edit dialog */}
       <Dialog
@@ -523,23 +535,14 @@ export function TagsFieldsSection() {
                     Color <span className="text-red-500">*</span>
                   </Label>
                   <div className="flex items-center gap-2">
-                    {/* native color picker swatch */}
-                    <input
-                      id="color"
-                      type="color"
-                      value={
-                        HEX_REGEX.test(values.color) ? values.color : "#000000"
-                      }
-                      onChange={(e) => setFieldValue("color", e.target.value)}
-                      className="size-9 shrink-0 cursor-pointer rounded-md border p-0.5"
-                    />
-                    {/* editable hex value */}
+                    {/* selected color hex value */}
                     <Input
+                      id="color"
                       value={values.color}
-                      onChange={(e) => setFieldValue("color", e.target.value)}
+                      readOnly
                       placeholder="#000000"
                       maxLength={7}
-                      className="flex-1 font-mono"
+                      className="flex-1 cursor-default font-mono"
                     />
                   </div>
 
