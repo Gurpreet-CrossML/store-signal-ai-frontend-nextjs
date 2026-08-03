@@ -9,10 +9,14 @@ export function scriptPoolConfig() {
   const url = new URL(process.env.DATABASE_URL!);
   // node-postgres doesn't understand libpq's sslmode/channel_binding query
   // params; strip them and drive SSL through the explicit `ssl` option.
+  const sslDisabled = url.searchParams.get("sslmode") === "disable";
   url.searchParams.delete("sslmode");
   url.searchParams.delete("channel_binding");
   return {
     connectionString: url.toString(),
-    ssl: { rejectUnauthorized: false },
+    // Local Postgres (sslmode=disable) has no TLS at all — forcing SSL fails with
+    // "server does not support SSL connections". Otherwise connect over SSL
+    // without pinning a CA (Neon/RDS); read-only introspection, not the data plane.
+    ssl: sslDisabled ? false : { rejectUnauthorized: false },
   };
 }

@@ -7,6 +7,7 @@ import path from "path";
 // params, and `sslmode` in the URL can override (and discard) the explicit
 // `ssl` config below — so strip them and drive SSL ourselves.
 const databaseUrl = new URL(process.env.DATABASE_URL!);
+const sslDisabled = databaseUrl.searchParams.get("sslmode") === "disable";
 databaseUrl.searchParams.delete("sslmode");
 databaseUrl.searchParams.delete("channel_binding");
 
@@ -19,6 +20,12 @@ databaseUrl.searchParams.delete("channel_binding");
 //    bundle (proves it's a genuine RDS cert, blocks MITM) but skip the hostname
 //    check, which can't pass through the proxy.
 function sslConfig(): PoolConfig["ssl"] {
+  // Local Postgres (sslmode=disable) has no TLS at all — forcing SSL fails with
+  // "server does not support SSL connections". Honor the operator's explicit
+  // opt-out; the managed (Neon/RDS) paths below still verify as before.
+  if (sslDisabled) {
+    return false;
+  }
   if (databaseUrl.hostname.endsWith(".neon.tech")) {
     return { rejectUnauthorized: true };
   }

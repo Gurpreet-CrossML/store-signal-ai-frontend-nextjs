@@ -1,15 +1,15 @@
 import { Suspense } from "react";
 
-import IgDms from "@/clients/instagram-dms";
+import FbDms from "@/clients/facebook-dms";
 
 export const metadata = {
-  title: "Instagram DMs",
+  title: "Facebook Messages",
 };
 
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <IgDms />
+      <FbDms />
     </Suspense>
   );
 }
