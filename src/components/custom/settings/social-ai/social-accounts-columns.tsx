@@ -59,7 +59,10 @@ export const SocialAccountsColumns: ColumnDef<ConnectedAccount>[] = [
             )}
           </Avatar>
           <div className="flex flex-col gap-0.5">
-            <span title={name} className="flex items-center gap-1 font-semibold">
+            <span
+              title={name}
+              className="flex items-center gap-1 font-semibold"
+            >
               {name}
               {row.original.is_active && (
                 <IconRosetteDiscountCheckFilled className="size-4 shrink-0 text-sky-500" />

@@ -2,11 +2,18 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { fetchPostComments, SocialComment } from "@/redux/api-slice/social-ai-slice";
+import {
+  fetchPostComments,
+  SocialComment,
+} from "@/redux/api-slice/social-ai-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -22,15 +29,15 @@ const COMMENTS_PAGE_SIZE = 15;
 // renders its replies as a nested list), so they live in one file.
 
 function CommentSkeleton() {
-    return (
-        <div className="flex items-start gap-2">
-            <Skeleton className="size-8 rounded-full" />
-            <div className="flex-1 space-y-1.5">
-                <Skeleton className="h-14 w-4/5 rounded-2xl" />
-                <Skeleton className="h-3 w-24" />
-            </div>
-        </div>
-    );
+  return (
+    <div className="flex items-start gap-2">
+      <Skeleton className="size-8 rounded-full" />
+      <div className="flex-1 space-y-1.5">
+        <Skeleton className="h-14 w-4/5 rounded-2xl" />
+        <Skeleton className="h-3 w-24" />
+      </div>
+    </div>
+  );
 }
 
 function CommentItem({
@@ -42,27 +49,27 @@ function CommentItem({
     postId: number;
     nested?: boolean;
 }) {
-    const account = useAccountIdentity();
-    const channel = useChannel();
-    const [showReplies, setShowReplies] = useState(false);
-    const [showReplyBox, setShowReplyBox] = useState(false);
-    // The page's own comments ("agent"/"ai") carry no social_user — show the
-    // page identity instead, and don't offer Reply on ourselves.
-    const isSelf = false;
-    const author = comment.social_user;
-    const name = isSelf
-        ? account.name
-        : author?.name || author?.username || channel.userFallback;
-    const avatarUrl = isSelf
-        ? account.profilePictureUrl
-        : author?.profile_picture_url;
+  const account = useAccountIdentity();
+  const channel = useChannel();
+  const [showReplies, setShowReplies] = useState(false);
+  const [showReplyBox, setShowReplyBox] = useState(false);
+  // The page's own comments ("agent"/"ai") carry no social_user — show the
+  // page identity instead, and don't offer Reply on ourselves.
+  const isSelf = false;
+  const author = comment.social_user;
+  const name = isSelf
+    ? account.name
+    : author?.name || author?.username || channel.userFallback;
+  const avatarUrl = isSelf
+    ? account.profilePictureUrl
+    : author?.profile_picture_url;
 
-    const handleReplySubmit = (text: string) => {
-        // TODO: call the reply API here once it's available.
-        console.log("Reply submitted", { commentId: comment.id, text });
-        toast.info("Reply API is not connected yet.");
-        setShowReplyBox(false);
-    };
+  const handleReplySubmit = (text: string) => {
+    // TODO: call the reply API here once it's available.
+    console.log("Reply submitted", { commentId: comment.id, text });
+    toast.info("Reply API is not connected yet.");
+    setShowReplyBox(false);
+  };
 
     return (
         <div className="flex items-start gap-2">
@@ -141,17 +148,17 @@ function CommentsList({
     postId: number;
     parentId?: number;
 }) {
-    const dispatch = useAppDispatch();
-    const storeCode = useAppSelector(
-        (state) => state.GetStoresReducer.selectedStore,
-    );
-    const [comments, setComments] = useState<SocialComment[]>([]);
-    const [total, setTotal] = useState<number | null>(null);
-    const [hasMore, setHasMore] = useState(true);
-    const [loading, setLoading] = useState(false);
-    const pageRef = useRef(0);
-    const requestedRef = useRef(false);
-    const noun = parentId ? "reply" : "comment";
+  const dispatch = useAppDispatch();
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
+  const [comments, setComments] = useState<SocialComment[]>([]);
+  const [total, setTotal] = useState<number | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const pageRef = useRef(0);
+  const requestedRef = useRef(false);
+  const noun = parentId ? "reply" : "comment";
 
     const loadMore = useCallback(async () => {
         if (!storeCode) return;
@@ -184,14 +191,14 @@ function CommentsList({
         }
     }, [dispatch, storeCode, postId, parentId]);
 
-    useEffect(() => {
-        if (requestedRef.current) return;
-        requestedRef.current = true;
-        loadMore();
-    }, [loadMore]);
+  useEffect(() => {
+    if (requestedRef.current) return;
+    requestedRef.current = true;
+    loadMore();
+  }, [loadMore]);
 
-    const remaining = total === null ? 0 : Math.max(total - comments.length, 0);
-    const initialLoading = loading && comments.length === 0;
+  const remaining = total === null ? 0 : Math.max(total - comments.length, 0);
+  const initialLoading = loading && comments.length === 0;
 
     return (
         <div className="flex flex-col gap-3">

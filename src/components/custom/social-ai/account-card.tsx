@@ -3,7 +3,13 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -26,8 +32,8 @@ export function AccountCard({
     onSelectAccount: (accountId: string) => void;
     className?: string;
 }) {
-    const account = useAccountIdentity();
-    const channel = useChannel();
+  const account = useAccountIdentity();
+  const channel = useChannel();
 
     return (
         <Card size="sm" className={cn("w-full max-w-xl md:w-72 h-fit", className)}>

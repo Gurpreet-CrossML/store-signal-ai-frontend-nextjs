@@ -6,9 +6,21 @@ import { toast } from "sonner";
 
 type MetaOAuthUrlResponse = {
   authorize_url: string;
+  authorize_url: string;
 };
 
 export type ConnectedAccount = {
+  id: string;
+  channel_type: string;
+  external_id: string;
+  name: string;
+  username: string;
+  profile_picture_url: string;
+  webhook_status: string;
+  is_active: boolean;
+  last_event_at: string | null;
+  created_at: string;
+  updated_at: string;
   id: string;
   channel_type: string;
   external_id: string;
@@ -27,17 +39,21 @@ export type SocialAccountsSubscriptionsResponse = {
   count: number;
   next?: string | null;
   previous?: string | null;
+  results: ConnectedAccount[];
+  count: number;
+  next?: string | null;
+  previous?: string | null;
 };
 
 export type SocialPostMediaEntry = {
-    id: string;
-    media_type: string;
-    position: number;
-    url: string;
-    thumbnail_url: string;
-    // Instagram's Graph API returns no dimensions for images — null there.
-    width: number | null;
-    height: number | null;
+  id: string;
+  media_type: string;
+  position: number;
+  url: string;
+  thumbnail_url: string;
+  // Instagram's Graph API returns no dimensions for images — null there.
+  width: number | null;
+  height: number | null;
 };
 
 export type SocialPost = {
@@ -55,39 +71,39 @@ export type SocialPost = {
 };
 
 export type SocialPostsResponse = {
-    results: SocialPost[];
-    count: number;
-    next?: string | null;
-    previous?: string | null;
+  results: SocialPost[];
+  count: number;
+  next?: string | null;
+  previous?: string | null;
 };
 
 export type SocialUser = {
-    id: number;
-    external_id: string;
-    name: string;
-    username: string;
-    profile_picture_url: string;
+  id: number;
+  external_id: string;
+  name: string;
+  username: string;
+  profile_picture_url: string;
 };
 
 export type SocialComment = {
-    id: number;
-    post: number;
-    external_message_id: string;
-    content: string;
-    like_count: number;
-    social_user: SocialUser | null;
-    // "user" for customer comments; "agent"/"ai" when the page itself replied.
-    sender_type: string;
-    parent_message: number | null;
-    reply_count: number;
-    external_created_at: string;
+  id: number;
+  post: number;
+  external_message_id: string;
+  content: string;
+  like_count: number;
+  social_user: SocialUser | null;
+  // "user" for customer comments; "agent"/"ai" when the page itself replied.
+  sender_type: string;
+  parent_message: number | null;
+  reply_count: number;
+  external_created_at: string;
 };
 
 export type SocialCommentsResponse = {
-    results: SocialComment[];
-    count: number;
-    next?: string | null;
-    previous?: string | null;
+  results: SocialComment[];
+  count: number;
+  next?: string | null;
+  previous?: string | null;
 };
 
 export type SocialDmReplyTo = {
@@ -130,13 +146,35 @@ export const fetchSocialAccountsSubscriptions = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
+  "fetchSocialAccountsSubscriptions",
+  async (storeCode: string, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchSocialAccountsSubscriptions()}?store_code=${storeCode}`,
+        {
+          useBackend: true,
+        },
+      );
+      const data = response.data.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
 
       toast.error("Uh oh! Something went wrong.", {
         description:
           data?.message ||
           "Unable to fetch social subscriptions, please try again later.",
       });
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch social subscriptions, please try again later.",
+      });
 
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
@@ -157,13 +195,35 @@ export const createMetaOAuthUrl = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
+  "createMetaOAuthUrl",
+  async (storeCode: string, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.createMetaOAuthUrl()}?store_code=${storeCode}`,
+        {
+          useBackend: true,
+        },
+      );
+      const data = response.data.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
 
       toast.error("Uh oh! Something went wrong.", {
         description:
           data?.message ||
           "Unable to fetch Meta OAuth URL, please try again later.",
       });
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch Meta OAuth URL, please try again later.",
+      });
 
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
@@ -188,45 +248,44 @@ export const fetchSocialPosts = createAsyncThunk(
             const response = isAxiosError(error) ? error.response : undefined;
             const data = response?.data;
 
-            toast.error("Uh oh! Something went wrong.", {
-                description:
-                    data?.message ||
-                    "Unable to fetch posts, please try again later.",
-            });
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message || "Unable to fetch posts, please try again later.",
+      });
 
-            return thunkAPI.rejectWithValue(data || "Something went wrong");
-        }
-    },
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
 );
 
 export const fetchMetaPages = createAsyncThunk(
-    "fetchMetaPages",
-    async (
-        { storeCode, channelType }: { storeCode: string; channelType?: string },
-        thunkAPI,
-    ) => {
-        try {
-            const response = await axiosInstance.get(
-                `${ENDPOINTS.fetchMetaPages()}?store_code=${storeCode}${channelType ? `&channel_type=${channelType}` : ""}`,
-                {
-                    useBackend: true,
-                }
-            );
-            const data = response.data.data;
-            return data;
-        } catch (error) {
-            const response = isAxiosError(error) ? error.response : undefined;
-            const data = response?.data;
+  "fetchMetaPages",
+  async (
+    { storeCode, channelType }: { storeCode: string; channelType?: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchMetaPages()}?store_code=${storeCode}${channelType ? `&channel_type=${channelType}` : ""}`,
+        {
+          useBackend: true,
+        },
+      );
+      const data = response.data.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
 
-            toast.error("Uh oh! Something went wrong.", {
-                description:
-                    data?.message ||
-                    "Unable to fetch connected pages, please try again later.",
-            });
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch connected pages, please try again later.",
+      });
 
-            return thunkAPI.rejectWithValue(data || "Something went wrong");
-        }
-    },
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
 );
 
 export const fetchPostComments = createAsyncThunk(
@@ -248,11 +307,11 @@ export const fetchPostComments = createAsyncThunk(
             const response = isAxiosError(error) ? error.response : undefined;
             const data = response?.data;
 
-            toast.error("Uh oh! Something went wrong.", {
-                description:
-                    data?.message ||
-                    "Unable to fetch post comments, please try again later.",
-            });
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch post comments, please try again later.",
+      });
 
             return thunkAPI.rejectWithValue(data || "Something went wrong");
         }
@@ -690,3 +749,4 @@ const SocialAISlice = createSlice({
 });
 
 export default SocialAISlice.reducer;
+

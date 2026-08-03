@@ -20,7 +20,7 @@ const store = configureStore({
     GetTenancyReducer: TenancySlice,
     GetBrandVoiceReducer: BrandVoiceSlice,
     GetIntegrationReducer: IntegrationSlice,
-    SupportTicketsSliceReducer: SupportTicketsSlice,
+    GetSupportTicketsReducer: SupportTicketsSlice,
     GetSocialAIReducer: SocialAISlice,
   },
 });

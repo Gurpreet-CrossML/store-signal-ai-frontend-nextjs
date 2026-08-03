@@ -416,25 +416,24 @@ function MultiSelectCombobox({
       </ComboboxChips>
       <ComboboxContent anchor={anchor}>
         <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
-        <ComboboxList>
+        <ComboboxList
+          onScroll={(event) => {
+            const target = event.currentTarget;
+            if (
+              hasMore &&
+              !isLoading &&
+              target.scrollHeight - target.scrollTop <= target.clientHeight + 40
+            ) {
+              onLoadMore?.();
+            }
+          }}
+        >
           {(item) => (
             <ComboboxItem key={item} value={item}>
               {optionLabels.get(item) ?? item}
             </ComboboxItem>
           )}
         </ComboboxList>
-        {hasMore ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="w-full"
-            onClick={onLoadMore}
-            disabled={isLoading}
-          >
-            {isLoading ? "Loading..." : "Load more"}
-          </Button>
-        ) : null}
       </ComboboxContent>
     </Combobox>
   );
@@ -499,6 +498,14 @@ function TicketListPanel({
     filters.tags.length +
     filters.priorities.length +
     Number(Boolean(filters.fromDate || filters.toDate));
+
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    if (!hasMore || isLoading || isLoadingMore) return;
+    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 120) {
+      onLoadMore();
+    }
+  };
 
   return (
     <section className="hidden h-full min-h-0 w-[336px] shrink-0 flex-col border-r bg-white md:flex">
@@ -685,7 +692,10 @@ function TicketListPanel({
           ) : null}
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        className="h-[80vh]! overflow-y-auto px-2 py-1"
+        onScroll={handleScroll}
+      >
         {isLoading && rows?.length === 0 ? (
           <div className="flex min-h-[360px] items-center justify-center px-4 py-8">
             <div className="text-center">
@@ -708,16 +718,13 @@ function TicketListPanel({
           ))
         )}
         {rows?.length > 0 && hasMore ? (
-          <div className="flex items-center justify-center border-t bg-white py-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onLoadMore}
-              disabled={isLoadingMore}
-            >
-              {isLoadingMore ? "Loading..." : "Load more"}
-            </Button>
+          <div className="flex items-center justify-center py-4">
+            {isLoadingMore ? (
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <Spinner className="size-4" />
+                Loading more tickets...
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -1719,34 +1726,33 @@ export default function HelpDesk() {
   );
   const { FetchSupportTicketsListData, FetchSupportTicketsLoading } =
     useAppSelector(
-      (state) => state.SupportTicketsSliceReducer.FetchSupportTicketsState,
+      (state) => state.GetSupportTicketsReducer.FetchSupportTicketsState,
     );
   const { FetchSupportTicketDetailsData, FetchSupportTicketDetailsIsLoading } =
     useAppSelector(
-      (state) =>
-        state.SupportTicketsSliceReducer.FetchSupportTicketDetailsState,
+      (state) => state.GetSupportTicketsReducer.FetchSupportTicketDetailsState,
     );
   const { SupportTicketMessageSendIsLoading } = useAppSelector(
-    (state) => state.SupportTicketsSliceReducer.SupportTicketMessageSendState,
+    (state) => state.GetSupportTicketsReducer.SupportTicketMessageSendState,
   );
   const { FetchSupportTicketTagsData, FetchSupportTicketTagsIsLoading } =
     useAppSelector(
-      (state) => state.SupportTicketsSliceReducer.FetchSupportTicketTagsState,
+      (state) => state.GetSupportTicketsReducer.FetchSupportTicketTagsState,
     );
   const { SupportMessageImproveIsLoading } = useAppSelector(
-    (state) => state.SupportTicketsSliceReducer.SupportMessageImproveState,
+    (state) => state.GetSupportTicketsReducer.SupportMessageImproveState,
   );
   const { SupportTicketAIMessageDraftGenerateIsLoading } = useAppSelector(
     (state) =>
-      state.SupportTicketsSliceReducer.SupportTicketAIMessageDraftGenerateState,
+      state.GetSupportTicketsReducer.SupportTicketAIMessageDraftGenerateState,
   );
   const { SupportTicketCustomerOrderSyncIsLoading } = useAppSelector(
     (state) =>
-      state.SupportTicketsSliceReducer.SupportTicketCustomerOrderSyncState,
+      state.GetSupportTicketsReducer.SupportTicketCustomerOrderSyncState,
   );
   const { SupportTicketMessagesTranslateIsLoading } = useAppSelector(
     (state) =>
-      state.SupportTicketsSliceReducer.SupportTicketMessagesTranslateState,
+      state.GetSupportTicketsReducer.SupportTicketMessagesTranslateState,
   );
   const { staff } = useAppSelector((state) => state.GetTenancyReducer);
 

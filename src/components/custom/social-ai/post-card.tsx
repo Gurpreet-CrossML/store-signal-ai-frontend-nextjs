@@ -2,11 +2,25 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SocialPost } from "@/redux/api-slice/social-ai-slice";
-import { IconMessageCircle, IconRosetteDiscountCheckFilled } from "@tabler/icons-react";
+import {
+  IconMessageCircle,
+  IconRosetteDiscountCheckFilled,
+} from "@tabler/icons-react";
 import Image from "next/image";
 
 import { useAccountIdentity, useChannel } from "./channel-context";
@@ -18,8 +32,8 @@ import { DEFAULT_MEDIA_SIZE, MediaCarousel } from "./media-carousel";
 // One FB/IG-style post: account header, clamped text, full-bleed media, and
 // a like/comment footer whose comment count expands the comments section.
 export function SocialPostCard({ post }: { post: SocialPost }) {
-    const account = useAccountIdentity();
-    const channel = useChannel();
+  const account = useAccountIdentity();
+  const channel = useChannel();
 
     return (
         <Card size="sm" className="w-full max-w-xl gap-3">
@@ -100,28 +114,28 @@ export function SocialPostCard({ post }: { post: SocialPost }) {
 
 // Placeholder shown while the posts request is in flight.
 export function SocialPostSkeleton() {
-    return (
-        <Card size="sm" className="w-full max-w-xl gap-3">
-            <CardHeader className="flex items-center gap-3">
-                <Skeleton className="size-10 rounded-full" />
-                <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-3 w-24" />
-                </div>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-2">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-3/4" />
-                </div>
-                <div className="-mx-(--card-spacing) mt-3">
-                    <Skeleton className="h-64 w-full rounded-none" />
-                </div>
-            </CardContent>
-            <CardFooter className="justify-between">
-                <Skeleton className="h-4 w-12" />
-                <Skeleton className="h-4 w-12" />
-            </CardFooter>
-        </Card>
-    );
+  return (
+    <Card size="sm" className="w-full max-w-xl gap-3">
+      <CardHeader className="flex items-center gap-3">
+        <Skeleton className="size-10 rounded-full" />
+        <div className="flex-1 space-y-1.5">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+        </div>
+        <div className="-mx-(--card-spacing) mt-3">
+          <Skeleton className="h-64 w-full rounded-none" />
+        </div>
+      </CardContent>
+      <CardFooter className="justify-between">
+        <Skeleton className="h-4 w-12" />
+        <Skeleton className="h-4 w-12" />
+      </CardFooter>
+    </Card>
+  );
 }
