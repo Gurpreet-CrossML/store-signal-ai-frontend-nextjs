@@ -144,6 +144,59 @@ export const ENDPOINTS = {
   toneStyle: () => `/chat/tone-style/`,
   vocabulary: () => `/chat/vocabulary/`,
 
+  // Helpdesk(Support) apis
+  fetchSupportTickets: () => createAPIUrl("/support/tickets", "django"),
+  fetchSupportTicketDeatils: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/`, "django"),
+  supportTicketMessageSend: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/messages/`, "django"),
+  fetchSupportTicketTags: () => createAPIUrl("/support/ticket-tags", "django"),
+  supportTicketStaffAssign: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/assignee/`, "django"),
+  supportTicketAgentDraftSave: (ticket_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/draft-messages/agent/`,
+      "django",
+    ),
+  supportTicketTagAssign: (ticket_id: number, tag_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/tags/${tag_id}/assign/`,
+      "django",
+    ),
+  supportTicketTagRemove: (ticket_id: number, tag_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/tags/${tag_id}/remove/`,
+      "django",
+    ),
+  supportMessageImprove: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/message/improve/`, "django"),
+  supportTicketSnooze: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/snooze/`, "django"),
+  supportTicketMarkRead: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/mark/read/`, "django"),
+  ticketTagCreate: () => createAPIUrl("/support/ticket-tags/", "django"),
+  ticketTagUpdate: (tag_id: number) =>
+    createAPIUrl(`/support/ticket-tags/${tag_id}/`, "django"),
+  ticketTagDelete: (tag_id: number) =>
+    createAPIUrl(`/support/ticket-tags/${tag_id}/delete/`, "django"),
+  supportTicketAIMessageDraftGenerate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/draft-messages/ai/`, "django"),
+  supportTicketCustomerOrderSync: (ticket_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/customer/order-sync/`,
+      "django",
+    ),
+  supportTicketStatusUpdate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/status/`, "django"),
+  supportTicketPriorityUpdate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/priority/`, "django"),
+  supportTicketMessagesTranslate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/messages/translate/`, "django"),
+
+  // Helpdesk support ticket websocket (Django)
+  supportSocket: (store_code: string, token: string) =>
+    createWebSocketUrl(`/support/${store_code}/?token=${token}`),
+
   // Social AI (Django via useBackend — keep trailing slash). Posts/comments
   // are flat, filtered by query params (store_code/channel_type/post) —
   // there's no per-account or per-post nesting on the backend.
