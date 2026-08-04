@@ -82,6 +82,7 @@ export type SocialComment = {
   reply_count: number;
   is_hidden: boolean;
   owner_liked: boolean;
+  is_deleted: boolean;
   external_created_at: string;
 };
 

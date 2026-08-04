@@ -173,10 +173,15 @@ function CommentItem({
                                 Hidden
                             </Badge>
                         )}
+                        {comment.is_deleted && (
+                            <Badge variant="secondary" className="text-[10px] text-muted-foreground">
+                                Deleted
+                            </Badge>
+                        )}
                     </p>
                     <ExpandableText
-                        text={comment.content}
-                        textClassName="text-sm leading-snug"
+                        text={comment.is_deleted ? "This comment has been deleted." : comment.content}
+                        textClassName={`text-sm leading-snug ${comment.is_deleted ? "text-muted-foreground italic" : ""}`}
                     />
                 </div>
                 <div className="mt-1 flex items-center gap-3 px-3 text-xs text-muted-foreground">
@@ -187,9 +192,9 @@ function CommentItem({
                         <button
                             type="button"
                             onClick={handleLike}
-                            disabled={isLiked}
+                            disabled={isLiked || comment.is_deleted}
                             aria-label={isLiked ? "Liked" : "Like"}
-                            className="disabled:cursor-default"
+                            className="disabled:cursor-default disabled:opacity-50"
                         >
                             {isLiked ? (
                                 <channel.LikeIconFilled
@@ -200,13 +205,15 @@ function CommentItem({
                             )}
                         </button>
                     )}
-                    <button
-                        type="button"
-                        onClick={() => setShowReplyBox((open) => !open)}
-                        className="font-semibold hover:underline"
-                    >
-                        Reply
-                    </button>
+                    {!comment.is_deleted && (
+                        <button
+                            type="button"
+                            onClick={() => setShowReplyBox((open) => !open)}
+                            className="font-semibold hover:underline"
+                        >
+                            Reply
+                        </button>
+                    )}
                     {comment.like_count > 0 && (
                         <span className="flex items-center gap-1">
                             <channel.LikeIcon className="size-3.5" />
@@ -218,8 +225,8 @@ function CommentItem({
                             <Button
                                 variant="ghost"
                                 size="icon-xs"
-                                disabled={menuBusy}
-                                className="opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:opacity-100"
+                                disabled={menuBusy || comment.is_deleted}
+                                className="opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:opacity-100 disabled:opacity-50"
                                 aria-label="Comment actions"
                             >
                                 <IconDotsVertical className="size-4" />
@@ -269,9 +276,9 @@ function CommentItem({
                 <button
                     type="button"
                     onClick={handleLike}
-                    disabled={isLiked}
+                    disabled={isLiked || comment.is_deleted}
                     aria-label={isLiked ? "Liked" : "Like"}
-                    className="mt-1 shrink-0 disabled:cursor-default"
+                    className="mt-1 shrink-0 disabled:cursor-default disabled:opacity-50"
                 >
                     {isLiked ? (
                         <channel.LikeIconFilled className={`size-4 ${channel.likeColorClass}`} />
