@@ -27,6 +27,7 @@ type CKEditorTextAreaProps = {
   value?: string;
   onChange?: (value: string) => void;
   useMarkdown?: boolean;
+  disabled?: boolean;
 };
 
 const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
@@ -35,6 +36,7 @@ const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
   value,
   onChange,
   useMarkdown,
+  disabled,
 }) => {
   const isLayoutReady = useSyncExternalStore(
     emptySubscribe,
@@ -138,6 +140,7 @@ const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
                 editor={ClassicEditor}
                 config={editorConfig as EditorConfig}
                 data={value ?? ""}
+                disabled={disabled}
                 onChange={(_event, editor) => {
                   onChange?.(editor.getData());
                 }}
