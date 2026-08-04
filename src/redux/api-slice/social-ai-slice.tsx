@@ -80,6 +80,8 @@ export type SocialComment = {
   sender_type: string;
   parent_message: number | null;
   reply_count: number;
+  is_hidden: boolean;
+  owner_liked: boolean;
   external_created_at: string;
 };
 

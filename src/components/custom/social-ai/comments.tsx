@@ -1,17 +1,29 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { IconDotsVertical } from "@tabler/icons-react";
 import {
+  deleteMetaComment,
   fetchPostComments,
+  hideMetaComment,
+  likeMetaComment,
+  replyToMetaComment,
   SocialComment,
 } from "@/redux/api-slice/social-ai-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -44,18 +56,35 @@ function CommentItem({
     comment,
     postId,
     nested = false,
+    onDeleted,
+    onHiddenChange,
 }: {
     comment: SocialComment;
     postId: number;
     nested?: boolean;
+    onDeleted: (commentId: number) => void;
+    onHiddenChange: (commentId: number, isHidden: boolean) => void;
 }) {
+  const dispatch = useAppDispatch();
   const account = useAccountIdentity();
   const channel = useChannel();
   const [showReplies, setShowReplies] = useState(false);
   const [showReplyBox, setShowReplyBox] = useState(false);
+  // Bumped on every successful reply so the (re-keyed) nested CommentsList
+  // below remounts and fetches fresh — including the reply just posted.
+  const [repliesRefreshKey, setRepliesRefreshKey] = useState(0);
+  // reply_count is a snapshot from whenever this comment was fetched; track
+  // it locally so posting the first reply reveals "View replies" immediately
+  // instead of waiting on a full re-fetch of the parent list.
+  const [localReplyCount, setLocalReplyCount] = useState(comment.reply_count ?? 0);
+  const [menuBusy, setMenuBusy] = useState(false);
+  // There's no unlike endpoint — once liked (locally or per owner_liked
+  // from the server), the state only ever moves forward.
+  const [optimisticLiked, setOptimisticLiked] = useState(false);
+  const isLiked = comment.owner_liked || optimisticLiked;
   // The page's own comments ("agent"/"ai") carry no social_user — show the
   // page identity instead, and don't offer Reply on ourselves.
-  const isSelf = false;
+  const isSelf = comment.sender_type === "agent" || comment.sender_type === "ai";
   const author = comment.social_user;
   const name = isSelf
     ? account.name
@@ -64,15 +93,63 @@ function CommentItem({
     ? account.profilePictureUrl
     : author?.profile_picture_url;
 
-  const handleReplySubmit = (text: string) => {
-    // TODO: call the reply API here once it's available.
-    console.log("Reply submitted", { commentId: comment.id, text });
-    toast.info("Reply API is not connected yet.");
-    setShowReplyBox(false);
+  const handleReplySubmit = async (text: string) => {
+    try {
+      await dispatch(
+        replyToMetaComment({ messageId: String(comment.id), message: text }),
+      ).unwrap();
+      toast.success("Reply sent.");
+      setShowReplyBox(false);
+      setLocalReplyCount((count) => count + 1);
+      setShowReplies(true);
+      setRepliesRefreshKey((key) => key + 1);
+    } catch {
+      // The thunk already surfaces the error toast.
+    }
+  };
+
+  const handleToggleHidden = async () => {
+    const nextHidden = !comment.is_hidden;
+    setMenuBusy(true);
+    try {
+      await dispatch(
+        hideMetaComment({ messageId: String(comment.id), is_hidden: nextHidden }),
+      ).unwrap();
+      toast.success(nextHidden ? "Comment hidden." : "Comment unhidden.");
+      onHiddenChange(comment.id, nextHidden);
+    } catch {
+      // The thunk already surfaces the error toast.
+    } finally {
+      setMenuBusy(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setMenuBusy(true);
+    try {
+      await dispatch(deleteMetaComment(String(comment.id))).unwrap();
+      toast.success("Comment deleted.");
+      onDeleted(comment.id);
+    } catch {
+      // The thunk already surfaces the error toast.
+    } finally {
+      setMenuBusy(false);
+    }
+  };
+
+  const handleLike = async () => {
+    if (isLiked) return;
+    setOptimisticLiked(true);
+    try {
+      await dispatch(likeMetaComment(String(comment.id))).unwrap();
+    } catch {
+      // The thunk already surfaces the error toast.
+      setOptimisticLiked(false);
+    }
   };
 
     return (
-        <div className="flex items-start gap-2">
+        <div className="group flex items-start gap-2">
             <Avatar size={nested ? "sm" : "default"}>
                 {avatarUrl ? (
                     <AvatarImage src={avatarUrl} alt={name} />
@@ -84,7 +161,19 @@ function CommentItem({
             </Avatar>
             <div className="min-w-0 flex-1">
                 <div className="inline-block max-w-full rounded-lg bg-muted px-3 py-2">
-                    <p className="text-[13px] leading-tight font-semibold">{name}</p>
+                    <p className="flex items-center gap-1.5 text-[13px] leading-tight font-semibold">
+                        {name}
+                        {isSelf && (
+                            <Badge variant="secondary" className="text-[10px]">
+                                Author
+                            </Badge>
+                        )}
+                        {comment.is_hidden && (
+                            <Badge variant="outline" className="text-[10px]">
+                                Hidden
+                            </Badge>
+                        )}
+                    </p>
                     <ExpandableText
                         text={comment.content}
                         textClassName="text-sm leading-snug"
@@ -94,26 +183,66 @@ function CommentItem({
                     <span title={formatPostedAt(comment.external_created_at)}>
                         {formatRelativeTime(comment.external_created_at)}
                     </span>
-                    {!isSelf && (
+                    {channel.key === "facebook" && (
                         <button
                             type="button"
-                            onClick={() => setShowReplyBox((open) => !open)}
-                            className="font-semibold hover:underline"
+                            onClick={handleLike}
+                            disabled={isLiked}
+                            aria-label={isLiked ? "Liked" : "Like"}
+                            className="disabled:cursor-default"
                         >
-                            Reply
+                            {isLiked ? (
+                                <channel.LikeIconFilled
+                                    className={`size-4 ${channel.likeColorClass}`}
+                                />
+                            ) : (
+                                <channel.LikeIcon className="size-4" />
+                            )}
                         </button>
                     )}
+                    <button
+                        type="button"
+                        onClick={() => setShowReplyBox((open) => !open)}
+                        className="font-semibold hover:underline"
+                    >
+                        Reply
+                    </button>
                     {comment.like_count > 0 && (
                         <span className="flex items-center gap-1">
                             <channel.LikeIcon className="size-3.5" />
                             {comment.like_count}
                         </span>
                     )}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                disabled={menuBusy}
+                                className="opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:opacity-100"
+                                aria-label="Comment actions"
+                            >
+                                <IconDotsVertical className="size-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                            <DropdownMenuItem onClick={handleToggleHidden} disabled={menuBusy}>
+                                {comment.is_hidden ? "Unhide comment" : "Hide comment"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={handleDelete}
+                                disabled={menuBusy}
+                                variant="destructive"
+                            >
+                                Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
                 {showReplyBox && (
                     <ReplyBox replyingTo={name} onSubmit={handleReplySubmit} />
                 )}
-                {comment.reply_count > 0 && (
+                {localReplyCount > 0 && (
                     <Collapsible open={showReplies} onOpenChange={setShowReplies}>
                         <CollapsibleTrigger asChild>
                             <Button
@@ -123,11 +252,12 @@ function CommentItem({
                             >
                                 {showReplies
                                     ? "Hide replies"
-                                    : `View ${comment.reply_count} ${comment.reply_count === 1 ? "reply" : "replies"}`}
+                                    : `View ${localReplyCount} ${localReplyCount === 1 ? "reply" : "replies"}`}
                             </Button>
                         </CollapsibleTrigger>
                         <CollapsibleContent className="mt-2 border-l-2 pl-3">
                             <CommentsList
+                                key={repliesRefreshKey}
                                 postId={postId}
                                 parentId={comment.id}
                             />
@@ -135,6 +265,21 @@ function CommentItem({
                     </Collapsible>
                 )}
             </div>
+            {channel.key === "instagram" && (
+                <button
+                    type="button"
+                    onClick={handleLike}
+                    disabled={isLiked}
+                    aria-label={isLiked ? "Liked" : "Like"}
+                    className="mt-1 shrink-0 disabled:cursor-default"
+                >
+                    {isLiked ? (
+                        <channel.LikeIconFilled className={`size-4 ${channel.likeColorClass}`} />
+                    ) : (
+                        <channel.LikeIcon className="size-4 text-muted-foreground" />
+                    )}
+                </button>
+            )}
         </div>
     );
 }
@@ -200,6 +345,19 @@ function CommentsList({
   const remaining = total === null ? 0 : Math.max(total - comments.length, 0);
   const initialLoading = loading && comments.length === 0;
 
+  const handleCommentDeleted = (commentId: number) => {
+    setComments((prev) => prev.filter((comment) => comment.id !== commentId));
+    setTotal((prev) => (prev === null ? prev : Math.max(prev - 1, 0)));
+  };
+
+  const handleCommentHiddenChange = (commentId: number, isHidden: boolean) => {
+    setComments((prev) =>
+      prev.map((comment) =>
+        comment.id === commentId ? { ...comment, is_hidden: isHidden } : comment,
+      ),
+    );
+  };
+
     return (
         <div className="flex flex-col gap-3">
             {initialLoading && (
@@ -215,6 +373,8 @@ function CommentsList({
                     comment={comment}
                     postId={postId}
                     nested={Boolean(parentId)}
+                    onDeleted={handleCommentDeleted}
+                    onHiddenChange={handleCommentHiddenChange}
                 />
             ))}
             {!initialLoading && total === 0 && (
