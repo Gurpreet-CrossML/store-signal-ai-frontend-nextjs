@@ -5,6 +5,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import ChartEmptyState from "@/components/custom/ai-usage/chart-empty-state";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -16,22 +17,65 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { AIUsageResponse } from "@/redux/api-slice/ai-usage-slice";
 
 const chartConfig = {
   calls: { label: "Agent calls", color: "var(--chart-3)" },
 } satisfies ChartConfig;
 
+const ALL_WORKFLOWS = "all";
+
+function formatName(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export default function AgentCallsChart({
   data,
+  workflows,
+  selectedWorkflow,
+  onWorkflowChange,
 }: {
   data: AIUsageResponse["charts"]["agent_calls"];
+  workflows: string[];
+  selectedWorkflow: string;
+  onWorkflowChange: (workflow: string) => void;
 }) {
+  const activeWorkflow = selectedWorkflow || ALL_WORKFLOWS;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Agent calls</CardTitle>
         <CardDescription>Workflow invocations grouped by agent</CardDescription>
+        <CardAction>
+          <Select
+            value={activeWorkflow}
+            onValueChange={(value) =>
+              onWorkflowChange(value === ALL_WORKFLOWS ? "" : value)
+            }
+          >
+            <SelectTrigger size="sm" className="max-w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value={ALL_WORKFLOWS}>All workflows</SelectItem>
+              {workflows.map((workflow) => (
+                <SelectItem key={workflow} value={workflow}>
+                  {formatName(workflow)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardAction>
       </CardHeader>
       <CardContent>
         {data.length ? (

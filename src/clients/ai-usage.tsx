@@ -15,7 +15,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { useDebounce } from "@/hooks/use-debounce";
-import { fetchAIUsage } from "@/redux/api-slice/ai-usage-slice";
+import {
+  fetchAIUsageAgentCalls,
+  fetchAIUsageDaily,
+  fetchAIUsageLatencyTrend,
+  fetchAIUsageModelTokens,
+  fetchAIUsageSummary,
+  fetchAIUsageTokenSplit,
+  fetchAIUsageWorkflowCosts,
+} from "@/redux/api-slice/ai-usage-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 type Filters = {
@@ -42,27 +50,53 @@ const compact = new Intl.NumberFormat("en-US", {
 export default function AIUsage() {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector((state) => state.GetStoresReducer.selectedStore);
-  const { data, isLoading } = useAppSelector((state) => state.GetAIUsageReducer);
+  const { data, loading } = useAppSelector((state) => state.GetAIUsageReducer);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [agentWorkflow, setAgentWorkflow] = useState("");
   const workflowId = useDebounce(filters.workflowId.trim());
   const agentId = useDebounce(filters.agentId.trim());
   const model = useDebounce(filters.model.trim());
 
   useEffect(() => {
     if (!storeCode) return;
+    const args = {
+      storeCode,
+      workflowId,
+      agentId,
+      model,
+      from: filters.from,
+      to: filters.to,
+    };
+    dispatch(fetchAIUsageSummary(args));
+    dispatch(fetchAIUsageDaily(args));
+    dispatch(fetchAIUsageTokenSplit(args));
+    dispatch(fetchAIUsageWorkflowCosts(args));
+    dispatch(fetchAIUsageModelTokens(args));
+    dispatch(fetchAIUsageLatencyTrend(args));
+  }, [dispatch, storeCode, workflowId, agentId, model, filters.from, filters.to]);
+
+  useEffect(() => {
+    if (!storeCode) return;
     dispatch(
-      fetchAIUsage({
+      fetchAIUsageAgentCalls({
         storeCode,
-        page: 1,
-        pageSize: 1,
-        workflowId,
+        workflowId: agentWorkflow || workflowId,
         agentId,
         model,
         from: filters.from,
         to: filters.to,
       }),
     );
-  }, [dispatch, storeCode, workflowId, agentId, model, filters.from, filters.to]);
+  }, [
+    dispatch,
+    storeCode,
+    workflowId,
+    agentWorkflow,
+    agentId,
+    model,
+    filters.from,
+    filters.to,
+  ]);
 
   const update = (key: keyof Filters, value: string) =>
     setFilters((current) => ({ ...current, [key]: value }));
@@ -174,7 +208,7 @@ export default function AIUsage() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-muted-foreground">{label}</p>
                 <p className="text-2xl font-semibold tracking-tight tabular-nums">
-                  {isLoading ? <Spinner className="my-1 size-5" /> : value}
+                  {loading.summary ? <Spinner className="my-1 size-5" /> : value}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">{note}</p>
               </div>
@@ -183,7 +217,11 @@ export default function AIUsage() {
         ))}
       </div>
 
-      <AIUsageCharts data={data} />
+      <AIUsageCharts
+        data={data}
+        agentWorkflow={agentWorkflow || workflowId}
+        onAgentWorkflowChange={setAgentWorkflow}
+      />
     </div>
   );
 }
