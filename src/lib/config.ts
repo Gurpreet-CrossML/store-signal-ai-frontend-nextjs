@@ -207,11 +207,11 @@ export const ENDPOINTS = {
   fetchSocialPosts: () => `/social/meta/posts/`,
   fetchPostComments: () => `/social/meta/comments/`,
   fetchSocialDms: () => `/social/meta/messages/`,
-  likeMessage: (messageId: string) =>
+  likeComment: (messageId: string) =>
     `/social/meta/messages/${messageId}/like/`,
-  hideMessage: (messageId: string) =>
+  hideComment: (messageId: string) =>
     `/social/meta/messages/${messageId}/hide/`,
-  deleteMessage: (messageId: string) => `/social/meta/messages/${messageId}/`,
+  deleteComment: (messageId: string) => `/social/meta/messages/${messageId}/`,
   replyMessage: (messageId: string) =>
     `/social/meta/messages/${messageId}/reply/`,
   reactMessage: (messageId: string) =>

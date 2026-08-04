@@ -295,7 +295,7 @@ export const likeMetaComment = createAsyncThunk(
   async (messageId: string, thunkAPI) => {
     try {
       const response = await axiosInstance.post(
-        ENDPOINTS.likeMessage(messageId),
+        ENDPOINTS.likeComment(messageId),
         {},
         { useBackend: true },
       );
@@ -319,7 +319,7 @@ export const hideMetaComment = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.post(
-        ENDPOINTS.hideMessage(messageId),
+        ENDPOINTS.hideComment(messageId),
         { is_hidden },
         { useBackend: true },
       );
@@ -340,7 +340,7 @@ export const deleteMetaComment = createAsyncThunk(
   async (messageId: string, thunkAPI) => {
     try {
       const response = await axiosInstance.delete(
-        ENDPOINTS.deleteMessage(messageId),
+        ENDPOINTS.deleteComment(messageId),
         { useBackend: true },
       );
       return response.data;
