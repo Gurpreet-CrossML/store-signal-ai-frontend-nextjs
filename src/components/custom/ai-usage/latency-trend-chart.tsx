@@ -27,6 +27,7 @@ const compact = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 1,
 });
 
+/** Renders the daily average AI-agent latency as a time-series line chart. */
 export default function LatencyTrendChart({
   data,
 }: {
@@ -45,7 +46,9 @@ export default function LatencyTrendChart({
     <Card className="lg:col-span-2">
       <CardHeader>
         <CardTitle>Latency trend</CardTitle>
-        <CardDescription>Daily average agent latency in milliseconds</CardDescription>
+        <CardDescription>
+          Daily average agent latency in milliseconds
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {points.length ? (

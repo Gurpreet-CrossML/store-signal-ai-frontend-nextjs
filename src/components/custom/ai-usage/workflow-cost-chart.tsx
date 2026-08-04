@@ -30,6 +30,7 @@ const chartConfig = {
   label: { color: "var(--primary-foreground)" },
 } satisfies ChartConfig;
 
+/** Renders estimated AI usage cost grouped by workflow in US dollars. */
 export default function WorkflowCostChart({
   data,
 }: {

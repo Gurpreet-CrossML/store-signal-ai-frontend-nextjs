@@ -32,12 +32,17 @@ const chartConfig = {
 
 const ALL_WORKFLOWS = "all";
 
+/** Converts a backend identifier into a human-readable title. */
 function formatName(value: string) {
   return value
     .replaceAll("_", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+/**
+ * Renders agent call totals and provides a workflow selector that refreshes
+ * the chart through the parent callback.
+ */
 export default function AgentCallsChart({
   data,
   workflows,

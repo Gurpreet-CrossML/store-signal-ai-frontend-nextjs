@@ -6,6 +6,10 @@ import TokenSplitChart from "@/components/custom/ai-usage/token-split-chart";
 import WorkflowCostChart from "@/components/custom/ai-usage/workflow-cost-chart";
 import type { AIUsageResponse } from "@/redux/api-slice/ai-usage-slice";
 
+/**
+ * Arranges all AI usage visualizations and forwards the agent workflow filter
+ * to the chart that owns it.
+ */
 export default function AIUsageCharts({
   data,
   agentWorkflow,

@@ -32,6 +32,10 @@ const chartConfig = {
 
 type ActiveChart = keyof typeof chartConfig;
 
+/**
+ * Renders daily agent usage or token consumption and lets the user switch
+ * between the two series.
+ */
 export default function DailyUsageChart({
   data,
 }: {
@@ -40,8 +44,12 @@ export default function DailyUsageChart({
   const [activeChart, setActiveChart] = React.useState<ActiveChart>("usage");
   const totals = React.useMemo(
     () => ({
-      usage: data.reduce((sum, item) => sum + item.usage, 0),
-      consumption: data.reduce((sum, item) => sum + item.consumption, 0),
+      // Numeric database fields can be serialized as strings by the API.
+      usage: data.reduce((sum, item) => sum + Number(item.usage || 0), 0),
+      consumption: data.reduce(
+        (sum, item) => sum + Number(item.consumption || 0),
+        0,
+      ),
     }),
     [data],
   );

@@ -47,9 +47,15 @@ const compact = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 });
 
+/**
+ * Renders the AI usage dashboard and coordinates filter-driven backend
+ * requests for its summary cards and charts.
+ */
 export default function AIUsage() {
   const dispatch = useAppDispatch();
-  const storeCode = useAppSelector((state) => state.GetStoresReducer.selectedStore);
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
   const { data, loading } = useAppSelector((state) => state.GetAIUsageReducer);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [agentWorkflow, setAgentWorkflow] = useState("");
@@ -73,7 +79,15 @@ export default function AIUsage() {
     dispatch(fetchAIUsageWorkflowCosts(args));
     dispatch(fetchAIUsageModelTokens(args));
     dispatch(fetchAIUsageLatencyTrend(args));
-  }, [dispatch, storeCode, workflowId, agentId, model, filters.from, filters.to]);
+  }, [
+    dispatch,
+    storeCode,
+    workflowId,
+    agentId,
+    model,
+    filters.from,
+    filters.to,
+  ]);
 
   useEffect(() => {
     if (!storeCode) return;
@@ -101,32 +115,42 @@ export default function AIUsage() {
   const update = (key: keyof Filters, value: string) =>
     setFilters((current) => ({ ...current, [key]: value }));
   const hasFilters = Object.values(filters).some(Boolean);
+
+  // API decimal and aggregate fields may arrive as numeric strings. Convert
+  // them only at the presentation boundary so Redux keeps the backend payload.
+  const totalCost = Number(data.summary.total_cost) || 0;
+  const totalRecords = Number(data.summary.total_records) || 0;
+  const averageLatency = Number(data.summary.average_latency) || 0;
+  const totalTokens = Number(data.summary.total_tokens) || 0;
+  const inputTokens = Number(data.summary.input_tokens) || 0;
+  const outputTokens = Number(data.summary.output_tokens) || 0;
+
   const metrics = [
     {
       label: "Total cost",
-      value: `$${data.summary.total_cost.toFixed(4)}`,
+      value: `$${totalCost.toFixed(4)}`,
       note: "USD estimated",
       icon: IconCoins,
     },
     {
       label: "Agent calls",
-      value: data.summary.total_records.toLocaleString(),
+      value: totalRecords.toLocaleString(),
       note: "workflow invocations",
       icon: IconRobot,
     },
     {
       label: "Avg latency",
       value:
-        data.summary.average_latency >= 1000
-          ? `${(data.summary.average_latency / 1000).toFixed(2)} s`
-          : `${Math.round(data.summary.average_latency)} ms`,
+        averageLatency >= 1000
+          ? `${(averageLatency / 1000).toFixed(2)} s`
+          : `${Math.round(averageLatency)} ms`,
       note: "per agent call",
       icon: IconClock,
     },
     {
       label: "Total tokens",
-      value: compact.format(data.summary.total_tokens),
-      note: `${compact.format(data.summary.input_tokens)} input · ${compact.format(data.summary.output_tokens)} output`,
+      value: compact.format(totalTokens),
+      note: `${compact.format(inputTokens)} input · ${compact.format(outputTokens)} output`,
       icon: IconDatabase,
     },
   ];
@@ -190,7 +214,11 @@ export default function AIUsage() {
                   </button>
                 ) : null,
               )}
-              <Button variant="ghost" size="sm" onClick={() => setFilters(EMPTY_FILTERS)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setFilters(EMPTY_FILTERS)}
+              >
                 Clear filters
               </Button>
             </div>
@@ -208,7 +236,11 @@ export default function AIUsage() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-muted-foreground">{label}</p>
                 <p className="text-2xl font-semibold tracking-tight tabular-nums">
-                  {loading.summary ? <Spinner className="my-1 size-5" /> : value}
+                  {loading.summary ? (
+                    <Spinner className="my-1 size-5" />
+                  ) : (
+                    value
+                  )}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">{note}</p>
               </div>

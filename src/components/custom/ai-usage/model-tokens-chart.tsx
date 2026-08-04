@@ -30,6 +30,7 @@ const compact = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 1,
 });
 
+/** Renders stacked input and output token totals grouped by AI model. */
 export default function ModelTokensChart({
   data,
 }: {
@@ -39,7 +40,9 @@ export default function ModelTokensChart({
     <Card>
       <CardHeader>
         <CardTitle>Tokens by model</CardTitle>
-        <CardDescription>Input and output volume for each model</CardDescription>
+        <CardDescription>
+          Input and output volume for each model
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {data.length ? (
@@ -53,7 +56,9 @@ export default function ModelTokensChart({
                 tickMargin={10}
                 interval={0}
                 tickFormatter={(value) => {
-                  const name = value.includes(":") ? value.split(":").at(-1) : value;
+                  const name = value.includes(":")
+                    ? value.split(":").at(-1)
+                    : value;
                   return name.length > 14 ? `${name.slice(0, 13)}…` : name;
                 }}
               />

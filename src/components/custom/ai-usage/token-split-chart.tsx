@@ -30,21 +30,35 @@ const compact = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 1,
 });
 
-export default function TokenSplitChart({ summary }: { summary: AIUsageSummary }) {
+/** Renders the overall input-versus-output token distribution as a pie chart. */
+export default function TokenSplitChart({
+  summary,
+}: {
+  summary: AIUsageSummary;
+}) {
   const data = [
     { type: "input", tokens: summary.input_tokens, fill: "var(--color-input)" },
-    { type: "output", tokens: summary.output_tokens, fill: "var(--color-output)" },
+    {
+      type: "output",
+      tokens: summary.output_tokens,
+      fill: "var(--color-output)",
+    },
   ];
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Token split</CardTitle>
-        <CardDescription>Input and output tokens across agent calls</CardDescription>
+        <CardDescription>
+          Input and output tokens across agent calls
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {summary.total_tokens ? (
-          <ChartContainer config={chartConfig} className="mx-auto h-[280px] w-full">
+          <ChartContainer
+            config={chartConfig}
+            className="mx-auto h-[280px] w-full"
+          >
             <PieChart accessibilityLayer>
               <ChartTooltip content={<ChartTooltipContent hideLabel />} />
               <Pie
