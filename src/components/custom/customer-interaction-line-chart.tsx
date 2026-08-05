@@ -2,6 +2,7 @@
 
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
+import { InfoIcon } from "@/components/custom/info-icon";
 import {
   Card,
   CardContent,
@@ -15,7 +16,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/custom/date-range-picker";
 import {
   Select,
   SelectContent,
@@ -70,7 +71,10 @@ export function CustomerInteractionLineChart({
     <Card className="flex flex-col">
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <CardTitle>Customer Interaction Analytics</CardTitle>
+          <CardTitle className="flex items-center gap-1.5">
+            Customer Interaction Analytics
+            <InfoIcon text="Tracks how many customer conversations happened over time for the selected date range and granularity, so you can spot trends and peak periods." />
+          </CardTitle>
           <CardDescription>{subtitleMap[granularity]}</CardDescription>
         </div>
 
@@ -90,21 +94,13 @@ export function CustomerInteractionLineChart({
           </Select>
 
           {granularity === "monthly" ? (
-            <div className="flex items-center gap-2">
-              <Input
-                type="date"
-                value={from}
-                onChange={(e) => onFromChange(e.target.value)}
-                className="h-8 w-[150px]"
-              />
-              <span className="text-sm text-muted-foreground">→</span>
-              <Input
-                type="date"
-                value={to}
-                onChange={(e) => onToChange(e.target.value)}
-                className="h-8 w-[150px]"
-              />
-            </div>
+            <DateRangePicker
+              from={from}
+              to={to}
+              onFromChange={onFromChange}
+              onToChange={onToChange}
+              disabled={{ after: new Date() }}
+            />
           ) : (
             <span className="rounded-md border bg-muted/30 px-3 py-1.5 text-sm text-muted-foreground">
               {autoRangeLabel[granularity]}
