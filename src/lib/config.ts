@@ -84,8 +84,6 @@ export const ENDPOINTS = {
   fetchAIUsageDaily: () => "/chat/ai-usage/daily/",
   fetchAIUsageTokenSplit: () => "/chat/ai-usage/token-split/",
   fetchAIUsageWorkflowCosts: () => "/chat/ai-usage/workflow-costs/",
-  fetchAIUsageAgentCalls: () => "/chat/ai-usage/agent-calls/",
-  fetchAIUsageModelTokens: () => "/chat/ai-usage/model-tokens/",
   fetchAIUsageLatencyTrend: () => "/chat/ai-usage/latency-trend/",
 
   // Thread-level Analytics (local GETs — no trailing slash).

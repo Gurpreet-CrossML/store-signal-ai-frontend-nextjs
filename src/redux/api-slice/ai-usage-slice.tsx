@@ -15,26 +15,16 @@ export type AIUsageSummary = {
   output_tokens: number;
 };
 
-/** Usage and consumption totals for a single calendar date. */
+/** Usage and token totals for a single calendar date. */
 export type DailyUsagePoint = {
   date: string;
   usage: number;
-  consumption: number;
+  input_tokens: number;
+  output_tokens: number;
 };
 
 /** Cost attributed to a workflow. */
 export type WorkflowCostPoint = { workflow: string; cost: number };
-
-/** Number of calls attributed to an agent. */
-export type AgentCallPoint = { agent: string; calls: number };
-
-/** Input, output, and combined token totals for a model. */
-export type ModelTokenPoint = {
-  model: string;
-  input_tokens: number;
-  output_tokens: number;
-  total_tokens: number;
-};
 
 /** Average request latency for a single calendar date. */
 export type LatencyPoint = { date: string; latency: number };
@@ -45,9 +35,6 @@ export type AIUsageResponse = {
   charts: {
     daily_usage: DailyUsagePoint[];
     workflow_costs: WorkflowCostPoint[];
-    agent_calls: AgentCallPoint[];
-    agent_workflows: string[];
-    model_tokens: ModelTokenPoint[];
     latency_trend: LatencyPoint[];
   };
 };
@@ -55,9 +42,7 @@ export type AIUsageResponse = {
 /** Filters accepted by every AI usage endpoint. */
 export type AIUsageFilters = {
   storeCode: string;
-  workflowId?: string;
-  agentId?: string;
-  model?: string;
+  threadId?: string;
   from?: string;
   to?: string;
 };
@@ -67,12 +52,6 @@ type TokenSplitData = Pick<
   AIUsageSummary,
   "input_tokens" | "output_tokens" | "total_tokens"
 >;
-
-/** Agent call chart points and workflow filter options from the backend. */
-type AgentCallsData = {
-  workflows: string[];
-  results: AgentCallPoint[];
-};
 
 const emptySummary: AIUsageSummary = {
   total_cost: 0,
@@ -94,9 +73,7 @@ const emptyTokenSplit: TokenSplitData = {
  */
 function paramsFor(filters: AIUsageFilters) {
   const params = new URLSearchParams({ store_code: filters.storeCode });
-  if (filters.workflowId) params.set("workflow_id", filters.workflowId);
-  if (filters.agentId) params.set("agent_id", filters.agentId);
-  if (filters.model) params.set("model", filters.model);
+  if (filters.threadId) params.set("thread_id", filters.threadId);
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
   return params;
@@ -202,56 +179,6 @@ export const fetchAIUsageWorkflowCosts = createAsyncThunk(
   },
 );
 
-/** Fetches agent call totals and the workflows available for agent filtering. */
-export const fetchAIUsageAgentCalls = createAsyncThunk(
-  "aiUsage/fetchAgentCalls",
-  async (filters: AIUsageFilters, thunkAPI) => {
-    try {
-      const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchAIUsageAgentCalls()}?${paramsFor(filters).toString()}`,
-        { useBackend: true },
-      );
-      return response.data.data as AgentCallsData;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch AI agent calls, please try again later.",
-      });
-
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
-
-/** Fetches model token chart data without modifying the backend response. */
-export const fetchAIUsageModelTokens = createAsyncThunk(
-  "aiUsage/fetchModelTokens",
-  async (filters: AIUsageFilters, thunkAPI) => {
-    try {
-      const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchAIUsageModelTokens()}?${paramsFor(filters).toString()}`,
-        { useBackend: true },
-      );
-      return response.data.data as ModelTokenPoint[];
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch AI model tokens, please try again later.",
-      });
-
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
-
 /** Fetches latency trend chart data without modifying the backend response. */
 export const fetchAIUsageLatencyTrend = createAsyncThunk(
   "aiUsage/fetchLatencyTrend",
@@ -303,21 +230,6 @@ const AIUsageSlice = createSlice({
       FetchAIUsageWorkflowCostsIsSuccess: false,
       FetchAIUsageWorkflowCostsIsError: null as null | string | object,
       FetchAIUsageWorkflowCostsData: [] as WorkflowCostPoint[],
-    },
-    FetchAIUsageAgentCallsState: {
-      FetchAIUsageAgentCallsIsLoading: false,
-      FetchAIUsageAgentCallsIsSuccess: false,
-      FetchAIUsageAgentCallsIsError: null as null | string | object,
-      FetchAIUsageAgentCallsData: {
-        workflows: [],
-        results: [],
-      } as AgentCallsData,
-    },
-    FetchAIUsageModelTokensState: {
-      FetchAIUsageModelTokensIsLoading: false,
-      FetchAIUsageModelTokensIsSuccess: false,
-      FetchAIUsageModelTokensIsError: null as null | string | object,
-      FetchAIUsageModelTokensData: [] as ModelTokenPoint[],
     },
     FetchAIUsageLatencyTrendState: {
       FetchAIUsageLatencyTrendIsLoading: false,
@@ -398,43 +310,6 @@ const AIUsageSlice = createSlice({
         state.FetchAIUsageWorkflowCostsState.FetchAIUsageWorkflowCostsIsLoading = false;
         state.FetchAIUsageWorkflowCostsState.FetchAIUsageWorkflowCostsIsSuccess = false;
         state.FetchAIUsageWorkflowCostsState.FetchAIUsageWorkflowCostsIsError =
-          action.payload as string | object;
-      })
-      // Agent calls
-      .addCase(fetchAIUsageAgentCalls.pending, (state) => {
-        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsLoading = true;
-        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsSuccess = false;
-        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsError = null;
-      })
-      .addCase(fetchAIUsageAgentCalls.fulfilled, (state, action) => {
-        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsLoading = false;
-        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsSuccess = true;
-        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsData =
-          action.payload;
-      })
-      .addCase(fetchAIUsageAgentCalls.rejected, (state, action) => {
-        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsLoading = false;
-        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsSuccess = false;
-        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsError =
-          action.payload as string | object;
-      })
-      // Model tokens
-      .addCase(fetchAIUsageModelTokens.pending, (state) => {
-        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsLoading = true;
-        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsSuccess = false;
-        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsError =
-          null;
-      })
-      .addCase(fetchAIUsageModelTokens.fulfilled, (state, action) => {
-        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsLoading = false;
-        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsSuccess = true;
-        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensData =
-          action.payload;
-      })
-      .addCase(fetchAIUsageModelTokens.rejected, (state, action) => {
-        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsLoading = false;
-        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsSuccess = false;
-        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsError =
           action.payload as string | object;
       })
       // Latency trend

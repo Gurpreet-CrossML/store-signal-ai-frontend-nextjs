@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { format, parseISO } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 import {
   IconClock,
   IconCoins,
@@ -11,15 +14,20 @@ import {
 
 import AIUsageCharts from "@/components/custom/ai-usage/ai-usage-chart-grid";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
-  fetchAIUsageAgentCalls,
   fetchAIUsageDaily,
   fetchAIUsageLatencyTrend,
-  fetchAIUsageModelTokens,
   fetchAIUsageSummary,
   fetchAIUsageTokenSplit,
   fetchAIUsageWorkflowCosts,
@@ -27,17 +35,13 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 type Filters = {
-  workflowId: string;
-  agentId: string;
-  model: string;
+  threadId: string;
   from: string;
   to: string;
 };
 
 const EMPTY_FILTERS: Filters = {
-  workflowId: "",
-  agentId: "",
-  model: "",
+  threadId: "",
   from: "",
   to: "",
 };
@@ -61,15 +65,10 @@ export default function AIUsage() {
     FetchAIUsageDailyState,
     FetchAIUsageTokenSplitState,
     FetchAIUsageWorkflowCostsState,
-    FetchAIUsageAgentCallsState,
-    FetchAIUsageModelTokensState,
     FetchAIUsageLatencyTrendState,
   } = useAppSelector((state) => state.GetAIUsageReducer);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [agentWorkflow, setAgentWorkflow] = useState("");
-  const workflowId = useDebounce(filters.workflowId.trim());
-  const agentId = useDebounce(filters.agentId.trim());
-  const model = useDebounce(filters.model.trim());
+  const threadId = useDebounce(filters.threadId.trim());
 
   const summary = FetchAIUsageTokenSplitState.FetchAIUsageTokenSplitIsSuccess
     ? {
@@ -83,11 +82,6 @@ export default function AIUsage() {
       daily_usage: FetchAIUsageDailyState.FetchAIUsageDailyData,
       workflow_costs:
         FetchAIUsageWorkflowCostsState.FetchAIUsageWorkflowCostsData,
-      agent_calls:
-        FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsData.results,
-      agent_workflows:
-        FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsData.workflows,
-      model_tokens: FetchAIUsageModelTokensState.FetchAIUsageModelTokensData,
       latency_trend: FetchAIUsageLatencyTrendState.FetchAIUsageLatencyTrendData,
     },
   };
@@ -96,9 +90,7 @@ export default function AIUsage() {
     if (!storeCode) return;
     const args = {
       storeCode,
-      workflowId,
-      agentId,
-      model,
+      threadId,
       from: filters.from,
       to: filters.to,
     };
@@ -106,43 +98,23 @@ export default function AIUsage() {
     dispatch(fetchAIUsageDaily(args));
     dispatch(fetchAIUsageTokenSplit(args));
     dispatch(fetchAIUsageWorkflowCosts(args));
-    dispatch(fetchAIUsageModelTokens(args));
     dispatch(fetchAIUsageLatencyTrend(args));
-  }, [
-    dispatch,
-    storeCode,
-    workflowId,
-    agentId,
-    model,
-    filters.from,
-    filters.to,
-  ]);
-
-  useEffect(() => {
-    if (!storeCode) return;
-    dispatch(
-      fetchAIUsageAgentCalls({
-        storeCode,
-        workflowId: agentWorkflow || workflowId,
-        agentId,
-        model,
-        from: filters.from,
-        to: filters.to,
-      }),
-    );
-  }, [
-    dispatch,
-    storeCode,
-    workflowId,
-    agentWorkflow,
-    agentId,
-    model,
-    filters.from,
-    filters.to,
-  ]);
+  }, [dispatch, storeCode, threadId, filters.from, filters.to]);
 
   const update = (key: keyof Filters, value: string) =>
     setFilters((current) => ({ ...current, [key]: value }));
+  const dateRange: DateRange | undefined = filters.from
+    ? {
+        from: parseISO(filters.from),
+        to: filters.to ? parseISO(filters.to) : undefined,
+      }
+    : undefined;
+  const updateDateRange = (range: DateRange | undefined) =>
+    setFilters((current) => ({
+      ...current,
+      from: range?.from ? format(range.from, "yyyy-MM-dd") : "",
+      to: range?.to ? format(range.to, "yyyy-MM-dd") : "",
+    }));
   const hasFilters = Object.values(filters).some(Boolean);
 
   // API decimal and aggregate fields may arrive as numeric strings. Convert
@@ -157,7 +129,7 @@ export default function AIUsage() {
   const metrics = [
     {
       label: "Total cost",
-      value: `$${totalCost.toFixed(4)}`,
+      value: `$${totalCost.toFixed(2)}`,
       note: "USD estimated",
       icon: IconCoins,
     },
@@ -195,39 +167,52 @@ export default function AIUsage() {
 
       <Card>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Input
-              aria-label="Workflow ID"
-              placeholder="Workflow ID"
-              value={filters.workflowId}
-              onChange={(event) => update("workflowId", event.target.value)}
+              aria-label="Thread ID"
+              placeholder="Thread ID"
+              value={filters.threadId}
+              onChange={(event) => update("threadId", event.target.value)}
             />
-            <Input
-              aria-label="Agent ID"
-              placeholder="Agent ID"
-              value={filters.agentId}
-              onChange={(event) => update("agentId", event.target.value)}
-            />
-            <Input
-              aria-label="Model"
-              placeholder="Model"
-              value={filters.model}
-              onChange={(event) => update("model", event.target.value)}
-            />
-            <Input
-              aria-label="From date"
-              type="date"
-              value={filters.from}
-              max={filters.to || undefined}
-              onChange={(event) => update("from", event.target.value)}
-            />
-            <Input
-              aria-label="To date"
-              type="date"
-              value={filters.to}
-              min={filters.from || undefined}
-              onChange={(event) => update("to", event.target.value)}
-            />
+            <Field className="gap-0">
+              <FieldLabel htmlFor="ai-usage-date-range" className="sr-only">
+                Date range
+              </FieldLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    id="ai-usage-date-range"
+                    className="w-full justify-start px-2.5 font-normal"
+                  >
+                    <CalendarIcon />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "LLL dd, y")} -{" "}
+                          {format(dateRange.to, "LLL dd, y")}
+                        </>
+                      ) : (
+                        format(dateRange.from, "LLL dd, y")
+                      )
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Pick a date range
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={updateDateRange}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+            </Field>
           </div>
           {hasFilters && (
             <div className="flex flex-wrap items-center gap-2">
@@ -278,11 +263,7 @@ export default function AIUsage() {
         ))}
       </div>
 
-      <AIUsageCharts
-        data={data}
-        agentWorkflow={agentWorkflow || workflowId}
-        onAgentWorkflowChange={setAgentWorkflow}
-      />
+      <AIUsageCharts data={data} from={filters.from} to={filters.to} />
     </div>
   );
 }
