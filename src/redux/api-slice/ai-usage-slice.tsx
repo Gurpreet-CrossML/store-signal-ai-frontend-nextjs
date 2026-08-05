@@ -1,4 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { isAxiosError } from "axios";
 
 import { ENDPOINTS } from "@/lib/config";
 import { axiosInstance } from "@/redux/axios-config";
@@ -95,90 +96,153 @@ function paramsFor(filters: AIUsageFilters) {
 /** Fetches aggregate metrics for the AI usage summary cards. */
 export const fetchAIUsageSummary = createAsyncThunk(
   "aiUsage/fetchSummary",
-  async (filters: AIUsageFilters) => {
-    const response = await axiosInstance.get(
-      `${ENDPOINTS.fetchAIUsageSummary()}?${paramsFor(filters).toString()}`,
-      { useBackend: true },
-    );
-    return response.data.data as AIUsageSummary;
+  async (filters: AIUsageFilters, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchAIUsageSummary()}?${paramsFor(filters).toString()}`,
+        { useBackend: true },
+      );
+      return response.data.data as AIUsageSummary;
+    } catch (error) {
+      const message = isAxiosError(error)
+        ? error.response?.data?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : "Unable to fetch AI usage summary.";
+      return thunkAPI.rejectWithValue(message);
+    }
   },
 );
 
 /** Fetches daily usage chart data without modifying the backend response. */
 export const fetchAIUsageDaily = createAsyncThunk(
   "aiUsage/fetchDaily",
-  async (filters: AIUsageFilters) => {
-    const response = await axiosInstance.get(
-      `${ENDPOINTS.fetchAIUsageDaily()}?${paramsFor(filters).toString()}`,
-      { useBackend: true },
-    );
-    return response.data.data as DailyUsagePoint[];
+  async (filters: AIUsageFilters, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchAIUsageDaily()}?${paramsFor(filters).toString()}`,
+        { useBackend: true },
+      );
+      return response.data.data as DailyUsagePoint[];
+    } catch (error) {
+      const message = isAxiosError(error)
+        ? error.response?.data?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : "Unable to fetch daily AI usage.";
+      return thunkAPI.rejectWithValue(message);
+    }
   },
 );
 
 /** Fetches the input/output token distribution shown in the token split chart. */
 export const fetchAIUsageTokenSplit = createAsyncThunk(
   "aiUsage/fetchTokenSplit",
-  async (filters: AIUsageFilters) => {
-    const response = await axiosInstance.get(
-      `${ENDPOINTS.fetchAIUsageTokenSplit()}?${paramsFor(filters).toString()}`,
-      { useBackend: true },
-    );
-    return response.data.data as Pick<
-      AIUsageSummary,
-      "input_tokens" | "output_tokens" | "total_tokens"
-    >;
+  async (filters: AIUsageFilters, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchAIUsageTokenSplit()}?${paramsFor(filters).toString()}`,
+        { useBackend: true },
+      );
+      return response.data.data as Pick<
+        AIUsageSummary,
+        "input_tokens" | "output_tokens" | "total_tokens"
+      >;
+    } catch (error) {
+      const message = isAxiosError(error)
+        ? error.response?.data?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : "Unable to fetch AI token split.";
+      return thunkAPI.rejectWithValue(message);
+    }
   },
 );
 
 /** Fetches workflow cost chart data without modifying the backend response. */
 export const fetchAIUsageWorkflowCosts = createAsyncThunk(
   "aiUsage/fetchWorkflowCosts",
-  async (filters: AIUsageFilters) => {
-    const response = await axiosInstance.get(
-      `${ENDPOINTS.fetchAIUsageWorkflowCosts()}?${paramsFor(filters).toString()}`,
-      { useBackend: true },
-    );
-    return response.data.data as WorkflowCostPoint[];
+  async (filters: AIUsageFilters, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchAIUsageWorkflowCosts()}?${paramsFor(filters).toString()}`,
+        { useBackend: true },
+      );
+      return response.data.data as WorkflowCostPoint[];
+    } catch (error) {
+      const message = isAxiosError(error)
+        ? error.response?.data?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : "Unable to fetch AI workflow costs.";
+      return thunkAPI.rejectWithValue(message);
+    }
   },
 );
 
 /** Fetches agent call totals and the workflows available for agent filtering. */
 export const fetchAIUsageAgentCalls = createAsyncThunk(
   "aiUsage/fetchAgentCalls",
-  async (filters: AIUsageFilters) => {
-    const response = await axiosInstance.get(
-      `${ENDPOINTS.fetchAIUsageAgentCalls()}?${paramsFor(filters).toString()}`,
-      { useBackend: true },
-    );
-    return response.data.data as {
-      workflows: string[];
-      results: AgentCallPoint[];
-    };
+  async (filters: AIUsageFilters, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchAIUsageAgentCalls()}?${paramsFor(filters).toString()}`,
+        { useBackend: true },
+      );
+      return response.data.data as {
+        workflows: string[];
+        results: AgentCallPoint[];
+      };
+    } catch (error) {
+      const message = isAxiosError(error)
+        ? error.response?.data?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : "Unable to fetch AI agent calls.";
+      return thunkAPI.rejectWithValue(message);
+    }
   },
 );
 
 /** Fetches model token chart data without modifying the backend response. */
 export const fetchAIUsageModelTokens = createAsyncThunk(
   "aiUsage/fetchModelTokens",
-  async (filters: AIUsageFilters) => {
-    const response = await axiosInstance.get(
-      `${ENDPOINTS.fetchAIUsageModelTokens()}?${paramsFor(filters).toString()}`,
-      { useBackend: true },
-    );
-    return response.data.data as ModelTokenPoint[];
+  async (filters: AIUsageFilters, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchAIUsageModelTokens()}?${paramsFor(filters).toString()}`,
+        { useBackend: true },
+      );
+      return response.data.data as ModelTokenPoint[];
+    } catch (error) {
+      const message = isAxiosError(error)
+        ? error.response?.data?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : "Unable to fetch AI model tokens.";
+      return thunkAPI.rejectWithValue(message);
+    }
   },
 );
 
 /** Fetches latency trend chart data without modifying the backend response. */
 export const fetchAIUsageLatencyTrend = createAsyncThunk(
   "aiUsage/fetchLatencyTrend",
-  async (filters: AIUsageFilters) => {
-    const response = await axiosInstance.get(
-      `${ENDPOINTS.fetchAIUsageLatencyTrend()}?${paramsFor(filters).toString()}`,
-      { useBackend: true },
-    );
-    return response.data.data as LatencyPoint[];
+  async (filters: AIUsageFilters, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchAIUsageLatencyTrend()}?${paramsFor(filters).toString()}`,
+        { useBackend: true },
+      );
+      return response.data.data as LatencyPoint[];
+    } catch (error) {
+      const message = isAxiosError(error)
+        ? error.response?.data?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : "Unable to fetch AI latency trend.";
+      return thunkAPI.rejectWithValue(message);
+    }
   },
 );
 
