@@ -19,6 +19,7 @@ import type {
   Customer,
   OrderData,
   OrderShippingAddress,
+  CartData,
 } from "@/redux/api-slice/thread-slice";
 import {
   IconBrain,
@@ -169,6 +170,9 @@ export function CartDetailsCard({
   cartData: CartDataResponse | null;
   loading?: boolean;
 }) {
+  const cart = cartData?.updated_cart_data;
+  const items = cart?.items ?? [];
+
   return (
     <Card>
       <CardContent className="space-y-4">
@@ -178,47 +182,42 @@ export function CartDetailsCard({
         </CardTitle>
         {loading ? (
           <CardLoadingState />
-        ) : !Object.values(cartData?.updated_cart_data || {}).length ? (
+        ) : items.length === 0 ? (
           <p className="text-sm text-muted-foreground italic">
             No cart data available.
           </p>
         ) : (
-          cartData?.updated_cart_data?.map(
-            (
-              item: CartDataResponse["updated_cart_data"][number],
-              index: number,
-            ) => (
-              <div
-                key={index}
-                className="flex items-center justify-between gap-2 text-sm"
-              >
-                <div className="flex items-center gap-2">
-                  <Avatar>
-                    {item.product_image ? (
-                      <AvatarImage
-                        src={item.product_image}
-                        alt={item.name}
-                        className="h-full w-full object-contain"
-                      />
-                    ) : (
-                      <AvatarFallback className="bg-muted text-muted-foreground text-xs">
-                        N/A
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  <span className="flex flex-col items-start gap-2">
-                    <span>{item.name}</span>
-                    <span className="text-muted-foreground text-xs">
-                      Qty: {item.qty}
-                    </span>
+          items?.map((item: CartData, index: number) => (
+            <div
+              key={index}
+              className="flex items-center justify-between gap-2 text-sm"
+            >
+              <div className="flex items-center gap-2">
+                <Avatar>
+                  {item.product_image ? (
+                    <AvatarImage
+                      src={item.product_image}
+                      alt={item.name}
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <AvatarFallback className="bg-muted text-muted-foreground text-xs">
+                      N/A
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <span className="flex flex-col items-start gap-2">
+                  <span>{item.name}</span>
+                  <span className="text-muted-foreground text-xs">
+                    Qty: {item.qty}
                   </span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {item.price || "N/A"}
                 </span>
               </div>
-            ),
-          )
+              <span className="text-xs text-muted-foreground">
+                {item.price || "N/A"}
+              </span>
+            </div>
+          ))
         )}
       </CardContent>
     </Card>
