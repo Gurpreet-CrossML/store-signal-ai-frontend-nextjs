@@ -17,16 +17,18 @@ export function ReplyBox({
     onSubmit,
     textareaId,
     placeholder,
+    disabled = false,
 }: {
     replyingTo: string;
     onSubmit: (text: string) => void;
     textareaId?: string;
     placeholder?: string;
+    disabled?: boolean;
 }) {
     const account = useAccountIdentity();
     const [text, setText] = useState("");
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-    const canSend = text.trim().length > 0;
+    const canSend = !disabled && text.trim().length > 0;
 
     const submit = () => {
         if (!canSend) return;
@@ -54,6 +56,7 @@ export function ReplyBox({
                                 size="icon-xs"
                                 className="rounded-full"
                                 aria-label="Add emoji"
+                                disabled={disabled}
                             >
                                 <IconMoodSmile />
                             </InputGroupButton>
@@ -84,6 +87,7 @@ export function ReplyBox({
                         }
                     }}
                     rows={1}
+                    disabled={disabled}
                     className="min-h-0 text-sm"
                 />
                 <InputGroupAddon align="inline-end">

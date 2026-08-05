@@ -11,6 +11,7 @@ import {
     IconArrowDown,
     IconBrandFacebook,
     IconBrandInstagram,
+    IconClock,
     IconMessage2,
     IconMoodSmile,
     IconPlus,
@@ -320,6 +321,21 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
         conversations[0] ??
         null;
 
+    // Meta only allows sending outside a paid tag within 24h of the
+    // contact's last incoming message ("(#10) This message is sent outside
+    // of allowed window."). Compute it client-side from the last incoming
+    // message we already have, so the composer can disable itself up front
+    // instead of letting the agent hit that error after typing a reply.
+    const messagingWindowOpen = useMemo(() => {
+        if (!activeConversation) return true;
+        const lastIncoming = [...activeConversation.messages]
+            .reverse()
+            .find((msg) => msg.message_direction === "incoming");
+        if (!lastIncoming?.external_created_at) return true;
+        const elapsedMs = Date.now() - new Date(lastIncoming.external_created_at).getTime();
+        return elapsedMs < 24 * 60 * 60 * 1000;
+    }, [activeConversation]);
+
     // Trigger 1: switching conversations always jumps straight to the
     // latest message, no animation — like opening a fresh thread.
     useEffect(() => {
@@ -568,11 +584,28 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
                                             </button>
                                         </div>
                                     )}
+                                    {!messagingWindowOpen && (
+                                        <div className="mb-2 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                                            <IconClock className="mt-0.5 size-4 shrink-0" />
+                                            <p>
+                                                It&apos;s been more than 24 hours since{" "}
+                                                {activeConversation.contactName} last messaged you.
+                                                Meta only allows replies within 24 hours of their
+                                                last message — you can&apos;t send anything until
+                                                they message again.
+                                            </p>
+                                        </div>
+                                    )}
                                     <ReplyBox
                                         replyingTo={activeConversation.contactName}
                                         onSubmit={handleReply}
                                         textareaId={DM_REPLY_TEXTAREA_ID}
-                                        placeholder="Message..."
+                                        placeholder={
+                                            messagingWindowOpen
+                                                ? "Message..."
+                                                : "Messaging window closed"
+                                        }
+                                        disabled={!messagingWindowOpen}
                                     />
                                 </div>
                             </>
