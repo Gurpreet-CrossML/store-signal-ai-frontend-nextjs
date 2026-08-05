@@ -69,6 +69,18 @@ export type SocialUser = {
   profile_picture_url: string;
 };
 
+export type SocialCommentAnalysis = {
+  intent: string;
+  intent_label: string;
+  topics: string[];
+  topic_labels: string[];
+  sentiment: string;
+  sentiment_label: string;
+  is_spam: boolean;
+  is_critical: boolean;
+  confidence: number | null;
+};
+
 export type SocialComment = {
   id: number;
   post: number;
@@ -83,6 +95,8 @@ export type SocialComment = {
   is_hidden: boolean;
   owner_liked: boolean;
   is_deleted: boolean;
+  // Null until the AI tagging pipeline has processed this comment.
+  analysis: SocialCommentAnalysis | null;
   external_created_at: string;
 };
 
@@ -91,6 +105,11 @@ export type SocialCommentsResponse = {
   count: number;
   next?: string | null;
   previous?: string | null;
+};
+
+export type CommentTopic = {
+  slug: string;
+  label: string;
 };
 
 export type SocialDmReplyTo = {
@@ -234,12 +253,12 @@ export const fetchMetaPages = createAsyncThunk(
 export const fetchPostComments = createAsyncThunk(
     "fetchPostComments",
     async (
-        { storeCode, postId, page = 1, pageSize = 15, parentId }: { storeCode: string; postId: number; page?: number; pageSize?: number; parentId?: number },
+        { storeCode, postId, page = 1, pageSize = 15, parentId, topic }: { storeCode: string; postId: number; page?: number; pageSize?: number; parentId?: number; topic?: string },
         thunkAPI,
     ) => {
         try {
             const response = await axiosInstance.get(
-                `${ENDPOINTS.fetchPostComments()}?store_code=${storeCode}&post=${postId}&page=${page}&page_size=${pageSize}${parentId ? `&parent=${parentId}` : ""}`,
+                `${ENDPOINTS.fetchPostComments()}?store_code=${storeCode}&post=${postId}&page=${page}&page_size=${pageSize}${parentId ? `&parent=${parentId}` : ""}${topic ? `&topic=${encodeURIComponent(topic)}` : ""}`,
                 {
                     useBackend: true,
                 }
@@ -255,6 +274,36 @@ export const fetchPostComments = createAsyncThunk(
           data?.message ||
           "Unable to fetch post comments, please try again later.",
       });
+
+            return thunkAPI.rejectWithValue(data || "Something went wrong");
+        }
+    },
+);
+
+export const fetchCommentTopics = createAsyncThunk(
+    "fetchCommentTopics",
+    async (
+        { storeCode, postId }: { storeCode: string; postId: number },
+        thunkAPI,
+    ) => {
+        try {
+            const response = await axiosInstance.get(
+                `${ENDPOINTS.fetchCommentTopics()}?store_code=${storeCode}&post=${postId}`,
+                {
+                    useBackend: true,
+                }
+            );
+            const data = response.data.data;
+            return (data?.topics ?? []) as CommentTopic[];
+        } catch (error) {
+            const response = isAxiosError(error) ? error.response : undefined;
+            const data = response?.data;
+
+            toast.error("Uh oh! Something went wrong.", {
+                description:
+                    data?.message ||
+                    "Unable to fetch comment topics, please try again later.",
+            });
 
             return thunkAPI.rejectWithValue(data || "Something went wrong");
         }
@@ -359,13 +408,17 @@ export const deleteMetaComment = createAsyncThunk(
 export const replyToMetaMessage = createAsyncThunk(
   "replyToMetaMessage",
   async (
-    { messageId, message }: { messageId: string; message: string },
+    {
+      messageId,
+      message,
+      isExplicitReply = true,
+    }: { messageId: string; message: string; isExplicitReply?: boolean },
     thunkAPI,
   ) => {
     try {
       const response = await axiosInstance.post(
         ENDPOINTS.replyMessage(messageId),
-        { message },
+        { message, is_explicit_reply: isExplicitReply },
         { useBackend: true },
       );
       return response.data;
@@ -486,6 +539,12 @@ const SocialAISlice = createSlice({
             FetchPostCommentsIsError: null as null | string | object,
             FetchPostCommentsData: {} as SocialCommentsResponse,
         },
+        FetchCommentTopicsState: {
+            FetchCommentTopicsIsLoading: false,
+            FetchCommentTopicsIsSuccess: false,
+            FetchCommentTopicsIsError: null as null | string | object,
+            FetchCommentTopicsData: [] as CommentTopic[],
+        },
         FetchMetaPagesState: {
             FetchMetaPagesIsLoading: false,
             FetchMetaPagesIsSuccess: false,
@@ -580,6 +639,21 @@ const SocialAISlice = createSlice({
                 state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
                 state.FetchPostCommentsState.FetchPostCommentsIsSuccess = false;
                 state.FetchPostCommentsState.FetchPostCommentsIsError = action.payload as string | object;
+      })
+      .addCase(fetchCommentTopics.pending, (state) => {
+        state.FetchCommentTopicsState.FetchCommentTopicsIsLoading = true;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsSuccess = false;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsError = null;
+      })
+      .addCase(fetchCommentTopics.fulfilled, (state, action) => {
+        state.FetchCommentTopicsState.FetchCommentTopicsIsLoading = false;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsSuccess = true;
+        state.FetchCommentTopicsState.FetchCommentTopicsData = action.payload;
+      })
+      .addCase(fetchCommentTopics.rejected, (state, action) => {
+        state.FetchCommentTopicsState.FetchCommentTopicsIsLoading = false;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsSuccess = false;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsError = action.payload as string | object;
       })
       .addCase(fetchSocialDms.pending, (state) => {
         state.FetchSocialDmsState.FetchSocialDmsIsLoading = true;

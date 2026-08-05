@@ -20,6 +20,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { IconDotsVertical } from "@tabler/icons-react";
 import {
   deleteMetaComment,
+  fetchCommentTopics,
   fetchPostComments,
   hideMetaComment,
   likeMetaComment,
@@ -58,12 +59,20 @@ function CommentItem({
     nested = false,
     onDeleted,
     onHiddenChange,
+    disableReply = false,
+    disableLike = false,
 }: {
     comment: SocialComment;
     postId: number;
     nested?: boolean;
     onDeleted: (commentId: number) => void;
     onHiddenChange: (commentId: number, isHidden: boolean) => void;
+    // True when an ancestor comment is deleted — once a thread's origin is
+    // gone, replying anywhere under it (however deep) is disallowed too.
+    disableReply?: boolean;
+    // True when an ancestor comment is deleted or hidden — same cascade,
+    // for liking instead of replying.
+    disableLike?: boolean;
 }) {
   const dispatch = useAppDispatch();
   const account = useAccountIdentity();
@@ -82,6 +91,8 @@ function CommentItem({
   // from the server), the state only ever moves forward.
   const [optimisticLiked, setOptimisticLiked] = useState(false);
   const isLiked = comment.owner_liked || optimisticLiked;
+  const likeDisabled =
+    isLiked || comment.is_deleted || comment.is_hidden || disableLike;
   // The page's own comments ("agent"/"ai") carry no social_user — show the
   // page identity instead, and don't offer Reply on ourselves.
   const isSelf = comment.sender_type === "agent" || comment.sender_type === "ai";
@@ -138,7 +149,7 @@ function CommentItem({
   };
 
   const handleLike = async () => {
-    if (isLiked) return;
+    if (likeDisabled) return;
     setOptimisticLiked(true);
     try {
       await dispatch(likeMetaComment(String(comment.id))).unwrap();
@@ -178,9 +189,17 @@ function CommentItem({
                                 Deleted
                             </Badge>
                         )}
+                        {comment.analysis?.topic_labels.map((label) => (
+                            <Badge
+                                key={label}
+                                className="bg-primary/10 text-[10px] text-primary hover:bg-primary/10"
+                            >
+                                {label}
+                            </Badge>
+                        ))}
                     </p>
                     <ExpandableText
-                        text={comment.is_deleted ? "This comment has been deleted." : comment.content}
+                        text={comment.content}
                         textClassName={`text-sm leading-snug ${comment.is_deleted ? "text-muted-foreground italic" : ""}`}
                     />
                 </div>
@@ -192,7 +211,7 @@ function CommentItem({
                         <button
                             type="button"
                             onClick={handleLike}
-                            disabled={isLiked || comment.is_deleted}
+                            disabled={likeDisabled}
                             aria-label={isLiked ? "Liked" : "Like"}
                             className="disabled:cursor-default disabled:opacity-50"
                         >
@@ -205,7 +224,7 @@ function CommentItem({
                             )}
                         </button>
                     )}
-                    {!comment.is_deleted && (
+                    {!comment.is_deleted && !comment.is_hidden && !disableReply && (
                         <button
                             type="button"
                             onClick={() => setShowReplyBox((open) => !open)}
@@ -267,6 +286,8 @@ function CommentItem({
                                 key={repliesRefreshKey}
                                 postId={postId}
                                 parentId={comment.id}
+                                disableReply={comment.is_deleted || disableReply}
+                                disableLike={comment.is_deleted || comment.is_hidden || disableLike}
                             />
                         </CollapsibleContent>
                     </Collapsible>
@@ -276,7 +297,7 @@ function CommentItem({
                 <button
                     type="button"
                     onClick={handleLike}
-                    disabled={isLiked || comment.is_deleted}
+                    disabled={likeDisabled}
                     aria-label={isLiked ? "Liked" : "Like"}
                     className="mt-1 shrink-0 disabled:cursor-default disabled:opacity-50"
                 >
@@ -296,9 +317,15 @@ function CommentItem({
 function CommentsList({
     postId,
     parentId,
+    topic,
+    disableReply = false,
+    disableLike = false,
 }: {
     postId: number;
     parentId?: number;
+    topic?: string;
+    disableReply?: boolean;
+    disableLike?: boolean;
 }) {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
@@ -324,6 +351,7 @@ function CommentsList({
                     page: nextPage,
                     pageSize: COMMENTS_PAGE_SIZE,
                     parentId,
+                    topic,
                 }),
             ).unwrap();
             pageRef.current = nextPage;
@@ -341,7 +369,7 @@ function CommentsList({
         } finally {
             setLoading(false);
         }
-    }, [dispatch, storeCode, postId, parentId]);
+    }, [dispatch, storeCode, postId, parentId, topic]);
 
   useEffect(() => {
     if (requestedRef.current) return;
@@ -385,11 +413,15 @@ function CommentsList({
                     nested={Boolean(parentId)}
                     onDeleted={handleCommentDeleted}
                     onHiddenChange={handleCommentHiddenChange}
+                    disableReply={disableReply}
+                    disableLike={disableLike}
                 />
             ))}
             {!initialLoading && total === 0 && (
                 <p className="text-sm text-muted-foreground">
-                    No {noun === "reply" ? "replies" : "comments"} yet.
+                    {topic
+                        ? "No comments match this tag."
+                        : `No ${noun === "reply" ? "replies" : "comments"} yet.`}
                 </p>
             )}
             {hasMore && !initialLoading && (
@@ -410,13 +442,80 @@ function CommentsList({
     );
 }
 
-// The comments area under a post's footer.
+// The comments area under a post's footer: a topic filter chip bar (only
+// topics actually AI-tagged on this post's comments) above the comment list.
 export function CommentsSection({ postId }: { postId: number }) {
+    const dispatch = useAppDispatch();
+    const storeCode = useAppSelector(
+        (state) => state.GetStoresReducer.selectedStore,
+    );
+    const { FetchCommentTopicsData: topics } = useAppSelector(
+        (state) => state.GetSocialAIReducer.FetchCommentTopicsState,
+    );
+    const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!storeCode) return;
+        dispatch(fetchCommentTopics({ storeCode, postId }));
+        // Reset any active filter when the post itself changes (e.g. this
+        // section gets reused across posts in a feed).
+        setSelectedTopic(null);
+    }, [dispatch, storeCode, postId]);
+
+    const selectedLabel = topics.find((t) => t.slug === selectedTopic)?.label;
+
     return (
         <div>
             <Separator className="mb-3" />
             <div className="px-(--card-spacing)">
-                <CommentsList postId={postId} />
+                {topics.length > 0 && (
+                    <div className="mb-3 space-y-2">
+                        <p className="text-xs font-semibold text-muted-foreground">
+                            Filter comments by tags
+                        </p>
+                        <div className="flex gap-1.5 overflow-x-auto pb-1">
+                            {topics.map((t) => (
+                                <button
+                                    key={t.slug}
+                                    type="button"
+                                    onClick={() =>
+                                        setSelectedTopic((prev) =>
+                                            prev === t.slug ? null : t.slug,
+                                        )
+                                    }
+                                    className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition ${
+                                        t.slug === selectedTopic
+                                            ? "border-primary bg-primary text-primary-foreground"
+                                            : "border-border/60 bg-muted/40 text-foreground hover:bg-muted"
+                                    }`}
+                                >
+                                    {t.label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedTopic(null)}
+                                disabled={!selectedTopic}
+                                className="text-xs font-semibold text-primary hover:text-primary/80 disabled:pointer-events-none disabled:opacity-40"
+                            >
+                                Clear
+                            </button>
+                            {selectedLabel && (
+                                <Badge variant="secondary" className="text-[10px]">
+                                    Selected tag: {selectedLabel}
+                                </Badge>
+                            )}
+                        </div>
+                        <Separator />
+                    </div>
+                )}
+                <CommentsList
+                    key={selectedTopic ?? "all"}
+                    postId={postId}
+                    topic={selectedTopic ?? undefined}
+                />
             </div>
         </div>
     );

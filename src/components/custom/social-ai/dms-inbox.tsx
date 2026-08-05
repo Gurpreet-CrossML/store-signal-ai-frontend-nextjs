@@ -350,10 +350,19 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
     const handleReply = async (text: string) => {
         if (!activeConversation || !storeCode || !selectedAccount) return;
         const lastMessage = activeConversation.messages[activeConversation.messages.length - 1];
+        // A general "type and send" has no specific message the agent chose
+        // to reply to — the last message just anchors the Send API call so
+        // it knows who to send to. Only a deliberate reply (via a message's
+        // own Reply icon) should ever show a "You replied to ..." quote.
+        const isExplicitReply = replyingToMessage !== null;
         const targetMessageId = replyingToMessage?.id ?? lastMessage.id;
         try {
             await dispatch(
-                replyToMetaMessage({ messageId: String(targetMessageId), message: text }),
+                replyToMetaMessage({
+                    messageId: String(targetMessageId),
+                    message: text,
+                    isExplicitReply,
+                }),
             ).unwrap();
             setReplyingToMessage(null);
             dispatch(

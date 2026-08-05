@@ -206,6 +206,7 @@ export const ENDPOINTS = {
   fetchMetaPages: () => `/social/meta/pages/`,
   fetchSocialPosts: () => `/social/meta/posts/`,
   fetchPostComments: () => `/social/meta/comments/`,
+  fetchCommentTopics: () => `/social/meta/comments/topics/`,
   fetchSocialDms: () => `/social/meta/messages/`,
   likeComment: (messageId: string) =>
     `/social/meta/messages/${messageId}/like/`,
