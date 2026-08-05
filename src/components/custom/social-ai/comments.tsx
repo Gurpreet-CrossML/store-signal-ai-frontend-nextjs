@@ -353,8 +353,11 @@ function CommentsList({
   const initialLoading = loading && comments.length === 0;
 
   const handleCommentDeleted = (commentId: number) => {
-    setComments((prev) => prev.filter((comment) => comment.id !== commentId));
-    setTotal((prev) => (prev === null ? prev : Math.max(prev - 1, 0)));
+    setComments((prev) =>
+      prev.map((comment) =>
+        comment.id === commentId ? { ...comment, is_deleted: true } : comment
+      )
+    );
   };
 
   const handleCommentHiddenChange = (commentId: number, isHidden: boolean) => {
