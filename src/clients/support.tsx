@@ -997,9 +997,7 @@ export default function Support() {
       console.info("Dashboard socket disconnected");
     };
 
-    dashboardWs.onerror = (error) => {
-      console.error("Dashboard socket error", error);
-    };
+    dashboardWs.onerror = () => {};
 
     return () => {
       dashboardWs.close();
