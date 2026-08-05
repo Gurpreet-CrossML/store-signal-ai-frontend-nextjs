@@ -56,12 +56,41 @@ export default function AIUsage() {
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const { data, loading } = useAppSelector((state) => state.GetAIUsageReducer);
+  const {
+    FetchAIUsageSummaryState,
+    FetchAIUsageDailyState,
+    FetchAIUsageTokenSplitState,
+    FetchAIUsageWorkflowCostsState,
+    FetchAIUsageAgentCallsState,
+    FetchAIUsageModelTokensState,
+    FetchAIUsageLatencyTrendState,
+  } = useAppSelector((state) => state.GetAIUsageReducer);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [agentWorkflow, setAgentWorkflow] = useState("");
   const workflowId = useDebounce(filters.workflowId.trim());
   const agentId = useDebounce(filters.agentId.trim());
   const model = useDebounce(filters.model.trim());
+
+  const summary = FetchAIUsageTokenSplitState.FetchAIUsageTokenSplitIsSuccess
+    ? {
+        ...FetchAIUsageSummaryState.FetchAIUsageSummaryData,
+        ...FetchAIUsageTokenSplitState.FetchAIUsageTokenSplitData,
+      }
+    : FetchAIUsageSummaryState.FetchAIUsageSummaryData;
+  const data = {
+    summary,
+    charts: {
+      daily_usage: FetchAIUsageDailyState.FetchAIUsageDailyData,
+      workflow_costs:
+        FetchAIUsageWorkflowCostsState.FetchAIUsageWorkflowCostsData,
+      agent_calls:
+        FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsData.results,
+      agent_workflows:
+        FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsData.workflows,
+      model_tokens: FetchAIUsageModelTokensState.FetchAIUsageModelTokensData,
+      latency_trend: FetchAIUsageLatencyTrendState.FetchAIUsageLatencyTrendData,
+    },
+  };
 
   useEffect(() => {
     if (!storeCode) return;
@@ -236,7 +265,7 @@ export default function AIUsage() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-muted-foreground">{label}</p>
                 <p className="text-2xl font-semibold tracking-tight tabular-nums">
-                  {loading.summary ? (
+                  {FetchAIUsageSummaryState.FetchAIUsageSummaryIsLoading ? (
                     <Spinner className="my-1 size-5" />
                   ) : (
                     value

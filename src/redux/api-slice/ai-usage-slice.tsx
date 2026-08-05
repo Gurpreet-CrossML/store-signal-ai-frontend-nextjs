@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { isAxiosError } from "axios";
+import { toast } from "sonner";
 
 import { ENDPOINTS } from "@/lib/config";
 import { axiosInstance } from "@/redux/axios-config";
@@ -61,14 +62,16 @@ export type AIUsageFilters = {
   to?: string;
 };
 
-type LoadingState = {
-  summary: boolean;
-  dailyUsage: boolean;
-  tokenSplit: boolean;
-  workflowCosts: boolean;
-  agentCalls: boolean;
-  modelTokens: boolean;
-  latencyTrend: boolean;
+/** Token totals returned by the token split endpoint. */
+type TokenSplitData = Pick<
+  AIUsageSummary,
+  "input_tokens" | "output_tokens" | "total_tokens"
+>;
+
+/** Agent call chart points and workflow filter options from the backend. */
+type AgentCallsData = {
+  workflows: string[];
+  results: AgentCallPoint[];
 };
 
 const emptySummary: AIUsageSummary = {
@@ -78,6 +81,12 @@ const emptySummary: AIUsageSummary = {
   total_tokens: 0,
   input_tokens: 0,
   output_tokens: 0,
+};
+
+const emptyTokenSplit: TokenSplitData = {
+  input_tokens: 0,
+  output_tokens: 0,
+  total_tokens: 0,
 };
 
 /**
@@ -104,12 +113,16 @@ export const fetchAIUsageSummary = createAsyncThunk(
       );
       return response.data.data as AIUsageSummary;
     } catch (error) {
-      const message = isAxiosError(error)
-        ? error.response?.data?.message || error.message
-        : error instanceof Error
-          ? error.message
-          : "Unable to fetch AI usage summary.";
-      return thunkAPI.rejectWithValue(message);
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch AI usage summary, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );
@@ -125,12 +138,16 @@ export const fetchAIUsageDaily = createAsyncThunk(
       );
       return response.data.data as DailyUsagePoint[];
     } catch (error) {
-      const message = isAxiosError(error)
-        ? error.response?.data?.message || error.message
-        : error instanceof Error
-          ? error.message
-          : "Unable to fetch daily AI usage.";
-      return thunkAPI.rejectWithValue(message);
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch daily AI usage, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );
@@ -144,17 +161,18 @@ export const fetchAIUsageTokenSplit = createAsyncThunk(
         `${ENDPOINTS.fetchAIUsageTokenSplit()}?${paramsFor(filters).toString()}`,
         { useBackend: true },
       );
-      return response.data.data as Pick<
-        AIUsageSummary,
-        "input_tokens" | "output_tokens" | "total_tokens"
-      >;
+      return response.data.data as TokenSplitData;
     } catch (error) {
-      const message = isAxiosError(error)
-        ? error.response?.data?.message || error.message
-        : error instanceof Error
-          ? error.message
-          : "Unable to fetch AI token split.";
-      return thunkAPI.rejectWithValue(message);
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch AI token split, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );
@@ -170,12 +188,16 @@ export const fetchAIUsageWorkflowCosts = createAsyncThunk(
       );
       return response.data.data as WorkflowCostPoint[];
     } catch (error) {
-      const message = isAxiosError(error)
-        ? error.response?.data?.message || error.message
-        : error instanceof Error
-          ? error.message
-          : "Unable to fetch AI workflow costs.";
-      return thunkAPI.rejectWithValue(message);
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch AI workflow costs, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );
@@ -189,17 +211,18 @@ export const fetchAIUsageAgentCalls = createAsyncThunk(
         `${ENDPOINTS.fetchAIUsageAgentCalls()}?${paramsFor(filters).toString()}`,
         { useBackend: true },
       );
-      return response.data.data as {
-        workflows: string[];
-        results: AgentCallPoint[];
-      };
+      return response.data.data as AgentCallsData;
     } catch (error) {
-      const message = isAxiosError(error)
-        ? error.response?.data?.message || error.message
-        : error instanceof Error
-          ? error.message
-          : "Unable to fetch AI agent calls.";
-      return thunkAPI.rejectWithValue(message);
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch AI agent calls, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );
@@ -215,12 +238,16 @@ export const fetchAIUsageModelTokens = createAsyncThunk(
       );
       return response.data.data as ModelTokenPoint[];
     } catch (error) {
-      const message = isAxiosError(error)
-        ? error.response?.data?.message || error.message
-        : error instanceof Error
-          ? error.message
-          : "Unable to fetch AI model tokens.";
-      return thunkAPI.rejectWithValue(message);
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch AI model tokens, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );
@@ -236,121 +263,200 @@ export const fetchAIUsageLatencyTrend = createAsyncThunk(
       );
       return response.data.data as LatencyPoint[];
     } catch (error) {
-      const message = isAxiosError(error)
-        ? error.response?.data?.message || error.message
-        : error instanceof Error
-          ? error.message
-          : "Unable to fetch AI latency trend.";
-      return thunkAPI.rejectWithValue(message);
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch AI latency trend, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );
 
-const initialLoading: LoadingState = {
-  summary: false,
-  dailyUsage: false,
-  tokenSplit: false,
-  workflowCosts: false,
-  agentCalls: false,
-  modelTokens: false,
-  latencyTrend: false,
-};
-
-const slice = createSlice({
-  name: "aiUsage",
+const AIUsageSlice = createSlice({
+  name: "AIUsage",
   initialState: {
-    data: {
-      summary: emptySummary,
-      charts: {
-        daily_usage: [],
-        workflow_costs: [],
-        agent_calls: [],
-        agent_workflows: [],
-        model_tokens: [],
-        latency_trend: [],
-      },
-    } as AIUsageResponse,
-    loading: initialLoading,
+    FetchAIUsageSummaryState: {
+      FetchAIUsageSummaryIsLoading: false,
+      FetchAIUsageSummaryIsSuccess: false,
+      FetchAIUsageSummaryIsError: null as null | string | object,
+      FetchAIUsageSummaryData: emptySummary,
+    },
+    FetchAIUsageDailyState: {
+      FetchAIUsageDailyIsLoading: false,
+      FetchAIUsageDailyIsSuccess: false,
+      FetchAIUsageDailyIsError: null as null | string | object,
+      FetchAIUsageDailyData: [] as DailyUsagePoint[],
+    },
+    FetchAIUsageTokenSplitState: {
+      FetchAIUsageTokenSplitIsLoading: false,
+      FetchAIUsageTokenSplitIsSuccess: false,
+      FetchAIUsageTokenSplitIsError: null as null | string | object,
+      FetchAIUsageTokenSplitData: emptyTokenSplit,
+    },
+    FetchAIUsageWorkflowCostsState: {
+      FetchAIUsageWorkflowCostsIsLoading: false,
+      FetchAIUsageWorkflowCostsIsSuccess: false,
+      FetchAIUsageWorkflowCostsIsError: null as null | string | object,
+      FetchAIUsageWorkflowCostsData: [] as WorkflowCostPoint[],
+    },
+    FetchAIUsageAgentCallsState: {
+      FetchAIUsageAgentCallsIsLoading: false,
+      FetchAIUsageAgentCallsIsSuccess: false,
+      FetchAIUsageAgentCallsIsError: null as null | string | object,
+      FetchAIUsageAgentCallsData: {
+        workflows: [],
+        results: [],
+      } as AgentCallsData,
+    },
+    FetchAIUsageModelTokensState: {
+      FetchAIUsageModelTokensIsLoading: false,
+      FetchAIUsageModelTokensIsSuccess: false,
+      FetchAIUsageModelTokensIsError: null as null | string | object,
+      FetchAIUsageModelTokensData: [] as ModelTokenPoint[],
+    },
+    FetchAIUsageLatencyTrendState: {
+      FetchAIUsageLatencyTrendIsLoading: false,
+      FetchAIUsageLatencyTrendIsSuccess: false,
+      FetchAIUsageLatencyTrendIsError: null as null | string | object,
+      FetchAIUsageLatencyTrendData: [] as LatencyPoint[],
+    },
   },
   reducers: {},
   extraReducers: (builder) => {
     builder
+      // AI usage summary
       .addCase(fetchAIUsageSummary.pending, (state) => {
-        state.loading.summary = true;
+        state.FetchAIUsageSummaryState.FetchAIUsageSummaryIsLoading = true;
+        state.FetchAIUsageSummaryState.FetchAIUsageSummaryIsSuccess = false;
+        state.FetchAIUsageSummaryState.FetchAIUsageSummaryIsError = null;
       })
       .addCase(fetchAIUsageSummary.fulfilled, (state, action) => {
-        state.data.summary = action.payload;
-        state.loading.summary = false;
+        state.FetchAIUsageSummaryState.FetchAIUsageSummaryIsLoading = false;
+        state.FetchAIUsageSummaryState.FetchAIUsageSummaryIsSuccess = true;
+        state.FetchAIUsageSummaryState.FetchAIUsageSummaryData = action.payload;
       })
-      .addCase(fetchAIUsageSummary.rejected, (state) => {
-        state.loading.summary = false;
+      .addCase(fetchAIUsageSummary.rejected, (state, action) => {
+        state.FetchAIUsageSummaryState.FetchAIUsageSummaryIsLoading = false;
+        state.FetchAIUsageSummaryState.FetchAIUsageSummaryIsSuccess = false;
+        state.FetchAIUsageSummaryState.FetchAIUsageSummaryIsError =
+          action.payload as string | object;
       })
+      // Daily usage
       .addCase(fetchAIUsageDaily.pending, (state) => {
-        state.loading.dailyUsage = true;
+        state.FetchAIUsageDailyState.FetchAIUsageDailyIsLoading = true;
+        state.FetchAIUsageDailyState.FetchAIUsageDailyIsSuccess = false;
+        state.FetchAIUsageDailyState.FetchAIUsageDailyIsError = null;
       })
       .addCase(fetchAIUsageDaily.fulfilled, (state, action) => {
-        state.data.charts.daily_usage = action.payload;
-        state.loading.dailyUsage = false;
+        state.FetchAIUsageDailyState.FetchAIUsageDailyIsLoading = false;
+        state.FetchAIUsageDailyState.FetchAIUsageDailyIsSuccess = true;
+        state.FetchAIUsageDailyState.FetchAIUsageDailyData = action.payload;
       })
-      .addCase(fetchAIUsageDaily.rejected, (state) => {
-        state.loading.dailyUsage = false;
+      .addCase(fetchAIUsageDaily.rejected, (state, action) => {
+        state.FetchAIUsageDailyState.FetchAIUsageDailyIsLoading = false;
+        state.FetchAIUsageDailyState.FetchAIUsageDailyIsSuccess = false;
+        state.FetchAIUsageDailyState.FetchAIUsageDailyIsError =
+          action.payload as string | object;
       })
+      // Token split
       .addCase(fetchAIUsageTokenSplit.pending, (state) => {
-        state.loading.tokenSplit = true;
+        state.FetchAIUsageTokenSplitState.FetchAIUsageTokenSplitIsLoading = true;
+        state.FetchAIUsageTokenSplitState.FetchAIUsageTokenSplitIsSuccess = false;
+        state.FetchAIUsageTokenSplitState.FetchAIUsageTokenSplitIsError = null;
       })
       .addCase(fetchAIUsageTokenSplit.fulfilled, (state, action) => {
-        // Token split is displayed as a chart but belongs to the summary payload.
-        state.data.summary.input_tokens = action.payload.input_tokens;
-        state.data.summary.output_tokens = action.payload.output_tokens;
-        state.data.summary.total_tokens = action.payload.total_tokens;
-        state.loading.tokenSplit = false;
+        state.FetchAIUsageTokenSplitState.FetchAIUsageTokenSplitIsLoading = false;
+        state.FetchAIUsageTokenSplitState.FetchAIUsageTokenSplitIsSuccess = true;
+        state.FetchAIUsageTokenSplitState.FetchAIUsageTokenSplitData =
+          action.payload;
       })
-      .addCase(fetchAIUsageTokenSplit.rejected, (state) => {
-        state.loading.tokenSplit = false;
+      .addCase(fetchAIUsageTokenSplit.rejected, (state, action) => {
+        state.FetchAIUsageTokenSplitState.FetchAIUsageTokenSplitIsLoading = false;
+        state.FetchAIUsageTokenSplitState.FetchAIUsageTokenSplitIsSuccess = false;
+        state.FetchAIUsageTokenSplitState.FetchAIUsageTokenSplitIsError =
+          action.payload as string | object;
       })
+      // Workflow costs
       .addCase(fetchAIUsageWorkflowCosts.pending, (state) => {
-        state.loading.workflowCosts = true;
+        state.FetchAIUsageWorkflowCostsState.FetchAIUsageWorkflowCostsIsLoading = true;
+        state.FetchAIUsageWorkflowCostsState.FetchAIUsageWorkflowCostsIsSuccess = false;
+        state.FetchAIUsageWorkflowCostsState.FetchAIUsageWorkflowCostsIsError =
+          null;
       })
       .addCase(fetchAIUsageWorkflowCosts.fulfilled, (state, action) => {
-        state.data.charts.workflow_costs = action.payload;
-        state.loading.workflowCosts = false;
+        state.FetchAIUsageWorkflowCostsState.FetchAIUsageWorkflowCostsIsLoading = false;
+        state.FetchAIUsageWorkflowCostsState.FetchAIUsageWorkflowCostsIsSuccess = true;
+        state.FetchAIUsageWorkflowCostsState.FetchAIUsageWorkflowCostsData =
+          action.payload;
       })
-      .addCase(fetchAIUsageWorkflowCosts.rejected, (state) => {
-        state.loading.workflowCosts = false;
+      .addCase(fetchAIUsageWorkflowCosts.rejected, (state, action) => {
+        state.FetchAIUsageWorkflowCostsState.FetchAIUsageWorkflowCostsIsLoading = false;
+        state.FetchAIUsageWorkflowCostsState.FetchAIUsageWorkflowCostsIsSuccess = false;
+        state.FetchAIUsageWorkflowCostsState.FetchAIUsageWorkflowCostsIsError =
+          action.payload as string | object;
       })
+      // Agent calls
       .addCase(fetchAIUsageAgentCalls.pending, (state) => {
-        state.loading.agentCalls = true;
+        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsLoading = true;
+        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsSuccess = false;
+        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsError = null;
       })
       .addCase(fetchAIUsageAgentCalls.fulfilled, (state, action) => {
-        // This endpoint supplies both chart points and workflow filter options.
-        state.data.charts.agent_calls = action.payload.results;
-        state.data.charts.agent_workflows = action.payload.workflows;
-        state.loading.agentCalls = false;
+        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsLoading = false;
+        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsSuccess = true;
+        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsData =
+          action.payload;
       })
-      .addCase(fetchAIUsageAgentCalls.rejected, (state) => {
-        state.loading.agentCalls = false;
+      .addCase(fetchAIUsageAgentCalls.rejected, (state, action) => {
+        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsLoading = false;
+        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsSuccess = false;
+        state.FetchAIUsageAgentCallsState.FetchAIUsageAgentCallsIsError =
+          action.payload as string | object;
       })
+      // Model tokens
       .addCase(fetchAIUsageModelTokens.pending, (state) => {
-        state.loading.modelTokens = true;
+        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsLoading = true;
+        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsSuccess = false;
+        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsError =
+          null;
       })
       .addCase(fetchAIUsageModelTokens.fulfilled, (state, action) => {
-        state.data.charts.model_tokens = action.payload;
-        state.loading.modelTokens = false;
+        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsLoading = false;
+        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsSuccess = true;
+        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensData =
+          action.payload;
       })
-      .addCase(fetchAIUsageModelTokens.rejected, (state) => {
-        state.loading.modelTokens = false;
+      .addCase(fetchAIUsageModelTokens.rejected, (state, action) => {
+        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsLoading = false;
+        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsSuccess = false;
+        state.FetchAIUsageModelTokensState.FetchAIUsageModelTokensIsError =
+          action.payload as string | object;
       })
+      // Latency trend
       .addCase(fetchAIUsageLatencyTrend.pending, (state) => {
-        state.loading.latencyTrend = true;
+        state.FetchAIUsageLatencyTrendState.FetchAIUsageLatencyTrendIsLoading = true;
+        state.FetchAIUsageLatencyTrendState.FetchAIUsageLatencyTrendIsSuccess = false;
+        state.FetchAIUsageLatencyTrendState.FetchAIUsageLatencyTrendIsError =
+          null;
       })
       .addCase(fetchAIUsageLatencyTrend.fulfilled, (state, action) => {
-        state.data.charts.latency_trend = action.payload;
-        state.loading.latencyTrend = false;
+        state.FetchAIUsageLatencyTrendState.FetchAIUsageLatencyTrendIsLoading = false;
+        state.FetchAIUsageLatencyTrendState.FetchAIUsageLatencyTrendIsSuccess = true;
+        state.FetchAIUsageLatencyTrendState.FetchAIUsageLatencyTrendData =
+          action.payload;
       })
-      .addCase(fetchAIUsageLatencyTrend.rejected, (state) => {
-        state.loading.latencyTrend = false;
+      .addCase(fetchAIUsageLatencyTrend.rejected, (state, action) => {
+        state.FetchAIUsageLatencyTrendState.FetchAIUsageLatencyTrendIsLoading = false;
+        state.FetchAIUsageLatencyTrendState.FetchAIUsageLatencyTrendIsSuccess = false;
+        state.FetchAIUsageLatencyTrendState.FetchAIUsageLatencyTrendIsError =
+          action.payload as string | object;
       });
   },
 });
 
-export default slice.reducer;
+export default AIUsageSlice.reducer;
