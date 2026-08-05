@@ -79,6 +79,14 @@ export const ENDPOINTS = {
   fetchConversaionRateData: () => "/analytics/conversion-rate",
   fetchQueryCategoryInsights: () => "/analytics/query-category-insights",
   fetchConversationHistory: () => "/analytics/chat-history",
+  // AI Usage analytics (Django; GET requests require useBackend: true).
+  fetchAIUsageSummary: () => "/chat/ai-usage/summary/",
+  fetchAIUsageDaily: () => "/chat/ai-usage/daily/",
+  fetchAIUsageTokenSplit: () => "/chat/ai-usage/token-split/",
+  fetchAIUsageWorkflowCosts: () => "/chat/ai-usage/workflow-costs/",
+  fetchAIUsageAgentCalls: () => "/chat/ai-usage/agent-calls/",
+  fetchAIUsageModelTokens: () => "/chat/ai-usage/model-tokens/",
+  fetchAIUsageLatencyTrend: () => "/chat/ai-usage/latency-trend/",
 
   // Thread-level Analytics (local GETs — no trailing slash).
   fetchThreads: () => "/analytics/threads",

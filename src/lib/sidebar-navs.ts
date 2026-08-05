@@ -1,5 +1,6 @@
 import {
   IconAdjustmentsSpark,
+  IconChartDots,
   IconBan,
   IconBook2,
   IconBooks,
@@ -60,6 +61,11 @@ export const sidebarMenus: SideBarMenus = {
       title: "Dashboard",
       url: "/",
       icon: IconDashboard,
+    },
+    {
+      title: "AI Usage",
+      url: "/ai-usage",
+      icon: IconChartDots,
     },
     {
       title: "Threads",
