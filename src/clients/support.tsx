@@ -8,8 +8,8 @@ import {
   useState,
   type ChangeEvent,
 } from "react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import {
   Card,
   CardContent,
@@ -49,13 +49,13 @@ import {
   IconRobot,
   IconSearch,
   IconSend,
-  IconUser,
   IconX,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
+import { formatRelativeTime } from "@/lib/helpers";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { formatRelativeDateTime } from "@/lib/helpers";
 
@@ -98,38 +98,6 @@ function getInitials(name: string | null | undefined) {
   return initials.join("");
 }
 
-function CustomerAvatar({
-  name,
-  size = "h-9 w-9",
-  online,
-}: {
-  name?: string | null;
-  size?: string;
-  online?: boolean;
-}) {
-  const initials = getInitials(name);
-
-  return (
-    <div className="relative shrink-0">
-      <Avatar className={`${size} mt-0.5`}>
-        <AvatarFallback
-          className={`text-sm font-medium ${
-            initials ? getAvatarColor(name ?? "") : "bg-primary/10 text-primary"
-          }`}
-        >
-          {initials ?? <IconUser className="h-5 w-5" />}
-        </AvatarFallback>
-      </Avatar>
-      {online !== undefined && (
-        <span
-          className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${
-            online ? "bg-green-500" : "bg-muted-foreground/40"
-          }`}
-        />
-      )}
-    </div>
-  );
-}
 
 type AttachmentStatus = "uploading" | "uploaded" | "error";
 

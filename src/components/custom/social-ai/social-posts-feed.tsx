@@ -41,21 +41,20 @@ export default function SocialPostsFeed({
     null,
   );
 
-  // The pages/posts state slots are shared by both channel screens, so the
-  // store may briefly hold the other channel's rows right after navigating.
-  // Filter by channel_type so only this channel's data ever renders.
-  const accounts = useMemo(
-    () =>
-      (FetchMetaPagesData ?? []).filter(
-        (acc) => acc.channel_type === channelType,
-      ),
-    [FetchMetaPagesData, channelType],
-  );
-  const selectedAccount: ConnectedAccount | null =
-    accounts.find((acc) => String(acc.id) === selectedAccountId) ??
-    accounts[0] ??
-    null;
-  const selectedExternalId = selectedAccount?.external_id ?? null;
+    // The pages/posts state slots are shared by both channel screens, so the
+    // store may briefly hold the other channel's rows right after navigating.
+    // Filter by channel_type so only this channel's data ever renders.
+    const accounts = useMemo(
+        () =>
+            (FetchMetaPagesData ?? []).filter(
+                (acc) => acc.channel_type === channelType,
+            ),
+        [FetchMetaPagesData, channelType],
+    );
+    const selectedAccount: ConnectedAccount | null =
+        accounts.find((acc) => String(acc.id) === selectedAccountId) ??
+        accounts[0] ??
+        null;
 
   useEffect(() => {
     if (storeCode) {
@@ -64,18 +63,13 @@ export default function SocialPostsFeed({
     }
   }, [storeCode, channelType, dispatch]);
 
-  useEffect(() => {
-    if (storeCode && selectedExternalId) {
-      // Fetch posts for the currently selected account.
-      dispatch(
-        fetchSocialPosts({
-          storeCode,
-          accountId: selectedExternalId,
-          channelType,
-        }),
-      );
-    }
-  }, [storeCode, selectedExternalId, channelType, dispatch]);
+    useEffect(() => {
+        if (storeCode) {
+            // Backend has no per-account scoping for posts — this fetches every
+            // post for the channel, regardless of which account is selected.
+            dispatch(fetchSocialPosts({ storeCode, channelType }));
+        }
+    }, [storeCode, channelType, dispatch]);
 
   const rows = useMemo(
     () =>

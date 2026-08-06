@@ -41,17 +41,17 @@ export type SocialPostMediaEntry = {
 };
 
 export type SocialPost = {
-  id: string;
-  account_name: string;
-  external_id: string;
-  channel_type: string;
-  content: string;
-  permalink: string;
-  media_type: string;
-  like_count: number;
-  comments_count: number;
-  posted_at: string;
-  media_entries: SocialPostMediaEntry[];
+    id: number;
+    account_name: string;
+    external_id: string;
+    channel_type: string;
+    content: string;
+    permalink: string;
+    media_type: string;
+    like_count: number;
+    comments_count: number;
+    posted_at: string;
+    media_entries: SocialPostMediaEntry[];
 };
 
 export type SocialPostsResponse = {
@@ -69,6 +69,18 @@ export type SocialUser = {
   profile_picture_url: string;
 };
 
+export type SocialCommentAnalysis = {
+  intent: string;
+  intent_label: string;
+  topics: string[];
+  topic_labels: string[];
+  sentiment: string;
+  sentiment_label: string;
+  is_spam: boolean;
+  is_critical: boolean;
+  confidence: number | null;
+};
+
 export type SocialComment = {
   id: number;
   post: number;
@@ -80,6 +92,11 @@ export type SocialComment = {
   sender_type: string;
   parent_message: number | null;
   reply_count: number;
+  is_hidden: boolean;
+  owner_liked: boolean;
+  is_deleted: boolean;
+  // Null until the AI tagging pipeline has processed this comment.
+  analysis: SocialCommentAnalysis | null;
   external_created_at: string;
 };
 
@@ -88,6 +105,36 @@ export type SocialCommentsResponse = {
   count: number;
   next?: string | null;
   previous?: string | null;
+};
+
+export type CommentTopic = {
+  slug: string;
+  label: string;
+};
+
+export type SocialDmReplyTo = {
+    id: number;
+    content: string;
+    sender_name: string | null;
+};
+
+export type SocialDm = {
+    id: number;
+    external_message_id: string;
+    content: string;
+    sender_type: string;
+    message_direction: string;
+    social_user: SocialUser | null;
+    external_created_at: string | null;
+    owner_reaction: string | null;
+    reply_to: SocialDmReplyTo | null;
+};
+
+export type SocialDmsResponse = {
+    results: SocialDm[];
+    count: number;
+    next?: string | null;
+    previous?: string | null;
 };
 
 export const fetchSocialAccountsSubscriptions = createAsyncThunk(
@@ -145,27 +192,23 @@ export const createMetaOAuthUrl = createAsyncThunk(
 );
 
 export const fetchSocialPosts = createAsyncThunk(
-  "fetchSocialPosts",
-  async (
-    {
-      storeCode,
-      accountId,
-      channelType,
-    }: { storeCode: string; accountId: string; channelType?: string },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchSocialPosts({ accountId })}?store_code=${storeCode}${channelType ? `&channel_type=${channelType}` : ""}`,
-        {
-          useBackend: true,
-        },
-      );
-      const data = response.data.data;
-      return data;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+    "fetchSocialPosts",
+    async (
+        { storeCode, channelType }: { storeCode: string; channelType?: string },
+        thunkAPI,
+    ) => {
+        try {
+            const response = await axiosInstance.get(
+                `${ENDPOINTS.fetchSocialPosts()}?store_code=${storeCode}${channelType ? `&channel_type=${channelType}` : ""}`,
+                {
+                    useBackend: true,
+                }
+            );
+            const data = response.data.data;
+            return data;
+        } catch (error) {
+            const response = isAxiosError(error) ? error.response : undefined;
+            const data = response?.data;
 
       toast.error("Uh oh! Something went wrong.", {
         description:
@@ -208,35 +251,23 @@ export const fetchMetaPages = createAsyncThunk(
 );
 
 export const fetchPostComments = createAsyncThunk(
-  "fetchPostComments",
-  async (
-    {
-      storeCode,
-      postId,
-      page = 1,
-      pageSize = 15,
-      parentId,
-    }: {
-      storeCode: string;
-      postId: string;
-      page?: number;
-      pageSize?: number;
-      parentId?: number;
-    },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchPostComments({ postId })}?store_code=${storeCode}&page=${page}&page_size=${pageSize}${parentId ? `&parent=${parentId}` : ""}`,
-        {
-          useBackend: true,
-        },
-      );
-      const data = response.data.data;
-      return data;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+    "fetchPostComments",
+    async (
+        { storeCode, postId, page = 1, pageSize = 15, parentId, topic }: { storeCode: string; postId: number; page?: number; pageSize?: number; parentId?: number; topic?: string },
+        thunkAPI,
+    ) => {
+        try {
+            const response = await axiosInstance.get(
+                `${ENDPOINTS.fetchPostComments()}?store_code=${storeCode}&post=${postId}&page=${page}&page_size=${pageSize}${parentId ? `&parent=${parentId}` : ""}${topic ? `&topic=${encodeURIComponent(topic)}` : ""}`,
+                {
+                    useBackend: true,
+                }
+            );
+            const data = response.data.data;
+            return data;
+        } catch (error) {
+            const response = isAxiosError(error) ? error.response : undefined;
+            const data = response?.data;
 
       toast.error("Uh oh! Something went wrong.", {
         description:
@@ -244,6 +275,207 @@ export const fetchPostComments = createAsyncThunk(
           "Unable to fetch post comments, please try again later.",
       });
 
+            return thunkAPI.rejectWithValue(data || "Something went wrong");
+        }
+    },
+);
+
+export const fetchCommentTopics = createAsyncThunk(
+    "fetchCommentTopics",
+    async (
+        { storeCode, postId }: { storeCode: string; postId: number },
+        thunkAPI,
+    ) => {
+        try {
+            const response = await axiosInstance.get(
+                `${ENDPOINTS.fetchCommentTopics()}?store_code=${storeCode}&post=${postId}`,
+                {
+                    useBackend: true,
+                }
+            );
+            const data = response.data.data;
+            return (data?.topics ?? []) as CommentTopic[];
+        } catch (error) {
+            const response = isAxiosError(error) ? error.response : undefined;
+            const data = response?.data;
+
+            toast.error("Uh oh! Something went wrong.", {
+                description:
+                    data?.message ||
+                    "Unable to fetch comment topics, please try again later.",
+            });
+
+            return thunkAPI.rejectWithValue(data || "Something went wrong");
+        }
+    },
+);
+
+export const fetchSocialDms = createAsyncThunk(
+    "fetchSocialDms",
+    async (
+        { storeCode, accountId, page = 1, pageSize = 50, search }: { storeCode: string; accountId: number; page?: number; pageSize?: number; search?: string },
+        thunkAPI,
+    ) => {
+        try {
+            const response = await axiosInstance.get(
+                `${ENDPOINTS.fetchSocialDms()}?store_code=${storeCode}&account=${accountId}&page=${page}&page_size=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ""}`,
+                {
+                    useBackend: true,
+                }
+            );
+            const data = response.data.data;
+            return data;
+        } catch (error) {
+            const response = isAxiosError(error) ? error.response : undefined;
+            const data = response?.data;
+
+            toast.error("Uh oh! Something went wrong.", {
+                description:
+                    data?.message ||
+                    "Unable to fetch messages, please try again later.",
+            });
+
+            return thunkAPI.rejectWithValue(data || "Something went wrong");
+        }
+    },
+);
+
+export const likeMetaComment = createAsyncThunk(
+  "likeMetaComment",
+  async (messageId: string, thunkAPI) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.likeComment(messageId),
+        {},
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to like item.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const hideMetaComment = createAsyncThunk(
+  "hideMetaComment",
+  async (
+    { messageId, is_hidden }: { messageId: string; is_hidden: boolean },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.hideComment(messageId),
+        { is_hidden },
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to hide item.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const deleteMetaComment = createAsyncThunk(
+  "deleteMetaComment",
+  async (messageId: string, thunkAPI) => {
+    try {
+      const response = await axiosInstance.delete(
+        ENDPOINTS.deleteComment(messageId),
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to delete item.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const replyToMetaMessage = createAsyncThunk(
+  "replyToMetaMessage",
+  async (
+    {
+      messageId,
+      message,
+      isExplicitReply = true,
+    }: { messageId: string; message: string; isExplicitReply?: boolean },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.replyMessage(messageId),
+        { message, is_explicit_reply: isExplicitReply },
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to reply to message.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const reactToMetaMessage = createAsyncThunk(
+  "reactToMetaMessage",
+  async (
+    { messageId, reaction }: { messageId: string; reaction: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.reactMessage(messageId),
+        { reaction },
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to react to message.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const replyToMetaComment = createAsyncThunk(
+  "replyToMetaComment",
+  async (
+    { messageId, message }: { messageId: string; message: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.replyComment(messageId),
+        { message },
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to reply to comment.",
+      });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
@@ -265,24 +497,66 @@ const SocialAISlice = createSlice({
       FetchSocialAccountsSubscriptionsData:
         {} as SocialAccountsSubscriptionsResponse,
     },
-    FetchSocialPostsState: {
-      FetchSocialPostsIsLoading: false,
-      FetchSocialPostsIsSuccess: false,
-      FetchSocialPostsIsError: null as null | string | object,
-      FetchSocialPostsData: {} as SocialPostsResponse,
+    LikeMetaCommentState: {
+      isLoading: false,
+      isSuccess: false,
+      isError: null as null | string | object,
     },
-    FetchPostCommentsState: {
-      FetchPostCommentsIsLoading: false,
-      FetchPostCommentsIsSuccess: false,
-      FetchPostCommentsIsError: null as null | string | object,
-      FetchPostCommentsData: {} as SocialCommentsResponse,
+    HideMetaCommentState: {
+      isLoading: false,
+      isSuccess: false,
+      isError: null as null | string | object,
     },
-    FetchMetaPagesState: {
-      FetchMetaPagesIsLoading: false,
-      FetchMetaPagesIsSuccess: false,
-      FetchMetaPagesIsError: null as null | string | object,
-      FetchMetaPagesData: [] as ConnectedAccount[],
+    DeleteMetaCommentState: {
+      isLoading: false,
+      isSuccess: false,
+      isError: null as null | string | object,
     },
+    ReplyToMetaMessageState: {
+      isLoading: false,
+      isSuccess: false,
+      isError: null as null | string | object,
+    },
+    ReplyToMetaCommentState: {
+      isLoading: false,
+      isSuccess: false,
+      isError: null as null | string | object,
+    },
+    ReactToMetaMessageState: {
+      isLoading: false,
+      isSuccess: false,
+      isError: null as null | string | object,
+    },
+        FetchSocialPostsState: {
+            FetchSocialPostsIsLoading: false,
+            FetchSocialPostsIsSuccess: false,
+            FetchSocialPostsIsError: null as null | string | object,
+            FetchSocialPostsData: {} as SocialPostsResponse,
+        },
+        FetchPostCommentsState: {
+            FetchPostCommentsIsLoading: false,
+            FetchPostCommentsIsSuccess: false,
+            FetchPostCommentsIsError: null as null | string | object,
+            FetchPostCommentsData: {} as SocialCommentsResponse,
+        },
+        FetchCommentTopicsState: {
+            FetchCommentTopicsIsLoading: false,
+            FetchCommentTopicsIsSuccess: false,
+            FetchCommentTopicsIsError: null as null | string | object,
+            FetchCommentTopicsData: [] as CommentTopic[],
+        },
+        FetchMetaPagesState: {
+            FetchMetaPagesIsLoading: false,
+            FetchMetaPagesIsSuccess: false,
+            FetchMetaPagesIsError: null as null | string | object,
+            FetchMetaPagesData: [] as ConnectedAccount[],
+        },
+        FetchSocialDmsState: {
+            FetchSocialDmsIsLoading: false,
+            FetchSocialDmsIsSuccess: false,
+            FetchSocialDmsIsError: null as null | string | object,
+            FetchSocialDmsData: {} as SocialDmsResponse,
+        },
   },
   reducers: {},
   extraReducers: (builder) => {
@@ -322,56 +596,174 @@ const SocialAISlice = createSlice({
           action.payload as string | object;
       })
       .addCase(fetchSocialPosts.pending, (state) => {
-        state.FetchSocialPostsState.FetchSocialPostsIsLoading = true;
-        state.FetchSocialPostsState.FetchSocialPostsIsSuccess = false;
-        state.FetchSocialPostsState.FetchSocialPostsIsError = null;
+                state.FetchSocialPostsState.FetchSocialPostsIsLoading = true;
+                state.FetchSocialPostsState.FetchSocialPostsIsSuccess = false;
+                state.FetchSocialPostsState.FetchSocialPostsIsError = null;
+            })
+            .addCase(fetchSocialPosts.fulfilled, (state, action) => {
+                state.FetchSocialPostsState.FetchSocialPostsIsLoading = false;
+                state.FetchSocialPostsState.FetchSocialPostsIsSuccess = true;
+                state.FetchSocialPostsState.FetchSocialPostsData = action.payload;
+            })
+            .addCase(fetchSocialPosts.rejected, (state, action) => {
+                state.FetchSocialPostsState.FetchSocialPostsIsLoading = false;
+                state.FetchSocialPostsState.FetchSocialPostsIsSuccess = false;
+                state.FetchSocialPostsState.FetchSocialPostsIsError = action.payload as string | object;
+            })
+            .addCase(fetchMetaPages.pending, (state) => {
+                state.FetchMetaPagesState.FetchMetaPagesIsLoading = true;
+                state.FetchMetaPagesState.FetchMetaPagesIsSuccess = false;
+                state.FetchMetaPagesState.FetchMetaPagesIsError = null;
+            })
+            .addCase(fetchMetaPages.fulfilled, (state, action) => {
+                state.FetchMetaPagesState.FetchMetaPagesIsLoading = false;
+                state.FetchMetaPagesState.FetchMetaPagesIsSuccess = true;
+                state.FetchMetaPagesState.FetchMetaPagesData = action.payload;
+            })
+            .addCase(fetchMetaPages.rejected, (state, action) => {
+                state.FetchMetaPagesState.FetchMetaPagesIsLoading = false;
+                state.FetchMetaPagesState.FetchMetaPagesIsSuccess = false;
+                state.FetchMetaPagesState.FetchMetaPagesIsError = action.payload as string | object;
+            })
+            .addCase(fetchPostComments.pending, (state) => {
+                state.FetchPostCommentsState.FetchPostCommentsIsLoading = true;
+                state.FetchPostCommentsState.FetchPostCommentsIsSuccess = false;
+                state.FetchPostCommentsState.FetchPostCommentsIsError = null;
+            })
+            .addCase(fetchPostComments.fulfilled, (state, action) => {
+                state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
+                state.FetchPostCommentsState.FetchPostCommentsIsSuccess = true;
+                state.FetchPostCommentsState.FetchPostCommentsData = action.payload;
+            })
+            .addCase(fetchPostComments.rejected, (state, action) => {
+                state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
+                state.FetchPostCommentsState.FetchPostCommentsIsSuccess = false;
+                state.FetchPostCommentsState.FetchPostCommentsIsError = action.payload as string | object;
       })
-      .addCase(fetchSocialPosts.fulfilled, (state, action) => {
-        state.FetchSocialPostsState.FetchSocialPostsIsLoading = false;
-        state.FetchSocialPostsState.FetchSocialPostsIsSuccess = true;
-        state.FetchSocialPostsState.FetchSocialPostsData = action.payload;
+      .addCase(fetchCommentTopics.pending, (state) => {
+        state.FetchCommentTopicsState.FetchCommentTopicsIsLoading = true;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsSuccess = false;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsError = null;
       })
-      .addCase(fetchSocialPosts.rejected, (state, action) => {
-        state.FetchSocialPostsState.FetchSocialPostsIsLoading = false;
-        state.FetchSocialPostsState.FetchSocialPostsIsSuccess = false;
-        state.FetchSocialPostsState.FetchSocialPostsIsError = action.payload as
+      .addCase(fetchCommentTopics.fulfilled, (state, action) => {
+        state.FetchCommentTopicsState.FetchCommentTopicsIsLoading = false;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsSuccess = true;
+        state.FetchCommentTopicsState.FetchCommentTopicsData = action.payload;
+      })
+      .addCase(fetchCommentTopics.rejected, (state, action) => {
+        state.FetchCommentTopicsState.FetchCommentTopicsIsLoading = false;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsSuccess = false;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsError = action.payload as string | object;
+      })
+      .addCase(fetchSocialDms.pending, (state) => {
+        state.FetchSocialDmsState.FetchSocialDmsIsLoading = true;
+        state.FetchSocialDmsState.FetchSocialDmsIsSuccess = false;
+        state.FetchSocialDmsState.FetchSocialDmsIsError = null;
+      })
+      .addCase(fetchSocialDms.fulfilled, (state, action) => {
+        state.FetchSocialDmsState.FetchSocialDmsIsLoading = false;
+        state.FetchSocialDmsState.FetchSocialDmsIsSuccess = true;
+        state.FetchSocialDmsState.FetchSocialDmsData = action.payload;
+      })
+      .addCase(fetchSocialDms.rejected, (state, action) => {
+        state.FetchSocialDmsState.FetchSocialDmsIsLoading = false;
+        state.FetchSocialDmsState.FetchSocialDmsIsSuccess = false;
+        state.FetchSocialDmsState.FetchSocialDmsIsError = action.payload as string | object;
+      })
+      .addCase(likeMetaComment.pending, (state) => {
+        state.LikeMetaCommentState.isLoading = true;
+        state.LikeMetaCommentState.isSuccess = false;
+        state.LikeMetaCommentState.isError = null;
+      })
+      .addCase(likeMetaComment.fulfilled, (state) => {
+        state.LikeMetaCommentState.isLoading = false;
+        state.LikeMetaCommentState.isSuccess = true;
+      })
+      .addCase(likeMetaComment.rejected, (state, action) => {
+        state.LikeMetaCommentState.isLoading = false;
+        state.LikeMetaCommentState.isSuccess = false;
+        state.LikeMetaCommentState.isError = action.payload as string | object;
+      })
+      .addCase(hideMetaComment.pending, (state) => {
+        state.HideMetaCommentState.isLoading = true;
+        state.HideMetaCommentState.isSuccess = false;
+        state.HideMetaCommentState.isError = null;
+      })
+      .addCase(hideMetaComment.fulfilled, (state) => {
+        state.HideMetaCommentState.isLoading = false;
+        state.HideMetaCommentState.isSuccess = true;
+      })
+      .addCase(hideMetaComment.rejected, (state, action) => {
+        state.HideMetaCommentState.isLoading = false;
+        state.HideMetaCommentState.isSuccess = false;
+        state.HideMetaCommentState.isError = action.payload as string | object;
+      })
+      .addCase(deleteMetaComment.pending, (state) => {
+        state.DeleteMetaCommentState.isLoading = true;
+        state.DeleteMetaCommentState.isSuccess = false;
+        state.DeleteMetaCommentState.isError = null;
+      })
+      .addCase(deleteMetaComment.fulfilled, (state) => {
+        state.DeleteMetaCommentState.isLoading = false;
+        state.DeleteMetaCommentState.isSuccess = true;
+      })
+      .addCase(deleteMetaComment.rejected, (state, action) => {
+        state.DeleteMetaCommentState.isLoading = false;
+        state.DeleteMetaCommentState.isSuccess = false;
+        state.DeleteMetaCommentState.isError = action.payload as
           | string
           | object;
       })
-      .addCase(fetchMetaPages.pending, (state) => {
-        state.FetchMetaPagesState.FetchMetaPagesIsLoading = true;
-        state.FetchMetaPagesState.FetchMetaPagesIsSuccess = false;
-        state.FetchMetaPagesState.FetchMetaPagesIsError = null;
+      .addCase(replyToMetaMessage.pending, (state) => {
+        state.ReplyToMetaMessageState.isLoading = true;
+        state.ReplyToMetaMessageState.isSuccess = false;
+        state.ReplyToMetaMessageState.isError = null;
       })
-      .addCase(fetchMetaPages.fulfilled, (state, action) => {
-        state.FetchMetaPagesState.FetchMetaPagesIsLoading = false;
-        state.FetchMetaPagesState.FetchMetaPagesIsSuccess = true;
-        state.FetchMetaPagesState.FetchMetaPagesData = action.payload;
+      .addCase(replyToMetaMessage.fulfilled, (state) => {
+        state.ReplyToMetaMessageState.isLoading = false;
+        state.ReplyToMetaMessageState.isSuccess = true;
       })
-      .addCase(fetchMetaPages.rejected, (state, action) => {
-        state.FetchMetaPagesState.FetchMetaPagesIsLoading = false;
-        state.FetchMetaPagesState.FetchMetaPagesIsSuccess = false;
-        state.FetchMetaPagesState.FetchMetaPagesIsError = action.payload as
+      .addCase(replyToMetaMessage.rejected, (state, action) => {
+        state.ReplyToMetaMessageState.isLoading = false;
+        state.ReplyToMetaMessageState.isSuccess = false;
+        state.ReplyToMetaMessageState.isError = action.payload as
           | string
           | object;
       })
-      .addCase(fetchPostComments.pending, (state) => {
-        state.FetchPostCommentsState.FetchPostCommentsIsLoading = true;
-        state.FetchPostCommentsState.FetchPostCommentsIsSuccess = false;
-        state.FetchPostCommentsState.FetchPostCommentsIsError = null;
+      .addCase(replyToMetaComment.pending, (state) => {
+        state.ReplyToMetaCommentState.isLoading = true;
+        state.ReplyToMetaCommentState.isSuccess = false;
+        state.ReplyToMetaCommentState.isError = null;
       })
-      .addCase(fetchPostComments.fulfilled, (state, action) => {
-        state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
-        state.FetchPostCommentsState.FetchPostCommentsIsSuccess = true;
-        state.FetchPostCommentsState.FetchPostCommentsData = action.payload;
+      .addCase(replyToMetaComment.fulfilled, (state) => {
+        state.ReplyToMetaCommentState.isLoading = false;
+        state.ReplyToMetaCommentState.isSuccess = true;
       })
-      .addCase(fetchPostComments.rejected, (state, action) => {
-        state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
-        state.FetchPostCommentsState.FetchPostCommentsIsSuccess = false;
-        state.FetchPostCommentsState.FetchPostCommentsIsError =
-          action.payload as string | object;
+      .addCase(replyToMetaComment.rejected, (state, action) => {
+        state.ReplyToMetaCommentState.isLoading = false;
+        state.ReplyToMetaCommentState.isSuccess = false;
+        state.ReplyToMetaCommentState.isError = action.payload as
+          | string
+          | object;
+      })
+      .addCase(reactToMetaMessage.pending, (state) => {
+        state.ReactToMetaMessageState.isLoading = true;
+        state.ReactToMetaMessageState.isSuccess = false;
+        state.ReactToMetaMessageState.isError = null;
+      })
+      .addCase(reactToMetaMessage.fulfilled, (state) => {
+        state.ReactToMetaMessageState.isLoading = false;
+        state.ReactToMetaMessageState.isSuccess = true;
+      })
+      .addCase(reactToMetaMessage.rejected, (state, action) => {
+        state.ReactToMetaMessageState.isLoading = false;
+        state.ReactToMetaMessageState.isSuccess = false;
+        state.ReactToMetaMessageState.isError = action.payload as
+          | string
+          | object;
       });
   },
 });
 
 export default SocialAISlice.reducer;
+

@@ -1,6 +1,11 @@
 "use client";
 
-import { IconHeart, IconThumbUp } from "@tabler/icons-react";
+import {
+  IconHeart,
+  IconHeartFilled,
+  IconThumbUp,
+  IconThumbUpFilled,
+} from "@tabler/icons-react";
 import { createContext, useContext } from "react";
 
 export type SocialChannel = "facebook" | "instagram";
@@ -16,14 +21,20 @@ export type AccountIdentity = {
 // Per-channel wording and icons — everything channel-specific lives here so
 // the shared components stay channel-agnostic.
 export type ChannelConfig = {
+  key: SocialChannel;
   label: string;
   accountFallback: AccountIdentity;
   userFallback: string;
   LikeIcon: typeof IconThumbUp;
+  LikeIconFilled: typeof IconThumbUp;
+  // Brand color the like icon fills with once liked — Facebook blue vs
+  // Instagram's heart red.
+  likeColorClass: string;
 };
 
 export const CHANNELS: Record<SocialChannel, ChannelConfig> = {
   facebook: {
+    key: "facebook",
     label: "Facebook",
     accountFallback: {
       name: "Facebook Page",
@@ -32,8 +43,11 @@ export const CHANNELS: Record<SocialChannel, ChannelConfig> = {
     },
     userFallback: "Facebook user",
     LikeIcon: IconThumbUp,
+    LikeIconFilled: IconThumbUpFilled,
+    likeColorClass: "text-[#1877F2]",
   },
   instagram: {
+    key: "instagram",
     label: "Instagram",
     accountFallback: {
       name: "Instagram Account",
@@ -42,6 +56,8 @@ export const CHANNELS: Record<SocialChannel, ChannelConfig> = {
     },
     userFallback: "Instagram user",
     LikeIcon: IconHeart,
+    LikeIconFilled: IconHeartFilled,
+    likeColorClass: "text-[#ED4956]",
   },
 };
 
