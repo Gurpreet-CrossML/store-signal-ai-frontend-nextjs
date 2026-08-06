@@ -512,12 +512,10 @@ export async function get_ai_insights(
   return rows[0];
 }
 
-type CartItem = unknown;
-
 export type CartData = {
   thread_id: string;
-  initial_cart_data: CartItem;
-  updated_cart_data: CartItem;
+  initial_cart_data: unknown;
+  updated_cart_data: unknown;
 };
 
 /**
