@@ -76,7 +76,7 @@ export default function LatencyTrendChart({
                 tickLine={false}
                 axisLine={false}
                 tickMargin={10}
-                interval="preserveStartEnd"
+                interval={0}
               />
               <YAxis
                 tickLine={false}

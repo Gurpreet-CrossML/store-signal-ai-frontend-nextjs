@@ -42,7 +42,7 @@ export type AIUsageResponse = {
 /** Filters accepted by every AI usage endpoint. */
 export type AIUsageFilters = {
   storeCode: string;
-  threadId?: string;
+  threadIds?: string[];
   from?: string;
   to?: string;
 };
@@ -73,7 +73,9 @@ const emptyTokenSplit: TokenSplitData = {
  */
 function paramsFor(filters: AIUsageFilters) {
   const params = new URLSearchParams({ store_code: filters.storeCode });
-  if (filters.threadId) params.set("thread_id", filters.threadId);
+  filters.threadIds?.forEach((threadId) =>
+    params.append("thread_id", threadId),
+  );
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
   return params;

@@ -16,8 +16,19 @@ import AIUsageCharts from "@/components/custom/ai-usage/ai-usage-chart-grid";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/components/ui/combobox";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
@@ -32,16 +43,17 @@ import {
   fetchAIUsageTokenSplit,
   fetchAIUsageWorkflowCosts,
 } from "@/redux/api-slice/ai-usage-slice";
+import { FetchThreads } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 type Filters = {
-  threadId: string;
+  threadIds: string[];
   from: string;
   to: string;
 };
 
 const EMPTY_FILTERS: Filters = {
-  threadId: "",
+  threadIds: [],
   from: "",
   to: "",
 };
@@ -67,8 +79,14 @@ export default function AIUsage() {
     FetchAIUsageWorkflowCostsState,
     FetchAIUsageLatencyTrendState,
   } = useAppSelector((state) => state.GetAIUsageReducer);
+  const { FetchThreadsListData, FetchThreadsIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchThreadsState,
+  );
   const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const threadId = useDebounce(filters.threadId.trim());
+  const selectedThreadIds = useDebounce(filters.threadIds);
+  const threadIds =
+    FetchThreadsListData?.results.map((thread) => thread.id) ?? [];
+  const threadComboboxAnchor = useComboboxAnchor();
 
   const summary = FetchAIUsageTokenSplitState.FetchAIUsageTokenSplitIsSuccess
     ? {
@@ -88,9 +106,14 @@ export default function AIUsage() {
 
   useEffect(() => {
     if (!storeCode) return;
+    dispatch(FetchThreads({ store_code: storeCode, page: 1, limit: 100 }));
+  }, [dispatch, storeCode]);
+
+  useEffect(() => {
+    if (!storeCode) return;
     const args = {
       storeCode,
-      threadId,
+      threadIds: selectedThreadIds,
       from: filters.from,
       to: filters.to,
     };
@@ -99,9 +122,9 @@ export default function AIUsage() {
     dispatch(fetchAIUsageTokenSplit(args));
     dispatch(fetchAIUsageWorkflowCosts(args));
     dispatch(fetchAIUsageLatencyTrend(args));
-  }, [dispatch, storeCode, threadId, filters.from, filters.to]);
+  }, [dispatch, storeCode, selectedThreadIds, filters.from, filters.to]);
 
-  const update = (key: keyof Filters, value: string) =>
+  const update = (key: "from" | "to", value: string) =>
     setFilters((current) => ({ ...current, [key]: value }));
   const dateRange: DateRange | undefined = filters.from
     ? {
@@ -115,7 +138,8 @@ export default function AIUsage() {
       from: range?.from ? format(range.from, "yyyy-MM-dd") : "",
       to: range?.to ? format(range.to, "yyyy-MM-dd") : "",
     }));
-  const hasFilters = Object.values(filters).some(Boolean);
+  const hasFilters =
+    filters.threadIds.length > 0 || Boolean(filters.from || filters.to);
 
   // API decimal and aggregate fields may arrive as numeric strings. Convert
   // them only at the presentation boundary so Redux keeps the backend payload.
@@ -168,12 +192,45 @@ export default function AIUsage() {
       <Card>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              aria-label="Thread ID"
-              placeholder="Thread ID"
-              value={filters.threadId}
-              onChange={(event) => update("threadId", event.target.value)}
-            />
+            <Combobox
+              multiple
+              autoHighlight
+              items={threadIds}
+              value={filters.threadIds}
+              onValueChange={(threadIds) =>
+                setFilters((current) => ({ ...current, threadIds }))
+              }
+            >
+              <ComboboxChips ref={threadComboboxAnchor} className="w-full">
+                <ComboboxValue>
+                  {(selectedIds) => (
+                    <>
+                      {(selectedIds as string[]).map((id) => (
+                        <ComboboxChip key={id}>{id}</ComboboxChip>
+                      ))}
+                      <ComboboxChipsInput
+                        aria-label="Thread IDs"
+                        placeholder={
+                          FetchThreadsIsLoading
+                            ? "Loading threads..."
+                            : "Select thread IDs"
+                        }
+                      />
+                    </>
+                  )}
+                </ComboboxValue>
+              </ComboboxChips>
+              <ComboboxContent anchor={threadComboboxAnchor}>
+                <ComboboxEmpty>No threads found.</ComboboxEmpty>
+                <ComboboxList>
+                  {(id) => (
+                    <ComboboxItem key={id} value={id}>
+                      {id}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
             <Field className="gap-0">
               <FieldLabel htmlFor="ai-usage-date-range" className="sr-only">
                 Date range
@@ -216,15 +273,15 @@ export default function AIUsage() {
           </div>
           {hasFilters && (
             <div className="flex flex-wrap items-center gap-2">
-              {Object.entries(filters).map(([key, value]) =>
-                value ? (
+              {(["from", "to"] as const).map((key) =>
+                filters[key] ? (
                   <button
                     key={key}
                     type="button"
-                    onClick={() => update(key as keyof Filters, "")}
+                    onClick={() => update(key, "")}
                     className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/15"
                   >
-                    {value} <IconX className="size-3" />
+                    {filters[key]} <IconX className="size-3" />
                   </button>
                 ) : null,
               )}
