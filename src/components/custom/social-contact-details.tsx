@@ -2,8 +2,21 @@ import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { SocialAIPlatformOptions } from "@/lib/config";
-import type { SocialContact, SocialPlatform } from "@/lib/mock-social-data";
 import { cn } from "@/lib/utils";
+
+// Local types — this panel used to import them from a design-phase mock
+// module that no longer exists; the shape is what the panel renders.
+export type SocialPlatform = "facebook" | "instagram";
+
+export type SocialContact = {
+  name: string;
+  username: string;
+  tags?: string[];
+  email?: string;
+  phone?: string;
+  location?: string;
+  lastOrder?: string;
+};
 import {
   IconMail,
   IconMapPin,
