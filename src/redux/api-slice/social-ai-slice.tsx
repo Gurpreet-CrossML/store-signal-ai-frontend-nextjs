@@ -46,17 +46,17 @@ export type SocialPostMediaEntry = {
 };
 
 export type SocialPost = {
-    id: number;
-    account_name: string;
-    external_id: string;
-    channel_type: string;
-    content: string;
-    permalink: string;
-    media_type: string;
-    like_count: number;
-    comments_count: number;
-    posted_at: string;
-    media_entries: SocialPostMediaEntry[];
+  id: number;
+  account_name: string;
+  external_id: string;
+  channel_type: string;
+  content: string;
+  permalink: string;
+  media_type: string;
+  like_count: number;
+  comments_count: number;
+  posted_at: string;
+  media_entries: SocialPostMediaEntry[];
 };
 
 export type SocialPostsResponse = {
@@ -137,28 +137,28 @@ export type SocialUsersResponse = {
 };
 
 export type SocialDmReplyTo = {
-    id: number;
-    content: string;
-    sender_name: string | null;
+  id: number;
+  content: string;
+  sender_name: string | null;
 };
 
 export type SocialDm = {
-    id: number;
-    external_message_id: string;
-    content: string;
-    sender_type: string;
-    message_direction: string;
-    social_user: SocialUser | null;
-    external_created_at: string | null;
-    owner_reaction: string | null;
-    reply_to: SocialDmReplyTo | null;
+  id: number;
+  external_message_id: string;
+  content: string;
+  sender_type: string;
+  message_direction: string;
+  social_user: SocialUser | null;
+  external_created_at: string | null;
+  owner_reaction: string | null;
+  reply_to: SocialDmReplyTo | null;
 };
 
 export type SocialDmsResponse = {
-    results: SocialDm[];
-    count: number;
-    next?: string | null;
-    previous?: string | null;
+  results: SocialDm[];
+  count: number;
+  next?: string | null;
+  previous?: string | null;
 };
 
 export const fetchSocialAccountsSubscriptions = createAsyncThunk(
@@ -401,8 +401,7 @@ export const fetchSocialDms = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
-          data?.message ||
-          "Unable to fetch messages, please try again later.",
+          data?.message || "Unable to fetch messages, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -649,36 +648,36 @@ const SocialAISlice = createSlice({
       isSuccess: false,
       isError: null as null | string | object,
     },
-        FetchSocialPostsState: {
-            FetchSocialPostsIsLoading: false,
-            FetchSocialPostsIsSuccess: false,
-            FetchSocialPostsIsError: null as null | string | object,
-            FetchSocialPostsData: {} as SocialPostsResponse,
-        },
-        FetchPostCommentsState: {
-            FetchPostCommentsIsLoading: false,
-            FetchPostCommentsIsSuccess: false,
-            FetchPostCommentsIsError: null as null | string | object,
-            FetchPostCommentsData: {} as SocialCommentsResponse,
-        },
-        FetchCommentTopicsState: {
-            FetchCommentTopicsIsLoading: false,
-            FetchCommentTopicsIsSuccess: false,
-            FetchCommentTopicsIsError: null as null | string | object,
-            FetchCommentTopicsData: [] as CommentTopic[],
-        },
-        FetchSocialUsersState: {
-            FetchSocialUsersIsLoading: false,
-            FetchSocialUsersIsSuccess: false,
-            FetchSocialUsersIsError: null as null | string | object,
-            FetchSocialUsersData: {} as SocialUsersResponse,
-        },
-        FetchSocialDmsState: {
-            FetchSocialDmsIsLoading: false,
-            FetchSocialDmsIsSuccess: false,
-            FetchSocialDmsIsError: null as null | string | object,
-            FetchSocialDmsData: {} as SocialDmsResponse,
-        },
+    FetchSocialPostsState: {
+      FetchSocialPostsIsLoading: false,
+      FetchSocialPostsIsSuccess: false,
+      FetchSocialPostsIsError: null as null | string | object,
+      FetchSocialPostsData: {} as SocialPostsResponse,
+    },
+    FetchPostCommentsState: {
+      FetchPostCommentsIsLoading: false,
+      FetchPostCommentsIsSuccess: false,
+      FetchPostCommentsIsError: null as null | string | object,
+      FetchPostCommentsData: {} as SocialCommentsResponse,
+    },
+    FetchCommentTopicsState: {
+      FetchCommentTopicsIsLoading: false,
+      FetchCommentTopicsIsSuccess: false,
+      FetchCommentTopicsIsError: null as null | string | object,
+      FetchCommentTopicsData: [] as CommentTopic[],
+    },
+    FetchSocialUsersState: {
+      FetchSocialUsersIsLoading: false,
+      FetchSocialUsersIsSuccess: false,
+      FetchSocialUsersIsError: null as null | string | object,
+      FetchSocialUsersData: {} as SocialUsersResponse,
+    },
+    FetchSocialDmsState: {
+      FetchSocialDmsIsLoading: false,
+      FetchSocialDmsIsSuccess: false,
+      FetchSocialDmsIsError: null as null | string | object,
+      FetchSocialDmsData: {} as SocialDmsResponse,
+    },
   },
   reducers: {},
   extraReducers: (builder) => {
@@ -718,49 +717,54 @@ const SocialAISlice = createSlice({
           action.payload as string | object;
       })
       .addCase(fetchSocialPosts.pending, (state) => {
-                state.FetchSocialPostsState.FetchSocialPostsIsLoading = true;
-                state.FetchSocialPostsState.FetchSocialPostsIsSuccess = false;
-                state.FetchSocialPostsState.FetchSocialPostsIsError = null;
-            })
-            .addCase(fetchSocialPosts.fulfilled, (state, action) => {
-                state.FetchSocialPostsState.FetchSocialPostsIsLoading = false;
-                state.FetchSocialPostsState.FetchSocialPostsIsSuccess = true;
-                state.FetchSocialPostsState.FetchSocialPostsData = action.payload;
-            })
-            .addCase(fetchSocialPosts.rejected, (state, action) => {
-                state.FetchSocialPostsState.FetchSocialPostsIsLoading = false;
-                state.FetchSocialPostsState.FetchSocialPostsIsSuccess = false;
-                state.FetchSocialPostsState.FetchSocialPostsIsError = action.payload as string | object;
-            })
-            .addCase(fetchSocialUsers.pending, (state) => {
-                state.FetchSocialUsersState.FetchSocialUsersIsLoading = true;
-                state.FetchSocialUsersState.FetchSocialUsersIsSuccess = false;
-                state.FetchSocialUsersState.FetchSocialUsersIsError = null;
-            })
-            .addCase(fetchSocialUsers.fulfilled, (state, action) => {
-                state.FetchSocialUsersState.FetchSocialUsersIsLoading = false;
-                state.FetchSocialUsersState.FetchSocialUsersIsSuccess = true;
-                state.FetchSocialUsersState.FetchSocialUsersData = action.payload;
-            })
-            .addCase(fetchSocialUsers.rejected, (state, action) => {
-                state.FetchSocialUsersState.FetchSocialUsersIsLoading = false;
-                state.FetchSocialUsersState.FetchSocialUsersIsSuccess = false;
-                state.FetchSocialUsersState.FetchSocialUsersIsError = action.payload as string | object;
-            })
-            .addCase(fetchPostComments.pending, (state) => {
-                state.FetchPostCommentsState.FetchPostCommentsIsLoading = true;
-                state.FetchPostCommentsState.FetchPostCommentsIsSuccess = false;
-                state.FetchPostCommentsState.FetchPostCommentsIsError = null;
-            })
-            .addCase(fetchPostComments.fulfilled, (state, action) => {
-                state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
-                state.FetchPostCommentsState.FetchPostCommentsIsSuccess = true;
-                state.FetchPostCommentsState.FetchPostCommentsData = action.payload;
-            })
-            .addCase(fetchPostComments.rejected, (state, action) => {
-                state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
-                state.FetchPostCommentsState.FetchPostCommentsIsSuccess = false;
-                state.FetchPostCommentsState.FetchPostCommentsIsError = action.payload as string | object;
+        state.FetchSocialPostsState.FetchSocialPostsIsLoading = true;
+        state.FetchSocialPostsState.FetchSocialPostsIsSuccess = false;
+        state.FetchSocialPostsState.FetchSocialPostsIsError = null;
+      })
+      .addCase(fetchSocialPosts.fulfilled, (state, action) => {
+        state.FetchSocialPostsState.FetchSocialPostsIsLoading = false;
+        state.FetchSocialPostsState.FetchSocialPostsIsSuccess = true;
+        state.FetchSocialPostsState.FetchSocialPostsData = action.payload;
+      })
+      .addCase(fetchSocialPosts.rejected, (state, action) => {
+        state.FetchSocialPostsState.FetchSocialPostsIsLoading = false;
+        state.FetchSocialPostsState.FetchSocialPostsIsSuccess = false;
+        state.FetchSocialPostsState.FetchSocialPostsIsError = action.payload as
+          | string
+          | object;
+      })
+      .addCase(fetchSocialUsers.pending, (state) => {
+        state.FetchSocialUsersState.FetchSocialUsersIsLoading = true;
+        state.FetchSocialUsersState.FetchSocialUsersIsSuccess = false;
+        state.FetchSocialUsersState.FetchSocialUsersIsError = null;
+      })
+      .addCase(fetchSocialUsers.fulfilled, (state, action) => {
+        state.FetchSocialUsersState.FetchSocialUsersIsLoading = false;
+        state.FetchSocialUsersState.FetchSocialUsersIsSuccess = true;
+        state.FetchSocialUsersState.FetchSocialUsersData = action.payload;
+      })
+      .addCase(fetchSocialUsers.rejected, (state, action) => {
+        state.FetchSocialUsersState.FetchSocialUsersIsLoading = false;
+        state.FetchSocialUsersState.FetchSocialUsersIsSuccess = false;
+        state.FetchSocialUsersState.FetchSocialUsersIsError = action.payload as
+          | string
+          | object;
+      })
+      .addCase(fetchPostComments.pending, (state) => {
+        state.FetchPostCommentsState.FetchPostCommentsIsLoading = true;
+        state.FetchPostCommentsState.FetchPostCommentsIsSuccess = false;
+        state.FetchPostCommentsState.FetchPostCommentsIsError = null;
+      })
+      .addCase(fetchPostComments.fulfilled, (state, action) => {
+        state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
+        state.FetchPostCommentsState.FetchPostCommentsIsSuccess = true;
+        state.FetchPostCommentsState.FetchPostCommentsData = action.payload;
+      })
+      .addCase(fetchPostComments.rejected, (state, action) => {
+        state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
+        state.FetchPostCommentsState.FetchPostCommentsIsSuccess = false;
+        state.FetchPostCommentsState.FetchPostCommentsIsError =
+          action.payload as string | object;
       })
       .addCase(fetchCommentTopics.pending, (state) => {
         state.FetchCommentTopicsState.FetchCommentTopicsIsLoading = true;
@@ -775,7 +779,8 @@ const SocialAISlice = createSlice({
       .addCase(fetchCommentTopics.rejected, (state, action) => {
         state.FetchCommentTopicsState.FetchCommentTopicsIsLoading = false;
         state.FetchCommentTopicsState.FetchCommentTopicsIsSuccess = false;
-        state.FetchCommentTopicsState.FetchCommentTopicsIsError = action.payload as string | object;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsError =
+          action.payload as string | object;
       })
       .addCase(fetchSocialDms.pending, (state) => {
         state.FetchSocialDmsState.FetchSocialDmsIsLoading = true;
@@ -790,7 +795,9 @@ const SocialAISlice = createSlice({
       .addCase(fetchSocialDms.rejected, (state, action) => {
         state.FetchSocialDmsState.FetchSocialDmsIsLoading = false;
         state.FetchSocialDmsState.FetchSocialDmsIsSuccess = false;
-        state.FetchSocialDmsState.FetchSocialDmsIsError = action.payload as string | object;
+        state.FetchSocialDmsState.FetchSocialDmsIsError = action.payload as
+          | string
+          | object;
       })
       .addCase(likeMetaComment.pending, (state) => {
         state.LikeMetaCommentState.isLoading = true;
@@ -888,4 +895,3 @@ const SocialAISlice = createSlice({
 });
 
 export default SocialAISlice.reducer;
-

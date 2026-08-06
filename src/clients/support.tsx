@@ -98,7 +98,6 @@ function getInitials(name: string | null | undefined) {
   return initials.join("");
 }
 
-
 type AttachmentStatus = "uploading" | "uploaded" | "error";
 
 type AttachmentUpload = {

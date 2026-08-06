@@ -221,20 +221,45 @@ export const ENDPOINTS = {
     `/social/meta/posts/${postId}/comments/topics/`,
   fetchSocialUsers: ({ accountId }: { accountId: string }) =>
     `/social/meta/pages/${accountId}/users/`,
-  fetchSocialDms: ({ accountId, userId }: { accountId: string; userId: number }) =>
-    `/social/meta/pages/${accountId}/users/${userId}/messages/`,
+  fetchSocialDms: ({
+    accountId,
+    userId,
+  }: {
+    accountId: string;
+    userId: number;
+  }) => `/social/meta/pages/${accountId}/users/${userId}/messages/`,
   likeComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
     `/social/meta/posts/${postId}/comments/${commentId}/like/`,
   hideComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
     `/social/meta/posts/${postId}/comments/${commentId}/hide/`,
-  deleteComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
-    `/social/meta/posts/${postId}/comments/${commentId}/delete/`,
-  replyComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
-    `/social/meta/posts/${postId}/comments/${commentId}/reply/`,
-  replyMessage: ({ userId, messageId }: { userId: number; messageId: number }) =>
-    `/social/meta/users/${userId}/messages/${messageId}/reply/`,
-  reactMessage: ({ userId, messageId }: { userId: number; messageId: number }) =>
-    `/social/meta/users/${userId}/messages/${messageId}/react/`,
+  deleteComment: ({
+    postId,
+    commentId,
+  }: {
+    postId: string;
+    commentId: number;
+  }) => `/social/meta/posts/${postId}/comments/${commentId}/delete/`,
+  replyComment: ({
+    postId,
+    commentId,
+  }: {
+    postId: string;
+    commentId: number;
+  }) => `/social/meta/posts/${postId}/comments/${commentId}/reply/`,
+  replyMessage: ({
+    userId,
+    messageId,
+  }: {
+    userId: number;
+    messageId: number;
+  }) => `/social/meta/users/${userId}/messages/${messageId}/reply/`,
+  reactMessage: ({
+    userId,
+    messageId,
+  }: {
+    userId: number;
+    messageId: number;
+  }) => `/social/meta/users/${userId}/messages/${messageId}/react/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
@@ -367,4 +392,3 @@ export const StatusBadges: {
     text: "text-green-800",
   },
 };
-

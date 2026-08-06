@@ -44,20 +44,20 @@ export default function SocialPostsFeed({
     null,
   );
 
-    // The accounts/posts state slots are shared by both channel screens, so
-    // the store may briefly hold the other channel's rows right after
-    // navigating. Filter by channel_type so only this channel's data renders.
-    const accounts = useMemo(
-        () =>
-            (FetchSocialAccountsSubscriptionsData?.results ?? []).filter(
-                (acc) => acc.channel_type === channelType,
-            ),
-        [FetchSocialAccountsSubscriptionsData, channelType],
-    );
-    const selectedAccount: ConnectedAccount | null =
-        accounts.find((acc) => String(acc.id) === selectedAccountId) ??
-        accounts[0] ??
-        null;
+  // The accounts/posts state slots are shared by both channel screens, so
+  // the store may briefly hold the other channel's rows right after
+  // navigating. Filter by channel_type so only this channel's data renders.
+  const accounts = useMemo(
+    () =>
+      (FetchSocialAccountsSubscriptionsData?.results ?? []).filter(
+        (acc) => acc.channel_type === channelType,
+      ),
+    [FetchSocialAccountsSubscriptionsData, channelType],
+  );
+  const selectedAccount: ConnectedAccount | null =
+    accounts.find((acc) => String(acc.id) === selectedAccountId) ??
+    accounts[0] ??
+    null;
 
   useEffect(() => {
     if (storeCode) {
@@ -66,19 +66,19 @@ export default function SocialPostsFeed({
     }
   }, [storeCode, dispatch]);
 
-    useEffect(() => {
-        if (storeCode && selectedAccount) {
-            // Posts are scoped per account on the backend — addressed by the
-            // account's external Graph id in the URL.
-            dispatch(
-                fetchSocialPosts({
-                    storeCode,
-                    accountId: selectedAccount.external_id,
-                    channelType,
-                }),
-            );
-        }
-    }, [storeCode, selectedAccount, channelType, dispatch]);
+  useEffect(() => {
+    if (storeCode && selectedAccount) {
+      // Posts are scoped per account on the backend — addressed by the
+      // account's external Graph id in the URL.
+      dispatch(
+        fetchSocialPosts({
+          storeCode,
+          accountId: selectedAccount.external_id,
+          channelType,
+        }),
+      );
+    }
+  }, [storeCode, selectedAccount, channelType, dispatch]);
 
   const rows = useMemo(
     () =>

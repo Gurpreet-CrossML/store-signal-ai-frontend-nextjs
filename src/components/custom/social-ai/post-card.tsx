@@ -35,82 +35,83 @@ export function SocialPostCard({ post }: { post: SocialPost }) {
   const account = useAccountIdentity();
   const channel = useChannel();
 
-    return (
-        <Card size="sm" className="w-full max-w-xl gap-3">
-            <CardHeader className="flex items-center gap-3">
-                <Avatar size="lg">
-                    {account.profilePictureUrl ? (
-                        <AvatarImage src={account.profilePictureUrl} alt={account.name} />
-                    ) : (
-                        <AvatarFallback className="font-medium">
-                            {account.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                    )}
-                </Avatar>
-                <div className="flex flex-col">
-                    <CardTitle className="flex items-center gap-1 text-[15px] font-semibold">
-                        {account.name}
-                        <IconRosetteDiscountCheckFilled className="size-4 shrink-0 text-sky-500" />
-                    </CardTitle>
-                    <CardDescription className="text-xs">
-                        {[
-                            account.username && `@${account.username}`,
-                            formatPostedAt(post.posted_at),
-                        ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                    </CardDescription>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <ExpandableText text={post.content} className="mb-3" />
-                <div className="-mx-(--card-spacing)">
-                    {post.media_type == 'carousel_album' && post.media_entries.length > 0 && (
-                        <MediaCarousel mediaEntries={post.media_entries} />
-                    )}
-                    {post.media_type == 'image' && post.media_entries.length > 0 && (
-                        <Image
-                            src={post.media_entries[0].url}
-                            alt="Post media"
-                            width={post.media_entries[0].width ?? DEFAULT_MEDIA_SIZE}
-                            height={post.media_entries[0].height ?? DEFAULT_MEDIA_SIZE}
-                            unoptimized
-                            className="w-full h-auto object-cover"
-                        />
-                    )}
-                    {post.media_type == 'video' && post.media_entries.length > 0 && (
-                        <video
-                            controls
-                            src={post.media_entries[0].url}
-                            className="w-full h-auto"
-                        />
-                    )}
-                </div>
-            </CardContent>
-            <Collapsible>
-                <CardFooter className="justify-between text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1.5">
-                        <channel.LikeIcon className="size-4" />
-                        {post.like_count}
-                    </span>
-                    <CollapsibleTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="gap-1.5 text-muted-foreground"
-                        >
-                            <IconMessageCircle className="size-4" />
-                            {post.comments_count}
-                        </Button>
-                    </CollapsibleTrigger>
-                </CardFooter>
-                <CollapsibleContent className="pt-3">
-                    {/* Comments are addressed by the post's external Graph id. */}
-                    <CommentsSection postId={post.external_id} />
-                </CollapsibleContent>
-            </Collapsible>
-        </Card>
-    );
+  return (
+    <Card size="sm" className="w-full max-w-xl gap-3">
+      <CardHeader className="flex items-center gap-3">
+        <Avatar size="lg">
+          {account.profilePictureUrl ? (
+            <AvatarImage src={account.profilePictureUrl} alt={account.name} />
+          ) : (
+            <AvatarFallback className="font-medium">
+              {account.name.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          )}
+        </Avatar>
+        <div className="flex flex-col">
+          <CardTitle className="flex items-center gap-1 text-[15px] font-semibold">
+            {account.name}
+            <IconRosetteDiscountCheckFilled className="size-4 shrink-0 text-sky-500" />
+          </CardTitle>
+          <CardDescription className="text-xs">
+            {[
+              account.username && `@${account.username}`,
+              formatPostedAt(post.posted_at),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <ExpandableText text={post.content} className="mb-3" />
+        <div className="-mx-(--card-spacing)">
+          {post.media_type == "carousel_album" &&
+            post.media_entries.length > 0 && (
+              <MediaCarousel mediaEntries={post.media_entries} />
+            )}
+          {post.media_type == "image" && post.media_entries.length > 0 && (
+            <Image
+              src={post.media_entries[0].url}
+              alt="Post media"
+              width={post.media_entries[0].width ?? DEFAULT_MEDIA_SIZE}
+              height={post.media_entries[0].height ?? DEFAULT_MEDIA_SIZE}
+              unoptimized
+              className="w-full h-auto object-cover"
+            />
+          )}
+          {post.media_type == "video" && post.media_entries.length > 0 && (
+            <video
+              controls
+              src={post.media_entries[0].url}
+              className="w-full h-auto"
+            />
+          )}
+        </div>
+      </CardContent>
+      <Collapsible>
+        <CardFooter className="justify-between text-sm text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <channel.LikeIcon className="size-4" />
+            {post.like_count}
+          </span>
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground"
+            >
+              <IconMessageCircle className="size-4" />
+              {post.comments_count}
+            </Button>
+          </CollapsibleTrigger>
+        </CardFooter>
+        <CollapsibleContent className="pt-3">
+          {/* Comments are addressed by the post's external Graph id. */}
+          <CommentsSection postId={post.external_id} />
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
+  );
 }
 
 // Placeholder shown while the posts request is in flight.
