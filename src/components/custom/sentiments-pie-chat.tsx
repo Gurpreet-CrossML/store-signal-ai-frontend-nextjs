@@ -2,6 +2,7 @@
 
 import { Pie, PieChart } from "recharts";
 
+import { InfoIcon } from "@/components/custom/info-icon";
 import {
   Card,
   CardContent,
@@ -40,14 +41,17 @@ export function SentimentsPieChart({
 }) {
   return (
     <Card className="flex flex-col">
-      <CardHeader className="items-center pb-0">
-        <CardTitle>Sentiment Distribution</CardTitle>
+      <CardHeader className="items-center">
+        <CardTitle className="flex items-center gap-1.5">
+          Sentiment Distribution
+          <InfoIcon text="Breaks down customer feedback into positive, neutral, and negative sentiment so you can see how customers feel about their interactions overall." />
+        </CardTitle>
         <CardDescription>Customer feedback analysis</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 pb-0">
+      <CardContent className="flex-1">
         <ChartContainer
           config={chartConfig}
-          className="mx-auto aspect-square max-h-[250px]"
+          className="mx-auto aspect-square w-full max-w-[250px]"
         >
           <PieChart>
             <ChartTooltip

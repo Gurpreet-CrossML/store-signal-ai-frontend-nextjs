@@ -82,8 +82,6 @@ export default function BrandVoiceVocabularyEditor() {
     (state) => state.GetBrandVoiceReducer.CreateVocabularyState,
   );
 
-  const updatedAt = FetchVocabularyData?.updated_at ?? null;
-
   // Fetch vocabulary data when the component mounts or store code changes
   useEffect(() => {
     if (storeCode) {
@@ -187,7 +185,7 @@ export default function BrandVoiceVocabularyEditor() {
   const values = formik.values;
 
   return (
-    <div className="flex flex-col gap-4 p-4 pt-0">
+    <div className="flex flex-col gap-6 p-4">
       <div>
         <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
           Vocabulary

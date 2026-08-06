@@ -18,7 +18,6 @@ import {
   IconClock,
   IconDotsVertical,
   IconFilter,
-  IconGift,
   IconLanguage,
   IconLoader2,
   IconMessageChatbot,
@@ -825,6 +824,9 @@ function ConversationPanel({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
+    // Rebinding the outside-click listener only when the picker opens is
+    // intentional; the toggle callback is read fresh each event.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTagPickerOpen]);
 
   const filteredTags = availableTags.filter((tag) =>
@@ -1779,8 +1781,8 @@ export default function HelpDesk() {
   // Support Ticket Search Filters
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [tagSearch, setTagSearch] = useState("");
-  const [debouncedTagSearch, setDebouncedTagSearch] = useState("");
+  const [, setTagSearch] = useState("");
+  const [, setDebouncedTagSearch] = useState("");
   const [tagPage, setTagPage] = useState(1);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] =
@@ -2085,7 +2087,7 @@ export default function HelpDesk() {
         }, 5000);
       };
 
-      socket.onerror = (error) => {
+      socket.onerror = () => {
         // console.error("Support socket error", error);
       };
     };
@@ -2105,6 +2107,9 @@ export default function HelpDesk() {
         supportSocketRef.current = null;
       }
     };
+    // Reopening the socket on mark-read handler changes would churn the
+    // connection; the handler is invoked with fresh state via refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeQueue,
     appendSocketMessage,
@@ -2247,6 +2252,9 @@ export default function HelpDesk() {
     dispatch(
       FetchSupportTicketDetails({ storeCode, ticketId: activeTicketId }),
     );
+    // Refetch only when the open ticket changes; storeCode is captured and a
+    // store switch resets the ticket selection anyway.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTicketId]);
 
   useEffect(() => {
@@ -2268,6 +2276,9 @@ export default function HelpDesk() {
     if (!FetchSupportTicketDetailsData.is_read) {
       handleSupportTicketMarkRead();
     }
+    // Mark-read should fire once per loaded ticket payload, not when the
+    // handler identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [FetchSupportTicketDetailsData]);
 
   const activeQueueLabel = useMemo(

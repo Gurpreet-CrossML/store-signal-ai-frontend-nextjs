@@ -14,6 +14,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Typography } from "@/components/ui/typography";
 import type { Thread } from "@/redux/api-slice/thread-slice";
 import Markdown from "react-markdown";
 
@@ -26,6 +27,20 @@ function formatDateTime(value: string | null | undefined): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+// Compact elapsed time between two timestamps, e.g. "4m", "1h 20m", "2d 3h".
+function formatDuration(start: string, end: string | null | undefined): string {
+  if (!end) return "—";
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  if (Number.isNaN(ms) || ms < 0) return "—";
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return "<1m";
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  if (days > 0) return `${days}d ${hours % 24}h`;
+  if (hours > 0) return `${hours}h ${minutes % 60}m`;
+  return `${minutes}m`;
 }
 
 /**
@@ -87,20 +102,6 @@ export function TagsCell({ tags }: { tags: string[] }) {
 }
 
 export const threadsColumns: ColumnDef<Thread>[] = [
-  // Session — the thread id.
-  {
-    accessorKey: "id",
-    header: "Session",
-    cell: ({ row }) => {
-      const id = row.original.id;
-      return (
-        <span className="font-mono text-xs text-muted-foreground" title={id}>
-          {id}
-        </span>
-      );
-    },
-  },
-
   // Customer — name as primary text, email as sub-text.
   {
     accessorKey: "name",
@@ -108,18 +109,37 @@ export const threadsColumns: ColumnDef<Thread>[] = [
     cell: ({ row }) => {
       const customer = row.original.customer;
       return (
-        <div className="flex flex-col">
-          <span className="font-medium text-foreground">
-            {customer?.name || "Anonymous"}
-          </span>
+        <div className="flex flex-col gap-0.5">
+          <Typography variant="small" as="span">
+            {customer?.name || "Guest"}
+          </Typography>
           {customer?.email && (
-            <span className="text-xs text-muted-foreground">
-              {customer?.email || "—"}
-            </span>
+            <Typography variant="muted" as="span" className="text-xs">
+              {customer.email}
+            </Typography>
           )}
         </div>
       );
     },
+  },
+
+  // Topic — the conversation title, same one the detail drawer shows.
+  {
+    accessorKey: "topic",
+    header: "Topic",
+    cell: ({ row }) =>
+      row.original.name ? (
+        <Typography
+          variant="small"
+          as="span"
+          className="block max-w-48 truncate font-normal"
+          title={row.original.name}
+        >
+          {row.original.name}
+        </Typography>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
   },
 
   {
@@ -148,9 +168,30 @@ export const threadsColumns: ColumnDef<Thread>[] = [
     accessorKey: "total_messages",
     header: () => <div className="text-right">Messages</div>,
     cell: ({ row }) => (
-      <div className="text-right tabular-nums">
+      <Typography
+        variant="small"
+        as="div"
+        className="text-right tabular-nums font-normal"
+      >
         {row.original.total_messages}
-      </div>
+      </Typography>
+    ),
+  },
+
+  // Duration — how long the conversation ran (created_at → ended_at).
+  {
+    accessorKey: "ended_at",
+    header: "Duration",
+    cell: ({ row }) => (
+      <Typography
+        variant="muted"
+        as="span"
+        className="whitespace-nowrap tabular-nums"
+      >
+        {row.original.is_active
+          ? "Ongoing"
+          : formatDuration(row.original.created_at, row.original.ended_at)}
+      </Typography>
     ),
   },
 
@@ -166,9 +207,13 @@ export const threadsColumns: ColumnDef<Thread>[] = [
         : last_message;
 
       return (
-        <span className="text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis *:truncate">
+        <Typography
+          variant="muted"
+          as="span"
+          className="whitespace-nowrap overflow-hidden text-ellipsis *:truncate"
+        >
           <Markdown>{last_message || "—"}</Markdown>
-        </span>
+        </Typography>
       );
     },
   },
@@ -176,11 +221,11 @@ export const threadsColumns: ColumnDef<Thread>[] = [
   // Started At — when the thread was created.
   {
     accessorKey: "created_at",
-    header: "Started At",
+    header: "Started",
     cell: ({ row }) => (
-      <span className="text-muted-foreground whitespace-nowrap">
+      <Typography variant="muted" as="span" className="whitespace-nowrap">
         {formatDateTime(row.original.created_at)}
-      </span>
+      </Typography>
     ),
   },
 ];

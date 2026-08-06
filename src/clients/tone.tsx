@@ -6,7 +6,6 @@ import z from "zod";
 
 import BrandVoiceTonePresetSelector from "@/components/custom/brand-voice-tone-preset-selector";
 import BrandVoiceToneControls from "@/components/custom/brand-voice-tone-controls";
-import ToneStylePreviewPanel from "@/components/custom/brand-voice-tone-preview-panel";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -163,10 +162,6 @@ export default function BrandVoiceToneStyleEditor() {
     }
   };
 
-  const selectedPreset =
-    FetchTonePresetsData.find((preset) => preset.id === formik.values.preset) ??
-    FetchTonePresetsData[0];
-
   // Handle preset selection and apply its values
   const handlePresetSelect = (presetId: number) => {
     const tonePreset = FetchTonePresetsData.find(
@@ -186,7 +181,7 @@ export default function BrandVoiceToneStyleEditor() {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4 pt-0">
+    <div className="flex flex-col gap-6 p-4">
       <div>
         <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
           Tone & Style

@@ -268,7 +268,7 @@ export default function NeverSayRules() {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4 pt-0">
+    <div className="flex flex-col gap-6 p-4">
       <div>
         <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
           Never-Say Rules
