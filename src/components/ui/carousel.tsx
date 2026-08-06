@@ -95,11 +95,15 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api) return;
-    onSelect(api);
+    // Initial sync deferred out of the effect body — a synchronous
+    // setState here would cascade an extra render pass; subsequent
+    // updates come from embla's own events.
+    const raf = requestAnimationFrame(() => onSelect(api));
     api.on("reInit", onSelect);
     api.on("select", onSelect);
 
     return () => {
+      cancelAnimationFrame(raf);
       api?.off("select", onSelect);
     };
   }, [api, onSelect]);

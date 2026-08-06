@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -49,6 +55,27 @@ import { ReplyBox } from "./reply-box";
 
 const DM_REPLY_TEXTAREA_ID = "dm-reply-textarea";
 const QUICK_REACTIONS = ["❤️", "😆", "😮", "😢", "😠", "👍"];
+
+// Minute-resolution clock that's safe under the React Compiler's purity
+// rules: Date.now() only ever runs at module load and inside the interval
+// callback (an event), never during render — getSnapshot just returns the
+// cached value. Also means time-derived UI (the 24h messaging window)
+// updates live instead of only on re-render.
+let nowCache = Date.now();
+function subscribeToNowTick(onStoreChange: () => void) {
+  const id = setInterval(() => {
+    nowCache = Date.now();
+    onStoreChange();
+  }, 60_000);
+  return () => clearInterval(id);
+}
+function useNow() {
+  return useSyncExternalStore(
+    subscribeToNowTick,
+    () => nowCache,
+    () => nowCache,
+  );
+}
 
 const CHANNEL_ICON: Record<SocialChannel, typeof IconBrandFacebook> = {
   facebook: IconBrandFacebook,
@@ -375,8 +402,8 @@ export default function DmsInbox({
   // of allowed window."). Compute it client-side from the last incoming
   // message we already have, so the composer can disable itself up front
   // instead of letting the agent hit that error after typing a reply.
-  // The memo only extracts the (pure) timestamp; the Date.now comparison
-  // happens per render, outside memoization.
+  // `now` comes from the ticking clock above, keeping render pure.
+  const now = useNow();
   const lastIncomingAt = useMemo(() => {
     const lastIncoming = [...messages]
       .reverse()
@@ -385,14 +412,18 @@ export default function DmsInbox({
   }, [messages]);
   const messagingWindowOpen =
     !lastIncomingAt ||
-    Date.now() - new Date(lastIncomingAt).getTime() < 24 * 60 * 60 * 1000;
+    now - new Date(lastIncomingAt).getTime() < 24 * 60 * 60 * 1000;
 
   // Trigger 1: switching conversations always jumps straight to the
-  // latest message, no animation — like opening a fresh thread.
+  // latest message, no animation — like opening a fresh thread. The
+  // setState lives in the rAF callback, not the effect body, so it can't
+  // cascade a synchronous re-render.
   useEffect(() => {
     isNearBottomRef.current = true;
-    setShowScrollButton(false);
-    requestAnimationFrame(() => scrollToBottom("auto"));
+    requestAnimationFrame(() => {
+      scrollToBottom("auto");
+      setShowScrollButton(false);
+    });
   }, [activeConversation?.id]);
 
   // Trigger 2: new messages land (a reply just sent, a refetch after

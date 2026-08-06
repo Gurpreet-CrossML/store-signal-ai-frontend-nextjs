@@ -489,13 +489,19 @@ export function CommentsSection({ postId }: { postId: string }) {
     (state) => state.GetSocialAIReducer.FetchCommentTopicsState,
   );
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  // Reset any active filter when the post itself changes (e.g. this
+  // section gets reused across posts in a feed). Adjusted during render —
+  // the React-endorsed alternative to setState-in-effect, which would
+  // trigger a cascading render.
+  const [lastPostId, setLastPostId] = useState(postId);
+  if (lastPostId !== postId) {
+    setLastPostId(postId);
+    setSelectedTopic(null);
+  }
 
   useEffect(() => {
     if (!storeCode) return;
     dispatch(fetchCommentTopics({ storeCode, postId }));
-    // Reset any active filter when the post itself changes (e.g. this
-    // section gets reused across posts in a feed).
-    setSelectedTopic(null);
   }, [dispatch, storeCode, postId]);
 
   const selectedLabel = topics.find((t) => t.slug === selectedTopic)?.label;
