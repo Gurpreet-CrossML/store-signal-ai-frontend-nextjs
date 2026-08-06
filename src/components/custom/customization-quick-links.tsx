@@ -1,8 +1,10 @@
 "use client";
 
-import { IconTrash } from "@tabler/icons-react";
+import { IconLink, IconTrash } from "@tabler/icons-react";
 
+import { InfoIcon } from "@/components/custom/info-icon";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -31,13 +33,17 @@ export default function CustomizationQuickLinks({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Quick Links</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <IconLink className="size-4" />
+          Quick Links
+          <InfoIcon text="Shortcut links shown inside the chat, like Brands or Offers. Priority (1–9) controls the order; inactive links stay saved but hidden from customers." />
+        </CardTitle>
         <CardDescription>
-          Links shown inside the chatbot. Order follows priority (1–9); inactive
+          Links shown inside the chat. Order follows priority (1–9); inactive
           links are hidden.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3 p-4 pt-0">
+      <CardContent className="flex flex-col gap-3">
         {quickLinks.map((link, index) => (
           <div
             key={link.id ?? index}
@@ -68,16 +74,19 @@ export default function CustomizationQuickLinks({
               )}
             </div>
             <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">Active</Label>
-              <div className="flex h-8 items-center border border-input px-2.5">
-                <input
-                  type="checkbox"
+              <Label
+                htmlFor={`quick-link-active-${index}`}
+                className="text-xs text-muted-foreground"
+              >
+                Active
+              </Label>
+              <div className="flex h-9 items-center">
+                <Checkbox
+                  id={`quick-link-active-${index}`}
                   checked={link.active}
-                  onChange={(event) =>
-                    onUpdate(index, { active: event.target.checked })
+                  onCheckedChange={(checked) =>
+                    onUpdate(index, { active: checked === true })
                   }
-                  className="size-4 accent-primary"
-                  aria-label="Active"
                 />
               </div>
             </div>

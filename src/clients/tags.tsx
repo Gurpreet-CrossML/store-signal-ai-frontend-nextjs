@@ -139,7 +139,6 @@ export default function Tags() {
   const total = FetchSupportTicketTagsData?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const rangeStart = total === 0 ? 0 : (page - 1) * limit + 1;
-  const rangeEnd = Math.min(page * limit, total);
 
   // debounce the search input so we don't fire a request on every keystroke,
   // and reset to page 1 at the same time so we don't chain a second effect
@@ -285,7 +284,7 @@ export default function Tags() {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4 pt-0">
+    <div className="flex flex-col gap-6 p-4">
       <div>
         <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
           Tags

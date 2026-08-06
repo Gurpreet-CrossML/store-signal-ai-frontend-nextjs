@@ -3,8 +3,13 @@
 import { useEffect } from "react";
 import { useFormik } from "formik";
 import z from "zod";
-import { IconMessageCircle, IconUserCircle } from "@tabler/icons-react";
+import {
+  IconDeviceFloppy,
+  IconMessageCircle,
+  IconUserCircle,
+} from "@tabler/icons-react";
 
+import { InfoIcon } from "@/components/custom/info-icon";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -15,6 +20,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { Typography } from "@/components/ui/typography";
 
 import PersonaIdentityLivePreview from "@/components/custom/persona-identity-live-preview";
 
@@ -126,15 +132,16 @@ export default function PersonaIdentity() {
   });
 
   return (
-    <div className="flex flex-col gap-4 p-4 pt-0">
+    <div className="flex flex-col gap-6 p-4">
       <div>
-        <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
+        <Typography variant="h4" as="h2" className="flex items-center gap-2">
           Persona Identity
-        </h4>
-        <p className="text-sm text-muted-foreground">
+          <InfoIcon text="Defines who the AI is when it talks to customers — its name, role, voice, and sign-off. This identity applies across every channel: chat, email, and WhatsApp." />
+        </Typography>
+        <Typography variant="muted">
           Who the AI is when it talks to your customers — its name, role, how it
           refers to itself, and how it signs off.
-        </p>
+        </Typography>
       </div>
 
       {FetchPersonaIdentityIsLoading ? (
@@ -185,7 +192,7 @@ export default function PersonaIdentity() {
                   value={formik.values.role_description ?? ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  placeholder="A friendly product expert on the Mother&Baby team"
+                  placeholder="A friendly product expert who knows our catalog inside out"
                 />
                 {formik.touched.role_description &&
                   formik.errors.role_description && (
@@ -247,7 +254,7 @@ export default function PersonaIdentity() {
                   value={formik.values.email_signature ?? ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  placeholder="Warmly, Ellie — Mother&Baby Customer Care"
+                  placeholder="Warmly, Ellie — Customer Care Team"
                 />
                 {formik.touched.email_signature &&
                   formik.errors.email_signature && (
@@ -274,7 +281,7 @@ export default function PersonaIdentity() {
                   value={formik.values.backstory ?? ""}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  placeholder="Ellie is a parent herself and genuinely understands the little worries new parents have. Warm, reassuring, never condescending."
+                  placeholder="Ellie has helped thousands of shoppers pick the right product. Warm and knowledgeable, she gives honest recommendations without the hard sell."
                   rows={4}
                   className="w-full min-w-0 resize-y rounded-md border border-input bg-transparent px-2.5 py-2 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
                 />
@@ -288,14 +295,16 @@ export default function PersonaIdentity() {
                 </p>
               </Field>
             </div>
-            <div className="sticky bottom-0 z-10 flex justify-start border-t border-border bg-background py-3">
+            <div className="flex justify-start border-t border-border py-3">
               <Button
                 type="submit"
                 size="lg"
                 disabled={CreatePersonaIdentityIsLoading}
               >
-                {CreatePersonaIdentityIsLoading && (
+                {CreatePersonaIdentityIsLoading ? (
                   <Spinner data-icon="inline-start" />
+                ) : (
+                  <IconDeviceFloppy data-icon="inline-start" />
                 )}
                 {CreatePersonaIdentityIsLoading ? "Saving..." : "Save Changes"}
               </Button>

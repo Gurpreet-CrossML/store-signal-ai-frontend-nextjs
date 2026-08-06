@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { IconPlus, IconSearch, IconX } from "@tabler/icons-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +23,17 @@ import StaffForm from "@/components/custom/staff-form";
 import StaffStoreAccess from "@/components/custom/staff-store-access";
 import { StaffDataTable } from "@/components/custom/staff-data-table";
 import { getStaffColumns } from "@/components/custom/staff-columns";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "../ui/spinner";
+import { cn } from "@/lib/utils";
 
 export default function StaffManagement({
   className,
@@ -40,6 +51,38 @@ export default function StaffManagement({
   const [resetTarget, setResetTarget] = useState<StaffMember | null>(null);
   const [toggleTarget, setToggleTarget] = useState<StaffMember | null>(null);
   const [accessTarget, setAccessTarget] = useState<StaffMember | null>(null);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const hasActiveFilters =
+    search !== "" || roleFilter !== "all" || statusFilter !== "all";
+
+  const clearFilters = () => {
+    setSearch("");
+    setRoleFilter("all");
+    setStatusFilter("all");
+  };
+
+  // Staff lists are small (one company), so filtering client-side is fine.
+  const filteredStaff = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return (staff ?? []).filter((member) => {
+      if (roleFilter !== "all" && member.is_staff !== (roleFilter === "admin"))
+        return false;
+      if (
+        statusFilter !== "all" &&
+        member.is_active !== (statusFilter === "active")
+      )
+        return false;
+      if (!query) return true;
+      return [member.first_name, member.last_name, member.email]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [staff, search, roleFilter, statusFilter]);
 
   useEffect(() => {
     dispatch(FetchStaff());
@@ -65,20 +108,64 @@ export default function StaffManagement({
   }
 
   return (
-    <div className={className}>
-      <div className="mb-6">
-        <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
-          Staff Management
-        </h4>
-        <p className="text-sm text-muted-foreground">
-          Manage your company&apos;s users. New staff receive an emailed
-          temporary password.
-        </p>
+    <div className={cn("flex w-full flex-col gap-4", className)}>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-64">
+          <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search by name or email…"
+            className="pl-8"
+            aria-label="Search staff"
+          />
+        </div>
+
+        <Select value={roleFilter} onValueChange={setRoleFilter}>
+          <SelectTrigger aria-label="Filter by role" className="w-fit">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Roles</SelectItem>
+            <SelectItem value="admin">Admin</SelectItem>
+            <SelectItem value="staff">Staff</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger aria-label="Filter by status" className="w-fit">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {hasActiveFilters && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground"
+            onClick={clearFilters}
+          >
+            <IconX />
+            Clear
+          </Button>
+        )}
+
+        <Button className="ml-auto" onClick={() => setFormOpen(true)}>
+          <IconPlus />
+          Add Staff
+        </Button>
       </div>
+
       <div className={contentClassName}>
         <StaffDataTable
           columns={columns}
-          data={staff}
+          data={filteredStaff}
           isLoading={staffLoading}
         />
       </div>

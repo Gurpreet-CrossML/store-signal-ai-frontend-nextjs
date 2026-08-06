@@ -1,12 +1,13 @@
 "use client";
 
-import { IconHeadset } from "@tabler/icons-react";
+import { IconHeadset, IconUser } from "@tabler/icons-react";
 
+import { InfoIcon } from "@/components/custom/info-icon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SelfReference } from "@/redux/api-slice/brand-voice-slice";
 
 const SAMPLE_CUSTOMER_MESSAGE =
-  "Hi there, I'm here to ask about an order I placed. Can you help me out?";
+  "Hi there! I have a question about an order I placed. Can you help me out?";
 
 type PersonaIdentityLivePreviewProps = {
   name?: string;
@@ -33,15 +34,18 @@ export default function PersonaIdentityLivePreview({
   return (
     <Card className="sticky top-4">
       <CardHeader className="flex-row items-center justify-between">
-        <CardTitle>Live preview</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          Live Preview
+          <InfoIcon text="A sample conversation showing how the AI introduces itself with your persona settings. It updates as you type — nothing is saved until you hit Save Changes." />
+        </CardTitle>
         <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
           Updates as you type
         </span>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex items-start gap-2">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
-            {displayName.charAt(0).toUpperCase() || "?"}
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <IconUser className="size-4" />
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs font-medium text-muted-foreground">

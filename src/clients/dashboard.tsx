@@ -8,17 +8,21 @@ import { GuestVsSignedUserRadialChart } from "@/components/custom/guest-vs-signe
 import { PerformanceRadialChart } from "@/components/custom/performance-radial-char";
 import { SentimentsPieChart } from "@/components/custom/sentiments-pie-chat";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { InfoIcon } from "@/components/custom/info-icon";
+import { Typography } from "@/components/ui/typography";
 import { custructTimeInHumanReadableFormat } from "@/lib/helpers";
 import {
   FetchDashboard,
   FetchConversationHistory,
 } from "@/redux/api-slice/dashboard-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { IconInfoCircle } from "@tabler/icons-react";
+import { subMonths } from "date-fns";
 import { useEffect, useState } from "react";
 
 const toISODate = (date: Date) => date.toISOString().slice(0, 10);
@@ -32,21 +36,11 @@ const defaultRange = (granularity: Granularity) => {
   } else if (granularity === "weekly") {
     from.setDate(to.getDate() - 28);
   } else {
-    from.setMonth(0, 1);
+    // subMonths clamps month-end overflow (e.g. Mar 31 -> Feb 28).
+    return { from: toISODate(subMonths(to, 1)), to: toISODate(to) };
   }
   return { from: toISODate(from), to: toISODate(to) };
 };
-
-const InfoIcon = ({ text }: { text: string }) => (
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <IconInfoCircle className="w-4 h-4 text-muted-foreground cursor-pointer" />
-    </TooltipTrigger>
-    <TooltipContent>
-      <p>{text}</p>
-    </TooltipContent>
-  </Tooltip>
-);
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();
@@ -255,12 +249,10 @@ export default function Dashboard() {
     FetchConversationHistoryData?.points ?? [];
 
   return (
-    <>
-      <div className="px-6 py-2">
-        <h3 className="text-lg font-semibold text-foreground mb-6">
-          Performance Summary
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="flex flex-col gap-6 p-4">
+      <section className="flex flex-col gap-4">
+        <Typography variant="h4">Performance Summary</Typography>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {performanceSummaryMetrics.map((metric) => {
             const statusColors = {
               success: "bg-success/20 text-success",
@@ -269,43 +261,47 @@ export default function Dashboard() {
               info: "bg-primary/10 text-primary",
             };
             return (
-              <div key={metric.label} className="space-y-2">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm leading-none text-muted-foreground">
-                    {metric.label}
+              <Card key={metric.label} size="sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-1.5">
+                    <Typography variant="muted" as="h3">
+                      {metric.label}
+                    </Typography>
+                    <InfoIcon text={metric.infoText} />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Typography variant="h3" as="p">
+                    {metric.value}
+                  </Typography>
+                </CardContent>
+                <CardFooter>
+                  <span
+                    className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${statusColors[metric.statusVariant]}`}
+                  >
+                    {metric.status}
                   </span>
-                  <InfoIcon text={metric.infoText} />
-                </div>
-                <p className="text-3xl font-bold text-foreground tracking-tight">
-                  {metric.value}
-                </p>
-                <span
-                  className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${statusColors[metric.statusVariant]}`}
-                >
-                  {metric.status}
-                </span>
-              </div>
+                </CardFooter>
+              </Card>
             );
           })}
         </div>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-6 py-4">
+      </section>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <SentimentsPieChart data={sentimentPieChartData} />
         <PerformanceRadialChart chartData={performanceRadialChartData} />
         <GuestVsSignedUserRadialChart chartData={userActivityChartData} />
       </div>
-      <div className="px-6 py-4">
-        <CustomerInteractionLineChart
-          chartData={conversationHistoryChartData}
-          loading={FetchConversationHistoryIsLoading}
-          granularity={granularity}
-          onGranularityChange={handleGranularityChange}
-          from={from}
-          to={to}
-          onFromChange={setFrom}
-          onToChange={setTo}
-        />
-      </div>
-    </>
+      <CustomerInteractionLineChart
+        chartData={conversationHistoryChartData}
+        loading={FetchConversationHistoryIsLoading}
+        granularity={granularity}
+        onGranularityChange={handleGranularityChange}
+        from={from}
+        to={to}
+        onFromChange={setFrom}
+        onToChange={setTo}
+      />
+    </div>
   );
 }

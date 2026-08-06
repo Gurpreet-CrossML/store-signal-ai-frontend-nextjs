@@ -2,6 +2,14 @@
 
 import { IconPalette } from "@tabler/icons-react";
 
+import { InfoIcon } from "@/components/custom/info-icon";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ColorKey } from "@/components/custom/customization-types";
@@ -32,21 +40,21 @@ export default function CustomizationTheme({
   const swatches = [
     {
       which: "primary" as const,
-      label: "Primary color",
+      label: "Brand color",
       color: themeColor,
       hex: themeHexInput,
       placeholder: "#6C5CE7",
     },
     {
       which: "secondary" as const,
-      label: "Secondary color",
+      label: "Bubble color",
       color: secondaryColor,
       hex: secondaryHexInput,
       placeholder: "#F3F4F6",
     },
     {
       which: "tertiary" as const,
-      label: "Tertiary color",
+      label: "Accent color",
       color: tertiaryColor,
       hex: tertiaryHexInput,
       placeholder: "#DFE6E9",
@@ -54,12 +62,18 @@ export default function CustomizationTheme({
   ];
 
   return (
-    <div className="flex flex-col gap-3">
-      <Label className="flex items-center gap-2">
-        <IconPalette className="size-4" />
-        Theme
-      </Label>
-      <div className="border border-border p-4 rounded-lg">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <IconPalette className="size-4" />
+          Widget Theme
+          <InfoIcon text="These colors style the chat widget on your storefront. Changes show instantly in the live preview on the right." />
+        </CardTitle>
+        <CardDescription>
+          Colors the chat widget uses on your storefront.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {swatches.map(({ which, label, color, hex, placeholder }) => (
             <div key={which} className="flex flex-col gap-2">
@@ -85,7 +99,7 @@ export default function CustomizationTheme({
         </div>
 
         <div
-          className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground"
+          className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground"
           style={themeVars}
         >
           <span className="flex items-center gap-2">
@@ -101,7 +115,7 @@ export default function CustomizationTheme({
             Accents &amp; surfaces
           </span>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

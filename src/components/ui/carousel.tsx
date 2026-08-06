@@ -7,7 +7,7 @@ import useEmblaCarousel, {
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 type CarouselApi = UseEmblaCarouselType[1];
 type UseCarouselParameters = Parameters<typeof useEmblaCarousel>;
@@ -95,15 +95,11 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api) return;
-    // Initial sync deferred out of the effect body — a synchronous
-    // setState here would cascade an extra render pass; subsequent
-    // updates come from embla's own events.
-    const raf = requestAnimationFrame(() => onSelect(api));
+    onSelect(api);
     api.on("reInit", onSelect);
     api.on("select", onSelect);
 
     return () => {
-      cancelAnimationFrame(raf);
       api?.off("select", onSelect);
     };
   }, [api, onSelect]);
@@ -199,7 +195,7 @@ function CarouselPrevious({
       onClick={scrollPrev}
       {...props}
     >
-      <IconChevronLeft />
+      <ChevronLeftIcon />
       <span className="sr-only">Previous slide</span>
     </Button>
   );
@@ -229,7 +225,7 @@ function CarouselNext({
       onClick={scrollNext}
       {...props}
     >
-      <IconChevronRight />
+      <ChevronRightIcon />
       <span className="sr-only">Next slide</span>
     </Button>
   );

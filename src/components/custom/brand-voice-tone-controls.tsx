@@ -32,7 +32,6 @@ function ToneMetricSlider({
   minLabel,
   maxLabel,
   onChange,
-  onBlur,
   className,
 }: {
   name: string;

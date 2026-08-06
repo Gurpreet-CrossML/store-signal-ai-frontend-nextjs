@@ -10,6 +10,7 @@ import {
 } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Typography } from "@/components/ui/typography";
 import { Spinner } from "@/components/ui/spinner";
 import type {
   StoreDocument,
@@ -85,9 +86,9 @@ export const storeDocumentColumns: ColumnDef<StoreDocument>[] = [
             ) : (
               <IconFileTypeDocx className="size-4 shrink-0 text-primary" />
             )}
-            <span className="max-w-xs truncate font-medium text-foreground">
+            <Typography variant="small" as="span" className="max-w-xs truncate">
               {doc.name}
-            </span>
+            </Typography>
           </div>
           {doc.status === "failed" && doc.error && (
             <p
@@ -105,27 +106,31 @@ export const storeDocumentColumns: ColumnDef<StoreDocument>[] = [
     accessorKey: "size",
     header: "Size",
     cell: ({ row }) => (
-      <span className="tabular-nums text-muted-foreground">
+      <Typography variant="muted" as="span" className="tabular-nums">
         {formatBytes(row.original.size)}
-      </span>
+      </Typography>
     ),
   },
   {
     accessorKey: "type",
     header: "Type",
     cell: ({ row }) => (
-      <span className="text-xs font-semibold tracking-wide text-muted-foreground">
+      <Typography
+        variant="muted"
+        as="span"
+        className="text-xs font-semibold tracking-wide"
+      >
         {formatDocumentType(row.original.type)}
-      </span>
+      </Typography>
     ),
   },
   {
     accessorKey: "created_at",
     header: "Uploaded",
     cell: ({ row }) => (
-      <span className="whitespace-nowrap text-muted-foreground">
+      <Typography variant="muted" as="span" className="whitespace-nowrap">
         {formatDateTime(row.original.created_at)}
-      </span>
+      </Typography>
     ),
   },
   {

@@ -5,6 +5,7 @@ import { eachDayOfInterval, format, parseISO } from "date-fns";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 
 import ChartEmptyState from "@/components/custom/ai-usage/chart-empty-state";
+import { InfoIcon } from "@/components/custom/info-icon";
 import {
   Card,
   CardContent,
@@ -12,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Typography } from "@/components/ui/typography";
 import {
   ChartContainer,
   ChartTooltip,
@@ -22,15 +24,15 @@ import type { AIUsageResponse } from "@/redux/api-slice/ai-usage-slice";
 
 const chartConfig = {
   usage: {
-    label: "Total usage",
+    label: "Agent Calls",
     color: "var(--chart-3)",
   },
   input_tokens: {
-    label: "Total Input tokens",
+    label: "Input Tokens",
     color: "var(--chart-2)",
   },
   output_tokens: {
-    label: "Total Output tokens",
+    label: "Output Tokens",
     color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
@@ -88,9 +90,12 @@ export default function DailyUsageChart({
     <Card className="py-0 lg:col-span-2">
       <CardHeader className="flex flex-col items-stretch border-b p-0! sm:flex-row">
         <div className="flex flex-1 flex-col justify-center gap-1 px-6 pt-4 pb-3 sm:py-0!">
-          <CardTitle>AI Token usage</CardTitle>
+          <CardTitle className="flex items-center gap-1.5">
+            Daily Agent Activity
+            <InfoIcon text="Daily view of agent activity. Toggle between agent calls, input tokens, and output tokens to see how usage changes day by day." />
+          </CardTitle>
           <CardDescription>
-            Agent calls and input/output tokens for each day
+            Agent calls and input/output token volume for each day
           </CardDescription>
         </div>
         <div className="flex">
@@ -103,12 +108,20 @@ export default function DailyUsageChart({
                 className="relative z-30 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l data-[active=true]:bg-muted/50 sm:border-t-0 sm:border-l sm:px-8 sm:py-6"
                 onClick={() => setActiveChart(chart)}
               >
-                <span className="whitespace-nowrap text-xs text-muted-foreground">
+                <Typography
+                  variant="muted"
+                  as="span"
+                  className="text-xs whitespace-nowrap"
+                >
                   {chartConfig[chart].label}
-                </span>
-                <span className="text-lg leading-none font-bold sm:text-3xl">
+                </Typography>
+                <Typography
+                  variant="h3"
+                  as="span"
+                  className="text-lg leading-none tabular-nums sm:text-2xl"
+                >
                   {totals[chart].toLocaleString()}
-                </span>
+                </Typography>
               </button>
             ),
           )}

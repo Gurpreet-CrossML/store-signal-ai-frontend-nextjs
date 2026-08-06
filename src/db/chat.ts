@@ -4,7 +4,6 @@ import { getDb } from "@/lib/tenant-context";
 import {
   neverSayRules,
   personaIdentity,
-  store,
   tonePreset,
   toneStyle,
   vocabulary,
