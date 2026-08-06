@@ -1,15 +1,22 @@
 import {
   IconAdjustmentsSpark,
+  IconChartDots,
   IconBan,
   IconBook2,
   IconBooks,
+  IconBrandFacebook,
+  IconBrandInstagram,
+  IconBrandMessenger,
+  IconBrandMeta,
   IconDashboard,
   IconHelp,
   IconHeadset,
   IconImageGeneration,
   IconMessage2,
   IconMessageUser,
+  IconPhotoVideo,
   IconSearch,
+  IconSend,
   IconSettings,
   IconUserHexagon,
   IconVolume,
@@ -62,6 +69,11 @@ export const sidebarMenus: SideBarMenus = {
       icon: IconDashboard,
     },
     {
+      title: "AI Usage",
+      url: "/ai-usage",
+      icon: IconChartDots,
+    },
+    {
       title: "Threads",
       url: "/threads",
       icon: IconMessage2,
@@ -80,6 +92,51 @@ export const sidebarMenus: SideBarMenus = {
       title: "Customisation",
       url: "/customisation",
       icon: IconImageGeneration,
+    },
+    {
+      title: "Social AI",
+      url: "#",
+      icon: IconBrandMeta,
+      isMenuHeading: true,
+      isExpanded: true,
+      items: [
+        {
+          title: "Facebook",
+          url: "#",
+          icon: IconBrandFacebook,
+          isExpanded: true,
+          items: [
+            {
+              title: "Facebook Posts",
+              url: "/social-ai/facebook-post",
+              icon: IconPhotoVideo,
+            },
+            {
+              title: "Facebook Messages",
+              url: "/social-ai/facebook-messages",
+              icon: IconBrandMessenger,
+            },
+          ],
+        },
+        {
+          title: "Instagram",
+          url: "#",
+          icon: IconBrandInstagram,
+          isExpanded: true,
+          items: [
+            {
+              title: "Instagram Posts",
+              url: "/social-ai/instagram-post",
+              icon: IconPhotoVideo,
+            },
+            {
+              title: "Instagram Messages",
+              url: "/social-ai/instagram-messages",
+              icon: IconSend,
+            },
+          ],
+        },
+      ],
     },
   ],
 

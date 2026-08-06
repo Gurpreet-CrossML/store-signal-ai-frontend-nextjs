@@ -4,19 +4,20 @@ import {
   authPermission,
   authGroupPermissions,
   authGroup,
+  company,
+  storeRegistry,
+  threadRegistry,
   authUserGroups,
   authUser,
   authUserUserPermissions,
   djangoAdminLog,
-  company,
   companyDomain,
   companyMembership,
-  storeRegistry,
-  threadRegistry,
   store,
   chatbotWidgetCustomization,
   chatbotWidgetCustomizationQuickActions,
   quickAction,
+  storeAccess,
   quickLink,
   storeFaqs,
   storeCredentials,
@@ -30,12 +31,10 @@ import {
   sentimentAnalysis,
   sessionResolutionVerdict,
   userMetadata,
-  storeAccess,
   fraudFlag,
-  supportTicket,
   scrapeLinkslinks,
   knowledgeStorelibrarydocument,
-  chatCustomerorder,
+  supportTicket,
   taggitTaggeditem,
   taggitTag,
   integrationCategory,
@@ -43,13 +42,33 @@ import {
   integrationAttribute,
   storeIntegration,
   storeIntegrationAttribute,
-  personaIdentity,
-  neverSayRules,
+  chatCustomerorder,
   vocabulary,
+  neverSayRules,
+  personaIdentity,
   vocabularyWordReplacements,
   wordReplacement,
   toneStyle,
   aiUsage,
+  socialSubscription,
+  socialConnectedAccount,
+  socialPost,
+  socialPostMedia,
+  socialUser,
+  socialMessage,
+  socialWebhookEvent,
+  socialReaction,
+  socialCommentAnalysis,
+  socialAccountRegistry,
+  supportTicketChannel,
+  ticketMessage,
+  supportTicketTags,
+  ticketTag,
+  ticketAttachment,
+  ticketMessageDraft,
+  supportTicketAssignmentAudit,
+  supportTicketStatusAudit,
+  supportTicketAiActivity,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -92,6 +111,28 @@ export const authGroupRelations = relations(authGroup, ({ many }) => ({
   authUserGroups: many(authUserGroups),
 }));
 
+export const storeRegistryRelations = relations(storeRegistry, ({ one }) => ({
+  company: one(company, {
+    fields: [storeRegistry.companyId],
+    references: [company.id],
+  }),
+}));
+
+export const companyRelations = relations(company, ({ many }) => ({
+  storeRegistries: many(storeRegistry),
+  threadRegistries: many(threadRegistry),
+  companyDomains: many(companyDomain),
+  companyMemberships: many(companyMembership),
+  socialAccountRegistries: many(socialAccountRegistry),
+}));
+
+export const threadRegistryRelations = relations(threadRegistry, ({ one }) => ({
+  company: one(company, {
+    fields: [threadRegistry.companyId],
+    references: [company.id],
+  }),
+}));
+
 export const authUserGroupsRelations = relations(authUserGroups, ({ one }) => ({
   authGroup: one(authGroup, {
     fields: [authUserGroups.groupId],
@@ -108,14 +149,51 @@ export const authUserRelations = relations(authUser, ({ many }) => ({
   authUserUserPermissions: many(authUserUserPermissions),
   djangoAdminLogs: many(djangoAdminLog),
   companyMemberships: many(companyMembership),
-  chatThreads: many(chatThread),
-  chatHistorys: many(chatHistory),
   storeAccesss_grantedById: many(storeAccess, {
     relationName: "storeAccess_grantedById_authUser_id",
   }),
   storeAccesss_userId: many(storeAccess, {
     relationName: "storeAccess_userId_authUser_id",
   }),
+  chatThreads: many(chatThread),
+  supportTickets_closedById: many(supportTicket, {
+    relationName: "supportTicket_closedById_authUser_id",
+  }),
+  supportTickets_internalAssigneeId: many(supportTicket, {
+    relationName: "supportTicket_internalAssigneeId_authUser_id",
+  }),
+  supportTickets_resolvedById: many(supportTicket, {
+    relationName: "supportTicket_resolvedById_authUser_id",
+  }),
+  supportTickets_snoozedById: many(supportTicket, {
+    relationName: "supportTicket_snoozedById_authUser_id",
+  }),
+  chatHistorys: many(chatHistory),
+  socialMessages: many(socialMessage),
+  ticketMessages: many(ticketMessage),
+  ticketMessageDrafts_agentId: many(ticketMessageDraft, {
+    relationName: "ticketMessageDraft_agentId_authUser_id",
+  }),
+  ticketMessageDrafts_createdById: many(ticketMessageDraft, {
+    relationName: "ticketMessageDraft_createdById_authUser_id",
+  }),
+  supportTicketAssignmentAudits_assignedById: many(
+    supportTicketAssignmentAudit,
+    {
+      relationName: "supportTicketAssignmentAudit_assignedById_authUser_id",
+    },
+  ),
+  supportTicketAssignmentAudits_fromAgentId: many(
+    supportTicketAssignmentAudit,
+    {
+      relationName: "supportTicketAssignmentAudit_fromAgentId_authUser_id",
+    },
+  ),
+  supportTicketAssignmentAudits_toAgentId: many(supportTicketAssignmentAudit, {
+    relationName: "supportTicketAssignmentAudit_toAgentId_authUser_id",
+  }),
+  supportTicketStatusAudits: many(supportTicketStatusAudit),
+  supportTicketAiActivitys: many(supportTicketAiActivity),
 }));
 
 export const authUserUserPermissionsRelations = relations(
@@ -150,13 +228,6 @@ export const companyDomainRelations = relations(companyDomain, ({ one }) => ({
   }),
 }));
 
-export const companyRelations = relations(company, ({ many }) => ({
-  companyDomains: many(companyDomain),
-  companyMemberships: many(companyMembership),
-  storeRegistries: many(storeRegistry),
-  threadRegistries: many(threadRegistry),
-}));
-
 export const companyMembershipRelations = relations(
   companyMembership,
   ({ one }) => ({
@@ -170,20 +241,6 @@ export const companyMembershipRelations = relations(
     }),
   }),
 );
-
-export const storeRegistryRelations = relations(storeRegistry, ({ one }) => ({
-  company: one(company, {
-    fields: [storeRegistry.companyId],
-    references: [company.id],
-  }),
-}));
-
-export const threadRegistryRelations = relations(threadRegistry, ({ one }) => ({
-  company: one(company, {
-    fields: [threadRegistry.companyId],
-    references: [company.id],
-  }),
-}));
 
 export const chatbotWidgetCustomizationRelations = relations(
   chatbotWidgetCustomization,
@@ -201,19 +258,21 @@ export const chatbotWidgetCustomizationRelations = relations(
 
 export const storeRelations = relations(store, ({ many }) => ({
   chatbotWidgetCustomizations: many(chatbotWidgetCustomization),
+  storeAccesss: many(storeAccess),
   storeFaqss: many(storeFaqs),
   storeCredentialss: many(storeCredentials),
-  chatThreads: many(chatThread),
   sessionResolutionVerdicts: many(sessionResolutionVerdict),
-  storeAccesss: many(storeAccess),
-  supportTickets: many(supportTicket),
+  chatThreads: many(chatThread),
   scrapeLinkslinkss: many(scrapeLinkslinks),
   knowledgeStorelibrarydocuments: many(knowledgeStorelibrarydocument),
+  supportTickets: many(supportTicket),
   storeIntegrations: many(storeIntegration),
-  personaIdentitys: many(personaIdentity),
-  neverSayRuless: many(neverSayRules),
   vocabularys: many(vocabulary),
+  neverSayRuless: many(neverSayRules),
+  personaIdentitys: many(personaIdentity),
   toneStyles: many(toneStyle),
+  socialSubscriptions: many(socialSubscription),
+  ticketTags: many(ticketTag),
 }));
 
 export const chatbotWidgetCustomizationQuickActionsRelations = relations(
@@ -236,6 +295,23 @@ export const quickActionRelations = relations(quickAction, ({ many }) => ({
   chatbotWidgetCustomizationQuickActionss: many(
     chatbotWidgetCustomizationQuickActions,
   ),
+}));
+
+export const storeAccessRelations = relations(storeAccess, ({ one }) => ({
+  authUser_grantedById: one(authUser, {
+    fields: [storeAccess.grantedById],
+    references: [authUser.id],
+    relationName: "storeAccess_grantedById_authUser_id",
+  }),
+  store: one(store, {
+    fields: [storeAccess.storeId],
+    references: [store.id],
+  }),
+  authUser_userId: one(authUser, {
+    fields: [storeAccess.userId],
+    references: [authUser.id],
+    relationName: "storeAccess_userId_authUser_id",
+  }),
 }));
 
 export const quickLinkRelations = relations(quickLink, ({ one }) => ({
@@ -274,6 +350,8 @@ export const chatCustomerRelations = relations(chatCustomer, ({ many }) => ({
   chatThreads: many(chatThread),
   supportTickets: many(supportTicket),
   chatCustomerorders: many(chatCustomerorder),
+  socialUsers: many(socialUser),
+  ticketMessages: many(ticketMessage),
 }));
 
 export const chatbotFeedbackRelations = relations(
@@ -292,21 +370,28 @@ export const chatbotFeedbackRelations = relations(
 
 export const chatHistoryRelations = relations(chatHistory, ({ one, many }) => ({
   chatbotFeedbacks: many(chatbotFeedback),
-  chatThread: one(chatThread, {
-    fields: [chatHistory.threadId],
-    references: [chatThread.id],
-  }),
+  fraudFlags: many(fraudFlag),
   authUser: one(authUser, {
     fields: [chatHistory.messagedById],
     references: [authUser.id],
   }),
-  fraudFlags: many(fraudFlag),
+  chatThread: one(chatThread, {
+    fields: [chatHistory.threadId],
+    references: [chatThread.id],
+  }),
   aiUsages: many(aiUsage),
 }));
 
 export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
   chatbotFeedbacks: many(chatbotFeedback),
   chatBotevents: many(chatBotevent),
+  aiInsightss: many(aiInsights),
+  sentimentAnalysiss: many(sentimentAnalysis),
+  sessionResolutionVerdicts: many(sessionResolutionVerdict),
+  authUser: one(authUser, {
+    fields: [chatThread.chatHandlerUserId],
+    references: [authUser.id],
+  }),
   chatCustomer: one(chatCustomer, {
     fields: [chatThread.customerId],
     references: [chatCustomer.id],
@@ -315,17 +400,10 @@ export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
     fields: [chatThread.storeId],
     references: [store.id],
   }),
-  authUser: one(authUser, {
-    fields: [chatThread.chatHandlerUserId],
-    references: [authUser.id],
-  }),
-  chatHistorys: many(chatHistory),
-  aiInsightss: many(aiInsights),
-  sentimentAnalysiss: many(sentimentAnalysis),
-  sessionResolutionVerdicts: many(sessionResolutionVerdict),
   userMetadatas: many(userMetadata),
   fraudFlags: many(fraudFlag),
   supportTickets: many(supportTicket),
+  chatHistorys: many(chatHistory),
 }));
 
 export const chatBoteventRelations = relations(chatBotevent, ({ one }) => ({
@@ -373,23 +451,6 @@ export const userMetadataRelations = relations(userMetadata, ({ one }) => ({
   }),
 }));
 
-export const storeAccessRelations = relations(storeAccess, ({ one }) => ({
-  authUser_grantedById: one(authUser, {
-    fields: [storeAccess.grantedById],
-    references: [authUser.id],
-    relationName: "storeAccess_grantedById_authUser_id",
-  }),
-  store: one(store, {
-    fields: [storeAccess.storeId],
-    references: [store.id],
-  }),
-  authUser_userId: one(authUser, {
-    fields: [storeAccess.userId],
-    references: [authUser.id],
-    relationName: "storeAccess_userId_authUser_id",
-  }),
-}));
-
 export const fraudFlagRelations = relations(fraudFlag, ({ one }) => ({
   chatHistory: one(chatHistory, {
     fields: [fraudFlag.chatMessageId],
@@ -397,21 +458,6 @@ export const fraudFlagRelations = relations(fraudFlag, ({ one }) => ({
   }),
   chatThread: one(chatThread, {
     fields: [fraudFlag.threadId],
-    references: [chatThread.id],
-  }),
-}));
-
-export const supportTicketRelations = relations(supportTicket, ({ one }) => ({
-  chatCustomer: one(chatCustomer, {
-    fields: [supportTicket.customerId],
-    references: [chatCustomer.id],
-  }),
-  store: one(store, {
-    fields: [supportTicket.storeId],
-    references: [store.id],
-  }),
-  chatThread: one(chatThread, {
-    fields: [supportTicket.threadId],
     references: [chatThread.id],
   }),
 }));
@@ -436,13 +482,49 @@ export const knowledgeStorelibrarydocumentRelations = relations(
   }),
 );
 
-export const chatCustomerorderRelations = relations(
-  chatCustomerorder,
-  ({ one }) => ({
+export const supportTicketRelations = relations(
+  supportTicket,
+  ({ one, many }) => ({
+    authUser_closedById: one(authUser, {
+      fields: [supportTicket.closedById],
+      references: [authUser.id],
+      relationName: "supportTicket_closedById_authUser_id",
+    }),
     chatCustomer: one(chatCustomer, {
-      fields: [chatCustomerorder.customerId],
+      fields: [supportTicket.customerId],
       references: [chatCustomer.id],
     }),
+    authUser_internalAssigneeId: one(authUser, {
+      fields: [supportTicket.internalAssigneeId],
+      references: [authUser.id],
+      relationName: "supportTicket_internalAssigneeId_authUser_id",
+    }),
+    authUser_resolvedById: one(authUser, {
+      fields: [supportTicket.resolvedById],
+      references: [authUser.id],
+      relationName: "supportTicket_resolvedById_authUser_id",
+    }),
+    authUser_snoozedById: one(authUser, {
+      fields: [supportTicket.snoozedById],
+      references: [authUser.id],
+      relationName: "supportTicket_snoozedById_authUser_id",
+    }),
+    store: one(store, {
+      fields: [supportTicket.storeId],
+      references: [store.id],
+    }),
+    chatThread: one(chatThread, {
+      fields: [supportTicket.threadId],
+      references: [chatThread.id],
+    }),
+    supportTicketChannels: many(supportTicketChannel),
+    ticketMessages: many(ticketMessage),
+    supportTicketTagss: many(supportTicketTags),
+    ticketAttachments: many(ticketAttachment),
+    ticketMessageDrafts: many(ticketMessageDraft),
+    supportTicketAssignmentAudits: many(supportTicketAssignmentAudit),
+    supportTicketStatusAudits: many(supportTicketStatusAudit),
+    supportTicketAiActivitys: many(supportTicketAiActivity),
   }),
 );
 
@@ -510,6 +592,31 @@ export const storeIntegrationAttributeRelations = relations(
   }),
 );
 
+export const chatCustomerorderRelations = relations(
+  chatCustomerorder,
+  ({ one }) => ({
+    chatCustomer: one(chatCustomer, {
+      fields: [chatCustomerorder.customerId],
+      references: [chatCustomer.id],
+    }),
+  }),
+);
+
+export const vocabularyRelations = relations(vocabulary, ({ one, many }) => ({
+  store: one(store, {
+    fields: [vocabulary.storeId],
+    references: [store.id],
+  }),
+  vocabularyWordReplacementss: many(vocabularyWordReplacements),
+}));
+
+export const neverSayRulesRelations = relations(neverSayRules, ({ one }) => ({
+  store: one(store, {
+    fields: [neverSayRules.storeId],
+    references: [store.id],
+  }),
+}));
+
 export const personaIdentityRelations = relations(
   personaIdentity,
   ({ one }) => ({
@@ -519,21 +626,6 @@ export const personaIdentityRelations = relations(
     }),
   }),
 );
-
-export const neverSayRulesRelations = relations(neverSayRules, ({ one }) => ({
-  store: one(store, {
-    fields: [neverSayRules.storeId],
-    references: [store.id],
-  }),
-}));
-
-export const vocabularyRelations = relations(vocabulary, ({ one, many }) => ({
-  store: one(store, {
-    fields: [vocabulary.storeId],
-    references: [store.id],
-  }),
-  vocabularyWordReplacementss: many(vocabularyWordReplacements),
-}));
 
 export const vocabularyWordReplacementsRelations = relations(
   vocabularyWordReplacements,
@@ -569,3 +661,281 @@ export const aiUsageRelations = relations(aiUsage, ({ one }) => ({
     references: [chatHistory.id],
   }),
 }));
+
+export const socialSubscriptionRelations = relations(
+  socialSubscription,
+  ({ one, many }) => ({
+    store: one(store, {
+      fields: [socialSubscription.storeId],
+      references: [store.id],
+    }),
+    socialConnectedAccounts: many(socialConnectedAccount),
+  }),
+);
+
+export const socialPostRelations = relations(socialPost, ({ one, many }) => ({
+  socialConnectedAccount: one(socialConnectedAccount, {
+    fields: [socialPost.accountId],
+    references: [socialConnectedAccount.id],
+  }),
+  socialPostMedias: many(socialPostMedia),
+  socialMessages: many(socialMessage),
+}));
+
+export const socialConnectedAccountRelations = relations(
+  socialConnectedAccount,
+  ({ one, many }) => ({
+    socialPosts: many(socialPost),
+    socialConnectedAccount: one(socialConnectedAccount, {
+      fields: [socialConnectedAccount.linkedAccountId],
+      references: [socialConnectedAccount.id],
+      relationName:
+        "socialConnectedAccount_linkedAccountId_socialConnectedAccount_id",
+    }),
+    socialConnectedAccounts: many(socialConnectedAccount, {
+      relationName:
+        "socialConnectedAccount_linkedAccountId_socialConnectedAccount_id",
+    }),
+    socialSubscription: one(socialSubscription, {
+      fields: [socialConnectedAccount.subscriptionId],
+      references: [socialSubscription.id],
+    }),
+    socialUsers: many(socialUser),
+    socialMessages: many(socialMessage),
+    socialWebhookEvents: many(socialWebhookEvent),
+  }),
+);
+
+export const socialPostMediaRelations = relations(
+  socialPostMedia,
+  ({ one }) => ({
+    socialPost: one(socialPost, {
+      fields: [socialPostMedia.postId],
+      references: [socialPost.id],
+    }),
+  }),
+);
+
+export const socialUserRelations = relations(socialUser, ({ one, many }) => ({
+  socialConnectedAccount: one(socialConnectedAccount, {
+    fields: [socialUser.accountId],
+    references: [socialConnectedAccount.id],
+  }),
+  chatCustomer: one(chatCustomer, {
+    fields: [socialUser.customerId],
+    references: [chatCustomer.id],
+  }),
+  socialMessages: many(socialMessage),
+  socialReactions: many(socialReaction),
+}));
+
+export const socialMessageRelations = relations(
+  socialMessage,
+  ({ one, many }) => ({
+    socialConnectedAccount: one(socialConnectedAccount, {
+      fields: [socialMessage.accountId],
+      references: [socialConnectedAccount.id],
+    }),
+    authUser: one(authUser, {
+      fields: [socialMessage.agentId],
+      references: [authUser.id],
+    }),
+    socialMessage: one(socialMessage, {
+      fields: [socialMessage.parentMessageId],
+      references: [socialMessage.id],
+      relationName: "socialMessage_parentMessageId_socialMessage_id",
+    }),
+    socialMessages: many(socialMessage, {
+      relationName: "socialMessage_parentMessageId_socialMessage_id",
+    }),
+    socialPost: one(socialPost, {
+      fields: [socialMessage.postId],
+      references: [socialPost.id],
+    }),
+    socialUser: one(socialUser, {
+      fields: [socialMessage.socialUserId],
+      references: [socialUser.id],
+    }),
+    socialReactions: many(socialReaction),
+    socialCommentAnalysiss: many(socialCommentAnalysis),
+  }),
+);
+
+export const socialWebhookEventRelations = relations(
+  socialWebhookEvent,
+  ({ one }) => ({
+    socialConnectedAccount: one(socialConnectedAccount, {
+      fields: [socialWebhookEvent.accountId],
+      references: [socialConnectedAccount.id],
+    }),
+  }),
+);
+
+export const socialReactionRelations = relations(socialReaction, ({ one }) => ({
+  socialMessage: one(socialMessage, {
+    fields: [socialReaction.messageId],
+    references: [socialMessage.id],
+  }),
+  socialUser: one(socialUser, {
+    fields: [socialReaction.socialUserId],
+    references: [socialUser.id],
+  }),
+}));
+
+export const socialCommentAnalysisRelations = relations(
+  socialCommentAnalysis,
+  ({ one }) => ({
+    socialMessage: one(socialMessage, {
+      fields: [socialCommentAnalysis.messageId],
+      references: [socialMessage.id],
+    }),
+  }),
+);
+
+export const socialAccountRegistryRelations = relations(
+  socialAccountRegistry,
+  ({ one }) => ({
+    company: one(company, {
+      fields: [socialAccountRegistry.companyId],
+      references: [company.id],
+    }),
+  }),
+);
+
+export const supportTicketChannelRelations = relations(
+  supportTicketChannel,
+  ({ one }) => ({
+    supportTicket: one(supportTicket, {
+      fields: [supportTicketChannel.ticketId],
+      references: [supportTicket.id],
+    }),
+  }),
+);
+
+export const ticketMessageRelations = relations(
+  ticketMessage,
+  ({ one, many }) => ({
+    authUser: one(authUser, {
+      fields: [ticketMessage.agentId],
+      references: [authUser.id],
+    }),
+    chatCustomer: one(chatCustomer, {
+      fields: [ticketMessage.customerId],
+      references: [chatCustomer.id],
+    }),
+    supportTicket: one(supportTicket, {
+      fields: [ticketMessage.ticketId],
+      references: [supportTicket.id],
+    }),
+    ticketAttachments: many(ticketAttachment),
+  }),
+);
+
+export const supportTicketTagsRelations = relations(
+  supportTicketTags,
+  ({ one }) => ({
+    supportTicket: one(supportTicket, {
+      fields: [supportTicketTags.supportticketId],
+      references: [supportTicket.id],
+    }),
+    ticketTag: one(ticketTag, {
+      fields: [supportTicketTags.tickettagId],
+      references: [ticketTag.id],
+    }),
+  }),
+);
+
+export const ticketTagRelations = relations(ticketTag, ({ one, many }) => ({
+  supportTicketTagss: many(supportTicketTags),
+  store: one(store, {
+    fields: [ticketTag.storeId],
+    references: [store.id],
+  }),
+}));
+
+export const ticketAttachmentRelations = relations(
+  ticketAttachment,
+  ({ one }) => ({
+    ticketMessage: one(ticketMessage, {
+      fields: [ticketAttachment.messageId],
+      references: [ticketMessage.id],
+    }),
+    supportTicket: one(supportTicket, {
+      fields: [ticketAttachment.ticketId],
+      references: [supportTicket.id],
+    }),
+  }),
+);
+
+export const ticketMessageDraftRelations = relations(
+  ticketMessageDraft,
+  ({ one }) => ({
+    authUser_agentId: one(authUser, {
+      fields: [ticketMessageDraft.agentId],
+      references: [authUser.id],
+      relationName: "ticketMessageDraft_agentId_authUser_id",
+    }),
+    authUser_createdById: one(authUser, {
+      fields: [ticketMessageDraft.createdById],
+      references: [authUser.id],
+      relationName: "ticketMessageDraft_createdById_authUser_id",
+    }),
+    supportTicket: one(supportTicket, {
+      fields: [ticketMessageDraft.ticketId],
+      references: [supportTicket.id],
+    }),
+  }),
+);
+
+export const supportTicketAssignmentAuditRelations = relations(
+  supportTicketAssignmentAudit,
+  ({ one }) => ({
+    authUser_assignedById: one(authUser, {
+      fields: [supportTicketAssignmentAudit.assignedById],
+      references: [authUser.id],
+      relationName: "supportTicketAssignmentAudit_assignedById_authUser_id",
+    }),
+    authUser_fromAgentId: one(authUser, {
+      fields: [supportTicketAssignmentAudit.fromAgentId],
+      references: [authUser.id],
+      relationName: "supportTicketAssignmentAudit_fromAgentId_authUser_id",
+    }),
+    supportTicket: one(supportTicket, {
+      fields: [supportTicketAssignmentAudit.ticketId],
+      references: [supportTicket.id],
+    }),
+    authUser_toAgentId: one(authUser, {
+      fields: [supportTicketAssignmentAudit.toAgentId],
+      references: [authUser.id],
+      relationName: "supportTicketAssignmentAudit_toAgentId_authUser_id",
+    }),
+  }),
+);
+
+export const supportTicketStatusAuditRelations = relations(
+  supportTicketStatusAudit,
+  ({ one }) => ({
+    authUser: one(authUser, {
+      fields: [supportTicketStatusAudit.changedById],
+      references: [authUser.id],
+    }),
+    supportTicket: one(supportTicket, {
+      fields: [supportTicketStatusAudit.ticketId],
+      references: [supportTicket.id],
+    }),
+  }),
+);
+
+export const supportTicketAiActivityRelations = relations(
+  supportTicketAiActivity,
+  ({ one }) => ({
+    authUser: one(authUser, {
+      fields: [supportTicketAiActivity.performedById],
+      references: [authUser.id],
+    }),
+    supportTicket: one(supportTicket, {
+      fields: [supportTicketAiActivity.ticketId],
+      references: [supportTicket.id],
+    }),
+  }),
+);
