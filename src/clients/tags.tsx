@@ -132,7 +132,7 @@ export default function Tags() {
   );
   const { FetchSupportTicketTagsData, FetchSupportTicketTagsIsLoading } =
     useAppSelector(
-      (state) => state.SupportTicketsSliceReducer.FetchSupportTicketTagsState,
+      (state) => state.GetSupportTicketsReducer.FetchSupportTicketTagsState,
     );
 
   const tags = FetchSupportTicketTagsData?.results ?? [];
