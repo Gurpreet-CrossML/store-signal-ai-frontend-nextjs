@@ -249,12 +249,10 @@ export default function Dashboard() {
     FetchConversationHistoryData?.points ?? [];
 
   return (
-    <>
-      <div className="px-6 py-2">
-        <Typography variant="h4" className="mb-6">
-          Performance Summary
-        </Typography>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="flex flex-col gap-6 p-4">
+      <section className="flex flex-col gap-4">
+        <Typography variant="h4">Performance Summary</Typography>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {performanceSummaryMetrics.map((metric) => {
             const statusColors = {
               success: "bg-success/20 text-success",
@@ -288,24 +286,22 @@ export default function Dashboard() {
             );
           })}
         </div>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-6 py-4">
+      </section>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <SentimentsPieChart data={sentimentPieChartData} />
         <PerformanceRadialChart chartData={performanceRadialChartData} />
         <GuestVsSignedUserRadialChart chartData={userActivityChartData} />
       </div>
-      <div className="px-6 py-4">
-        <CustomerInteractionLineChart
-          chartData={conversationHistoryChartData}
-          loading={FetchConversationHistoryIsLoading}
-          granularity={granularity}
-          onGranularityChange={handleGranularityChange}
-          from={from}
-          to={to}
-          onFromChange={setFrom}
-          onToChange={setTo}
-        />
-      </div>
-    </>
+      <CustomerInteractionLineChart
+        chartData={conversationHistoryChartData}
+        loading={FetchConversationHistoryIsLoading}
+        granularity={granularity}
+        onGranularityChange={handleGranularityChange}
+        from={from}
+        to={to}
+        onFromChange={setFrom}
+        onToChange={setTo}
+      />
+    </div>
   );
 }

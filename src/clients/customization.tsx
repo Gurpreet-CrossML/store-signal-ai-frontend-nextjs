@@ -48,7 +48,6 @@ export default function Customization() {
   const storeId = store ? Number(store.id) : null;
   const storeLabel = store?.name ?? "Selected store";
 
-  const [widgetExists, setWidgetExists] = useState(false);
   const [savingAll, setSavingAll] = useState(false);
 
   const [themeColor, setThemeColor] = useState(DEFAULT_PRIMARY);
@@ -103,7 +102,6 @@ export default function Customization() {
     setLogoFile(null);
 
     if (!data) {
-      setWidgetExists(false);
       applyColor("primary", DEFAULT_PRIMARY);
       applyColor("secondary", DEFAULT_SECONDARY);
       applyColor("tertiary", DEFAULT_TERTIARY);
@@ -115,7 +113,6 @@ export default function Customization() {
       return;
     }
 
-    setWidgetExists(true);
     applyColor("primary", data.primary_color ?? DEFAULT_PRIMARY);
     applyColor("secondary", data.secondary_color ?? DEFAULT_SECONDARY);
     applyColor("tertiary", data.tertiary_color ?? DEFAULT_TERTIARY);

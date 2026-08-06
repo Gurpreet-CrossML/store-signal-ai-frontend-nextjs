@@ -34,7 +34,7 @@ export default function StoreDocumentTabContent() {
   }, [storeCode]);
 
   return (
-    <div className="flex w-full flex-col gap-4 py-4">
+    <div className="flex w-full flex-col gap-6 py-4">
       <div className="flex items-center gap-2">
         <IconBook className="size-5" />
         <div className="flex flex-col">

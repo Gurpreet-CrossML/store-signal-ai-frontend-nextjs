@@ -110,7 +110,7 @@ export default function StoreFaqTabContent() {
   };
 
   return (
-    <div className="flex w-full flex-col gap-4 py-4">
+    <div className="flex w-full flex-col gap-6 py-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-2">
           <IconMessageQuestion className="size-5" />

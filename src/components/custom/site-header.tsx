@@ -14,7 +14,17 @@ export function SiteHeader() {
     ? [...sidebarMenus.navMain, ...sidebarMenus.navAdmin]
     : sidebarMenus.navMain;
 
-  const title = findMenuItemByUrl(navMain, pathname)?.title ?? pathname;
+  // Routes that aren't in the nav (e.g. /settings/general) fall back to a
+  // humanized last path segment: "staff-management" → "Staff Management".
+  const fallbackTitle = (pathname ?? "")
+    .split("/")
+    .filter(Boolean)
+    .pop()
+    ?.split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  const title = findMenuItemByUrl(navMain, pathname)?.title ?? fallbackTitle;
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">

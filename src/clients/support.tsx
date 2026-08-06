@@ -55,7 +55,6 @@ import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
-import { formatRelativeTime } from "@/lib/helpers";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { formatRelativeDateTime } from "@/lib/helpers";
 
@@ -69,33 +68,6 @@ function normalizeThreads(threads: Thread[] | undefined) {
     ...thread,
     is_read: (thread as ThreadWithReadState).is_read ?? true,
   }));
-}
-
-// Deterministic avatar accent so the same customer always gets the same color.
-const AVATAR_PALETTE = [
-  "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
-  "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
-  "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
-  "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-];
-
-function getAvatarColor(seed: string) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash << 5) - hash + seed.charCodeAt(i);
-    hash |= 0;
-  }
-  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
-}
-
-function getInitials(name: string | null | undefined) {
-  if (!name) return null;
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return null;
-  const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase());
-  return initials.join("");
 }
 
 type AttachmentStatus = "uploading" | "uploaded" | "error";
@@ -121,7 +93,6 @@ function ThreadChatControls({
   isEmojiPickerOpen,
   setIsEmojiPickerOpen,
   onTakeOver,
-  onReturnToAI,
   onSendAgentMessage,
   onFileSelection,
   onEmojiSelect,
@@ -516,7 +487,7 @@ export default function Support() {
   const activeThreadIdRef = useRef<string | null>(null);
 
   // Generate a unique client ID for this session. This is used to identify messages sent by this client, so we can ignore them when they come back from the server.
-  const [clientID, setClientID] = useState<string | null>(crypto.randomUUID());
+  const [clientID] = useState<string | null>(crypto.randomUUID());
 
   // Reset the socket-mutable copy when Redux supplies a new response. React
   // applies this guarded render-time adjustment before committing children,
@@ -704,7 +675,7 @@ export default function Support() {
         });
       }
     },
-    [],
+    [dispatch],
   );
 
   const handleSendAgentMessage = useCallback(() => {
@@ -760,7 +731,7 @@ export default function Support() {
     setAgentMessage("");
     setAttachments([]);
     setIsEmojiPickerOpen(false);
-  }, [agentMessage, attachments, handleThreadMessageAdded]);
+  }, [agentMessage, attachments, clientID, handleThreadMessageAdded]);
 
   const handleReplyWithAI = useCallback(
     (message_id: number | string) => {
@@ -895,7 +866,7 @@ export default function Support() {
         playNotificationSound();
       }
     },
-    [activeThreadId, handleThreadMessageAdded],
+    [playNotificationSound],
   );
 
   useEffect(() => {
@@ -972,6 +943,9 @@ export default function Support() {
         dashboardWsRef.current = null;
       }
     };
+    // Socket lifecycle deliberately keys on auth + store only; the handlers
+    // are read fresh via refs inside the socket callbacks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.access_token, storeCode]);
 
   // ---- Per-thread chat socket: opens/closes as the selected thread changes. ----
@@ -1081,6 +1055,9 @@ export default function Support() {
         wsRef.current = null;
       }
     };
+    // Reconnect only when the listed inputs change; clientID and the session
+    // email are stable for the life of the page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeThreadId,
     handleThreadMessageAdded,
@@ -1096,7 +1073,7 @@ export default function Support() {
       toast.error("Order Sync", {
         description: "Orders synced successfully.",
       });
-    } catch (error) {
+    } catch {
       toast.error("Order Sync failed", {
         description: "Could not sync orders. Try again.",
       });

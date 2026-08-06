@@ -9,13 +9,11 @@ import {
   IconBrandMessenger,
   IconBrandMeta,
   IconDashboard,
-  IconHelp,
   IconHeadset,
   IconImageGeneration,
   IconMessage2,
   IconMessageUser,
   IconPhotoVideo,
-  IconSearch,
   IconSend,
   IconSettings,
   IconUserHexagon,
@@ -42,7 +40,7 @@ export type SideBarMenuItem = {
 export type SideBarMenus = {
   navMain: SideBarMenuItem[];
   navAdmin: SideBarMenuItem[];
-  navSecondary: SideBarMenuItem[];
+  navSecondary?: SideBarMenuItem[];
 };
 
 /** Depth-first lookup for the menu item at `url`, searching nested `items` at any depth. */
@@ -69,11 +67,6 @@ export const sidebarMenus: SideBarMenus = {
       icon: IconDashboard,
     },
     {
-      title: "AI Usage",
-      url: "/ai-usage",
-      icon: IconChartDots,
-    },
-    {
       title: "Threads",
       url: "/threads",
       icon: IconMessage2,
@@ -82,11 +75,6 @@ export const sidebarMenus: SideBarMenus = {
       title: "Live Support",
       url: "/support",
       icon: IconMessageUser,
-    },
-    {
-      title: "Knowledge",
-      url: "/knowledge",
-      icon: IconBooks,
     },
     {
       title: "Customisation",
@@ -226,20 +214,30 @@ export const sidebarMenus: SideBarMenus = {
           url: "/settings",
           icon: IconSettings,
         },
+        {
+          title: "AI Usage",
+          url: "/ai-usage",
+          icon: IconChartDots,
+        },
+        {
+          title: "Knowledge",
+          url: "/knowledge",
+          icon: IconBooks,
+        },
       ],
     },
   ],
 
-  navSecondary: [
-    {
-      title: "Get Help",
-      url: "#",
-      icon: IconHelp,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: IconSearch,
-    },
-  ],
+  // navSecondary: [
+  //   {
+  //     title: "Get Help",
+  //     url: "#",
+  //     icon: IconHelp,
+  //   },
+  //   {
+  //     title: "Search",
+  //     url: "#",
+  //     icon: IconSearch,
+  //   },
+  // ],
 };

@@ -49,7 +49,7 @@ function AddActionButtonForm({
   };
 
   return (
-    <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_auto]">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_auto]">
       <Input
         value={name}
         onChange={(event) => setName(event.target.value)}

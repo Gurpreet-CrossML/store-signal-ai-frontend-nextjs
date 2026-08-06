@@ -96,7 +96,7 @@ export default function SocialAITabContent({
     if (storeCode) {
       dispatch(fetchSocialAccountsSubscriptions(storeCode));
     }
-  }, [storeCode]);
+  }, [dispatch, storeCode]);
 
   const rows = useMemo(
     () => FetchSocialAccountsSubscriptionsData?.results ?? [],
@@ -130,16 +130,7 @@ export default function SocialAITabContent({
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      <div className="flex w-full justify-between items-start gap-4">
-        <div>
-          <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
-            Connected Social Accounts
-          </h4>
-          <p className="text-sm text-muted-foreground">
-            Manage the social media pages and accounts connected to Store Signal
-            AI.
-          </p>
-        </div>
+      <div className="flex w-full items-center justify-end gap-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button disabled={FetchMetaOauthURLIsLoading}>
