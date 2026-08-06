@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
-import { CalendarIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import {
+  IconCalendar,
   IconClock,
   IconCoins,
   IconDatabase,
@@ -242,7 +242,7 @@ export default function AIUsage() {
                     id="ai-usage-date-range"
                     className="w-full justify-start px-2.5 font-normal"
                   >
-                    <CalendarIcon />
+                    <IconCalendar />
                     {dateRange?.from ? (
                       dateRange.to ? (
                         <>
