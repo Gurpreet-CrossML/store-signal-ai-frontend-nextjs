@@ -1144,21 +1144,18 @@ function ConversationPanel({
                     />
                   </div>
                 </div>
-                {isTagAssigning ? (
-                  <div className="flex min-h-[160px] items-center justify-center">
-                    <Spinner />
-                  </div>
-                ) : isTagPickerLoading && availableTags.length === 0 ? (
-                  <div className="flex min-h-[96px] items-center justify-center gap-2 px-3 py-4 text-sm text-slate-500">
-                    <Spinner className="size-4" />
-                    Loading tags...
-                  </div>
-                ) : availableTags.length === 0 ? (
-                  <div className="px-3 py-4 text-sm text-slate-500">
-                    No tags available.
-                  </div>
-                ) : (
-                  <div
+                <div className="relative">
+                  {isTagPickerLoading && availableTags.length === 0 ? (
+                    <div className="flex min-h-[96px] items-center justify-center gap-2 px-3 py-4 text-sm text-slate-500">
+                      <Spinner className="size-4" />
+                      Loading tags...
+                    </div>
+                  ) : availableTags.length === 0 ? (
+                    <div className="px-3 py-4 text-sm text-slate-500">
+                      No tags available.
+                    </div>
+                  ) : (
+                    <div
                     className="max-h-56 space-y-2 overflow-y-auto p-2"
                     onScroll={(event) => {
                       const target = event.currentTarget;
@@ -1220,8 +1217,14 @@ function ConversationPanel({
                         ) : null}
                       </div>
                     )}
-                  </div>
-                )}
+                    </div>
+                  )}
+                  {isTagAssigning ? (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-[1px]">
+                      <Spinner />
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ) : null}
           </div>
