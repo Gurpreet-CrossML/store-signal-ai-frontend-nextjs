@@ -750,7 +750,9 @@ function ConversationPanel({
   onLoadMoreTags,
   onToggleTagPicker,
   onAddTag,
+  isTagAssigning,
   onRemoveTag,
+  isTagRemoving,
   availableStaff,
   onAssignStaff,
   onMessageImprove,
@@ -784,7 +786,9 @@ function ConversationPanel({
   onLoadMoreTags: () => void;
   onToggleTagPicker: () => void;
   onAddTag: (tagId: number) => void;
+  isTagAssigning: boolean;
   onRemoveTag: (tagId: number) => void;
+  isTagRemoving: boolean;
   availableStaff: StaffMember[];
   onAssignStaff: (staffId: number | null) => void;
   onMessageImprove: (action: string) => void;
@@ -1045,8 +1049,13 @@ function ConversationPanel({
             >
               {tag.name}
               <IconX
-                className="!pointer-events-auto cursor-pointer"
-                onClick={() => tag.id && !isClosed && onRemoveTag(tag.id)}
+                className={cn(
+                  "!pointer-events-auto cursor-pointer",
+                  isTagRemoving && "!pointer-events-none opacity-50",
+                )}
+                onClick={() =>
+                  tag.id && !isClosed && !isTagRemoving && onRemoveTag(tag.id)
+                }
               />
             </Badge>
           ))}
@@ -1073,8 +1082,16 @@ function ConversationPanel({
                   >
                     {tag.name}
                     <IconX
-                      className="!pointer-events-auto cursor-pointer"
-                      onClick={() => tag.id && !isClosed && onRemoveTag(tag.id)}
+                      className={cn(
+                        "!pointer-events-auto cursor-pointer",
+                        isTagRemoving && "!pointer-events-none opacity-50",
+                      )}
+                      onClick={() =>
+                        tag.id &&
+                        !isClosed &&
+                        !isTagRemoving &&
+                        onRemoveTag(tag.id)
+                      }
                     />
                   </Badge>
                 ))}
@@ -1127,7 +1144,11 @@ function ConversationPanel({
                     />
                   </div>
                 </div>
-                {isTagPickerLoading && availableTags.length === 0 ? (
+                {isTagAssigning ? (
+                  <div className="flex min-h-[160px] items-center justify-center">
+                    <Spinner />
+                  </div>
+                ) : isTagPickerLoading && availableTags.length === 0 ? (
                   <div className="flex min-h-[96px] items-center justify-center gap-2 px-3 py-4 text-sm text-slate-500">
                     <Spinner className="size-4" />
                     Loading tags...
@@ -1726,6 +1747,10 @@ export default function HelpDesk() {
   const searchParams = useSearchParams();
   const activeFilter = searchParams?.get("filter") ?? "";
 
+  return <HelpDeskContent key={activeFilter} activeFilter={activeFilter} />;
+}
+
+function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
   const dispatch = useAppDispatch();
   const { data: session } = useSession();
 
@@ -1747,6 +1772,12 @@ export default function HelpDesk() {
     useAppSelector(
       (state) => state.GetSupportTicketsReducer.FetchSupportTicketTagsState,
     );
+  const { SupportTicketTagRemoveIsLoading } = useAppSelector(
+    (state) => state.GetSupportTicketsReducer.SupportTicketTagRemoveState,
+  );
+  const { SupportTicketTagAssignIsLoading } = useAppSelector(
+    (state) => state.GetSupportTicketsReducer.SupportTicketTagAssignState,
+  );
   const { SupportMessageImproveIsLoading } = useAppSelector(
     (state) => state.GetSupportTicketsReducer.SupportMessageImproveState,
   );
@@ -3049,7 +3080,9 @@ export default function HelpDesk() {
             }}
             onToggleTagPicker={handleToggleTagPicker}
             onAddTag={handleAddTag}
+            isTagAssigning={SupportTicketTagAssignIsLoading}
             onRemoveTag={handleRemoveTag}
+            isTagRemoving={SupportTicketTagRemoveIsLoading}
             availableStaff={staff}
             onAssignStaff={handleStaffAssign}
             onMessageImprove={handleMessageImprove}
