@@ -1,18 +1,17 @@
 "use client";
 
-import {
-  IconCircleCheck,
-  IconCircleX,
-  IconMessageCircle,
-  IconSearch,
-  IconTicket,
-  IconUser,
-  IconUserCheck,
-  IconX,
-} from "@tabler/icons-react";
+import { IconSearch, IconX } from "@tabler/icons-react";
 
+import { DateRangePicker } from "@/components/custom/date-range-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { FEEDBACK_RATINGS, type FeedbackRatingValue } from "@/lib/config";
 
@@ -22,18 +21,22 @@ export type ThreadFilterState = {
   search: string;
   is_active: "" | "true" | "false";
   user_type: "" | "guest" | "logged_in";
-  has_ticket: boolean;
-  has_feedback: boolean;
+  has_ticket: "" | "true" | "false";
+  has_feedback: "" | "true" | "false";
   feedback_rating: FeedbackRating;
+  from: string;
+  to: string;
 };
 
 export const DEFAULT_THREAD_FILTERS: ThreadFilterState = {
   search: "",
   is_active: "",
   user_type: "",
-  has_ticket: false,
-  has_feedback: false,
+  has_ticket: "",
+  has_feedback: "",
   feedback_rating: "",
+  from: "",
+  to: "",
 };
 
 type ThreadFilterationProps = {
@@ -42,29 +45,37 @@ type ThreadFilterationProps = {
   onClear: () => void;
 };
 
-function FilterChip({
-  active,
-  icon,
-  label,
-  onClick,
+// Radix Select forbids empty-string item values, so "All" uses a sentinel
+// that maps back to "" (filter off) in state.
+const ALL = "all";
+
+function FilterSelect({
+  ariaLabel,
+  value,
+  onChange,
+  options,
 }: {
-  active: boolean;
-  icon?: React.ReactNode;
-  label: string;
-  onClick: () => void;
+  ariaLabel: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
 }) {
   return (
-    <Button
-      type="button"
-      variant={active ? "default" : "outline"}
-      size="sm"
-      className="rounded-full"
-      aria-pressed={active}
-      onClick={onClick}
+    <Select
+      value={value || ALL}
+      onValueChange={(next) => onChange(next === ALL ? "" : next)}
     >
-      {icon}
-      {label}
-    </Button>
+      <SelectTrigger size="sm" aria-label={ariaLabel} className="w-fit">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value || ALL} value={option.value || ALL}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -77,35 +88,11 @@ export default function ThreadFilteration({
     filters.search !== "" ||
     filters.is_active !== "" ||
     filters.user_type !== "" ||
-    filters.has_ticket ||
-    filters.has_feedback ||
-    filters.feedback_rating !== "";
-
-  const toggleFeedback = () =>
-    onChange({
-      ...filters,
-      has_feedback: !filters.has_feedback,
-      // Rating only applies while feedback is on; clear it when toggling off.
-      feedback_rating: filters.has_feedback ? "" : filters.feedback_rating,
-    });
-
-  const toggleRating = (value: Exclude<FeedbackRating, "">) =>
-    onChange({
-      ...filters,
-      feedback_rating: filters.feedback_rating === value ? "" : value,
-    });
-
-  const toggleActive = (value: "true" | "false") =>
-    onChange({
-      ...filters,
-      is_active: filters.is_active === value ? "" : value,
-    });
-
-  const toggleUserType = (value: "guest" | "logged_in") =>
-    onChange({
-      ...filters,
-      user_type: filters.user_type === value ? "" : value,
-    });
+    filters.has_ticket !== "" ||
+    filters.has_feedback !== "" ||
+    filters.feedback_rating !== "" ||
+    filters.from !== "" ||
+    filters.to !== "";
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -121,61 +108,104 @@ export default function ThreadFilteration({
         />
       </div>
 
-      <Separator orientation="vertical" className="h-5" />
-
-      <FilterChip
-        active={filters.is_active === "true"}
-        icon={<IconCircleCheck />}
-        label="Active"
-        onClick={() => toggleActive("true")}
-      />
-      <FilterChip
-        active={filters.is_active === "false"}
-        icon={<IconCircleX />}
-        label="Closed"
-        onClick={() => toggleActive("false")}
+      <Separator
+        orientation="vertical"
+        className="hidden h-auto self-stretch sm:block"
       />
 
-      <FilterChip
-        active={filters.user_type === "guest"}
-        icon={<IconUser />}
-        label="Guest"
-        onClick={() => toggleUserType("guest")}
-      />
-      <FilterChip
-        active={filters.user_type === "logged_in"}
-        icon={<IconUserCheck />}
-        label="Logged In"
-        onClick={() => toggleUserType("logged_in")}
+      <DateRangePicker
+        from={filters.from}
+        to={filters.to}
+        onRangeChange={(from, to) => onChange({ ...filters, from, to })}
+        disabled={{ after: new Date() }}
       />
 
-      <FilterChip
-        active={filters.has_ticket}
-        icon={<IconTicket />}
-        label="Ticket"
-        onClick={() =>
-          onChange({ ...filters, has_ticket: !filters.has_ticket })
+      <FilterSelect
+        ariaLabel="Filter by status"
+        value={filters.is_active}
+        onChange={(is_active) =>
+          onChange({
+            ...filters,
+            is_active: is_active as ThreadFilterState["is_active"],
+          })
         }
-      />
-      <FilterChip
-        active={filters.has_feedback}
-        icon={<IconMessageCircle />}
-        label="Feedback"
-        onClick={toggleFeedback}
+        options={[
+          { value: "", label: "All Statuses" },
+          { value: "true", label: "Active" },
+          { value: "false", label: "Closed" },
+        ]}
       />
 
-      {filters.has_feedback && (
-        <>
-          <Separator orientation="vertical" className="h-5" />
-          {FEEDBACK_RATINGS.map((rating) => (
-            <FilterChip
-              key={rating.value}
-              active={filters.feedback_rating === rating.value}
-              label={rating.label}
-              onClick={() => toggleRating(rating.value)}
-            />
-          ))}
-        </>
+      <FilterSelect
+        ariaLabel="Filter by customer type"
+        value={filters.user_type}
+        onChange={(user_type) =>
+          onChange({
+            ...filters,
+            user_type: user_type as ThreadFilterState["user_type"],
+          })
+        }
+        options={[
+          { value: "", label: "All Customers" },
+          { value: "guest", label: "Guest" },
+          { value: "logged_in", label: "Logged In" },
+        ]}
+      />
+
+      <FilterSelect
+        ariaLabel="Filter by support ticket"
+        value={filters.has_ticket}
+        onChange={(has_ticket) =>
+          onChange({
+            ...filters,
+            has_ticket: has_ticket as ThreadFilterState["has_ticket"],
+          })
+        }
+        options={[
+          { value: "", label: "All Tickets" },
+          { value: "true", label: "With Ticket" },
+          { value: "false", label: "Without Ticket" },
+        ]}
+      />
+
+      <FilterSelect
+        ariaLabel="Filter by feedback"
+        value={filters.has_feedback}
+        onChange={(has_feedback) =>
+          onChange({
+            ...filters,
+            has_feedback: has_feedback as ThreadFilterState["has_feedback"],
+            // Rating only applies to threads that have feedback; clear it
+            // whenever the feedback filter leaves the "With Feedback" state.
+            feedback_rating:
+              has_feedback === "true" ? filters.feedback_rating : "",
+          })
+        }
+        options={[
+          { value: "", label: "All Feedback" },
+          { value: "true", label: "With Feedback" },
+          { value: "false", label: "Without Feedback" },
+        ]}
+      />
+
+      {filters.has_feedback === "true" && (
+        <FilterSelect
+          ariaLabel="Filter by feedback rating"
+          value={filters.feedback_rating}
+          onChange={(feedback_rating) =>
+            onChange({
+              ...filters,
+              feedback_rating: feedback_rating as FeedbackRating,
+            })
+          }
+          options={[
+            { value: "", label: "All Ratings" },
+            ...FEEDBACK_RATINGS.map((rating) => ({
+              value: rating.value,
+              label: rating.label,
+            })),
+          ]}
+        />
       )}
 
       {hasActiveFilters && (

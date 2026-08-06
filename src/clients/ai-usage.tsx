@@ -8,14 +8,23 @@ import {
   IconClock,
   IconCoins,
   IconDatabase,
+  IconMessage,
   IconRobot,
   IconX,
 } from "@tabler/icons-react";
 
 import AIUsageCharts from "@/components/custom/ai-usage/ai-usage-chart-grid";
+import { InfoIcon } from "@/components/custom/info-icon";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Combobox,
   ComboboxChip,
@@ -35,6 +44,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
+import { Typography } from "@/components/ui/typography";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   fetchAIUsageDaily,
@@ -155,12 +165,16 @@ export default function AIUsage() {
       label: "Total cost",
       value: `$${totalCost.toFixed(2)}`,
       note: "USD estimated",
+      infoText:
+        "Estimated spend in USD across all AI model calls in the selected period, based on per-token pricing.",
       icon: IconCoins,
     },
     {
       label: "Agent calls",
       value: totalRecords.toLocaleString(),
       note: "workflow invocations",
+      infoText:
+        "Number of workflow invocations — each time an AI agent ran to handle a task in the selected period.",
       icon: IconRobot,
     },
     {
@@ -170,28 +184,35 @@ export default function AIUsage() {
           ? `${(averageLatency / 1000).toFixed(2)} s`
           : `${Math.round(averageLatency)} ms`,
       note: "per agent call",
+      infoText:
+        "Average time an agent call took to complete, across all calls in the selected period.",
       icon: IconClock,
     },
     {
       label: "Total tokens",
       value: compact.format(totalTokens),
       note: `${compact.format(inputTokens)} input · ${compact.format(outputTokens)} output`,
+      infoText:
+        "Total tokens processed by AI models, split between input (prompt) tokens and output (response) tokens.",
       icon: IconDatabase,
     },
   ];
 
   return (
     <div className="flex flex-col gap-6 p-4 pt-0">
-      <div>
-        <h2 className="text-xl font-semibold tracking-tight">AI Usage</h2>
-        <p className="text-sm text-muted-foreground">
-          Track token spend, model costs, and latency across your AI workflows.
-        </p>
-      </div>
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0 shrink">
+          <Typography variant="h4" as="h2">
+            AI Usage
+          </Typography>
+          <Typography variant="muted" className="truncate">
+            Track token spend, model costs, and latency across your AI
+            workflows.
+          </Typography>
+        </div>
 
-      <Card>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
             <Combobox
               multiple
               autoHighlight
@@ -201,7 +222,11 @@ export default function AIUsage() {
                 setFilters((current) => ({ ...current, threadIds }))
               }
             >
-              <ComboboxChips ref={threadComboboxAnchor} className="w-full">
+              <ComboboxChips
+                ref={threadComboboxAnchor}
+                className="w-64 max-w-full"
+              >
+                <IconMessage className="size-4 shrink-0 text-muted-foreground" />
                 <ComboboxValue>
                   {(selectedIds) => (
                     <>
@@ -240,7 +265,7 @@ export default function AIUsage() {
                   <Button
                     variant="outline"
                     id="ai-usage-date-range"
-                    className="w-full justify-start px-2.5 font-normal"
+                    className="justify-start px-2.5 font-normal"
                   >
                     <IconCalendar />
                     {dateRange?.from ? (
@@ -294,28 +319,39 @@ export default function AIUsage() {
               </Button>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map(({ label, value, note, icon: Icon }) => (
-          <Card key={label}>
-            <CardContent className="flex items-center gap-4">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Icon className="size-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-muted-foreground">{label}</p>
-                <p className="text-2xl font-semibold tracking-tight tabular-nums">
-                  {FetchAIUsageSummaryState.FetchAIUsageSummaryIsLoading ? (
-                    <Spinner className="my-1 size-5" />
-                  ) : (
-                    value
-                  )}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">{note}</p>
-              </div>
+        {metrics.map(({ label, value, note, infoText, icon: Icon }) => (
+          <Card key={label} size="sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-1.5">
+                <Typography variant="muted" as="h3">
+                  {label}
+                </Typography>
+                <InfoIcon text={infoText} />
+              </CardTitle>
+              <CardAction>
+                <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Icon className="size-4" />
+                </div>
+              </CardAction>
+            </CardHeader>
+            <CardContent>
+              <Typography variant="h3" as="p" className="tabular-nums">
+                {FetchAIUsageSummaryState.FetchAIUsageSummaryIsLoading ? (
+                  <Spinner className="my-1 size-5" />
+                ) : (
+                  value
+                )}
+              </Typography>
             </CardContent>
+            <CardFooter>
+              <span className="inline-block max-w-full truncate rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+                {note}
+              </span>
+            </CardFooter>
           </Card>
         ))}
       </div>

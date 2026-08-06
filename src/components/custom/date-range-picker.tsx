@@ -23,14 +23,14 @@ const parseISODate = (value: string) => {
 export function DateRangePicker({
   from,
   to,
-  onFromChange,
-  onToChange,
+  onRangeChange,
   disabled,
 }: {
   from: string;
   to: string;
-  onFromChange: (value: string) => void;
-  onToChange: (value: string) => void;
+  // Single atomic callback: sequential from/to setters invite lost updates
+  // when the caller derives both from one state object.
+  onRangeChange: (from: string, to: string) => void;
   disabled?: React.ComponentProps<typeof Calendar>["disabled"];
 }) {
   const [open, setOpen] = useState(false);
@@ -61,8 +61,10 @@ export function DateRangePicker({
       range?.to &&
       range.to.getTime() !== range.from.getTime()
     ) {
-      onFromChange(format(range.from, "yyyy-MM-dd"));
-      onToChange(format(range.to, "yyyy-MM-dd"));
+      onRangeChange(
+        format(range.from, "yyyy-MM-dd"),
+        format(range.to, "yyyy-MM-dd"),
+      );
       setOpen(false);
     }
   };

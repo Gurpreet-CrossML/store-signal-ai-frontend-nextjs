@@ -97,6 +97,8 @@ export default function Threads() {
     filters.has_ticket,
     filters.has_feedback,
     filters.feedback_rating,
+    filters.from,
+    filters.to,
   ]);
   const [prevFilterSignature, setPrevFilterSignature] =
     useState(filterSignature);
@@ -113,11 +115,17 @@ export default function Threads() {
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
       ...(filters.is_active ? { is_active: filters.is_active === "true" } : {}),
       ...(filters.user_type ? { user_type: filters.user_type } : {}),
-      ...(filters.has_ticket ? { has_ticket: true } : {}),
-      ...(filters.has_feedback ? { has_feedback: true } : {}),
+      ...(filters.has_ticket
+        ? { has_ticket: filters.has_ticket === "true" }
+        : {}),
+      ...(filters.has_feedback
+        ? { has_feedback: filters.has_feedback === "true" }
+        : {}),
       ...(filters.feedback_rating
         ? { feedback_rating: filters.feedback_rating }
         : {}),
+      ...(filters.from ? { from: filters.from } : {}),
+      ...(filters.to ? { to: filters.to } : {}),
     };
     dispatch(
       FetchThreads({
@@ -138,6 +146,8 @@ export default function Threads() {
     filters.has_ticket,
     filters.has_feedback,
     filters.feedback_rating,
+    filters.from,
+    filters.to,
   ]);
 
   const rows = useMemo(

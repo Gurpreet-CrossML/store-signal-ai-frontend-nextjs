@@ -7,7 +7,15 @@ import {
   IconPlus,
 } from "@tabler/icons-react";
 
+import { InfoIcon } from "@/components/custom/info-icon";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -15,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Typography } from "@/components/ui/typography";
 import type { ActionButton } from "@/components/custom/customization-types";
 
 type CustomizationActionButtonsProps = {
@@ -73,17 +81,19 @@ export default function CustomizationActionButtons({
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      <Label className="flex items-center gap-2">
-        <IconMessageCircle className="size-4" />
-        Action Buttons
-      </Label>
-      <div className="flex flex-col gap-3 border border-border p-4 rounded-lg">
-        <p className="text-xs text-muted-foreground">
-          Quick-action buttons shown in the chatbot. Uncheck to remove one, or
-          add new ones below.
-        </p>
-
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <IconMessageCircle className="size-4" />
+          Quick Actions
+          <InfoIcon text="Tap-to-send message buttons shown in the chat, like 'Track my order'. Customers tap one and that message is sent for them." />
+        </CardTitle>
+        <CardDescription>
+          Tap-to-send buttons shown in the chat. Uncheck to remove one, or add
+          new ones below.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -94,7 +104,7 @@ export default function CustomizationActionButtons({
               <span className="block truncate">
                 {actionButtons.length > 0
                   ? actionButtons.map((button) => button.name).join(", ")
-                  : "No action buttons — add them below"}
+                  : "No quick actions — add them below"}
               </span>
               <IconChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             </button>
@@ -105,7 +115,7 @@ export default function CustomizationActionButtons({
           >
             {actionButtons.length === 0 ? (
               <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                No action buttons yet
+                No quick actions yet
               </div>
             ) : (
               actionButtons.map((button) => (
@@ -123,14 +133,14 @@ export default function CustomizationActionButtons({
         </DropdownMenu>
 
         <div className="flex flex-col gap-2 border-t border-border pt-3">
-          <p className="text-xs font-medium text-muted-foreground">
-            Add new action button
-          </p>
+          <Typography variant="muted" className="text-xs font-medium">
+            Add new quick action
+          </Typography>
           <AddActionButtonForm
             onAdd={(button) => onChange([...actionButtons, button])}
           />
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

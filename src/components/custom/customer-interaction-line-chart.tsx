@@ -97,8 +97,10 @@ export function CustomerInteractionLineChart({
             <DateRangePicker
               from={from}
               to={to}
-              onFromChange={onFromChange}
-              onToChange={onToChange}
+              onRangeChange={(nextFrom, nextTo) => {
+                onFromChange(nextFrom);
+                onToChange(nextTo);
+              }}
               disabled={{ after: new Date() }}
             />
           ) : (

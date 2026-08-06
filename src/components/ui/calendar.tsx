@@ -11,10 +11,10 @@ import {
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
-  IconChevronLeft,
-  IconChevronRight,
-  IconChevronDown,
-} from "@tabler/icons-react";
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronDownIcon,
+} from "lucide-react";
 
 function Calendar({
   className,
@@ -35,7 +35,7 @@ function Calendar({
     <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn(
-        "group/calendar bg-background p-3 [--cell-radius:var(--radius-4xl)] [--cell-size:--spacing(8)] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent",
+        "group/calendar bg-background p-3 [--cell-radius:var(--radius-md)] [--cell-size:--spacing(8)] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
         String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
         className,
@@ -151,13 +151,13 @@ function Calendar({
         Chevron: ({ className, orientation, ...props }) => {
           if (orientation === "left") {
             return (
-              <IconChevronLeft className={cn("size-4", className)} {...props} />
+              <ChevronLeftIcon className={cn("size-4", className)} {...props} />
             );
           }
 
           if (orientation === "right") {
             return (
-              <IconChevronRight
+              <ChevronRightIcon
                 className={cn("size-4", className)}
                 {...props}
               />
@@ -165,7 +165,7 @@ function Calendar({
           }
 
           return (
-            <IconChevronDown className={cn("size-4", className)} {...props} />
+            <ChevronDownIcon className={cn("size-4", className)} {...props} />
           );
         },
         DayButton: ({ ...props }) => (

@@ -7,6 +7,7 @@ import {
   IconPencil,
   IconPlus,
   IconTrash,
+  IconUpload,
 } from "@tabler/icons-react";
 
 import {
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { Typography } from "@/components/ui/typography";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   DeleteStoreFaq,
@@ -113,17 +115,30 @@ export default function StoreFaqTabContent() {
         <div className="flex items-center gap-2">
           <IconMessageQuestion className="size-5" />
           <div className="flex flex-col">
-            <h2 className="font-heading font-medium">Quick Q&As</h2>
-            <p className="text-muted-foreground">
+            <Typography variant="h6" as="h2">
+              Quick Q&As
+            </Typography>
+            <Typography variant="muted">
               Add some quick questions and answers to help your chatbot respond
               faster.
-            </p>
+            </Typography>
           </div>
         </div>
-        <Button onClick={openCreateForm} disabled={!storeCode}>
-          <IconPlus />
-          Add Quick Q&A
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!storeCode}
+            title="Import Q&As from a CSV or Excel file"
+          >
+            <IconUpload />
+            Bulk Import
+          </Button>
+          <Button onClick={openCreateForm} disabled={!storeCode}>
+            <IconPlus />
+            Add Quick Q&A
+          </Button>
+        </div>
       </div>
 
       {FetchStoreFaqsIsLoading ? (
@@ -137,13 +152,13 @@ export default function StoreFaqTabContent() {
           type="single"
           collapsible
           defaultValue={String(faqs[0]?.id)}
-          className="gap-2"
+          className="gap-3 overflow-visible rounded-none border-0"
         >
           {faqs.map((faq) => (
             <AccordionItem
               key={faq.id}
               value={String(faq.id)}
-              className="border border-border/60"
+              className="overflow-hidden rounded-2xl border border-border/60 bg-card"
             >
               <div className="flex items-center gap-1 px-3 *:first:min-w-0 *:first:flex-1">
                 <AccordionTrigger className="text-sm">

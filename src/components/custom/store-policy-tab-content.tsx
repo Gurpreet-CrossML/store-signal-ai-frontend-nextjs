@@ -11,6 +11,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Typography } from "@/components/ui/typography";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -176,12 +177,12 @@ export default function StorePolicyTabContent() {
         <div className="flex items-center gap-2">
           <IconShield className="size-5" />
           <div className="flex flex-col">
-            <h2 className="font-heading text-sm font-medium">
+            <Typography variant="h6" as="h2">
               Company Policies
-            </h2>
-            <p className="text-xs text-muted-foreground">
+            </Typography>
+            <Typography variant="muted">
               Manage your business policies and terms.
-            </p>
+            </Typography>
           </div>
         </div>
         <Button
@@ -225,9 +226,9 @@ export default function StorePolicyTabContent() {
                 className="flex flex-col gap-3 border border-border/60 p-4"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium">
+                  <Typography variant="small" as="span" className="text-xs">
                     Policy #{index + 1}
-                  </span>
+                  </Typography>
                   {policy.status && (
                     <Badge variant={variant} className="font-normal capitalize">
                       {policy.status}
@@ -268,9 +269,9 @@ export default function StorePolicyTabContent() {
               className="flex flex-col gap-3 border border-dashed border-border p-4 rounded-lg"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium">
+                <Typography variant="small" as="span" className="text-xs">
                   New Policy #{policies.length + index + 1}
-                </span>
+                </Typography>
                 <Button
                   type="button"
                   variant="ghost"

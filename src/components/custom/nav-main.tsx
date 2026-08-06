@@ -84,11 +84,17 @@ function StoreSelector() {
       <SelectContent>
         <SelectGroup>
           <SelectLabel>Stores</SelectLabel>
-          {GetStoresListData.map((store) => (
-            <SelectItem key={store.id} value={store.code}>
-              {store.name}
+          {GetStoresListData.length ? (
+            GetStoresListData.map((store) => (
+              <SelectItem key={store.id} value={store.code}>
+                {store.name}
+              </SelectItem>
+            ))
+          ) : (
+            <SelectItem value="__no-stores" disabled>
+              No stores found
             </SelectItem>
-          ))}
+          )}
         </SelectGroup>
       </SelectContent>
     </Select>

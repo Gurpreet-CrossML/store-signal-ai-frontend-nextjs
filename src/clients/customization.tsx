@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { IconDeviceFloppy } from "@tabler/icons-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -356,14 +357,18 @@ export default function Customization() {
           onRemove={removeQuickLink}
         />
 
-        <div className="sticky bottom-0 z-10 flex justify-end border-t border-border bg-background py-3">
+        <div className="flex justify-start border-t border-border py-3">
           <Button
             type="button"
             size="lg"
             onClick={handleSaveAll}
             disabled={savingAll}
           >
-            {savingAll && <Spinner data-icon="inline-start" />}
+            {savingAll ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <IconDeviceFloppy data-icon="inline-start" />
+            )}
             {savingAll ? "Saving..." : "Save Changes"}
           </Button>
         </div>

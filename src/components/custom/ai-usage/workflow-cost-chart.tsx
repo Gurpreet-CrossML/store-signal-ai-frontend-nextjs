@@ -10,6 +10,7 @@ import {
 } from "recharts";
 
 import ChartEmptyState from "@/components/custom/ai-usage/chart-empty-state";
+import { InfoIcon } from "@/components/custom/info-icon";
 import {
   Card,
   CardContent,
@@ -46,8 +47,11 @@ export default function WorkflowCostChart({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Cost by workflow</CardTitle>
-        <CardDescription>Highest-spending workflows in USD</CardDescription>
+        <CardTitle className="flex items-center gap-1.5">
+          Cost by Workflow
+          <InfoIcon text="Ranks your AI workflows by estimated spend, so you can see which automations drive the most cost." />
+        </CardTitle>
+        <CardDescription>Estimated spend per workflow, in USD</CardDescription>
       </CardHeader>
       <CardContent>
         {data.length ? (
