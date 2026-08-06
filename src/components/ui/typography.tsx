@@ -62,9 +62,7 @@ function Typography({
     as?: React.ElementType;
     asChild?: boolean;
   }) {
-  const Comp = asChild
-    ? Slot.Root
-    : (as ?? defaultElements[variant ?? "p"]);
+  const Comp = asChild ? Slot.Root : (as ?? defaultElements[variant ?? "p"]);
 
   return (
     <Comp
