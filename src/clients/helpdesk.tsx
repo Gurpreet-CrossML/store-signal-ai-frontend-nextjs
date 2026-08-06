@@ -1140,6 +1140,7 @@ function ConversationPanel({
                       placeholder="Search tags..."
                       value={tagSearch}
                       onChange={(e) => setTagSearch(e.target.value)}
+                      disabled={isTagAssigning}
                       className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-primary"
                     />
                   </div>
@@ -2181,36 +2182,42 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
         ? { priority: appliedFilters.priorities }
         : {}),
     };
+    let ps = page;
 
     if (activeFilter === "unassigned") {
       filters.is_assigned = false;
+      ps = 1;
     }
 
     if (activeFilter === "snoozed") {
       filters.is_snoozed = true;
+      ps = 1;
     }
 
     if (activeFilter === "Order_Return") {
       filters.tags = [...(filters.tags ?? []), "Order Return"];
+      ps = 1;
     }
 
     if (activeFilter === "Payment_Failed") {
       filters.tags = [...(filters.tags ?? []), "Payment Failed"];
+      ps = 1;
     }
 
     if (activeFilter === "Exchange_Request") {
       filters.tags = [...(filters.tags ?? []), "Exchange Request"];
+      ps = 1;
     }
 
     const fetchArgs = {
       store_code: storeCode,
-      page,
+      page: ps,
       limit: 20,
       filters,
     };
 
     const fetchTickets = async () => {
-      const isLoadMore = page > 1;
+      const isLoadMore = ps > 1;
 
       if (isLoadMore) {
         setIsLoadingMore(true);
@@ -2220,7 +2227,7 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
         const data = await dispatch(FetchSupportTickets(fetchArgs)).unwrap();
 
         setTicketRows((prev) => {
-          const rows = page === 1 ? data.results : [...prev, ...data.results];
+          const rows = ps === 1 ? data.results : [...prev, ...data.results];
 
           setActiveTicketId((current) => {
             if (rows.length === 0) return null;
@@ -2437,8 +2444,6 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
             tags: [...current.tags, assignedTag],
           };
         });
-
-        setShowTagPicker(false);
 
         toast.success(`Tag assigned: ${assignedTag.name}`);
       } else {
