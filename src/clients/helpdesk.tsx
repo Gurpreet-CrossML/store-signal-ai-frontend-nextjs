@@ -696,7 +696,7 @@ function TicketListPanel({
         className="h-[80vh]! overflow-y-auto px-2 py-1"
         onScroll={handleScroll}
       >
-        {isLoading && rows?.length === 0 ? (
+        {isLoading && !isLoadingMore ? (
           <div className="flex min-h-[360px] items-center justify-center px-4 py-8">
             <div className="text-center">
               <Spinner className="mx-auto mb-3 size-6" />
@@ -2182,42 +2182,35 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
         ? { priority: appliedFilters.priorities }
         : {}),
     };
-    let page_size = page;
-
     if (activeFilter === "unassigned") {
       filters.is_assigned = false;
-      page_size = 1;
     }
 
     if (activeFilter === "snoozed") {
       filters.is_snoozed = true;
-      page_size = 1;
     }
 
     if (activeFilter === "Order_Return") {
       filters.tags = [...(filters.tags ?? []), "Order Return"];
-      page_size = 1;
     }
 
     if (activeFilter === "Payment_Failed") {
       filters.tags = [...(filters.tags ?? []), "Payment Failed"];
-      page_size = 1;
     }
 
     if (activeFilter === "Exchange_Request") {
       filters.tags = [...(filters.tags ?? []), "Exchange Request"];
-      page_size = 1;
     }
 
     const fetchArgs = {
       store_code: storeCode,
-      page: page_size,
+      page,
       limit: 20,
       filters,
     };
 
     const fetchTickets = async () => {
-      const isLoadMore = page_size > 1;
+      const isLoadMore = page > 1;
 
       if (isLoadMore) {
         setIsLoadingMore(true);
@@ -2227,7 +2220,7 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
         const data = await dispatch(FetchSupportTickets(fetchArgs)).unwrap();
 
         setTicketRows((prev) => {
-          const rows = page_size === 1 ? data.results : [...prev, ...data.results];
+          const rows = page === 1 ? data.results : [...prev, ...data.results];
 
           setActiveTicketId((current) => {
             if (rows.length === 0) return null;
