@@ -23,9 +23,11 @@ import { formatRelativeTime } from "@/lib/helpers";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
     ConnectedAccount,
+    SocialConversationUser,
     SocialDm,
-    fetchMetaPages,
+    fetchSocialAccountsSubscriptions,
     fetchSocialDms,
+    fetchSocialUsers,
     reactToMetaMessage,
     replyToMetaMessage,
 } from "@/redux/api-slice/social-ai-slice";
@@ -38,44 +40,6 @@ import { ReplyBox } from "./reply-box";
 const DM_REPLY_TEXTAREA_ID = "dm-reply-textarea";
 const QUICK_REACTIONS = ["❤️", "😆", "😮", "😢", "😠", "👍"];
 
-type Conversation = {
-    contactKey: string;
-    contactName: string;
-    contactUsername: string;
-    contactAvatar: string | null;
-    messages: SocialDm[];
-    lastMessage: string;
-    lastMessageAt: string;
-};
-
-// DMs come back oldest-first from the API; group them by contact
-// (social_user) into per-conversation threads for the inbox UI.
-function groupDmsByContact(messages: SocialDm[]): Conversation[] {
-    const byContact = new Map<string, Conversation>();
-    for (const msg of messages) {
-        const key = msg.social_user ? String(msg.social_user.id) : `unknown-${msg.id}`;
-        const existing = byContact.get(key);
-        if (existing) {
-            existing.messages.push(msg);
-            existing.lastMessage = msg.content || existing.lastMessage;
-            existing.lastMessageAt = msg.external_created_at ?? existing.lastMessageAt;
-        } else {
-            byContact.set(key, {
-                contactKey: key,
-                contactName: msg.social_user?.name || msg.social_user?.username || "Unknown",
-                contactUsername: msg.social_user?.username || "",
-                contactAvatar: msg.social_user?.profile_picture_url || null,
-                messages: [msg],
-                lastMessage: msg.content,
-                lastMessageAt: msg.external_created_at ?? "",
-            });
-        }
-    }
-    return Array.from(byContact.values()).sort((a, b) =>
-        a.lastMessageAt < b.lastMessageAt ? 1 : -1,
-    );
-}
-
 const CHANNEL_ICON: Record<SocialChannel, typeof IconBrandFacebook> = {
     facebook: IconBrandFacebook,
     instagram: IconBrandInstagram,
@@ -84,13 +48,18 @@ const CHANNEL_ICON: Record<SocialChannel, typeof IconBrandFacebook> = {
 // One message bubble. Hovering reveals a small react/reply toolbar next to
 // it; the react icon opens a quick-pick emoji row, whose "+" swaps to the
 // full picker (forced light theme — the popover itself doesn't follow the
-// app's dark mode).
+// app's dark mode). Reactions are addressed by conversation user + message
+// (the backend's nested DM-action URLs), hence the storeCode/userId props.
 function DmMessageBubble({
     msg,
+    storeCode,
+    userId,
     onReacted,
     onReply,
 }: {
     msg: SocialDm;
+    storeCode: string;
+    userId: number;
     onReacted: () => void;
     onReply: (msg: SocialDm) => void;
 }) {
@@ -109,7 +78,12 @@ function DmMessageBubble({
         setOptimisticReaction(reactionEmoji);
         try {
             await dispatch(
-                reactToMetaMessage({ messageId: String(msg.id), reaction: reactionEmoji }),
+                reactToMetaMessage({
+                    storeCode,
+                    userId,
+                    messageId: msg.id,
+                    reaction: reactionEmoji,
+                }),
             ).unwrap();
             onReacted();
         } catch {
@@ -226,6 +200,8 @@ function DmMessageBubble({
 
 // Shared inbox screen for one channel: account switcher + conversation list
 // (1 col) next to the selected conversation's chat thread (2 cols).
+// Data flow mirrors the backend's nesting: connected accounts -> that
+// account's DM contacts (users) -> the selected contact's messages.
 export default function DmsInbox({ channelType }: { channelType: SocialChannel }) {
     const channel = CHANNELS[channelType];
     const ChannelIcon = CHANNEL_ICON[channelType];
@@ -233,21 +209,27 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
     const storeCode = useAppSelector(
         (state) => state.GetStoresReducer.selectedStore,
     );
-    const { FetchMetaPagesData, FetchMetaPagesIsLoading } = useAppSelector(
-        (state) => state.GetSocialAIReducer.FetchMetaPagesState,
+    const {
+        FetchSocialAccountsSubscriptionsData,
+        FetchSocialAccountsSubscriptionsIsLoading,
+    } = useAppSelector(
+        (state) => state.GetSocialAIReducer.FetchSocialAccountSubscriptionsState,
+    );
+    const { FetchSocialUsersData, FetchSocialUsersIsLoading } = useAppSelector(
+        (state) => state.GetSocialAIReducer.FetchSocialUsersState,
     );
     const { FetchSocialDmsData, FetchSocialDmsIsLoading } = useAppSelector(
         (state) => state.GetSocialAIReducer.FetchSocialDmsState,
     );
 
     const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-    const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+    const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
     const [replyingToMessage, setReplyingToMessage] = useState<SocialDm | null>(null);
 
-    // Search is server-side (the `search` param on fetchSocialDms, matched
-    // against social_user name/username) rather than filtering whatever
-    // page of messages happens to already be loaded — the debounce just
-    // avoids firing a request on every keystroke while typing.
+    // Search is server-side (the `search` param on the users-list API,
+    // matched against contact name/username) rather than filtering whatever
+    // happens to already be loaded — the debounce just avoids firing a
+    // request on every keystroke while typing.
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
@@ -283,10 +265,10 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
 
     const accounts = useMemo(
         () =>
-            (FetchMetaPagesData ?? []).filter(
+            (FetchSocialAccountsSubscriptionsData?.results ?? []).filter(
                 (acc) => acc.channel_type === channelType,
             ),
-        [FetchMetaPagesData, channelType],
+        [FetchSocialAccountsSubscriptionsData, channelType],
     );
     const selectedAccount: ConnectedAccount | null =
         accounts.find((acc) => String(acc.id) === selectedAccountId) ??
@@ -295,46 +277,85 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
 
     useEffect(() => {
         if (storeCode) {
-            dispatch(fetchMetaPages({ storeCode, channelType }));
+            dispatch(fetchSocialAccountsSubscriptions(storeCode));
         }
-    }, [storeCode, channelType, dispatch]);
+    }, [storeCode, dispatch]);
 
+    // Conversation list: this account's DM contacts, newest activity first.
     useEffect(() => {
         if (storeCode && selectedAccount) {
             dispatch(
-                fetchSocialDms({
+                fetchSocialUsers({
                     storeCode,
-                    accountId: Number(selectedAccount.id),
+                    accountId: selectedAccount.external_id,
                     search: debouncedSearchQuery || undefined,
                 }),
             );
         }
     }, [storeCode, selectedAccount, debouncedSearchQuery, dispatch]);
 
-    const conversations = useMemo(
-        () => groupDmsByContact(FetchSocialDmsData?.results ?? []),
-        [FetchSocialDmsData],
+    const conversations: SocialConversationUser[] = useMemo(
+        () => FetchSocialUsersData?.results ?? [],
+        [FetchSocialUsersData],
     );
 
     const activeConversation =
-        conversations.find((c) => c.contactKey === selectedConversation) ??
+        conversations.find((user) => user.id === selectedConversation) ??
         conversations[0] ??
         null;
+
+    // The selected conversation's messages, oldest first.
+    useEffect(() => {
+        if (storeCode && selectedAccount && activeConversation) {
+            dispatch(
+                fetchSocialDms({
+                    storeCode,
+                    accountId: selectedAccount.external_id,
+                    userId: activeConversation.id,
+                }),
+            );
+        }
+    }, [storeCode, selectedAccount, activeConversation, dispatch]);
+
+    // Guard against the previous conversation's rows flashing while the
+    // newly selected one is still fetching: every DM row's social_user is
+    // the conversation contact, so drop anything that isn't theirs.
+    const messages: SocialDm[] = useMemo(
+        () =>
+            (FetchSocialDmsData?.results ?? []).filter(
+                (msg) => msg.social_user?.id === activeConversation?.id,
+            ),
+        [FetchSocialDmsData, activeConversation?.id],
+    );
+
+    const refetchMessages = () => {
+        if (storeCode && selectedAccount && activeConversation) {
+            dispatch(
+                fetchSocialDms({
+                    storeCode,
+                    accountId: selectedAccount.external_id,
+                    userId: activeConversation.id,
+                }),
+            );
+        }
+    };
 
     // Meta only allows sending outside a paid tag within 24h of the
     // contact's last incoming message ("(#10) This message is sent outside
     // of allowed window."). Compute it client-side from the last incoming
     // message we already have, so the composer can disable itself up front
     // instead of letting the agent hit that error after typing a reply.
-    const messagingWindowOpen = useMemo(() => {
-        if (!activeConversation) return true;
-        const lastIncoming = [...activeConversation.messages]
+    // The memo only extracts the (pure) timestamp; the Date.now comparison
+    // happens per render, outside memoization.
+    const lastIncomingAt = useMemo(() => {
+        const lastIncoming = [...messages]
             .reverse()
             .find((msg) => msg.message_direction === "incoming");
-        if (!lastIncoming?.external_created_at) return true;
-        const elapsedMs = Date.now() - new Date(lastIncoming.external_created_at).getTime();
-        return elapsedMs < 24 * 60 * 60 * 1000;
-    }, [activeConversation]);
+        return lastIncoming?.external_created_at ?? null;
+    }, [messages]);
+    const messagingWindowOpen =
+        !lastIncomingAt ||
+        Date.now() - new Date(lastIncomingAt).getTime() < 24 * 60 * 60 * 1000;
 
     // Trigger 1: switching conversations always jumps straight to the
     // latest message, no animation — like opening a fresh thread.
@@ -342,7 +363,7 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
         isNearBottomRef.current = true;
         setShowScrollButton(false);
         requestAnimationFrame(() => scrollToBottom("auto"));
-    }, [activeConversation?.contactKey]);
+    }, [activeConversation?.id]);
 
     // Trigger 2: new messages land (a reply just sent, a refetch after
     // reacting, etc.) — only auto-scroll if the user was already at the
@@ -351,9 +372,10 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
         if (isNearBottomRef.current) {
             requestAnimationFrame(() => scrollToBottom("smooth"));
         }
-    }, [activeConversation?.messages.length]);
+    }, [messages.length]);
 
-    const loading = FetchMetaPagesIsLoading || FetchSocialDmsIsLoading;
+    const loading =
+        FetchSocialAccountsSubscriptionsIsLoading || FetchSocialUsersIsLoading;
 
     const account: AccountIdentity = selectedAccount
         ? {
@@ -363,9 +385,12 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
         }
         : channel.accountFallback;
 
+    const activeContactName =
+        activeConversation?.name || activeConversation?.username || "Unknown";
+
     const handleReply = async (text: string) => {
-        if (!activeConversation || !storeCode || !selectedAccount) return;
-        const lastMessage = activeConversation.messages[activeConversation.messages.length - 1];
+        if (!activeConversation || !storeCode || !selectedAccount || !messages.length) return;
+        const lastMessage = messages[messages.length - 1];
         // A general "type and send" has no specific message the agent chose
         // to reply to — the last message just anchors the Send API call so
         // it knows who to send to. Only a deliberate reply (via a message's
@@ -375,26 +400,22 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
         try {
             await dispatch(
                 replyToMetaMessage({
-                    messageId: String(targetMessageId),
+                    storeCode,
+                    userId: activeConversation.id,
+                    messageId: targetMessageId,
                     message: text,
                     isExplicitReply,
                 }),
             ).unwrap();
             setReplyingToMessage(null);
-            dispatch(
-                fetchSocialDms({
-                    storeCode,
-                    accountId: Number(selectedAccount.id),
-                    search: debouncedSearchQuery || undefined,
-                }),
-            );
+            refetchMessages();
         } catch {
             // The thunk already surfaces the error toast.
         }
     };
 
-    const handleSelectConversation = (contactKey: string) => {
-        setSelectedConversation(contactKey);
+    const handleSelectConversation = (userId: number) => {
+        setSelectedConversation(userId);
         setReplyingToMessage(null);
     };
 
@@ -405,7 +426,7 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
                 <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)]">
                     <div className="flex flex-col gap-4 min-h-0">
                         <AccountCard
-                            loading={FetchMetaPagesIsLoading}
+                            loading={FetchSocialAccountsSubscriptionsIsLoading}
                             accounts={accounts}
                             selectedAccount={selectedAccount}
                             onSelectAccount={setSelectedAccountId}
@@ -455,13 +476,15 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
                                 ) : (
                                     conversations.map((conversation) => {
                                         const isSelected =
-                                            conversation.contactKey === activeConversation?.contactKey;
+                                            conversation.id === activeConversation?.id;
+                                        const contactName =
+                                            conversation.name || conversation.username || "Unknown";
                                         return (
                                             <button
-                                                key={conversation.contactKey}
+                                                key={conversation.id}
                                                 type="button"
                                                 onClick={() =>
-                                                    handleSelectConversation(conversation.contactKey)
+                                                    handleSelectConversation(conversation.id)
                                                 }
                                                 className={`w-full rounded-xl border-l-[3px] p-3 text-left transition ${
                                                     isSelected
@@ -471,7 +494,7 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
                                             >
                                                 <div className="flex items-start gap-3">
                                                     <div className="relative shrink-0">
-                                                        <CustomerAvatar name={conversation.contactName} />
+                                                        <CustomerAvatar name={contactName} />
                                                         <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center border border-background">
                                                             <ChannelIcon className="w-3 h-3" stroke={2.5} />
                                                         </div>
@@ -479,14 +502,16 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
                                                     <div className="min-w-0 flex-1">
                                                         <div className="flex items-start justify-between gap-2">
                                                             <p className="truncate text-sm font-medium">
-                                                                {conversation.contactName}
+                                                                {contactName}
                                                             </p>
                                                             <span className="shrink-0 text-[11px] text-muted-foreground">
-                                                                {formatRelativeTime(conversation.lastMessageAt)}
+                                                                {conversation.last_message_at
+                                                                    ? formatRelativeTime(conversation.last_message_at)
+                                                                    : ""}
                                                             </span>
                                                         </div>
                                                         <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                                                            {conversation.lastMessage || "[Attachment]"}
+                                                            {conversation.last_message || "[Attachment]"}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -506,14 +531,14 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
                         ) : (
                             <>
                                 <div className="flex items-center gap-3 border-b border-border/50 p-4">
-                                    <CustomerAvatar name={activeConversation.contactName} />
+                                    <CustomerAvatar name={activeContactName} />
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate text-sm font-semibold">
-                                            {activeConversation.contactName}
+                                            {activeContactName}
                                         </p>
-                                        {activeConversation.contactUsername && (
+                                        {activeConversation.username && (
                                             <p className="truncate text-xs text-muted-foreground">
-                                                @{activeConversation.contactUsername}
+                                                @{activeConversation.username}
                                             </p>
                                         )}
                                     </div>
@@ -524,24 +549,22 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
                                         onScroll={handleMessagesScroll}
                                         className="h-full overflow-y-auto p-4 space-y-3"
                                     >
-                                        {activeConversation.messages.map((msg) => (
-                                            <DmMessageBubble
-                                                key={msg.id}
-                                                msg={msg}
-                                                onReacted={() => {
-                                                    if (storeCode && selectedAccount) {
-                                                        dispatch(
-                                                            fetchSocialDms({
-                                                                storeCode,
-                                                                accountId: Number(selectedAccount.id),
-                                                                search: debouncedSearchQuery || undefined,
-                                                            }),
-                                                        );
-                                                    }
-                                                }}
-                                                onReply={setReplyingToMessage}
-                                            />
-                                        ))}
+                                        {FetchSocialDmsIsLoading && !messages.length ? (
+                                            <div className="flex h-full items-center justify-center">
+                                                <Spinner />
+                                            </div>
+                                        ) : (
+                                            messages.map((msg) => (
+                                                <DmMessageBubble
+                                                    key={msg.id}
+                                                    msg={msg}
+                                                    storeCode={storeCode}
+                                                    userId={activeConversation.id}
+                                                    onReacted={refetchMessages}
+                                                    onReply={setReplyingToMessage}
+                                                />
+                                            ))
+                                        )}
                                     </div>
                                     {showScrollButton && (
                                         <button
@@ -567,7 +590,7 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
                                                     <span className="font-semibold">
                                                         {replyingToMessage.message_direction === "outgoing"
                                                             ? "yourself"
-                                                            : activeConversation.contactName}
+                                                            : activeContactName}
                                                     </span>
                                                 </p>
                                                 <p className="mt-0.5 truncate text-muted-foreground">
@@ -589,7 +612,7 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
                                             <IconClock className="mt-0.5 size-4 shrink-0" />
                                             <p>
                                                 It&apos;s been more than 24 hours since{" "}
-                                                {activeConversation.contactName} last messaged you.
+                                                {activeContactName} last messaged you.
                                                 Meta only allows replies within 24 hours of their
                                                 last message — you can&apos;t send anything until
                                                 they message again.
@@ -597,7 +620,7 @@ export default function DmsInbox({ channelType }: { channelType: SocialChannel }
                                         </div>
                                     )}
                                     <ReplyBox
-                                        replyingTo={activeConversation.contactName}
+                                        replyingTo={activeContactName}
                                         onSubmit={handleReply}
                                         textareaId={DM_REPLY_TEXTAREA_ID}
                                         placeholder={

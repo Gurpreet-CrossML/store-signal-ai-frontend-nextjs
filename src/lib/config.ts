@@ -197,28 +197,36 @@ export const ENDPOINTS = {
   supportSocket: (store_code: string, token: string) =>
     createWebSocketUrl(`/support/${store_code}/?token=${token}`),
 
-  // Social AI (Django via useBackend — keep trailing slash). Posts/comments
-  // are flat, filtered by query params (store_code/channel_type/post) —
-  // there's no per-account or per-post nesting on the backend.
+  // Social AI (Django via useBackend — keep trailing slash). Nested by
+  // resource so a response can only carry the relevant scope's data:
+  // pages/posts are addressed by their EXTERNAL Graph id; users, comments
+  // and messages by their DB id (all come from the parent list responses).
+  // `store_code` is a required query param on every call.
   createMetaOAuthUrl: () => `/social/meta/oauth/`,
   fetchSocialAccountsSubscriptions: () =>
     `/social/subscriptions/connected-accounts/`,
-  fetchMetaPages: () => `/social/meta/pages/`,
-  fetchSocialPosts: () => `/social/meta/posts/`,
-  fetchPostComments: () => `/social/meta/comments/`,
-  fetchCommentTopics: () => `/social/meta/comments/topics/`,
-  fetchSocialDms: () => `/social/meta/messages/`,
-  likeComment: (messageId: string) =>
-    `/social/meta/messages/${messageId}/like/`,
-  hideComment: (messageId: string) =>
-    `/social/meta/messages/${messageId}/hide/`,
-  deleteComment: (messageId: string) => `/social/meta/messages/${messageId}/`,
-  replyMessage: (messageId: string) =>
-    `/social/meta/messages/${messageId}/reply/`,
-  reactMessage: (messageId: string) =>
-    `/social/meta/messages/${messageId}/react/`,
-  replyComment: (messageId: string) =>
-    `/social/meta/comments/${messageId}/reply/`,
+  fetchSocialPosts: ({ accountId }: { accountId: string }) =>
+    `/social/meta/pages/${accountId}/posts/`,
+  fetchPostComments: ({ postId }: { postId: string }) =>
+    `/social/meta/posts/${postId}/comments/`,
+  fetchCommentTopics: ({ postId }: { postId: string }) =>
+    `/social/meta/posts/${postId}/comments/topics/`,
+  fetchSocialUsers: ({ accountId }: { accountId: string }) =>
+    `/social/meta/pages/${accountId}/users/`,
+  fetchSocialDms: ({ accountId, userId }: { accountId: string; userId: number }) =>
+    `/social/meta/pages/${accountId}/users/${userId}/messages/`,
+  likeComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
+    `/social/meta/posts/${postId}/comments/${commentId}/like/`,
+  hideComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
+    `/social/meta/posts/${postId}/comments/${commentId}/hide/`,
+  deleteComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
+    `/social/meta/posts/${postId}/comments/${commentId}/delete/`,
+  replyComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
+    `/social/meta/posts/${postId}/comments/${commentId}/reply/`,
+  replyMessage: ({ userId, messageId }: { userId: number; messageId: number }) =>
+    `/social/meta/users/${userId}/messages/${messageId}/reply/`,
+  reactMessage: ({ userId, messageId }: { userId: number; messageId: number }) =>
+    `/social/meta/users/${userId}/messages/${messageId}/react/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

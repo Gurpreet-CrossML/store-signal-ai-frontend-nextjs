@@ -2,7 +2,7 @@
 
 import {
   ConnectedAccount,
-  fetchMetaPages,
+  fetchSocialAccountsSubscriptions,
   fetchSocialPosts,
   SocialPost,
 } from "@/redux/api-slice/social-ai-slice";
@@ -34,22 +34,25 @@ export default function SocialPostsFeed({
   const { FetchSocialPostsData, FetchSocialPostsIsLoading } = useAppSelector(
     (state) => state.GetSocialAIReducer.FetchSocialPostsState,
   );
-  const { FetchMetaPagesData, FetchMetaPagesIsLoading } = useAppSelector(
-    (state) => state.GetSocialAIReducer.FetchMetaPagesState,
+  const {
+    FetchSocialAccountsSubscriptionsData,
+    FetchSocialAccountsSubscriptionsIsLoading,
+  } = useAppSelector(
+    (state) => state.GetSocialAIReducer.FetchSocialAccountSubscriptionsState,
   );
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
     null,
   );
 
-    // The pages/posts state slots are shared by both channel screens, so the
-    // store may briefly hold the other channel's rows right after navigating.
-    // Filter by channel_type so only this channel's data ever renders.
+    // The accounts/posts state slots are shared by both channel screens, so
+    // the store may briefly hold the other channel's rows right after
+    // navigating. Filter by channel_type so only this channel's data renders.
     const accounts = useMemo(
         () =>
-            (FetchMetaPagesData ?? []).filter(
+            (FetchSocialAccountsSubscriptionsData?.results ?? []).filter(
                 (acc) => acc.channel_type === channelType,
             ),
-        [FetchMetaPagesData, channelType],
+        [FetchSocialAccountsSubscriptionsData, channelType],
     );
     const selectedAccount: ConnectedAccount | null =
         accounts.find((acc) => String(acc.id) === selectedAccountId) ??
@@ -58,18 +61,24 @@ export default function SocialPostsFeed({
 
   useEffect(() => {
     if (storeCode) {
-      // Fetch the store's connected accounts for this channel.
-      dispatch(fetchMetaPages({ storeCode, channelType }));
+      // Fetch the store's connected accounts (client-side channel filter).
+      dispatch(fetchSocialAccountsSubscriptions(storeCode));
     }
-  }, [storeCode, channelType, dispatch]);
+  }, [storeCode, dispatch]);
 
     useEffect(() => {
-        if (storeCode) {
-            // Backend has no per-account scoping for posts — this fetches every
-            // post for the channel, regardless of which account is selected.
-            dispatch(fetchSocialPosts({ storeCode, channelType }));
+        if (storeCode && selectedAccount) {
+            // Posts are scoped per account on the backend — addressed by the
+            // account's external Graph id in the URL.
+            dispatch(
+                fetchSocialPosts({
+                    storeCode,
+                    accountId: selectedAccount.external_id,
+                    channelType,
+                }),
+            );
         }
-    }, [storeCode, channelType, dispatch]);
+    }, [storeCode, selectedAccount, channelType, dispatch]);
 
   const rows = useMemo(
     () =>
@@ -87,7 +96,8 @@ export default function SocialPostsFeed({
       }
     : channel.accountFallback;
 
-  const postsLoading = FetchSocialPostsIsLoading || FetchMetaPagesIsLoading;
+  const postsLoading =
+    FetchSocialPostsIsLoading || FetchSocialAccountsSubscriptionsIsLoading;
 
   return (
     <ChannelContext.Provider value={channel}>
@@ -96,7 +106,7 @@ export default function SocialPostsFeed({
           <div className="flex flex-col items-center gap-4 w-full md:grid md:grid-cols-3 md:items-start">
             <div className="sticky top-2 z-10 flex flex-col gap-4 w-full justify-end items-end">
               <AccountCard
-                loading={FetchMetaPagesIsLoading}
+                loading={FetchSocialAccountsSubscriptionsIsLoading}
                 accounts={accounts}
                 selectedAccount={selectedAccount}
                 onSelectAccount={setSelectedAccountId}

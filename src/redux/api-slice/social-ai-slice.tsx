@@ -15,6 +15,11 @@ export type ConnectedAccount = {
   name: string;
   username: string;
   profile_picture_url: string;
+  category: string;
+  cover_url: string;
+  followers_count: number | null;
+  // IG only — how many accounts this profile follows; null on FB pages.
+  follows_count: number | null;
   webhook_status: string;
   is_active: boolean;
   last_event_at: string | null;
@@ -112,6 +117,25 @@ export type CommentTopic = {
   label: string;
 };
 
+// A DM contact of one connected account — one row per conversation in the
+// inbox list (from the users-list API, most recent conversation first).
+export type SocialConversationUser = {
+  id: number;
+  external_id: string;
+  name: string;
+  username: string;
+  profile_picture_url: string;
+  last_message: string | null;
+  last_message_at: string | null;
+};
+
+export type SocialUsersResponse = {
+  results: SocialConversationUser[];
+  count: number;
+  next?: string | null;
+  previous?: string | null;
+};
+
 export type SocialDmReplyTo = {
     id: number;
     content: string;
@@ -192,23 +216,27 @@ export const createMetaOAuthUrl = createAsyncThunk(
 );
 
 export const fetchSocialPosts = createAsyncThunk(
-    "fetchSocialPosts",
-    async (
-        { storeCode, channelType }: { storeCode: string; channelType?: string },
-        thunkAPI,
-    ) => {
-        try {
-            const response = await axiosInstance.get(
-                `${ENDPOINTS.fetchSocialPosts()}?store_code=${storeCode}${channelType ? `&channel_type=${channelType}` : ""}`,
-                {
-                    useBackend: true,
-                }
-            );
-            const data = response.data.data;
-            return data;
-        } catch (error) {
-            const response = isAxiosError(error) ? error.response : undefined;
-            const data = response?.data;
+  "fetchSocialPosts",
+  async (
+    {
+      storeCode,
+      accountId,
+      channelType,
+    }: { storeCode: string; accountId: string; channelType?: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchSocialPosts({ accountId })}?store_code=${storeCode}${channelType ? `&channel_type=${channelType}` : ""}`,
+        {
+          useBackend: true,
+        },
+      );
+      const data = response.data.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
 
       toast.error("Uh oh! Something went wrong.", {
         description:
@@ -220,15 +248,30 @@ export const fetchSocialPosts = createAsyncThunk(
   },
 );
 
-export const fetchMetaPages = createAsyncThunk(
-  "fetchMetaPages",
+export const fetchPostComments = createAsyncThunk(
+  "fetchPostComments",
   async (
-    { storeCode, channelType }: { storeCode: string; channelType?: string },
+    {
+      storeCode,
+      postId,
+      page = 1,
+      pageSize = 15,
+      parentId,
+      topic,
+    }: {
+      storeCode: string;
+      // The post's external Graph id (SocialPost.external_id).
+      postId: string;
+      page?: number;
+      pageSize?: number;
+      parentId?: number;
+      topic?: string;
+    },
     thunkAPI,
   ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchMetaPages()}?store_code=${storeCode}${channelType ? `&channel_type=${channelType}` : ""}`,
+        `${ENDPOINTS.fetchPostComments({ postId })}?store_code=${storeCode}&page=${page}&page_size=${pageSize}${parentId ? `&parent=${parentId}` : ""}${topic ? `&topic=${encodeURIComponent(topic)}` : ""}`,
         {
           useBackend: true,
         },
@@ -242,7 +285,7 @@ export const fetchMetaPages = createAsyncThunk(
       toast.error("Uh oh! Something went wrong.", {
         description:
           data?.message ||
-          "Unable to fetch connected pages, please try again later.",
+          "Unable to fetch post comments, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -250,102 +293,136 @@ export const fetchMetaPages = createAsyncThunk(
   },
 );
 
-export const fetchPostComments = createAsyncThunk(
-    "fetchPostComments",
-    async (
-        { storeCode, postId, page = 1, pageSize = 15, parentId, topic }: { storeCode: string; postId: number; page?: number; pageSize?: number; parentId?: number; topic?: string },
-        thunkAPI,
-    ) => {
-        try {
-            const response = await axiosInstance.get(
-                `${ENDPOINTS.fetchPostComments()}?store_code=${storeCode}&post=${postId}&page=${page}&page_size=${pageSize}${parentId ? `&parent=${parentId}` : ""}${topic ? `&topic=${encodeURIComponent(topic)}` : ""}`,
-                {
-                    useBackend: true,
-                }
-            );
-            const data = response.data.data;
-            return data;
-        } catch (error) {
-            const response = isAxiosError(error) ? error.response : undefined;
-            const data = response?.data;
+export const fetchCommentTopics = createAsyncThunk(
+  "fetchCommentTopics",
+  async (
+    { storeCode, postId }: { storeCode: string; postId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchCommentTopics({ postId })}?store_code=${storeCode}`,
+        {
+          useBackend: true,
+        },
+      );
+      const data = response.data.data;
+      return (data?.topics ?? []) as CommentTopic[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
 
       toast.error("Uh oh! Something went wrong.", {
         description:
           data?.message ||
-          "Unable to fetch post comments, please try again later.",
+          "Unable to fetch comment topics, please try again later.",
       });
 
-            return thunkAPI.rejectWithValue(data || "Something went wrong");
-        }
-    },
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
 );
 
-export const fetchCommentTopics = createAsyncThunk(
-    "fetchCommentTopics",
-    async (
-        { storeCode, postId }: { storeCode: string; postId: number },
-        thunkAPI,
-    ) => {
-        try {
-            const response = await axiosInstance.get(
-                `${ENDPOINTS.fetchCommentTopics()}?store_code=${storeCode}&post=${postId}`,
-                {
-                    useBackend: true,
-                }
-            );
-            const data = response.data.data;
-            return (data?.topics ?? []) as CommentTopic[];
-        } catch (error) {
-            const response = isAxiosError(error) ? error.response : undefined;
-            const data = response?.data;
-
-            toast.error("Uh oh! Something went wrong.", {
-                description:
-                    data?.message ||
-                    "Unable to fetch comment topics, please try again later.",
-            });
-
-            return thunkAPI.rejectWithValue(data || "Something went wrong");
-        }
+export const fetchSocialUsers = createAsyncThunk(
+  "fetchSocialUsers",
+  async (
+    {
+      storeCode,
+      accountId,
+      page = 1,
+      pageSize = 50,
+      search,
+    }: {
+      storeCode: string;
+      // The connected account's external Graph id (ConnectedAccount.external_id).
+      accountId: string;
+      page?: number;
+      pageSize?: number;
+      search?: string;
     },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchSocialUsers({ accountId })}?store_code=${storeCode}&page=${page}&page_size=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ""}`,
+        {
+          useBackend: true,
+        },
+      );
+      const data = response.data.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch conversations, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
 );
 
 export const fetchSocialDms = createAsyncThunk(
-    "fetchSocialDms",
-    async (
-        { storeCode, accountId, page = 1, pageSize = 50, search }: { storeCode: string; accountId: number; page?: number; pageSize?: number; search?: string },
-        thunkAPI,
-    ) => {
-        try {
-            const response = await axiosInstance.get(
-                `${ENDPOINTS.fetchSocialDms()}?store_code=${storeCode}&account=${accountId}&page=${page}&page_size=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ""}`,
-                {
-                    useBackend: true,
-                }
-            );
-            const data = response.data.data;
-            return data;
-        } catch (error) {
-            const response = isAxiosError(error) ? error.response : undefined;
-            const data = response?.data;
-
-            toast.error("Uh oh! Something went wrong.", {
-                description:
-                    data?.message ||
-                    "Unable to fetch messages, please try again later.",
-            });
-
-            return thunkAPI.rejectWithValue(data || "Something went wrong");
-        }
+  "fetchSocialDms",
+  async (
+    {
+      storeCode,
+      accountId,
+      userId,
+      page = 1,
+      pageSize = 50,
+    }: {
+      storeCode: string;
+      // The connected account's external Graph id (ConnectedAccount.external_id).
+      accountId: string;
+      // The conversation contact's DB id (SocialConversationUser.id).
+      userId: number;
+      page?: number;
+      pageSize?: number;
     },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchSocialDms({ accountId, userId })}?store_code=${storeCode}&page=${page}&page_size=${pageSize}`,
+        {
+          useBackend: true,
+        },
+      );
+      const data = response.data.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch messages, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
 );
 
 export const likeMetaComment = createAsyncThunk(
   "likeMetaComment",
-  async (messageId: string, thunkAPI) => {
+  async (
+    {
+      storeCode,
+      postId,
+      commentId,
+    }: { storeCode: string; postId: string; commentId: number },
+    thunkAPI,
+  ) => {
     try {
       const response = await axiosInstance.post(
-        ENDPOINTS.likeComment(messageId),
+        `${ENDPOINTS.likeComment({ postId, commentId })}?store_code=${storeCode}`,
         {},
         { useBackend: true },
       );
@@ -364,12 +441,22 @@ export const likeMetaComment = createAsyncThunk(
 export const hideMetaComment = createAsyncThunk(
   "hideMetaComment",
   async (
-    { messageId, is_hidden }: { messageId: string; is_hidden: boolean },
+    {
+      storeCode,
+      postId,
+      commentId,
+      is_hidden,
+    }: {
+      storeCode: string;
+      postId: string;
+      commentId: number;
+      is_hidden: boolean;
+    },
     thunkAPI,
   ) => {
     try {
       const response = await axiosInstance.post(
-        ENDPOINTS.hideComment(messageId),
+        `${ENDPOINTS.hideComment({ postId, commentId })}?store_code=${storeCode}`,
         { is_hidden },
         { useBackend: true },
       );
@@ -387,10 +474,17 @@ export const hideMetaComment = createAsyncThunk(
 
 export const deleteMetaComment = createAsyncThunk(
   "deleteMetaComment",
-  async (messageId: string, thunkAPI) => {
+  async (
+    {
+      storeCode,
+      postId,
+      commentId,
+    }: { storeCode: string; postId: string; commentId: number },
+    thunkAPI,
+  ) => {
     try {
       const response = await axiosInstance.delete(
-        ENDPOINTS.deleteComment(messageId),
+        `${ENDPOINTS.deleteComment({ postId, commentId })}?store_code=${storeCode}`,
         { useBackend: true },
       );
       return response.data;
@@ -409,15 +503,23 @@ export const replyToMetaMessage = createAsyncThunk(
   "replyToMetaMessage",
   async (
     {
+      storeCode,
+      userId,
       messageId,
       message,
       isExplicitReply = true,
-    }: { messageId: string; message: string; isExplicitReply?: boolean },
+    }: {
+      storeCode: string;
+      userId: number;
+      messageId: number;
+      message: string;
+      isExplicitReply?: boolean;
+    },
     thunkAPI,
   ) => {
     try {
       const response = await axiosInstance.post(
-        ENDPOINTS.replyMessage(messageId),
+        `${ENDPOINTS.replyMessage({ userId, messageId })}?store_code=${storeCode}`,
         { message, is_explicit_reply: isExplicitReply },
         { useBackend: true },
       );
@@ -436,12 +538,22 @@ export const replyToMetaMessage = createAsyncThunk(
 export const reactToMetaMessage = createAsyncThunk(
   "reactToMetaMessage",
   async (
-    { messageId, reaction }: { messageId: string; reaction: string },
+    {
+      storeCode,
+      userId,
+      messageId,
+      reaction,
+    }: {
+      storeCode: string;
+      userId: number;
+      messageId: number;
+      reaction: string;
+    },
     thunkAPI,
   ) => {
     try {
       const response = await axiosInstance.post(
-        ENDPOINTS.reactMessage(messageId),
+        `${ENDPOINTS.reactMessage({ userId, messageId })}?store_code=${storeCode}`,
         { reaction },
         { useBackend: true },
       );
@@ -460,12 +572,22 @@ export const reactToMetaMessage = createAsyncThunk(
 export const replyToMetaComment = createAsyncThunk(
   "replyToMetaComment",
   async (
-    { messageId, message }: { messageId: string; message: string },
+    {
+      storeCode,
+      postId,
+      commentId,
+      message,
+    }: {
+      storeCode: string;
+      postId: string;
+      commentId: number;
+      message: string;
+    },
     thunkAPI,
   ) => {
     try {
       const response = await axiosInstance.post(
-        ENDPOINTS.replyComment(messageId),
+        `${ENDPOINTS.replyComment({ postId, commentId })}?store_code=${storeCode}`,
         { message },
         { useBackend: true },
       );
@@ -545,11 +667,11 @@ const SocialAISlice = createSlice({
             FetchCommentTopicsIsError: null as null | string | object,
             FetchCommentTopicsData: [] as CommentTopic[],
         },
-        FetchMetaPagesState: {
-            FetchMetaPagesIsLoading: false,
-            FetchMetaPagesIsSuccess: false,
-            FetchMetaPagesIsError: null as null | string | object,
-            FetchMetaPagesData: [] as ConnectedAccount[],
+        FetchSocialUsersState: {
+            FetchSocialUsersIsLoading: false,
+            FetchSocialUsersIsSuccess: false,
+            FetchSocialUsersIsError: null as null | string | object,
+            FetchSocialUsersData: {} as SocialUsersResponse,
         },
         FetchSocialDmsState: {
             FetchSocialDmsIsLoading: false,
@@ -610,20 +732,20 @@ const SocialAISlice = createSlice({
                 state.FetchSocialPostsState.FetchSocialPostsIsSuccess = false;
                 state.FetchSocialPostsState.FetchSocialPostsIsError = action.payload as string | object;
             })
-            .addCase(fetchMetaPages.pending, (state) => {
-                state.FetchMetaPagesState.FetchMetaPagesIsLoading = true;
-                state.FetchMetaPagesState.FetchMetaPagesIsSuccess = false;
-                state.FetchMetaPagesState.FetchMetaPagesIsError = null;
+            .addCase(fetchSocialUsers.pending, (state) => {
+                state.FetchSocialUsersState.FetchSocialUsersIsLoading = true;
+                state.FetchSocialUsersState.FetchSocialUsersIsSuccess = false;
+                state.FetchSocialUsersState.FetchSocialUsersIsError = null;
             })
-            .addCase(fetchMetaPages.fulfilled, (state, action) => {
-                state.FetchMetaPagesState.FetchMetaPagesIsLoading = false;
-                state.FetchMetaPagesState.FetchMetaPagesIsSuccess = true;
-                state.FetchMetaPagesState.FetchMetaPagesData = action.payload;
+            .addCase(fetchSocialUsers.fulfilled, (state, action) => {
+                state.FetchSocialUsersState.FetchSocialUsersIsLoading = false;
+                state.FetchSocialUsersState.FetchSocialUsersIsSuccess = true;
+                state.FetchSocialUsersState.FetchSocialUsersData = action.payload;
             })
-            .addCase(fetchMetaPages.rejected, (state, action) => {
-                state.FetchMetaPagesState.FetchMetaPagesIsLoading = false;
-                state.FetchMetaPagesState.FetchMetaPagesIsSuccess = false;
-                state.FetchMetaPagesState.FetchMetaPagesIsError = action.payload as string | object;
+            .addCase(fetchSocialUsers.rejected, (state, action) => {
+                state.FetchSocialUsersState.FetchSocialUsersIsLoading = false;
+                state.FetchSocialUsersState.FetchSocialUsersIsSuccess = false;
+                state.FetchSocialUsersState.FetchSocialUsersIsError = action.payload as string | object;
             })
             .addCase(fetchPostComments.pending, (state) => {
                 state.FetchPostCommentsState.FetchPostCommentsIsLoading = true;

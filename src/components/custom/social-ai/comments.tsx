@@ -63,7 +63,8 @@ function CommentItem({
     disableLike = false,
 }: {
     comment: SocialComment;
-    postId: number;
+    // The post's external Graph id — the URL scope for comment actions.
+    postId: string;
     nested?: boolean;
     onDeleted: (commentId: number) => void;
     onHiddenChange: (commentId: number, isHidden: boolean) => void;
@@ -75,6 +76,9 @@ function CommentItem({
     disableLike?: boolean;
 }) {
   const dispatch = useAppDispatch();
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
   const account = useAccountIdentity();
   const channel = useChannel();
   const [showReplies, setShowReplies] = useState(false);
@@ -107,7 +111,12 @@ function CommentItem({
   const handleReplySubmit = async (text: string) => {
     try {
       await dispatch(
-        replyToMetaComment({ messageId: String(comment.id), message: text }),
+        replyToMetaComment({
+          storeCode,
+          postId,
+          commentId: comment.id,
+          message: text,
+        }),
       ).unwrap();
       toast.success("Reply sent.");
       setShowReplyBox(false);
@@ -124,7 +133,12 @@ function CommentItem({
     setMenuBusy(true);
     try {
       await dispatch(
-        hideMetaComment({ messageId: String(comment.id), is_hidden: nextHidden }),
+        hideMetaComment({
+          storeCode,
+          postId,
+          commentId: comment.id,
+          is_hidden: nextHidden,
+        }),
       ).unwrap();
       toast.success(nextHidden ? "Comment hidden." : "Comment unhidden.");
       onHiddenChange(comment.id, nextHidden);
@@ -138,7 +152,9 @@ function CommentItem({
   const handleDelete = async () => {
     setMenuBusy(true);
     try {
-      await dispatch(deleteMetaComment(String(comment.id))).unwrap();
+      await dispatch(
+        deleteMetaComment({ storeCode, postId, commentId: comment.id }),
+      ).unwrap();
       toast.success("Comment deleted.");
       onDeleted(comment.id);
     } catch {
@@ -152,7 +168,9 @@ function CommentItem({
     if (likeDisabled) return;
     setOptimisticLiked(true);
     try {
-      await dispatch(likeMetaComment(String(comment.id))).unwrap();
+      await dispatch(
+        likeMetaComment({ storeCode, postId, commentId: comment.id }),
+      ).unwrap();
     } catch {
       // The thunk already surfaces the error toast.
       setOptimisticLiked(false);
@@ -321,7 +339,8 @@ function CommentsList({
     disableReply = false,
     disableLike = false,
 }: {
-    postId: number;
+    // The post's external Graph id (SocialPost.external_id).
+    postId: string;
     parentId?: number;
     topic?: string;
     disableReply?: boolean;
@@ -444,7 +463,7 @@ function CommentsList({
 
 // The comments area under a post's footer: a topic filter chip bar (only
 // topics actually AI-tagged on this post's comments) above the comment list.
-export function CommentsSection({ postId }: { postId: number }) {
+export function CommentsSection({ postId }: { postId: string }) {
     const dispatch = useAppDispatch();
     const storeCode = useAppSelector(
         (state) => state.GetStoresReducer.selectedStore,
