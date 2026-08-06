@@ -1,3 +1,10 @@
+import {
+  Icon,
+  IconBrandFacebook,
+  IconBrandInstagram,
+  IconBrandWhatsapp,
+} from "@tabler/icons-react";
+
 const DJANGO_BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000";
 const LOCAL_BASE_URL = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
@@ -197,6 +204,62 @@ export const ENDPOINTS = {
   // Helpdesk support ticket websocket (Django)
   supportSocket: (store_code: string, token: string) =>
     createWebSocketUrl(`/support/${store_code}/?token=${token}`),
+
+  // Social AI (Django via useBackend — keep trailing slash). Nested by
+  // resource so a response can only carry the relevant scope's data:
+  // pages/posts are addressed by their EXTERNAL Graph id; users, comments
+  // and messages by their DB id (all come from the parent list responses).
+  // `store_code` is a required query param on every call.
+  createMetaOAuthUrl: () => `/social/meta/oauth/`,
+  fetchSocialAccountsSubscriptions: () =>
+    `/social/subscriptions/connected-accounts/`,
+  fetchSocialPosts: ({ accountId }: { accountId: string }) =>
+    `/social/meta/pages/${accountId}/posts/`,
+  fetchPostComments: ({ postId }: { postId: string }) =>
+    `/social/meta/posts/${postId}/comments/`,
+  fetchCommentTopics: ({ postId }: { postId: string }) =>
+    `/social/meta/posts/${postId}/comments/topics/`,
+  fetchSocialUsers: ({ accountId }: { accountId: string }) =>
+    `/social/meta/pages/${accountId}/users/`,
+  fetchSocialDms: ({
+    accountId,
+    userId,
+  }: {
+    accountId: string;
+    userId: number;
+  }) => `/social/meta/pages/${accountId}/users/${userId}/messages/`,
+  likeComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
+    `/social/meta/posts/${postId}/comments/${commentId}/like/`,
+  hideComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
+    `/social/meta/posts/${postId}/comments/${commentId}/hide/`,
+  deleteComment: ({
+    postId,
+    commentId,
+  }: {
+    postId: string;
+    commentId: number;
+  }) => `/social/meta/posts/${postId}/comments/${commentId}/delete/`,
+  replyComment: ({
+    postId,
+    commentId,
+  }: {
+    postId: string;
+    commentId: number;
+  }) => `/social/meta/posts/${postId}/comments/${commentId}/reply/`,
+  replyMessage: ({
+    userId,
+    messageId,
+  }: {
+    userId: number;
+    messageId: number;
+  }) => `/social/meta/users/${userId}/messages/${messageId}/reply/`,
+  reactMessage: ({
+    userId,
+    messageId,
+  }: {
+    userId: number;
+    messageId: number;
+  }) => `/social/meta/users/${userId}/messages/${messageId}/react/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
@@ -299,3 +362,33 @@ export const SPELLING_OPTIONS: readonly SelectOption[] = [
   { value: "us", label: "US" },
   { value: "auto", label: "Auto" },
 ];
+
+export const SocialAIPlatformOptions: {
+  readonly [key: string]: { label: string; icon: Icon; color: string };
+} = {
+  facebook: {
+    label: "Facebook",
+    icon: IconBrandFacebook,
+    color: "text-[#1877F2]",
+  },
+  instagram: {
+    label: "Instagram",
+    icon: IconBrandInstagram,
+    color: "text-[#E4405F]",
+  },
+  whatsapp: {
+    label: "WhatsApp",
+    icon: IconBrandWhatsapp,
+    color: "text-[#25D366]",
+  },
+};
+
+export const StatusBadges: {
+  readonly [key: string]: { label: string; bg: string; text: string };
+} = {
+  active: {
+    label: "Active",
+    bg: "bg-green-100",
+    text: "text-green-800",
+  },
+};

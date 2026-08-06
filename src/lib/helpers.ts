@@ -14,6 +14,31 @@ export const formatDateTime = (dateInput: string | null) => {
   });
 };
 
+// Short relative time e.g. "3m", "2h", "5d", "3w", "2mo" — used by chat/thread
+// lists where absolute timestamps would be too wide to fit.
+export const formatRelativeTime = (value: string | null | undefined) => {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 60) return `${diffMinutes}m`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d`;
+
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 4) return `${diffWeeks}w`;
+
+  return `${Math.max(1, Math.floor(diffDays / 30))}mo`;
+};
+
 export const getDuration = (start: string | null, end: string | null) => {
   if (!start || !end || start === "-" || end === "-") return "-";
   const diff = new Date(end).getTime() - new Date(start).getTime();
