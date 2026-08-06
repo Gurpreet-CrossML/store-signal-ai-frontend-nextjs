@@ -2182,42 +2182,42 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
         ? { priority: appliedFilters.priorities }
         : {}),
     };
-    let ps = page;
+    let page_size = page;
 
     if (activeFilter === "unassigned") {
       filters.is_assigned = false;
-      ps = 1;
+      page_size = 1;
     }
 
     if (activeFilter === "snoozed") {
       filters.is_snoozed = true;
-      ps = 1;
+      page_size = 1;
     }
 
     if (activeFilter === "Order_Return") {
       filters.tags = [...(filters.tags ?? []), "Order Return"];
-      ps = 1;
+      page_size = 1;
     }
 
     if (activeFilter === "Payment_Failed") {
       filters.tags = [...(filters.tags ?? []), "Payment Failed"];
-      ps = 1;
+      page_size = 1;
     }
 
     if (activeFilter === "Exchange_Request") {
       filters.tags = [...(filters.tags ?? []), "Exchange Request"];
-      ps = 1;
+      page_size = 1;
     }
 
     const fetchArgs = {
       store_code: storeCode,
-      page: ps,
+      page: page_size,
       limit: 20,
       filters,
     };
 
     const fetchTickets = async () => {
-      const isLoadMore = ps > 1;
+      const isLoadMore = page_size > 1;
 
       if (isLoadMore) {
         setIsLoadingMore(true);
@@ -2227,7 +2227,7 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
         const data = await dispatch(FetchSupportTickets(fetchArgs)).unwrap();
 
         setTicketRows((prev) => {
-          const rows = ps === 1 ? data.results : [...prev, ...data.results];
+          const rows = page_size === 1 ? data.results : [...prev, ...data.results];
 
           setActiveTicketId((current) => {
             if (rows.length === 0) return null;
