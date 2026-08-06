@@ -2,7 +2,6 @@
 
 import { useSession } from "next-auth/react";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Empty,
   EmptyDescription,
@@ -11,6 +10,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import {
+  IconBrandMeta,
   IconBuildingSkyscraper,
   IconLock,
   IconPlugConnected,
@@ -22,6 +22,8 @@ import StoreIntegrationsTabContent from "@/components/custom/store-integrations-
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import SocialAITabContent from "@/components/custom/settings/social-ai/store-social-ai-tab-content";
+import { useAppSelector } from "@/redux/hooks";
 
 const SETTINGSNAV = [
   {
@@ -38,6 +40,11 @@ const SETTINGSNAV = [
     key: "store_integrations",
     value: "Connectors",
     icon: IconPlugConnected,
+  },
+  {
+    key: "social_ai",
+    value: "Social AI",
+    icon: IconBrandMeta,
   },
 ];
 
@@ -96,6 +103,10 @@ export default function Settings() {
   const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState("company_profile");
 
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
+
   // Company settings + staff management are company-admin (is_staff) only.
   // The Django endpoints enforce this server-side too; this is just the UX gate.
   if (status === "authenticated" && !session?.user?.is_staff) {
@@ -139,6 +150,9 @@ export default function Settings() {
           <StaffManagement className="lg:w-full" />
         )}
         {activeTab === "store_integrations" && <StoreIntegrationsTabContent />}
+        {activeTab === "social_ai" && (
+          <SocialAITabContent storeCode={storeCode} />
+        )}
       </div>
     </div>
   );

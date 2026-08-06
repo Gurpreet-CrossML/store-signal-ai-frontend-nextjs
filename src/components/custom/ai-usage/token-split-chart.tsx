@@ -21,8 +21,8 @@ import {
 import type { AIUsageSummary } from "@/redux/api-slice/ai-usage-slice";
 
 const chartConfig = {
-  input: { label: "Input tokens", color: "var(--chart-4)" },
-  output: { label: "Output tokens", color: "var(--chart-1)" },
+  input: { label: "Total Input tokens", color: "var(--chart-3)" },
+  output: { label: "Total Output tokens", color: "var(--chart-1)" },
 } satisfies ChartConfig;
 
 const compact = new Intl.NumberFormat("en-US", {
