@@ -184,28 +184,27 @@ export type AIInsightResponse = {
   next_actionable_items: string[];
 };
 
+export type CartData = {
+  qty: number;
+  sku: string;
+  name: string;
+  price: string;
+  currency: string;
+  product_id: number;
+  product_url: string;
+  product_image: string;
+};
+
 export type CartDataResponse = {
   thread_id: string;
   initial_cart_data: {
-    qty: number;
-    sku: string;
-    name: string;
-    price: string;
-    currency: string;
-    product_id: number;
-    product_url: string;
-    product_image: string;
-  }[];
+    items: CartData[];
+    total: string;
+  };
   updated_cart_data: {
-    qty: number;
-    sku: string;
-    name: string;
-    price: string;
-    currency: string;
-    product_id: number;
-    product_url: string;
-    product_image: string;
-  }[];
+    items: CartData[];
+    total: string;
+  };
 };
 
 export type UserMetadata = {
@@ -225,10 +224,6 @@ export type ThreadTicketData = {
   ticket_id: number;
   subject: string;
   description: string;
-  requester_id: number;
-  email_config_id: number | null;
-  platform_created_at: string | null;
-  platform_updated_at: string | null;
   created_at: string;
   updated_at: string;
 };

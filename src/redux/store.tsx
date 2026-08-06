@@ -9,6 +9,7 @@ import BrandVoiceSlice from "@/redux/api-slice/brand-voice-slice";
 import IntegrationSlice from "@/redux/api-slice/integrations-slice";
 import SupportTicketsSlice from "@/redux/api-slice/support-ticket-slice";
 import SocialAISlice from "@/redux/api-slice/social-ai-slice";
+import AIUsageSlice from "@/redux/api-slice/ai-usage-slice";
 
 const store = configureStore({
   reducer: {
@@ -22,6 +23,7 @@ const store = configureStore({
     GetIntegrationReducer: IntegrationSlice,
     GetSupportTicketsReducer: SupportTicketsSlice,
     GetSocialAIReducer: SocialAISlice,
+    GetAIUsageReducer: AIUsageSlice,
   },
 });
 
