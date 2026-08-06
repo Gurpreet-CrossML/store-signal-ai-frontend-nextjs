@@ -1137,7 +1137,21 @@ function ConversationPanel({
                     No tags available.
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-56 overflow-y-auto p-2">
+                  <div
+                    className="max-h-56 space-y-2 overflow-y-auto p-2"
+                    onScroll={(event) => {
+                      const target = event.currentTarget;
+                      if (
+                        hasMoreTags &&
+                        !tagSearch &&
+                        !isTagPickerLoading &&
+                        target.scrollHeight - target.scrollTop <=
+                          target.clientHeight + 40
+                      ) {
+                        onLoadMoreTags();
+                      }
+                    }}
+                  >
                     {filteredTags.length === 0 ? (
                       <div className="py-6 text-center text-sm text-slate-500">
                         No matching tags found.
@@ -1177,17 +1191,11 @@ function ConversationPanel({
                             </button>
                           );
                         })}
-                        {hasMoreTags && !tagSearch ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            onClick={onLoadMoreTags}
-                            disabled={isTagPickerLoading}
-                          >
-                            {isTagPickerLoading ? "Loading..." : "Load more"}
-                          </Button>
+                        {hasMoreTags && !tagSearch && isTagPickerLoading ? (
+                          <div className="flex items-center justify-center gap-2 py-2 text-sm text-slate-500">
+                            <Spinner className="size-4" />
+                            Loading more tags...
+                          </div>
                         ) : null}
                       </div>
                     )}
@@ -1760,6 +1768,7 @@ export default function HelpDesk() {
   const [ticketRows, setTicketRows] = useState<SupportTicket[]>([]);
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const ticketLoadMoreLockRef = useRef(false);
   const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
   const [activeQueue, setActiveQueue] = useState<SupportTicketStatus>("open");
   const [supportTikcetMessages, setSupportTicketMessages] = useState<
@@ -1783,6 +1792,7 @@ export default function HelpDesk() {
   const [tagSearch, setTagSearch] = useState("");
   const [debouncedTagSearch, setDebouncedTagSearch] = useState("");
   const [tagPage, setTagPage] = useState(1);
+  const tagLoadMoreLockRef = useRef(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] =
     useState<TicketFilterSelection>(emptyTicketFilters);
@@ -2202,6 +2212,7 @@ export default function HelpDesk() {
       } finally {
         if (isLoadMore) {
           setIsLoadingMore(false);
+          ticketLoadMoreLockRef.current = false;
         }
       }
     };
@@ -2231,7 +2242,7 @@ export default function HelpDesk() {
 
   useEffect(() => {
     if (!storeCode) return;
-    dispatch(
+    const request = dispatch(
       FetchSupportTicketTags({
         storeCode,
         page: tagPage,
@@ -2239,6 +2250,10 @@ export default function HelpDesk() {
         append: tagPage > 1,
       }),
     );
+
+    void request.finally(() => {
+      tagLoadMoreLockRef.current = false;
+    });
   }, [dispatch, storeCode, tagPage]);
 
   useEffect(() => {
@@ -2962,6 +2977,30 @@ export default function HelpDesk() {
     setIsFilterOpen(false);
   };
 
+  const handleLoadMoreTickets = () => {
+    if (
+      ticketLoadMoreLockRef.current ||
+      isLoadingMore ||
+      !FetchSupportTicketsListData?.next
+    )
+      return;
+
+    ticketLoadMoreLockRef.current = true;
+    setPage((current) => current + 1);
+  };
+
+  const handleLoadMoreTags = () => {
+    if (
+      tagLoadMoreLockRef.current ||
+      FetchSupportTicketTagsIsLoading ||
+      !FetchSupportTicketTagsData?.next
+    )
+      return;
+
+    tagLoadMoreLockRef.current = true;
+    setTagPage((current) => current + 1);
+  };
+
   return (
     <div className="-my-4 flex h-[calc(100vh-var(--header-height))] flex-col overflow-hidden border-y bg-white font-sans text-slate-950 md:-my-6 md:h-[calc(100vh-var(--header-height)-1rem)]">
       <div className="flex min-h-0 flex-1">
@@ -2975,11 +3014,7 @@ export default function HelpDesk() {
           isLoading={FetchSupportTicketsLoading}
           isLoadingMore={isLoadingMore}
           hasMore={Boolean(FetchSupportTicketsListData?.next)}
-          onLoadMore={() => {
-            if (Boolean(FetchSupportTicketsListData?.next)) {
-              setPage((current) => current + 1);
-            }
-          }}
+          onLoadMore={handleLoadMoreTickets}
           searchValue={searchValue}
           onSearchChange={setSearchValue}
           availableTags={ticketTags}
@@ -2993,11 +3028,7 @@ export default function HelpDesk() {
           hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
           isTagListLoading={FetchSupportTicketTagsIsLoading}
           onTagSearchChange={setTagSearch}
-          onLoadMoreTags={() => {
-            if (FetchSupportTicketTagsData?.next) {
-              setTagPage((current) => current + 1);
-            }
-          }}
+          onLoadMoreTags={handleLoadMoreTags}
           supportTicketStatusCount={FetchSupportTicketsListData.status_counts}
         />
         {(FetchSupportTicketsLoading || FetchSupportTicketDetailsIsLoading) &&
@@ -3035,11 +3066,7 @@ export default function HelpDesk() {
             isTagPickerOpen={showTagPicker}
             isTagPickerLoading={FetchSupportTicketTagsIsLoading}
             hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
-            onLoadMoreTags={() => {
-              if (FetchSupportTicketTagsData?.next) {
-                setTagPage((current) => current + 1);
-              }
-            }}
+            onLoadMoreTags={handleLoadMoreTags}
             onToggleTagPicker={handleToggleTagPicker}
             onAddTag={handleAddTag}
             onRemoveTag={handleRemoveTag}
