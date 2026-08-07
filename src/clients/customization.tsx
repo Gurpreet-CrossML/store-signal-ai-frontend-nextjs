@@ -277,7 +277,7 @@ export default function Customization() {
       (link) => ({
         ...(link.id != null ? { id: link.id } : {}),
         name: link.label.trim(),
-        url: link.url.trim(),
+        url: normalizeUrl(link.url),
         priority: link.priority,
         is_active: link.active,
       }),

@@ -28,7 +28,6 @@ type CKEditorTextAreaProps = {
   onChange?: (value: string) => void;
   useMarkdown?: boolean;
   disabled?: boolean;
-  maxLength?: number;
 };
 
 const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
@@ -38,7 +37,6 @@ const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
   onChange,
   useMarkdown,
   disabled,
-  maxLength,
 }) => {
   const isLayoutReady = useSyncExternalStore(
     emptySubscribe,
@@ -144,14 +142,7 @@ const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
                 data={value ?? ""}
                 disabled={disabled}
                 onChange={(_event, editor) => {
-                  const data = editor.getData();
-                  if (maxLength != null && data.trim().length > maxLength) {
-                    const limitedData = data.trim().slice(0, maxLength);
-                    editor.setData(limitedData);
-                    onChange?.(limitedData);
-                    return;
-                  }
-                  onChange?.(data);
+                  onChange?.(editor.getData());
                 }}
               />
             )}
