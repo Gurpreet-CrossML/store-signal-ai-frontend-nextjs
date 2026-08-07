@@ -178,6 +178,8 @@ export default function CustomizationBranding({
             value={greetingMessage}
             useMarkdown
             onChange={onGreetingChange}
+            disabled={greetingLength >= GREETING_LIMIT}
+            maxLength={GREETING_LIMIT}
           />
           <FieldDescription className="text-xs">
             {greetingLength}/{GREETING_LIMIT} characters
