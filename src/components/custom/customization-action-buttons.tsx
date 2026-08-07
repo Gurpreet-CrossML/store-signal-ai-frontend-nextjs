@@ -72,12 +72,8 @@ export default function CustomizationActionButtons({
   actionButtons,
   onChange,
 }: CustomizationActionButtonsProps) {
-  const removeButton = (button: ActionButton) => {
-    onChange(
-      actionButtons.filter((current) =>
-        button.id != null ? current.id !== button.id : current !== button,
-      ),
-    );
+  const removeButton = (index: number) => {
+    onChange(actionButtons.filter((_, currentIndex) => currentIndex !== index));
   };
 
   return (
@@ -118,11 +114,11 @@ export default function CustomizationActionButtons({
                 No quick actions yet
               </div>
             ) : (
-              actionButtons.map((button) => (
+              actionButtons.map((button, index) => (
                 <DropdownMenuCheckboxItem
-                  key={button.id ?? button.name}
+                  key={button.id ?? index}
                   checked
-                  onCheckedChange={() => removeButton(button)}
+                  onCheckedChange={() => removeButton(index)}
                   onSelect={(event) => event.preventDefault()}
                 >
                   {button.name}
@@ -137,7 +133,17 @@ export default function CustomizationActionButtons({
             Add new quick action
           </Typography>
           <AddActionButtonForm
-            onAdd={(button) => onChange([...actionButtons, button])}
+            onAdd={(button) => {
+              const name = button.name.trim().toLocaleLowerCase();
+              if (
+                actionButtons.some(
+                  (current) =>
+                    current.name.trim().toLocaleLowerCase() === name,
+                )
+              )
+                return;
+              onChange([...actionButtons, button]);
+            }}
           />
         </div>
       </CardContent>

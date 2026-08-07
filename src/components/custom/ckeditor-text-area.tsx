@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { CKEditor } from "@ckeditor/ckeditor5-react";
 import {
   ClassicEditor,
@@ -28,6 +28,7 @@ type CKEditorTextAreaProps = {
   onChange?: (value: string) => void;
   useMarkdown?: boolean;
   disabled?: boolean;
+  maxLength?: number;
 };
 
 const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
@@ -37,12 +38,18 @@ const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
   onChange,
   useMarkdown,
   disabled,
+  maxLength,
 }) => {
+  const lastAcceptedValue = useRef(value ?? "");
   const isLayoutReady = useSyncExternalStore(
     emptySubscribe,
     () => true,
     () => false,
   );
+
+  useEffect(() => {
+    lastAcceptedValue.current = value ?? "";
+  }, [value]);
 
   const { editorConfig } = useMemo(() => {
     if (!isLayoutReady) {
@@ -142,7 +149,15 @@ const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
                 data={value ?? ""}
                 disabled={disabled}
                 onChange={(_event, editor) => {
-                  onChange?.(editor.getData());
+                  const nextValue = editor.getData();
+
+                  if (maxLength !== undefined && nextValue.length > maxLength) {
+                    editor.setData(lastAcceptedValue.current);
+                    return;
+                  }
+
+                  lastAcceptedValue.current = nextValue;
+                  onChange?.(nextValue);
                 }}
               />
             )}

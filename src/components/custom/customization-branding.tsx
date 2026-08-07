@@ -58,7 +58,7 @@ export default function CustomizationBranding({
   onLogoUpload,
   onRemoveLogo,
 }: CustomizationBrandingProps) {
-  const greetingLength = greetingMessage.trim().length;
+  const greetingLength = greetingMessage.length;
   const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
@@ -178,6 +178,7 @@ export default function CustomizationBranding({
             value={greetingMessage}
             useMarkdown
             onChange={onGreetingChange}
+            maxLength={GREETING_LIMIT}
           />
           <FieldDescription className="text-xs">
             {greetingLength}/{GREETING_LIMIT} characters
