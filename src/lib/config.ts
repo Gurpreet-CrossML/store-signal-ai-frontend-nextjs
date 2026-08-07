@@ -314,51 +314,138 @@ export type ToneSliderDef = {
   label: string;
   minLabel: string;
   maxLabel: string;
+  info: string;
 };
 
 export const TONE_SLIDERS: ToneSliderDef[] = [
-  { key: "warmth", label: "Warmth", minLabel: "Reserved", maxLabel: "Warm" },
+  {
+    key: "warmth",
+    label: "Warmth",
+    minLabel: "Reserved",
+    maxLabel: "Warm",
+    info: "How emotionally friendly replies feel. Low keeps it businesslike and neutral; high adds empathy and personal touches.",
+  },
   {
     key: "formality",
     label: "Formality",
     minLabel: "Casual",
     maxLabel: "Formal",
+    info: "The register of the language. Low sounds like a friend texting; high reads like professional correspondence.",
   },
-  { key: "energy", label: "Energy", minLabel: "Calm", maxLabel: "Energetic" },
+  {
+    key: "energy",
+    label: "Energy",
+    minLabel: "Calm",
+    maxLabel: "Energetic",
+    info: "How lively the writing is. Low is calm and measured; high is upbeat with more enthusiasm and momentum.",
+  },
   {
     key: "playfulness",
     label: "Playfulness",
     minLabel: "Serious",
     maxLabel: "Playful",
+    info: "Room for humor and lightness. Low stays strictly on-task; high allows jokes and playful asides.",
   },
   {
     key: "directness",
     label: "Directness",
     minLabel: "Gentle",
     maxLabel: "Direct",
+    info: "How quickly the assistant gets to the point. Low cushions messages softly; high answers first and skips the padding.",
   },
 ];
 
 export type SelectOption = { value: string; label: string };
 
-export const ANSWER_LENGTH_OPTIONS: readonly SelectOption[] = [
-  { value: "concise", label: "Concise" },
-  { value: "standard", label: "Standard" },
-  { value: "thorough", label: "Thorough" },
+/** Option with a one-line explanation of what picking it changes. */
+export type DescribedOption = SelectOption & { description: string };
+
+export const ANSWER_LENGTH_CHOICES: readonly DescribedOption[] = [
+  {
+    value: "concise",
+    label: "Concise",
+    description: "One or two sentences.",
+  },
+  {
+    value: "standard",
+    label: "Standard",
+    description: "Balanced, key details.",
+  },
+  {
+    value: "thorough",
+    label: "Thorough",
+    description: "Full, detailed explanations.",
+  },
 ];
 
-export const FREQUENCY_OPTIONS: readonly SelectOption[] = [
-  { value: "none", label: "None" },
-  { value: "sparing", label: "Sparing" },
-  { value: "moderate", label: "Moderate" },
-  { value: "liberal", label: "Liberal" },
-  { value: "free", label: "Free" },
+export const EMOJI_POLICY_CHOICES: readonly DescribedOption[] = [
+  { value: "none", label: "None", description: "Avoids emojis." },
+  {
+    value: "sparing",
+    label: "Sparing",
+    description: "Rare, only when fitting.",
+  },
+  {
+    value: "moderate",
+    label: "Moderate",
+    description: "Occasional, adds warmth.",
+  },
+  {
+    value: "liberal",
+    label: "Liberal",
+    description: "In most replies.",
+  },
+  {
+    value: "free",
+    label: "Free",
+    description: "Whenever natural.",
+  },
 ];
 
-export const SPELLING_OPTIONS: readonly SelectOption[] = [
-  { value: "uk", label: "UK" },
-  { value: "us", label: "US" },
-  { value: "auto", label: "Auto" },
+export const EXCLAMATION_POLICY_CHOICES: readonly DescribedOption[] = [
+  {
+    value: "none",
+    label: "None",
+    description: "Avoids exclamation marks.",
+  },
+  {
+    value: "sparing",
+    label: "Sparing",
+    description: "Big moments only.",
+  },
+  {
+    value: "moderate",
+    label: "Moderate",
+    description: "Occasional friendly emphasis.",
+  },
+  {
+    value: "liberal",
+    label: "Liberal",
+    description: "Frequent excitement!",
+  },
+  {
+    value: "free",
+    label: "Free",
+    description: "Unrestricted!",
+  },
+];
+
+export const REGIONAL_SPELLING_CHOICES: readonly DescribedOption[] = [
+  {
+    value: "uk",
+    label: "UK",
+    description: "“Colour”, “organise”.",
+  },
+  {
+    value: "us",
+    label: "US",
+    description: "“Color”, “organize”.",
+  },
+  {
+    value: "auto",
+    label: "Auto",
+    description: "Matches each customer.",
+  },
 ];
 
 export const SocialAIPlatformOptions: {

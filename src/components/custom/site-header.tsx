@@ -16,12 +16,17 @@ export function SiteHeader() {
 
   // Routes that aren't in the nav (e.g. /settings/general) fall back to a
   // humanized last path segment: "staff-management" → "Staff Management".
+  // Words with their own casing (acronyms) are mapped explicitly.
+  const specialWords: Record<string, string> = { ai: "AI", faqs: "FAQs" };
   const fallbackTitle = (pathname ?? "")
     .split("/")
     .filter(Boolean)
     .pop()
     ?.split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map(
+      (word) =>
+        specialWords[word] ?? word.charAt(0).toUpperCase() + word.slice(1),
+    )
     .join(" ");
 
   const title = findMenuItemByUrl(navMain, pathname)?.title ?? fallbackTitle;

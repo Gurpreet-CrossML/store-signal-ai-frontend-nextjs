@@ -1,7 +1,14 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { InfoIcon } from "@/components/custom/info-icon";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { TonePresetRecord } from "@/db/chat";
 import { cn } from "@/lib/utils";
@@ -33,20 +40,21 @@ export default function ToneStylePreviewPanel({
 
   return (
     <Card className="sticky top-4 gap-0 overflow-hidden border-border/60 bg-background/95 shadow-sm backdrop-blur">
-      <CardHeader className="border-b border-border/60 px-5 py-4">
+      <CardHeader className="border-b border-border/60">
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <h2 className="font-heading text-base font-medium">
-                Tone & Style
-              </h2>
+              <CardTitle className="flex items-center gap-2">
+                Tone &amp; Style
+                <InfoIcon text="A sample exchange showing how the current tone settings sound. Updates as you adjust — nothing is saved until you hit Save." />
+              </CardTitle>
               <Badge variant="secondary" className="font-normal">
                 Preview
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <CardDescription>
               Live view of the current tone settings.
-            </p>
+            </CardDescription>
           </div>
           <Badge variant="outline" className="capitalize font-normal">
             {presetLabel}
@@ -54,7 +62,7 @@ export default function ToneStylePreviewPanel({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-5 px-5 py-5">
+      <CardContent className="space-y-5">
         <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
           <div className="flex flex-col gap-4">
             <div className="flex justify-end">
