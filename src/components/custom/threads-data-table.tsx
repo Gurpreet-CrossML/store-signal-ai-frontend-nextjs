@@ -17,9 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Spinner } from "@/components/ui/spinner";
+import { LoadingState } from "@/components/custom/loading-state";
 import { DataTablePagination } from "@/components/custom/threads-data-table-pagination";
-import ThreadDetailDrawer from "@/components/custom/thread-detail-drawer";
 import { Thread } from "@/redux/api-slice/thread-slice";
 
 interface ThreadsDataTableProps<TData, TValue> {
@@ -31,14 +30,8 @@ interface ThreadsDataTableProps<TData, TValue> {
   pagination: PaginationState;
   onPaginationChange: OnChangeFn<PaginationState>;
   isLoading?: boolean;
-  /** Id of the thread whose drawer is open (driven by the URL `?thread=`). */
-  selectedThreadId: string | null;
-  /** Full thread object for the open drawer, when present on the loaded page. */
-  selectedThread: Thread | null;
-  /** Open the drawer for a thread (writes `?thread=` to the URL). */
+  /** Navigate to a thread's detail page. */
   onSelectThread: (threadId: string) => void;
-  /** Close the drawer (clears `?thread=` from the URL). */
-  onCloseThread: () => void;
 }
 
 export function ThreadsDataTable<TData, TValue>({
@@ -48,10 +41,7 @@ export function ThreadsDataTable<TData, TValue>({
   pagination,
   onPaginationChange,
   isLoading = false,
-  selectedThreadId,
-  selectedThread,
   onSelectThread,
-  onCloseThread,
 }: ThreadsDataTableProps<TData, TValue>) {
   const table = useReactTable({
     data,
@@ -87,10 +77,7 @@ export function ThreadsDataTable<TData, TValue>({
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24">
-                  <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                    <Spinner />
-                    Loading threads…
-                  </div>
+                  <LoadingState label="Loading Threads…" className="py-0" />
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows.length ? (
@@ -132,14 +119,6 @@ export function ThreadsDataTable<TData, TValue>({
       </div>
 
       <DataTablePagination table={table} totalCount={totalCount} />
-      <ThreadDetailDrawer
-        open={Boolean(selectedThreadId)}
-        setOpen={(open) => {
-          if (!open) onCloseThread();
-        }}
-        threadId={selectedThreadId}
-        thread={selectedThread}
-      />
     </div>
   );
 }

@@ -15,12 +15,16 @@ export function SiteHeader() {
     : sidebarMenus.navMain;
 
   // Routes that aren't in the nav (e.g. /settings/general) fall back to a
-  // humanized last path segment: "staff-management" → "Staff Management".
-  // Words with their own casing (acronyms) are mapped explicitly.
+  // humanized path segment: "staff-management" → "Staff Management".
+  // Id-looking segments (uuids, numeric ids) are skipped so detail pages
+  // titled by their parent ("/threads/<uuid>" → "Threads"), and words with
+  // their own casing (acronyms) are mapped explicitly.
   const specialWords: Record<string, string> = { ai: "AI", faqs: "FAQs" };
+  const looksLikeId = (segment: string) =>
+    /^[0-9a-f-]{16,}$/i.test(segment) || /^\d+$/.test(segment);
   const fallbackTitle = (pathname ?? "")
     .split("/")
-    .filter(Boolean)
+    .filter((segment) => segment && !looksLikeId(segment))
     .pop()
     ?.split("-")
     .map(
