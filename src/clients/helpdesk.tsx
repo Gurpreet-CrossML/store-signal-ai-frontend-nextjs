@@ -136,7 +136,7 @@ const CKEditorTextArea = dynamic(
 );
 
 // Keep this in sync with the page size sent to the support tickets API.
-const MAX_SUPPORT_TICKETS_PER_PAGE = 20;
+const MAX_TICKETS_PER_PAGE = 20;
 
 // Max tags to show in ticket row for `TicketListPanel`
 const MAX_VISIBLE_TKT_ROW_TAGS = 2;
@@ -2208,7 +2208,7 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
     const fetchArgs = {
       store_code: storeCode,
       page,
-      limit: 20,
+      limit: MAX_TICKETS_PER_PAGE,
       filters,
     };
 
