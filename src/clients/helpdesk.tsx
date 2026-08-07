@@ -1706,7 +1706,7 @@ function TicketInsights({
                 loading={isOrdersLoading}
                 handleOrdersSync={() => !isClosed && onOrdersSync()}
                 orderSyncLoading={isOrderSyncLoading}
-                custometData={customerData}
+                customerData={customerData}
               />
             </div>
           </>

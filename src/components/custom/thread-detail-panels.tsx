@@ -1,20 +1,9 @@
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Progress } from "@/components/ui/progress";
-import { Spinner } from "@/components/ui/spinner";
+import { LoadingState } from "@/components/custom/loading-state";
+import { CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatDateTime } from "@/lib/helpers";
 import type {
   CartDataResponse,
-  ThreadTicketData,
   UserMetadata,
   Customer,
   OrderData,
@@ -22,14 +11,12 @@ import type {
   CartData,
 } from "@/redux/api-slice/thread-slice";
 import {
-  IconBrain,
   IconBrowser,
   IconDeviceDesktop,
   IconDeviceLaptop,
   IconLocationPin,
   IconNetwork,
   IconShoppingBag,
-  IconTicket,
   IconUser,
   IconPackage,
   IconChevronRight,
@@ -39,128 +26,25 @@ import { FulfillmentBadge, StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 
 function CardLoadingState() {
-  return (
-    <div className="flex items-center justify-center py-6 text-muted-foreground">
-      <Spinner className="size-5" />
-    </div>
-  );
+  return <LoadingState className="py-6" />;
 }
 
-export function ThreadSummaryCard({
-  summary,
-  loading,
-}: {
-  summary: string;
-  loading?: boolean;
-}) {
-  return (
-    <Card>
-      <CardContent>
-        <CardTitle>AI Summary</CardTitle>
-        {loading ? (
-          <CardLoadingState />
-        ) : (
-          <CardDescription>
-            {summary || "No summary available."}
-          </CardDescription>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+/**
+ * Cart prices arrive as display strings (e.g. "$9999.0") — reformat the
+ * numeric part to two decimals, keeping the store's currency prefix.
+ */
+function formatCartPrice(price: string | null | undefined): string | null {
+  const raw = String(price ?? "").trim();
+  if (!raw) return null;
 
-export function ThreadAIInsightCard({
-  nextActionableItems,
-  resolutionSuccessRate,
-  reasonForScore,
-  overperformingCases,
-  underperformingCases,
-  loading,
-}: {
-  nextActionableItems: string[];
-  resolutionSuccessRate: string;
-  reasonForScore: string;
-  overperformingCases: string[];
-  underperformingCases: string[];
-  loading?: boolean;
-}) {
-  return (
-    <Card>
-      <CardContent className="space-y-4">
-        <CardTitle className="flex items-center gap-2">
-          <IconBrain className="size-4" />
-          AI Insights
-        </CardTitle>
-        {loading ? (
-          <CardLoadingState />
-        ) : (
-          <div className="flex flex-col gap-4">
-            {nextActionableItems?.length > 0 && (
-              <div className="bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 p-4">
-                <span>Next Actionable Items</span>
-                <ul className="mt-1 flex flex-col gap-2">
-                  {nextActionableItems?.map((item, index) => (
-                    <li key={index} className="flex gap-2 text-sm">
-                      <span className="bg-amber-700 dark:bg-amber-950 p-1" />
-                      {item}
-                    </li>
-                  )) || (
-                    <p className="text-sm text-muted-foreground italic">
-                      No data available.
-                    </p>
-                  )}
-                </ul>
-              </div>
-            )}
-            <Field className="w-full">
-              <FieldLabel htmlFor="progress-upload">
-                <span>Resolution Success Rate</span>
-                <span className="ml-auto">{resolutionSuccessRate || 0}%</span>
-              </FieldLabel>
-              <Progress
-                value={parseInt(resolutionSuccessRate || "0")}
-                id="progress-upload"
-              />
-            </Field>
+  const prefix = (raw.match(/^[^0-9-]+/) ?? [""])[0].trim();
+  const amount = Number(raw.replace(/[^0-9.-]/g, ""));
+  if (!Number.isFinite(amount)) return raw;
 
-            <div>
-              <span>Score Rationale</span>
-              <p className="text-sm text-muted-foreground mt-1 italic">
-                {reasonForScore || "No insights available."}
-              </p>
-            </div>
-
-            <div>
-              <span>Performing Matrix</span>
-              {overperformingCases &&
-              underperformingCases &&
-              overperformingCases?.length === 0 &&
-              underperformingCases?.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">
-                  No Matrix available.
-                </p>
-              ) : (
-                <ul className="mt-1 flex flex-col gap-2">
-                  {overperformingCases?.map((item, index) => (
-                    <li key={index} className="flex gap-2 text-sm">
-                      <span className="bg-green-700 dark:bg-green-950 p-1" />
-                      {item}
-                    </li>
-                  ))}
-                  {underperformingCases?.map((item, index) => (
-                    <li key={index} className="flex gap-2 text-sm">
-                      <span className="bg-red-700 dark:bg-red-950 p-1" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+  return `${prefix}${amount.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 export function CartDetailsCard({
@@ -174,215 +58,135 @@ export function CartDetailsCard({
   const items = cart?.items ?? [];
 
   return (
-    <Card>
-      <CardContent className="space-y-4">
-        <CardTitle className="flex items-center gap-2">
-          <IconShoppingBag className="size-4" />
-          Cart Details
-        </CardTitle>
-        {loading ? (
-          <CardLoadingState />
-        ) : items.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">
-            No cart data available.
-          </p>
-        ) : (
-          items?.map((item: CartData, index: number) => (
-            <div
-              key={index}
-              className="flex items-center justify-between gap-2 text-sm"
-            >
-              <div className="flex items-center gap-2">
-                <Avatar>
-                  {item.product_image ? (
-                    <AvatarImage
-                      src={item.product_image}
-                      alt={item.name}
-                      className="h-full w-full object-contain"
-                    />
-                  ) : (
-                    <AvatarFallback className="bg-muted text-muted-foreground text-xs">
-                      N/A
-                    </AvatarFallback>
-                  )}
-                </Avatar>
-                <span className="flex flex-col items-start gap-2">
-                  <span>{item.name}</span>
-                  <span className="text-muted-foreground text-xs">
-                    Qty: {item.qty}
-                  </span>
+    <section className="flex flex-col gap-3 border-b p-4">
+      <CardTitle className="flex items-center gap-2">
+        <IconShoppingBag className="size-4" />
+        Cart
+      </CardTitle>
+      {loading ? (
+        <CardLoadingState />
+      ) : items.length === 0 ? (
+        <p className="text-sm text-muted-foreground italic">
+          No cart data available.
+        </p>
+      ) : (
+        items?.map((item: CartData, index: number) => (
+          <div
+            key={index}
+            className="flex items-center justify-between gap-2 text-sm"
+          >
+            <div className="flex items-center gap-2">
+              <Avatar>
+                {item.product_image ? (
+                  <AvatarImage
+                    src={item.product_image}
+                    alt={item.name}
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <AvatarFallback className="bg-muted text-muted-foreground text-xs">
+                    N/A
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <span className="flex flex-col items-start gap-2">
+                <span>{item.name}</span>
+                <span className="text-muted-foreground text-xs">
+                  Qty: {item.qty}
                 </span>
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {item.price || "N/A"}
               </span>
             </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
+            <span className="text-xs text-muted-foreground">
+              {formatCartPrice(item.price) ?? "N/A"}
+            </span>
+          </div>
+        ))
+      )}
+    </section>
+  );
+}
+
+function MetaRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 text-sm">
+      <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+        {icon}
+        {label}
+      </span>
+      <span className="min-w-0 text-right wrap-break-word">{value}</span>
+    </div>
   );
 }
 
 export function UserMetadataCard({
   userMetadata,
-  custometData,
+  customerData,
   loading,
 }: {
   userMetadata: UserMetadata | null;
-  custometData?: Customer | null;
+  customerData?: Customer | null;
   loading?: boolean;
 }) {
   return (
-    <Card>
-      <CardContent className="space-y-4">
-        <CardTitle className="flex items-center gap-2">
-          <IconUser className="size-4" />
-          User Metadata
-        </CardTitle>
-        {loading ? (
-          <CardLoadingState />
-        ) : (
-          <div className="flex flex-col gap-3">
-            {custometData && custometData?.name && (
-              <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="bg-primary/20 p-1">
-                    <IconUser className="size-5 inline text-primary" />
-                  </span>
-                  <span className="shrink-0">Name</span>
-                </div>
-                <span className="ml-auto min-w-0 break-words text-right">
-                  {custometData?.name}
-                </span>
-              </div>
-            )}
-            {custometData && custometData?.email && (
-              <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="bg-primary/20 p-1">
-                    <IconMail className="size-5 inline text-primary" />
-                  </span>
-                  <span className="shrink-0">Email</span>
-                </div>
-                <span className="ml-auto min-w-0 break-words text-right">
-                  {custometData?.email}
-                </span>
-              </div>
-            )}
-
-            <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="bg-primary/20 p-1">
-                  <IconLocationPin className="size-5 inline text-primary" />
-                </span>
-                <span className="shrink-0">Location</span>
-              </div>
-              <span className="ml-auto min-w-0 break-words text-right">
-                {userMetadata?.geo_location || "Unknown Location"}
-              </span>
-            </div>
-            <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="bg-primary/20 p-1">
-                  <IconNetwork className="size-5 inline text-primary" />
-                </span>
-                <span className="shrink-0">IP Address</span>
-              </div>
-              <span className="ml-auto min-w-0 break-all text-right">
-                {userMetadata?.ip_address || "Unknown IP Address"}
-              </span>
-            </div>
-            <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="bg-primary/20 p-1">
-                  <IconDeviceLaptop className="size-5 inline text-primary" />
-                </span>
-                <span className="shrink-0">Device</span>
-              </div>
-              <span className="ml-auto min-w-0 break-words text-right">
-                {userMetadata?.device_type || "Unknown Device"}
-              </span>
-            </div>
-            <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="bg-primary/20 p-1">
-                  <IconBrowser className="size-5 inline text-primary" />
-                </span>
-                <span className="shrink-0">Browser</span>
-              </div>
-              <span className="ml-auto min-w-0 break-words text-right">
-                {userMetadata?.browser || "Unknown Browser"}
-              </span>
-            </div>
-            <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="bg-primary/20 p-1">
-                  <IconDeviceDesktop className="size-5 inline text-primary" />
-                </span>
-                <span className="shrink-0">OS</span>
-              </div>
-              <span className="ml-auto min-w-0 break-words text-right">
-                {userMetadata?.os || "Unknown OS"}
-              </span>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-export function SupportTicketCard({
-  ticketData,
-  loading,
-}: {
-  ticketData: ThreadTicketData[] | null;
-  loading?: boolean;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <IconTicket className="size-4" />
-          Support Ticket
-        </CardTitle>
-      </CardHeader>
+    <section className="flex flex-col gap-3 border-b p-4 last:border-b-0">
+      <CardTitle className="flex items-center gap-2">
+        <IconUser className="size-4" />
+        Customer
+      </CardTitle>
       {loading ? (
         <CardLoadingState />
-      ) : ticketData?.length == 0 ? (
-        <CardContent>
-          <p className="text-sm text-muted-foreground italic">
-            No Ticket data available.
-          </p>
-        </CardContent>
       ) : (
-        <CardContent className="space-y-2">
-          {ticketData?.map((ticket: ThreadTicketData, index: number) => (
-            <Card key={index}>
-              <CardContent className="space-y-2">
-                <CardTitle>Ticket TCK-{ticket.ticket_id}</CardTitle>
-                <CardTitle className="flex items-start justify-between gap-2 pb-2 border-b">
-                  {ticket.subject}
-                  <Badge>Open</Badge>
-                </CardTitle>
-                <CardDescription className="space-y-1 border-b pb-2">
-                  {ticket.description || "No description available."}
-                </CardDescription>
-                <CardDescription className="text-xs">
-                  Created:{" "}
-                  {formatDateTime(ticket.created_at) || "Unknown creation date"}
-                </CardDescription>
-              </CardContent>
-            </Card>
-          )) || (
-            <p className="text-sm text-muted-foreground italic">
-              No Support ticket data available.
-            </p>
+        <div className="flex flex-col gap-2">
+          {customerData?.name && (
+            <MetaRow
+              icon={<IconUser className="size-3.5" />}
+              label="Name"
+              value={customerData.name}
+            />
           )}
-        </CardContent>
+          {customerData?.email && (
+            <MetaRow
+              icon={<IconMail className="size-3.5" />}
+              label="Email"
+              value={customerData.email}
+            />
+          )}
+          <MetaRow
+            icon={<IconLocationPin className="size-3.5" />}
+            label="Location"
+            value={userMetadata?.geo_location || "Unknown"}
+          />
+          <MetaRow
+            icon={<IconNetwork className="size-3.5" />}
+            label="IP Address"
+            value={userMetadata?.ip_address || "Unknown"}
+          />
+          <MetaRow
+            icon={<IconDeviceLaptop className="size-3.5" />}
+            label="Device"
+            value={userMetadata?.device_type || "Unknown"}
+          />
+          <MetaRow
+            icon={<IconBrowser className="size-3.5" />}
+            label="Browser"
+            value={userMetadata?.browser || "Unknown"}
+          />
+          <MetaRow
+            icon={<IconDeviceDesktop className="size-3.5" />}
+            label="OS"
+            value={userMetadata?.os || "Unknown"}
+          />
+        </div>
       )}
-    </Card>
+    </section>
   );
 }
 
@@ -463,9 +267,12 @@ function ShippingAddress({
 
 /** Format a "YYYY-MM-DD HH:mm:ss+TZ" timestamp into a short readable date. */
 function formatDate(value: string): string {
-  // Date.parse doesn't reliably handle a space between date and time the
-  // way it does the "T" separator, so normalize it first.
-  const date = new Date(value.replace(" ", "T"));
+  // Normalize before parsing: Date.parse needs the "T" separator instead of
+  // a space, and rejects bare-hour offsets like "+00" unless minutes are
+  // appended ("+00:00").
+  const date = new Date(
+    value.replace(" ", "T").replace(/([+-]\d{2})$/, "$1:00"),
+  );
   if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleDateString(undefined, {
@@ -640,13 +447,13 @@ export function OrdersCard({
   loading,
   handleOrdersSync,
   orderSyncLoading,
-  custometData,
+  customerData,
 }: {
   orders?: OrderData[] | null;
   loading?: boolean;
   handleOrdersSync: () => void;
   orderSyncLoading?: boolean;
-  custometData?: Customer | null;
+  customerData?: Customer | null;
 }) {
   const orderList = orders;
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -656,83 +463,78 @@ export function OrdersCard({
   };
 
   return (
-    <Card>
-      <CardContent className="space-y-4">
-        <CardHeader className="flex items-center justify-between p-0">
-          <CardTitle className="flex items-center gap-2">
-            <IconPackage className="h-4 w-4" />
-            Orders{orderList?.length ? ` (${orderList.length})` : ""}
-          </CardTitle>
-          <Button
-            type="button"
-            size="xs"
-            onClick={handleOrdersSync}
-            disabled={loading || orderSyncLoading || !custometData?.email}
-          >
-            {orderSyncLoading ? "Syncing..." : "Sync"}
-          </Button>
-        </CardHeader>
-        {loading ? (
-          <p className="text-sm text-muted-foreground italic">
-            Loading orders…
-          </p>
-        ) : !orderList || orderList?.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">
-            {!custometData?.email
-              ? "Customer not registered."
-              : "No orders found."}
-          </p>
-        ) : (
-          <div className="space-y-1.5">
-            {orderList?.map((order) => {
-              const isExpanded = expandedId === order.id;
+    <section className="flex flex-col gap-3 border-b p-4">
+      <div className="flex items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <IconPackage className="h-4 w-4" />
+          Orders{!loading && orderList?.length ? ` (${orderList.length})` : ""}
+        </CardTitle>
+        <Button
+          type="button"
+          size="xs"
+          onClick={handleOrdersSync}
+          disabled={loading || orderSyncLoading || !customerData?.email}
+        >
+          {orderSyncLoading ? "Syncing..." : "Sync"}
+        </Button>
+      </div>
+      {loading ? (
+        <CardLoadingState />
+      ) : !orderList || orderList?.length === 0 ? (
+        <p className="text-sm text-muted-foreground italic">
+          {!customerData?.email
+            ? "Customer not registered."
+            : "No orders found."}
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {orderList?.map((order) => {
+            const isExpanded = expandedId === order.id;
 
-              return (
-                <div key={order.id}>
-                  <button
-                    type="button"
-                    onClick={() => toggleOrder(order.id)}
-                    className={`flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition ${
-                      isExpanded
-                        ? "border-primary/40 bg-primary/[0.04]"
-                        : "border-border/50 hover:bg-muted/50"
-                    }`}
-                  >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                      <IconPackage className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-xs font-semibold text-foreground">
-                          #{order.order_number}
-                        </p>
-                        <FulfillmentBadge status={order.fulfillment_status} />
-                      </div>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        {formatDate(order.created_at)} · {order.items.length}{" "}
-                        item
-                        {order.items.length !== 1 ? "s" : ""}
+            return (
+              <div key={order.id}>
+                <button
+                  type="button"
+                  onClick={() => toggleOrder(order.id)}
+                  className={`flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition ${
+                    isExpanded
+                      ? "border-primary/40 bg-primary/[0.04]"
+                      : "border-border/50 hover:bg-muted/50"
+                  }`}
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <IconPackage className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-xs font-semibold text-foreground">
+                        #{order.order_number}
                       </p>
+                      <FulfillmentBadge status={order.fulfillment_status} />
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <span className="text-xs font-semibold text-primary">
-                        {formatPrice(order.total_price, order.currency)}
-                      </span>
-                      <IconChevronRight
-                        className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
-                          isExpanded ? "rotate-90" : ""
-                        }`}
-                      />
-                    </div>
-                  </button>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {formatDate(order.created_at)} · {order.items.length} item
+                      {order.items.length !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <span className="text-xs font-semibold text-primary">
+                      {formatPrice(order.total_price, order.currency)}
+                    </span>
+                    <IconChevronRight
+                      className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
+                        isExpanded ? "rotate-90" : ""
+                      }`}
+                    />
+                  </div>
+                </button>
 
-                  {isExpanded && <OrderDetails order={order} />}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                {isExpanded && <OrderDetails order={order} />}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }

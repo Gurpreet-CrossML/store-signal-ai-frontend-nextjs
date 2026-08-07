@@ -1,26 +1,14 @@
 import {
   IconChartDots,
   IconBooks,
-  IconBrandFacebook,
-  IconBrandInstagram,
-  IconBrandMessenger,
   IconBrandMeta,
   IconDashboard,
   IconHeadset,
   IconMessage2,
   IconMessageUser,
-  IconPhotoVideo,
-  IconSend,
   IconSettings,
   IconVolume,
-  IconInbox,
-  IconTags,
   type Icon,
-  IconUser,
-  IconPackageOff,
-  IconCreditCardOff,
-  IconArrowsExchange,
-  IconAlarmSnoozeFilled,
 } from "@tabler/icons-react";
 
 export type SideBarMenuItem = {
@@ -73,48 +61,8 @@ export const sidebarMenus: SideBarMenus = {
     },
     {
       title: "Social AI",
-      url: "#",
+      url: "/social-ai",
       icon: IconBrandMeta,
-      isMenuHeading: true,
-      isExpanded: true,
-      items: [
-        {
-          title: "Facebook",
-          url: "#",
-          icon: IconBrandFacebook,
-          isExpanded: true,
-          items: [
-            {
-              title: "Facebook Posts",
-              url: "/social-ai/facebook-post",
-              icon: IconPhotoVideo,
-            },
-            {
-              title: "Facebook Messages",
-              url: "/social-ai/facebook-messages",
-              icon: IconBrandMessenger,
-            },
-          ],
-        },
-        {
-          title: "Instagram",
-          url: "#",
-          icon: IconBrandInstagram,
-          isExpanded: true,
-          items: [
-            {
-              title: "Instagram Posts",
-              url: "/social-ai/instagram-post",
-              icon: IconPhotoVideo,
-            },
-            {
-              title: "Instagram Messages",
-              url: "/social-ai/instagram-messages",
-              icon: IconSend,
-            },
-          ],
-        },
-      ],
     },
   ],
 
@@ -122,47 +70,8 @@ export const sidebarMenus: SideBarMenus = {
   navAdmin: [
     {
       title: "Help Desk",
-      url: "#",
+      url: "/helpdesk",
       icon: IconHeadset,
-      isMenuHeading: true,
-      isExpanded: true,
-      items: [
-        {
-          title: "All Open",
-          url: "/helpdesk",
-          icon: IconInbox,
-        },
-        {
-          title: "Unassigned",
-          url: "/helpdesk?filter=unassigned",
-          icon: IconUser,
-        },
-        {
-          title: "Snoozed",
-          url: "/helpdesk?filter=snoozed",
-          icon: IconAlarmSnoozeFilled,
-        },
-        {
-          title: "Order Return",
-          icon: IconPackageOff,
-          url: "/helpdesk?filter=Order_Return",
-        },
-        {
-          title: "Payment Failed",
-          icon: IconCreditCardOff,
-          url: "/helpdesk?filter=Payment_Failed",
-        },
-        {
-          title: "Exchange Request",
-          icon: IconArrowsExchange,
-          url: "/helpdesk?filter=Exchange_Request",
-        },
-        {
-          title: "Tags",
-          icon: IconTags,
-          url: "/helpdesk/tags",
-        },
-      ],
     },
     {
       title: "Brand Voice",
