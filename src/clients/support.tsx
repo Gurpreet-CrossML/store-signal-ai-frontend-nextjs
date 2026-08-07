@@ -1238,7 +1238,7 @@ export default function Support() {
         </Card>
 
         <Card className="flex min-h-0 flex-col overflow-hidden h-[88vh]!">
-          <CardHeader className="border-b border-border/50 bg-background/95 py-3.5">
+          <CardHeader className="border-b border-border/50 bg-background/95">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <CustomerAvatar

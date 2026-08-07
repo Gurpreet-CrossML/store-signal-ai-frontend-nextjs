@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "../ui/spinner";
+import { LoadingState } from "@/components/custom/loading-state";
 import { cn } from "@/lib/utils";
 
 export default function StaffManagement({
@@ -99,12 +99,7 @@ export default function StaffManagement({
   );
 
   if (staffLoading && !staff) {
-    return (
-      <div className="flex h-75 items-center justify-center gap-2 text-muted-foreground">
-        <Spinner className="size-5" />
-        Loading…
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (

@@ -4,13 +4,26 @@ import { useEffect } from "react";
 import { useFormik } from "formik";
 import z from "zod";
 import {
+  IconBook2,
+  IconBriefcase,
   IconDeviceFloppy,
-  IconMessageCircle,
+  IconIdBadge2,
+  IconMessages,
+  IconSignature,
+  IconSparkles,
   IconUserCircle,
 } from "@tabler/icons-react";
 
 import { InfoIcon } from "@/components/custom/info-icon";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import {
   Field,
   FieldContent,
@@ -19,8 +32,8 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { LoadingState } from "@/components/custom/loading-state";
 import { Spinner } from "@/components/ui/spinner";
-import { Typography } from "@/components/ui/typography";
 
 import PersonaIdentityLivePreview from "@/components/custom/persona-identity-live-preview";
 
@@ -132,169 +145,207 @@ export default function PersonaIdentity() {
   });
 
   return (
-    <div className="flex flex-col gap-6 p-4">
-      <div>
-        <Typography variant="h4" as="h2" className="flex items-center gap-2">
-          Persona Identity
-          <InfoIcon text="Defines who the AI is when it talks to customers — its name, role, voice, and sign-off. This identity applies across every channel: chat, email, and WhatsApp." />
-        </Typography>
-        <Typography variant="muted">
-          Who the AI is when it talks to your customers — its name, role, how it
-          refers to itself, and how it signs off.
-        </Typography>
-      </div>
-
+    <div className="flex w-full flex-col gap-6">
       {FetchPersonaIdentityIsLoading ? (
-        <div className="flex items-center justify-center gap-2 py-10">
-          <Spinner className="size-6" />
-          Loading Persona Identity...
-        </div>
+        <LoadingState label="Loading Persona Identity…" />
       ) : (
         <form
           onSubmit={formik.handleSubmit}
           className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_400px]"
         >
           <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-6">
-              <Field>
-                <FieldLabel htmlFor="agent-name">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                   <IconUserCircle className="size-4" />
-                  Agent name
-                  <span className="text-xs text-destructive -ml-1.5">*</span>
-                </FieldLabel>
-                <Input
-                  id="agent-name"
-                  name="name"
-                  value={formik.values.name ?? ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="Ellie"
-                />
-                {formik.touched.name && formik.errors.name && (
-                  <p className="text-xs text-destructive">
-                    {formik.errors.name}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  How the AI identifies itself. Use a persona name to feel like
-                  a real teammate — or your brand name for a company voice.
-                </p>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="role-description">
-                  Role description
-                  <span className="text-xs text-destructive -ml-1.5">*</span>
-                </FieldLabel>
-                <Input
-                  id="role-description"
-                  name="role_description"
-                  value={formik.values.role_description ?? ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="A friendly product expert who knows our catalog inside out"
-                />
-                {formik.touched.role_description &&
-                  formik.errors.role_description && (
-                    <p className="text-xs text-destructive">
-                      {formik.errors.role_description}
-                    </p>
-                  )}
-                <p className="text-xs text-muted-foreground">
-                  Frames how the AI sees its own job. Shapes helpfulness and
-                  expertise.
-                </p>
-              </Field>
-
-              <Field>
-                <FieldLabel>Self-reference</FieldLabel>
-                <RadioGroup
-                  defaultValue={formik.values.self_reference}
-                  className="flex w-full"
-                  onValueChange={(value) =>
-                    formik.setFieldValue("self_reference", value)
-                  }
-                >
-                  {SELF_REFERENCE_OPTIONS.map((option) => (
-                    <FieldLabel
-                      htmlFor={`${option.value}-reference`}
-                      key={option.value}
-                    >
-                      <Field orientation="horizontal">
-                        <FieldContent>
-                          <FieldTitle>{option.label}</FieldTitle>
-                          <FieldDescription>
-                            {option.description}
-                          </FieldDescription>
-                        </FieldContent>
-                        <RadioGroupItem
-                          value={option.value}
-                          id={`${option.value}-reference`}
-                        />
-                      </Field>
+                  Agent Identity
+                  <InfoIcon text="The basics of who your AI assistant is — shown to customers across chat, email, and WhatsApp." />
+                </CardTitle>
+                <CardDescription>
+                  Name, role, and how the assistant speaks about itself.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-6">
+                <Field className="gap-2">
+                  <div className="flex flex-col gap-1">
+                    <FieldLabel htmlFor="agent-name">
+                      <IconIdBadge2 className="size-4" />
+                      Agent Name
+                      <span className="-ml-1 text-xs text-destructive">*</span>
+                      <InfoIcon text="The name customers see in chat and email. Short, friendly names work best — e.g. Ellie, Max, or your brand name." />
                     </FieldLabel>
-                  ))}
-                </RadioGroup>
-                <p className="text-xs text-muted-foreground">
-                  How the AI refers to itself in conversations.
-                </p>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="email-signature">
-                  <IconMessageCircle className="size-4" />
-                  Email signature
-                  <span className="text-xs font-normal text-muted-foreground">
-                    (optional)
-                  </span>
-                </FieldLabel>
-                <Input
-                  id="email-signature"
-                  name="email_signature"
-                  value={formik.values.email_signature ?? ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="Warmly, Ellie — Customer Care Team"
-                />
-                {formik.touched.email_signature &&
-                  formik.errors.email_signature && (
+                    <FieldDescription>
+                      How the AI identifies itself — a persona name feels like a
+                      real teammate, your brand name gives a company voice.
+                    </FieldDescription>
+                  </div>
+                  <Input
+                    id="agent-name"
+                    name="name"
+                    value={formik.values.name ?? ""}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    placeholder="Ellie"
+                  />
+                  {formik.touched.name && formik.errors.name && (
                     <p className="text-xs text-destructive">
-                      {formik.errors.email_signature}
+                      {formik.errors.name}
                     </p>
                   )}
-                <p className="text-xs text-muted-foreground">
-                  Appended to email replies. Chat and WhatsApp skip this
-                  automatically.
-                </p>
-              </Field>
+                </Field>
 
-              <Field>
-                <FieldLabel htmlFor="backstory">
-                  Backstory
-                  <span className="text-xs font-normal text-muted-foreground">
-                    (optional)
-                  </span>
-                </FieldLabel>
-                <textarea
-                  id="backstory"
-                  name="backstory"
-                  value={formik.values.backstory ?? ""}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  placeholder="Ellie has helped thousands of shoppers pick the right product. Warm and knowledgeable, she gives honest recommendations without the hard sell."
-                  rows={4}
-                  className="w-full min-w-0 resize-y rounded-md border border-input bg-transparent px-2.5 py-2 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
-                />
-                {formik.touched.backstory && formik.errors.backstory && (
-                  <p className="text-xs text-destructive">
-                    {formik.errors.backstory}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Adds personality and context to guide how the AI responds.
-                </p>
-              </Field>
-            </div>
+                <Separator />
+
+                <Field className="gap-2">
+                  <div className="flex flex-col gap-1">
+                    <FieldLabel htmlFor="role-description">
+                      <IconBriefcase className="size-4" />
+                      Role Description
+                      <span className="-ml-1 text-xs text-destructive">*</span>
+                      <InfoIcon text="One line describing the assistant's job. It frames how the AI presents its expertise when helping customers." />
+                    </FieldLabel>
+                    <FieldDescription>
+                      Frames how the AI sees its own job — shapes helpfulness
+                      and expertise.
+                    </FieldDescription>
+                  </div>
+                  <Input
+                    id="role-description"
+                    name="role_description"
+                    value={formik.values.role_description ?? ""}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    placeholder="A friendly product expert who knows our catalog inside out"
+                  />
+                  {formik.touched.role_description &&
+                    formik.errors.role_description && (
+                      <p className="text-xs text-destructive">
+                        {formik.errors.role_description}
+                      </p>
+                    )}
+                </Field>
+
+                <Separator />
+
+                <Field className="gap-2">
+                  <div className="flex flex-col gap-1">
+                    <FieldLabel>
+                      <IconMessages className="size-4" />
+                      Self-Reference
+                      <InfoIcon text="'I' reads as a single teammate; 'We' speaks for the whole company. Pick whichever matches your brand voice." />
+                    </FieldLabel>
+                    <FieldDescription>
+                      How the AI refers to itself in conversations.
+                    </FieldDescription>
+                  </div>
+                  <RadioGroup
+                    defaultValue={formik.values.self_reference}
+                    className="flex w-full"
+                    onValueChange={(value) =>
+                      formik.setFieldValue("self_reference", value)
+                    }
+                  >
+                    {SELF_REFERENCE_OPTIONS.map((option) => (
+                      <FieldLabel
+                        htmlFor={`${option.value}-reference`}
+                        key={option.value}
+                      >
+                        <Field orientation="horizontal">
+                          <FieldContent>
+                            <FieldTitle>{option.label}</FieldTitle>
+                            <FieldDescription>
+                              {option.description}
+                            </FieldDescription>
+                          </FieldContent>
+                          <RadioGroupItem
+                            value={option.value}
+                            id={`${option.value}-reference`}
+                          />
+                        </Field>
+                      </FieldLabel>
+                    ))}
+                  </RadioGroup>
+                </Field>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <IconSparkles className="size-4" />
+                  Voice &amp; Sign-off
+                  <InfoIcon text="Optional touches that shape how the assistant sounds and how its email replies end." />
+                </CardTitle>
+                <CardDescription>
+                  Personality color and the sign-off used in emails.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-6">
+                <Field className="gap-2">
+                  <div className="flex flex-col gap-1">
+                    <FieldLabel htmlFor="backstory">
+                      <IconBook2 className="size-4" />
+                      Backstory
+                      <span className="text-xs font-normal text-muted-foreground">
+                        (optional)
+                      </span>
+                      <InfoIcon text="A little history and attitude makes replies feel human — experience, what the persona cares about, how it treats customers." />
+                    </FieldLabel>
+                    <FieldDescription>
+                      Adds personality and context to guide how the AI responds.
+                    </FieldDescription>
+                  </div>
+                  <textarea
+                    id="backstory"
+                    name="backstory"
+                    value={formik.values.backstory ?? ""}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    placeholder="Ellie has helped thousands of shoppers pick the right product. Warm and knowledgeable, she gives honest recommendations without the hard sell."
+                    rows={4}
+                    className="w-full min-w-0 resize-y rounded-md border border-input bg-transparent px-2.5 py-2 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
+                  />
+                  {formik.touched.backstory && formik.errors.backstory && (
+                    <p className="text-xs text-destructive">
+                      {formik.errors.backstory}
+                    </p>
+                  )}
+                </Field>
+
+                <Separator />
+
+                <Field className="gap-2">
+                  <div className="flex flex-col gap-1">
+                    <FieldLabel htmlFor="email-signature">
+                      <IconSignature className="size-4" />
+                      Email Signature
+                      <span className="text-xs font-normal text-muted-foreground">
+                        (optional)
+                      </span>
+                      <InfoIcon text="Added to the end of email replies only — chat and WhatsApp skip it automatically." />
+                    </FieldLabel>
+                    <FieldDescription>
+                      Appended to email replies. Chat and WhatsApp skip this
+                      automatically.
+                    </FieldDescription>
+                  </div>
+                  <Input
+                    id="email-signature"
+                    name="email_signature"
+                    value={formik.values.email_signature ?? ""}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    placeholder="Warmly, Ellie — Customer Care Team"
+                  />
+                  {formik.touched.email_signature &&
+                    formik.errors.email_signature && (
+                      <p className="text-xs text-destructive">
+                        {formik.errors.email_signature}
+                      </p>
+                    )}
+                </Field>
+              </CardContent>
+            </Card>
             <div className="flex justify-start border-t border-border py-3">
               <Button
                 type="submit"
