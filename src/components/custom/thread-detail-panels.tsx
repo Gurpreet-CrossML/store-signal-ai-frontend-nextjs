@@ -443,12 +443,14 @@ export function OrdersCard({
   handleOrdersSync,
   orderSyncLoading,
   customerData,
+  isDisabled,
 }: {
   orders?: OrderData[] | null;
   loading?: boolean;
   handleOrdersSync: () => void;
   orderSyncLoading?: boolean;
   customerData?: Customer | null;
+  isDisabled?: boolean;
 }) {
   const orderList = orders;
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -468,7 +470,9 @@ export function OrdersCard({
           type="button"
           size="xs"
           onClick={handleOrdersSync}
-          disabled={loading || orderSyncLoading || !customerData?.email}
+          disabled={
+            loading || orderSyncLoading || !customerData?.email || isDisabled
+          }
         >
           {orderSyncLoading ? "Syncing..." : "Sync"}
         </Button>
@@ -505,7 +509,11 @@ export function OrdersCard({
                       <p className="truncate text-xs font-semibold text-foreground">
                         #{order.order_number}
                       </p>
-                      <FulfillmentBadge status={order.fulfillment_status} />
+                      <FulfillmentBadge
+                        status={
+                          order?.fulfillment_status?.toLocaleLowerCase() || null
+                        }
+                      />
                     </div>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
                       {formatDate(order.created_at)} · {order.items.length} item
