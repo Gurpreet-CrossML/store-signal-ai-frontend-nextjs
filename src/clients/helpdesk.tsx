@@ -135,6 +135,9 @@ const CKEditorTextArea = dynamic(
   },
 );
 
+// Keep this in sync with the page size sent to the support tickets API.
+const MAX_SUPPORT_TICKETS_PER_PAGE = 20;
+
 // Max tags to show in ticket row for `TicketListPanel`
 const MAX_VISIBLE_TKT_ROW_TAGS = 2;
 
@@ -1157,67 +1160,67 @@ function ConversationPanel({
                     </div>
                   ) : (
                     <div
-                    className="max-h-56 space-y-2 overflow-y-auto p-2"
-                    onScroll={(event) => {
-                      const target = event.currentTarget;
-                      if (
-                        hasMoreTags &&
-                        !tagSearch &&
-                        !isTagPickerLoading &&
-                        target.scrollHeight - target.scrollTop <=
-                          target.clientHeight + 40
-                      ) {
-                        onLoadMoreTags();
-                      }
-                    }}
-                  >
-                    {filteredTags.length === 0 ? (
-                      <div className="py-6 text-center text-sm text-slate-500">
-                        No matching tags found.
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {filteredTags.map((tag) => {
-                          const alreadyAdded = ticket.tags.some(
-                            (existingTag) => existingTag.id === tag.id,
-                          );
-                          return (
-                            <button
-                              key={tag.id}
-                              type="button"
-                              className={cn(
-                                "flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-left text-sm transition",
-                                alreadyAdded
-                                  ? "border-slate-200 bg-slate-50 text-slate-500 line-through opacity-80"
-                                  : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50",
-                              )}
-                              onClick={() =>
-                                !alreadyAdded && tag.id && onAddTag(tag.id)
-                              }
-                              disabled={alreadyAdded}
-                            >
-                              <div className="flex min-w-0 items-center gap-2">
-                                <span className="truncate text-xs">
-                                  {tag.name}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className="h-2.5 w-2.5 rounded-full"
-                                  style={{ backgroundColor: tag.color }}
-                                />
-                              </div>
-                            </button>
-                          );
-                        })}
-                        {hasMoreTags && !tagSearch && isTagPickerLoading ? (
-                          <div className="flex items-center justify-center gap-2 py-2 text-sm text-slate-500">
-                            <Spinner className="size-4" />
-                            Loading more tags...
-                          </div>
-                        ) : null}
-                      </div>
-                    )}
+                      className="max-h-56 space-y-2 overflow-y-auto p-2"
+                      onScroll={(event) => {
+                        const target = event.currentTarget;
+                        if (
+                          hasMoreTags &&
+                          !tagSearch &&
+                          !isTagPickerLoading &&
+                          target.scrollHeight - target.scrollTop <=
+                            target.clientHeight + 40
+                        ) {
+                          onLoadMoreTags();
+                        }
+                      }}
+                    >
+                      {filteredTags.length === 0 ? (
+                        <div className="py-6 text-center text-sm text-slate-500">
+                          No matching tags found.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {filteredTags.map((tag) => {
+                            const alreadyAdded = ticket.tags.some(
+                              (existingTag) => existingTag.id === tag.id,
+                            );
+                            return (
+                              <button
+                                key={tag.id}
+                                type="button"
+                                className={cn(
+                                  "flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-left text-sm transition",
+                                  alreadyAdded
+                                    ? "border-slate-200 bg-slate-50 text-slate-500 line-through opacity-80"
+                                    : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50",
+                                )}
+                                onClick={() =>
+                                  !alreadyAdded && tag.id && onAddTag(tag.id)
+                                }
+                                disabled={alreadyAdded}
+                              >
+                                <div className="flex min-w-0 items-center gap-2">
+                                  <span className="truncate text-xs">
+                                    {tag.name}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="h-2.5 w-2.5 rounded-full"
+                                    style={{ backgroundColor: tag.color }}
+                                  />
+                                </div>
+                              </button>
+                            );
+                          })}
+                          {hasMoreTags && !tagSearch && isTagPickerLoading ? (
+                            <div className="flex items-center justify-center gap-2 py-2 text-sm text-slate-500">
+                              <Spinner className="size-4" />
+                              Loading more tags...
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
                   )}
                   {isTagAssigning ? (
@@ -3017,7 +3020,8 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
           onLoadMore={() => {
             if (Boolean(FetchSupportTicketsListData?.next)) {
               const totalPages = Math.ceil(
-                FetchSupportTicketsListData.count / 20,
+                FetchSupportTicketsListData.count /
+                  MAX_SUPPORT_TICKETS_PER_PAGE,
               );
               setPage((current) =>
                 current < totalPages ? current + 1 : current,
