@@ -3,7 +3,6 @@
 import {
   IconDotsVertical,
   IconLogout,
-  IconUserCircle,
 } from "@tabler/icons-react";
 
 import {
@@ -20,7 +19,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -86,13 +84,6 @@ export function NavUser() {
                   </div>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  <IconUserCircle />
-                  Account
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => setShowLogoutAlert(true)}>
                 <IconLogout />

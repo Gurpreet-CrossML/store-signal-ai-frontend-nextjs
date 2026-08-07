@@ -150,7 +150,7 @@ export const sidebarMenus: SideBarMenus = {
       isExpanded: true,
       items: [
         {
-          title: "All Open",
+          title: "All Inbox",
           url: "/helpdesk",
           icon: IconInbox,
         },

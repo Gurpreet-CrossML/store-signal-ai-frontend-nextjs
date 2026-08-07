@@ -3016,7 +3016,12 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
           hasMore={Boolean(FetchSupportTicketsListData?.next)}
           onLoadMore={() => {
             if (Boolean(FetchSupportTicketsListData?.next)) {
-              setPage((current) => current + 1);
+              const totalPages = Math.ceil(
+                FetchSupportTicketsListData.count / 20,
+              );
+              setPage((current) =>
+                current < totalPages ? current + 1 : current,
+              );
             }
           }}
           searchValue={searchValue}
