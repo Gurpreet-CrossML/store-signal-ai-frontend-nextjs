@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { isValidUrl } from "@/lib/url";
+import { validateQuickLink } from "@/lib/url";
 import type { QuickLinkItem } from "@/components/custom/customization-types";
 
 type CustomizationQuickLinksProps = {
@@ -67,9 +67,9 @@ export default function CustomizationQuickLinks({
                   onUpdate(index, { url: event.target.value })
                 }
                 placeholder="https://example.com"
-                aria-invalid={Boolean(link.url) && !isValidUrl(link.url)}
+                aria-invalid={Boolean(link.url) && !validateQuickLink(link.url)}
               />
-              {link.url && !isValidUrl(link.url) && (
+              {link.url && !validateQuickLink(link.url) && (
                 <p className="text-xs text-destructive">Enter a valid URL</p>
               )}
             </div>

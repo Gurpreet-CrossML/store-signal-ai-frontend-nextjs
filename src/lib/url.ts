@@ -8,15 +8,36 @@ export function normalizeUrl(value: string): string {
   return `https://${trimmed}`;
 }
 
-/** True when `value` (after normalisation) is a valid http/https URL. */
-export function isValidUrl(value: string): boolean {
+/** Validates a chatbot quick link using URLField-compatible host rules. */
+export function validateQuickLink(value: string): boolean {
   const normalized = normalizeUrl(value);
   if (!normalized) return false;
+
   try {
     const url = new URL(normalized);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+
+    const hostname = url.hostname.toLowerCase();
+    if (hostname === "localhost") return true;
+    if (hostname.startsWith("[") && hostname.endsWith("]")) return true;
+
+    const ipv4Parts = hostname.split(".");
+    if (
+      ipv4Parts.length === 4 &&
+      ipv4Parts.every(
+        (part) => /^\d{1,3}$/.test(part) && Number(part) <= 255,
+      )
+    ) {
+      return true;
+    }
+
+    const labels = hostname.split(".");
     return (
-      (url.protocol === "http:" || url.protocol === "https:") &&
-      (url.hostname === "localhost" || url.hostname.includes("."))
+      labels.length >= 2 &&
+      labels.every((label) =>
+        /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label),
+      ) &&
+      /^(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59})$/.test(labels.at(-1) ?? "")
     );
   } catch {
     return false;

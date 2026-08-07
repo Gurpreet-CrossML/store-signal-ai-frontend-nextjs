@@ -27,7 +27,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { isValidUrl, normalizeUrl } from "@/lib/url";
+import { normalizeUrl, validateQuickLink } from "@/lib/url";
 import type {
   ActionButton,
   QuickLinkItem,
@@ -137,10 +137,10 @@ export default function CustomizationLivePreview({
                             <button
                               key={link.id ?? index}
                               type="button"
-                              disabled={!isValidUrl(link.url)}
+                              disabled={!validateQuickLink(link.url)}
                               onClick={() => {
                                 const normalized = normalizeUrl(link.url);
-                                if (isValidUrl(normalized)) {
+                                if (validateQuickLink(normalized)) {
                                   window.open(
                                     normalized,
                                     "_blank",
