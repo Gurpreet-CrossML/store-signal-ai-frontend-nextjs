@@ -137,8 +137,7 @@ export default function CustomizationActionButtons({
               const name = button.name.trim().toLocaleLowerCase();
               if (
                 actionButtons.some(
-                  (current) =>
-                    current.name.trim().toLocaleLowerCase() === name,
+                  (current) => current.name.trim().toLocaleLowerCase() === name,
                 )
               )
                 return;

@@ -24,9 +24,7 @@ export function validateQuickLink(value: string): boolean {
     const ipv4Parts = hostname.split(".");
     if (
       ipv4Parts.length === 4 &&
-      ipv4Parts.every(
-        (part) => /^\d{1,3}$/.test(part) && Number(part) <= 255,
-      )
+      ipv4Parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255)
     ) {
       return true;
     }
