@@ -8,7 +8,9 @@ import {
   useState,
   type ChangeEvent,
   type CSSProperties,
+  type ReactNode,
 } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
 import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,6 +72,29 @@ import { formatRelativeDateTime } from "@/lib/helpers";
 // `is_read` becomes a real field on Thread (and maybe comes from the API),
 // but until then we track it client-side, defaulting to true on load.
 type ThreadWithReadState = Thread & { is_read?: boolean };
+
+// Message teasers render through react-markdown so formatting like **bold**
+// shows properly, but flattened to inline spans: block elements would break
+// the two-line clamp, and links/images don't belong inside a list row.
+const teaserInline = ({ children }: { children?: ReactNode }) => (
+  <span>{children} </span>
+);
+const TEASER_MARKDOWN_COMPONENTS: Components = {
+  p: teaserInline,
+  h1: teaserInline,
+  h2: teaserInline,
+  h3: teaserInline,
+  h4: teaserInline,
+  h5: teaserInline,
+  h6: teaserInline,
+  ul: teaserInline,
+  ol: teaserInline,
+  li: teaserInline,
+  blockquote: teaserInline,
+  pre: teaserInline,
+  a: ({ children }) => <span>{children}</span>,
+  img: () => null,
+};
 
 function normalizeThreads(threads: Thread[] | undefined) {
   return (threads ?? []).map((thread) => ({
@@ -1163,7 +1188,7 @@ export default function Support() {
           <SidebarGroup className="px-0">
             <SidebarGroupContent>
               {FetchThreadsIsLoading ? (
-                <LoadingState label="Loading Conversations…" />
+                <LoadingState label="Loading conversations…" />
               ) : filteredThreads.length ? (
                 filteredThreads.map((thread: ThreadWithReadState) => {
                   const isSelected = thread.id === activeThreadId;
@@ -1202,7 +1227,7 @@ export default function Support() {
                             <span className="size-2 shrink-0 rounded-full bg-primary" />
                           )}
                         </div>
-                        <span
+                        <div
                           className={cn(
                             "mt-1 line-clamp-2 text-xs",
                             isUnread
@@ -1210,8 +1235,12 @@ export default function Support() {
                               : "text-muted-foreground",
                           )}
                         >
-                          {thread.last_message || "No messages yet."}
-                        </span>
+                          <ReactMarkdown
+                            components={TEASER_MARKDOWN_COMPONENTS}
+                          >
+                            {thread.last_message || "No messages yet."}
+                          </ReactMarkdown>
+                        </div>
                         <span className="mt-1 block text-[11px] text-muted-foreground">
                           {thread.total_messages} messages
                         </span>
@@ -1284,9 +1313,8 @@ export default function Support() {
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               {activeThreadId ? (
                 FetchThreadDetailsIsLoading ? (
-                  <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
-                    <Spinner />
-                    Loading conversation…
+                  <div className="flex h-full items-center justify-center">
+                    <LoadingState label="Loading conversation…" />
                   </div>
                 ) : (
                   <div className="flex min-h-0 flex-1 flex-col">
@@ -1355,7 +1383,7 @@ export default function Support() {
             <div className="min-h-0 flex-1 overflow-y-auto">
               {!activeThreadId ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">
-                  Select a conversation to inspect its details.
+                  Select a chat to see customer details.
                 </div>
               ) : (
                 <>
