@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { LoadingState } from "@/components/custom/loading-state";
 import { CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type {
   CartDataResponse,
   UserMetadata,
@@ -66,41 +65,42 @@ export function CartDetailsCard({
       {loading ? (
         <CardLoadingState />
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground italic">
-          No cart data available.
-        </p>
+        <p className="text-sm text-muted-foreground">Cart is empty.</p>
       ) : (
-        items?.map((item: CartData, index: number) => (
-          <div
-            key={index}
-            className="flex items-center justify-between gap-2 text-sm"
-          >
-            <div className="flex items-center gap-2">
-              <Avatar>
-                {item.product_image ? (
-                  <AvatarImage
-                    src={item.product_image}
-                    alt={item.name}
-                    className="h-full w-full object-contain"
-                  />
-                ) : (
-                  <AvatarFallback className="bg-muted text-muted-foreground text-xs">
-                    N/A
-                  </AvatarFallback>
-                )}
-              </Avatar>
-              <span className="flex flex-col items-start gap-2">
-                <span>{item.name}</span>
-                <span className="text-muted-foreground text-xs">
-                  Qty: {item.qty}
-                </span>
+        <div className="flex flex-col gap-2.5">
+          {items.map((item: CartData, index: number) => (
+            <div
+              key={index}
+              className="flex items-center justify-between gap-3 text-sm"
+            >
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-muted">
+                  {item.product_image ? (
+                    // Product images come from arbitrary store CDNs, so
+                    // next/image's domain allowlist can't cover them.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.product_image}
+                      alt={item.name}
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <IconShoppingBag className="size-4 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate">{item.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Qty: {item.qty}
+                  </p>
+                </div>
+              </div>
+              <span className="shrink-0 text-xs font-medium text-foreground">
+                {formatCartPrice(item.price) ?? "-"}
               </span>
             </div>
-            <span className="text-xs text-muted-foreground">
-              {formatCartPrice(item.price) ?? "N/A"}
-            </span>
-          </div>
-        ))
+          ))}
+        </div>
       )}
     </section>
   );
@@ -113,15 +113,14 @@ function MetaRow({
 }: {
   icon: React.ReactNode;
   label: string;
-  value: string;
+  value?: string | null;
 }) {
+  // Icon-only rows: the label survives as a hover tooltip, and missing
+  // values render as "-" so every row keeps its slot.
   return (
-    <div className="flex items-baseline justify-between gap-4 text-sm">
-      <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-        {icon}
-        {label}
-      </span>
-      <span className="min-w-0 text-right wrap-break-word">{value}</span>
+    <div className="flex items-center gap-2.5 text-sm" title={label}>
+      <span className="shrink-0 text-muted-foreground">{icon}</span>
+      <span className="min-w-0 wrap-break-word">{value || "-"}</span>
     </div>
   );
 }
@@ -144,45 +143,41 @@ export function UserMetadataCard({
       {loading ? (
         <CardLoadingState />
       ) : (
-        <div className="flex flex-col gap-2">
-          {customerData?.name && (
-            <MetaRow
-              icon={<IconUser className="size-3.5" />}
-              label="Name"
-              value={customerData.name}
-            />
-          )}
-          {customerData?.email && (
-            <MetaRow
-              icon={<IconMail className="size-3.5" />}
-              label="Email"
-              value={customerData.email}
-            />
-          )}
+        <div className="flex flex-col gap-2.5">
           <MetaRow
-            icon={<IconLocationPin className="size-3.5" />}
+            icon={<IconUser className="size-4" />}
+            label="Name"
+            value={customerData?.name}
+          />
+          <MetaRow
+            icon={<IconMail className="size-4" />}
+            label="Email"
+            value={customerData?.email}
+          />
+          <MetaRow
+            icon={<IconLocationPin className="size-4" />}
             label="Location"
-            value={userMetadata?.geo_location || "Unknown"}
+            value={userMetadata?.geo_location}
           />
           <MetaRow
-            icon={<IconNetwork className="size-3.5" />}
+            icon={<IconNetwork className="size-4" />}
             label="IP Address"
-            value={userMetadata?.ip_address || "Unknown"}
+            value={userMetadata?.ip_address}
           />
           <MetaRow
-            icon={<IconDeviceLaptop className="size-3.5" />}
+            icon={<IconDeviceLaptop className="size-4" />}
             label="Device"
-            value={userMetadata?.device_type || "Unknown"}
+            value={userMetadata?.device_type}
           />
           <MetaRow
-            icon={<IconBrowser className="size-3.5" />}
+            icon={<IconBrowser className="size-4" />}
             label="Browser"
-            value={userMetadata?.browser || "Unknown"}
+            value={userMetadata?.browser}
           />
           <MetaRow
-            icon={<IconDeviceDesktop className="size-3.5" />}
+            icon={<IconDeviceDesktop className="size-4" />}
             label="OS"
-            value={userMetadata?.os || "Unknown"}
+            value={userMetadata?.os}
           />
         </div>
       )}
@@ -481,10 +476,10 @@ export function OrdersCard({
       {loading ? (
         <CardLoadingState />
       ) : !orderList || orderList?.length === 0 ? (
-        <p className="text-sm text-muted-foreground italic">
+        <p className="text-sm text-muted-foreground">
           {!customerData?.email
-            ? "Customer not registered."
-            : "No orders found."}
+            ? "No customer email to match orders."
+            : "No orders yet."}
         </p>
       ) : (
         <div className="space-y-1.5">
