@@ -4,17 +4,6 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
 
-  // Widget customisation moved under Brand Voice; keep old links working.
-  async redirects() {
-    return [
-      {
-        source: "/customisation",
-        destination: "/brand-voice/customisation",
-        permanent: true,
-      },
-    ];
-  },
-
   // src/lib/db.ts reads global-bundle.pem at runtime via a computed path, which
   // output file tracing can't detect — so without this the RDS CA bundle is
   // downloaded at build time but never packaged into the serverless functions
