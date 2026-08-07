@@ -4,26 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useEffect, useMemo, useState } from "react";
 import {
   createMetaOAuthUrl,
   fetchSocialAccountsSubscriptions,
 } from "@/redux/api-slice/social-ai-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import {
-  IconBrandMeta,
-  IconChevronDown,
-  IconPlus,
-  IconRefresh,
-  IconSearch,
-} from "@tabler/icons-react";
+import { IconBrandMeta, IconSearch } from "@tabler/icons-react";
 import { SocialAccountsDataTable } from "./social-accounts-data-table";
 import { SocialAccountsColumns } from "./social-accounts-columns";
 import { SocialAIPlatformOptions } from "@/lib/config";
@@ -86,12 +73,6 @@ export default function SocialAITabContent({
     }
   };
 
-  const handleRefreshAccounts = () => {
-    if (storeCode) {
-      dispatch(fetchSocialAccountsSubscriptions(storeCode));
-    }
-  };
-
   useEffect(() => {
     if (storeCode) {
       dispatch(fetchSocialAccountsSubscriptions(storeCode));
@@ -131,38 +112,13 @@ export default function SocialAITabContent({
   return (
     <div className="flex flex-col gap-6 w-full">
       <div className="flex w-full items-center justify-end gap-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button disabled={FetchMetaOauthURLIsLoading}>
-              <IconPlus className="size-4" />
-              Connect Account
-              <IconChevronDown className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-72">
-            <DropdownMenuItem onClick={handleConnectMeta}>
-              <IconBrandMeta className="size-4" />
-              <div className="flex flex-col">
-                <span className="font-medium">
-                  Connect Meta (Facebook + Instagram)
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  Connect both Facebook & Instagram
-                </span>
-              </div>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleRefreshAccounts}>
-              <IconRefresh className="size-4" />
-              <div className="flex flex-col">
-                <span className="font-medium">Refresh Connected Accounts</span>
-                <span className="text-xs text-muted-foreground">
-                  Sync latest pages & account status
-                </span>
-              </div>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          onClick={handleConnectMeta}
+          disabled={FetchMetaOauthURLIsLoading}
+        >
+          <IconBrandMeta className="size-4" />
+          Connect Meta Account
+        </Button>
       </div>
 
       <div className="flex flex-col gap-4">

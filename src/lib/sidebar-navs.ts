@@ -1,8 +1,5 @@
 import {
-  IconAdjustmentsSpark,
   IconChartDots,
-  IconBan,
-  IconBook2,
   IconBooks,
   IconBrandFacebook,
   IconBrandInstagram,
@@ -10,13 +7,11 @@ import {
   IconBrandMeta,
   IconDashboard,
   IconHeadset,
-  IconImageGeneration,
   IconMessage2,
   IconMessageUser,
   IconPhotoVideo,
   IconSend,
   IconSettings,
-  IconUserHexagon,
   IconVolume,
   IconInbox,
   IconTags,
@@ -75,11 +70,6 @@ export const sidebarMenus: SideBarMenus = {
       title: "Live Support",
       url: "/support",
       icon: IconMessageUser,
-    },
-    {
-      title: "Customisation",
-      url: "/customisation",
-      icon: IconImageGeneration,
     },
     {
       title: "Social AI",
@@ -176,32 +166,8 @@ export const sidebarMenus: SideBarMenus = {
     },
     {
       title: "Brand Voice",
-      url: "#",
+      url: "/brand-voice",
       icon: IconVolume,
-      isMenuHeading: true,
-      isExpanded: true,
-      items: [
-        {
-          title: "Persona Identity",
-          url: "/brand-voice/persona-identity",
-          icon: IconUserHexagon,
-        },
-        {
-          title: "Tone & Style",
-          url: "/brand-voice/tone-and-style",
-          icon: IconAdjustmentsSpark,
-        },
-        {
-          title: "Vocabulary",
-          url: "/brand-voice/vocabulary",
-          icon: IconBook2,
-        },
-        {
-          title: "Never-Say Rules",
-          url: "/brand-voice/never-say-rules",
-          icon: IconBan,
-        },
-      ],
     },
     {
       title: "Settings",

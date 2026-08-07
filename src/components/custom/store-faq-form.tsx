@@ -118,9 +118,7 @@ export default function StoreFaqForm({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="gap-0 sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>
-            {isEditing ? "Edit Quick Q&A" : "Add Quick Q&A"}
-          </SheetTitle>
+          <SheetTitle>{isEditing ? "Edit FAQ" : "Add FAQ"}</SheetTitle>
           <SheetDescription>
             {isEditing
               ? "Update the question and answer your chatbot uses to respond."
