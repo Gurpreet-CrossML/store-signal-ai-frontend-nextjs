@@ -72,8 +72,12 @@ export default function CustomizationActionButtons({
   actionButtons,
   onChange,
 }: CustomizationActionButtonsProps) {
-  const removeButton = (index: number) => {
-    onChange(actionButtons.filter((_, currentIndex) => currentIndex !== index));
+  const removeButton = (button: ActionButton) => {
+    onChange(
+      actionButtons.filter((current) =>
+        button.id != null ? current.id !== button.id : current !== button,
+      ),
+    );
   };
 
   return (
@@ -114,11 +118,11 @@ export default function CustomizationActionButtons({
                 No quick actions yet
               </div>
             ) : (
-              actionButtons.map((button, index) => (
+              actionButtons.map((button) => (
                 <DropdownMenuCheckboxItem
-                  key={button.id ?? index}
+                  key={button.id ?? button.name}
                   checked
-                  onCheckedChange={() => removeButton(index)}
+                  onCheckedChange={() => removeButton(button)}
                   onSelect={(event) => event.preventDefault()}
                 >
                   {button.name}
