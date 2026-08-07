@@ -62,6 +62,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
@@ -517,10 +518,21 @@ export default function Support() {
 
   const { data: session } = useSession();
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // The open chat lives in the URL (?chat=<id>) so conversations can be
+  // shared with teammates and deep-linked directly.
+  const chatParam = searchParams?.get("chat") ?? null;
+
   const wsRef = useRef<WebSocket | null>(null);
   const dashboardWsRef = useRef<WebSocket | null>(null);
   const connectedAgentRef = useRef<string | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
+  // Last ?chat= value already applied to local state — stops the render-time
+  // URL sync from re-applying a stale param right after a click updates
+  // state but before the router has caught up.
+  const [appliedChatParam, setAppliedChatParam] = useState<string | null>(null);
 
   // Generate a unique client ID for this session. This is used to identify messages sent by this client, so we can ignore them when they come back from the server.
   const [clientID] = useState<string | null>(crypto.randomUUID());
@@ -533,15 +545,29 @@ export default function Support() {
     setLocalThreads(normalizeThreads(FetchThreadsListData?.results));
   }
 
+  // No auto-selection: a chat opens only via the ?chat= URL param or a
+  // click, so "no chat selected" is a real state. If the open chat drops
+  // out of the list (e.g. it ended), fall back to that state.
   const selectedThreadStillExists =
     selectedThreadId !== null &&
     localThreads.some((thread) => thread.id === selectedThreadId);
   if (selectedThreadId !== null && !selectedThreadStillExists) {
-    setSelectedThreadId(localThreads[0]?.id ?? null);
+    setSelectedThreadId(null);
   }
-  const activeThreadId = selectedThreadStillExists
-    ? selectedThreadId
-    : (localThreads[0]?.id ?? null);
+  let activeThreadId = selectedThreadStillExists ? selectedThreadId : null;
+
+  // Apply the ?chat= param once the thread list is available — this is what
+  // makes shared conversation links open directly. Same guarded render-time
+  // adjustment pattern as the thread-list sync above; clicks flow the other
+  // way (state → URL) inside handleSelectThread.
+  if (chatParam && !FetchThreadsIsLoading && appliedChatParam !== chatParam) {
+    setAppliedChatParam(chatParam);
+    if (localThreads.some((thread) => thread.id === chatParam)) {
+      setSelectedThreadId(chatParam);
+      setAttachments([]);
+      activeThreadId = chatParam;
+    }
+  }
 
   const playNotificationSound = useNotificationSound();
 
@@ -561,6 +587,14 @@ export default function Support() {
     () => visibleThreads.find((thread) => thread.id === activeThreadId) ?? null,
     [activeThreadId, visibleThreads],
   );
+
+  // A shared ?chat= link pointed at a chat that isn't in the active list
+  // (it ended, or the id is wrong). Only meaningful while nothing is open.
+  const chatNotFound =
+    !activeThreadId &&
+    !!chatParam &&
+    !FetchThreadsIsLoading &&
+    !localThreads.some((thread) => thread.id === chatParam);
 
   const unreadCount = useMemo(
     () => visibleThreads.filter((thread) => thread.is_read === false).length,
@@ -855,21 +889,28 @@ export default function Support() {
     [activeThreadId, uploadAttachments],
   );
 
-  const handleSelectThread = useCallback((threadId: string) => {
-    // Close the previously open thread's chat socket immediately on click,
-    // rather than waiting for the effect below to notice the id changed.
-    wsRef.current?.close();
-    wsRef.current = null;
-    setLocalThreads((prev) =>
-      prev.map((thread) =>
-        thread.id === threadId && thread.is_read === false
-          ? { ...thread, is_read: true }
-          : thread,
-      ),
-    );
-    setSelectedThreadId(threadId);
-    setAttachments([]);
-  }, []);
+  const handleSelectThread = useCallback(
+    (threadId: string) => {
+      // Close the previously open thread's chat socket immediately on click,
+      // rather than waiting for the effect below to notice the id changed.
+      wsRef.current?.close();
+      wsRef.current = null;
+      setLocalThreads((prev) =>
+        prev.map((thread) =>
+          thread.id === threadId && thread.is_read === false
+            ? { ...thread, is_read: true }
+            : thread,
+        ),
+      );
+      setSelectedThreadId(threadId);
+      setAttachments([]);
+      setAppliedChatParam(threadId);
+      router.replace(`${pathname}?chat=${encodeURIComponent(threadId)}`, {
+        scroll: false,
+      });
+    },
+    [router, pathname],
+  );
 
   // Insert or patch a thread in localThreads based on an incoming dashboard
   // "message" event. Existing threads keep their position; brand-new
@@ -1112,11 +1153,12 @@ export default function Support() {
   ]);
 
   const handleOrdersSync = async () => {
+    if (!activeThreadId) return;
     try {
       await dispatch(SyncOrders({ threadID: activeThreadId })).unwrap();
 
       dispatch(FetchOrders(activeThreadId));
-      toast.error("Order Sync", {
+      toast.success("Order Sync", {
         description: "Orders synced successfully.",
       });
     } catch {
@@ -1275,44 +1317,45 @@ export default function Support() {
 
       {/* Conversation + thread details. */}
       <SidebarInset className="min-h-0 overflow-hidden">
-        <div className="flex h-full min-h-0">
-          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-            <header className="flex h-16 shrink-0 items-center border-b bg-background px-4">
-              <div className="flex w-full items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <CustomerAvatar
-                    name={selectedThread?.customer?.name}
-                    online={selectedThread?.is_active}
-                  />
-                  <div className="min-w-0">
-                    <CardTitle className="truncate text-base leading-tight">
-                      {selectedThread?.customer?.name || "Guest"}
-                    </CardTitle>
-                    {selectedThread?.is_active ? (
-                      <p className="text-xs text-muted-foreground">
-                        {connectedAgent
-                          ? "Connected with agent"
-                          : "Assistant ready"}
-                      </p>
-                    ) : null}
+        {activeThreadId ? (
+          <div className="flex h-full min-h-0">
+            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+              <header className="flex h-16 shrink-0 items-center border-b bg-background px-4">
+                <div className="flex w-full items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <CustomerAvatar
+                      name={selectedThread?.customer?.name}
+                      online={selectedThread?.is_active}
+                    />
+                    <div className="min-w-0">
+                      <CardTitle className="truncate text-base leading-tight">
+                        {selectedThread?.customer?.name || "Guest"}
+                      </CardTitle>
+                      {selectedThread?.is_active ? (
+                        <p className="text-xs text-muted-foreground">
+                          {connectedAgent
+                            ? "Connected with agent"
+                            : "Assistant ready"}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
+                  {activeThreadId &&
+                    connectedAgent === session?.user?.email && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleReturnToAI}
+                        disabled={transitionState !== "idle"}
+                      >
+                        <IconRobot className="h-4 w-4" />
+                        Return to AI
+                      </Button>
+                    )}
                 </div>
-                {activeThreadId && connectedAgent === session?.user?.email && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleReturnToAI}
-                    disabled={transitionState !== "idle"}
-                  >
-                    <IconRobot className="h-4 w-4" />
-                    Return to AI
-                  </Button>
-                )}
-              </div>
-            </header>
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              {activeThreadId ? (
-                FetchThreadDetailsIsLoading ? (
+              </header>
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                {FetchThreadDetailsIsLoading ? (
                   <div className="flex h-full items-center justify-center">
                     <LoadingState label="Loading conversation…" />
                   </div>
@@ -1362,52 +1405,52 @@ export default function Support() {
                       />
                     ) : null}
                   </div>
-                )
-              ) : (
-                <div className="flex h-full items-center justify-center p-6 text-center text-sm text-muted-foreground">
-                  Select a chat from the left to view the live conversation.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <aside className="hidden min-h-0 w-95 shrink-0 flex-col border-l xl:flex">
-            <header className="flex h-16 shrink-0 flex-col justify-center border-b px-4">
-              <div className="text-base leading-tight font-medium text-foreground">
-                Customer Details
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Orders, cart, and profile for this conversation.
-              </p>
-            </header>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              {!activeThreadId ? (
-                <div className="p-6 text-center text-sm text-muted-foreground">
-                  Select a chat to see customer details.
-                </div>
-              ) : (
-                <>
-                  <OrdersCard
-                    orders={FetchOrderData}
-                    loading={FetchOrderDataIsLoading}
-                    handleOrdersSync={handleOrdersSync}
-                    orderSyncLoading={SyncOrdersIsLoading}
-                    customerData={selectedThread?.customer || null}
-                  />
-                  <CartDetailsCard
-                    cartData={FetchCartData}
-                    loading={FetchCartDataIsLoading}
-                  />
-                  <UserMetadataCard
-                    userMetadata={FetchUserMetadataData}
-                    customerData={selectedThread?.customer || null}
-                    loading={FetchUserMetadataIsLoading}
-                  />
-                </>
-              )}
             </div>
-          </aside>
-        </div>
+
+            <aside className="hidden min-h-0 w-95 shrink-0 flex-col border-l xl:flex">
+              <header className="flex h-16 shrink-0 flex-col justify-center border-b px-4">
+                <div className="text-base leading-tight font-medium text-foreground">
+                  Customer Details
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Orders, cart, and profile for this conversation.
+                </p>
+              </header>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <OrdersCard
+                  orders={FetchOrderData}
+                  loading={FetchOrderDataIsLoading}
+                  handleOrdersSync={handleOrdersSync}
+                  orderSyncLoading={SyncOrdersIsLoading}
+                  customerData={selectedThread?.customer || null}
+                />
+                <CartDetailsCard
+                  cartData={FetchCartData}
+                  loading={FetchCartDataIsLoading}
+                />
+                <UserMetadataCard
+                  userMetadata={FetchUserMetadataData}
+                  customerData={selectedThread?.customer || null}
+                  loading={FetchUserMetadataIsLoading}
+                />
+              </div>
+            </aside>
+          </div>
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted-foreground">
+            <IconMessage2 className="mb-1 size-6 opacity-40" />
+            <p className="font-medium text-foreground">
+              {chatNotFound ? "Chat not found" : "No chat selected"}
+            </p>
+            <p>
+              {chatNotFound
+                ? "This chat may have ended. Pick another one from the list."
+                : "Select a chat from the list to open the conversation."}
+            </p>
+          </div>
+        )}
       </SidebarInset>
     </SidebarProvider>
   );
