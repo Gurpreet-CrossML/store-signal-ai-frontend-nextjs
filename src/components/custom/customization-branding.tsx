@@ -37,7 +37,6 @@ const CKEditorTextArea = dynamic(
 );
 
 const WELCOME_LIMIT = 500;
-const GREETING_LIMIT = 180;
 
 type CustomizationBrandingProps = {
   logoUrl: string | null;
@@ -58,7 +57,6 @@ export default function CustomizationBranding({
   onLogoUpload,
   onRemoveLogo,
 }: CustomizationBrandingProps) {
-  const greetingLength = greetingMessage.trim().length;
   const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
@@ -178,12 +176,7 @@ export default function CustomizationBranding({
             value={greetingMessage}
             useMarkdown
             onChange={onGreetingChange}
-            disabled={greetingLength >= GREETING_LIMIT}
-            maxLength={GREETING_LIMIT}
           />
-          <FieldDescription className="text-xs">
-            {greetingLength}/{GREETING_LIMIT} characters
-          </FieldDescription>
         </Field>
       </CardContent>
     </Card>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
 import {
   IconChevronDown,
   IconMessageCircle,
@@ -138,22 +137,7 @@ export default function CustomizationActionButtons({
             Add new quick action
           </Typography>
           <AddActionButtonForm
-            onAdd={(button) => {
-              const normalizedName = button.name.trim().toLocaleLowerCase();
-              const isDuplicate = actionButtons.some(
-                (action) =>
-                  action.name.trim().toLocaleLowerCase() === normalizedName,
-              );
-
-              if (isDuplicate) {
-                toast.error("Duplicate quick action", {
-                  description: "Quick action names must be unique.",
-                });
-                return;
-              }
-
-              onChange([...actionButtons, button]);
-            }}
+            onAdd={(button) => onChange([...actionButtons, button])}
           />
         </div>
       </CardContent>

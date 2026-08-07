@@ -8,16 +8,13 @@ export function normalizeUrl(value: string): string {
   return `https://${trimmed}`;
 }
 
-/** True when `value` is a complete HTTP or HTTPS URL. */
+/** True when `value` (after normalisation) is a valid http/https URL. */
 export function isValidUrl(value: string): boolean {
-  const trimmed = value.trim();
-  if (!/^https?:\/\//i.test(trimmed)) return false;
+  const normalized = normalizeUrl(value);
+  if (!normalized) return false;
   try {
-    const url = new URL(trimmed);
-    return (
-      (url.protocol === "http:" || url.protocol === "https:") &&
-      Boolean(url.hostname)
-    );
+    const url = new URL(normalized);
+    return url.protocol === "http:" || url.protocol === "https:";
   } catch {
     return false;
   }

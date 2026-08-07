@@ -34,7 +34,6 @@ const DEFAULT_SECONDARY = "#f3f4f6";
 const DEFAULT_TERTIARY = "#dfe6e9";
 const DEFAULT_WELCOME = "What are you shopping for today?";
 const DEFAULT_GREETING = "Hi there! How can I help you today?";
-const GREETING_MESSAGE_LIMIT = 180;
 
 export default function Customization() {
   const dispatch = useAppDispatch();
@@ -269,13 +268,6 @@ export default function Customization() {
       });
       return;
     }
-    if (greetingMessage.trim().length > GREETING_MESSAGE_LIMIT) {
-      toast.error("Greeting is too long", {
-        description: `Greeting message cannot exceed ${GREETING_MESSAGE_LIMIT} characters.`,
-      });
-      return;
-    }
-
     const quickActions: WidgetQuickAction[] = actionButtons.map((button) => ({
       ...(button.id != null ? { id: button.id } : {}),
       name: button.name,
@@ -285,7 +277,7 @@ export default function Customization() {
       (link) => ({
         ...(link.id != null ? { id: link.id } : {}),
         name: link.label.trim(),
-        url: normalizeUrl(link.url),
+        url: link.url.trim(),
         priority: link.priority,
         is_active: link.active,
       }),
@@ -366,10 +358,7 @@ export default function Customization() {
             type="button"
             size="lg"
             onClick={handleSaveAll}
-            disabled={
-              savingAll ||
-              greetingMessage.trim().length > GREETING_MESSAGE_LIMIT
-            }
+            disabled={savingAll}
           >
             {savingAll ? (
               <Spinner data-icon="inline-start" />
