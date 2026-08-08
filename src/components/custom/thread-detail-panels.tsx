@@ -509,11 +509,7 @@ export function OrdersCard({
                       <p className="truncate text-xs font-semibold text-foreground">
                         #{order.order_number}
                       </p>
-                      <FulfillmentBadge
-                        status={
-                          order?.fulfillment_status?.toLocaleLowerCase() || null
-                        }
-                      />
+                      <FulfillmentBadge status={order.fulfillment_status} />
                     </div>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
                       {formatDate(order.created_at)} · {order.items.length} item
