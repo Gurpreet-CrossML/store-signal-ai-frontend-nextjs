@@ -1,3 +1,5 @@
+import { Badge } from "@/components/ui/badge";
+
 // Shopify's financial_status values. Not every store will hit every one of
 // these, but they're all valid values the API can return.
 type FinancialStatus =
@@ -16,33 +18,49 @@ type FinancialStatus =
 // #1003 in the sample response.
 type FulfillmentStatus = "fulfilled" | "partial" | "restocked" | null;
 
-const FINANCIAL_STATUS_STYLES: Record<FinancialStatus, string> = {
-  paid: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  partially_paid:
-    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  pending:
-    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  authorized: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
-  partially_refunded:
-    "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-  refunded: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
-  voided: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
-  unpaid: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
-  expired:
-    "bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300",
+/**
+ * Shared tone palette so a given meaning always looks the same, whichever
+ * badge renders it: settled money and shipped goods read green, anything
+ * awaiting action reads amber, money lost reads red.
+ */
+type Tone = "success" | "warning" | "info" | "danger" | "neutral";
+
+/**
+ * Statuses don't arrive in a consistent shape — Shopify sends "paid" and
+ * "partially_paid", other platforms send "Paid" or "Partially Paid". Fold
+ * them all to the snake_case lowercase key the tables below are written in,
+ * otherwise a recognized status silently renders as an unknown one.
+ */
+function statusKey(status: string): string {
+  return status
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+const TONE_STYLES: Record<Tone, string> = {
+  success:
+    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300",
+  warning:
+    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300",
+  info: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-300",
+  danger:
+    "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300",
+  neutral: "border-border bg-muted text-muted-foreground",
 };
 
-const FINANCIAL_STATUS_LABELS: Record<FinancialStatus, string> = {
-  paid: "Paid",
-  partially_paid: "Partially paid",
-  pending: "Pending",
-  authorized: "Authorized",
-  partially_refunded: "Partially refunded",
-  refunded: "Refunded",
-  voided: "Voided",
-  unpaid: "Unpaid",
-  expired: "Expired",
-};
+const FINANCIAL_STATUS: Record<FinancialStatus, { tone: Tone; label: string }> =
+  {
+    paid: { tone: "success", label: "Paid" },
+    partially_paid: { tone: "warning", label: "Partially paid" },
+    pending: { tone: "warning", label: "Pending" },
+    authorized: { tone: "info", label: "Authorized" },
+    partially_refunded: { tone: "warning", label: "Partially refunded" },
+    refunded: { tone: "danger", label: "Refunded" },
+    voided: { tone: "danger", label: "Voided" },
+    unpaid: { tone: "danger", label: "Unpaid" },
+    expired: { tone: "neutral", label: "Expired" },
+  };
 
 /**
  * Badge for `order.financial_status` (e.g. "paid", "partially_paid").
@@ -54,33 +72,24 @@ const FINANCIAL_STATUS_LABELS: Record<FinancialStatus, string> = {
 export function StatusBadge({ status }: { status: string | null }) {
   if (!status) return null;
 
-  const isKnown = status in FINANCIAL_STATUS_STYLES;
-  const style = isKnown
-    ? FINANCIAL_STATUS_STYLES[status as FinancialStatus]
-    : "bg-muted text-muted-foreground";
-  const label = isKnown
-    ? FINANCIAL_STATUS_LABELS[status as FinancialStatus]
-    : status.replace(/_/g, " ");
+  const known = FINANCIAL_STATUS[statusKey(status) as FinancialStatus];
+  const tone = known?.tone ?? "neutral";
+  const label = known?.label ?? status.replace(/_/g, " ");
 
   return (
-    <span
-      className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${style}`}
-    >
+    <Badge variant="outline" className={`capitalize ${TONE_STYLES[tone]}`}>
       {label}
-    </span>
+    </Badge>
   );
 }
 
-const FULFILLMENT_STATUS_STYLES: Record<
+const FULFILLMENT_STATUS: Record<
   Exclude<FulfillmentStatus, null>,
-  string
+  { tone: Tone; label: string }
 > = {
-  fulfilled:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  partial:
-    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  restocked:
-    "bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300",
+  fulfilled: { tone: "success", label: "Fulfilled" },
+  partial: { tone: "warning", label: "Partially fulfilled" },
+  restocked: { tone: "neutral", label: "Restocked" },
 };
 
 /**
@@ -88,21 +97,21 @@ const FULFILLMENT_STATUS_STYLES: Record<
  * in Shopify's model (there's no explicit "unfulfilled" string), so this
  * renders an explicit "Unfulfilled" badge for null rather than hiding it —
  * that's a meaningful state for a customer-support view, not an absence
- * of data.
+ * of data. It stays neutral so shipped orders are the ones that stand out.
  */
 export function FulfillmentBadge({ status }: { status: string | null }) {
-  const isKnown = status !== null && status in FULFILLMENT_STATUS_STYLES;
-
-  const style = isKnown
-    ? FULFILLMENT_STATUS_STYLES[status as Exclude<FulfillmentStatus, null>]
-    : "bg-muted text-muted-foreground";
-  const label = isKnown ? (status as string).replace(/_/g, " ") : "Unfulfilled";
+  const known =
+    status === null
+      ? undefined
+      : FULFILLMENT_STATUS[
+          statusKey(status) as Exclude<FulfillmentStatus, null>
+        ];
+  const tone = known?.tone ?? "neutral";
+  const label = known?.label ?? (status ?? "Unfulfilled").replace(/_/g, " ");
 
   return (
-    <span
-      className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${style}`}
-    >
+    <Badge variant="outline" className={`capitalize ${TONE_STYLES[tone]}`}>
       {label}
-    </span>
+    </Badge>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LoadingState } from "@/components/custom/loading-state";
 import { CardTitle } from "@/components/ui/card";
+import { Typography } from "@/components/ui/typography";
 import type {
   CartDataResponse,
   UserMetadata,
@@ -65,13 +66,13 @@ export function CartDetailsCard({
       {loading ? (
         <CardLoadingState />
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Cart is empty.</p>
+        <Typography variant="muted">Cart is empty.</Typography>
       ) : (
         <div className="flex flex-col gap-2.5">
           {items.map((item: CartData, index: number) => (
             <div
               key={index}
-              className="flex items-center justify-between gap-3 text-sm"
+              className="flex items-center justify-between gap-3"
             >
               <div className="flex min-w-0 items-center gap-2.5">
                 <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-muted">
@@ -89,15 +90,17 @@ export function CartDetailsCard({
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate">{item.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <Typography variant="small" as="p" className="truncate">
+                    {item.name}
+                  </Typography>
+                  <Typography variant="muted" className="mt-0.5">
                     Qty: {item.qty}
-                  </p>
+                  </Typography>
                 </div>
               </div>
-              <span className="shrink-0 text-xs font-medium text-foreground">
+              <Typography variant="small" as="span" className="shrink-0">
                 {formatCartPrice(item.price) ?? "-"}
-              </span>
+              </Typography>
             </div>
           ))}
         </div>
@@ -118,9 +121,15 @@ function MetaRow({
   // Icon-only rows: the label survives as a hover tooltip, and missing
   // values render as "-" so every row keeps its slot.
   return (
-    <div className="flex items-center gap-2.5 text-sm" title={label}>
+    <div className="flex items-center gap-2.5" title={label}>
       <span className="shrink-0 text-muted-foreground">{icon}</span>
-      <span className="min-w-0 wrap-break-word">{value || "-"}</span>
+      <Typography
+        variant="small"
+        as="span"
+        className="min-w-0 leading-normal font-normal wrap-break-word"
+      >
+        {value || "-"}
+      </Typography>
     </div>
   );
 }
@@ -231,30 +240,31 @@ function ShippingAddress({
   address: OrderShippingAddress | null;
 }) {
   if (!address) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        No shipping address on file
-      </p>
-    );
+    return <Typography variant="muted">No shipping address on file</Typography>;
   }
 
   const { recipient, lines } = formatShippingAddress(address);
 
   if (!recipient && lines.length === 0) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        No shipping address on file
-      </p>
-    );
+    return <Typography variant="muted">No shipping address on file</Typography>;
   }
 
   return (
-    <div className="text-xs font-medium text-foreground">
-      {recipient && <p>{recipient}</p>}
+    <div>
+      {recipient && (
+        <Typography variant="small" as="p" className="leading-normal">
+          {recipient}
+        </Typography>
+      )}
       {lines.map((line, idx) => (
-        <p key={idx} className="text-muted-foreground">
+        <Typography
+          key={idx}
+          variant="small"
+          as="p"
+          className="leading-normal font-normal"
+        >
           {line}
-        </p>
+        </Typography>
       ))}
     </div>
   );
@@ -345,13 +355,32 @@ function getPriceBreakdownRows(
   return rows;
 }
 
+function DetailRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <Typography variant="muted" className="shrink-0">
+        {label}
+      </Typography>
+      <div className="flex min-w-0 justify-end wrap-anywhere">{children}</div>
+    </div>
+  );
+}
+
 function OrderDetails({ order }: { order: OrderData }) {
   const breakdownRows = getPriceBreakdownRows(order);
 
   return (
-    <div className="mt-1.5 space-y-3 rounded-xl border border-border/50 bg-muted/20 p-3">
+    <div className="space-y-3 border-t border-border/50 p-3">
       <div>
-        <p className="text-[11px] font-medium text-muted-foreground">Items</p>
+        <Typography variant="muted" className="font-medium">
+          Items
+        </Typography>
         <div className="mt-1.5 space-y-2">
           {order.items.map((item, idx) => {
             const unitPrice =
@@ -363,16 +392,26 @@ function OrderDetails({ order }: { order: OrderData }) {
                 : unitPrice * item.quantity);
 
             return (
-              <div key={idx} className="text-xs">
+              <div key={idx}>
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-foreground">{item.name}</span>
-                  <span className="shrink-0 font-medium text-foreground">
+                  <Typography
+                    variant="small"
+                    as="span"
+                    className="leading-normal font-normal"
+                  >
+                    {item.name}
+                  </Typography>
+                  <Typography variant="small" as="span" className="shrink-0">
                     {formatPrice(lineTotal, order.currency)}
-                  </span>
+                  </Typography>
                 </div>
                 {/* Wraps onto its own line on narrow screens instead of
                     overflowing the card. */}
-                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                <Typography
+                  variant="muted"
+                  as="div"
+                  className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5"
+                >
                   <span>
                     {formatPrice(item.price, order.currency)} × {item.quantity}
                   </span>
@@ -384,7 +423,7 @@ function OrderDetails({ order }: { order: OrderData }) {
                       · Tax {formatPrice(item.total_tax_price, order.currency)}
                     </span>
                   )}
-                </div>
+                </Typography>
               </div>
             );
           })}
@@ -392,45 +431,73 @@ function OrderDetails({ order }: { order: OrderData }) {
       </div>
 
       {breakdownRows.length > 0 && (
-        <div className="space-y-1 border-t border-border/50 pt-2.5">
-          {breakdownRows.map((row) => (
-            <div
-              key={row.label}
-              className="flex items-center justify-between text-[11px]"
-            >
-              <span className="text-muted-foreground">{row.label}</span>
-              <span className="font-medium text-foreground">{row.value}</span>
-            </div>
-          ))}
+        <div className="space-y-1.5 border-t border-border/50 pt-2.5">
+          {breakdownRows.map((row) => {
+            const isTotal = row.label === "Total";
+            const isDiscount = row.label === "Discount";
+
+            return (
+              <div
+                key={row.label}
+                className={
+                  isTotal
+                    ? "mt-1 flex items-center justify-between border-t border-border/50 pt-2"
+                    : "flex items-center justify-between"
+                }
+              >
+                <Typography variant={isTotal ? "large" : "muted"} as="span">
+                  {row.label}
+                </Typography>
+                <Typography
+                  variant={isTotal ? "large" : "small"}
+                  as="span"
+                  className={
+                    isTotal
+                      ? "text-primary"
+                      : isDiscount
+                        ? "text-emerald-600 dark:text-emerald-500"
+                        : undefined
+                  }
+                >
+                  {row.value}
+                </Typography>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 border-t border-border/50 pt-2.5">
-        <div>
-          <p className="text-[11px] text-muted-foreground">Payment</p>
-          <p className="text-xs font-medium text-foreground capitalize">
+      {/* Same label-left / value-right rhythm as the price rows above, so
+          the status badge lands in the value column instead of floating
+          under its label. */}
+      <div className="space-y-2 border-t border-border/50 pt-2.5">
+        <DetailRow label="Payment">
+          <Typography variant="small" as="span" className="capitalize">
             {order.gateway}
-          </p>
-        </div>
-        <div>
-          <p className="text-[11px] text-muted-foreground">Payment Status</p>
-          <div className="mt-0.5">
-            <StatusBadge status={order.financial_status} />
-          </div>
-        </div>
+          </Typography>
+        </DetailRow>
+        <DetailRow label="Payment Status">
+          <StatusBadge status={order.financial_status} />
+        </DetailRow>
         {order.shipping_method && (
-          <div className="col-span-2">
-            <p className="text-[11px] text-muted-foreground">Shipping Method</p>
-            <p className="mt-0.5 text-xs font-medium text-foreground break-words [overflow-wrap:anywhere]">
+          <DetailRow label="Shipping Method">
+            <Typography
+              variant="small"
+              as="span"
+              className="text-right capitalize"
+            >
               {order.shipping_method.replace(/_/g, " ")}
-            </p>
-          </div>
+            </Typography>
+          </DetailRow>
         )}
-        <div className="col-span-2">
-          <p className="text-[11px] text-muted-foreground">Shipping Address</p>
-          <div className="mt-0.5">
-            <ShippingAddress address={order.shipping_address} />
-          </div>
+      </div>
+
+      <div className="border-t border-border/50 pt-2.5">
+        <Typography variant="muted" className="font-medium">
+          Shipping Address
+        </Typography>
+        <div className="mt-1">
+          <ShippingAddress address={order.shipping_address} />
         </div>
       </div>
     </div>
@@ -476,25 +543,30 @@ export function OrdersCard({
       {loading ? (
         <CardLoadingState />
       ) : !orderList || orderList?.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <Typography variant="muted">
           {!customerData?.email
             ? "No customer email to match orders."
             : "No orders yet."}
-        </p>
+        </Typography>
       ) : (
-        <div className="space-y-1.5">
+        <div className="flex flex-col gap-2">
           {orderList?.map((order) => {
             const isExpanded = expandedId === order.id;
 
             return (
-              <div key={order.id}>
+              // One box per order: the details continue inside this same
+              // container rather than opening a second box beneath it.
+              <div
+                key={order.id}
+                className={`overflow-hidden rounded-xl border transition ${
+                  isExpanded ? "border-primary/40" : "border-border/50"
+                }`}
+              >
                 <button
                   type="button"
                   onClick={() => toggleOrder(order.id)}
-                  className={`flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition ${
-                    isExpanded
-                      ? "border-primary/40 bg-primary/[0.04]"
-                      : "border-border/50 hover:bg-muted/50"
+                  className={`flex w-full items-center gap-3 p-2.5 text-left transition ${
+                    isExpanded ? "bg-primary/4" : "hover:bg-muted/50"
                   }`}
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
@@ -502,20 +574,28 @@ export function OrdersCard({
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="truncate text-xs font-semibold text-foreground">
+                      <Typography
+                        variant="small"
+                        as="p"
+                        className="truncate leading-normal"
+                      >
                         #{order.order_number}
-                      </p>
+                      </Typography>
                       <FulfillmentBadge status={order.fulfillment_status} />
                     </div>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    <Typography variant="muted" className="mt-0.5">
                       {formatDate(order.created_at)} · {order.items.length} item
                       {order.items.length !== 1 ? "s" : ""}
-                    </p>
+                    </Typography>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    <span className="text-xs font-semibold text-primary">
+                    <Typography
+                      variant="small"
+                      as="span"
+                      className="text-primary"
+                    >
                       {formatPrice(order.total_price, order.currency)}
-                    </span>
+                    </Typography>
                     <IconChevronRight
                       className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
                         isExpanded ? "rotate-90" : ""
