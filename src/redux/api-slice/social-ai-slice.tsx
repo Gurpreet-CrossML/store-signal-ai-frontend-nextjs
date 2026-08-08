@@ -8,6 +8,28 @@ import { ENDPOINTS } from "@/lib/config";
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
 
+/**
+ * One page size for every social list. Filtering and searching are the
+ * backend's job throughout — these thunks only ever forward the params.
+ */
+export const SOCIAL_PAGE_SIZE = 25;
+
+/**
+ * Merge a paged response into the slot. Page 1 replaces (a new search or
+ * filter), later pages append — that's what makes infinite scroll additive
+ * rather than a flicker back to the top.
+ */
+function mergePage<
+  T,
+  R extends { results: T[]; count: number; next?: string | null },
+>(existing: R | undefined, incoming: R, page: number): R {
+  if (page <= 1) return incoming;
+  return {
+    ...incoming,
+    results: [...(existing?.results ?? []), ...(incoming.results ?? [])],
+  };
+}
+
 type MetaOAuthUrlResponse = {
   authorize_url: string;
 };
@@ -85,6 +107,7 @@ export type SocialCommentAnalysis = {
   topic_labels: string[];
   sentiment: string;
   sentiment_label: string;
+  is_sarcastic: boolean;
   is_spam: boolean;
   is_critical: boolean;
   confidence: number | null;
@@ -244,12 +267,48 @@ export const fetchSocialPosts = createAsyncThunk(
       storeCode,
       accountId,
       channelType,
-    }: { storeCode: string; accountId: string; channelType?: string },
+      page = 1,
+      pageSize = SOCIAL_PAGE_SIZE,
+      search,
+      minLikes,
+      maxLikes,
+      minComments,
+      maxComments,
+      from,
+      to,
+    }: {
+      storeCode: string;
+      accountId: string;
+      channelType?: string;
+      page?: number;
+      pageSize?: number;
+      search?: string;
+      minLikes?: number;
+      maxLikes?: number;
+      minComments?: number;
+      maxComments?: number;
+      from?: string;
+      to?: string;
+    },
     thunkAPI,
   ) => {
     try {
+      const params = new URLSearchParams({
+        store_code: storeCode,
+        page: String(page),
+        page_size: String(pageSize),
+      });
+      if (channelType) params.set("channel_type", channelType);
+      if (search) params.set("search", search);
+      if (minLikes != null) params.set("min_likes", String(minLikes));
+      if (maxLikes != null) params.set("max_likes", String(maxLikes));
+      if (minComments != null) params.set("min_comments", String(minComments));
+      if (maxComments != null) params.set("max_comments", String(maxComments));
+      if (from) params.set("posted_from", from);
+      if (to) params.set("posted_to", to);
+
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchSocialPosts({ accountId })}?store_code=${storeCode}${channelType ? `&channel_type=${channelType}` : ""}`,
+        `${ENDPOINTS.fetchSocialPosts({ accountId })}?${params.toString()}`,
         {
           useBackend: true,
         },
@@ -277,9 +336,14 @@ export const fetchPostComments = createAsyncThunk(
       storeCode,
       postId,
       page = 1,
-      pageSize = 15,
+      pageSize = SOCIAL_PAGE_SIZE,
       parentId,
-      topic,
+      topics,
+      intent,
+      sentiment,
+      sarcastic,
+      critical,
+      spam,
     }: {
       storeCode: string;
       // The post's external Graph id (SocialPost.external_id).
@@ -287,13 +351,33 @@ export const fetchPostComments = createAsyncThunk(
       page?: number;
       pageSize?: number;
       parentId?: number;
-      topic?: string;
+      // AI-tag filters, all resolved by the backend.
+      topics?: string[];
+      intent?: string;
+      sentiment?: string;
+      sarcastic?: boolean;
+      critical?: boolean;
+      spam?: boolean;
     },
     thunkAPI,
   ) => {
     try {
+      const params = new URLSearchParams({
+        store_code: storeCode,
+        page: String(page),
+        page_size: String(pageSize),
+      });
+      if (parentId) params.set("parent", String(parentId));
+      // Repeated `topic` params — a comment matches any of them.
+      topics?.forEach((topic) => params.append("topic", topic));
+      if (intent) params.set("intent", intent);
+      if (sentiment) params.set("sentiment", sentiment);
+      if (sarcastic) params.set("is_sarcastic", "true");
+      if (critical) params.set("is_critical", "true");
+      if (spam) params.set("is_spam", "true");
+
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchPostComments({ postId })}?store_code=${storeCode}&page=${page}&page_size=${pageSize}${parentId ? `&parent=${parentId}` : ""}${topic ? `&topic=${encodeURIComponent(topic)}` : ""}`,
+        `${ENDPOINTS.fetchPostComments({ postId })}?${params.toString()}`,
         {
           useBackend: true,
         },
@@ -352,7 +436,7 @@ export const fetchSocialUsers = createAsyncThunk(
       storeCode,
       accountId,
       page = 1,
-      pageSize = 50,
+      pageSize = SOCIAL_PAGE_SIZE,
       search,
     }: {
       storeCode: string;
@@ -396,7 +480,7 @@ export const fetchSocialDms = createAsyncThunk(
       accountId,
       userId,
       page = 1,
-      pageSize = 50,
+      pageSize = SOCIAL_PAGE_SIZE,
     }: {
       storeCode: string;
       // The connected account's external Graph id (ConnectedAccount.external_id).
@@ -810,7 +894,11 @@ const SocialAISlice = createSlice({
       .addCase(fetchSocialPosts.fulfilled, (state, action) => {
         state.FetchSocialPostsState.FetchSocialPostsIsLoading = false;
         state.FetchSocialPostsState.FetchSocialPostsIsSuccess = true;
-        state.FetchSocialPostsState.FetchSocialPostsData = action.payload;
+        state.FetchSocialPostsState.FetchSocialPostsData = mergePage(
+          state.FetchSocialPostsState.FetchSocialPostsData,
+          action.payload,
+          action.meta.arg.page ?? 1,
+        );
       })
       .addCase(fetchSocialPosts.rejected, (state, action) => {
         state.FetchSocialPostsState.FetchSocialPostsIsLoading = false;
@@ -827,7 +915,11 @@ const SocialAISlice = createSlice({
       .addCase(fetchSocialUsers.fulfilled, (state, action) => {
         state.FetchSocialUsersState.FetchSocialUsersIsLoading = false;
         state.FetchSocialUsersState.FetchSocialUsersIsSuccess = true;
-        state.FetchSocialUsersState.FetchSocialUsersData = action.payload;
+        state.FetchSocialUsersState.FetchSocialUsersData = mergePage(
+          state.FetchSocialUsersState.FetchSocialUsersData,
+          action.payload,
+          action.meta.arg.page ?? 1,
+        );
       })
       .addCase(fetchSocialUsers.rejected, (state, action) => {
         state.FetchSocialUsersState.FetchSocialUsersIsLoading = false;
@@ -844,7 +936,11 @@ const SocialAISlice = createSlice({
       .addCase(fetchPostComments.fulfilled, (state, action) => {
         state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
         state.FetchPostCommentsState.FetchPostCommentsIsSuccess = true;
-        state.FetchPostCommentsState.FetchPostCommentsData = action.payload;
+        state.FetchPostCommentsState.FetchPostCommentsData = mergePage(
+          state.FetchPostCommentsState.FetchPostCommentsData,
+          action.payload,
+          action.meta.arg.page ?? 1,
+        );
       })
       .addCase(fetchPostComments.rejected, (state, action) => {
         state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
@@ -876,7 +972,11 @@ const SocialAISlice = createSlice({
       .addCase(fetchSocialDms.fulfilled, (state, action) => {
         state.FetchSocialDmsState.FetchSocialDmsIsLoading = false;
         state.FetchSocialDmsState.FetchSocialDmsIsSuccess = true;
-        state.FetchSocialDmsState.FetchSocialDmsData = action.payload;
+        state.FetchSocialDmsState.FetchSocialDmsData = mergePage(
+          state.FetchSocialDmsState.FetchSocialDmsData,
+          action.payload,
+          action.meta.arg.page ?? 1,
+        );
       })
       .addCase(fetchSocialDms.rejected, (state, action) => {
         state.FetchSocialDmsState.FetchSocialDmsIsLoading = false;
