@@ -1,4 +1,8 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import {
+  createAsyncThunk,
+  createSlice,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
 import { axiosInstance } from "../axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { isAxiosError } from "axios";
@@ -142,6 +146,21 @@ export type SocialDmReplyTo = {
   sender_name: string | null;
 };
 
+// One piece of media on a DM, in send order. An attachment-only message
+// has empty `content` and one or more of these.
+export type SocialDmAttachment = {
+  id: number;
+  // "image" | "video" | "audio" | "file" | "sticker" | "share" | "other"
+  attachment_type: string;
+  position: number;
+  // Meta CDN URL — signed and expiring (see expires_at). Blank for payload
+  // shapes that carry no URL of their own.
+  url: string;
+  title: string;
+  sticker_id: string;
+  expires_at: string | null;
+};
+
 export type SocialDm = {
   id: number;
   external_message_id: string;
@@ -152,6 +171,9 @@ export type SocialDm = {
   external_created_at: string | null;
   owner_reaction: string | null;
   reply_to: SocialDmReplyTo | null;
+  // Absent on older payloads; the websocket broadcast also fires before
+  // attachments are synced, so never assume this is populated.
+  attachments?: SocialDmAttachment[];
 };
 
 export type SocialDmsResponse = {
@@ -507,21 +529,42 @@ export const replyToMetaMessage = createAsyncThunk(
       messageId,
       message,
       isExplicitReply = true,
+      attachments,
     }: {
       storeCode: string;
       userId: number;
       messageId: number;
       message: string;
       isExplicitReply?: boolean;
+      attachments?: File[];
     },
     thunkAPI,
   ) => {
     try {
-      const response = await axiosInstance.post(
-        `${ENDPOINTS.replyMessage({ userId, messageId })}?store_code=${storeCode}`,
-        { message, is_explicit_reply: isExplicitReply },
-        { useBackend: true },
-      );
+      const url = `${ENDPOINTS.replyMessage({ userId, messageId })}?store_code=${storeCode}`;
+
+      // With media the request has to be multipart; the JSON body stays the
+      // shape it always was when there's nothing to upload.
+      const response = attachments?.length
+        ? await axiosInstance.post(
+            url,
+            (() => {
+              const form = new FormData();
+              form.append("message", message);
+              form.append("is_explicit_reply", String(isExplicitReply));
+              attachments.forEach((file) => form.append("attachments", file));
+              return form;
+            })(),
+            {
+              useBackend: true,
+              headers: { "Content-Type": "multipart/form-data" },
+            },
+          )
+        : await axiosInstance.post(
+            url,
+            { message, is_explicit_reply: isExplicitReply },
+            { useBackend: true },
+          );
       return response.data;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -679,7 +722,50 @@ const SocialAISlice = createSlice({
       FetchSocialDmsData: {} as SocialDmsResponse,
     },
   },
-  reducers: {},
+  reducers: {
+    /**
+     * A DM that arrived over the websocket, for the conversation currently
+     * loaded. Deduped by id: the same row can arrive twice when a refetch
+     * races the broadcast, and our own outgoing replies come back through
+     * the same store-wide stream.
+     */
+    socialDmReceived(state, action: PayloadAction<SocialDm>) {
+      const dms = state.FetchSocialDmsState.FetchSocialDmsData;
+      if (!dms?.results) return;
+      if (dms.results.some((msg) => msg.id === action.payload.id)) return;
+      // The messages endpoint is oldest-first, so a new one belongs at the end.
+      dms.results.push(action.payload);
+      dms.count = (dms.count ?? dms.results.length - 1) + 1;
+    },
+
+    /**
+     * Refresh a conversation row's preview when a message arrives for it,
+     * and float it to the top so the list stays newest-first like the API
+     * returns it.
+     */
+    socialConversationTouched(
+      state,
+      action: PayloadAction<{
+        userId: number;
+        lastMessage: string;
+        lastMessageAt: string | null;
+      }>,
+    ) {
+      const users = state.FetchSocialUsersState.FetchSocialUsersData;
+      if (!users?.results) return;
+      const index = users.results.findIndex(
+        (user) => user.id === action.payload.userId,
+      );
+      // An unknown contact means a brand-new conversation — the list has to
+      // be refetched to get their profile, which the screen handles.
+      if (index === -1) return;
+
+      const [user] = users.results.splice(index, 1);
+      user.last_message = action.payload.lastMessage;
+      user.last_message_at = action.payload.lastMessageAt;
+      users.results.unshift(user);
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(createMetaOAuthUrl.pending, (state) => {
@@ -893,5 +979,8 @@ const SocialAISlice = createSlice({
       });
   },
 });
+
+export const { socialDmReceived, socialConversationTouched } =
+  SocialAISlice.actions;
 
 export default SocialAISlice.reducer;

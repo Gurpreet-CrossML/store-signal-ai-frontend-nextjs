@@ -48,6 +48,11 @@ export const ENDPOINTS = {
   dashboardSocket: (storeCode: string, token: string) =>
     createWebSocketUrl(`/support/dashboard/${storeCode}/?token=${token}`),
 
+  // Social AI Websocket (Django) — read-only stream of new DMs, new
+  // comments, and comment tagging for every connected account on the store.
+  socialSocket: (storeCode: string, token: string) =>
+    createWebSocketUrl(`/social/${storeCode}/?token=${token}`),
+
   // Image upload (Django) — POST multipart/form-data to this endpoint, then
   // use the returned URL in a message payload.
   uploadAttachments: () =>
