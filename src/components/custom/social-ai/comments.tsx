@@ -34,9 +34,59 @@ import { toast } from "sonner";
 import { useAccountIdentity, useChannel } from "./channel-context";
 import { ExpandableText } from "./expandable-text";
 import { formatPostedAt, formatRelativeTime } from "./format";
+import {
+  createPendingSend,
+  PendingSendStatus,
+  type PendingSend,
+} from "./pending-send";
 import { ReplyBox } from "./reply-box";
+import { useSocialSocket, type SocialSocketEvent } from "./use-social-socket";
 
 const COMMENTS_PAGE_SIZE = 15;
+
+/**
+ * A reply the agent has submitted that isn't confirmed yet. Same shape as a
+ * real comment row but dimmed, with the send status underneath.
+ */
+function PendingCommentRow({
+  pending,
+  name,
+  avatarUrl,
+  onRetry,
+}: {
+  pending: PendingSend;
+  name: string;
+  avatarUrl?: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <Avatar
+        size="sm"
+        className={pending.status === "failed" ? "" : "opacity-60"}
+      >
+        {avatarUrl ? (
+          <AvatarImage src={avatarUrl} alt={name} />
+        ) : (
+          <AvatarFallback className="font-medium">
+            {name.charAt(0).toUpperCase()}
+          </AvatarFallback>
+        )}
+      </Avatar>
+      <div className="min-w-0 flex-1">
+        <div className="inline-block max-w-full rounded-lg bg-muted px-3 py-2 text-muted-foreground">
+          <p className="text-[13px] leading-tight font-semibold">{name}</p>
+          <p className="mt-0.5 text-sm wrap-break-word">{pending.content}</p>
+        </div>
+        <PendingSendStatus
+          status={pending.status}
+          onRetry={onRetry}
+          className="mt-1"
+        />
+      </div>
+    </div>
+  );
+}
 
 // CommentItem and CommentsList are mutually recursive (a comment lazily
 // renders its replies as a nested list), so they live in one file.
@@ -93,6 +143,9 @@ function CommentItem({
     comment.reply_count ?? 0,
   );
   const [menuBusy, setMenuBusy] = useState(false);
+  // Replies submitted but not yet confirmed — rendered under the thread so
+  // the text never disappears while the request is in flight.
+  const [pendingReplies, setPendingReplies] = useState<PendingSend[]>([]);
   // There's no unlike endpoint — once liked (locally or per owner_liked
   // from the server), the state only ever moves forward.
   const [optimisticLiked, setOptimisticLiked] = useState(false);
@@ -111,25 +164,76 @@ function CommentItem({
     ? account.profilePictureUrl
     : author?.profile_picture_url;
 
-  const handleReplySubmit = async (text: string) => {
+  const sendReply = async (pending: PendingSend) => {
     try {
       await dispatch(
         replyToMetaComment({
           storeCode,
           postId,
           commentId: comment.id,
-          message: text,
+          message: pending.content,
         }),
       ).unwrap();
-      toast.success("Reply sent.");
-      setShowReplyBox(false);
       setLocalReplyCount((count) => count + 1);
-      setShowReplies(true);
       setRepliesRefreshKey((key) => key + 1);
+      // The reply is normally cleared by its own websocket echo. If the
+      // stream is down, this drops it once the refreshed list has had time
+      // to load rather than leaving "Sending…" on screen forever.
+      setTimeout(() => {
+        setPendingReplies((prev) =>
+          prev.filter((item) => item.tempId !== pending.tempId),
+        );
+      }, 6_000);
     } catch {
       // The thunk already surfaces the error toast.
+      setPendingReplies((prev) =>
+        prev.map((item) =>
+          item.tempId === pending.tempId
+            ? { ...item, status: "failed" as const }
+            : item,
+        ),
+      );
     }
   };
+
+  const handleReplySubmit = (text: string) => {
+    const pending = createPendingSend(text);
+    setPendingReplies((prev) => [...prev, pending]);
+    setShowReplyBox(false);
+    setShowReplies(true);
+    void sendReply(pending);
+  };
+
+  const handleRetryReply = (tempId: string) => {
+    const pending = pendingReplies.find((item) => item.tempId === tempId);
+    if (!pending) return;
+    setPendingReplies((prev) =>
+      prev.map((item) =>
+        item.tempId === tempId ? { ...item, status: "sending" as const } : item,
+      ),
+    );
+    void sendReply({ ...pending, status: "sending" });
+  };
+
+  // Our own reply comes back on the store-wide stream like any other
+  // comment — that echo is what confirms it and clears the pending row.
+  const handleReplyEcho = useCallback(
+    (event: SocialSocketEvent) => {
+      if (event.action_type !== "comment_created") return;
+      const created = event.data;
+      if (created.parent_message !== comment.id) return;
+      if (created.sender_type === "user") return;
+
+      setPendingReplies((prev) => {
+        const match = prev.find((item) => item.content === created.content);
+        if (!match) return prev;
+        return prev.filter((item) => item.tempId !== match.tempId);
+      });
+    },
+    [comment.id],
+  );
+
+  useSocialSocket({ storeCode, onEvent: handleReplyEcho });
 
   const handleToggleHidden = async () => {
     const nextHidden = !comment.is_hidden;
@@ -321,6 +425,21 @@ function CommentItem({
             </CollapsibleContent>
           </Collapsible>
         )}
+        {/* Outside the collapsible: the very first reply to a comment has
+            nothing to expand yet, and a pending reply must still show. */}
+        {pendingReplies.length > 0 && (
+          <div className="mt-2 flex flex-col gap-2 border-l-2 pl-3">
+            {pendingReplies.map((pending) => (
+              <PendingCommentRow
+                key={pending.tempId}
+                pending={pending}
+                name={account.name}
+                avatarUrl={account.profilePictureUrl}
+                onRetry={() => handleRetryReply(pending.tempId)}
+              />
+            ))}
+          </div>
+        )}
       </div>
       {channel.key === "instagram" && (
         <button
@@ -410,6 +529,52 @@ function CommentsList({
     requestedRef.current = true;
     loadMore();
   }, [loadMore]);
+
+  // Live comments and AI tags for this list. `topic` lists are a filtered
+  // view, so they're left to refetch rather than guessing whether a new
+  // comment belongs — its tags haven't even been computed yet.
+  const handleCommentEvent = useCallback(
+    (event: SocialSocketEvent) => {
+      if (event.action_type === "comment_tagged") {
+        const { message_id, analysis } = event.data;
+        setComments((prev) =>
+          prev.some((comment) => comment.id === message_id)
+            ? prev.map((comment) =>
+                comment.id === message_id ? { ...comment, analysis } : comment,
+              )
+            : prev,
+        );
+        return;
+      }
+
+      if (event.action_type !== "comment_created" || topic) return;
+
+      const created = event.data;
+      if (created.post_external_id !== postId) return;
+      // Top-level list takes root comments; a replies list takes only its
+      // own parent's children.
+      if ((created.parent_message ?? null) !== (parentId ?? null)) return;
+
+      setComments((prev) => {
+        if (prev.some((comment) => comment.id === created.id)) return prev;
+        // The list is newest-first, but a first-time post sync replays its
+        // whole comment history through this same event — insert by the
+        // comment's own timestamp so backfill doesn't land at the top.
+        const createdAt = new Date(created.external_created_at ?? 0).getTime();
+        const index = prev.findIndex(
+          (comment) =>
+            new Date(comment.external_created_at ?? 0).getTime() <= createdAt,
+        );
+        const next = [...prev];
+        next.splice(index === -1 ? next.length : index, 0, created);
+        return next;
+      });
+      setTotal((prev) => (prev === null ? prev : prev + 1));
+    },
+    [postId, parentId, topic],
+  );
+
+  useSocialSocket({ storeCode, onEvent: handleCommentEvent });
 
   const remaining = total === null ? 0 : Math.max(total - comments.length, 0);
   const initialLoading = loading && comments.length === 0;
