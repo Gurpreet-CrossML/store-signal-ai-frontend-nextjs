@@ -510,12 +510,14 @@ export function OrdersCard({
   handleOrdersSync,
   orderSyncLoading,
   customerData,
+  isDisabled,
 }: {
   orders?: OrderData[] | null;
   loading?: boolean;
   handleOrdersSync: () => void;
   orderSyncLoading?: boolean;
   customerData?: Customer | null;
+  isDisabled?: boolean;
 }) {
   const orderList = orders;
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -535,7 +537,9 @@ export function OrdersCard({
           type="button"
           size="xs"
           onClick={handleOrdersSync}
-          disabled={loading || orderSyncLoading || !customerData?.email}
+          disabled={
+            loading || orderSyncLoading || !customerData?.email || isDisabled
+          }
         >
           {orderSyncLoading ? "Syncing..." : "Sync"}
         </Button>
