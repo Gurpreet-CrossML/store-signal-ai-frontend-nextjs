@@ -2,6 +2,7 @@
 
 import { Label, PolarRadiusAxis, RadialBar, RadialBarChart } from "recharts";
 
+import { InfoIcon } from "@/components/custom/info-icon";
 import {
   Card,
   CardContent,
@@ -36,11 +37,14 @@ export function GuestVsSignedUserRadialChart({
 
   return (
     <Card className="flex flex-col">
-      <CardHeader className="items-center pb-0">
-        <CardTitle>User Activity</CardTitle>
+      <CardHeader className="items-center">
+        <CardTitle className="flex items-center gap-1.5">
+          User Activity
+          <InfoIcon text="Shows the split between guest visitors and signed-in users, helping you understand how much of your chatbot traffic comes from known customers." />
+        </CardTitle>
         <CardDescription>Guest vs Signed In Users</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-1 items-center pb-0">
+      <CardContent className="flex flex-1 items-center">
         <ChartContainer
           config={chartConfig}
           className="mx-auto aspect-square w-full max-w-[250px]"

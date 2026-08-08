@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { IconDeviceFloppy } from "@tabler/icons-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,6 @@ export default function Customization() {
   const storeId = store ? Number(store.id) : null;
   const storeLabel = store?.name ?? "Selected store";
 
-  const [widgetExists, setWidgetExists] = useState(false);
   const [savingAll, setSavingAll] = useState(false);
 
   const [themeColor, setThemeColor] = useState(DEFAULT_PRIMARY);
@@ -102,7 +102,6 @@ export default function Customization() {
     setLogoFile(null);
 
     if (!data) {
-      setWidgetExists(false);
       applyColor("primary", DEFAULT_PRIMARY);
       applyColor("secondary", DEFAULT_SECONDARY);
       applyColor("tertiary", DEFAULT_TERTIARY);
@@ -114,7 +113,6 @@ export default function Customization() {
       return;
     }
 
-    setWidgetExists(true);
     applyColor("primary", data.primary_color ?? DEFAULT_PRIMARY);
     applyColor("secondary", data.secondary_color ?? DEFAULT_SECONDARY);
     applyColor("tertiary", data.tertiary_color ?? DEFAULT_TERTIARY);
@@ -323,7 +321,7 @@ export default function Customization() {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-6 p-4 lg:grid-cols-[minmax(0,1fr)_400px]">
+    <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
       <div className="flex flex-col gap-6">
         <CustomizationTheme
           themeColor={themeColor}
@@ -356,14 +354,18 @@ export default function Customization() {
           onRemove={removeQuickLink}
         />
 
-        <div className="sticky bottom-0 z-10 flex justify-end border-t border-border bg-background py-3">
+        <div className="flex justify-start border-t border-border py-3">
           <Button
             type="button"
             size="lg"
             onClick={handleSaveAll}
             disabled={savingAll}
           >
-            {savingAll && <Spinner data-icon="inline-start" />}
+            {savingAll ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <IconDeviceFloppy data-icon="inline-start" />
+            )}
             {savingAll ? "Saving..." : "Save Changes"}
           </Button>
         </div>

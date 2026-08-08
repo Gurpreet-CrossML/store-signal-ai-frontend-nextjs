@@ -1,11 +1,33 @@
 "use client";
 
+import { useRef } from "react";
 import dynamic from "next/dynamic";
-import { IconMessageCircle, IconPhotoPlus } from "@tabler/icons-react";
+import {
+  IconPencil,
+  IconPhoto,
+  IconPhotoPlus,
+  IconPlus,
+  IconTrash,
+} from "@tabler/icons-react";
 
+import { InfoIcon } from "@/components/custom/info-icon";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 
 const CKEditorTextArea = dynamic(
   () => import("@/components/custom/ckeditor-text-area"),
@@ -37,80 +59,131 @@ export default function CustomizationBranding({
   onRemoveLogo,
 }: CustomizationBrandingProps) {
   const greetingLength = greetingMessage.trim().length;
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <Label htmlFor="logo-upload" className="flex items-center gap-2">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
           <IconPhotoPlus className="size-4" />
-          Chatbot Logo
-        </Label>
-        <div className="flex flex-col gap-3 border border-dashed border-border p-4 sm:flex-row sm:items-center sm:justify-between rounded-lg">
-          <div className="flex flex-col">
-            <p className="text-xs font-medium">Upload logo</p>
-            <p className="text-xs text-muted-foreground">
-              PNG, JPG, SVG, or WEBP (max 2MB)
-            </p>
+          Branding &amp; Messages
+          <InfoIcon text="Your logo and the first messages customers see — the welcome message on the home tab and the greeting when the chat opens." />
+        </CardTitle>
+        <CardDescription>
+          The logo and messages customers see when they open the chat.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-6">
+        <Field className="gap-2">
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="logo-upload">Chatbot Logo</FieldLabel>
+            <FieldDescription>
+              PNG, JPG, SVG, or WEBP, up to 2MB.
+            </FieldDescription>
           </div>
-          <Input
+          <input
+            ref={logoInputRef}
             id="logo-upload"
             type="file"
             accept="image/*,.webp"
-            className="sm:max-w-xs"
+            className="hidden"
             onChange={onLogoUpload}
           />
-        </div>
-        {logoUrl && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-fit"
-            onClick={onRemoveLogo}
-          >
-            Remove uploaded logo
-          </Button>
-        )}
-      </div>
+          {/* Wrapper div: Field's vertical orientation stretches direct
+              children to w-full; the tile must stay a fixed square. */}
+          <div>
+            {logoUrl ? (
+              <div className="relative h-24 w-24">
+                {/* Plain <img>: logoUrl may be a temporary blob: object URL,
+                  which next/image does not support (same as the settings
+                  page's company logo). */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={logoUrl}
+                  alt="Chatbot logo"
+                  className="h-24 w-24 rounded-md border bg-muted object-contain p-1"
+                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      aria-label="Edit logo"
+                      className="absolute -right-2 -top-2 size-7 rounded-full shadow"
+                    >
+                      <IconPencil className="size-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={onRemoveLogo}>
+                      <IconTrash />
+                      Remove logo
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => logoInputRef.current?.click()}
+                    >
+                      <IconPhoto />
+                      Upload image
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                aria-label="Upload logo"
+                className="flex h-24 w-24 items-center justify-center rounded-md border-2 border-dashed text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
+              >
+                <IconPlus className="size-6" />
+              </button>
+            )}
+          </div>
+        </Field>
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="welcome-message" className="flex items-center gap-2">
-          <IconMessageCircle className="size-4" />
-          Welcome Message
-          <span className="text-xs font-normal text-muted-foreground">
-            (shown on home tab)
-          </span>
-        </Label>
-        <Input
-          id="welcome-message"
-          value={welcomeMessage}
-          onChange={(event) => onWelcomeChange(event.target.value)}
-          placeholder="What are you shopping for today?"
-          maxLength={WELCOME_LIMIT}
-        />
-        <p className="text-xs text-muted-foreground">
-          {welcomeMessage.length}/{WELCOME_LIMIT} characters
-        </p>
-      </div>
+        <Separator />
 
-      <div className="flex flex-col gap-2">
-        <Label className="flex items-center gap-2">
-          <IconMessageCircle className="size-4" />
-          Greeting Message
-          <span className="text-xs font-normal text-muted-foreground">
-            (shown when chat opens)
-          </span>
-        </Label>
-        <CKEditorTextArea
-          id="greeting-message"
-          placeholder="Hi there! How can I help you today?"
-          value={greetingMessage}
-          useMarkdown
-          onChange={onGreetingChange}
-        />
-        <p className="text-xs text-muted-foreground">
-          {greetingLength}/{GREETING_LIMIT} characters
-        </p>
-      </div>
-    </div>
+        <Field className="gap-2">
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="welcome-message">Welcome Message</FieldLabel>
+            <FieldDescription>
+              Shown on the widget&apos;s home tab.
+            </FieldDescription>
+          </div>
+          <Input
+            id="welcome-message"
+            value={welcomeMessage}
+            onChange={(event) => onWelcomeChange(event.target.value)}
+            placeholder="What are you shopping for today?"
+            maxLength={WELCOME_LIMIT}
+          />
+          <FieldDescription className="text-xs">
+            {welcomeMessage.length}/{WELCOME_LIMIT} characters
+          </FieldDescription>
+        </Field>
+
+        <Separator />
+
+        <Field className="gap-2">
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="greeting-message">Greeting Message</FieldLabel>
+            <FieldDescription>
+              The first message the chatbot sends when the chat opens.
+            </FieldDescription>
+          </div>
+          <CKEditorTextArea
+            id="greeting-message"
+            placeholder="Hi there! How can I help you today?"
+            value={greetingMessage}
+            useMarkdown
+            onChange={onGreetingChange}
+          />
+          <FieldDescription className="text-xs">
+            {greetingLength}/{GREETING_LIMIT} characters
+          </FieldDescription>
+        </Field>
+      </CardContent>
+    </Card>
   );
 }

@@ -10,18 +10,22 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 
+import { InfoIcon } from "@/components/custom/info-icon";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Typography } from "@/components/ui/typography";
+import { cn } from "@/lib/utils";
+import { LoadingState } from "@/components/custom/loading-state";
 import { Spinner } from "@/components/ui/spinner";
 import {
   DropdownMenu,
@@ -46,10 +50,8 @@ const EDITABLE_FIELDS = [
 
 export default function CompanyProfileForm({
   className,
-  contentClassName,
 }: {
   className?: string;
-  contentClassName?: string;
 }) {
   const dispatch = useAppDispatch();
   const { companyProfile, companyLoading, companySaving } = useAppSelector(
@@ -125,29 +127,32 @@ export default function CompanyProfileForm({
   });
 
   if (companyLoading && !companyProfile) {
-    return (
-      <div className="flex w-full items-center justify-center gap-2 text-muted-foreground">
-        <Spinner className="size-5" />
-        Loading…
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (
-    <div className={className}>
-      <div className="mb-6">
-        <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
-          Company Profile
-        </h4>
-        <p className="text-sm text-muted-foreground">
-          Update your company&apos;s contact details and address. The company
-          name and code are managed by the platform operator.
-        </p>
-      </div>
-      <form onSubmit={formik.handleSubmit}>
-        <div className={contentClassName}>
-          <FieldGroup>
-            {/* Logo (top) */}
+    <div className={cn("w-full", className)}>
+      <form onSubmit={formik.handleSubmit} className="flex flex-col gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Company Identity
+              <InfoIcon text="The company name and code are set by the platform operator and can't be edited here. Contact them if either needs to change." />
+            </CardTitle>
+            <CardDescription>
+              Your company&apos;s logo, name, and code.
+            </CardDescription>
+            {companyProfile && (
+              <CardAction>
+                <Badge
+                  variant={companyProfile.is_active ? "default" : "destructive"}
+                >
+                  {companyProfile.is_active ? "Active" : "Inactive"}
+                </Badge>
+              </CardAction>
+            )}
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
             <Field>
               <FieldLabel>Logo</FieldLabel>
               <input
@@ -213,36 +218,50 @@ export default function CompanyProfileForm({
               </div>
             </Field>
 
-            {/* Read-only identity */}
+            {/* Read-only identity: plain text, not disabled inputs — these
+                values are informational and cannot be edited here. */}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel>Company Name</FieldLabel>
-                <Input value={companyProfile?.name ?? ""} disabled readOnly />
-              </Field>
-              <Field>
-                <FieldLabel>Company Code</FieldLabel>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={companyProfile?.schema_name ?? ""}
-                    disabled
-                    readOnly
-                  />
-                  {companyProfile && (
-                    <Badge
-                      variant={
-                        companyProfile.is_active ? "default" : "destructive"
-                      }
-                    >
-                      {companyProfile.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  )}
-                </div>
-              </Field>
+              <div className="flex flex-col gap-1.5">
+                <Typography variant="muted" as="span">
+                  Company Name
+                </Typography>
+                <Typography variant="small" as="span" className="text-base">
+                  {companyProfile?.name || "—"}
+                </Typography>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Typography variant="muted" as="span">
+                  Company Code
+                </Typography>
+                <Typography
+                  variant="small"
+                  as="span"
+                  className="font-mono text-base"
+                >
+                  {companyProfile?.schema_name || "—"}
+                </Typography>
+              </div>
             </div>
+          </CardContent>
+        </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Contact &amp; Address
+              <InfoIcon text="How your company can be reached, and its registered address." />
+            </CardTitle>
+            <CardDescription>
+              Contact details and registered address.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="grid gap-4 sm:grid-cols-2">
               {EDITABLE_FIELDS.map((f) => (
-                <Field key={f.name}>
+                <Field
+                  key={f.name}
+                  className={f.name === "street" ? "sm:col-span-2" : undefined}
+                >
                   <FieldLabel htmlFor={f.name}>{f.label}</FieldLabel>
                   <Input
                     id={f.name}
@@ -256,11 +275,13 @@ export default function CompanyProfileForm({
                 </Field>
               ))}
             </div>
-          </FieldGroup>
-        </div>
-        <div className="mt-6">
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-start border-t border-border py-3">
           <Button
             type="submit"
+            size="lg"
             disabled={companySaving || (!formik.dirty && !hasLogoChange)}
           >
             {companySaving ? (

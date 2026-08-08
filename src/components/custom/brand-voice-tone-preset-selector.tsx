@@ -2,7 +2,14 @@
 
 import Image from "next/image";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InfoIcon } from "@/components/custom/info-icon";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { IconMoodSmile } from "@tabler/icons-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { TonePresetRecord } from "@/db/chat";
@@ -26,18 +33,19 @@ export default function BrandVoiceTonePresetSelector({
   onSelect,
 }: BrandVoiceTonePresetSelectorProps) {
   return (
-    <Card className="py-0">
-      <CardHeader className="px-5 pt-5 pb-0">
+    <Card>
+      <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <IconMoodSmile className="size-4" />
           Quick-start preset
+          <InfoIcon text="One-click starting points that set all tone dials and writing preferences at once. Fine-tune everything afterwards." />
         </CardTitle>
-        <p className="text-sm text-muted-foreground">
+        <CardDescription>
           Pick a starter voice. If the store already has a saved profile, the
           preview will stay synced to that data.
-        </p>
+        </CardDescription>
       </CardHeader>
-      <CardContent className="px-5 pb-5">
+      <CardContent>
         <RadioGroup
           defaultValue={activePreset.toString()}
           onValueChange={(value) => onSelect(parseInt(value, 10))}
@@ -64,9 +72,7 @@ export default function BrandVoiceTonePresetSelector({
                     />
                     {preset.name}
                   </FieldTitle>
-                  <FieldDescription>
-                    For individuals and small teams.
-                  </FieldDescription>
+                  <FieldDescription>{preset.description}</FieldDescription>
                 </FieldContent>
                 <RadioGroupItem
                   value={preset.id.toString()}

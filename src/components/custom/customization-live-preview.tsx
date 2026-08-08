@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+
+import { InfoIcon } from "@/components/custom/info-icon";
 import {
   IconArrowLeft,
   IconExternalLink,
@@ -61,7 +63,10 @@ export default function CustomizationLivePreview({
     <div className="lg:sticky lg:top-6">
       <Card className="overflow-hidden shadow-lg">
         <CardHeader>
-          <CardTitle>Live Chatbot Preview</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Live Chatbot Preview
+            <InfoIcon text="A live approximation of the chat widget with your colors, logo, messages, quick actions, and links. Changes appear here as you edit — hit Save Changes to publish them to your store." />
+          </CardTitle>
           <CardDescription>
             Preview for{" "}
             <span className="font-medium text-foreground">{storeLabel}</span>

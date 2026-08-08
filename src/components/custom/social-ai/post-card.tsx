@@ -2,23 +2,14 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Typography } from "@/components/ui/typography";
 import { SocialPost } from "@/redux/api-slice/social-ai-slice";
 import {
-  IconMessageCircle,
+  IconExternalLink,
+  IconNews,
   IconRosetteDiscountCheckFilled,
 } from "@tabler/icons-react";
 import Image from "next/image";
@@ -26,19 +17,50 @@ import Image from "next/image";
 import { useAccountIdentity, useChannel } from "./channel-context";
 import { CommentsSection } from "./comments";
 import { ExpandableText } from "./expandable-text";
-import { formatPostedAt } from "./format";
 import { DEFAULT_MEDIA_SIZE, MediaCarousel } from "./media-carousel";
+import { formatPostedAt } from "./format";
 
-// One FB/IG-style post: account header, clamped text, full-bleed media, and
-// a like/comment footer whose comment count expands the comments section.
-export function SocialPostCard({ post }: { post: SocialPost }) {
+/**
+ * The open post: a fixed header identifying the page, then the post's own
+ * content, media and engagement counts, with its comments below. Flat
+ * rather than a card — it fills the detail pane the way the open
+ * conversation does in the DM inbox.
+ */
+/** 12.4K rather than 12400 — these sit in a narrow metric column. */
+function formatCount(value: number) {
+  return new Intl.NumberFormat(undefined, {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function PostMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex min-w-16 flex-col items-center gap-0.5">
+      <Typography variant="muted">{label}</Typography>
+      <Typography variant="large" as="span">
+        {formatCount(value)}
+      </Typography>
+    </div>
+  );
+}
+
+/**
+ * The open post: a compact summary strip — media, caption and the
+ * engagement numbers — pinned above its comments, which get the remaining
+ * height. The media is sized down rather than full-bleed because the
+ * comments are the work here, but it stays a real carousel or video player
+ * so nothing is lost.
+ */
+export function SocialPostDetail({ post }: { post: SocialPost }) {
   const account = useAccountIdentity();
   const channel = useChannel();
+  const media = post.media_entries[0];
 
   return (
-    <Card size="sm" className="w-full max-w-xl gap-3">
-      <CardHeader className="flex items-center gap-3">
-        <Avatar size="lg">
+    <div className="flex h-full min-h-0 flex-col">
+      <header className="flex h-16 shrink-0 items-center gap-2.5 border-b bg-background px-4">
+        <Avatar>
           {account.profilePictureUrl ? (
             <AvatarImage src={account.profilePictureUrl} alt={account.name} />
           ) : (
@@ -47,97 +69,98 @@ export function SocialPostCard({ post }: { post: SocialPost }) {
             </AvatarFallback>
           )}
         </Avatar>
-        <div className="flex flex-col">
-          <CardTitle className="flex items-center gap-1 text-[15px] font-semibold">
+        <div className="min-w-0">
+          <CardTitle className="flex items-center gap-1 truncate leading-tight">
             {account.name}
             <IconRosetteDiscountCheckFilled className="size-4 shrink-0 text-sky-500" />
           </CardTitle>
-          <CardDescription className="text-xs">
-            {[
-              account.username && `@${account.username}`,
-              formatPostedAt(post.posted_at),
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </CardDescription>
+          <Typography variant="muted" className="truncate">
+            {formatPostedAt(post.posted_at)}
+          </Typography>
         </div>
-      </CardHeader>
-      <CardContent>
-        <ExpandableText text={post.content} className="mb-3" />
-        <div className="-mx-(--card-spacing)">
-          {post.media_type == "carousel_album" &&
-            post.media_entries.length > 0 && (
-              <MediaCarousel mediaEntries={post.media_entries} />
-            )}
-          {post.media_type == "image" && post.media_entries.length > 0 && (
-            <Image
-              src={post.media_entries[0].url}
-              alt="Post media"
-              width={post.media_entries[0].width ?? DEFAULT_MEDIA_SIZE}
-              height={post.media_entries[0].height ?? DEFAULT_MEDIA_SIZE}
-              unoptimized
-              className="w-full h-auto object-cover"
-            />
-          )}
-          {post.media_type == "video" && post.media_entries.length > 0 && (
+        {post.permalink && (
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="ml-auto shrink-0"
+          >
+            <a href={post.permalink} target="_blank" rel="noopener noreferrer">
+              <IconExternalLink className="size-4" />
+              View on {channel.label}
+            </a>
+          </Button>
+        )}
+      </header>
+
+      {/* Summary strip — stays put so scrolling moves the comments only. */}
+      <div className="flex shrink-0 items-start gap-4 border-b p-4">
+        {/* Real media, not a still: a carousel post keeps its slides and a
+            video stays playable, just sized to leave room for the comments. */}
+        <div className="w-56 shrink-0 overflow-hidden rounded-lg border bg-muted">
+          {post.media_entries.length > 1 ? (
+            <MediaCarousel mediaEntries={post.media_entries} />
+          ) : post.media_type === "video" && media ? (
             <video
               controls
-              src={post.media_entries[0].url}
-              className="w-full h-auto"
+              preload="metadata"
+              src={media.url}
+              className="h-auto w-full"
             />
+          ) : media ? (
+            <a
+              href={post.permalink || undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <Image
+                src={media.url}
+                alt="Post media"
+                width={media.width ?? DEFAULT_MEDIA_SIZE}
+                height={media.height ?? DEFAULT_MEDIA_SIZE}
+                unoptimized
+                className="h-auto w-full object-cover"
+              />
+            </a>
+          ) : (
+            <div className="flex h-32 items-center justify-center">
+              <IconNews className="size-6 text-muted-foreground" />
+            </div>
           )}
         </div>
-      </CardContent>
-      <Collapsible>
-        <CardFooter className="justify-between text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <channel.LikeIcon className="size-4" />
-            {post.like_count}
-          </span>
-          <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-muted-foreground"
-            >
-              <IconMessageCircle className="size-4" />
-              {post.comments_count}
-            </Button>
-          </CollapsibleTrigger>
-        </CardFooter>
-        <CollapsibleContent className="pt-3">
-          {/* Comments are addressed by the post's external Graph id. */}
-          <CommentsSection postId={post.external_id} />
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
+
+        {/* max-h-56 mirrors the media column's w-56: for a squarish post the
+            caption runs exactly as tall as the image beside it, and only
+            then collapses to "See more". */}
+        <div className="min-w-0 flex-1">
+          <ExpandableText text={post.content} maxHeightClass="max-h-56" />
+        </div>
+
+        <Separator orientation="vertical" className="self-stretch" />
+        <div className="flex shrink-0 items-start gap-6">
+          <PostMetric label="Likes" value={post.like_count} />
+          <PostMetric label="Comments" value={post.comments_count} />
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        {/* Comments are addressed by the post's external Graph id. */}
+        <CommentsSection postId={post.external_id} />
+      </div>
+    </div>
   );
 }
 
-// Placeholder shown while the posts request is in flight.
-export function SocialPostSkeleton() {
+/** Row placeholder while the posts list is loading. */
+export function SocialPostRowSkeleton() {
   return (
-    <Card size="sm" className="w-full max-w-xl gap-3">
-      <CardHeader className="flex items-center gap-3">
-        <Skeleton className="size-10 rounded-full" />
-        <div className="flex-1 space-y-1.5">
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="h-3 w-24" />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
-        </div>
-        <div className="-mx-(--card-spacing) mt-3">
-          <Skeleton className="h-64 w-full rounded-none" />
-        </div>
-      </CardContent>
-      <CardFooter className="justify-between">
-        <Skeleton className="h-4 w-12" />
-        <Skeleton className="h-4 w-12" />
-      </CardFooter>
-    </Card>
+    <div className="flex items-start gap-3 border-b p-4">
+      <Skeleton className="size-12 shrink-0 rounded-lg" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-3.5 w-full" />
+        <Skeleton className="h-3 w-24" />
+      </div>
+    </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { LabelList, RadialBar, RadialBarChart } from "recharts";
 
+import { InfoIcon } from "@/components/custom/info-icon";
 import {
   Card,
   CardContent,
@@ -46,14 +47,17 @@ export function PerformanceRadialChart({
 }) {
   return (
     <Card className="flex flex-col">
-      <CardHeader className="items-center pb-0">
-        <CardTitle>Radial Chart - Label</CardTitle>
-        <CardDescription>January - June 2024</CardDescription>
+      <CardHeader className="items-center">
+        <CardTitle className="flex items-center gap-1.5">
+          Performance Overview
+          <InfoIcon text="Compares key service metrics — response time, resolution rate, first contact, satisfaction, and effort score — in a single view to spot strengths and gaps." />
+        </CardTitle>
+        <CardDescription>Key service metrics at a glance</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 pb-0">
+      <CardContent className="flex-1">
         <ChartContainer
           config={chartConfig}
-          className="mx-auto aspect-square max-h-[250px]"
+          className="mx-auto aspect-square w-full max-w-[250px]"
         >
           <RadialBarChart
             data={chartData}

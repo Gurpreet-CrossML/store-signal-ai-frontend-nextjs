@@ -4,8 +4,11 @@ import { useEffect } from "react";
 import { useFormik } from "formik";
 import z from "zod";
 
+import { IconDeviceFloppy } from "@tabler/icons-react";
+
 import BrandVoiceVocabularyChipLists from "@/components/custom/brand-voice-vocabulary-chip-lists";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/custom/loading-state";
 import { Spinner } from "@/components/ui/spinner";
 import {
   fetchVocabulary,
@@ -81,8 +84,6 @@ export default function BrandVoiceVocabularyEditor() {
   const { CreateVocabularyIsLoading } = useAppSelector(
     (state) => state.GetBrandVoiceReducer.CreateVocabularyState,
   );
-
-  const updatedAt = FetchVocabularyData?.updated_at ?? null;
 
   // Fetch vocabulary data when the component mounts or store code changes
   useEffect(() => {
@@ -187,22 +188,9 @@ export default function BrandVoiceVocabularyEditor() {
   const values = formik.values;
 
   return (
-    <div className="flex flex-col gap-4 p-4 pt-0">
-      <div>
-        <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
-          Vocabulary
-        </h4>
-        <p className="text-sm text-muted-foreground">
-          The specific words that make your brand sound like you. Preferred
-          phrases to lean into, words to ban, signature expressions, and exact
-          swaps the AI always makes.
-        </p>
-      </div>
+    <div className="flex w-full flex-col gap-6">
       {FetchVocabularyIsLoading || FetchVocabularyPresetsIsLoading ? (
-        <div className="flex items-center justify-center gap-2 py-10">
-          <Spinner className="size-6" />
-          Loading vocabulary...
-        </div>
+        <LoadingState label="Loading Vocabulary…" />
       ) : (
         <form onSubmit={formik.handleSubmit} className="flex flex-col gap-6">
           <div className="flex flex-col gap-6">
@@ -227,14 +215,16 @@ export default function BrandVoiceVocabularyEditor() {
               }
             />
 
-            <div className="sticky bottom-0 z-10 flex justify-start border-t border-border bg-background py-3">
+            <div className="flex justify-start border-t border-border py-3">
               <Button
                 type="submit"
                 size="lg"
                 disabled={CreateVocabularyIsLoading}
               >
-                {CreateVocabularyIsLoading && (
+                {CreateVocabularyIsLoading ? (
                   <Spinner data-icon="inline-start" />
+                ) : (
+                  <IconDeviceFloppy data-icon="inline-start" />
                 )}
                 {CreateVocabularyIsLoading ? "Saving..." : "Save Changes"}
               </Button>
