@@ -5,6 +5,7 @@ import { IconAlertCircle, IconCloudUpload } from "@tabler/icons-react";
 
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
+import { Typography } from "@/components/ui/typography";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { UploadLibraryDocument } from "@/redux/api-slice/knowledge-slice";
 
@@ -98,7 +99,7 @@ export default function DropZone({ storeCode, onUploaded }: DropZoneProps) {
             )}
           />
         )}
-        <p className="text-sm font-medium text-foreground">
+        <Typography variant="small" as="p">
           {UploadLibraryDocumentIsLoading ? (
             "Uploading…"
           ) : (
@@ -109,10 +110,10 @@ export default function DropZone({ storeCode, onUploaded }: DropZoneProps) {
               </span>
             </>
           )}
-        </p>
-        <p className="text-xs text-muted-foreground">
+        </Typography>
+        <Typography variant="muted" className="text-xs">
           Supported formats: PDF, DOCX
-        </p>
+        </Typography>
 
         <input
           ref={inputRef}

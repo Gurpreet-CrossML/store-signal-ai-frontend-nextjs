@@ -3,6 +3,7 @@
 import { Label, Pie, PieChart } from "recharts";
 
 import ChartEmptyState from "@/components/custom/ai-usage/chart-empty-state";
+import { InfoIcon } from "@/components/custom/info-icon";
 import {
   Card,
   CardContent,
@@ -48,9 +49,12 @@ export default function TokenSplitChart({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Token split</CardTitle>
+        <CardTitle className="flex items-center gap-1.5">
+          Input vs Output Tokens
+          <InfoIcon text="Compares tokens sent to the model (input — prompts and context) with tokens the model generated (output — responses). Output tokens usually cost more per token." />
+        </CardTitle>
         <CardDescription>
-          Input and output tokens across agent calls
+          How total tokens divide between prompts and responses
         </CardDescription>
       </CardHeader>
       <CardContent>

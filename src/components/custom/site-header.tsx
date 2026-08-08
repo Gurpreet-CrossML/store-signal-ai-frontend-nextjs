@@ -14,7 +14,26 @@ export function SiteHeader() {
     ? [...sidebarMenus.navMain, ...sidebarMenus.navAdmin]
     : sidebarMenus.navMain;
 
-  const title = findMenuItemByUrl(navMain, pathname)?.title ?? pathname;
+  // Routes that aren't in the nav (e.g. /settings/general) fall back to a
+  // humanized path segment: "staff-management" → "Staff Management".
+  // Id-looking segments (uuids, numeric ids) are skipped so detail pages
+  // titled by their parent ("/threads/<uuid>" → "Threads"), and words with
+  // their own casing (acronyms) are mapped explicitly.
+  const specialWords: Record<string, string> = { ai: "AI", faqs: "FAQs" };
+  const looksLikeId = (segment: string) =>
+    /^[0-9a-f-]{16,}$/i.test(segment) || /^\d+$/.test(segment);
+  const fallbackTitle = (pathname ?? "")
+    .split("/")
+    .filter((segment) => segment && !looksLikeId(segment))
+    .pop()
+    ?.split("-")
+    .map(
+      (word) =>
+        specialWords[word] ?? word.charAt(0).toUpperCase() + word.slice(1),
+    )
+    .join(" ");
+
+  const title = findMenuItemByUrl(navMain, pathname)?.title ?? fallbackTitle;
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">

@@ -20,7 +20,7 @@ async function main() {
 
   run(["node_modules/.bin/drizzle-kit", "pull"]);
   run(["--import", "tsx", "scripts/normalize-drizzle.ts"]);
-  run(["node_modules/.bin/eslint", "--fix", "src/lib/drizzle"]);
+  // run(["node_modules/.bin/eslint", "--fix", "src/lib/drizzle"]);
   // Format the generated files so they pass `prettier --check` like the rest of
   // the codebase (they are committed, not ignored). Runs last so prettier has
   // the final say on style. Pass explicit file paths: prettier 3.x does not
