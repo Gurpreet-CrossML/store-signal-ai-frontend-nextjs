@@ -11,8 +11,6 @@ import {
 } from "react";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { LoadingState } from "@/components/custom/loading-state";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import {
@@ -21,13 +19,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
@@ -35,12 +26,8 @@ import {
   SidebarHeader,
   SidebarInput,
   SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 import {
@@ -48,14 +35,12 @@ import {
   IconArrowDown,
   IconBrandFacebook,
   IconBrandInstagram,
-  IconCheck,
   IconClock,
   IconMessage2,
   IconMoodSmile,
   IconPaperclip,
   IconPlus,
   IconSearch,
-  IconSelector,
   IconX,
 } from "@tabler/icons-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
@@ -67,6 +52,7 @@ import {
   ConnectedAccount,
   SocialConversationUser,
   SocialDm,
+  SocialDmAttachment,
   fetchSocialAccountsSubscriptions,
   fetchSocialDms,
   fetchSocialUsers,
@@ -82,13 +68,14 @@ import {
   CHANNELS,
   ChannelContext,
   SocialChannel,
-  useAccountIdentity,
 } from "./channel-context";
+import { AccountSwitcher } from "./account-switcher";
 import {
   AttachmentPreviewLabel,
   attachmentKind,
   DmAttachments,
   DmAttachmentSkeleton,
+  ReplyPreviewBody,
   type AttachmentKind,
 } from "./dm-attachments";
 import { formatPostedAt } from "./format";
@@ -98,6 +85,7 @@ import {
   type PendingSend,
 } from "./pending-send";
 import { ReplyBox } from "./reply-box";
+import { useInfiniteScroll } from "./use-infinite-scroll";
 import {
   useSocialSocket,
   type SocialSocketEvent,
@@ -162,6 +150,8 @@ function DmMessageBubble({
   msg,
   storeCode,
   userId,
+  contactName,
+  replyToAttachment,
   awaitingMedia = false,
   onReacted,
   onReply,
@@ -169,6 +159,10 @@ function DmMessageBubble({
   msg: SocialDm;
   storeCode: string;
   userId: number;
+  contactName: string;
+  // First attachment of the message this one replies to, when that parent
+  // is in the loaded thread.
+  replyToAttachment?: SocialDmAttachment | null;
   // This message arrived over the socket with no text and no attachments,
   // meaning its media is still being written server-side.
   awaitingMedia?: boolean;
@@ -284,12 +278,15 @@ function DmMessageBubble({
             <p className="font-medium text-muted-foreground">
               You replied to{" "}
               <span className="font-semibold text-foreground">
-                {msg.reply_to.sender_name || "them"}
+                {msg.reply_to.sender_name || contactName}
               </span>
             </p>
-            <p className="mt-0.5 max-w-55 truncate rounded-lg bg-muted px-2 py-1 text-muted-foreground">
-              {msg.reply_to.content || "[Attachment]"}
-            </p>
+            <div className="mt-0.5 flex max-w-55 items-center rounded-lg bg-muted px-2 py-1 text-muted-foreground">
+              <ReplyPreviewBody
+                content={msg.reply_to.content}
+                attachment={replyToAttachment}
+              />
+            </div>
           </div>
         )}
         {attachments.length > 0 && (
@@ -428,138 +425,6 @@ function PendingDmBubble({
   );
 }
 
-/**
- * Connected-account switcher in the conversation list header — the same
- * one-row pattern as the store switcher in the app sidebar, so the whole
- * account identity (avatar, name, status) and the switcher itself
- * cost a single row instead of a card plus a separate dropdown.
- */
-function AccountSwitcher({
-  loading,
-  accounts,
-  selectedAccount,
-  onSelectAccount,
-  channelLabel,
-  ChannelIcon,
-}: {
-  loading: boolean;
-  accounts: ConnectedAccount[];
-  selectedAccount: ConnectedAccount | null;
-  onSelectAccount: (accountId: string) => void;
-  channelLabel: string;
-  ChannelIcon: typeof IconBrandFacebook;
-}) {
-  const account = useAccountIdentity();
-
-  if (loading) {
-    return (
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton size="lg" disabled>
-            <Skeleton className="aspect-square size-8 rounded-lg" />
-            <div className="grid flex-1 gap-1.5">
-              <Skeleton className="h-3.5 w-28" />
-              <Skeleton className="h-3 w-20" />
-            </div>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
-    );
-  }
-
-  const subtitle = selectedAccount
-    ? [
-        account.username && `@${account.username}`,
-        selectedAccount.is_active ? "Active" : "Inactive",
-      ]
-        .filter(Boolean)
-        .join(" · ")
-    : "No accounts connected";
-
-  return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              disabled={!accounts.length}
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              {selectedAccount && account.profilePictureUrl ? (
-                <Avatar className="size-8 rounded-lg">
-                  <AvatarImage
-                    src={account.profilePictureUrl}
-                    alt={account.name}
-                  />
-                  <AvatarFallback className="rounded-lg font-medium">
-                    {account.name.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              ) : (
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <ChannelIcon className="size-4" />
-                </div>
-              )}
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">
-                  {selectedAccount
-                    ? account.name
-                    : `No ${channelLabel} account`}
-                </span>
-                <span className="truncate text-xs">{subtitle}</span>
-              </div>
-              <IconSelector className="ml-auto" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-            align="start"
-            side="bottom"
-            sideOffset={4}
-          >
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              {channelLabel} accounts
-            </DropdownMenuLabel>
-            {accounts.map((acc) => {
-              const accountName = acc.name || acc.username || acc.external_id;
-
-              return (
-                <DropdownMenuItem
-                  key={acc.id}
-                  onClick={() => onSelectAccount(String(acc.id))}
-                  className="gap-2 p-2"
-                >
-                  <Avatar className="size-6 shrink-0 rounded-md">
-                    {acc.profile_picture_url && (
-                      <AvatarImage
-                        src={acc.profile_picture_url}
-                        alt={accountName}
-                      />
-                    )}
-                    {/* Falls back to the channel mark when the page has no
-                        picture, or when Meta's CDN link has expired. */}
-                    <AvatarFallback className="rounded-md">
-                      <ChannelIcon className="size-3.5" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="min-w-0 flex-1 truncate">{accountName}</span>
-                  {!acc.is_active && (
-                    <Badge variant="secondary">Inactive</Badge>
-                  )}
-                  {acc.id === selectedAccount?.id && (
-                    <IconCheck className="size-4 shrink-0" />
-                  )}
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarMenuItem>
-    </SidebarMenu>
-  );
-}
-
 // Shared inbox screen for one channel: account switcher + conversation list
 // (1 col) next to the selected conversation's chat thread (2 cols).
 // Data flow mirrors the backend's nesting: connected accounts -> that
@@ -578,6 +443,8 @@ export default function DmsInbox({
   const {
     FetchSocialAccountsSubscriptionsData,
     FetchSocialAccountsSubscriptionsIsLoading,
+    FetchSocialAccountsSubscriptionsIsSuccess,
+    FetchSocialAccountsSubscriptionsIsError,
   } = useAppSelector(
     (state) => state.GetSocialAIReducer.FetchSocialAccountSubscriptionsState,
   );
@@ -598,6 +465,13 @@ export default function DmsInbox({
     null,
   );
   const [pendingMessages, setPendingMessages] = useState<PendingDm[]>([]);
+  const [conversationsPage, setConversationsPage] = useState(1);
+  // Also loading before the first request resolves: the flag starts false,
+  // so keying only on it flashes an empty switcher on the first paint.
+  const accountsLoading =
+    FetchSocialAccountsSubscriptionsIsLoading ||
+    (!FetchSocialAccountsSubscriptionsIsSuccess &&
+      !FetchSocialAccountsSubscriptionsIsError);
   // Conversations that received a customer message while they weren't the
   // open one — the whole point of subscribing from the moment the inbox
   // loads rather than when a chat is opened.
@@ -683,6 +557,17 @@ export default function DmsInbox({
   }, [storeCode, dispatch]);
 
   // Conversation list: this account's DM contacts, newest activity first.
+  // Searching is resolved server-side, so a new query is a fresh page 1 —
+  // adjusted during render rather than in an effect, which would cascade.
+  const conversationsQueryKey = `${selectedAccount?.external_id ?? ""}|${debouncedSearchQuery}`;
+  const [lastConversationsQueryKey, setLastConversationsQueryKey] = useState(
+    conversationsQueryKey,
+  );
+  if (lastConversationsQueryKey !== conversationsQueryKey) {
+    setLastConversationsQueryKey(conversationsQueryKey);
+    setConversationsPage(1);
+  }
+
   useEffect(() => {
     if (storeCode && selectedAccount) {
       dispatch(
@@ -690,15 +575,29 @@ export default function DmsInbox({
           storeCode,
           accountId: selectedAccount.external_id,
           search: debouncedSearchQuery || undefined,
+          page: conversationsPage,
         }),
       );
     }
-  }, [storeCode, selectedAccount, debouncedSearchQuery, dispatch]);
+  }, [
+    storeCode,
+    selectedAccount,
+    debouncedSearchQuery,
+    conversationsPage,
+    dispatch,
+  ]);
 
   const conversations: SocialConversationUser[] = useMemo(
     () => FetchSocialUsersData?.results ?? [],
     [FetchSocialUsersData],
   );
+  const hasMoreConversations = Boolean(FetchSocialUsersData?.next);
+
+  const conversationsSentinelRef = useInfiniteScroll<HTMLDivElement>({
+    onLoadMore: () => setConversationsPage((prev) => prev + 1),
+    hasMore: hasMoreConversations,
+    loading: FetchSocialUsersIsLoading,
+  });
 
   // No auto-selection: a conversation opens only via the ?chat= URL param
   // or a click, so "no conversation selected" is a real state.
@@ -760,6 +659,13 @@ export default function DmsInbox({
     [FetchSocialDmsData, activeConversationId],
   );
 
+  // reply_to gives only the parent's id, so map the loaded thread by id to
+  // recover what that message actually contained.
+  const messagesById = useMemo(
+    () => new Map(messages.map((message) => [message.id, message])),
+    [messages],
+  );
+
   const refetchMessages = useCallback(() => {
     if (storeCode && accountExternalId && activeConversationId) {
       dispatch(
@@ -810,8 +716,7 @@ export default function DmsInbox({
     }
   }, [messages.length]);
 
-  const loading =
-    FetchSocialAccountsSubscriptionsIsLoading || FetchSocialUsersIsLoading;
+  const loading = accountsLoading || FetchSocialUsersIsLoading;
 
   const account: AccountIdentity = selectedAccount
     ? {
@@ -822,7 +727,9 @@ export default function DmsInbox({
     : channel.accountFallback;
 
   const activeContactName =
-    activeConversation?.name || activeConversation?.username || "Guest";
+    activeConversation?.name ||
+    activeConversation?.username ||
+    channel.userFallback;
 
   // The open conversation's messages are authoritative — use its last one
   // to keep that row's preview correct, including after the delayed
@@ -1095,16 +1002,19 @@ export default function DmsInbox({
           className="-my-4 h-[calc(100svh-4rem)] min-h-0 w-full overflow-hidden md:-my-6"
         >
           <Sidebar collapsible="none" className="hidden border-r md:flex">
-            <SidebarHeader className="gap-3.5 border-b p-4">
+            {/* h-16 and px-2 (the menu button adds its own p-2) so this row
+                lines up exactly with the conversation header opposite. */}
+            <SidebarHeader className="h-16 shrink-0 justify-center border-b px-2 py-0">
               <AccountSwitcher
-                loading={FetchSocialAccountsSubscriptionsIsLoading}
+                loading={accountsLoading}
                 accounts={accounts}
                 selectedAccount={selectedAccount}
                 onSelectAccount={setSelectedAccountId}
                 channelLabel={channel.label}
                 ChannelIcon={ChannelIcon}
               />
-
+            </SidebarHeader>
+            <div className="flex flex-col gap-3 border-b p-4">
               <SidebarInput
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
@@ -1119,11 +1029,11 @@ export default function DmsInbox({
                   Reconnecting — new messages may be delayed
                 </p>
               )}
-            </SidebarHeader>
+            </div>
             <SidebarContent>
               <SidebarGroup className="px-0">
                 <SidebarGroupContent>
-                  {loading ? (
+                  {loading && conversationsPage === 1 ? (
                     <LoadingState label="Loading conversations…" />
                   ) : !accounts.length ? (
                     <div className="p-4 text-center">
@@ -1170,7 +1080,7 @@ export default function DmsInbox({
                                   !rawName && "text-muted-foreground",
                                 )}
                               >
-                                {rawName || "Guest"}
+                                {rawName || channel.userFallback}
                               </span>
                               <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                                 {conversation.last_message_at
@@ -1223,6 +1133,14 @@ export default function DmsInbox({
                       </Typography>
                     </div>
                   )}
+                  {conversations.length > 0 && hasMoreConversations && (
+                    <div
+                      ref={conversationsSentinelRef}
+                      className="flex items-center justify-center p-4"
+                    >
+                      <Spinner className="size-4" />
+                    </div>
+                  )}
                 </SidebarGroupContent>
               </SidebarGroup>
             </SidebarContent>
@@ -1269,6 +1187,13 @@ export default function DmsInbox({
                             msg={msg}
                             storeCode={storeCode}
                             userId={activeConversation.id}
+                            contactName={activeContactName}
+                            replyToAttachment={
+                              msg.reply_to
+                                ? (messagesById.get(msg.reply_to.id)
+                                    ?.attachments?.[0] ?? null)
+                                : null
+                            }
                             awaitingMedia={awaitingMediaIds.includes(msg.id)}
                             onReacted={refetchMessages}
                             onReply={setReplyingToMessage}
@@ -1349,12 +1274,12 @@ export default function DmsInbox({
                         >
                           Replies are closed for now
                         </Typography>
-                        <p className="text-sm">
+                        <Typography variant="muted" className="text-inherit">
                           Meta only allows replies within 24 hours of the
                           customer&apos;s last message, and it&apos;s been
                           longer than that. You can reply again once{" "}
                           {activeContactName} messages you.
-                        </p>
+                        </Typography>
                       </div>
                     </div>
                   )}
@@ -1382,8 +1307,8 @@ export default function DmsInbox({
                 </Typography>
                 <Typography variant="muted">
                   {conversationNotFound
-                    ? "It may belong to another account. Pick one from the list."
-                    : "Select a conversation from the list to open the messages."}
+                    ? "It may belong to another page, or it has ended. Pick another from the list."
+                    : "Select a conversation from the list to read it and reply."}
                 </Typography>
               </div>
             )}
