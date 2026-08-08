@@ -14,6 +14,7 @@ import {
 } from "@tabler/icons-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 import type { SocialDmAttachment } from "@/redux/api-slice/social-ai-slice";
 
@@ -156,9 +157,13 @@ function LinkAttachment({
         )}
       </div>
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-foreground">{label}</p>
+        <Typography variant="small" as="p" className="truncate leading-tight">
+          {label}
+        </Typography>
         {host && (
-          <p className="truncate text-xs text-muted-foreground">{host}</p>
+          <Typography variant="muted" className="truncate">
+            {host}
+          </Typography>
         )}
       </div>
     </a>
@@ -311,5 +316,47 @@ export function DmAttachments({
           </div>
         ))}
     </div>
+  );
+}
+
+/**
+ * Thumbnail-sized stand-in for the message a reply points at. The
+ * `reply_to` payload carries only text, so media shows as a blank quote
+ * unless the parent message itself is resolved from the loaded thread —
+ * `attachment` is that parent's first attachment when we have it.
+ */
+export function ReplyPreviewBody({
+  content,
+  attachment,
+}: {
+  content: string;
+  attachment?: SocialDmAttachment | null;
+}) {
+  if (content) {
+    return <span className="truncate">{content}</span>;
+  }
+
+  if (!attachment) {
+    // Parent isn't in the loaded page — say "Attachment" rather than
+    // pretending to know which kind.
+    return <AttachmentPreviewLabel kind="unknown" />;
+  }
+
+  const kind = attachmentKind(attachment);
+  const isVisual = kind === "photo" || kind === "gif" || kind === "sticker";
+
+  return (
+    <span className="flex min-w-0 items-center gap-1.5">
+      {isVisual && attachment.url ? (
+        // Meta's CDN isn't in next/image's allowlist and these URLs rotate.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={attachment.url}
+          alt=""
+          className="size-7 shrink-0 rounded-md border object-cover"
+        />
+      ) : null}
+      <AttachmentPreviewLabel kind={kind} className="min-w-0" />
+    </span>
   );
 }
