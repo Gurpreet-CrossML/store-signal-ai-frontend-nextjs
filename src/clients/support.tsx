@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { CardTitle } from "@/components/ui/card";
+import { Typography } from "@/components/ui/typography";
 import MessagePan from "@/components/custom/message-pan";
 import {
   CartDetailsCard,
@@ -196,12 +197,12 @@ function ThreadChatControls({
               <IconMessageChatbot className="size-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">
+              <Typography variant="small" as="p" className="leading-normal">
                 AI Assistant is handling this conversation
-              </p>
-              <p className="text-xs text-muted-foreground">
+              </Typography>
+              <Typography variant="muted">
                 Take over anytime to reply as a human agent.
-              </p>
+              </Typography>
             </div>
           </div>
           {activeThreadId && connectedAgent !== user && (
@@ -226,12 +227,12 @@ function ThreadChatControls({
             <IconHeadset className="size-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">
+            <Typography variant="small" as="p" className="leading-normal">
               Another agent is handling this conversation
-            </p>
-            <p className="text-xs text-muted-foreground">
+            </Typography>
+            <Typography variant="muted">
               Only the connected agent can reply right now.
-            </p>
+            </Typography>
           </div>
         </div>
       )}
@@ -301,7 +302,7 @@ function ThreadChatControls({
                     {isError && (
                       <button
                         type="button"
-                        className="text-[11px] font-medium text-primary underline-offset-2 hover:underline"
+                        className="font-medium text-primary underline-offset-2 hover:underline"
                         onClick={() => onRetryAttachment(attachment.id)}
                       >
                         Retry
@@ -376,16 +377,20 @@ function ThreadChatControls({
               onChange={onFileSelection}
               className="hidden"
             />
-            <span className="ml-2 hidden truncate text-[11px] text-muted-foreground sm:inline">
+            <Typography
+              variant="muted"
+              as="span"
+              className="ml-2 hidden truncate sm:inline"
+            >
               {isUploadingAttachments
                 ? "Uploading attachment…"
                 : "Enter to send · Shift + Enter for a new line"}
-            </span>
+            </Typography>
             <div className="ml-auto flex shrink-0 items-center gap-2">
               {attachments.length > 0 && (
-                <span className="text-[11px] text-muted-foreground">
+                <Typography variant="muted" as="span">
                   {attachments.length} attached
-                </span>
+                </Typography>
               )}
               <Button
                 type="button"
@@ -411,16 +416,16 @@ function ThreadChatControls({
           <div className="flex min-w-70 flex-col items-center gap-3 rounded-lg border bg-background p-6 shadow-lg">
             <Spinner className="size-6" />
             <div className="text-center">
-              <p className="font-medium">
+              <Typography variant="medium" as="p">
                 {transitionState === "taking_over"
                   ? "Connecting..."
                   : "Returning to AI..."}
-              </p>
-              <p className="text-sm text-muted-foreground">
+              </Typography>
+              <Typography variant="muted">
                 {transitionState === "taking_over"
                   ? "Taking over this conversation"
                   : "Handing conversation back to AI assistant"}
-              </p>
+              </Typography>
             </div>
           </div>
         </div>
@@ -1183,10 +1188,10 @@ export default function Support() {
       <Sidebar collapsible="none" className="hidden border-r md:flex">
         <SidebarHeader className="gap-3.5 border-b p-4">
           <div className="flex w-full items-center justify-between">
-            <div className="flex items-center gap-2 text-base font-medium text-foreground">
+            <CardTitle className="flex items-center gap-2">
               <IconMessage2 className="size-4" />
               Active Chats
-            </div>
+            </CardTitle>
             {localThreads.length > 0 && (
               <Badge variant="secondary">{localThreads.length}</Badge>
             )}
@@ -1209,7 +1214,7 @@ export default function Support() {
                 type="button"
                 onClick={() => setReadFilter(option.key)}
                 className={cn(
-                  "flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                  "flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
                   readFilter === option.key
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border/60 bg-background text-muted-foreground hover:bg-muted/60",
@@ -1219,7 +1224,7 @@ export default function Support() {
                 {option.key === "unread" && unreadCount > 0 && (
                   <span
                     className={cn(
-                      "rounded-full px-1.5 text-[10px]",
+                      "rounded-full px-1.5 text-xs",
                       readFilter === "unread"
                         ? "bg-primary-foreground/20"
                         : "bg-muted text-foreground/70",
@@ -1289,7 +1294,7 @@ export default function Support() {
                             {thread.last_message || "No messages yet."}
                           </ReactMarkdown>
                         </div>
-                        <span className="mt-1 block text-[11px] text-muted-foreground">
+                        <span className="mt-1 block text-xs text-muted-foreground">
                           {thread.total_messages} messages
                         </span>
                       </div>
@@ -1297,23 +1302,25 @@ export default function Support() {
                   );
                 })
               ) : threadSearch || readFilter !== "all" ? (
-                <div className="flex flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground">
+                <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
+                  <Typography variant="small" as="p">
                     {readFilter === "unread"
                       ? "No unread conversations"
                       : readFilter === "read"
                         ? "No read conversations"
                         : "No matches"}
-                  </p>
-                  <p>
+                  </Typography>
+                  <Typography variant="muted">
                     {threadSearch
                       ? "Try a different name or keyword."
                       : "Try a different filter."}
-                  </p>
+                  </Typography>
                 </div>
               ) : (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  No active chats for this store yet.
+                <div className="p-4 text-center">
+                  <Typography variant="muted">
+                    No active chats for this store yet.
+                  </Typography>
                 </div>
               )}
             </SidebarGroupContent>
@@ -1334,7 +1341,7 @@ export default function Support() {
                       online={selectedThread?.is_active}
                     />
                     <div className="min-w-0">
-                      <CardTitle className="truncate text-base leading-tight">
+                      <CardTitle className="truncate leading-tight">
                         {selectedThread?.customer?.name || "Guest"}
                       </CardTitle>
                       {selectedThread?.is_active ? (
@@ -1379,12 +1386,14 @@ export default function Support() {
                           replyWithAILoadingId={replyWithAILoadingId}
                         />
                       ) : (
-                        <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted-foreground">
-                          <IconMessage2 className="mb-1 h-6 w-6 opacity-40" />
-                          <p className="font-medium text-foreground">
+                        <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
+                          <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />
+                          <Typography variant="small" as="p">
                             Nothing here yet
-                          </p>
-                          <p>Messages for this thread will show up here.</p>
+                          </Typography>
+                          <Typography variant="muted">
+                            Messages for this thread will show up here.
+                          </Typography>
                         </div>
                       )}
                     </div>
@@ -1417,12 +1426,12 @@ export default function Support() {
 
             <aside className="hidden min-h-0 w-95 shrink-0 flex-col border-l xl:flex">
               <header className="flex h-16 shrink-0 flex-col justify-center border-b px-4">
-                <div className="text-base leading-tight font-medium text-foreground">
+                <CardTitle className="leading-tight">
                   Customer Details
-                </div>
-                <p className="text-xs text-muted-foreground">
+                </CardTitle>
+                <Typography variant="muted">
                   Orders, cart, and profile for this conversation.
-                </p>
+                </Typography>
               </header>
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <OrdersCard
@@ -1445,16 +1454,16 @@ export default function Support() {
             </aside>
           </div>
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted-foreground">
-            <IconMessage2 className="mb-1 size-6 opacity-40" />
-            <p className="font-medium text-foreground">
+          <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
+            <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />
+            <Typography variant="small" as="p">
               {chatNotFound ? "Chat not found" : "No chat selected"}
-            </p>
-            <p>
+            </Typography>
+            <Typography variant="muted">
               {chatNotFound
                 ? "This chat may have ended. Pick another one from the list."
                 : "Select a chat from the list to open the conversation."}
-            </p>
+            </Typography>
           </div>
         )}
       </SidebarInset>
