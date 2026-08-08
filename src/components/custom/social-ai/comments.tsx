@@ -14,7 +14,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { IconDotsVertical } from "@tabler/icons-react";
@@ -22,16 +21,27 @@ import {
   deleteMetaComment,
   fetchCommentTopics,
   fetchPostComments,
+  SOCIAL_PAGE_SIZE,
   hideMetaComment,
   likeMetaComment,
   replyToMetaComment,
   SocialComment,
 } from "@/redux/api-slice/social-ai-slice";
+import { Typography } from "@/components/ui/typography";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { InfoIcon } from "@/components/custom/info-icon";
+import { cn } from "@/lib/utils";
+
 import { useAccountIdentity, useChannel } from "./channel-context";
+import {
+  CommentFiltersBar,
+  EMPTY_COMMENT_FILTERS,
+  type CommentFilters,
+} from "./comment-filters";
+import { CommentTags } from "./comment-tags";
 import { ExpandableText } from "./expandable-text";
 import { formatPostedAt, formatRelativeTime } from "./format";
 import {
@@ -40,9 +50,10 @@ import {
   type PendingSend,
 } from "./pending-send";
 import { ReplyBox } from "./reply-box";
+import { useInfiniteScroll } from "./use-infinite-scroll";
 import { useSocialSocket, type SocialSocketEvent } from "./use-social-socket";
 
-const COMMENTS_PAGE_SIZE = 15;
+const COMMENTS_PAGE_SIZE = SOCIAL_PAGE_SIZE;
 
 /**
  * A reply the agent has submitted that isn't confirmed yet. Same shape as a
@@ -75,8 +86,16 @@ function PendingCommentRow({
       </Avatar>
       <div className="min-w-0 flex-1">
         <div className="inline-block max-w-full rounded-lg bg-muted px-3 py-2 text-muted-foreground">
-          <p className="text-[13px] leading-tight font-semibold">{name}</p>
-          <p className="mt-0.5 text-sm wrap-break-word">{pending.content}</p>
+          <Typography variant="small" as="p" className="leading-tight">
+            {name}
+          </Typography>
+          <Typography
+            variant="small"
+            as="p"
+            className="mt-0.5 leading-snug font-normal wrap-break-word"
+          >
+            {pending.content}
+          </Typography>
         </div>
         <PendingSendStatus
           status={pending.status}
@@ -296,46 +315,50 @@ function CommentItem({
         )}
       </Avatar>
       <div className="min-w-0 flex-1">
-        <div className="inline-block max-w-full rounded-lg bg-muted px-3 py-2">
-          <p className="flex items-center gap-1.5 text-[13px] leading-tight font-semibold">
+        {/* Deleted reads red, hidden simply recedes — and both drop to a low
+            opacity so it's obvious at a glance that they're inert. */}
+        <div
+          className={cn(
+            "inline-block max-w-full rounded-lg px-3 py-2",
+            comment.is_deleted
+              ? "bg-destructive/10 opacity-70"
+              : comment.is_hidden
+                ? "bg-muted opacity-60"
+                : "bg-muted",
+          )}
+        >
+          <p className="flex items-center gap-1.5 text-sm leading-tight font-semibold">
+            {(comment.is_deleted || comment.is_hidden) && (
+              <InfoIcon
+                text={
+                  comment.is_deleted
+                    ? `This comment was deleted on ${channel.label}. It can't be replied to, liked, or changed.`
+                    : `This comment is hidden on ${channel.label}, so customers can't see it. Unhide it to restore replies and likes.`
+                }
+              />
+            )}
             {name}
-            {isSelf && (
-              <Badge variant="secondary" className="text-[10px]">
-                Author
-              </Badge>
-            )}
-            {comment.is_hidden && (
-              <Badge variant="outline" className="text-[10px]">
-                Hidden
-              </Badge>
-            )}
+            {isSelf && <Badge variant="secondary">Author</Badge>}
+            {comment.is_hidden && <Badge variant="outline">Hidden</Badge>}
             {comment.is_deleted && (
-              <Badge
-                variant="secondary"
-                className="text-[10px] text-muted-foreground"
-              >
+              <Badge variant="secondary" className="text-muted-foreground">
                 Deleted
               </Badge>
             )}
-            {comment.analysis?.topic_labels.map((label) => (
-              <Badge
-                key={label}
-                className="bg-primary/10 text-[10px] text-primary hover:bg-primary/10"
-              >
-                {label}
-              </Badge>
-            ))}
+            <CommentTags analysis={comment.analysis} />
           </p>
           <ExpandableText
             text={comment.content}
-            textClassName={`text-sm leading-snug ${comment.is_deleted ? "text-muted-foreground italic" : ""}`}
+            textClassName={
+              comment.is_deleted ? "text-muted-foreground italic" : undefined
+            }
           />
         </div>
         <div className="mt-1 flex items-center gap-3 px-3 text-xs text-muted-foreground">
           <span title={formatPostedAt(comment.external_created_at)}>
             {formatRelativeTime(comment.external_created_at)}
           </span>
-          {channel.key === "facebook" && (
+          {channel.key === "facebook" && !comment.is_deleted && (
             <button
               type="button"
               onClick={handleLike}
@@ -367,34 +390,42 @@ function CommentItem({
               {comment.like_count}
             </span>
           )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                disabled={menuBusy || comment.is_deleted}
-                className="opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:opacity-100 disabled:opacity-50"
-                aria-label="Comment actions"
-              >
-                <IconDotsVertical className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem
-                onClick={handleToggleHidden}
-                disabled={menuBusy}
-              >
-                {comment.is_hidden ? "Unhide comment" : "Hide comment"}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={handleDelete}
-                disabled={menuBusy}
-                variant="destructive"
-              >
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Nothing can be done to a deleted comment, so it gets no menu
+              at all rather than a disabled one. */}
+          {!comment.is_deleted && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  disabled={menuBusy}
+                  className="opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:opacity-100 disabled:opacity-50"
+                  aria-label="Comment actions"
+                >
+                  <IconDotsVertical className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem
+                  onClick={handleToggleHidden}
+                  disabled={menuBusy}
+                >
+                  {comment.is_hidden ? "Unhide comment" : "Hide comment"}
+                </DropdownMenuItem>
+                {/* Unhide is the only way back from hidden — offering an
+                    irreversible delete alongside it invites a mis-click. */}
+                {!comment.is_hidden && (
+                  <DropdownMenuItem
+                    onClick={handleDelete}
+                    disabled={menuBusy}
+                    variant="destructive"
+                  >
+                    Delete
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
         {showReplyBox && (
           <ReplyBox replyingTo={name} onSubmit={handleReplySubmit} />
@@ -467,14 +498,16 @@ function CommentItem({
 function CommentsList({
   postId,
   parentId,
-  topic,
+  filters,
   disableReply = false,
   disableLike = false,
 }: {
   // The post's external Graph id (SocialPost.external_id).
   postId: string;
   parentId?: number;
-  topic?: string;
+  // AI-tag filters. These have no backend equivalent, so they narrow the
+  // comments already fetched rather than re-querying.
+  filters?: CommentFilters;
   disableReply?: boolean;
   disableLike?: boolean;
 }) {
@@ -502,7 +535,15 @@ function CommentsList({
           page: nextPage,
           pageSize: COMMENTS_PAGE_SIZE,
           parentId,
-          topic,
+          // Filtering is the backend's job — these narrow the query, not
+          // the rows already fetched.
+          topics: filters?.topics.length ? filters.topics : undefined,
+          intent: filters?.intent !== "any" ? filters?.intent : undefined,
+          sentiment:
+            filters?.sentiment !== "any" ? filters?.sentiment : undefined,
+          sarcastic: filters?.sarcastic || undefined,
+          critical: filters?.critical || undefined,
+          spam: filters?.spam || undefined,
         }),
       ).unwrap();
       pageRef.current = nextPage;
@@ -522,7 +563,7 @@ function CommentsList({
     } finally {
       setLoading(false);
     }
-  }, [dispatch, storeCode, postId, parentId, topic]);
+  }, [dispatch, storeCode, postId, parentId, filters]);
 
   useEffect(() => {
     if (requestedRef.current) return;
@@ -530,9 +571,7 @@ function CommentsList({
     loadMore();
   }, [loadMore]);
 
-  // Live comments and AI tags for this list. `topic` lists are a filtered
-  // view, so they're left to refetch rather than guessing whether a new
-  // comment belongs — its tags haven't even been computed yet.
+  // Live comments and AI tags for this list.
   const handleCommentEvent = useCallback(
     (event: SocialSocketEvent) => {
       if (event.action_type === "comment_tagged") {
@@ -547,7 +586,7 @@ function CommentsList({
         return;
       }
 
-      if (event.action_type !== "comment_created" || topic) return;
+      if (event.action_type !== "comment_created") return;
 
       const created = event.data;
       if (created.post_external_id !== postId) return;
@@ -571,13 +610,19 @@ function CommentsList({
       });
       setTotal((prev) => (prev === null ? prev : prev + 1));
     },
-    [postId, parentId, topic],
+    [postId, parentId],
   );
 
   useSocialSocket({ storeCode, onEvent: handleCommentEvent });
 
   const remaining = total === null ? 0 : Math.max(total - comments.length, 0);
   const initialLoading = loading && comments.length === 0;
+
+  const sentinelRef = useInfiniteScroll<HTMLDivElement>({
+    onLoadMore: loadMore,
+    hasMore,
+    loading,
+  });
 
   const handleCommentDeleted = (commentId: number) => {
     setComments((prev) =>
@@ -619,32 +664,29 @@ function CommentsList({
         />
       ))}
       {!initialLoading && total === 0 && (
-        <p className="text-sm text-muted-foreground">
-          {topic
-            ? "No comments match this tag."
-            : `No ${noun === "reply" ? "replies" : "comments"} yet.`}
-        </p>
+        <Typography variant="muted">
+          {`No ${noun === "reply" ? "replies" : "comments"} yet.`}
+        </Typography>
       )}
+
       {hasMore && !initialLoading && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={loadMore}
-          disabled={loading}
-          className="self-start text-[13px] font-semibold text-muted-foreground"
-        >
-          {loading && <Spinner />}
-          {remaining > 0
-            ? `View ${remaining} more ${remaining === 1 ? noun : `${noun === "reply" ? "replies" : "comments"}`}`
-            : `View more ${noun === "reply" ? "replies" : "comments"}`}
-        </Button>
+        // Pulls the next page as it scrolls into view; the count tells the
+        // reader more is coming rather than leaving a bare spinner.
+        <div ref={sentinelRef} className="flex items-center gap-2 py-2">
+          <Spinner className="size-4" />
+          <Typography variant="muted" as="span">
+            {remaining > 0
+              ? `Loading ${remaining} more ${remaining === 1 ? noun : noun === "reply" ? "replies" : "comments"}…`
+              : "Loading more…"}
+          </Typography>
+        </div>
       )}
     </div>
   );
 }
 
-// The comments area under a post's footer: a topic filter chip bar (only
-// topics actually AI-tagged on this post's comments) above the comment list.
+// A post's comments, with the AI-tag filter bar above them. The tag options
+// come from the topics actually present on this post's comments.
 export function CommentsSection({ postId }: { postId: string }) {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
@@ -653,7 +695,7 @@ export function CommentsSection({ postId }: { postId: string }) {
   const { FetchCommentTopicsData: topics } = useAppSelector(
     (state) => state.GetSocialAIReducer.FetchCommentTopicsState,
   );
-  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [filters, setFilters] = useState<CommentFilters>(EMPTY_COMMENT_FILTERS);
   // Reset any active filter when the post itself changes (e.g. this
   // section gets reused across posts in a feed). Adjusted during render —
   // the React-endorsed alternative to setState-in-effect, which would
@@ -661,7 +703,7 @@ export function CommentsSection({ postId }: { postId: string }) {
   const [lastPostId, setLastPostId] = useState(postId);
   if (lastPostId !== postId) {
     setLastPostId(postId);
-    setSelectedTopic(null);
+    setFilters(EMPTY_COMMENT_FILTERS);
   }
 
   useEffect(() => {
@@ -669,59 +711,22 @@ export function CommentsSection({ postId }: { postId: string }) {
     dispatch(fetchCommentTopics({ storeCode, postId }));
   }, [dispatch, storeCode, postId]);
 
-  const selectedLabel = topics.find((t) => t.slug === selectedTopic)?.label;
-
   return (
     <div>
-      <Separator className="mb-3" />
-      <div className="px-(--card-spacing)">
-        {topics.length > 0 && (
-          <div className="mb-3 space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground">
-              Filter comments by tags
-            </p>
-            <div className="flex gap-1.5 overflow-x-auto pb-1">
-              {topics.map((t) => (
-                <button
-                  key={t.slug}
-                  type="button"
-                  onClick={() =>
-                    setSelectedTopic((prev) =>
-                      prev === t.slug ? null : t.slug,
-                    )
-                  }
-                  className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition ${
-                    t.slug === selectedTopic
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border/60 bg-muted/40 text-foreground hover:bg-muted"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setSelectedTopic(null)}
-                disabled={!selectedTopic}
-                className="text-xs font-semibold text-primary hover:text-primary/80 disabled:pointer-events-none disabled:opacity-40"
-              >
-                Clear
-              </button>
-              {selectedLabel && (
-                <Badge variant="secondary" className="text-[10px]">
-                  Selected tag: {selectedLabel}
-                </Badge>
-              )}
-            </div>
-            <Separator />
-          </div>
-        )}
+      <div>
+        <div className="mb-3">
+          <CommentFiltersBar
+            filters={filters}
+            topics={topics}
+            onChange={setFilters}
+          />
+        </div>
+        {/* Keyed on the filters so a change remounts the list and re-queries
+            from page 1, rather than appending onto stale rows. */}
         <CommentsList
-          key={selectedTopic ?? "all"}
+          key={JSON.stringify(filters)}
           postId={postId}
-          topic={selectedTopic ?? undefined}
+          filters={filters}
         />
       </div>
     </div>

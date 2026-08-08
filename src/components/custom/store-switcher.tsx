@@ -20,7 +20,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import {
   GetStores,
   setSelectedStore,
@@ -36,9 +36,12 @@ export function StoreSwitcher() {
   const dispatch = useAppDispatch();
   const { isMobile } = useSidebar();
 
-  const { GetStoresIsLoading, GetStoresListData } = useAppSelector(
-    (state) => state.GetStoresReducer.GetStoresState,
-  );
+  const {
+    GetStoresIsLoading,
+    GetStoresIsSuccess,
+    GetStoresIsError,
+    GetStoresListData,
+  } = useAppSelector((state) => state.GetStoresReducer.GetStoresState);
   const selectedStore = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -70,16 +73,28 @@ export function StoreSwitcher() {
     (store) => store.code === selectedStore,
   );
 
-  if (GetStoresIsLoading && !GetStoresListData.length) {
+  // Also loading before the first request resolves: the flag starts false,
+  // so keying only on it flashes an empty switcher on the first paint.
+  const showLoading =
+    !GetStoresListData.length &&
+    (GetStoresIsLoading || (!GetStoresIsSuccess && !GetStoresIsError));
+
+  if (showLoading) {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton size="lg" disabled>
-            <Skeleton className="aspect-square size-8 rounded-lg" />
-            <div className="grid flex-1 gap-1.5">
-              <Skeleton className="h-3.5 w-24" />
-              <Skeleton className="h-3 w-16" />
+          {/* The real switcher, disabled, with the icon slot spinning — an
+              empty gap or a bare skeleton reads as "nothing here" rather
+              than "loading". Also keeps the icon meaningful when the
+              sidebar is collapsed to icons. */}
+          <SidebarMenuButton size="lg" disabled tooltip="Loading stores…">
+            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+              <Spinner className="size-4" />
             </div>
+            <div className="grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-medium">Loading stores…</span>
+            </div>
+            <IconSelector className="ml-auto" />
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

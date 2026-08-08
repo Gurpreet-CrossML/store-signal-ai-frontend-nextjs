@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import FacebookPosts from "@/clients/facebook-post";
 
 export const metadata = {
@@ -6,8 +8,8 @@ export const metadata = {
 
 export default function Page() {
   return (
-    <>
+    <Suspense fallback={null}>
       <FacebookPosts />
-    </>
+    </Suspense>
   );
 }
