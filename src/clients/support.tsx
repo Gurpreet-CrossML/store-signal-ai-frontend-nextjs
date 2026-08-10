@@ -15,6 +15,12 @@ import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
@@ -54,6 +60,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
   IconAlertTriangle,
+  IconDotsVertical,
   IconHeadset,
   IconMessage2,
   IconMessageChatbot,
@@ -61,6 +68,7 @@ import {
   IconPaperclip,
   IconRobot,
   IconSend,
+  IconTicket,
   IconX,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
@@ -1378,6 +1386,33 @@ export default function Support() {
                         </p>
                       ) : null}
                     </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {activeThreadId &&
+                      connectedAgent === session?.user?.email && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleReturnToAI}
+                          disabled={transitionState !== "idle"}
+                        >
+                          <IconRobot className="h-4 w-4" />
+                          Return to AI
+                        </Button>
+                      )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="outline" size="icon">
+                          <IconDotsVertical className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-50">
+                        <DropdownMenuItem>
+                          <IconTicket className="mr-2 size-4" />
+                          Create Ticket
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </header>

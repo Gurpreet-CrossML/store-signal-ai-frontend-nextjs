@@ -125,6 +125,10 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/threads/${threadId}/tickets/`, "django"),
   fetchOrderData: (threadId: string) =>
     `/analytics/threads/${threadId}/order-data`,
+   generateTicketContent: (threadId: string) =>
+    `/chat/threads/${threadId}/tickets/ai-generate-content/`,
+  createTicket: (threadId: string) =>
+    `/chat/threads/${threadId}/tickets/create/`,
 
   // Chatbot Customization (Django via useBackend — keep trailing slash).
   widgetCustomization: (storeId: number) =>
