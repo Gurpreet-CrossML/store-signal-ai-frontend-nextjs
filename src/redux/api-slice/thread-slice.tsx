@@ -583,9 +583,17 @@ export const FetchOrders = createAsyncThunk(
 
 export const SyncOrders = createAsyncThunk(
   "SyncOrders",
-  async ({ threadID }: { threadID: string }, thunkAPI) => {
+  async (
+    { storeCode, customerEmail }: { storeCode: string; customerEmail: string },
+    thunkAPI,
+  ) => {
     try {
-      const response = await axiosInstance.post(ENDPOINTS.syncOrders(threadID));
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.syncOrders()}?store_code=${storeCode}`,
+        {
+          customer_email: customerEmail,
+        },
+      );
       const data = response.data.data;
 
       return data;
