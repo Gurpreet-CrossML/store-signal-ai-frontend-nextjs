@@ -298,7 +298,10 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
       const filteration =
         "&" +
         Object.entries(filters)
-          .map(([key, value]) => `${key}=${value}`)
+          .map(
+            ([key, value]) =>
+              `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`,
+          )
           .join("&");
 
       const response = await axiosInstance.get(

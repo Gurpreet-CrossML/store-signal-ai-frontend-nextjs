@@ -607,16 +607,21 @@ export default function Support() {
   );
 
   const filteredThreads = useMemo(() => {
-    const query = threadSearch.trim().toLowerCase();
+    // const query = threadSearch.trim().toLowerCase();
 
     return visibleThreads.filter((thread: ThreadWithReadState) => {
-      if (query) {
-        const name = thread.customer?.name?.toLowerCase() ?? "";
-        const preview = thread.last_message?.toLowerCase() ?? "";
-        if (!name.includes(query) && !preview.includes(query)) {
-          return false;
-        }
-      }
+      // if (query && !threadSearch) {
+      //   const name = thread.customer?.name?.toLowerCase() ?? "";
+      //   const email = thread.customer?.email?.toLowerCase() ?? "";
+      //   const preview = thread.last_message?.toLowerCase() ?? "";
+      //   if (
+      //     !name.includes(query) &&
+      //     !email.includes(query) &&
+      //     !preview.includes(query)
+      //   ) {
+      //     return false;
+      //   }
+      // }
 
       if (readFilter === "unread" && thread.is_read !== false) {
         return false;
@@ -637,10 +642,13 @@ export default function Support() {
         store_code: storeCode,
         page: 1,
         limit: 50,
-        filters: { is_active: true },
+        filters: {
+          is_active: true,
+          ...(threadSearch.trim() ? { search: threadSearch.trim() } : {}),
+        },
       }),
     );
-  }, [dispatch, storeCode]);
+  }, [dispatch, storeCode, threadSearch]);
 
   useEffect(() => {
     if (!activeThreadId || !storeCode) {

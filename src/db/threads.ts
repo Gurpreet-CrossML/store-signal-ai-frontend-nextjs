@@ -138,7 +138,17 @@ export async function list_threads(
     const search = filters.search;
     const searchConditions: SQL[] = [
       ilike(chatCustomer.email, `%${search}%`),
+      sql`concat_ws(' ', ${chatCustomer.firstName}, ${chatCustomer.lastName}) ILIKE ${`%${search}%`}`,
       ilike(chatThread.name, `%${search}%`),
+
+      sql`EXISTS (
+        SELECT 1
+        FROM ${chatCustomerorder}
+        WHERE ${chatCustomerorder.customerId} = ${chatThread.customerId}
+          AND (
+            ${chatCustomerorder.orderNumber}::text ILIKE ${`%${search}%`}
+          )
+      )`,
     ];
     if (isValidUuid(search)) {
       searchConditions.push(eq(chatThread.id, search));
