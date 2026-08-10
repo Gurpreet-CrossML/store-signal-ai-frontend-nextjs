@@ -125,7 +125,7 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/threads/${threadId}/tickets/`, "django"),
   fetchOrderData: (threadId: string) =>
     `/analytics/threads/${threadId}/order-data`,
-   generateTicketContent: (threadId: string) =>
+  generateTicketContent: (threadId: string) =>
     `/chat/threads/${threadId}/tickets/ai-generate-content/`,
   createTicket: (threadId: string) =>
     `/chat/threads/${threadId}/tickets/create/`,

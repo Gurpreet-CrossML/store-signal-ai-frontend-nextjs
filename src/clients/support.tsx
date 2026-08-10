@@ -1419,6 +1419,7 @@ export default function Support() {
                     </DropdownMenu>
                     {activeThreadId ? (
                       <CreateTicketDialog
+                        key={activeThreadId}
                         threadId={activeThreadId}
                         storeCode={storeCode}
                         customerEmail={selectedThread?.customer?.email ?? ""}
@@ -1429,7 +1430,6 @@ export default function Support() {
                             "Your support ticket has been created. Our team will review it and follow up with you shortly.",
                           )
                         }
-                        showTrigger={false}
                       />
                     ) : null}
                   </div>
