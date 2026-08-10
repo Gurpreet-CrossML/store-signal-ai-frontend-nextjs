@@ -352,7 +352,7 @@ function ThreadChatControls({
               className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 ${
                 isEmojiPickerOpen
                   ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "bg-muted text-foreground"
               }`}
               onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
               title="Add emoji"
@@ -362,7 +362,7 @@ function ThreadChatControls({
             <button
               type="button"
               disabled={inputsDisabled}
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors bg-muted text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => fileInputRef.current?.click()}
               title="Attach image or file"
             >
