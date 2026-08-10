@@ -543,6 +543,34 @@ export const likeMetaComment = createAsyncThunk(
   },
 );
 
+export const unlikeMetaComment = createAsyncThunk(
+  "unlikeMetaComment",
+  async (
+    {
+      storeCode,
+      postId,
+      commentId,
+    }: { storeCode: string; postId: string; commentId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.unlikeComment({ postId, commentId })}?store_code=${storeCode}`,
+        {},
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to remove the like.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 export const hideMetaComment = createAsyncThunk(
   "hideMetaComment",
   async (

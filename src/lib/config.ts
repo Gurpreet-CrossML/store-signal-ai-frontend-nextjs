@@ -233,6 +233,13 @@ export const ENDPOINTS = {
   }) => `/social/meta/pages/${accountId}/users/${userId}/messages/`,
   likeComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
     `/social/meta/posts/${postId}/comments/${commentId}/like/`,
+  unlikeComment: ({
+    postId,
+    commentId,
+  }: {
+    postId: string;
+    commentId: number;
+  }) => `/social/meta/posts/${postId}/comments/${commentId}/unlike/`,
   hideComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
     `/social/meta/posts/${postId}/comments/${commentId}/hide/`,
   deleteComment: ({

@@ -24,6 +24,7 @@ import {
   SOCIAL_PAGE_SIZE,
   hideMetaComment,
   likeMetaComment,
+  unlikeMetaComment,
   replyToMetaComment,
   SocialComment,
 } from "@/redux/api-slice/social-ai-slice";
@@ -165,12 +166,17 @@ function CommentItem({
   // Replies submitted but not yet confirmed — rendered under the thread so
   // the text never disappears while the request is in flight.
   const [pendingReplies, setPendingReplies] = useState<PendingSend[]>([]);
-  // There's no unlike endpoint — once liked (locally or per owner_liked
-  // from the server), the state only ever moves forward.
-  const [optimisticLiked, setOptimisticLiked] = useState(false);
-  const isLiked = comment.owner_liked || optimisticLiked;
+  // Null means "no local change yet" — fall back to the server's value.
+  // A plain boolean can't express that, and the like now toggles both ways.
+  const [likeOverride, setLikeOverride] = useState<boolean | null>(null);
+  const [likeBusy, setLikeBusy] = useState(false);
+  const isLiked = likeOverride ?? comment.owner_liked;
   const likeDisabled =
-    isLiked || comment.is_deleted || comment.is_hidden || disableLike;
+    likeBusy || comment.is_deleted || comment.is_hidden || disableLike;
+  // Reconcile the server's count with a like we've toggled but not yet
+  // confirmed, so the number moves with the icon.
+  const likeCount =
+    comment.like_count + (isLiked ? 1 : 0) - (comment.owner_liked ? 1 : 0);
   // The page's own comments ("agent"/"ai") carry no social_user — show the
   // page identity instead, and don't offer Reply on ourselves.
   const isSelf =
@@ -290,16 +296,22 @@ function CommentItem({
     }
   };
 
-  const handleLike = async () => {
+  const handleToggleLike = async () => {
     if (likeDisabled) return;
-    setOptimisticLiked(true);
+    const wasLiked = isLiked;
+    setLikeOverride(!wasLiked);
+    setLikeBusy(true);
     try {
       await dispatch(
-        likeMetaComment({ storeCode, postId, commentId: comment.id }),
+        wasLiked
+          ? unlikeMetaComment({ storeCode, postId, commentId: comment.id })
+          : likeMetaComment({ storeCode, postId, commentId: comment.id }),
       ).unwrap();
     } catch {
       // The thunk already surfaces the error toast.
-      setOptimisticLiked(false);
+      setLikeOverride(wasLiked);
+    } finally {
+      setLikeBusy(false);
     }
   };
 
@@ -361,9 +373,9 @@ function CommentItem({
           {channel.key === "facebook" && !comment.is_deleted && (
             <button
               type="button"
-              onClick={handleLike}
+              onClick={handleToggleLike}
               disabled={likeDisabled}
-              aria-label={isLiked ? "Liked" : "Like"}
+              aria-label={isLiked ? "Unlike" : "Like"}
               className="disabled:cursor-default disabled:opacity-50"
             >
               {isLiked ? (
@@ -384,10 +396,10 @@ function CommentItem({
               Reply
             </button>
           )}
-          {comment.like_count > 0 && (
+          {likeCount > 0 && (
             <span className="flex items-center gap-1">
               <channel.LikeIcon className="size-3.5" />
-              {comment.like_count}
+              {likeCount}
             </span>
           )}
           {/* Nothing can be done to a deleted comment, so it gets no menu
@@ -410,7 +422,7 @@ function CommentItem({
                   onClick={handleToggleHidden}
                   disabled={menuBusy}
                 >
-                  {comment.is_hidden ? "Unhide comment" : "Hide comment"}
+                  {comment.is_hidden ? "Unhide" : "Hide"}
                 </DropdownMenuItem>
                 {/* Unhide is the only way back from hidden — offering an
                     irreversible delete alongside it invites a mis-click. */}
@@ -475,9 +487,9 @@ function CommentItem({
       {channel.key === "instagram" && (
         <button
           type="button"
-          onClick={handleLike}
+          onClick={handleToggleLike}
           disabled={likeDisabled}
-          aria-label={isLiked ? "Liked" : "Like"}
+          aria-label={isLiked ? "Unlike" : "Like"}
           className="mt-1 shrink-0 disabled:cursor-default disabled:opacity-50"
         >
           {isLiked ? (

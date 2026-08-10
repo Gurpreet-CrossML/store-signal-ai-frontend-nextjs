@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { IconArrowLeft } from "@tabler/icons-react";
 
+import { PageHeading } from "@/components/custom/page-heading";
 import { Button } from "@/components/ui/button";
-import { Typography } from "@/components/ui/typography";
 
 /**
  * Shared shell for sub-pages of a multi-screen area: back navigation to the
@@ -30,12 +30,7 @@ export default function SubPageShell({
             <IconArrowLeft />
           </Link>
         </Button>
-        <div>
-          <Typography variant="h4" as="h2">
-            {title}
-          </Typography>
-          <Typography variant="muted">{description}</Typography>
-        </div>
+        <PageHeading title={title} description={description} />
       </div>
       {children}
     </div>
