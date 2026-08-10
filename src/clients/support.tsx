@@ -1112,8 +1112,20 @@ export default function Support() {
   ]);
 
   const handleOrdersSync = async () => {
+    const customerEmail = selectedThread?.customer?.email;
+    if (!customerEmail) {
+      toast.error("Order Sync failed", {
+        description: "Customer email is required to sync orders.",
+      });
+      return;
+    }
     try {
-      await dispatch(SyncOrders({ threadID: activeThreadId })).unwrap();
+      await dispatch(
+        SyncOrders({
+          storeCode,
+          customerEmail,
+        }),
+      ).unwrap();
 
       dispatch(FetchOrders(activeThreadId));
       toast.error("Order Sync", {

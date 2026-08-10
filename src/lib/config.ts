@@ -54,8 +54,8 @@ export const ENDPOINTS = {
     createAPIUrl("/support/attachments/upload/", "django"),
 
   // Customer Orders Sync (Django) — POST
-  syncOrders: (threadId: string) =>
-    createAPIUrl(`/chat/threads/${threadId}/orders/sync/`, "django"),
+  syncOrders: () =>
+    createAPIUrl(`/chat/customer/order-sync/`, "django"),
 
   // Company & staff management (Django /api/tenancy/). These are Django-owned;
   // GET calls must pass `useBackend: true` (writes auto-route to Django).
