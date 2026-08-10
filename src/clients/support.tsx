@@ -15,6 +15,12 @@ import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
@@ -55,6 +61,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
   IconAlertTriangle,
+  IconDotsVertical,
   IconHeadset,
   IconMessage2,
   IconMessageChatbot,
