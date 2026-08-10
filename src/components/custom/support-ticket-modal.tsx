@@ -72,6 +72,7 @@ export function CreateTicketDialog({
     }
   };
 
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!sourceId || !storeCode) return;
