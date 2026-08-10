@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { IconTicket } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
@@ -28,10 +28,18 @@ export function CreateTicketDialog({
   threadId,
   storeCode,
   customerEmail: threadCustomerEmail = "",
+  open,
+  onOpenChange,
+  onTicketCreated,
+  showTrigger = true,
 }: {
   threadId: string;
   storeCode: string;
   customerEmail?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onTicketCreated?: (ticket: unknown) => void;
+  showTrigger?: boolean;
 }) {
   const dispatch = useAppDispatch();
   const { GenerateTicketContentIsLoading } = useAppSelector(
@@ -40,11 +48,13 @@ export function CreateTicketDialog({
   const { CreateSupportTicketIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.CreateSupportTicketState,
   );
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [customerEmail, setCustomerEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [generateDescription, setGenerateDescription] = useState(false);
+  const dialogOpen = open ?? internalOpen;
+  const setDialogOpen = onOpenChange ?? setInternalOpen;
   const hasThreadCustomerEmail = Boolean(threadCustomerEmail);
   const ticketCustomerEmail = hasThreadCustomerEmail
     ? threadCustomerEmail
@@ -57,6 +67,20 @@ export function CreateTicketDialog({
     setGenerateDescription(false);
   };
 
+  useEffect(() => {
+    setCustomerEmail("");
+    setSubject("");
+    setDescription("");
+    setGenerateDescription(false);
+  }, [threadId]);
+
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    setDialogOpen(nextOpen);
+    if (!nextOpen) {
+      resetForm();
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!threadId || !storeCode) return;
@@ -67,13 +91,14 @@ export function CreateTicketDialog({
       description,
     };
     try {
-      await dispatch(
+      const ticket = await dispatch(
         CreateSupportTicket({
           store_code: storeCode,
           payload,
         }),
       ).unwrap();
-      setOpen(false);
+      onTicketCreated?.(ticket);
+      setDialogOpen(false);
       resetForm();
     } catch {
       // Error toast is handled in the thunk.
@@ -96,13 +121,15 @@ export function CreateTicketDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <IconTicket className="size-4" />
-          Create Ticket
-        </Button>
-      </DialogTrigger>
+    <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
+      {showTrigger ? (
+        <DialogTrigger asChild>
+          <Button size="sm">
+            <IconTicket className="size-4" />
+            Create Ticket
+          </Button>
+        </DialogTrigger>
+      ) : null}
       <DialogContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <DialogHeader>

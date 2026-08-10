@@ -35,6 +35,7 @@ import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
 import MessagePan from "@/components/custom/message-pan";
+import { CreateTicketDialog } from "@/components/custom/support-ticket-modal";
 import {
   CartDetailsCard,
   UserMetadataCard,
@@ -545,6 +546,7 @@ export default function Support() {
   const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
     "all",
   );
+  const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
     string | number | null
   >(null);
@@ -1407,12 +1409,29 @@ export default function Support() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-50">
-                        <DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => setCreateTicketOpen(true)}
+                        >
                           <IconTicket className="mr-2 size-4" />
                           Create Ticket
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    {activeThreadId ? (
+                      <CreateTicketDialog
+                        threadId={activeThreadId}
+                        storeCode={storeCode}
+                        customerEmail={selectedThread?.customer?.email ?? ""}
+                        open={createTicketOpen}
+                        onOpenChange={setCreateTicketOpen}
+                        onTicketCreated={() =>
+                          setAgentMessage(
+                            "Your support ticket has been created. Our team will review it and follow up with you shortly.",
+                          )
+                        }
+                        showTrigger={false}
+                      />
+                    ) : null}
                   </div>
                 </div>
               </header>
