@@ -176,8 +176,6 @@ export async function list_threads(
       sql`EXISTS (SELECT 1 FROM ${chatHistory} WHERE ${chatHistory.threadId} = ${chatThread.id} AND ${chatHistory.message} ILIKE ${`%${search}%`})`,
       // The customer's own name, which is stored split across two columns
       // and so isn't covered by the thread name above.
-      ilike(chatCustomer.firstName, `%${search}%`),
-      ilike(chatCustomer.lastName, `%${search}%`),
       sql`concat_ws(' ', ${chatCustomer.firstName}, ${chatCustomer.lastName}) ILIKE ${`%${search}%`}`,
       // Orders hang off the customer, not the thread, so match with an
       // EXISTS rather than joining and multiplying the thread rows.
