@@ -32,13 +32,13 @@ export default function Threads() {
   const queryString = searchParams?.toString() ?? "";
   const basePath = pathname ?? "/threads";
 
-  // Controlled, server-side pagination. Defaults to 15 rows per page. The
+  // Controlled, server-side pagination. Defaults to 25 rows per page. The
   // active page is mirrored in the `?page=` query param (1-indexed) so a shared
   // link lands on the same page the thread lives on.
   const [pagination, setPagination] = useState<PaginationState>(() => {
     const pageParam = Number(searchParams?.get("page"));
     const pageIndex = pageParam > 1 ? Math.floor(pageParam) - 1 : 0;
-    return { pageIndex, pageSize: 15 };
+    return { pageIndex, pageSize: 25 };
   });
 
   // Keep the `?page=` param in sync with the active page. Guarded so it only
@@ -60,8 +60,12 @@ export default function Threads() {
   // Each thread opens as its own page; browser back returns to this list
   // (the `?page=` param keeps the list position).
   const handleSelectThread = useCallback(
-    (threadId: string) => {
-      router.push(`/threads/${threadId}`);
+    (threadId: string, isActive: boolean) => {
+      if (isActive) {
+        router.push(`/support/?chat=${threadId}`);
+      } else {
+        router.push(`/threads/${threadId}`);
+      }
     },
     [router],
   );

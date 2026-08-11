@@ -9,6 +9,7 @@ import type {
   OrderData,
   OrderShippingAddress,
   CartData,
+  ThreadTicketData,
 } from "@/redux/api-slice/thread-slice";
 import {
   IconBrowser,
@@ -21,8 +22,12 @@ import {
   IconPackage,
   IconChevronRight,
   IconMail,
+  IconTicket,
 } from "@tabler/icons-react";
 import { FulfillmentBadge, StatusBadge } from "@/components/ui/status-badge";
+import { Badge } from "@/components/ui/badge";
+import { BADGE_TONE_STYLES, type BadgeTone } from "@/lib/badge-tones";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 function CardLoadingState() {
@@ -501,6 +506,117 @@ function OrderDetails({ order }: { order: OrderData }) {
         </div>
       </div>
     </div>
+  );
+}
+
+const TICKET_STATUS_TONES: Record<string, BadgeTone> = {
+  open: "danger",
+  pending: "warning",
+  resolved: "success",
+  closed: "neutral",
+};
+
+/** Still needing attention — these lead the list. */
+const LIVE_TICKET_STATUSES = ["open", "pending"];
+
+/**
+ * The customer's support tickets. Live ones (open, pending) come first
+ * because they're what an agent has to act on; resolved and closed follow
+ * for context.
+ */
+export function SupportTicketsCard({
+  tickets,
+  loading,
+}: {
+  tickets: ThreadTicketData[];
+  loading?: boolean;
+}) {
+  const liveCount = tickets.filter((ticket) =>
+    LIVE_TICKET_STATUSES.includes(ticket.status),
+  ).length;
+  const sortedTickets = [...tickets].sort((a, b) => {
+    const aLive = LIVE_TICKET_STATUSES.includes(a.status) ? 0 : 1;
+    const bLive = LIVE_TICKET_STATUSES.includes(b.status) ? 0 : 1;
+    return aLive - bLive;
+  });
+
+  return (
+    <section className="flex flex-col gap-3 border-b p-4">
+      <CardTitle className="flex items-center gap-2">
+        <IconTicket className="size-4" />
+        Support Tickets
+        {!loading && liveCount ? ` (${liveCount} active)` : ""}
+      </CardTitle>
+      {loading ? (
+        <CardLoadingState />
+      ) : !tickets.length ? (
+        <Typography variant="muted">No tickets raised yet.</Typography>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {sortedTickets.map((ticket) => {
+            const body = (
+              <>
+                <div className="flex items-start justify-between gap-2">
+                  <Typography variant="small" as="p" className="truncate">
+                    {ticket.subject || "Untitled ticket"}
+                  </Typography>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "shrink-0 capitalize",
+                      BADGE_TONE_STYLES[
+                        TICKET_STATUS_TONES[ticket.status] ?? "neutral"
+                      ],
+                    )}
+                  >
+                    {ticket.status}
+                  </Badge>
+                </div>
+                {ticket.description && (
+                  <Typography variant="muted" className="mt-1 line-clamp-2">
+                    {ticket.description}
+                  </Typography>
+                )}
+                <div className="mt-1 flex items-center gap-2">
+                  <Typography variant="muted" as="span">
+                    #{ticket.id} · {formatDate(ticket.created_at)}
+                  </Typography>
+                  {ticket.priority === "high" ||
+                  ticket.priority === "urgent" ? (
+                    <Badge
+                      variant="outline"
+                      className={cn("capitalize", BADGE_TONE_STYLES.warning)}
+                    >
+                      {ticket.priority}
+                    </Badge>
+                  ) : null}
+                </div>
+              </>
+            );
+
+            // Only linked when the provider gave us somewhere to go.
+            return ticket.ticket_url ? (
+              <a
+                key={ticket.id}
+                href={ticket.ticket_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl border border-border/50 p-2.5 transition-colors hover:bg-muted/50"
+              >
+                {body}
+              </a>
+            ) : (
+              <div
+                key={ticket.id}
+                className="rounded-xl border border-border/50 p-2.5"
+              >
+                {body}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 

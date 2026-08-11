@@ -31,7 +31,7 @@ interface ThreadsDataTableProps<TData, TValue> {
   onPaginationChange: OnChangeFn<PaginationState>;
   isLoading?: boolean;
   /** Navigate to a thread's detail page. */
-  onSelectThread: (threadId: string) => void;
+  onSelectThread: (threadId: string, isActive: boolean) => void;
 }
 
 export function ThreadsDataTable<TData, TValue>({
@@ -84,7 +84,12 @@ export function ThreadsDataTable<TData, TValue>({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  onClick={() => onSelectThread((row.original as Thread).id)}
+                  onClick={() =>
+                    onSelectThread(
+                      (row.original as Thread).id,
+                      (row.original as Thread).is_active,
+                    )
+                  }
                   className="cursor-pointer hover:bg-accent/50 data-[state=selected]:bg-accent"
                 >
                   {row.getVisibleCells().map((cell) => (
