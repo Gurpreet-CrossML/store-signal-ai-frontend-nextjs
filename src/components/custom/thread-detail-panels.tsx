@@ -229,7 +229,9 @@ export function SupportTicketsCard({
       {loading ? (
         <CardLoadingState />
       ) : threadTickets.length === 0 ? (
-        <Typography variant="muted">No support tickets for this thread.</Typography>
+        <Typography variant="muted">
+          No support tickets for this thread.
+        </Typography>
       ) : (
         <div className="flex flex-col gap-2">
           {threadTickets.map((ticket) => {
@@ -252,7 +254,11 @@ export function SupportTicketsCard({
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <Typography variant="small" as="p" className="font-medium">
+                      <Typography
+                        variant="small"
+                        as="p"
+                        className="font-medium"
+                      >
                         #{ticket.ticket_id}
                       </Typography>
                       <StatusBadge status={status} />
