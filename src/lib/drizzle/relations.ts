@@ -70,6 +70,7 @@ import {
   socialReaction,
   socialCommentAnalysis,
   socialMessageAttachment,
+  socialAiUsage,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -908,6 +909,7 @@ export const socialMessageRelations = relations(
     socialReactions: many(socialReaction),
     socialCommentAnalysiss: many(socialCommentAnalysis),
     socialMessageAttachments: many(socialMessageAttachment),
+    socialAiUsages: many(socialAiUsage),
   }),
 );
 
@@ -951,3 +953,10 @@ export const socialMessageAttachmentRelations = relations(
     }),
   }),
 );
+
+export const socialAiUsageRelations = relations(socialAiUsage, ({ one }) => ({
+  socialMessage: one(socialMessage, {
+    fields: [socialAiUsage.messageId],
+    references: [socialMessage.id],
+  }),
+}));
