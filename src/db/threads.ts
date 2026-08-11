@@ -85,6 +85,7 @@ type ThreadListRow = {
   total_messages: number;
   created_at: string;
   ended_at: string | null;
+  customer_id: number | null;
   customer_first_name: string | null;
   customer_last_name: string | null;
   customer_email: string | null;
@@ -93,7 +94,7 @@ type ThreadListRow = {
 export type ThreadListItem = {
   id: string;
   name: string | null;
-  customer: { name: string | null; email: string | null };
+  customer: { id: number | null; name: string | null; email: string | null };
   followup_level: number;
   is_active: boolean;
   total_messages: number;
@@ -113,7 +114,7 @@ export type ThreadListItem = {
  * build the DRF paginated envelope.
  *
  * Serializer fidelity:
- *   - customer: { name: "first last".strip() | null, email | null }
+ *   - customer: { id | null, name: "first last".strip() | null, email | null }
  *   - tags: AiInsights.tags for the thread (first row) or []
  *   - last_message: latest role="assistant" message text, or "" when none.
  *   - followup_level / is_active / total_messages / created_at / ended_at as-is.
@@ -173,6 +174,18 @@ export async function list_threads(
       ilike(chatCustomer.email, `%${search}%`),
       ilike(chatThread.name, `%${search}%`),
       sql`EXISTS (SELECT 1 FROM ${chatHistory} WHERE ${chatHistory.threadId} = ${chatThread.id} AND ${chatHistory.message} ILIKE ${`%${search}%`})`,
+      // The customer's own name, which is stored split across two columns
+      // and so isn't covered by the thread name above.
+      ilike(chatCustomer.firstName, `%${search}%`),
+      ilike(chatCustomer.lastName, `%${search}%`),
+      sql`concat_ws(' ', ${chatCustomer.firstName}, ${chatCustomer.lastName}) ILIKE ${`%${search}%`}`,
+      // Orders hang off the customer, not the thread, so match with an
+      // EXISTS rather than joining and multiplying the thread rows.
+      sql`EXISTS (
+        SELECT 1 FROM ${chatCustomerorder} o
+        WHERE o.customer_id = ${chatThread.customerId}
+          AND (o.order_number ILIKE ${`%${search}%`} OR o.order_id ILIKE ${`%${search}%`})
+      )`,
     ];
     if (isValidUuid(search)) {
       searchConditions.push(eq(chatThread.id, search));
@@ -247,6 +260,7 @@ export async function list_threads(
       total_messages: count(chatHistory.id),
       created_at: chatThread.createdAt,
       ended_at: chatThread.endedAt,
+      customer_id: chatCustomer.id,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
@@ -258,6 +272,7 @@ export async function list_threads(
     .where(whereClause)
     .groupBy(
       chatThread.id,
+      chatCustomer.id,
       chatCustomer.firstName,
       chatCustomer.lastName,
       chatCustomer.email,
@@ -323,6 +338,8 @@ export async function list_threads(
       id: row.id,
       name: row.name,
       customer: {
+        // Null for a guest — the UI keys its tickets lookup off this.
+        id: row.customer_id ?? null,
         name: hasCustomer ? customerName : null,
         email: row.customer_email,
       },
@@ -405,6 +422,7 @@ export async function get_thread_details(
       followup_level: chatThread.followupLevel,
       created_at: chatThread.createdAt,
       ended_at: chatThread.endedAt,
+      customer_id: chatCustomer.id,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
