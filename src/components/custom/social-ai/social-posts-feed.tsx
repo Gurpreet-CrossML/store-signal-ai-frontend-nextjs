@@ -282,7 +282,7 @@ export default function SocialPostsFeed({
             filling the viewport below the header. */}
         <SidebarProvider
           style={{ "--sidebar-width": "350px" } as CSSProperties}
-          className="-my-4 h-[calc(100svh-4rem)] min-h-0 w-full overflow-hidden md:-my-6"
+          className="-my-4 h-svh min-h-0 w-full overflow-hidden md:-my-6"
         >
           <Sidebar collapsible="none" className="hidden border-r md:flex">
             {/* h-16 and px-2 (the menu button adds its own p-2) so this row
