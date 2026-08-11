@@ -179,6 +179,7 @@ export function CreateTicketDialog({
               type="submit"
               disabled={
                 CreateSupportTicketIsLoading ||
+                GenerateTicketContentIsLoading ||
                 !ticketCustomerEmail.trim() ||
                 !subject.trim() ||
                 !description.trim()
