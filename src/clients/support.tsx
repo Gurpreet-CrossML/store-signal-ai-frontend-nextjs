@@ -523,6 +523,10 @@ export default function Support() {
   const { SyncOrdersIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.SyncOrdersState,
   );
+  const { FetchFreshdeskTicketIdData, FetchFreshdeskTicketIdIsLoading } =
+    useAppSelector(
+      (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
+    );
 
   // Local, mutable copy of the thread list. Seeded from Redux (is_read
   // defaults to true), then patched in place by the dashboard socket (new
@@ -1425,11 +1429,12 @@ export default function Support() {
                         customerEmail={selectedThread?.customer?.email ?? ""}
                         open={createTicketOpen}
                         onOpenChange={setCreateTicketOpen}
-                        onTicketCreated={() =>
+                        onTicketCreated={() => {
+                          dispatch(FetchFreshdeskTicketId(activeThreadId));
                           setAgentMessage(
                             "Your support ticket has been created. Our team will review it and follow up with you shortly.",
-                          )
-                        }
+                          );
+                        }}
                       />
                     ) : null}
                   </div>
@@ -1516,6 +1521,11 @@ export default function Support() {
                 <CartDetailsCard
                   cartData={FetchCartData}
                   loading={FetchCartDataIsLoading}
+                />
+                <SupportTicketsCard
+                  tickets={FetchFreshdeskTicketIdData}
+                  threadId={activeThreadId}
+                  loading={FetchFreshdeskTicketIdIsLoading}
                 />
                 <UserMetadataCard
                   userMetadata={FetchUserMetadataData}

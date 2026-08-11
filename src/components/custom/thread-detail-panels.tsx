@@ -199,6 +199,67 @@ export function UserMetadataCard({
   );
 }
 
+export function SupportTicketsCard({
+  tickets,
+  threadId,
+  loading,
+}: {
+  tickets?: ThreadTicketData[] | null;
+  threadId?: string | null;
+  loading?: boolean;
+}) {
+  const threadTickets = (tickets ?? []).filter(
+    (ticket) => !threadId || ticket.thread === threadId,
+  );
+
+  return (
+    <section className="flex flex-col gap-3 border-b p-4">
+      <CardTitle className="flex items-center gap-2">
+        <IconTicket className="size-4" />
+        Support Tickets
+        {!loading && threadTickets.length ? ` (${threadTickets.length})` : ""}
+      </CardTitle>
+      {loading ? (
+        <CardLoadingState />
+      ) : threadTickets.length === 0 ? (
+        <Typography variant="muted">No support tickets for this thread.</Typography>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {threadTickets.map((ticket) => (
+            <div
+              key={ticket.id}
+              className="rounded-xl border border-border/50 p-3"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <Typography variant="small" as="p" className="font-medium">
+                    Ticket #{ticket.ticket_id}
+                  </Typography>
+                  <Typography
+                    variant="small"
+                    as="p"
+                    className="mt-1 line-clamp-2"
+                  >
+                    {ticket.subject || "No subject"}
+                  </Typography>
+                </div>
+                <Typography variant="muted" className="shrink-0">
+                  {formatDate(ticket.created_at)}
+                </Typography>
+              </div>
+              {ticket.description ? (
+                <Typography variant="muted" className="mt-2 line-clamp-3">
+                  {ticket.description}
+                </Typography>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 /**
  * Build a readable multi-line shipping address, skipping any parts that
  * are missing rather than rendering "null" or empty lines.
