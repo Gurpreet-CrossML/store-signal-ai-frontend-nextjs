@@ -550,29 +550,40 @@ export default function Support() {
     setLocalThreads(normalizeThreads(FetchThreadsListData?.results));
   }
 
-  // No auto-selection: a chat opens only via the ?chat= URL param or a
-  // click, so "no chat selected" is a real state. If the open chat drops
-  // out of the list (e.g. it ended), fall back to that state.
-  const selectedThreadStillExists =
-    selectedThreadId !== null &&
-    localThreads.some((thread) => thread.id === selectedThreadId);
-  if (selectedThreadId !== null && !selectedThreadStillExists) {
-    setSelectedThreadId(null);
-  }
-  let activeThreadId = selectedThreadStillExists ? selectedThreadId : null;
+  // If the URL points at an active chat, open it. Otherwise, fall back to the
+  // first active chat so the support inbox always lands on a usable thread.
+  const urlThreadExists =
+    !!chatParam && localThreads.some((thread) => thread.id === chatParam);
+  const fallbackThreadId = localThreads[0]?.id ?? null;
+  const desiredThreadId =
+    !FetchThreadsIsLoading && (urlThreadExists || fallbackThreadId)
+      ? urlThreadExists
+        ? chatParam
+        : fallbackThreadId
+      : null;
 
-  // Apply the ?chat= param once the thread list is available — this is what
-  // makes shared conversation links open directly. Same guarded render-time
-  // adjustment pattern as the thread-list sync above; clicks flow the other
-  // way (state → URL) inside handleSelectThread.
-  if (chatParam && !FetchThreadsIsLoading && appliedChatParam !== chatParam) {
-    setAppliedChatParam(chatParam);
-    if (localThreads.some((thread) => thread.id === chatParam)) {
-      setSelectedThreadId(chatParam);
-      setAttachments([]);
-      activeThreadId = chatParam;
-    }
+  if (
+    !FetchThreadsIsLoading &&
+    (selectedThreadId !== desiredThreadId ||
+      appliedChatParam !== (chatParam ?? null))
+  ) {
+    setSelectedThreadId(desiredThreadId);
+    setAttachments([]);
+    setAppliedChatParam(chatParam ?? null);
   }
+
+  const selectedThreadStillExists =
+    desiredThreadId !== null &&
+    localThreads.some((thread) => thread.id === desiredThreadId);
+  const activeThreadId = selectedThreadStillExists ? desiredThreadId : null;
+
+  useEffect(() => {
+    if (!activeThreadId || chatParam === activeThreadId) return;
+
+    router.replace(`${pathname}?chat=${encodeURIComponent(activeThreadId)}`, {
+      scroll: false,
+    });
+  }, [activeThreadId, chatParam, pathname, router]);
 
   const playNotificationSound = useNotificationSound();
 
@@ -592,14 +603,6 @@ export default function Support() {
     () => visibleThreads.find((thread) => thread.id === activeThreadId) ?? null,
     [activeThreadId, visibleThreads],
   );
-
-  // A shared ?chat= link pointed at a chat that isn't in the active list
-  // (it ended, or the id is wrong). Only meaningful while nothing is open.
-  const chatNotFound =
-    !activeThreadId &&
-    !!chatParam &&
-    !FetchThreadsIsLoading &&
-    !localThreads.some((thread) => thread.id === chatParam);
 
   const unreadCount = useMemo(
     () => visibleThreads.filter((thread) => thread.is_read === false).length,
@@ -1451,12 +1454,10 @@ export default function Support() {
           <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
             <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />
             <Typography variant="small" as="p">
-              {chatNotFound ? "Chat not found" : "No chat selected"}
+              No active chats
             </Typography>
             <Typography variant="muted">
-              {chatNotFound
-                ? "This chat may have ended. Pick another one from the list."
-                : "Select a chat from the list to open the conversation."}
+              New active chats will appear here when customers message in.
             </Typography>
           </div>
         )}
