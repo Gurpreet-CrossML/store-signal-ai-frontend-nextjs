@@ -142,6 +142,29 @@ export const threadsColumns: ColumnDef<Thread>[] = [
       ),
   },
 
+  // Last Message — what the last message was in the thread.
+  {
+    accessorKey: "last_message",
+    header: "Last Message",
+    cell: ({ row }) => {
+      let last_message = row.original.last_message;
+      const last_message_splits = last_message?.split("\n");
+      last_message = last_message_splits
+        ? last_message_splits[0]
+        : last_message;
+
+      return (
+        <Typography
+          variant="muted"
+          as="span"
+          className="whitespace-nowrap overflow-hidden text-ellipsis *:truncate"
+        >
+          <Markdown>{last_message || "—"}</Markdown>
+        </Typography>
+      );
+    },
+  },
+
   {
     accessorKey: "tags",
     header: "Tags",
@@ -193,29 +216,6 @@ export const threadsColumns: ColumnDef<Thread>[] = [
           : formatDuration(row.original.created_at, row.original.ended_at)}
       </Typography>
     ),
-  },
-
-  // Last Message — what the last message was in the thread.
-  {
-    accessorKey: "last_message",
-    header: "Last Message",
-    cell: ({ row }) => {
-      let last_message = row.original.last_message;
-      const last_message_splits = last_message?.split("\n");
-      last_message = last_message_splits
-        ? last_message_splits[0]
-        : last_message;
-
-      return (
-        <Typography
-          variant="muted"
-          as="span"
-          className="whitespace-nowrap overflow-hidden text-ellipsis *:truncate"
-        >
-          <Markdown>{last_message || "—"}</Markdown>
-        </Typography>
-      );
-    },
   },
 
   // Started At — when the thread was created.

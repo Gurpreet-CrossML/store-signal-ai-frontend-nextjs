@@ -5,12 +5,18 @@ import Link from "next/link";
 import {
   IconArrowLeft,
   IconBrain,
+  IconBrowser,
   IconCalendarTime,
   IconCheck,
   IconClockHour4,
+  IconDeviceDesktop,
+  IconDeviceLaptop,
   IconHash,
+  IconLocationPin,
+  IconMail,
   IconMessage2,
   IconMessages,
+  IconNetwork,
   IconShoppingBag,
   IconTicket,
   IconUser,
@@ -71,31 +77,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 /* Shared bits                                                         */
 /* ------------------------------------------------------------------ */
 
-/** Bare heading for a full-width group band. */
-function SectionHeading({
-  icon,
-  title,
-  info,
-  action,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  info: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <Typography variant="h6" as="h3" className="flex items-center gap-2">
-        {icon}
-        {title}
-        <InfoIcon text={info} />
-      </Typography>
-      {action}
-    </div>
-  );
-}
-
-/** One cell of the thread strip: muted label over a small value. */
+/** One cell of the thread strip. Labels are exposed through tooltips. */
 function MetaCell({
   icon,
   label,
@@ -110,58 +92,71 @@ function MetaCell({
   loading: boolean;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-1">
-      <Typography
-        variant="muted"
-        as="span"
-        className="flex items-center gap-1.5 text-xs"
-      >
-        {icon}
-        {label}
-      </Typography>
-      {loading ? (
-        <Skeleton className="h-5 w-24" />
-      ) : (
-        <Typography
-          variant="small"
-          as="span"
-          className={cn(
-            mono ? "truncate font-mono text-xs" : "whitespace-nowrap",
-          )}
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className="flex min-w-0 flex-1 items-center gap-2"
+          aria-label={label}
         >
-          {value}
-        </Typography>
-      )}
-    </div>
+          <span className="shrink-0 text-muted-foreground">{icon}</span>
+          {loading ? (
+            <Skeleton className="h-5 w-24" />
+          ) : (
+            <Typography
+              variant="small"
+              as="span"
+              className={cn(
+                "min-w-0 font-normal",
+                mono ? "truncate font-mono text-xs" : "whitespace-nowrap",
+              )}
+            >
+              {value}
+            </Typography>
+          )}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
-/** Label → value row used inside the profile card. */
-function DetailRow({
+/** One compact item in the customer strip. Labels are exposed through tooltips. */
+function CustomerFact({
+  icon,
   label,
   value,
   mono = false,
+  truncate = true,
 }: {
+  icon: React.ReactNode;
   label: string;
-  value: string;
+  value?: string | null;
   mono?: boolean;
+  truncate?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-4">
-      <Typography variant="muted" as="span" className="shrink-0 text-xs">
-        {label}
-      </Typography>
-      <Typography
-        variant="small"
-        as="span"
-        className={cn(
-          "min-w-0 wrap-break-word text-right font-normal",
-          mono && "font-mono text-xs",
-        )}
-      >
-        {value}
-      </Typography>
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className="flex min-w-0 shrink-0 items-center gap-2 rounded-md px-2 py-1.5"
+          aria-label={`${label}: ${value || "Unknown"}`}
+        >
+          <span className="shrink-0 text-muted-foreground">{icon}</span>
+          <Typography
+            variant="small"
+            as="span"
+            className={cn(
+              "min-w-0 font-normal",
+              truncate ? "max-w-44 truncate" : "shrink-0 whitespace-nowrap",
+              mono && "font-mono text-xs",
+            )}
+          >
+            {value || "Unknown"}
+          </Typography>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -170,7 +165,7 @@ function DetailRow({
 /* ------------------------------------------------------------------ */
 
 /** Who the customer is and the environment they chatted from. */
-function ProfileCard({
+function CustomerProfileStrip({
   name,
   email,
   metadata,
@@ -182,54 +177,55 @@ function ProfileCard({
   loading: boolean;
 }) {
   return (
-    <Card size="sm">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <IconUser className="size-4" />
-          Profile
-          <InfoIcon text="The customer's identity and the environment this session came from — useful for spotting location or device-specific issues." />
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {loading ? (
-          <LoadingState className="py-6" />
-        ) : (
-          <>
-            <div className="flex flex-col gap-0.5">
-              <Typography variant="small" as="span" className="text-base">
-                {name}
-              </Typography>
-              {email && (
-                <Typography variant="muted" as="span" className="text-xs">
-                  {email}
-                </Typography>
-              )}
-            </div>
-            <Separator />
-            <div className="flex flex-col gap-2">
-              <DetailRow
-                label="Location"
-                value={metadata?.geo_location || "Unknown"}
-              />
-              <DetailRow
-                label="IP Address"
-                value={metadata?.ip_address || "Unknown"}
-                mono
-              />
-              <DetailRow
-                label="Device"
-                value={metadata?.device_type || "Unknown"}
-              />
-              <DetailRow
-                label="Browser"
-                value={metadata?.browser || "Unknown"}
-              />
-              <DetailRow label="OS" value={metadata?.os || "Unknown"} />
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+    <div className="border-t bg-muted/20 px-3 py-2">
+      {loading ? (
+        <div className="flex items-center gap-3 overflow-hidden">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} className="h-7 w-28 shrink-0" />
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center gap-1 overflow-x-auto">
+          <CustomerFact
+            icon={<IconUser className="size-4" />}
+            label="Name"
+            value={name}
+          />
+          <CustomerFact
+            icon={<IconMail className="size-4" />}
+            label="Email"
+            value={email}
+          />
+          <CustomerFact
+            icon={<IconLocationPin className="size-4" />}
+            label="Location"
+            value={metadata?.geo_location}
+            truncate={false}
+          />
+          <CustomerFact
+            icon={<IconNetwork className="size-4" />}
+            label="IP Address"
+            value={metadata?.ip_address}
+            mono
+          />
+          <CustomerFact
+            icon={<IconDeviceLaptop className="size-4" />}
+            label="Device"
+            value={metadata?.device_type}
+          />
+          <CustomerFact
+            icon={<IconBrowser className="size-4" />}
+            label="Browser"
+            value={metadata?.browser}
+          />
+          <CustomerFact
+            icon={<IconDeviceDesktop className="size-4" />}
+            label="OS"
+            value={metadata?.os}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -398,10 +394,10 @@ function TicketsBlock({
             </TableHeader>
             <TableBody>
               {tickets.map((ticket, index) => (
-                <TableRow key={ticket.ticket_id ?? index}>
+                <TableRow key={ticket.id ?? index}>
                   <TableCell>
                     <Badge variant="outline" className="font-normal">
-                      TCK-{ticket.ticket_id}
+                      TCK-{ticket.id}
                     </Badge>
                   </TableCell>
                   <TableCell className="max-w-56">
@@ -654,7 +650,13 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
       dispatch(FetchCart(threadId));
       dispatch(FetchUserMetadata(threadId));
       dispatch(FetchFeedbackSequence(threadId));
-      dispatch(FetchFreshdeskTicketId(threadId));
+      dispatch(
+        FetchFreshdeskTicketId({
+          threadId,
+          customerId: result.customer?.id,
+          storeCode,
+        }),
+      );
       dispatch(FetchTags(threadId));
     };
 
@@ -735,64 +737,72 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
       </div>
 
       <Card size="sm">
-        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <MetaCell
-            icon={<IconHash className="size-3.5" />}
-            label="Session ID"
-            value={<span title={threadId}>{threadId}</span>}
-            mono
-            loading={false}
-          />
-          <Separator
-            orientation="vertical"
-            className="hidden h-auto self-stretch sm:block"
-          />
-          <MetaCell
-            icon={<IconCalendarTime className="size-3.5" />}
-            label="Started"
-            value={formatDateTime(details?.created_at || null) || "—"}
-            loading={detailsLoading}
-          />
-          <Separator
-            orientation="vertical"
-            className="hidden h-auto self-stretch sm:block"
-          />
-          <MetaCell
-            icon={<IconCalendarTime className="size-3.5" />}
-            label="Ended"
-            value={
-              details?.ended_at
-                ? formatDateTime(details.ended_at)
-                : details?.is_active
-                  ? "Ongoing"
-                  : "—"
-            }
-            loading={detailsLoading}
-          />
-          <Separator
-            orientation="vertical"
-            className="hidden h-auto self-stretch sm:block"
-          />
-          <MetaCell
-            icon={<IconClockHour4 className="size-3.5" />}
-            label="Duration"
-            value={
-              getDuration(
-                details?.created_at ?? null,
-                details?.ended_at ?? null,
-              ) || "—"
-            }
-            loading={detailsLoading}
-          />
-          <Separator
-            orientation="vertical"
-            className="hidden h-auto self-stretch sm:block"
-          />
-          <MetaCell
-            icon={<IconMessages className="size-3.5" />}
-            label="Messages"
-            value={details?.total_messages ?? threadMessages.length}
-            loading={detailsLoading}
+        <CardContent className="p-0 gap-0">
+          <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+            <MetaCell
+              icon={<IconHash className="size-3.5" />}
+              label="Session ID"
+              value={<span title={threadId}>{threadId}</span>}
+              mono
+              loading={false}
+            />
+            <Separator
+              orientation="vertical"
+              className="hidden h-auto self-stretch sm:block"
+            />
+            <MetaCell
+              icon={<IconCalendarTime className="size-3.5" />}
+              label="Started"
+              value={formatDateTime(details?.created_at || null) || "—"}
+              loading={detailsLoading}
+            />
+            <Separator
+              orientation="vertical"
+              className="hidden h-auto self-stretch sm:block"
+            />
+            <MetaCell
+              icon={<IconCalendarTime className="size-3.5" />}
+              label="Ended"
+              value={
+                details?.ended_at
+                  ? formatDateTime(details.ended_at)
+                  : details?.is_active
+                    ? "Ongoing"
+                    : "—"
+              }
+              loading={detailsLoading}
+            />
+            <Separator
+              orientation="vertical"
+              className="hidden h-auto self-stretch sm:block"
+            />
+            <MetaCell
+              icon={<IconClockHour4 className="size-3.5" />}
+              label="Duration"
+              value={
+                getDuration(
+                  details?.created_at ?? null,
+                  details?.ended_at ?? null,
+                ) || "—"
+              }
+              loading={detailsLoading}
+            />
+            <Separator
+              orientation="vertical"
+              className="hidden h-auto self-stretch sm:block"
+            />
+            <MetaCell
+              icon={<IconMessages className="size-3.5" />}
+              label="Messages"
+              value={details?.total_messages ?? threadMessages.length}
+              loading={detailsLoading}
+            />
+          </div>
+          <CustomerProfileStrip
+            name={customerName}
+            email={details?.customer_email ?? null}
+            metadata={FetchUserMetadataData}
+            loading={detailsLoading || FetchUserMetadataIsLoading}
           />
         </CardContent>
       </Card>
@@ -842,20 +852,14 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         />
       </div>
 
-      {/* ── Group 4: Customer — profile, cart, and tickets ────────────── */}
+      {/* ── Group 4: Customer activity — cart and tickets ─────────────── */}
       <section className="flex flex-col gap-4">
-        <SectionHeading
-          icon={<IconUser className="size-4" />}
-          title="Customer"
-          info="Everything about the person behind this session — who they are, what was in their cart, and the support tickets they raised."
-        />
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <ProfileCard
-            name={customerName}
-            email={details?.customer_email ?? null}
-            metadata={FetchUserMetadataData}
-            loading={detailsLoading || FetchUserMetadataIsLoading}
-          />
+        <Typography variant="h6" as="h3" className="flex items-center gap-2">
+          <IconShoppingBag className="size-4" />
+          Customer Activity
+          <InfoIcon text="Cart activity and support tickets connected to this session." />
+        </Typography>
+        <div className="grid grid-cols-1 gap-4">
           <CartCard cartData={FetchCartData} loading={FetchCartDataIsLoading} />
         </div>
         <TicketsBlock
