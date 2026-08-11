@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { FEEDBACK_RATINGS, type FeedbackRatingValue } from "@/lib/config";
 
 export type FeedbackRating = "" | FeedbackRatingValue;
@@ -103,21 +102,17 @@ export default function ThreadFilteration({
           onChange={(event) =>
             onChange({ ...filters, search: event.target.value })
           }
-          placeholder="Search name, session, email…"
+          placeholder="Search name, email, messages…"
           className="pl-8"
         />
       </div>
-
-      <Separator
-        orientation="vertical"
-        className="hidden h-auto self-stretch sm:block"
-      />
 
       <DateRangePicker
         from={filters.from}
         to={filters.to}
         onRangeChange={(from, to) => onChange({ ...filters, from, to })}
         disabled={{ after: new Date() }}
+        withTime
       />
 
       <FilterSelect
@@ -137,22 +132,6 @@ export default function ThreadFilteration({
       />
 
       <FilterSelect
-        ariaLabel="Filter by customer type"
-        value={filters.user_type}
-        onChange={(user_type) =>
-          onChange({
-            ...filters,
-            user_type: user_type as ThreadFilterState["user_type"],
-          })
-        }
-        options={[
-          { value: "", label: "All Customers" },
-          { value: "guest", label: "Guest" },
-          { value: "logged_in", label: "Logged In" },
-        ]}
-      />
-
-      <FilterSelect
         ariaLabel="Filter by support ticket"
         value={filters.has_ticket}
         onChange={(has_ticket) =>
@@ -165,26 +144,6 @@ export default function ThreadFilteration({
           { value: "", label: "All Tickets" },
           { value: "true", label: "With Ticket" },
           { value: "false", label: "Without Ticket" },
-        ]}
-      />
-
-      <FilterSelect
-        ariaLabel="Filter by feedback"
-        value={filters.has_feedback}
-        onChange={(has_feedback) =>
-          onChange({
-            ...filters,
-            has_feedback: has_feedback as ThreadFilterState["has_feedback"],
-            // Rating only applies to threads that have feedback; clear it
-            // whenever the feedback filter leaves the "With Feedback" state.
-            feedback_rating:
-              has_feedback === "true" ? filters.feedback_rating : "",
-          })
-        }
-        options={[
-          { value: "", label: "All Feedback" },
-          { value: "true", label: "With Feedback" },
-          { value: "false", label: "Without Feedback" },
         ]}
       />
 

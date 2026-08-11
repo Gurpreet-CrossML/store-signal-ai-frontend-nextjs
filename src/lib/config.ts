@@ -112,8 +112,13 @@ export const ENDPOINTS = {
     `/analytics/threads/${threadId}/ai-insights`,
   fetchCartData: (threadId: string) =>
     `/analytics/threads/${threadId}/cart-data`,
-  fetchFreshdeskTicketId: (threadId: string) =>
-    `/support/threads/${threadId}/tickets`,
+  // Support tickets (Django). Same payload from both, so the caller only
+  // picks the URL: customer-scoped for a logged-in customer (spans all
+  // their conversations), thread-scoped for a guest.
+  fetchCustomerTickets: (customerId: number) =>
+    createAPIUrl(`/support/customers/${customerId}/tickets/`, "django"),
+  fetchThreadTickets: (threadId: string) =>
+    createAPIUrl(`/support/threads/${threadId}/tickets/`, "django"),
   fetchOrderData: (threadId: string) =>
     `/analytics/threads/${threadId}/order-data`,
 

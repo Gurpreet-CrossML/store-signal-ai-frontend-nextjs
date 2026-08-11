@@ -33,6 +33,7 @@ import {
   CartDetailsCard,
   UserMetadataCard,
   OrdersCard,
+  SupportTicketsCard,
 } from "@/components/custom/thread-detail-panels";
 import {
   FetchAIInsight,
@@ -128,6 +129,7 @@ function ThreadChatControls({
   isEmojiPickerOpen,
   setIsEmojiPickerOpen,
   onTakeOver,
+  onReturnToAI,
   onSendAgentMessage,
   onFileSelection,
   onEmojiSelect,
@@ -346,28 +348,28 @@ function ThreadChatControls({
 
           {/* Toolbar: emoji + attach + hint on the left, send on the right */}
           <div className="flex items-center gap-1 p-2">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="icon-sm"
               disabled={inputsDisabled}
-              className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 ${
-                isEmojiPickerOpen
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              aria-pressed={isEmojiPickerOpen}
+              className={isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined}
               onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
               title="Add emoji"
             >
               <IconMoodSmile className="size-4" />
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
+              size="icon-sm"
               disabled={inputsDisabled}
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => fileInputRef.current?.click()}
               title="Attach image or file"
             >
               <IconPaperclip className="size-4" />
-            </button>
+            </Button>
             <input
               ref={fileInputRef}
               type="file"
@@ -392,6 +394,19 @@ function ThreadChatControls({
                   {attachments.length} attached
                 </Typography>
               )}
+              {/* Sits beside Send because it's the other thing an agent can
+                  do from here: hand the conversation back instead of
+                  replying. Outline keeps Send the primary action. */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onReturnToAI}
+                disabled={transitionState !== "idle"}
+              >
+                <IconRobot className="size-4" />
+                Return to AI
+              </Button>
               <Button
                 type="button"
                 size="sm"
@@ -483,6 +498,10 @@ export default function Support() {
   const { FetchThreadDetailsIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchThreadDetailsState,
   );
+  const { FetchFreshdeskTicketIdData, FetchFreshdeskTicketIdIsLoading } =
+    useAppSelector(
+      (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
+    );
   const { FetchCartData, FetchCartDataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchCartDataState,
   );
@@ -514,6 +533,7 @@ export default function Support() {
   const [attachments, setAttachments] = useState<AttachmentUpload[]>([]);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
+  const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
   const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
     "all",
   );
@@ -550,29 +570,40 @@ export default function Support() {
     setLocalThreads(normalizeThreads(FetchThreadsListData?.results));
   }
 
-  // No auto-selection: a chat opens only via the ?chat= URL param or a
-  // click, so "no chat selected" is a real state. If the open chat drops
-  // out of the list (e.g. it ended), fall back to that state.
-  const selectedThreadStillExists =
-    selectedThreadId !== null &&
-    localThreads.some((thread) => thread.id === selectedThreadId);
-  if (selectedThreadId !== null && !selectedThreadStillExists) {
-    setSelectedThreadId(null);
-  }
-  let activeThreadId = selectedThreadStillExists ? selectedThreadId : null;
+  // If the URL points at an active chat, open it. Otherwise, fall back to the
+  // first active chat so the support inbox always lands on a usable thread.
+  const urlThreadExists =
+    !!chatParam && localThreads.some((thread) => thread.id === chatParam);
+  const fallbackThreadId = localThreads[0]?.id ?? null;
+  const desiredThreadId =
+    !FetchThreadsIsLoading && (urlThreadExists || fallbackThreadId)
+      ? urlThreadExists
+        ? chatParam
+        : fallbackThreadId
+      : null;
 
-  // Apply the ?chat= param once the thread list is available — this is what
-  // makes shared conversation links open directly. Same guarded render-time
-  // adjustment pattern as the thread-list sync above; clicks flow the other
-  // way (state → URL) inside handleSelectThread.
-  if (chatParam && !FetchThreadsIsLoading && appliedChatParam !== chatParam) {
-    setAppliedChatParam(chatParam);
-    if (localThreads.some((thread) => thread.id === chatParam)) {
-      setSelectedThreadId(chatParam);
-      setAttachments([]);
-      activeThreadId = chatParam;
-    }
+  if (
+    !FetchThreadsIsLoading &&
+    (selectedThreadId !== desiredThreadId ||
+      appliedChatParam !== (chatParam ?? null))
+  ) {
+    setSelectedThreadId(desiredThreadId);
+    setAttachments([]);
+    setAppliedChatParam(chatParam ?? null);
   }
+
+  const selectedThreadStillExists =
+    desiredThreadId !== null &&
+    localThreads.some((thread) => thread.id === desiredThreadId);
+  const activeThreadId = selectedThreadStillExists ? desiredThreadId : null;
+
+  useEffect(() => {
+    if (!activeThreadId || chatParam === activeThreadId) return;
+
+    router.replace(`${pathname}?chat=${encodeURIComponent(activeThreadId)}`, {
+      scroll: false,
+    });
+  }, [activeThreadId, chatParam, pathname, router]);
 
   const playNotificationSound = useNotificationSound();
 
@@ -593,31 +624,13 @@ export default function Support() {
     [activeThreadId, visibleThreads],
   );
 
-  // A shared ?chat= link pointed at a chat that isn't in the active list
-  // (it ended, or the id is wrong). Only meaningful while nothing is open.
-  const chatNotFound =
-    !activeThreadId &&
-    !!chatParam &&
-    !FetchThreadsIsLoading &&
-    !localThreads.some((thread) => thread.id === chatParam);
-
   const unreadCount = useMemo(
     () => visibleThreads.filter((thread) => thread.is_read === false).length,
     [visibleThreads],
   );
 
   const filteredThreads = useMemo(() => {
-    const query = threadSearch.trim().toLowerCase();
-
     return visibleThreads.filter((thread: ThreadWithReadState) => {
-      if (query) {
-        const name = thread.customer?.name?.toLowerCase() ?? "";
-        const preview = thread.last_message?.toLowerCase() ?? "";
-        if (!name.includes(query) && !preview.includes(query)) {
-          return false;
-        }
-      }
-
       if (readFilter === "unread" && thread.is_read !== false) {
         return false;
       }
@@ -627,7 +640,7 @@ export default function Support() {
 
       return true;
     });
-  }, [visibleThreads, threadSearch, readFilter]);
+  }, [visibleThreads, readFilter]);
 
   useEffect(() => {
     if (!storeCode) return;
@@ -637,10 +650,23 @@ export default function Support() {
         store_code: storeCode,
         page: 1,
         limit: 50,
-        filters: { is_active: true },
+        filters: {
+          is_active: true,
+          // Resolved server-side so it can reach customer email, name and
+          // order ids — none of which are on the thread rows themselves.
+          ...(debouncedThreadSearch ? { search: debouncedThreadSearch } : {}),
+        },
       }),
     );
-  }, [dispatch, storeCode]);
+  }, [dispatch, storeCode, debouncedThreadSearch]);
+
+  useEffect(() => {
+    const timeout = setTimeout(
+      () => setDebouncedThreadSearch(threadSearch.trim()),
+      300,
+    );
+    return () => clearTimeout(timeout);
+  }, [threadSearch]);
 
   useEffect(() => {
     if (!activeThreadId || !storeCode) {
@@ -668,12 +694,18 @@ export default function Support() {
       dispatch(FetchCart(activeThreadId));
       dispatch(FetchUserMetadata(activeThreadId));
       dispatch(FetchFeedbackSequence(activeThreadId));
-      dispatch(FetchFreshdeskTicketId(activeThreadId));
+      dispatch(
+        FetchFreshdeskTicketId({
+          threadId: activeThreadId,
+          customerId: selectedThread?.customer?.id,
+          storeCode,
+        }),
+      );
       dispatch(FetchOrders(activeThreadId));
     };
 
     loadThreadData();
-  }, [dispatch, activeThreadId, storeCode]);
+  }, [dispatch, activeThreadId, storeCode, selectedThread?.customer?.id]);
 
   const handleThreadMessageAdded = useCallback((message: ThreadMessage) => {
     setThreadMessages((prev) => [...prev, message]);
@@ -1193,7 +1225,7 @@ export default function Support() {
           <SidebarInput
             value={threadSearch}
             onChange={(event) => setThreadSearch(event.target.value)}
-            placeholder="Search conversations…"
+            placeholder="Search name, email or order ID…"
           />
           <div className="flex items-center gap-1.5">
             {(
@@ -1347,18 +1379,6 @@ export default function Support() {
                       ) : null}
                     </div>
                   </div>
-                  {activeThreadId &&
-                    connectedAgent === session?.user?.email && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleReturnToAI}
-                        disabled={transitionState !== "idle"}
-                      >
-                        <IconRobot className="h-4 w-4" />
-                        Return to AI
-                      </Button>
-                    )}
                 </div>
               </header>
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -1435,6 +1455,10 @@ export default function Support() {
                   orderSyncLoading={SyncOrdersIsLoading}
                   customerData={selectedThread?.customer || null}
                 />
+                <SupportTicketsCard
+                  tickets={FetchFreshdeskTicketIdData ?? []}
+                  loading={FetchFreshdeskTicketIdIsLoading}
+                />
                 <CartDetailsCard
                   cartData={FetchCartData}
                   loading={FetchCartDataIsLoading}
@@ -1451,12 +1475,10 @@ export default function Support() {
           <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
             <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />
             <Typography variant="small" as="p">
-              {chatNotFound ? "Chat not found" : "No chat selected"}
+              No active chats
             </Typography>
             <Typography variant="muted">
-              {chatNotFound
-                ? "This chat may have ended. Pick another one from the list."
-                : "Select a chat from the list to open the conversation."}
+              New active chats will appear here when customers message in.
             </Typography>
           </div>
         )}
