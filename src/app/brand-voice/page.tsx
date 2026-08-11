@@ -10,7 +10,7 @@ import {
   SectionNav,
   type SectionNavItem,
 } from "@/components/custom/section-nav";
-import { Typography } from "@/components/ui/typography";
+import { PageHeading } from "@/components/custom/page-heading";
 
 export const metadata = {
   title: "Brand Voice",
@@ -54,14 +54,10 @@ const BRAND_VOICE_SECTIONS: SectionNavItem[] = [
 export default function Page() {
   return (
     <div className="flex flex-col gap-6 p-4">
-      <div>
-        <Typography variant="h4" as="h2">
-          Brand Voice
-        </Typography>
-        <Typography variant="muted">
-          Everything that shapes how the AI sounds and looks to your customers.
-        </Typography>
-      </div>
+      <PageHeading
+        title="Brand Voice"
+        description="Everything that shapes how the AI sounds and looks to your customers."
+      />
       <SectionNav
         items={BRAND_VOICE_SECTIONS}
         ariaLabel="Brand voice sections"

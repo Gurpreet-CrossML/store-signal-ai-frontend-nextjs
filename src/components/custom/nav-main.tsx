@@ -14,10 +14,14 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import { SideBarMenuItem } from "@/lib/sidebar-navs";
+import {
+  isMenuItemActive,
+  MainSidebarMenuItem,
+  SideBarMenuItem,
+} from "@/lib/sidebar-navs";
 import {
   Collapsible,
   CollapsibleContent,
@@ -35,7 +39,7 @@ function CollapsibleMenuItem({
   title: string;
   icon?: Icon;
   defaultOpen?: boolean;
-  items?: SideBarMenuItem[];
+  items?: MainSidebarMenuItem[];
 }) {
   return (
     <Collapsible
@@ -56,7 +60,7 @@ function CollapsibleMenuItem({
             {items?.map((subItem) => (
               <SidebarMenuSubItem key={subItem.title}>
                 <SidebarMenuSubButton
-                  isActive={pathname == subItem.url}
+                  isActive={isMenuItemActive(pathname, subItem.url)}
                   className="data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15"
                   asChild
                 >
@@ -64,7 +68,9 @@ function CollapsibleMenuItem({
                     {subItem.icon && (
                       <subItem.icon
                         className={cn(
-                          pathname == subItem.url ? "text-primary!" : "",
+                          isMenuItemActive(pathname, subItem.url)
+                            ? "text-primary!"
+                            : "",
                         )}
                       />
                     )}
@@ -80,25 +86,42 @@ function CollapsibleMenuItem({
   );
 }
 
-function SidebarMenuItemWrapper({
+export function SidebarMenuItemWrapper({
   item,
   pathname,
+  expanded = false,
 }: {
   item: SideBarMenuItem;
   pathname: string | null;
+  /**
+   * Render as a full-width labelled row instead of a collapsed icon.
+   *
+   * The whole sidebar is pinned to its collapsed state, so every button
+   * inside it — including the sub-sidebar's, which has room to spare —
+   * inherits the icon-mode rules that force a 36px square and clip the
+   * label. This opts those rules back out, and drops the tooltip, which
+   * only exists to name an icon that has no visible label.
+   */
+  expanded?: boolean;
 }) {
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        tooltip={item.title}
-        isActive={pathname == item.url}
-        className="data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15 data-[active=true]:hover:text-primary"
+        tooltip={expanded ? undefined : item.title}
+        isActive={isMenuItemActive(pathname, item.url)}
+        className={cn(
+          "data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15 data-[active=true]:hover:text-primary",
+          expanded &&
+            "group-data-[collapsible=icon]:mx-0 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:[&_svg]:size-4",
+        )}
         asChild
       >
         <Link href={item.url}>
           {item.icon && (
             <item.icon
-              className={cn(pathname == item.url ? "text-primary!" : "")}
+              className={cn(
+                isMenuItemActive(pathname, item.url) ? "text-primary!" : "",
+              )}
             />
           )}
           <span>{item.title}</span>
@@ -112,7 +135,7 @@ function SidebarGroupWrapper({
   item,
   pathname,
 }: {
-  item: SideBarMenuItem;
+  item: MainSidebarMenuItem;
   pathname: string | null;
 }) {
   return (
@@ -121,18 +144,6 @@ function SidebarGroupWrapper({
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
           {item.items?.map((subItem) => {
-            if (subItem.items && subItem.items.length > 0) {
-              return (
-                <CollapsibleMenuItem
-                  key={subItem.title}
-                  pathname={pathname}
-                  title={subItem.title}
-                  icon={subItem.icon}
-                  defaultOpen={subItem.isExpanded}
-                  items={subItem.items}
-                />
-              );
-            }
             return (
               <SidebarMenuItemWrapper
                 key={subItem.title}
@@ -147,7 +158,7 @@ function SidebarGroupWrapper({
   );
 }
 
-export function NavMain({ items }: { items: SideBarMenuItem[] }) {
+export function NavMain({ items }: { items: MainSidebarMenuItem[] }) {
   return (
     <Suspense fallback={null}>
       <NavMainContent items={items} />
@@ -155,13 +166,8 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
   );
 }
 
-function NavMainContent({ items }: { items: SideBarMenuItem[] }) {
+function NavMainContent({ items }: { items: MainSidebarMenuItem[] }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const currentUrl = searchParams?.toString()
-    ? `${pathname}?${searchParams.toString()}`
-    : pathname;
 
   return (
     <SidebarGroup>
@@ -173,7 +179,7 @@ function NavMainContent({ items }: { items: SideBarMenuItem[] }) {
                 <SidebarGroupWrapper
                   key={item.title}
                   item={item}
-                  pathname={currentUrl}
+                  pathname={pathname}
                 />
               );
             }
@@ -182,7 +188,7 @@ function NavMainContent({ items }: { items: SideBarMenuItem[] }) {
               return (
                 <CollapsibleMenuItem
                   key={item.title}
-                  pathname={currentUrl}
+                  pathname={pathname}
                   title={item.title}
                   icon={item.icon}
                   defaultOpen={item.isExpanded}
@@ -195,7 +201,7 @@ function NavMainContent({ items }: { items: SideBarMenuItem[] }) {
               <SidebarMenuItemWrapper
                 key={item.title}
                 item={item}
-                pathname={currentUrl}
+                pathname={pathname}
               />
             );
           })}
