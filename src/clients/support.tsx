@@ -15,12 +15,6 @@ import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
@@ -61,7 +55,6 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
   IconAlertTriangle,
-  IconDotsVertical,
   IconHeadset,
   IconMessage2,
   IconMessageChatbot,
@@ -1406,21 +1399,13 @@ export default function Support() {
                           Return to AI
                         </Button>
                       )}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button type="button" variant="outline" size="icon">
-                          <IconDotsVertical className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-50">
-                        <DropdownMenuItem
-                          onSelect={() => setCreateTicketOpen(true)}
-                        >
-                          <IconTicket className="mr-2 size-4" />
-                          Create Ticket
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button
+                      type="button"
+                      onClick={() => setCreateTicketOpen(true)}
+                    >
+                      <IconTicket className="size-4" />
+                      Create Ticket
+                    </Button>
                     {activeThreadId ? (
                       <CreateTicketDialog
                         key={activeThreadId}
