@@ -561,6 +561,10 @@ export default function Support() {
   const { SyncOrdersIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.SyncOrdersState,
   );
+  const { FetchFreshdeskTicketIdData, FetchFreshdeskTicketIdIsLoading } =
+    useAppSelector(
+      (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
+    );
 
   // Local, mutable copy of the thread list. Seeded from Redux (is_read
   // defaults to true), then patched in place by the dashboard socket (new
