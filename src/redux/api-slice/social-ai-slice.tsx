@@ -48,6 +48,8 @@ export type ConnectedAccount = {
   follows_count: number | null;
   webhook_status: string;
   is_active: boolean;
+  // Whether the AI answers this account's comments and DMs on its own.
+  allow_ai_auto_respond: boolean;
   last_event_at: string | null;
   created_at: string;
   updated_at: string;
@@ -113,6 +115,25 @@ export type SocialCommentAnalysis = {
   confidence: number | null;
 };
 
+/**
+ * The AI's reply to a comment. Null unless the AI judged the comment worth
+ * answering (questions, complaints, sarcasm, critical, negative — never
+ * plain praise, thanks or spam) and the account has auto-reply on.
+ *
+ * `is_auto_sent` decides what the UI does with it: true means it already
+ * went out and is in the thread as a `sender_type: "ai"` reply, so there is
+ * nothing to send. False means the provider send failed and the agent can
+ * send it by hand.
+ */
+export type SocialCommentAiResponse = {
+  id: number;
+  response_text: string;
+  is_auto_sent: boolean;
+  model_used: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SocialComment = {
   id: number;
   post: number;
@@ -129,6 +150,7 @@ export type SocialComment = {
   is_deleted: boolean;
   // Null until the AI tagging pipeline has processed this comment.
   analysis: SocialCommentAnalysis | null;
+  ai_response: SocialCommentAiResponse | null;
   external_created_at: string;
 };
 
@@ -228,6 +250,34 @@ export const fetchSocialAccountsSubscriptions = createAsyncThunk(
           "Unable to fetch social subscriptions, please try again later.",
       });
 
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const updateAccountAutoRespond = createAsyncThunk(
+  "updateAccountAutoRespond",
+  async (
+    {
+      storeCode,
+      accountId,
+      allowAiAutoRespond,
+    }: { storeCode: string; accountId: string; allowAiAutoRespond: boolean },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.updateConnectedAccount({ accountId })}?store_code=${storeCode}`,
+        { allow_ai_auto_respond: allowAiAutoRespond },
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to update the AI auto-reply.",
+      });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
@@ -543,6 +593,34 @@ export const likeMetaComment = createAsyncThunk(
   },
 );
 
+export const unlikeMetaComment = createAsyncThunk(
+  "unlikeMetaComment",
+  async (
+    {
+      storeCode,
+      postId,
+      commentId,
+    }: { storeCode: string; postId: string; commentId: number },
+    thunkAPI,
+  ) => {
+    try {
+      // DELETE on the like route — no body; the method carries the intent.
+      const response = await axiosInstance.delete(
+        `${ENDPOINTS.likeComment({ postId, commentId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to remove the like.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 export const hideMetaComment = createAsyncThunk(
   "hideMetaComment",
   async (
@@ -813,6 +891,18 @@ const SocialAISlice = createSlice({
      * races the broadcast, and our own outgoing replies come back through
      * the same store-wide stream.
      */
+    /** Flip an account's auto-reply flag locally, ahead of the PATCH. */
+    accountAutoRespondSet(
+      state,
+      action: PayloadAction<{ accountId: string; value: boolean }>,
+    ) {
+      const account =
+        state.FetchSocialAccountSubscriptionsState.FetchSocialAccountsSubscriptionsData?.results?.find(
+          (item) => String(item.id) === action.payload.accountId,
+        );
+      if (account) account.allow_ai_auto_respond = action.payload.value;
+    },
+
     socialDmReceived(state, action: PayloadAction<SocialDm>) {
       const dms = state.FetchSocialDmsState.FetchSocialDmsData;
       if (!dms?.results) return;
@@ -1080,7 +1170,10 @@ const SocialAISlice = createSlice({
   },
 });
 
-export const { socialDmReceived, socialConversationTouched } =
-  SocialAISlice.actions;
+export const {
+  accountAutoRespondSet,
+  socialDmReceived,
+  socialConversationTouched,
+} = SocialAISlice.actions;
 
 export default SocialAISlice.reducer;

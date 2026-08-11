@@ -4,7 +4,7 @@ import {
   SectionNav,
   type SectionNavItem,
 } from "@/components/custom/section-nav";
-import { Typography } from "@/components/ui/typography";
+import { PageHeading } from "@/components/custom/page-heading";
 
 export const metadata = {
   title: "Knowledge",
@@ -37,15 +37,10 @@ const KNOWLEDGE_SECTIONS: SectionNavItem[] = [
 export default function Page() {
   return (
     <div className="flex flex-col gap-6 p-4">
-      <div>
-        <Typography variant="h4" as="h2">
-          Knowledge
-        </Typography>
-        <Typography variant="muted">
-          Everything the chatbot knows about your store — FAQs, policies, and
-          documents.
-        </Typography>
-      </div>
+      <PageHeading
+        title="Knowledge"
+        description="Everything the chatbot knows about your store — FAQs, policies, and documents."
+      />
       <SectionNav items={KNOWLEDGE_SECTIONS} ariaLabel="Knowledge sections" />
     </div>
   );

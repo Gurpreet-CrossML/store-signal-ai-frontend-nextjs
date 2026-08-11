@@ -7,12 +7,12 @@ import {
   IconUsers,
 } from "@tabler/icons-react";
 
+import { PageHeading } from "@/components/custom/page-heading";
 import SettingsAdminGate from "@/components/custom/settings/settings-admin-gate";
 import {
   SectionNav,
   type SectionNavItem,
 } from "@/components/custom/section-nav";
-import { Typography } from "@/components/ui/typography";
 
 const SETTINGS_SECTIONS: SectionNavItem[] = [
   {
@@ -46,14 +46,10 @@ export default function Settings() {
   return (
     <SettingsAdminGate>
       <div className="flex flex-col gap-6 p-4">
-        <div>
-          <Typography variant="h4" as="h2">
-            Settings
-          </Typography>
-          <Typography variant="muted">
-            Manage your company, team, and connected platforms.
-          </Typography>
-        </div>
+        <PageHeading
+          title="Settings"
+          description="Manage your company, team, and connected platforms."
+        />
         <SectionNav items={SETTINGS_SECTIONS} ariaLabel="Settings sections" />
       </div>
     </SettingsAdminGate>

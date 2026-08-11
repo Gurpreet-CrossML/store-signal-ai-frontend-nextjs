@@ -9,7 +9,7 @@ import {
   SectionNav,
   type SectionNavItem,
 } from "@/components/custom/section-nav";
-import { Typography } from "@/components/ui/typography";
+import { PageHeading } from "@/components/custom/page-heading";
 
 export const metadata = {
   title: "Social AI",
@@ -45,15 +45,10 @@ const SOCIAL_AI_SECTIONS: SectionNavItem[] = [
 export default function Page() {
   return (
     <div className="flex flex-col gap-6 p-4">
-      <div>
-        <Typography variant="h4" as="h2">
-          Social AI
-        </Typography>
-        <Typography variant="muted">
-          AI-handled comments and messages across your connected social
-          accounts.
-        </Typography>
-      </div>
+      <PageHeading
+        title="Social AI"
+        description="AI-handled comments and messages across your connected social accounts."
+      />
       <SectionNav items={SOCIAL_AI_SECTIONS} ariaLabel="Social AI sections" />
     </div>
   );
