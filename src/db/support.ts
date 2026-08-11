@@ -9,7 +9,7 @@ import { desc } from "drizzle-orm";
  *
  * Keys mirror SupportTicketSerializer's output exactly (snake_case, DRF shape;
  * write-only thread_id/store_code and the constant success_message are omitted,
- * `platform`/`status` are not in the serializer's field list).
+ * `platform` is not in the serializer's field list.
  */
 export async function list_thread_tickets(thread_id: string) {
   const db = getDb();
@@ -21,6 +21,7 @@ export async function list_thread_tickets(thread_id: string) {
       ticket_id: supportTicket.id,
       subject: supportTicket.subject,
       description: supportTicket.description,
+      status: supportTicket.status,
       created_at: supportTicket.createdAt,
       updated_at: supportTicket.updatedAt,
     })

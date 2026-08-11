@@ -209,8 +209,15 @@ export function SupportTicketsCard({
   loading?: boolean;
 }) {
   const threadTickets = (tickets ?? []).filter(
-    (ticket) => !threadId || ticket.thread === threadId,
+    (ticket) =>
+      (!threadId || ticket.thread === threadId) &&
+      ["open", "pending"].includes((ticket.status ?? "open").toLowerCase()),
   );
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const toggleTicket = (id: number) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
 
   return (
     <section className="flex flex-col gap-3 border-b p-4">
@@ -225,35 +232,64 @@ export function SupportTicketsCard({
         <Typography variant="muted">No support tickets for this thread.</Typography>
       ) : (
         <div className="flex flex-col gap-2">
-          {threadTickets.map((ticket) => (
-            <div
-              key={ticket.id}
-              className="rounded-xl border border-border/50 p-3"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <Typography variant="small" as="p" className="font-medium">
-                    Ticket #{ticket.ticket_id}
-                  </Typography>
-                  <Typography
-                    variant="small"
-                    as="p"
-                    className="mt-1 line-clamp-2"
-                  >
-                    {ticket.subject || "No subject"}
-                  </Typography>
-                </div>
-                <Typography variant="muted" className="shrink-0">
-                  {formatDate(ticket.created_at)}
-                </Typography>
+          {threadTickets.map((ticket) => {
+            const isExpanded = expandedId === ticket.id;
+            const status = ticket.status ?? "open";
+
+            return (
+              <div
+                key={ticket.id}
+                className={`overflow-hidden rounded-xl border transition ${
+                  isExpanded ? "border-primary/40" : "border-border/50"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleTicket(ticket.id)}
+                  className={`flex w-full items-start gap-3 p-2.5 text-left transition ${
+                    isExpanded ? "bg-primary/4" : "hover:bg-muted/50"
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Typography variant="small" as="p" className="font-medium">
+                        #{ticket.ticket_id}
+                      </Typography>
+                      <StatusBadge status={status} />
+                    </div>
+                    <Typography
+                      variant="muted"
+                      as="p"
+                      className="mt-1 line-clamp-2"
+                    >
+                      {ticket.subject || "No subject"}
+                    </Typography>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Typography variant="small">
+                      {formatDate(ticket.created_at)}
+                    </Typography>
+                    <IconChevronRight
+                      className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
+                        isExpanded ? "rotate-90" : ""
+                      }`}
+                    />
+                  </div>
+                </button>
+
+                {isExpanded ? (
+                  <div className="border-t border-border/50 p-3">
+                    <Typography variant="muted" className="font-medium">
+                      Description
+                    </Typography>
+                    <Typography variant="small" as="p" className="mt-1">
+                      {ticket.description || "No description available."}
+                    </Typography>
+                  </div>
+                ) : null}
               </div>
-              {ticket.description ? (
-                <Typography variant="muted" className="mt-2 line-clamp-3">
-                  {ticket.description}
-                </Typography>
-              ) : null}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>
