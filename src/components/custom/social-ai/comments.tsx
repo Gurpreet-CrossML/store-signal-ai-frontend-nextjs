@@ -4,11 +4,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -16,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { IconDotsVertical } from "@tabler/icons-react";
+import { IconDotsVertical, IconSparkles } from "@tabler/icons-react";
 import {
   deleteMetaComment,
   fetchCommentTopics,
@@ -24,6 +19,7 @@ import {
   SOCIAL_PAGE_SIZE,
   hideMetaComment,
   likeMetaComment,
+  unlikeMetaComment,
   replyToMetaComment,
   SocialComment,
 } from "@/redux/api-slice/social-ai-slice";
@@ -151,6 +147,9 @@ function CommentItem({
   const account = useAccountIdentity();
   const channel = useChannel();
   const [showReplies, setShowReplies] = useState(false);
+  // Whether the replies list has ever been opened — it stays mounted from
+  // then on, so re-opening doesn't refetch.
+  const [repliesOpened, setRepliesOpened] = useState(false);
   const [showReplyBox, setShowReplyBox] = useState(false);
   // Bumped on every successful reply so the (re-keyed) nested CommentsList
   // below remounts and fetches fresh — including the reply just posted.
@@ -165,12 +164,17 @@ function CommentItem({
   // Replies submitted but not yet confirmed — rendered under the thread so
   // the text never disappears while the request is in flight.
   const [pendingReplies, setPendingReplies] = useState<PendingSend[]>([]);
-  // There's no unlike endpoint — once liked (locally or per owner_liked
-  // from the server), the state only ever moves forward.
-  const [optimisticLiked, setOptimisticLiked] = useState(false);
-  const isLiked = comment.owner_liked || optimisticLiked;
+  // Null means "no local change yet" — fall back to the server's value.
+  // A plain boolean can't express that, and the like now toggles both ways.
+  const [likeOverride, setLikeOverride] = useState<boolean | null>(null);
+  const [likeBusy, setLikeBusy] = useState(false);
+  const isLiked = likeOverride ?? comment.owner_liked;
   const likeDisabled =
-    isLiked || comment.is_deleted || comment.is_hidden || disableLike;
+    likeBusy || comment.is_deleted || comment.is_hidden || disableLike;
+  // Reconcile the server's count with a like we've toggled but not yet
+  // confirmed, so the number moves with the icon.
+  const likeCount =
+    comment.like_count + (isLiked ? 1 : 0) - (comment.owner_liked ? 1 : 0);
   // The page's own comments ("agent"/"ai") carry no social_user — show the
   // page identity instead, and don't offer Reply on ourselves.
   const isSelf =
@@ -219,6 +223,7 @@ function CommentItem({
     const pending = createPendingSend(text);
     setPendingReplies((prev) => [...prev, pending]);
     setShowReplyBox(false);
+    setRepliesOpened(true);
     setShowReplies(true);
     void sendReply(pending);
   };
@@ -290,16 +295,22 @@ function CommentItem({
     }
   };
 
-  const handleLike = async () => {
+  const handleToggleLike = async () => {
     if (likeDisabled) return;
-    setOptimisticLiked(true);
+    const wasLiked = isLiked;
+    setLikeOverride(!wasLiked);
+    setLikeBusy(true);
     try {
       await dispatch(
-        likeMetaComment({ storeCode, postId, commentId: comment.id }),
+        wasLiked
+          ? unlikeMetaComment({ storeCode, postId, commentId: comment.id })
+          : likeMetaComment({ storeCode, postId, commentId: comment.id }),
       ).unwrap();
     } catch {
       // The thunk already surfaces the error toast.
-      setOptimisticLiked(false);
+      setLikeOverride(wasLiked);
+    } finally {
+      setLikeBusy(false);
     }
   };
 
@@ -339,6 +350,14 @@ function CommentItem({
             )}
             {name}
             {isSelf && <Badge variant="secondary">Author</Badge>}
+            {/* An auto-sent reply is posted under the page's own name, so
+                say which of the two wrote it. */}
+            {comment.sender_type === "ai" && (
+              <Badge variant="outline" className="gap-1">
+                <IconSparkles className="size-3" />
+                AI
+              </Badge>
+            )}
             {comment.is_hidden && <Badge variant="outline">Hidden</Badge>}
             {comment.is_deleted && (
               <Badge variant="secondary" className="text-muted-foreground">
@@ -361,9 +380,9 @@ function CommentItem({
           {channel.key === "facebook" && !comment.is_deleted && (
             <button
               type="button"
-              onClick={handleLike}
+              onClick={handleToggleLike}
               disabled={likeDisabled}
-              aria-label={isLiked ? "Liked" : "Like"}
+              aria-label={isLiked ? "Unlike" : "Like"}
               className="disabled:cursor-default disabled:opacity-50"
             >
               {isLiked ? (
@@ -384,10 +403,10 @@ function CommentItem({
               Reply
             </button>
           )}
-          {comment.like_count > 0 && (
+          {likeCount > 0 && (
             <span className="flex items-center gap-1">
               <channel.LikeIcon className="size-3.5" />
-              {comment.like_count}
+              {likeCount}
             </span>
           )}
           {/* Nothing can be done to a deleted comment, so it gets no menu
@@ -410,7 +429,7 @@ function CommentItem({
                   onClick={handleToggleHidden}
                   disabled={menuBusy}
                 >
-                  {comment.is_hidden ? "Unhide comment" : "Hide comment"}
+                  {comment.is_hidden ? "Unhide" : "Hide"}
                 </DropdownMenuItem>
                 {/* Unhide is the only way back from hidden — offering an
                     irreversible delete alongside it invites a mis-click. */}
@@ -431,30 +450,40 @@ function CommentItem({
           <ReplyBox replyingTo={name} onSubmit={handleReplySubmit} />
         )}
         {localReplyCount > 0 && (
-          <Collapsible open={showReplies} onOpenChange={setShowReplies}>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                size="xs"
-                className="mt-0.5 font-semibold text-muted-foreground"
+          <>
+            <Button
+              variant="ghost"
+              size="xs"
+              className="mt-0.5 font-semibold text-muted-foreground"
+              onClick={() => {
+                setRepliesOpened(true);
+                setShowReplies((open) => !open);
+              }}
+            >
+              {showReplies
+                ? "Hide replies"
+                : `View ${localReplyCount} ${localReplyCount === 1 ? "reply" : "replies"}`}
+            </Button>
+            {/* Mounted on first open and kept mounted after — collapsing
+                used to unmount the list, so every re-open refetched. Hidden
+                with CSS instead so the loaded replies survive; a genuine
+                refresh goes through repliesRefreshKey. */}
+            {repliesOpened && (
+              <div
+                className={cn("mt-2 border-l-2 pl-3", !showReplies && "hidden")}
               >
-                {showReplies
-                  ? "Hide replies"
-                  : `View ${localReplyCount} ${localReplyCount === 1 ? "reply" : "replies"}`}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-2 border-l-2 pl-3">
-              <CommentsList
-                key={repliesRefreshKey}
-                postId={postId}
-                parentId={comment.id}
-                disableReply={comment.is_deleted || disableReply}
-                disableLike={
-                  comment.is_deleted || comment.is_hidden || disableLike
-                }
-              />
-            </CollapsibleContent>
-          </Collapsible>
+                <CommentsList
+                  key={repliesRefreshKey}
+                  postId={postId}
+                  parentId={comment.id}
+                  disableReply={comment.is_deleted || disableReply}
+                  disableLike={
+                    comment.is_deleted || comment.is_hidden || disableLike
+                  }
+                />
+              </div>
+            )}
+          </>
         )}
         {/* Outside the collapsible: the very first reply to a comment has
             nothing to expand yet, and a pending reply must still show. */}
@@ -475,9 +504,9 @@ function CommentItem({
       {channel.key === "instagram" && (
         <button
           type="button"
-          onClick={handleLike}
+          onClick={handleToggleLike}
           disabled={likeDisabled}
-          aria-label={isLiked ? "Liked" : "Like"}
+          aria-label={isLiked ? "Unlike" : "Like"}
           className="mt-1 shrink-0 disabled:cursor-default disabled:opacity-50"
         >
           {isLiked ? (
@@ -574,6 +603,20 @@ function CommentsList({
   // Live comments and AI tags for this list.
   const handleCommentEvent = useCallback(
     (event: SocialSocketEvent) => {
+      if (event.action_type === "comment_ai_response") {
+        const { message_id, ai_response } = event.data;
+        setComments((prev) =>
+          prev.some((comment) => comment.id === message_id)
+            ? prev.map((comment) =>
+                comment.id === message_id
+                  ? { ...comment, ai_response }
+                  : comment,
+              )
+            : prev,
+        );
+        return;
+      }
+
       if (event.action_type === "comment_tagged") {
         const { message_id, analysis } = event.data;
         setComments((prev) =>
@@ -721,10 +764,11 @@ export function CommentsSection({ postId }: { postId: string }) {
             onChange={setFilters}
           />
         </div>
-        {/* Keyed on the filters so a change remounts the list and re-queries
-            from page 1, rather than appending onto stale rows. */}
+        {/* Keyed on the post AND the filters: the list fetches once per
+            mount, so without the post in the key, opening a different post
+            would keep showing the previous one's comments. */}
         <CommentsList
-          key={JSON.stringify(filters)}
+          key={`${postId}|${JSON.stringify(filters)}`}
           postId={postId}
           filters={filters}
         />

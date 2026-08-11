@@ -3171,6 +3171,7 @@ export const socialConnectedAccount = pgTable(
     coverUrl: varchar("cover_url", { length: 1000 }).notNull(),
     followersCount: integer("followers_count"),
     followsCount: integer("follows_count"),
+    allowAiAutoRespond: boolean("allow_ai_auto_respond").notNull(),
   },
   (table) => [
     index("social_connected_account_linked_account_id_a6aa2c2c").using(
@@ -3719,5 +3720,64 @@ export const socialMessageAttachment = pgTable(
       name: "social_message_attac_message_id_0190ed1a_fk_social_me",
     }),
     check("social_message_attachment_position_check", sql`"position" >= 0`),
+  ],
+);
+
+export const socialAiUsage = pgTable(
+  "social_ai_usage",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "social_ai_usage_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    usageType: varchar("usage_type", { length: 50 }).notNull(),
+    messageJson: jsonb("message_json").notNull(),
+    inputTokens: integer("input_tokens").notNull(),
+    outputTokens: integer("output_tokens").notNull(),
+    totalTokens: integer("total_tokens").notNull(),
+    cost: numeric({ precision: 12, scale: 8 }).notNull(),
+    latency: doublePrecision().notNull(),
+    model: varchar({ length: 255 }).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    messageId: bigint("message_id", { mode: "number" }),
+  },
+  (table) => [
+    index("idx_social_ai_usage_created").using(
+      "btree",
+      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
+    ),
+    index("idx_social_ai_usage_model").using(
+      "btree",
+      table.model.asc().nullsLast().op("text_ops"),
+    ),
+    index("idx_social_ai_usage_type").using(
+      "btree",
+      table.usageType.asc().nullsLast().op("text_ops"),
+    ),
+    index("social_ai_usage_message_id_f6981abc").using(
+      "btree",
+      table.messageId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.messageId],
+      foreignColumns: [socialMessage.id],
+      name: "social_ai_usage_message_id_f6981abc_fk_social_message_id",
+    }),
+    check("social_ai_usage_input_tokens_check", sql`input_tokens >= 0`),
+    check("social_ai_usage_output_tokens_check", sql`output_tokens >= 0`),
+    check("social_ai_usage_total_tokens_check", sql`total_tokens >= 0`),
   ],
 );
