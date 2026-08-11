@@ -394,10 +394,10 @@ function TicketsBlock({
             </TableHeader>
             <TableBody>
               {tickets.map((ticket, index) => (
-                <TableRow key={ticket.ticket_id ?? index}>
+                <TableRow key={ticket.id ?? index}>
                   <TableCell>
                     <Badge variant="outline" className="font-normal">
-                      TCK-{ticket.ticket_id}
+                      TCK-{ticket.id}
                     </Badge>
                   </TableCell>
                   <TableCell className="max-w-56">
@@ -650,7 +650,13 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
       dispatch(FetchCart(threadId));
       dispatch(FetchUserMetadata(threadId));
       dispatch(FetchFeedbackSequence(threadId));
-      dispatch(FetchFreshdeskTicketId(threadId));
+      dispatch(
+        FetchFreshdeskTicketId({
+          threadId,
+          customerId: result.customer?.id,
+          storeCode,
+        }),
+      );
       dispatch(FetchTags(threadId));
     };
 

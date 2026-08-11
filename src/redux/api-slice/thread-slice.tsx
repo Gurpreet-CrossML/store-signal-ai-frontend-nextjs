@@ -34,6 +34,8 @@ type GetThreadsArgs = {
 };
 
 export type Customer = {
+  // Null for a guest — decides which tickets endpoint the UI calls.
+  id: number | null;
   name: string;
   email: string;
 };
@@ -217,13 +219,22 @@ export type UserMetadata = {
   os: string;
 };
 
+/** Normalised slugs, never the helpdesk provider's numeric codes. */
+export type TicketStatus = "open" | "pending" | "resolved" | "closed";
+export type TicketPriority = "low" | "normal" | "high" | "urgent";
+
 export type ThreadTicketData = {
   id: number;
-  thread: string;
-  customer: number;
-  ticket_id: number;
   subject: string;
   description: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  channel: string;
+  is_read: boolean;
+  /** The conversation it was raised from — lets the UI jump back to it. */
+  thread_id: string;
+  /** Deep link to the provider, or null for tickets that live only here. */
+  ticket_url: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -499,14 +510,27 @@ export const FetchCart = createAsyncThunk(
 
 export const FetchFreshdeskTicketId = createAsyncThunk(
   "FreshdeskTicketId",
-  async (threadId: string, thunkAPI) => {
+  async (
+    {
+      threadId,
+      customerId,
+      storeCode,
+    }: { threadId: string; customerId?: number | null; storeCode: string },
+    thunkAPI,
+  ) => {
     try {
-      const response = await axiosInstance.get(
-        ENDPOINTS.fetchFreshdeskTicketId(threadId),
-      );
-      const data = response.data.data;
+      // A logged-in customer gets every ticket they've raised with this
+      // store; a guest only has the one conversation to show.
+      const url = customerId
+        ? ENDPOINTS.fetchCustomerTickets(customerId)
+        : ENDPOINTS.fetchThreadTickets(threadId);
 
-      return data;
+      const response = await axiosInstance.get(
+        `${url}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      // Paginated envelope — the card only renders the first page.
+      return response.data.data?.results ?? [];
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;

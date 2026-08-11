@@ -33,6 +33,7 @@ import {
   CartDetailsCard,
   UserMetadataCard,
   OrdersCard,
+  SupportTicketsCard,
 } from "@/components/custom/thread-detail-panels";
 import {
   FetchAIInsight,
@@ -128,6 +129,7 @@ function ThreadChatControls({
   isEmojiPickerOpen,
   setIsEmojiPickerOpen,
   onTakeOver,
+  onReturnToAI,
   onSendAgentMessage,
   onFileSelection,
   onEmojiSelect,
@@ -346,28 +348,28 @@ function ThreadChatControls({
 
           {/* Toolbar: emoji + attach + hint on the left, send on the right */}
           <div className="flex items-center gap-1 p-2">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="icon-sm"
               disabled={inputsDisabled}
-              className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 ${
-                isEmojiPickerOpen
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              aria-pressed={isEmojiPickerOpen}
+              className={isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined}
               onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
               title="Add emoji"
             >
               <IconMoodSmile className="size-4" />
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
+              size="icon-sm"
               disabled={inputsDisabled}
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => fileInputRef.current?.click()}
               title="Attach image or file"
             >
               <IconPaperclip className="size-4" />
-            </button>
+            </Button>
             <input
               ref={fileInputRef}
               type="file"
@@ -392,6 +394,19 @@ function ThreadChatControls({
                   {attachments.length} attached
                 </Typography>
               )}
+              {/* Sits beside Send because it's the other thing an agent can
+                  do from here: hand the conversation back instead of
+                  replying. Outline keeps Send the primary action. */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onReturnToAI}
+                disabled={transitionState !== "idle"}
+              >
+                <IconRobot className="size-4" />
+                Return to AI
+              </Button>
               <Button
                 type="button"
                 size="sm"
@@ -483,6 +498,10 @@ export default function Support() {
   const { FetchThreadDetailsIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchThreadDetailsState,
   );
+  const { FetchFreshdeskTicketIdData, FetchFreshdeskTicketIdIsLoading } =
+    useAppSelector(
+      (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
+    );
   const { FetchCartData, FetchCartDataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchCartDataState,
   );
@@ -514,6 +533,7 @@ export default function Support() {
   const [attachments, setAttachments] = useState<AttachmentUpload[]>([]);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
+  const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
   const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
     "all",
   );
@@ -610,17 +630,7 @@ export default function Support() {
   );
 
   const filteredThreads = useMemo(() => {
-    const query = threadSearch.trim().toLowerCase();
-
     return visibleThreads.filter((thread: ThreadWithReadState) => {
-      if (query) {
-        const name = thread.customer?.name?.toLowerCase() ?? "";
-        const preview = thread.last_message?.toLowerCase() ?? "";
-        if (!name.includes(query) && !preview.includes(query)) {
-          return false;
-        }
-      }
-
       if (readFilter === "unread" && thread.is_read !== false) {
         return false;
       }
@@ -630,7 +640,7 @@ export default function Support() {
 
       return true;
     });
-  }, [visibleThreads, threadSearch, readFilter]);
+  }, [visibleThreads, readFilter]);
 
   useEffect(() => {
     if (!storeCode) return;
@@ -640,10 +650,23 @@ export default function Support() {
         store_code: storeCode,
         page: 1,
         limit: 50,
-        filters: { is_active: true },
+        filters: {
+          is_active: true,
+          // Resolved server-side so it can reach customer email, name and
+          // order ids — none of which are on the thread rows themselves.
+          ...(debouncedThreadSearch ? { search: debouncedThreadSearch } : {}),
+        },
       }),
     );
-  }, [dispatch, storeCode]);
+  }, [dispatch, storeCode, debouncedThreadSearch]);
+
+  useEffect(() => {
+    const timeout = setTimeout(
+      () => setDebouncedThreadSearch(threadSearch.trim()),
+      300,
+    );
+    return () => clearTimeout(timeout);
+  }, [threadSearch]);
 
   useEffect(() => {
     if (!activeThreadId || !storeCode) {
@@ -671,12 +694,18 @@ export default function Support() {
       dispatch(FetchCart(activeThreadId));
       dispatch(FetchUserMetadata(activeThreadId));
       dispatch(FetchFeedbackSequence(activeThreadId));
-      dispatch(FetchFreshdeskTicketId(activeThreadId));
+      dispatch(
+        FetchFreshdeskTicketId({
+          threadId: activeThreadId,
+          customerId: selectedThread?.customer?.id,
+          storeCode,
+        }),
+      );
       dispatch(FetchOrders(activeThreadId));
     };
 
     loadThreadData();
-  }, [dispatch, activeThreadId, storeCode]);
+  }, [dispatch, activeThreadId, storeCode, selectedThread?.customer?.id]);
 
   const handleThreadMessageAdded = useCallback((message: ThreadMessage) => {
     setThreadMessages((prev) => [...prev, message]);
@@ -1196,7 +1225,7 @@ export default function Support() {
           <SidebarInput
             value={threadSearch}
             onChange={(event) => setThreadSearch(event.target.value)}
-            placeholder="Search conversations…"
+            placeholder="Search name, email or order ID…"
           />
           <div className="flex items-center gap-1.5">
             {(
@@ -1350,18 +1379,6 @@ export default function Support() {
                       ) : null}
                     </div>
                   </div>
-                  {activeThreadId &&
-                    connectedAgent === session?.user?.email && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleReturnToAI}
-                        disabled={transitionState !== "idle"}
-                      >
-                        <IconRobot className="h-4 w-4" />
-                        Return to AI
-                      </Button>
-                    )}
                 </div>
               </header>
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -1437,6 +1454,10 @@ export default function Support() {
                   handleOrdersSync={handleOrdersSync}
                   orderSyncLoading={SyncOrdersIsLoading}
                   customerData={selectedThread?.customer || null}
+                />
+                <SupportTicketsCard
+                  tickets={FetchFreshdeskTicketIdData ?? []}
+                  loading={FetchFreshdeskTicketIdIsLoading}
                 />
                 <CartDetailsCard
                   cartData={FetchCartData}
