@@ -208,8 +208,8 @@ export const sidebarMenus: SideBarMenus = {
           icon: IconTags,
           url: "/helpdesk/tags",
         },
-      ]
-    }
+      ],
+    },
   },
 
   // Company-admin only (is_staff). Gated in AppSidebar by the session role.
