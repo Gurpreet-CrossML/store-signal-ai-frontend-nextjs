@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { ENDPOINTS } from "@/lib/config";
 import type {
   SocialComment,
+  SocialCommentAiResponse,
   SocialCommentAnalysis,
   SocialDm,
 } from "@/redux/api-slice/social-ai-slice";
@@ -30,11 +31,23 @@ export type SocialCommentTaggedEvent = {
   analysis: SocialCommentAnalysis;
 };
 
+/** A comment's AI reply landed (or was regenerated on a re-tag). */
+export type SocialCommentAiResponseEvent = {
+  message_id: number;
+  post_external_id: string | null;
+  account_external_id: string;
+  ai_response: SocialCommentAiResponse;
+};
+
 export type SocialSocketEvent =
   | { action_type: "connection" }
   | { action_type: "dm_created"; data: SocialDmEvent }
   | { action_type: "comment_created"; data: SocialCommentEvent }
-  | { action_type: "comment_tagged"; data: SocialCommentTaggedEvent };
+  | { action_type: "comment_tagged"; data: SocialCommentTaggedEvent }
+  | {
+      action_type: "comment_ai_response";
+      data: SocialCommentAiResponseEvent;
+    };
 
 // Backoff between reconnect attempts, capped so a long outage doesn't turn
 // into a permanently dead socket.

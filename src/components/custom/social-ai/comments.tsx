@@ -4,11 +4,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -16,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { IconDotsVertical } from "@tabler/icons-react";
+import { IconDotsVertical, IconSparkles } from "@tabler/icons-react";
 import {
   deleteMetaComment,
   fetchCommentTopics,
@@ -152,6 +147,9 @@ function CommentItem({
   const account = useAccountIdentity();
   const channel = useChannel();
   const [showReplies, setShowReplies] = useState(false);
+  // Whether the replies list has ever been opened — it stays mounted from
+  // then on, so re-opening doesn't refetch.
+  const [repliesOpened, setRepliesOpened] = useState(false);
   const [showReplyBox, setShowReplyBox] = useState(false);
   // Bumped on every successful reply so the (re-keyed) nested CommentsList
   // below remounts and fetches fresh — including the reply just posted.
@@ -225,6 +223,7 @@ function CommentItem({
     const pending = createPendingSend(text);
     setPendingReplies((prev) => [...prev, pending]);
     setShowReplyBox(false);
+    setRepliesOpened(true);
     setShowReplies(true);
     void sendReply(pending);
   };
@@ -351,6 +350,14 @@ function CommentItem({
             )}
             {name}
             {isSelf && <Badge variant="secondary">Author</Badge>}
+            {/* An auto-sent reply is posted under the page's own name, so
+                say which of the two wrote it. */}
+            {comment.sender_type === "ai" && (
+              <Badge variant="outline" className="gap-1">
+                <IconSparkles className="size-3" />
+                AI
+              </Badge>
+            )}
             {comment.is_hidden && <Badge variant="outline">Hidden</Badge>}
             {comment.is_deleted && (
               <Badge variant="secondary" className="text-muted-foreground">
@@ -443,30 +450,40 @@ function CommentItem({
           <ReplyBox replyingTo={name} onSubmit={handleReplySubmit} />
         )}
         {localReplyCount > 0 && (
-          <Collapsible open={showReplies} onOpenChange={setShowReplies}>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                size="xs"
-                className="mt-0.5 font-semibold text-muted-foreground"
+          <>
+            <Button
+              variant="ghost"
+              size="xs"
+              className="mt-0.5 font-semibold text-muted-foreground"
+              onClick={() => {
+                setRepliesOpened(true);
+                setShowReplies((open) => !open);
+              }}
+            >
+              {showReplies
+                ? "Hide replies"
+                : `View ${localReplyCount} ${localReplyCount === 1 ? "reply" : "replies"}`}
+            </Button>
+            {/* Mounted on first open and kept mounted after — collapsing
+                used to unmount the list, so every re-open refetched. Hidden
+                with CSS instead so the loaded replies survive; a genuine
+                refresh goes through repliesRefreshKey. */}
+            {repliesOpened && (
+              <div
+                className={cn("mt-2 border-l-2 pl-3", !showReplies && "hidden")}
               >
-                {showReplies
-                  ? "Hide replies"
-                  : `View ${localReplyCount} ${localReplyCount === 1 ? "reply" : "replies"}`}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-2 border-l-2 pl-3">
-              <CommentsList
-                key={repliesRefreshKey}
-                postId={postId}
-                parentId={comment.id}
-                disableReply={comment.is_deleted || disableReply}
-                disableLike={
-                  comment.is_deleted || comment.is_hidden || disableLike
-                }
-              />
-            </CollapsibleContent>
-          </Collapsible>
+                <CommentsList
+                  key={repliesRefreshKey}
+                  postId={postId}
+                  parentId={comment.id}
+                  disableReply={comment.is_deleted || disableReply}
+                  disableLike={
+                    comment.is_deleted || comment.is_hidden || disableLike
+                  }
+                />
+              </div>
+            )}
+          </>
         )}
         {/* Outside the collapsible: the very first reply to a comment has
             nothing to expand yet, and a pending reply must still show. */}
@@ -586,6 +603,20 @@ function CommentsList({
   // Live comments and AI tags for this list.
   const handleCommentEvent = useCallback(
     (event: SocialSocketEvent) => {
+      if (event.action_type === "comment_ai_response") {
+        const { message_id, ai_response } = event.data;
+        setComments((prev) =>
+          prev.some((comment) => comment.id === message_id)
+            ? prev.map((comment) =>
+                comment.id === message_id
+                  ? { ...comment, ai_response }
+                  : comment,
+              )
+            : prev,
+        );
+        return;
+      }
+
       if (event.action_type === "comment_tagged") {
         const { message_id, analysis } = event.data;
         setComments((prev) =>
@@ -733,10 +764,11 @@ export function CommentsSection({ postId }: { postId: string }) {
             onChange={setFilters}
           />
         </div>
-        {/* Keyed on the filters so a change remounts the list and re-queries
-            from page 1, rather than appending onto stale rows. */}
+        {/* Keyed on the post AND the filters: the list fetches once per
+            mount, so without the post in the key, opening a different post
+            would keep showing the previous one's comments. */}
         <CommentsList
-          key={JSON.stringify(filters)}
+          key={`${postId}|${JSON.stringify(filters)}`}
           postId={postId}
           filters={filters}
         />

@@ -216,6 +216,9 @@ export const ENDPOINTS = {
   createMetaOAuthUrl: () => `/social/meta/oauth/`,
   fetchSocialAccountsSubscriptions: () =>
     `/social/subscriptions/connected-accounts/`,
+  // PATCH — per-account settings (currently the AI auto-reply toggle).
+  updateConnectedAccount: ({ accountId }: { accountId: string }) =>
+    `/social/subscriptions/connected-accounts/${accountId}/`,
   fetchSocialPosts: ({ accountId }: { accountId: string }) =>
     `/social/meta/pages/${accountId}/posts/`,
   fetchPostComments: ({ postId }: { postId: string }) =>
@@ -231,15 +234,10 @@ export const ENDPOINTS = {
     accountId: string;
     userId: number;
   }) => `/social/meta/pages/${accountId}/users/${userId}/messages/`,
+  // One route, the method is the verb: POST likes, DELETE unlikes — the
+  // same shape as hide/unhide.
   likeComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
     `/social/meta/posts/${postId}/comments/${commentId}/like/`,
-  unlikeComment: ({
-    postId,
-    commentId,
-  }: {
-    postId: string;
-    commentId: number;
-  }) => `/social/meta/posts/${postId}/comments/${commentId}/unlike/`,
   hideComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
     `/social/meta/posts/${postId}/comments/${commentId}/hide/`,
   deleteComment: ({
