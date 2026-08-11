@@ -1176,7 +1176,7 @@ export default function Support() {
   return (
     <SidebarProvider
       style={{ "--sidebar-width": "350px" } as CSSProperties}
-      className="-my-4 h-[calc(100svh-4rem)] min-h-0 w-full overflow-hidden md:-my-6"
+      className="-my-4 h-svh min-h-0 w-full overflow-hidden md:-my-6"
     >
       {/* Conversations list — the nested sidebar from the sidebar-09 block. */}
       <Sidebar collapsible="none" className="hidden border-r md:flex">
