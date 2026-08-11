@@ -398,7 +398,10 @@ export default function SocialPostsFeed({
 
           <SidebarInset className="min-h-0 overflow-hidden">
             {activePost ? (
-              <SocialPostDetail post={activePost} />
+              <SocialPostDetail
+                key={activePost.external_id}
+                post={activePost}
+              />
             ) : postsLoading ? (
               <div className="flex h-full items-center justify-center">
                 <LoadingState label="Loading posts…" />

@@ -172,6 +172,9 @@ function DmMessageBubble({
   const dispatch = useAppDispatch();
   const isOutgoing = msg.message_direction === "outgoing";
   const attachments = msg.attachments ?? [];
+  // Meta identifies the quoted message by its mid; without one there is
+  // nothing for reply_to to point at.
+  const canQuote = Boolean(msg.external_message_id);
   const showMediaSkeleton = !attachments.length && awaitingMedia;
   // Keep the bubble for real text, and for a message that has neither text
   // nor media (an unsupported payload shape) so it isn't rendered as blank
@@ -224,6 +227,15 @@ function DmMessageBubble({
           variant="ghost"
           size="icon-xs"
           aria-label="Reply"
+          // A tagged reply is sent to Meta as reply_to: {mid}. A message
+          // whose mid we don't have yet (an outgoing row still waiting for
+          // its echo) has nothing to quote, so don't offer it.
+          disabled={!canQuote}
+          title={
+            canQuote
+              ? "Reply"
+              : "This message can't be quoted yet — it's still being confirmed"
+          }
           onClick={() => {
             onReply(msg);
             document.getElementById(DM_REPLY_TEXTAREA_ID)?.focus();
@@ -1004,7 +1016,7 @@ export default function DmsInbox({
           <Sidebar collapsible="none" className="hidden border-r md:flex">
             {/* h-16 and px-2 (the menu button adds its own p-2) so this row
                 lines up exactly with the conversation header opposite. */}
-            <SidebarHeader className="h-16 shrink-0 justify-center border-b px-2 py-0">
+            <SidebarHeader className="h-14.25 shrink-0 justify-center border-b px-2 py-0">
               <AccountSwitcher
                 loading={accountsLoading}
                 accounts={accounts}
@@ -1275,10 +1287,9 @@ export default function DmsInbox({
                           Replies are closed for now
                         </Typography>
                         <Typography variant="muted" className="text-inherit">
-                          Meta only allows replies within 24 hours of the
-                          customer&apos;s last message, and it&apos;s been
-                          longer than that. You can reply again once{" "}
-                          {activeContactName} messages you.
+                          Meta only allows replies within 24 hours of their last
+                          message, and it&apos;s been longer than that. You can
+                          reply again once {activeContactName} messages you.
                         </Typography>
                       </div>
                     </div>

@@ -172,7 +172,7 @@ export function PostFiltersPopover({
           disabled={activeCount === 0}
           className="w-full"
         >
-          Clear filters
+          Clear all
         </Button>
       </PopoverContent>
     </Popover>
