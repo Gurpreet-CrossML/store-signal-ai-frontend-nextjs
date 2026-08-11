@@ -39,8 +39,8 @@ import {
  */
 export type ListThreadsFilters = {
   store_code?: string;
-  from?: string; // YYYY-MM-DD
-  to?: string; // YYYY-MM-DD
+  from?: string; // YYYY-MM-DD or ISO 8601 datetime
+  to?: string; // YYYY-MM-DD or ISO 8601 datetime
   is_active?: string;
   search?: string;
   user_type?: string;
@@ -59,6 +59,22 @@ function isValidUuid(value: string): boolean {
 /** Format a Date as YYYY-MM-DD (UTC), matching Django's date() handling. */
 function toDateString(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseDateTimeFilter(
+  value: string,
+  edge: "start" | "end",
+): Date | undefined {
+  if (DATE_ONLY_RE.test(value)) {
+    return new Date(
+      `${value}T${edge === "start" ? "00:00:00.000Z" : "23:59:59.999Z"}`,
+    );
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
 type ThreadListRow = {
@@ -119,19 +135,36 @@ export async function list_threads(
     );
   }
 
-  // Date range on created_at::date, defaulting to the last 30 days (inclusive),
-  // matching the Django view's serializers.DateField()/timezone.now().date() logic.
-  const endDate = filters.to ? filters.to : toDateString(new Date());
-  const startDate = filters.from
-    ? filters.from
-    : toDateString(
-        new Date(
-          new Date(`${endDate}T00:00:00Z`).getTime() - 30 * 24 * 60 * 60 * 1000,
-        ),
-      );
+  // Date/time range on created_at, defaulting to the last 30 days (inclusive).
+  const now = new Date();
+  const todayUtc = new Date(`${toDateString(now)}T00:00:00Z`);
+  const defaultEnd = new Date(`${toDateString(now)}T23:59:59.999Z`);
+
+  const parsedFrom = filters.from
+    ? parseDateTimeFilter(filters.from, "start")
+    : undefined;
+  const parsedTo = filters.to
+    ? parseDateTimeFilter(filters.to, "end")
+    : undefined;
+
+  const endDate = parsedTo ?? defaultEnd;
+  let startDate: Date;
+
+  if (parsedFrom) {
+    startDate = parsedFrom;
+  } else if (parsedTo) {
+    if (DATE_ONLY_RE.test(filters.to!)) {
+      const toDate = new Date(`${filters.to}T00:00:00Z`);
+      startDate = new Date(toDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+    } else {
+      startDate = new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+  } else {
+    startDate = new Date(todayUtc.getTime() - 30 * 24 * 60 * 60 * 1000);
+  }
 
   conditions.push(
-    sql`(${chatThread.createdAt} AT TIME ZONE 'UTC')::date BETWEEN ${startDate} AND ${endDate}`,
+    sql`${chatThread.createdAt} BETWEEN ${startDate} AND ${endDate}`,
   );
 
   if (filters.search) {
@@ -139,6 +172,7 @@ export async function list_threads(
     const searchConditions: SQL[] = [
       ilike(chatCustomer.email, `%${search}%`),
       ilike(chatThread.name, `%${search}%`),
+      sql`EXISTS (SELECT 1 FROM ${chatHistory} WHERE ${chatHistory.threadId} = ${chatThread.id} AND ${chatHistory.message} ILIKE ${`%${search}%`})`,
     ];
     if (isValidUuid(search)) {
       searchConditions.push(eq(chatThread.id, search));

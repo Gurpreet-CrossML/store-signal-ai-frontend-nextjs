@@ -9,13 +9,6 @@ import {
 } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useState } from "react";
 
 export const PAGE_SIZE_OPTIONS = [10, 15, 20, 25, 50];
@@ -36,11 +29,6 @@ export function DataTablePagination<TData>({
   );
   const pageCount = table.getPageCount();
 
-  const handlePageSizeChange = (newPageSize: number) => {
-    table.setPageSize(newPageSize);
-    setPagination((prev) => ({ ...prev, pageSize: newPageSize }));
-  };
-
   const handlePageIndexChange = (newPageIndex: number) => {
     table.setPageIndex(newPageIndex);
     setPagination((prev) => ({ ...prev, pageIndex: newPageIndex }));
@@ -55,22 +43,9 @@ export function DataTablePagination<TData>({
       <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:gap-6">
         {/* Page size selector */}
         <div className="flex items-center gap-2">
-          <p className="text-sm font-medium whitespace-nowrap">Rows per page</p>
-          <Select
-            value={`${pageSize}`}
-            onValueChange={(value) => handlePageSizeChange(Number(value))}
-          >
-            <SelectTrigger className="h-8 w-18">
-              <SelectValue placeholder={pageSize} />
-            </SelectTrigger>
-            <SelectContent side="top">
-              {PAGE_SIZE_OPTIONS.map((size) => (
-                <SelectItem key={size} value={`${size}`}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <p className="text-sm font-medium whitespace-nowrap">
+            {pageSize} rows per page
+          </p>
         </div>
 
         {/* Page indicator */}
