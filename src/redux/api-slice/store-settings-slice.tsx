@@ -79,14 +79,16 @@ const StoreSettingsSlice = createSlice({
       .addCase(FetchStoreAllowedIpsSettings.pending, (state) => {
         state.FetchStoreAllowedIpsSettingsState.FetchStoreAllowedIpsSettingsIsLoading = true;
         state.FetchStoreAllowedIpsSettingsState.FetchStoreAllowedIpsSettingsIsSuccess = false;
-        state.FetchStoreAllowedIpsSettingsState.FetchStoreAllowedIpsSettingsIsError = null;
+        state.FetchStoreAllowedIpsSettingsState.FetchStoreAllowedIpsSettingsIsError =
+          null;
       })
       .addCase(FetchStoreAllowedIpsSettings.fulfilled, (state, action) => {
         state.FetchStoreAllowedIpsSettingsState.FetchStoreAllowedIpsSettingsIsLoading = false;
         state.FetchStoreAllowedIpsSettingsState.FetchStoreAllowedIpsSettingsIsSuccess = true;
-        state.FetchStoreAllowedIpsSettingsState.FetchStoreAllowedIpsSettingsData = {
-          allowed_ips: action.payload?.allowed_ips ?? [],
-        };
+        state.FetchStoreAllowedIpsSettingsState.FetchStoreAllowedIpsSettingsData =
+          {
+            allowed_ips: action.payload?.allowed_ips ?? [],
+          };
       })
       .addCase(FetchStoreAllowedIpsSettings.rejected, (state, action) => {
         state.FetchStoreAllowedIpsSettingsState.FetchStoreAllowedIpsSettingsIsLoading = false;
@@ -96,16 +98,18 @@ const StoreSettingsSlice = createSlice({
       .addCase(UpdateStoreAllowedIpsSettings.pending, (state) => {
         state.UpdateStoreAllowedIpsSettingsState.UpdateStoreAllowedIpsSettingsIsLoading = true;
         state.UpdateStoreAllowedIpsSettingsState.UpdateStoreAllowedIpsSettingsIsSuccess = false;
-        state.UpdateStoreAllowedIpsSettingsState.UpdateStoreAllowedIpsSettingsIsError = null;
+        state.UpdateStoreAllowedIpsSettingsState.UpdateStoreAllowedIpsSettingsIsError =
+          null;
       })
       .addCase(UpdateStoreAllowedIpsSettings.fulfilled, (state, action) => {
         state.UpdateStoreAllowedIpsSettingsState.UpdateStoreAllowedIpsSettingsIsLoading = false;
         state.UpdateStoreAllowedIpsSettingsState.UpdateStoreAllowedIpsSettingsIsSuccess = true;
         // Keep the read slot in step so leaving and returning shows the
         // saved list without a refetch.
-        state.FetchStoreAllowedIpsSettingsState.FetchStoreAllowedIpsSettingsData = {
-          allowed_ips: action.payload?.allowed_ips ?? [],
-        };
+        state.FetchStoreAllowedIpsSettingsState.FetchStoreAllowedIpsSettingsData =
+          {
+            allowed_ips: action.payload?.allowed_ips ?? [],
+          };
       })
       .addCase(UpdateStoreAllowedIpsSettings.rejected, (state, action) => {
         state.UpdateStoreAllowedIpsSettingsState.UpdateStoreAllowedIpsSettingsIsLoading = false;
