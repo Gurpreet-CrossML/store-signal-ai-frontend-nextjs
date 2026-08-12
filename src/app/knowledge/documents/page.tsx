@@ -1,19 +1,15 @@
 import StoreDocumentTabContent from "@/components/custom/store-document-tab-content";
-import SubPageShell from "@/components/custom/sub-page-shell";
+import { AreaSubPage } from "@/components/custom/area-sub-page";
+import { areaSectionMetadata } from "@/lib/nav-areas";
 
-export const metadata = {
-  title: "Document Library",
-};
+const HREF = "/knowledge/documents";
+
+export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
   return (
-    <SubPageShell
-      backHref="/knowledge"
-      backLabel="Back to knowledge"
-      title="Document Library"
-      description="Upload PDFs and DOCX files to enrich the chatbot's knowledge."
-    >
+    <AreaSubPage href={HREF}>
       <StoreDocumentTabContent />
-    </SubPageShell>
+    </AreaSubPage>
   );
 }
