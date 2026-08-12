@@ -5,14 +5,32 @@ import {
   IconDeviceFloppy,
   IconExternalLink,
   IconPlus,
-  IconShield,
+  IconShieldCheck,
   IconTrash,
 } from "@tabler/icons-react";
 
+import { InfoIcon } from "@/components/custom/info-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Typography } from "@/components/ui/typography";
 import { Input } from "@/components/ui/input";
+import { LoadingState } from "@/components/custom/loading-state";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
@@ -172,175 +190,176 @@ export default function StorePolicyTabContent() {
   };
 
   return (
-    <div className="flex w-full flex-col gap-6 py-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <IconShield className="size-5" />
-          <div className="flex flex-col">
-            <Typography variant="h6" as="h2">
-              Company Policies
-            </Typography>
-            <Typography variant="muted">
-              Manage your business policies and terms.
-            </Typography>
-          </div>
+    <div className="flex w-full flex-col gap-6">
+      {error && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
+          {error}
         </div>
+      )}
+
+      {FetchStorePoliciesIsLoading ? (
+        <LoadingState label="Loading Policies…" />
+      ) : (
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <IconShieldCheck className="size-4" />
+              Linked Policies
+              <InfoIcon text="Policy pages the AI can reference when customers ask about refunds, shipping, privacy, and similar topics." />
+            </CardTitle>
+            <CardDescription>
+              Each policy links a page from your store.
+            </CardDescription>
+            <CardAction>
+              <Badge variant="secondary">{policies.length}</Badge>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {policies.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Policy</TableHead>
+                    <TableHead>URL</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {policies.map((policy) => (
+                    <TableRow key={policy.id}>
+                      <TableCell>
+                        <Typography variant="small" as="span">
+                          {policyTypes[policy.link_type] ?? policy.link_type}
+                        </Typography>
+                      </TableCell>
+                      <TableCell className="max-w-md">
+                        <a
+                          href={policy.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 truncate text-sm text-primary underline underline-offset-2"
+                        >
+                          <span className="truncate">{policy.url}</span>
+                          <IconExternalLink className="size-3.5 shrink-0" />
+                        </a>
+                      </TableCell>
+                      <TableCell>
+                        {policy.status && (
+                          <Badge
+                            variant={STATUS_VARIANT[policy.status] ?? "outline"}
+                            className="font-normal capitalize"
+                          >
+                            {policy.status}
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              drafts.length === 0 && (
+                <div className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-center text-sm text-muted-foreground">
+                  No policies linked yet. Add one so the AI can reference it.
+                </div>
+              )
+            )}
+
+            {drafts.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto] items-center gap-2">
+                  <Typography
+                    variant="muted"
+                    as="span"
+                    className="text-xs font-medium"
+                  >
+                    Policy Type
+                  </Typography>
+                  <Typography
+                    variant="muted"
+                    as="span"
+                    className="text-xs font-medium"
+                  >
+                    Policy URL
+                  </Typography>
+                  <span aria-hidden className="w-8" />
+                </div>
+                {drafts.map((draft) => (
+                  <div
+                    key={draft.uid}
+                    className="grid grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto] items-center gap-2"
+                  >
+                    <Select
+                      value={draft.type}
+                      onValueChange={(value) =>
+                        updateDraft(draft.uid, "type", value)
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select policy type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableTypes(draft.type).map(([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      value={draft.url}
+                      onChange={(event) =>
+                        updateDraft(draft.uid, "url", event.target.value)
+                      }
+                      placeholder="https://company.com/policy"
+                      autoComplete="off"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => removeDraft(draft.uid)}
+                      aria-label="Remove policy"
+                    >
+                      <IconTrash className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-fit"
+              onClick={addDraft}
+              disabled={!storeCode}
+            >
+              <IconPlus className="size-4" />
+              Add Policy
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="flex justify-start border-t border-border py-3">
         <Button
+          size="lg"
           onClick={handleSave}
           disabled={
             CreateStorePolicyIsLoading || drafts.length === 0 || !storeCode
           }
         >
           {CreateStorePolicyIsLoading ? (
-            <>
-              <Spinner data-icon="inline-start" />
-              Saving...
-            </>
+            <Spinner data-icon="inline-start" />
           ) : (
-            <>
-              <IconDeviceFloppy />
-              Save Policies
-            </>
+            <IconDeviceFloppy data-icon="inline-start" />
           )}
+          {CreateStorePolicyIsLoading ? "Saving..." : "Save Policies"}
         </Button>
       </div>
-
-      {error && (
-        <div className="border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          {error}
-        </div>
-      )}
-
-      {FetchStorePoliciesIsLoading ? (
-        <div className="flex items-center justify-center py-10 gap-2">
-          <Spinner className="size-6" />
-          Loading Policies...
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {policies.map((policy, index) => {
-            const variant = STATUS_VARIANT[policy.status] ?? "outline";
-            return (
-              <div
-                key={policy.id}
-                className="flex flex-col gap-3 border border-border/60 p-4"
-              >
-                <div className="flex items-center gap-2">
-                  <Typography variant="small" as="span" className="text-xs">
-                    Policy #{index + 1}
-                  </Typography>
-                  {policy.status && (
-                    <Badge variant={variant} className="font-normal capitalize">
-                      {policy.status}
-                    </Badge>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">
-                      Policy Type
-                    </span>
-                    <span className="text-xs font-medium">
-                      {policyTypes[policy.link_type] ?? policy.link_type}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">
-                      Policy URL
-                    </span>
-                    <a
-                      href={policy.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 truncate text-xs text-primary underline underline-offset-2"
-                    >
-                      <span className="truncate">{policy.url}</span>
-                      <IconExternalLink className="size-3.5 shrink-0" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          {drafts.map((draft, index) => (
-            <div
-              key={draft.uid}
-              className="flex flex-col gap-3 border border-dashed border-border p-4 rounded-lg"
-            >
-              <div className="flex items-center justify-between">
-                <Typography variant="small" as="span" className="text-xs">
-                  New Policy #{policies.length + index + 1}
-                </Typography>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => removeDraft(draft.uid)}
-                  aria-label="Remove policy"
-                >
-                  <IconTrash />
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">
-                    Policy Type
-                  </span>
-                  <Select
-                    value={draft.type}
-                    onValueChange={(value) =>
-                      updateDraft(draft.uid, "type", value)
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select policy type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableTypes(draft.type).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">
-                    Policy URL
-                  </span>
-                  <Input
-                    value={draft.url}
-                    onChange={(event) =>
-                      updateDraft(draft.uid, "url", event.target.value)
-                    }
-                    placeholder="https://company.com/policy"
-                    autoComplete="off"
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {policies.length === 0 && drafts.length === 0 && (
-            <div className="flex h-32 flex-col items-center justify-center border border-dashed border-border text-xs text-muted-foreground rounded-lg">
-              No policies added yet. Add a policy to get started.
-            </div>
-          )}
-
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full border-dashed"
-            onClick={addDraft}
-            disabled={!storeCode}
-          >
-            <IconPlus />
-            Add New Policy
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

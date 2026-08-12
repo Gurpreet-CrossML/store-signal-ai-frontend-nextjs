@@ -1,7 +1,15 @@
 "use client";
 
 import { AppSidebar } from "@/components/custom/app-sidebar";
-import { SiteHeader } from "@/components/custom/site-header";
+import { Button } from "@/components/ui/button";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { IconLayoutSidebar } from "@tabler/icons-react";
+import {
+  resolveSubSidebarKey,
+  sidebarMenus,
+  SubSidebarMenuItem,
+} from "@/lib/sidebar-navs";
+import { useState } from "react";
 import {
   Empty,
   EmptyDescription,
@@ -9,7 +17,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/hooks";
@@ -32,6 +39,25 @@ function StoreLoading() {
   );
 }
 
+/**
+ * Brings the sidebar back once it's been hidden. Rendered in the content
+ * area because the sidebar's own trigger disappears with it.
+ */
+function SidebarRevealTrigger({ onShow }: { onShow: () => void }) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon-xs"
+      onClick={onShow}
+      aria-label="Show sidebar"
+      className="fixed top-2 left-2 z-20 rounded-full bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+    >
+      <IconLayoutSidebar className="size-4" />
+    </Button>
+  );
+}
+
 export default function MainLayout({
   children,
 }: Readonly<{
@@ -42,22 +68,54 @@ export default function MainLayout({
   );
   const pathname = usePathname();
 
+  const [sidebarHidden, setSidebarHidden] = useState(false);
+
+  // Derived from the route, so it survives a refresh and works on a deep
+  // link. Computed here rather than in AppSidebar because the sidebar's
+  // width is a provider-level CSS variable that both the layout gap and the
+  // fixed container read.
+  const subSidebarKey = resolveSubSidebarKey(pathname);
+  const subSidebarItems: SubSidebarMenuItem | null = subSidebarKey
+    ? (sidebarMenus.navSubSidebar?.[subSidebarKey] ?? null)
+    : null;
+  const hasSubSidebar = subSidebarItems !== null;
+
   if (pathname === "/login") {
     return <>{children}</>;
   }
 
   return (
+    // `open` is pinned false so the sidebar is permanently in its collapsed
+    // (icon) state — that state is what drives every icon-mode style, so
+    // letting it expand is what made labels spill out of the rail. Hiding is
+    // therefore its own concern, not the provider's `open`.
+    //
+    // Widening happens through --sidebar-width-icon, the width a collapsed
+    // sidebar actually uses, so a sub-sidebar gets its room while the rail
+    // keeps its own fixed --rail-width.
     <SidebarProvider
+      open={false}
+      onOpenChange={() => {}}
       style={
         {
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)",
+          // Literal values: the rail keeps 3.5rem, and the collapsed
+          // sidebar grows by the sub-sidebar's width when one is open.
+          "--sidebar-width-icon": hasSubSidebar
+            ? "calc(3.5rem + 16rem)"
+            : "3.5rem",
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
+      {!sidebarHidden && (
+        <AppSidebar
+          subSidebarItems={subSidebarItems}
+          onHide={() => setSidebarHidden(true)}
+        />
+      )}
       <SidebarInset>
-        <SiteHeader />
+        {sidebarHidden && (
+          <SidebarRevealTrigger onShow={() => setSidebarHidden(false)} />
+        )}
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div

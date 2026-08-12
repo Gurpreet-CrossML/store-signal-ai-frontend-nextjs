@@ -3,15 +3,6 @@
 import { Icon, IconChevronRight } from "@tabler/icons-react";
 
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -23,83 +14,19 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { Suspense } from "react";
 import {
-  GetStores,
-  setSelectedStore,
-  SELECTED_STORE_KEY,
-} from "@/redux/api-slice/stores-slice";
-import { Suspense, useEffect } from "react";
-import { SideBarMenuItem } from "@/lib/sidebar-navs";
+  isMenuItemActive,
+  MainSidebarMenuItem,
+  SideBarMenuItem,
+} from "@/lib/sidebar-navs";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-
-function StoreSelector() {
-  const dispatch = useAppDispatch();
-
-  const { GetStoresListData } = useAppSelector(
-    (state) => state.GetStoresReducer.GetStoresState,
-  );
-  const selectedStore = useAppSelector(
-    (state) => state.GetStoresReducer.selectedStore,
-  );
-
-  // Fetch the store list once.
-  useEffect(() => {
-    if (!GetStoresListData.length) {
-      dispatch(GetStores({}));
-    }
-  }, [GetStoresListData.length, dispatch]);
-
-  // Hydrate the selection from localStorage once the list is available.
-  // Falls back to the first store if nothing is stored or the stored code
-  // is no longer valid (e.g. the store was removed).
-  useEffect(() => {
-    if (!GetStoresListData.length || selectedStore) return;
-
-    const stored =
-      typeof window !== "undefined"
-        ? localStorage.getItem(SELECTED_STORE_KEY)
-        : null;
-    const isValid =
-      !!stored && GetStoresListData.some((s) => s.code === stored);
-
-    dispatch(setSelectedStore(isValid ? stored! : GetStoresListData[0].code));
-  }, [GetStoresListData, selectedStore, dispatch]);
-
-  const handelChange = (value: string) => {
-    dispatch(setSelectedStore(value));
-  };
-
-  return (
-    <Select value={selectedStore} onValueChange={handelChange}>
-      <SelectTrigger className="w-full mb-2">
-        <SelectValue placeholder="Select a Store" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          <SelectLabel>Stores</SelectLabel>
-          {GetStoresListData.length ? (
-            GetStoresListData.map((store) => (
-              <SelectItem key={store.id} value={store.code}>
-                {store.name}
-              </SelectItem>
-            ))
-          ) : (
-            <SelectItem value="__no-stores" disabled>
-              No stores found
-            </SelectItem>
-          )}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
-  );
-}
 
 function CollapsibleMenuItem({
   pathname,
@@ -112,7 +39,7 @@ function CollapsibleMenuItem({
   title: string;
   icon?: Icon;
   defaultOpen?: boolean;
-  items?: SideBarMenuItem[];
+  items?: MainSidebarMenuItem[];
 }) {
   return (
     <Collapsible
@@ -133,18 +60,17 @@ function CollapsibleMenuItem({
             {items?.map((subItem) => (
               <SidebarMenuSubItem key={subItem.title}>
                 <SidebarMenuSubButton
-                  className={cn(
-                    pathname == subItem.url
-                      ? "min-w-8 bg-purple-200 text-primary duration-200 ease-linear hover:bg-purple-200/90 hover:text-primary active:bg-purple-200/90 active:text-primary"
-                      : "",
-                  )}
+                  isActive={isMenuItemActive(pathname, subItem.url)}
+                  className="data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15"
                   asChild
                 >
                   <Link href={subItem.url}>
                     {subItem.icon && (
                       <subItem.icon
                         className={cn(
-                          pathname == subItem.url ? "text-primary!" : "",
+                          isMenuItemActive(pathname, subItem.url)
+                            ? "text-primary!"
+                            : "",
                         )}
                       />
                     )}
@@ -160,26 +86,44 @@ function CollapsibleMenuItem({
   );
 }
 
-function SidebarMenuItemWrapper({
+export function SidebarMenuItemWrapper({
   item,
   pathname,
+  expanded = false,
 }: {
   item: SideBarMenuItem;
   pathname: string | null;
+  /**
+   * Render as a full-width labelled row instead of a collapsed icon.
+   *
+   * The whole sidebar is pinned to its collapsed state, so every button
+   * inside it — including the sub-sidebar's, which has room to spare —
+   * inherits the icon-mode rules that force a 36px square and clip the
+   * label. This opts those rules back out, and drops the tooltip, which
+   * only exists to name an icon that has no visible label.
+   */
+  expanded?: boolean;
 }) {
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        tooltip={item.title}
+        tooltip={expanded ? undefined : item.title}
+        isActive={isMenuItemActive(pathname, item.url)}
         className={cn(
-          pathname == item.url
-            ? "min-w-8 bg-purple-200 text-primary duration-200 ease-linear hover:bg-purple-200/90 hover:text-primary active:bg-primary/90 active:text-primary"
-            : "",
+          "data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15 data-[active=true]:hover:text-primary",
+          expanded &&
+            "group-data-[collapsible=icon]:mx-0 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:[&_svg]:size-4",
         )}
         asChild
       >
         <Link href={item.url}>
-          {item.icon && <item.icon />}
+          {item.icon && (
+            <item.icon
+              className={cn(
+                isMenuItemActive(pathname, item.url) ? "text-primary!" : "",
+              )}
+            />
+          )}
           <span>{item.title}</span>
         </Link>
       </SidebarMenuButton>
@@ -191,7 +135,7 @@ function SidebarGroupWrapper({
   item,
   pathname,
 }: {
-  item: SideBarMenuItem;
+  item: MainSidebarMenuItem;
   pathname: string | null;
 }) {
   return (
@@ -200,18 +144,6 @@ function SidebarGroupWrapper({
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
           {item.items?.map((subItem) => {
-            if (subItem.items && subItem.items.length > 0) {
-              return (
-                <CollapsibleMenuItem
-                  key={subItem.title}
-                  pathname={pathname}
-                  title={subItem.title}
-                  icon={subItem.icon}
-                  defaultOpen={subItem.isExpanded}
-                  items={subItem.items}
-                />
-              );
-            }
             return (
               <SidebarMenuItemWrapper
                 key={subItem.title}
@@ -226,7 +158,7 @@ function SidebarGroupWrapper({
   );
 }
 
-export function NavMain({ items }: { items: SideBarMenuItem[] }) {
+export function NavMain({ items }: { items: MainSidebarMenuItem[] }) {
   return (
     <Suspense fallback={null}>
       <NavMainContent items={items} />
@@ -234,18 +166,12 @@ export function NavMain({ items }: { items: SideBarMenuItem[] }) {
   );
 }
 
-function NavMainContent({ items }: { items: SideBarMenuItem[] }) {
+function NavMainContent({ items }: { items: MainSidebarMenuItem[] }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const currentUrl = searchParams?.toString()
-    ? `${pathname}?${searchParams.toString()}`
-    : pathname;
 
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
-        <StoreSelector />
         <SidebarMenu>
           {items.map((item) => {
             if (item.items && item.items.length > 0 && item.isMenuHeading) {
@@ -253,7 +179,7 @@ function NavMainContent({ items }: { items: SideBarMenuItem[] }) {
                 <SidebarGroupWrapper
                   key={item.title}
                   item={item}
-                  pathname={currentUrl}
+                  pathname={pathname}
                 />
               );
             }
@@ -262,7 +188,7 @@ function NavMainContent({ items }: { items: SideBarMenuItem[] }) {
               return (
                 <CollapsibleMenuItem
                   key={item.title}
-                  pathname={currentUrl}
+                  pathname={pathname}
                   title={item.title}
                   icon={item.icon}
                   defaultOpen={item.isExpanded}
@@ -275,7 +201,7 @@ function NavMainContent({ items }: { items: SideBarMenuItem[] }) {
               <SidebarMenuItemWrapper
                 key={item.title}
                 item={item}
-                pathname={currentUrl}
+                pathname={pathname}
               />
             );
           })}

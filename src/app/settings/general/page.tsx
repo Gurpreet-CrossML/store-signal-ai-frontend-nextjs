@@ -1,17 +1,15 @@
 import CompanyProfileForm from "@/components/custom/company-profile-form";
-import SettingsSection from "@/components/custom/settings/settings-section";
+import { AreaSubPage } from "@/components/custom/area-sub-page";
+import { areaSectionMetadata } from "@/lib/nav-areas";
 
-export const metadata = {
-  title: "General Settings",
-};
+const HREF = "/settings/general";
+
+export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
   return (
-    <SettingsSection
-      title="General"
-      description="Your company's contact details, logo, and address. The name and code are managed by the platform operator."
-    >
+    <AreaSubPage href={HREF}>
       <CompanyProfileForm />
-    </SettingsSection>
+    </AreaSubPage>
   );
 }

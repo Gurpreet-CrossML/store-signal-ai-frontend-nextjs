@@ -11,18 +11,12 @@ import {
   IconEyeOff,
   IconLock,
   IconMail,
-  IconUserPlus,
 } from "@tabler/icons-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-  FieldSeparator,
-} from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
   InputGroup,
   InputGroupAddon,
@@ -202,13 +196,6 @@ export function LoginForm({
             {isLoading && <Spinner data-icon="inline-start" />}
             {isLoading ? "Logging in..." : "Log in"}
             {!isLoading && <IconArrowRight className="absolute right-4" />}
-          </Button>
-        </Field>
-        <FieldSeparator>or</FieldSeparator>
-        <Field>
-          <Button type="button" variant="outline" size="lg">
-            <IconUserPlus />
-            Create an account
           </Button>
         </Field>
       </FieldGroup>

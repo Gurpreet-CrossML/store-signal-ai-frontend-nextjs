@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import {
   type ColumnDef,
+  type SortingState,
   flexRender,
   getCoreRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 
@@ -16,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Spinner } from "@/components/ui/spinner";
+import { LoadingState } from "@/components/custom/loading-state";
 import { DataTablePagination } from "@/components/custom/threads-data-table-pagination";
 
 interface StoreDocumentDataTableProps<TData, TValue> {
@@ -30,10 +33,15 @@ export function StoreDocumentDataTable<TData, TValue>({
   data,
   isLoading = false,
 }: StoreDocumentDataTableProps<TData, TValue>) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+
   const table = useReactTable({
     data,
     columns,
+    state: { sorting },
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
@@ -62,10 +70,7 @@ export function StoreDocumentDataTable<TData, TValue>({
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24">
-                  <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                    <Spinner />
-                    Loading documents…
-                  </div>
+                  <LoadingState label="Loading Documents…" className="py-0" />
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows.length ? (
@@ -87,7 +92,8 @@ export function StoreDocumentDataTable<TData, TValue>({
                   colSpan={columns.length}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  No documents uploaded yet. Upload a PDF or DOCX above.
+                  No documents found. Upload a PDF or DOCX above, or adjust the
+                  filters.
                 </TableCell>
               </TableRow>
             )}

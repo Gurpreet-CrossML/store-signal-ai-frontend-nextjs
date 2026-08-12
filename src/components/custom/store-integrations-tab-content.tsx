@@ -46,6 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
+import { LoadingState } from "@/components/custom/loading-state";
 import { Spinner } from "../ui/spinner";
 
 // Attributes vary per integration, so form values are keyed by attribute `code`.
@@ -406,12 +407,7 @@ export default function StoreIntegrationsTabContent() {
   }, [storeCode, dispatch]);
 
   if (FetchIntegrationsIsLoading || FetchStoreIntegrationsIsLoading) {
-    return (
-      <div className="flex w-full items-center justify-center gap-2 text-muted-foreground">
-        <Spinner className="size-5" />
-        Loading…
-      </div>
-    );
+    return <LoadingState className="w-full" />;
   }
 
   return (

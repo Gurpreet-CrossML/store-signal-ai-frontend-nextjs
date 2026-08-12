@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
+import { LoadingState } from "@/components/custom/loading-state";
 import { Spinner } from "@/components/ui/spinner";
 import {
   DropdownMenu,
@@ -126,12 +127,7 @@ export default function CompanyProfileForm({
   });
 
   if (companyLoading && !companyProfile) {
-    return (
-      <div className="flex w-full items-center justify-center gap-2 text-muted-foreground">
-        <Spinner className="size-5" />
-        Loading…
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (

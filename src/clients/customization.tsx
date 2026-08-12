@@ -320,7 +320,7 @@ export default function Customization() {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-6 p-4 lg:grid-cols-[minmax(0,1fr)_400px]">
+    <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
       <div className="flex flex-col gap-6">
         <CustomizationTheme
           themeColor={themeColor}

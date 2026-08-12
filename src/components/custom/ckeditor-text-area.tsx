@@ -13,6 +13,8 @@ import {
   type EditorConfig,
 } from "ckeditor5";
 
+import { cn } from "@/lib/utils";
+
 import "ckeditor5/ckeditor5.css";
 import "@/app/globals.css";
 
@@ -29,6 +31,10 @@ type CKEditorTextAreaProps = {
   useMarkdown?: boolean;
   disabled?: boolean;
   maxLength?: number;
+  /** Extra classes for the frame, e.g. to change its rounding. */
+  className?: string;
+  /** Typing room before the box grows. Any CSS length. */
+  minHeight?: string;
 };
 
 const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
@@ -39,6 +45,8 @@ const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
   useMarkdown,
   disabled,
   maxLength,
+  className,
+  minHeight,
 }) => {
   const isLayoutReady = useSyncExternalStore(
     emptySubscribe,
@@ -132,7 +140,21 @@ const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
   }, [isLayoutReady, placeholder, useMarkdown]);
 
   return (
-    <div className="w-full h-full flex flex-col">
+    // The frame lives here rather than in each caller: CKEditor's own
+    // border is overridden globally, so an unwrapped usage would have no
+    // edge at all. Matching Input's chrome — border, rounding, focus ring —
+    // makes the editor read as the same kind of control wherever it lands.
+    <div
+      className={cn(
+        "ck-shell w-full rounded-md border border-input text-sm transition-[color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
+        className,
+      )}
+      style={
+        minHeight
+          ? ({ "--ck-editable-min-height": minHeight } as React.CSSProperties)
+          : undefined
+      }
+    >
       <div className="main-container">
         <div className="editor-container editor-container_classic-editor">
           <div className="editor-container__editor">

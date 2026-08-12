@@ -1,166 +1,55 @@
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Progress } from "@/components/ui/progress";
-import { Spinner } from "@/components/ui/spinner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatDateTime } from "@/lib/helpers";
+import { LoadingState } from "@/components/custom/loading-state";
+import { CardTitle } from "@/components/ui/card";
+import { Typography } from "@/components/ui/typography";
 import type {
   CartDataResponse,
-  ThreadTicketData,
   UserMetadata,
   Customer,
   OrderData,
   OrderShippingAddress,
   CartData,
+  ThreadTicketData,
 } from "@/redux/api-slice/thread-slice";
 import {
-  IconBrain,
   IconBrowser,
   IconDeviceDesktop,
   IconDeviceLaptop,
   IconLocationPin,
   IconNetwork,
   IconShoppingBag,
-  IconTicket,
   IconUser,
   IconPackage,
   IconChevronRight,
   IconMail,
+  IconTicket,
 } from "@tabler/icons-react";
 import { FulfillmentBadge, StatusBadge } from "@/components/ui/status-badge";
+import { Badge } from "@/components/ui/badge";
+import { BADGE_TONE_STYLES, type BadgeTone } from "@/lib/badge-tones";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 function CardLoadingState() {
-  return (
-    <div className="flex items-center justify-center py-6 text-muted-foreground">
-      <Spinner className="size-5" />
-    </div>
-  );
+  return <LoadingState className="py-6" />;
 }
 
-export function ThreadSummaryCard({
-  summary,
-  loading,
-}: {
-  summary: string;
-  loading?: boolean;
-}) {
-  return (
-    <Card>
-      <CardContent>
-        <CardTitle>AI Summary</CardTitle>
-        {loading ? (
-          <CardLoadingState />
-        ) : (
-          <CardDescription>
-            {summary || "No summary available."}
-          </CardDescription>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+/**
+ * Cart prices arrive as display strings (e.g. "$9999.0") — reformat the
+ * numeric part to two decimals, keeping the store's currency prefix.
+ */
+function formatCartPrice(price: string | null | undefined): string | null {
+  const raw = String(price ?? "").trim();
+  if (!raw) return null;
 
-export function ThreadAIInsightCard({
-  nextActionableItems,
-  resolutionSuccessRate,
-  reasonForScore,
-  overperformingCases,
-  underperformingCases,
-  loading,
-}: {
-  nextActionableItems: string[];
-  resolutionSuccessRate: string;
-  reasonForScore: string;
-  overperformingCases: string[];
-  underperformingCases: string[];
-  loading?: boolean;
-}) {
-  return (
-    <Card>
-      <CardContent className="space-y-4">
-        <CardTitle className="flex items-center gap-2">
-          <IconBrain className="size-4" />
-          AI Insights
-        </CardTitle>
-        {loading ? (
-          <CardLoadingState />
-        ) : (
-          <div className="flex flex-col gap-4">
-            {nextActionableItems?.length > 0 && (
-              <div className="bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 p-4">
-                <span>Next Actionable Items</span>
-                <ul className="mt-1 flex flex-col gap-2">
-                  {nextActionableItems?.map((item, index) => (
-                    <li key={index} className="flex gap-2 text-sm">
-                      <span className="bg-amber-700 dark:bg-amber-950 p-1" />
-                      {item}
-                    </li>
-                  )) || (
-                    <p className="text-sm text-muted-foreground italic">
-                      No data available.
-                    </p>
-                  )}
-                </ul>
-              </div>
-            )}
-            <Field className="w-full">
-              <FieldLabel htmlFor="progress-upload">
-                <span>Resolution Success Rate</span>
-                <span className="ml-auto">{resolutionSuccessRate || 0}%</span>
-              </FieldLabel>
-              <Progress
-                value={parseInt(resolutionSuccessRate || "0")}
-                id="progress-upload"
-              />
-            </Field>
+  const prefix = (raw.match(/^[^0-9-]+/) ?? [""])[0].trim();
+  const amount = Number(raw.replace(/[^0-9.-]/g, ""));
+  if (!Number.isFinite(amount)) return raw;
 
-            <div>
-              <span>Score Rationale</span>
-              <p className="text-sm text-muted-foreground mt-1 italic">
-                {reasonForScore || "No insights available."}
-              </p>
-            </div>
-
-            <div>
-              <span>Performing Matrix</span>
-              {overperformingCases &&
-              underperformingCases &&
-              overperformingCases?.length === 0 &&
-              underperformingCases?.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">
-                  No Matrix available.
-                </p>
-              ) : (
-                <ul className="mt-1 flex flex-col gap-2">
-                  {overperformingCases?.map((item, index) => (
-                    <li key={index} className="flex gap-2 text-sm">
-                      <span className="bg-green-700 dark:bg-green-950 p-1" />
-                      {item}
-                    </li>
-                  ))}
-                  {underperformingCases?.map((item, index) => (
-                    <li key={index} className="flex gap-2 text-sm">
-                      <span className="bg-red-700 dark:bg-red-950 p-1" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+  return `${prefix}${amount.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 export function CartDetailsCard({
@@ -174,215 +63,139 @@ export function CartDetailsCard({
   const items = cart?.items ?? [];
 
   return (
-    <Card>
-      <CardContent className="space-y-4">
-        <CardTitle className="flex items-center gap-2">
-          <IconShoppingBag className="size-4" />
-          Cart Details
-        </CardTitle>
-        {loading ? (
-          <CardLoadingState />
-        ) : items.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">
-            No cart data available.
-          </p>
-        ) : (
-          items?.map((item: CartData, index: number) => (
+    <section className="flex flex-col gap-3 border-b p-4">
+      <CardTitle className="flex items-center gap-2">
+        <IconShoppingBag className="size-4" />
+        Cart
+      </CardTitle>
+      {loading ? (
+        <CardLoadingState />
+      ) : items.length === 0 ? (
+        <Typography variant="muted">Cart is empty.</Typography>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {items.map((item: CartData, index: number) => (
             <div
               key={index}
-              className="flex items-center justify-between gap-2 text-sm"
+              className="flex items-center justify-between gap-3"
             >
-              <div className="flex items-center gap-2">
-                <Avatar>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-muted">
                   {item.product_image ? (
-                    <AvatarImage
+                    // Product images come from arbitrary store CDNs, so
+                    // next/image's domain allowlist can't cover them.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
                       src={item.product_image}
                       alt={item.name}
                       className="h-full w-full object-contain"
                     />
                   ) : (
-                    <AvatarFallback className="bg-muted text-muted-foreground text-xs">
-                      N/A
-                    </AvatarFallback>
+                    <IconShoppingBag className="size-4 text-muted-foreground" />
                   )}
-                </Avatar>
-                <span className="flex flex-col items-start gap-2">
-                  <span>{item.name}</span>
-                  <span className="text-muted-foreground text-xs">
+                </div>
+                <div className="min-w-0">
+                  <Typography variant="small" as="p" className="truncate">
+                    {item.name}
+                  </Typography>
+                  <Typography variant="muted" className="mt-0.5">
                     Qty: {item.qty}
-                  </span>
-                </span>
+                  </Typography>
+                </div>
               </div>
-              <span className="text-xs text-muted-foreground">
-                {item.price || "N/A"}
-              </span>
+              <Typography variant="small" as="span" className="shrink-0">
+                {formatCartPrice(item.price) ?? "-"}
+              </Typography>
             </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MetaRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value?: string | null;
+}) {
+  // Icon-only rows: the label survives as a hover tooltip, and missing
+  // values render as "-" so every row keeps its slot.
+  return (
+    <div className="flex items-center gap-2.5" title={label}>
+      <span className="shrink-0 text-muted-foreground">{icon}</span>
+      <Typography
+        variant="small"
+        as="span"
+        className="min-w-0 leading-normal font-normal wrap-break-word"
+      >
+        {value || "-"}
+      </Typography>
+    </div>
   );
 }
 
 export function UserMetadataCard({
   userMetadata,
-  custometData,
+  customerData,
   loading,
 }: {
   userMetadata: UserMetadata | null;
-  custometData?: Customer | null;
+  customerData?: Customer | null;
   loading?: boolean;
 }) {
   return (
-    <Card>
-      <CardContent className="space-y-4">
-        <CardTitle className="flex items-center gap-2">
-          <IconUser className="size-4" />
-          User Metadata
-        </CardTitle>
-        {loading ? (
-          <CardLoadingState />
-        ) : (
-          <div className="flex flex-col gap-3">
-            {custometData && custometData?.name && (
-              <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="bg-primary/20 p-1">
-                    <IconUser className="size-5 inline text-primary" />
-                  </span>
-                  <span className="shrink-0">Name</span>
-                </div>
-                <span className="ml-auto min-w-0 break-words text-right">
-                  {custometData?.name}
-                </span>
-              </div>
-            )}
-            {custometData && custometData?.email && (
-              <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="bg-primary/20 p-1">
-                    <IconMail className="size-5 inline text-primary" />
-                  </span>
-                  <span className="shrink-0">Email</span>
-                </div>
-                <span className="ml-auto min-w-0 break-words text-right">
-                  {custometData?.email}
-                </span>
-              </div>
-            )}
-
-            <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="bg-primary/20 p-1">
-                  <IconLocationPin className="size-5 inline text-primary" />
-                </span>
-                <span className="shrink-0">Location</span>
-              </div>
-              <span className="ml-auto min-w-0 break-words text-right">
-                {userMetadata?.geo_location || "Unknown Location"}
-              </span>
-            </div>
-            <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="bg-primary/20 p-1">
-                  <IconNetwork className="size-5 inline text-primary" />
-                </span>
-                <span className="shrink-0">IP Address</span>
-              </div>
-              <span className="ml-auto min-w-0 break-all text-right">
-                {userMetadata?.ip_address || "Unknown IP Address"}
-              </span>
-            </div>
-            <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="bg-primary/20 p-1">
-                  <IconDeviceLaptop className="size-5 inline text-primary" />
-                </span>
-                <span className="shrink-0">Device</span>
-              </div>
-              <span className="ml-auto min-w-0 break-words text-right">
-                {userMetadata?.device_type || "Unknown Device"}
-              </span>
-            </div>
-            <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="bg-primary/20 p-1">
-                  <IconBrowser className="size-5 inline text-primary" />
-                </span>
-                <span className="shrink-0">Browser</span>
-              </div>
-              <span className="ml-auto min-w-0 break-words text-right">
-                {userMetadata?.browser || "Unknown Browser"}
-              </span>
-            </div>
-            <div className="flex min-w-0 flex-wrap items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="bg-primary/20 p-1">
-                  <IconDeviceDesktop className="size-5 inline text-primary" />
-                </span>
-                <span className="shrink-0">OS</span>
-              </div>
-              <span className="ml-auto min-w-0 break-words text-right">
-                {userMetadata?.os || "Unknown OS"}
-              </span>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-export function SupportTicketCard({
-  ticketData,
-  loading,
-}: {
-  ticketData: ThreadTicketData[] | null;
-  loading?: boolean;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <IconTicket className="size-4" />
-          Support Ticket
-        </CardTitle>
-      </CardHeader>
+    <section className="flex flex-col gap-3 border-b p-4 last:border-b-0">
+      <CardTitle className="flex items-center gap-2">
+        <IconUser className="size-4" />
+        Customer
+      </CardTitle>
       {loading ? (
         <CardLoadingState />
-      ) : ticketData?.length == 0 ? (
-        <CardContent>
-          <p className="text-sm text-muted-foreground italic">
-            No Ticket data available.
-          </p>
-        </CardContent>
       ) : (
-        <CardContent className="space-y-2">
-          {ticketData?.map((ticket: ThreadTicketData, index: number) => (
-            <Card key={index}>
-              <CardContent className="space-y-2">
-                <CardTitle>Ticket TCK-{ticket.ticket_id}</CardTitle>
-                <CardTitle className="flex items-start justify-between gap-2 pb-2 border-b">
-                  {ticket.subject}
-                  <Badge>Open</Badge>
-                </CardTitle>
-                <CardDescription className="space-y-1 border-b pb-2">
-                  {ticket.description || "No description available."}
-                </CardDescription>
-                <CardDescription className="text-xs">
-                  Created:{" "}
-                  {formatDateTime(ticket.created_at) || "Unknown creation date"}
-                </CardDescription>
-              </CardContent>
-            </Card>
-          )) || (
-            <p className="text-sm text-muted-foreground italic">
-              No Support ticket data available.
-            </p>
-          )}
-        </CardContent>
+        <div className="flex flex-col gap-2.5">
+          <MetaRow
+            icon={<IconUser className="size-4" />}
+            label="Name"
+            value={customerData?.name}
+          />
+          <MetaRow
+            icon={<IconMail className="size-4" />}
+            label="Email"
+            value={customerData?.email}
+          />
+          <MetaRow
+            icon={<IconLocationPin className="size-4" />}
+            label="Location"
+            value={userMetadata?.geo_location}
+          />
+          <MetaRow
+            icon={<IconNetwork className="size-4" />}
+            label="IP Address"
+            value={userMetadata?.ip_address}
+          />
+          <MetaRow
+            icon={<IconDeviceLaptop className="size-4" />}
+            label="Device"
+            value={userMetadata?.device_type}
+          />
+          <MetaRow
+            icon={<IconBrowser className="size-4" />}
+            label="Browser"
+            value={userMetadata?.browser}
+          />
+          <MetaRow
+            icon={<IconDeviceDesktop className="size-4" />}
+            label="OS"
+            value={userMetadata?.os}
+          />
+        </div>
       )}
-    </Card>
+    </section>
   );
 }
 
@@ -432,30 +245,31 @@ function ShippingAddress({
   address: OrderShippingAddress | null;
 }) {
   if (!address) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        No shipping address on file
-      </p>
-    );
+    return <Typography variant="muted">No shipping address on file</Typography>;
   }
 
   const { recipient, lines } = formatShippingAddress(address);
 
   if (!recipient && lines.length === 0) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        No shipping address on file
-      </p>
-    );
+    return <Typography variant="muted">No shipping address on file</Typography>;
   }
 
   return (
-    <div className="text-xs font-medium text-foreground">
-      {recipient && <p>{recipient}</p>}
+    <div>
+      {recipient && (
+        <Typography variant="small" as="p" className="leading-normal">
+          {recipient}
+        </Typography>
+      )}
       {lines.map((line, idx) => (
-        <p key={idx} className="text-muted-foreground">
+        <Typography
+          key={idx}
+          variant="small"
+          as="p"
+          className="leading-normal font-normal"
+        >
           {line}
-        </p>
+        </Typography>
       ))}
     </div>
   );
@@ -463,9 +277,12 @@ function ShippingAddress({
 
 /** Format a "YYYY-MM-DD HH:mm:ss+TZ" timestamp into a short readable date. */
 function formatDate(value: string): string {
-  // Date.parse doesn't reliably handle a space between date and time the
-  // way it does the "T" separator, so normalize it first.
-  const date = new Date(value.replace(" ", "T"));
+  // Normalize before parsing: Date.parse needs the "T" separator instead of
+  // a space, and rejects bare-hour offsets like "+00" unless minutes are
+  // appended ("+00:00").
+  const date = new Date(
+    value.replace(" ", "T").replace(/([+-]\d{2})$/, "$1:00"),
+  );
   if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleDateString(undefined, {
@@ -543,13 +360,32 @@ function getPriceBreakdownRows(
   return rows;
 }
 
+function DetailRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <Typography variant="muted" className="shrink-0">
+        {label}
+      </Typography>
+      <div className="flex min-w-0 justify-end wrap-anywhere">{children}</div>
+    </div>
+  );
+}
+
 function OrderDetails({ order }: { order: OrderData }) {
   const breakdownRows = getPriceBreakdownRows(order);
 
   return (
-    <div className="mt-1.5 space-y-3 rounded-xl border border-border/50 bg-muted/20 p-3">
+    <div className="space-y-3 border-t border-border/50 p-3">
       <div>
-        <p className="text-[11px] font-medium text-muted-foreground">Items</p>
+        <Typography variant="muted" className="font-medium">
+          Items
+        </Typography>
         <div className="mt-1.5 space-y-2">
           {order.items.map((item, idx) => {
             const unitPrice =
@@ -561,16 +397,26 @@ function OrderDetails({ order }: { order: OrderData }) {
                 : unitPrice * item.quantity);
 
             return (
-              <div key={idx} className="text-xs">
+              <div key={idx}>
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-foreground">{item.name}</span>
-                  <span className="shrink-0 font-medium text-foreground">
+                  <Typography
+                    variant="small"
+                    as="span"
+                    className="leading-normal font-normal"
+                  >
+                    {item.name}
+                  </Typography>
+                  <Typography variant="small" as="span" className="shrink-0">
                     {formatPrice(lineTotal, order.currency)}
-                  </span>
+                  </Typography>
                 </div>
                 {/* Wraps onto its own line on narrow screens instead of
                     overflowing the card. */}
-                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                <Typography
+                  variant="muted"
+                  as="div"
+                  className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5"
+                >
                   <span>
                     {formatPrice(item.price, order.currency)} × {item.quantity}
                   </span>
@@ -582,7 +428,7 @@ function OrderDetails({ order }: { order: OrderData }) {
                       · Tax {formatPrice(item.total_tax_price, order.currency)}
                     </span>
                   )}
-                </div>
+                </Typography>
               </div>
             );
           })}
@@ -590,48 +436,187 @@ function OrderDetails({ order }: { order: OrderData }) {
       </div>
 
       {breakdownRows.length > 0 && (
-        <div className="space-y-1 border-t border-border/50 pt-2.5">
-          {breakdownRows.map((row) => (
-            <div
-              key={row.label}
-              className="flex items-center justify-between text-[11px]"
-            >
-              <span className="text-muted-foreground">{row.label}</span>
-              <span className="font-medium text-foreground">{row.value}</span>
-            </div>
-          ))}
+        <div className="space-y-1.5 border-t border-border/50 pt-2.5">
+          {breakdownRows.map((row) => {
+            const isTotal = row.label === "Total";
+            const isDiscount = row.label === "Discount";
+
+            return (
+              <div
+                key={row.label}
+                className={
+                  isTotal
+                    ? "mt-1 flex items-center justify-between border-t border-border/50 pt-2"
+                    : "flex items-center justify-between"
+                }
+              >
+                <Typography variant={isTotal ? "large" : "muted"} as="span">
+                  {row.label}
+                </Typography>
+                <Typography
+                  variant={isTotal ? "large" : "small"}
+                  as="span"
+                  className={
+                    isTotal
+                      ? "text-primary"
+                      : isDiscount
+                        ? "text-emerald-600 dark:text-emerald-500"
+                        : undefined
+                  }
+                >
+                  {row.value}
+                </Typography>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 border-t border-border/50 pt-2.5">
-        <div>
-          <p className="text-[11px] text-muted-foreground">Payment</p>
-          <p className="text-xs font-medium text-foreground capitalize">
+      {/* Same label-left / value-right rhythm as the price rows above, so
+          the status badge lands in the value column instead of floating
+          under its label. */}
+      <div className="space-y-2 border-t border-border/50 pt-2.5">
+        <DetailRow label="Payment">
+          <Typography variant="small" as="span" className="capitalize">
             {order.gateway}
-          </p>
-        </div>
-        <div>
-          <p className="text-[11px] text-muted-foreground">Payment Status</p>
-          <div className="mt-0.5">
-            <StatusBadge status={order.financial_status} />
-          </div>
-        </div>
+          </Typography>
+        </DetailRow>
+        <DetailRow label="Payment Status">
+          <StatusBadge status={order.financial_status} />
+        </DetailRow>
         {order.shipping_method && (
-          <div className="col-span-2">
-            <p className="text-[11px] text-muted-foreground">Shipping Method</p>
-            <p className="mt-0.5 text-xs font-medium text-foreground break-words [overflow-wrap:anywhere]">
+          <DetailRow label="Shipping Method">
+            <Typography
+              variant="small"
+              as="span"
+              className="text-right capitalize"
+            >
               {order.shipping_method.replace(/_/g, " ")}
-            </p>
-          </div>
+            </Typography>
+          </DetailRow>
         )}
-        <div className="col-span-2">
-          <p className="text-[11px] text-muted-foreground">Shipping Address</p>
-          <div className="mt-0.5">
-            <ShippingAddress address={order.shipping_address} />
-          </div>
+      </div>
+
+      <div className="border-t border-border/50 pt-2.5">
+        <Typography variant="muted" className="font-medium">
+          Shipping Address
+        </Typography>
+        <div className="mt-1">
+          <ShippingAddress address={order.shipping_address} />
         </div>
       </div>
     </div>
+  );
+}
+
+const TICKET_STATUS_TONES: Record<string, BadgeTone> = {
+  open: "danger",
+  pending: "warning",
+  resolved: "success",
+  closed: "neutral",
+};
+
+/** Still needing attention — these lead the list. */
+const LIVE_TICKET_STATUSES = ["open", "pending"];
+
+/**
+ * The customer's support tickets. Live ones (open, pending) come first
+ * because they're what an agent has to act on; resolved and closed follow
+ * for context.
+ */
+export function SupportTicketsCard({
+  tickets,
+  loading,
+}: {
+  tickets: ThreadTicketData[];
+  loading?: boolean;
+}) {
+  const liveCount = tickets.filter((ticket) =>
+    LIVE_TICKET_STATUSES.includes(ticket.status),
+  ).length;
+  const sortedTickets = [...tickets].sort((a, b) => {
+    const aLive = LIVE_TICKET_STATUSES.includes(a.status) ? 0 : 1;
+    const bLive = LIVE_TICKET_STATUSES.includes(b.status) ? 0 : 1;
+    return aLive - bLive;
+  });
+
+  return (
+    <section className="flex flex-col gap-3 border-b p-4">
+      <CardTitle className="flex items-center gap-2">
+        <IconTicket className="size-4" />
+        Support Tickets
+        {!loading && liveCount ? ` (${liveCount} active)` : ""}
+      </CardTitle>
+      {loading ? (
+        <CardLoadingState />
+      ) : !tickets.length ? (
+        <Typography variant="muted">No tickets raised yet.</Typography>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {sortedTickets.map((ticket) => {
+            const body = (
+              <>
+                <div className="flex items-start justify-between gap-2">
+                  <Typography variant="small" as="p" className="truncate">
+                    {ticket.subject || "Untitled ticket"}
+                  </Typography>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "shrink-0 capitalize",
+                      BADGE_TONE_STYLES[
+                        TICKET_STATUS_TONES[ticket.status] ?? "neutral"
+                      ],
+                    )}
+                  >
+                    {ticket.status}
+                  </Badge>
+                </div>
+                {ticket.description && (
+                  <Typography variant="muted" className="mt-1 line-clamp-2">
+                    {ticket.description}
+                  </Typography>
+                )}
+                <div className="mt-1 flex items-center gap-2">
+                  <Typography variant="muted" as="span">
+                    #{ticket.id} · {formatDate(ticket.created_at)}
+                  </Typography>
+                  {ticket.priority === "high" ||
+                  ticket.priority === "urgent" ? (
+                    <Badge
+                      variant="outline"
+                      className={cn("capitalize", BADGE_TONE_STYLES.warning)}
+                    >
+                      {ticket.priority}
+                    </Badge>
+                  ) : null}
+                </div>
+              </>
+            );
+
+            // Only linked when the provider gave us somewhere to go.
+            return ticket.ticket_url ? (
+              <a
+                key={ticket.id}
+                href={ticket.ticket_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl border border-border/50 p-2.5 transition-colors hover:bg-muted/50"
+              >
+                {body}
+              </a>
+            ) : (
+              <div
+                key={ticket.id}
+                className="rounded-xl border border-border/50 p-2.5"
+              >
+                {body}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -640,13 +625,15 @@ export function OrdersCard({
   loading,
   handleOrdersSync,
   orderSyncLoading,
-  custometData,
+  customerData,
+  isDisabled,
 }: {
   orders?: OrderData[] | null;
   loading?: boolean;
   handleOrdersSync: () => void;
   orderSyncLoading?: boolean;
-  custometData?: Customer | null;
+  customerData?: Customer | null;
+  isDisabled?: boolean;
 }) {
   const orderList = orders;
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -656,83 +643,93 @@ export function OrdersCard({
   };
 
   return (
-    <Card>
-      <CardContent className="space-y-4">
-        <CardHeader className="flex items-center justify-between p-0">
-          <CardTitle className="flex items-center gap-2">
-            <IconPackage className="h-4 w-4" />
-            Orders{orderList?.length ? ` (${orderList.length})` : ""}
-          </CardTitle>
-          <Button
-            type="button"
-            size="xs"
-            onClick={handleOrdersSync}
-            disabled={loading || orderSyncLoading || !custometData?.email}
-          >
-            {orderSyncLoading ? "Syncing..." : "Sync"}
-          </Button>
-        </CardHeader>
-        {loading ? (
-          <p className="text-sm text-muted-foreground italic">
-            Loading orders…
-          </p>
-        ) : !orderList || orderList?.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">
-            {!custometData?.email
-              ? "Customer not registered."
-              : "No orders found."}
-          </p>
-        ) : (
-          <div className="space-y-1.5">
-            {orderList?.map((order) => {
-              const isExpanded = expandedId === order.id;
+    <section className="flex flex-col gap-3 border-b p-4">
+      <div className="flex items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <IconPackage className="h-4 w-4" />
+          Orders{!loading && orderList?.length ? ` (${orderList.length})` : ""}
+        </CardTitle>
+        <Button
+          type="button"
+          size="xs"
+          onClick={handleOrdersSync}
+          disabled={
+            loading || orderSyncLoading || !customerData?.email || isDisabled
+          }
+        >
+          {orderSyncLoading ? "Syncing..." : "Sync"}
+        </Button>
+      </div>
+      {loading ? (
+        <CardLoadingState />
+      ) : !orderList || orderList?.length === 0 ? (
+        <Typography variant="muted">
+          {!customerData?.email
+            ? "No customer email to match orders."
+            : "No orders yet."}
+        </Typography>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {orderList?.map((order) => {
+            const isExpanded = expandedId === order.id;
 
-              return (
-                <div key={order.id}>
-                  <button
-                    type="button"
-                    onClick={() => toggleOrder(order.id)}
-                    className={`flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition ${
-                      isExpanded
-                        ? "border-primary/40 bg-primary/[0.04]"
-                        : "border-border/50 hover:bg-muted/50"
-                    }`}
-                  >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                      <IconPackage className="h-4 w-4" />
+            return (
+              // One box per order: the details continue inside this same
+              // container rather than opening a second box beneath it.
+              <div
+                key={order.id}
+                className={`overflow-hidden rounded-xl border transition ${
+                  isExpanded ? "border-primary/40" : "border-border/50"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleOrder(order.id)}
+                  className={`flex w-full items-center gap-3 p-2.5 text-left transition ${
+                    isExpanded ? "bg-primary/4" : "hover:bg-muted/50"
+                  }`}
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <IconPackage className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Typography
+                        variant="small"
+                        as="p"
+                        className="truncate leading-normal"
+                      >
+                        #{order.order_number}
+                      </Typography>
+                      <FulfillmentBadge status={order.fulfillment_status} />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-xs font-semibold text-foreground">
-                          #{order.order_number}
-                        </p>
-                        <FulfillmentBadge status={order.fulfillment_status} />
-                      </div>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        {formatDate(order.created_at)} · {order.items.length}{" "}
-                        item
-                        {order.items.length !== 1 ? "s" : ""}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <span className="text-xs font-semibold text-primary">
-                        {formatPrice(order.total_price, order.currency)}
-                      </span>
-                      <IconChevronRight
-                        className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
-                          isExpanded ? "rotate-90" : ""
-                        }`}
-                      />
-                    </div>
-                  </button>
+                    <Typography variant="muted" className="mt-0.5">
+                      {formatDate(order.created_at)} · {order.items.length} item
+                      {order.items.length !== 1 ? "s" : ""}
+                    </Typography>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Typography
+                      variant="small"
+                      as="span"
+                      className="text-primary"
+                    >
+                      {formatPrice(order.total_price, order.currency)}
+                    </Typography>
+                    <IconChevronRight
+                      className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
+                        isExpanded ? "rotate-90" : ""
+                      }`}
+                    />
+                  </div>
+                </button>
 
-                  {isExpanded && <OrderDetails order={order} />}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                {isExpanded && <OrderDetails order={order} />}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }

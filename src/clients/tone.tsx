@@ -6,7 +6,9 @@ import z from "zod";
 
 import BrandVoiceTonePresetSelector from "@/components/custom/brand-voice-tone-preset-selector";
 import BrandVoiceToneControls from "@/components/custom/brand-voice-tone-controls";
+import { IconDeviceFloppy } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/custom/loading-state";
 import { Spinner } from "@/components/ui/spinner";
 import {
   fetchTonePresets,
@@ -181,27 +183,11 @@ export default function BrandVoiceToneStyleEditor() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-4">
-      <div>
-        <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
-          Tone & Style
-        </h4>
-        <p className="text-sm text-muted-foreground">
-          Define how your assistant communicates. Choose a preset and fine-tune
-          the tone to match your brand and customers.
-        </p>
-      </div>
-
+    <div className="flex w-full flex-col gap-6">
       {FetchToneStyleIsLoading || FetchTonePresetsIsLoading ? (
-        <div className="flex items-center justify-center gap-2 py-10">
-          <Spinner className="size-6" />
-          Loading tone and style...
-        </div>
+        <LoadingState label="Loading Tone & Style…" />
       ) : (
-        <form
-          onSubmit={formik.handleSubmit}
-          className="grid grid-cols-1 gap-6" //xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,0.5fr)]
-        >
+        <form onSubmit={formik.handleSubmit} className="grid grid-cols-1 gap-6">
           <div className="flex flex-col gap-6">
             <BrandVoiceTonePresetSelector
               presets={FetchTonePresetsData}
@@ -215,35 +201,21 @@ export default function BrandVoiceToneStyleEditor() {
               onSliderChange={handleSliderChange}
             />
 
-            <div className="sticky bottom-0 z-10 flex justify-end border-t border-border bg-background py-3">
+            <div className="flex justify-start border-t border-border py-3">
               <Button
                 type="submit"
                 size="lg"
                 disabled={CreateToneStyleIsLoading}
               >
-                {CreateToneStyleIsLoading && (
+                {CreateToneStyleIsLoading ? (
                   <Spinner data-icon="inline-start" />
+                ) : (
+                  <IconDeviceFloppy data-icon="inline-start" />
                 )}
                 {CreateToneStyleIsLoading ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </div>
-
-          {/* <div className="flex flex-col gap-6">
-            <ToneStylePreviewPanel
-              preset={selectedPreset ?? null}
-              presetOrder={FetchTonePresetsData}
-              currentProfile={{
-                preset: formik.values.preset,
-                warmth: Number(formik.values.warmth),
-                formality: Number(formik.values.formality),
-                energy: Number(formik.values.energy),
-                playfulness: Number(formik.values.playfulness),
-                directness: Number(formik.values.directness),
-                useBulletPoints: formik.values.use_bullet_points,
-              }}
-            />
-          </div> */}
         </form>
       )}
     </div>

@@ -32,17 +32,13 @@ export default function Threads() {
   const queryString = searchParams?.toString() ?? "";
   const basePath = pathname ?? "/threads";
 
-  // The currently opened thread (drawer) is driven by the `?thread=` query
-  // param so a specific thread can be deep-linked / shared.
-  const selectedThreadId = searchParams?.get("thread") ?? null;
-
-  // Controlled, server-side pagination. Defaults to 15 rows per page. The
+  // Controlled, server-side pagination. Defaults to 25 rows per page. The
   // active page is mirrored in the `?page=` query param (1-indexed) so a shared
   // link lands on the same page the thread lives on.
   const [pagination, setPagination] = useState<PaginationState>(() => {
     const pageParam = Number(searchParams?.get("page"));
     const pageIndex = pageParam > 1 ? Math.floor(pageParam) - 1 : 0;
-    return { pageIndex, pageSize: 15 };
+    return { pageIndex, pageSize: 25 };
   });
 
   // Keep the `?page=` param in sync with the active page. Guarded so it only
@@ -61,24 +57,18 @@ export default function Threads() {
     });
   }, [pagination.pageIndex, queryString, basePath, router]);
 
+  // Each thread opens as its own page; browser back returns to this list
+  // (the `?page=` param keeps the list position).
   const handleSelectThread = useCallback(
-    (threadId: string) => {
-      const params = new URLSearchParams(queryString);
-      params.set("thread", threadId);
-      // push so the browser back button closes the drawer.
-      router.push(`${basePath}?${params.toString()}`, { scroll: false });
+    (threadId: string, isActive: boolean) => {
+      if (isActive) {
+        router.push(`/support/?chat=${threadId}`);
+      } else {
+        router.push(`/threads/${threadId}`);
+      }
     },
-    [queryString, basePath, router],
+    [router],
   );
-
-  const handleCloseThread = useCallback(() => {
-    const params = new URLSearchParams(queryString);
-    params.delete("thread");
-    const query = params.toString();
-    router.replace(query ? `${basePath}?${query}` : basePath, {
-      scroll: false,
-    });
-  }, [queryString, basePath, router]);
 
   const [filters, setFilters] = useState<ThreadFilterState>(
     DEFAULT_THREAD_FILTERS,
@@ -155,17 +145,6 @@ export default function Threads() {
     [FetchThreadsListData],
   );
 
-  // Resolve the full thread object for the open drawer from the loaded page.
-  // May be null briefly on a freshly-opened shared link until the page loads —
-  // the drawer falls back to fetching by id in that window.
-  const selectedThread = useMemo(
-    () =>
-      selectedThreadId
-        ? (rows.find((thread) => thread.id === selectedThreadId) ?? null)
-        : null,
-    [rows, selectedThreadId],
-  );
-
   return (
     <div className="flex flex-col gap-6 p-4">
       <ThreadFilteration
@@ -180,10 +159,7 @@ export default function Threads() {
         pagination={pagination}
         onPaginationChange={setPagination}
         isLoading={FetchThreadsIsLoading}
-        selectedThreadId={selectedThreadId}
-        selectedThread={selectedThread}
         onSelectThread={handleSelectThread}
-        onCloseThread={handleCloseThread}
       />
     </div>
   );

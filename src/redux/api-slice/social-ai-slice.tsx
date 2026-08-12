@@ -1,8 +1,34 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import {
+  createAsyncThunk,
+  createSlice,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
 import { axiosInstance } from "../axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
+
+/**
+ * One page size for every social list. Filtering and searching are the
+ * backend's job throughout — these thunks only ever forward the params.
+ */
+export const SOCIAL_PAGE_SIZE = 25;
+
+/**
+ * Merge a paged response into the slot. Page 1 replaces (a new search or
+ * filter), later pages append — that's what makes infinite scroll additive
+ * rather than a flicker back to the top.
+ */
+function mergePage<
+  T,
+  R extends { results: T[]; count: number; next?: string | null },
+>(existing: R | undefined, incoming: R, page: number): R {
+  if (page <= 1) return incoming;
+  return {
+    ...incoming,
+    results: [...(existing?.results ?? []), ...(incoming.results ?? [])],
+  };
+}
 
 type MetaOAuthUrlResponse = {
   authorize_url: string;
@@ -22,6 +48,8 @@ export type ConnectedAccount = {
   follows_count: number | null;
   webhook_status: string;
   is_active: boolean;
+  // Whether the AI answers this account's comments and DMs on its own.
+  allow_ai_auto_respond: boolean;
   last_event_at: string | null;
   created_at: string;
   updated_at: string;
@@ -81,9 +109,29 @@ export type SocialCommentAnalysis = {
   topic_labels: string[];
   sentiment: string;
   sentiment_label: string;
+  is_sarcastic: boolean;
   is_spam: boolean;
   is_critical: boolean;
   confidence: number | null;
+};
+
+/**
+ * The AI's reply to a comment. Null unless the AI judged the comment worth
+ * answering (questions, complaints, sarcasm, critical, negative — never
+ * plain praise, thanks or spam) and the account has auto-reply on.
+ *
+ * `is_auto_sent` decides what the UI does with it: true means it already
+ * went out and is in the thread as a `sender_type: "ai"` reply, so there is
+ * nothing to send. False means the provider send failed and the agent can
+ * send it by hand.
+ */
+export type SocialCommentAiResponse = {
+  id: number;
+  response_text: string;
+  is_auto_sent: boolean;
+  model_used: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type SocialComment = {
@@ -102,6 +150,7 @@ export type SocialComment = {
   is_deleted: boolean;
   // Null until the AI tagging pipeline has processed this comment.
   analysis: SocialCommentAnalysis | null;
+  ai_response: SocialCommentAiResponse | null;
   external_created_at: string;
 };
 
@@ -142,6 +191,21 @@ export type SocialDmReplyTo = {
   sender_name: string | null;
 };
 
+// One piece of media on a DM, in send order. An attachment-only message
+// has empty `content` and one or more of these.
+export type SocialDmAttachment = {
+  id: number;
+  // "image" | "video" | "audio" | "file" | "sticker" | "share" | "other"
+  attachment_type: string;
+  position: number;
+  // Meta CDN URL — signed and expiring (see expires_at). Blank for payload
+  // shapes that carry no URL of their own.
+  url: string;
+  title: string;
+  sticker_id: string;
+  expires_at: string | null;
+};
+
 export type SocialDm = {
   id: number;
   external_message_id: string;
@@ -152,6 +216,9 @@ export type SocialDm = {
   external_created_at: string | null;
   owner_reaction: string | null;
   reply_to: SocialDmReplyTo | null;
+  // Absent on older payloads; the websocket broadcast also fires before
+  // attachments are synced, so never assume this is populated.
+  attachments?: SocialDmAttachment[];
 };
 
 export type SocialDmsResponse = {
@@ -183,6 +250,34 @@ export const fetchSocialAccountsSubscriptions = createAsyncThunk(
           "Unable to fetch social subscriptions, please try again later.",
       });
 
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const updateAccountAutoRespond = createAsyncThunk(
+  "updateAccountAutoRespond",
+  async (
+    {
+      storeCode,
+      accountId,
+      allowAiAutoRespond,
+    }: { storeCode: string; accountId: string; allowAiAutoRespond: boolean },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.updateConnectedAccount({ accountId })}?store_code=${storeCode}`,
+        { allow_ai_auto_respond: allowAiAutoRespond },
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to update the AI auto-reply.",
+      });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
@@ -222,12 +317,48 @@ export const fetchSocialPosts = createAsyncThunk(
       storeCode,
       accountId,
       channelType,
-    }: { storeCode: string; accountId: string; channelType?: string },
+      page = 1,
+      pageSize = SOCIAL_PAGE_SIZE,
+      search,
+      minLikes,
+      maxLikes,
+      minComments,
+      maxComments,
+      from,
+      to,
+    }: {
+      storeCode: string;
+      accountId: string;
+      channelType?: string;
+      page?: number;
+      pageSize?: number;
+      search?: string;
+      minLikes?: number;
+      maxLikes?: number;
+      minComments?: number;
+      maxComments?: number;
+      from?: string;
+      to?: string;
+    },
     thunkAPI,
   ) => {
     try {
+      const params = new URLSearchParams({
+        store_code: storeCode,
+        page: String(page),
+        page_size: String(pageSize),
+      });
+      if (channelType) params.set("channel_type", channelType);
+      if (search) params.set("search", search);
+      if (minLikes != null) params.set("min_likes", String(minLikes));
+      if (maxLikes != null) params.set("max_likes", String(maxLikes));
+      if (minComments != null) params.set("min_comments", String(minComments));
+      if (maxComments != null) params.set("max_comments", String(maxComments));
+      if (from) params.set("posted_from", from);
+      if (to) params.set("posted_to", to);
+
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchSocialPosts({ accountId })}?store_code=${storeCode}${channelType ? `&channel_type=${channelType}` : ""}`,
+        `${ENDPOINTS.fetchSocialPosts({ accountId })}?${params.toString()}`,
         {
           useBackend: true,
         },
@@ -255,9 +386,14 @@ export const fetchPostComments = createAsyncThunk(
       storeCode,
       postId,
       page = 1,
-      pageSize = 15,
+      pageSize = SOCIAL_PAGE_SIZE,
       parentId,
-      topic,
+      topics,
+      intent,
+      sentiment,
+      sarcastic,
+      critical,
+      spam,
     }: {
       storeCode: string;
       // The post's external Graph id (SocialPost.external_id).
@@ -265,13 +401,33 @@ export const fetchPostComments = createAsyncThunk(
       page?: number;
       pageSize?: number;
       parentId?: number;
-      topic?: string;
+      // AI-tag filters, all resolved by the backend.
+      topics?: string[];
+      intent?: string;
+      sentiment?: string;
+      sarcastic?: boolean;
+      critical?: boolean;
+      spam?: boolean;
     },
     thunkAPI,
   ) => {
     try {
+      const params = new URLSearchParams({
+        store_code: storeCode,
+        page: String(page),
+        page_size: String(pageSize),
+      });
+      if (parentId) params.set("parent", String(parentId));
+      // Repeated `topic` params — a comment matches any of them.
+      topics?.forEach((topic) => params.append("topic", topic));
+      if (intent) params.set("intent", intent);
+      if (sentiment) params.set("sentiment", sentiment);
+      if (sarcastic) params.set("is_sarcastic", "true");
+      if (critical) params.set("is_critical", "true");
+      if (spam) params.set("is_spam", "true");
+
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchPostComments({ postId })}?store_code=${storeCode}&page=${page}&page_size=${pageSize}${parentId ? `&parent=${parentId}` : ""}${topic ? `&topic=${encodeURIComponent(topic)}` : ""}`,
+        `${ENDPOINTS.fetchPostComments({ postId })}?${params.toString()}`,
         {
           useBackend: true,
         },
@@ -330,7 +486,7 @@ export const fetchSocialUsers = createAsyncThunk(
       storeCode,
       accountId,
       page = 1,
-      pageSize = 50,
+      pageSize = SOCIAL_PAGE_SIZE,
       search,
     }: {
       storeCode: string;
@@ -374,7 +530,7 @@ export const fetchSocialDms = createAsyncThunk(
       accountId,
       userId,
       page = 1,
-      pageSize = 50,
+      pageSize = SOCIAL_PAGE_SIZE,
     }: {
       storeCode: string;
       // The connected account's external Graph id (ConnectedAccount.external_id).
@@ -431,6 +587,34 @@ export const likeMetaComment = createAsyncThunk(
       const data = response?.data;
       toast.error("Uh oh! Something went wrong.", {
         description: data?.message || "Unable to like item.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const unlikeMetaComment = createAsyncThunk(
+  "unlikeMetaComment",
+  async (
+    {
+      storeCode,
+      postId,
+      commentId,
+    }: { storeCode: string; postId: string; commentId: number },
+    thunkAPI,
+  ) => {
+    try {
+      // DELETE on the like route — no body; the method carries the intent.
+      const response = await axiosInstance.delete(
+        `${ENDPOINTS.likeComment({ postId, commentId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to remove the like.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -507,21 +691,42 @@ export const replyToMetaMessage = createAsyncThunk(
       messageId,
       message,
       isExplicitReply = true,
+      attachments,
     }: {
       storeCode: string;
       userId: number;
       messageId: number;
       message: string;
       isExplicitReply?: boolean;
+      attachments?: File[];
     },
     thunkAPI,
   ) => {
     try {
-      const response = await axiosInstance.post(
-        `${ENDPOINTS.replyMessage({ userId, messageId })}?store_code=${storeCode}`,
-        { message, is_explicit_reply: isExplicitReply },
-        { useBackend: true },
-      );
+      const url = `${ENDPOINTS.replyMessage({ userId, messageId })}?store_code=${storeCode}`;
+
+      // With media the request has to be multipart; the JSON body stays the
+      // shape it always was when there's nothing to upload.
+      const response = attachments?.length
+        ? await axiosInstance.post(
+            url,
+            (() => {
+              const form = new FormData();
+              form.append("message", message);
+              form.append("is_explicit_reply", String(isExplicitReply));
+              attachments.forEach((file) => form.append("attachments", file));
+              return form;
+            })(),
+            {
+              useBackend: true,
+              headers: { "Content-Type": "multipart/form-data" },
+            },
+          )
+        : await axiosInstance.post(
+            url,
+            { message, is_explicit_reply: isExplicitReply },
+            { useBackend: true },
+          );
       return response.data;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -679,7 +884,62 @@ const SocialAISlice = createSlice({
       FetchSocialDmsData: {} as SocialDmsResponse,
     },
   },
-  reducers: {},
+  reducers: {
+    /**
+     * A DM that arrived over the websocket, for the conversation currently
+     * loaded. Deduped by id: the same row can arrive twice when a refetch
+     * races the broadcast, and our own outgoing replies come back through
+     * the same store-wide stream.
+     */
+    /** Flip an account's auto-reply flag locally, ahead of the PATCH. */
+    accountAutoRespondSet(
+      state,
+      action: PayloadAction<{ accountId: string; value: boolean }>,
+    ) {
+      const account =
+        state.FetchSocialAccountSubscriptionsState.FetchSocialAccountsSubscriptionsData?.results?.find(
+          (item) => String(item.id) === action.payload.accountId,
+        );
+      if (account) account.allow_ai_auto_respond = action.payload.value;
+    },
+
+    socialDmReceived(state, action: PayloadAction<SocialDm>) {
+      const dms = state.FetchSocialDmsState.FetchSocialDmsData;
+      if (!dms?.results) return;
+      if (dms.results.some((msg) => msg.id === action.payload.id)) return;
+      // The messages endpoint is oldest-first, so a new one belongs at the end.
+      dms.results.push(action.payload);
+      dms.count = (dms.count ?? dms.results.length - 1) + 1;
+    },
+
+    /**
+     * Refresh a conversation row's preview when a message arrives for it,
+     * and float it to the top so the list stays newest-first like the API
+     * returns it.
+     */
+    socialConversationTouched(
+      state,
+      action: PayloadAction<{
+        userId: number;
+        lastMessage: string;
+        lastMessageAt: string | null;
+      }>,
+    ) {
+      const users = state.FetchSocialUsersState.FetchSocialUsersData;
+      if (!users?.results) return;
+      const index = users.results.findIndex(
+        (user) => user.id === action.payload.userId,
+      );
+      // An unknown contact means a brand-new conversation — the list has to
+      // be refetched to get their profile, which the screen handles.
+      if (index === -1) return;
+
+      const [user] = users.results.splice(index, 1);
+      user.last_message = action.payload.lastMessage;
+      user.last_message_at = action.payload.lastMessageAt;
+      users.results.unshift(user);
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(createMetaOAuthUrl.pending, (state) => {
@@ -724,7 +984,11 @@ const SocialAISlice = createSlice({
       .addCase(fetchSocialPosts.fulfilled, (state, action) => {
         state.FetchSocialPostsState.FetchSocialPostsIsLoading = false;
         state.FetchSocialPostsState.FetchSocialPostsIsSuccess = true;
-        state.FetchSocialPostsState.FetchSocialPostsData = action.payload;
+        state.FetchSocialPostsState.FetchSocialPostsData = mergePage(
+          state.FetchSocialPostsState.FetchSocialPostsData,
+          action.payload,
+          action.meta.arg.page ?? 1,
+        );
       })
       .addCase(fetchSocialPosts.rejected, (state, action) => {
         state.FetchSocialPostsState.FetchSocialPostsIsLoading = false;
@@ -741,7 +1005,11 @@ const SocialAISlice = createSlice({
       .addCase(fetchSocialUsers.fulfilled, (state, action) => {
         state.FetchSocialUsersState.FetchSocialUsersIsLoading = false;
         state.FetchSocialUsersState.FetchSocialUsersIsSuccess = true;
-        state.FetchSocialUsersState.FetchSocialUsersData = action.payload;
+        state.FetchSocialUsersState.FetchSocialUsersData = mergePage(
+          state.FetchSocialUsersState.FetchSocialUsersData,
+          action.payload,
+          action.meta.arg.page ?? 1,
+        );
       })
       .addCase(fetchSocialUsers.rejected, (state, action) => {
         state.FetchSocialUsersState.FetchSocialUsersIsLoading = false;
@@ -758,7 +1026,11 @@ const SocialAISlice = createSlice({
       .addCase(fetchPostComments.fulfilled, (state, action) => {
         state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
         state.FetchPostCommentsState.FetchPostCommentsIsSuccess = true;
-        state.FetchPostCommentsState.FetchPostCommentsData = action.payload;
+        state.FetchPostCommentsState.FetchPostCommentsData = mergePage(
+          state.FetchPostCommentsState.FetchPostCommentsData,
+          action.payload,
+          action.meta.arg.page ?? 1,
+        );
       })
       .addCase(fetchPostComments.rejected, (state, action) => {
         state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
@@ -790,7 +1062,11 @@ const SocialAISlice = createSlice({
       .addCase(fetchSocialDms.fulfilled, (state, action) => {
         state.FetchSocialDmsState.FetchSocialDmsIsLoading = false;
         state.FetchSocialDmsState.FetchSocialDmsIsSuccess = true;
-        state.FetchSocialDmsState.FetchSocialDmsData = action.payload;
+        state.FetchSocialDmsState.FetchSocialDmsData = mergePage(
+          state.FetchSocialDmsState.FetchSocialDmsData,
+          action.payload,
+          action.meta.arg.page ?? 1,
+        );
       })
       .addCase(fetchSocialDms.rejected, (state, action) => {
         state.FetchSocialDmsState.FetchSocialDmsIsLoading = false;
@@ -893,5 +1169,11 @@ const SocialAISlice = createSlice({
       });
   },
 });
+
+export const {
+  accountAutoRespondSet,
+  socialDmReceived,
+  socialConversationTouched,
+} = SocialAISlice.actions;
 
 export default SocialAISlice.reducer;

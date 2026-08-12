@@ -1,13 +1,10 @@
-import Knowledge from "@/clients/knowledge";
+import { AreaLanding } from "@/components/custom/area-landing";
+import { NAV_AREAS } from "@/lib/nav-areas";
 
 export const metadata = {
-  title: "Knowledge",
+  title: NAV_AREAS.knowledge.title,
 };
 
 export default function Page() {
-  return (
-    <>
-      <Knowledge />
-    </>
-  );
+  return <AreaLanding area="knowledge" />;
 }
