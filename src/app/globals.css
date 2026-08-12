@@ -201,3 +201,170 @@ div#markdown-message-bubble a {
   font-weight: revert;
   text-decoration: revert;
 }
+
+/* ---------------------------------------------------------------------------
+   CKEditor
+
+   CKEditor ships a complete look of its own — its own type scale, palette,
+   borders and focus ring — which made the composer read as a widget dropped
+   into the page rather than an input belonging to it. Everything below maps
+   its variables onto the app's tokens, so it follows the theme (dark mode
+   included) without any rule having to out-shout CKEditor's own.
+
+   Scoped to `.ck` rather than `:root` deliberately: that beats CKEditor's
+   own `:root` declarations on specificity, so load order stops mattering,
+   and it reaches the dropdown panels it portals out to `<body>` too.
+--------------------------------------------------------------------------- */
+.ck {
+  --ck-font-face: var(--font-sans);
+  /* 0.875rem/1.25rem is the app's `text-sm` step — the editor joins the
+     existing scale rather than introducing CKEditor's 13px one. */
+  --ck-font-size-base: 0.875rem;
+  --ck-line-height-base: 1.25rem;
+  --ck-border-radius: var(--radius-md);
+
+  --ck-color-base-background: var(--background);
+  --ck-color-base-foreground: var(--background);
+  --ck-color-base-border: var(--border);
+  --ck-color-base-text: var(--foreground);
+  --ck-color-text: var(--foreground);
+  --ck-color-shadow-drop: oklch(0 0 0 / 8%);
+  --ck-color-shadow-drop-active: oklch(0 0 0 / 12%);
+  --ck-color-shadow-inner: transparent;
+
+  --ck-color-toolbar-background: transparent;
+  --ck-color-toolbar-border: var(--border);
+
+  --ck-color-button-default-background: transparent;
+  --ck-color-button-default-hover-background: var(--muted);
+  --ck-color-button-default-active-background: var(--muted);
+  --ck-color-button-on-background: var(--muted);
+  --ck-color-button-on-hover-background: var(--muted);
+  --ck-color-button-on-active-background: var(--muted);
+  --ck-color-button-on-color: var(--primary);
+  --ck-color-button-on-disabled-background: transparent;
+
+  --ck-color-panel-background: var(--popover);
+  --ck-color-panel-border: var(--border);
+  --ck-color-dropdown-panel-background: var(--popover);
+  --ck-color-dropdown-panel-border: var(--border);
+  --ck-color-list-background: var(--popover);
+  --ck-color-list-button-hover-background: var(--muted);
+  --ck-color-list-button-on-background: var(--muted);
+  --ck-color-list-button-on-background-focus: var(--muted);
+  --ck-color-list-button-on-text: var(--foreground);
+
+  --ck-color-input-background: var(--background);
+  --ck-color-input-border: var(--border);
+  --ck-color-input-text: var(--foreground);
+  --ck-color-input-disabled-background: var(--muted);
+  --ck-color-input-disabled-border: var(--border);
+  --ck-color-input-disabled-text: var(--muted-foreground);
+  --ck-color-labeled-field-label-background: var(--background);
+
+  --ck-color-focus-border: var(--ring);
+  --ck-color-focus-outer-shadow: transparent;
+  --ck-color-focus-disabled-shadow: transparent;
+  --ck-color-engine-placeholder-text: var(--muted-foreground);
+  --ck-color-tooltip-background: var(--foreground);
+  --ck-color-tooltip-text: var(--background);
+
+  /* CKEditor composes these from the colours above on `:root`, and a
+     custom property's var() references are substituted where the property
+     is *declared* — so re-pointing the colours here alone left these still
+     resolved against CKEditor's own blue. They have to be restated. */
+  --ck-focus-ring: 1px solid var(--ring);
+  --ck-focus-outer-shadow: none;
+  --ck-focus-disabled-outer-shadow: none;
+  --ck-focus-error-outer-shadow: none;
+  --ck-inner-shadow: none;
+  --ck-drop-shadow: 0 1px 2px oklch(0 0 0 / 8%);
+  --ck-drop-shadow-active: 0 3px 6px oklch(0 0 0 / 12%);
+}
+
+/* The wrapper draws the border, rounding and focus ring, so the editor's
+   own frame is redundant — two nested boxes unfocused, two rings focused.
+   CKEditor sets these from `.ck.ck-editor__editable:not(...).ck-focused`,
+   four classes deep, so the override has to out-specify it rather than
+   merely come later; hence the `__main >` prefix.
+
+   `--ck-focus-ring` itself is left alone: it still marks focus on the
+   toolbar buttons, which have no wrapper of their own to show it. */
+.ck.ck-editor__main > .ck.ck-editor__editable:not(.ck-editor__nested-editable),
+.ck.ck-editor__main
+  > .ck.ck-editor__editable:not(.ck-editor__nested-editable).ck-focused {
+  border: 0;
+  box-shadow: none;
+  outline: none;
+}
+
+/* The visible pair of lines at the top of the composer: the wrapper draws
+   the frame, and CKEditor's sticky panel — the element that actually holds
+   the toolbar — draws a second one just inside it. Its own selector is four
+   classes deep, so this one is five. */
+.ck.ck-editor .ck-editor__top .ck-sticky-panel .ck-sticky-panel__content,
+.ck.ck-editor
+  .ck-editor__top
+  .ck-sticky-panel
+  .ck-sticky-panel__content.ck-sticky-panel__content_sticky {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+
+.ck.ck-toolbar__separator {
+  background: var(--border);
+}
+
+/* CKEditor paints its UI with a `font` shorthand built from --ck-font-face,
+   defaulting to Helvetica/Arial — so the editor spoke in a different
+   typeface from the page around it. Its rule is `.ck.ck-reset_all`, the
+   same specificity as any override written here, which would leave the
+   winner down to stylesheet order; the `html` prefix settles it. */
+html .ck.ck-reset_all,
+html .ck-reset_all :not(.ck-reset_all-excluded, .ck-reset_all-excluded *),
+html .ck.ck-content,
+html .ck.ck-editor__editable {
+  font-family: var(--font-sans);
+}
+
+/* What you type and what you then read are the same text, so the editable
+   uses the message bubbles' exact step: `text-sm` on a `leading-6` line,
+   with the paragraph gap the rendered markdown uses. Preflight zeroes
+   paragraph margins, so without this a two-paragraph reply composed as
+   two blocks and posted as one. */
+html .ck.ck-content.ck-editor__editable {
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+
+html .ck.ck-content p {
+  margin: 0 0 0.5rem;
+}
+
+html .ck.ck-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Dropdown panels are positioned inside the editor, so the wrapper must not
+   clip them — the heading menu opens upward when the composer sits at the
+   bottom of the screen, and was being sliced off. They carry their own
+   border and shadow instead. */
+.ck.ck-dropdown__panel,
+.ck.ck-balloon-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--ck-drop-shadow);
+}
+
+.ck.ck-list {
+  border-radius: var(--radius-md);
+}
+
+/* Room to type before the box grows, and clearance at the bottom for the
+   "Powered by CKEditor" badge the GPL licence renders there — without it
+   the badge sits on top of the last line. */
+.ck-shell .ck.ck-editor__editable_inline {
+  min-height: var(--ck-editable-min-height, 6rem);
+  padding-bottom: 1.5rem;
+}

@@ -1,17 +1,15 @@
-import SettingsSection from "@/components/custom/settings/settings-section";
 import StoreIntegrationsTabContent from "@/components/custom/store-integrations-tab-content";
+import { AreaSubPage } from "@/components/custom/area-sub-page";
+import { areaSectionMetadata } from "@/lib/nav-areas";
 
-export const metadata = {
-  title: "Integrations",
-};
+const HREF = "/settings/integrations";
+
+export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
   return (
-    <SettingsSection
-      title="Integrations"
-      description="Connect your store and third-party platforms."
-    >
+    <AreaSubPage href={HREF}>
       <StoreIntegrationsTabContent />
-    </SettingsSection>
+    </AreaSubPage>
   );
 }

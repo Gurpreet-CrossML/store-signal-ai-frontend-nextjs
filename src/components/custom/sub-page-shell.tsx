@@ -16,8 +16,13 @@ export default function SubPageShell({
   description,
   children,
 }: {
-  backHref: string;
-  backLabel: string;
+  /**
+   * Back link to the area's menu. Omit it in areas that have a sub-sidebar
+   * — the sibling pages are already listed there, so the arrow is a second
+   * way to do something the nav is doing better.
+   */
+  backHref?: string;
+  backLabel?: string;
   title: string;
   description: string;
   children: React.ReactNode;
@@ -25,11 +30,13 @@ export default function SubPageShell({
   return (
     <div className="flex flex-col gap-6 p-4">
       <div className="flex items-start gap-3">
-        <Button variant="ghost" size="icon-sm" asChild aria-label={backLabel}>
-          <Link href={backHref}>
-            <IconArrowLeft />
-          </Link>
-        </Button>
+        {backHref && (
+          <Button variant="ghost" size="icon-sm" asChild aria-label={backLabel}>
+            <Link href={backHref}>
+              <IconArrowLeft />
+            </Link>
+          </Button>
+        )}
         <PageHeading title={title} description={description} />
       </div>
       {children}

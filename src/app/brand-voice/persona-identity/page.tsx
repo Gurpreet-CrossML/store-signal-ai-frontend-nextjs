@@ -1,23 +1,19 @@
 import { Suspense } from "react";
 
 import PersonaIdentity from "@/clients/persona-identity";
-import SubPageShell from "@/components/custom/sub-page-shell";
+import { AreaSubPage } from "@/components/custom/area-sub-page";
+import { areaSectionMetadata } from "@/lib/nav-areas";
 
-export const metadata = {
-  title: "Persona Identity",
-};
+const HREF = "/brand-voice/persona-identity";
+
+export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
   return (
-    <SubPageShell
-      backHref="/brand-voice"
-      backLabel="Back to brand voice"
-      title="Persona Identity"
-      description="Who the AI is when it talks to your customers — its name, role, how it refers to itself, and how it signs off."
-    >
+    <AreaSubPage href={HREF}>
       <Suspense fallback={null}>
         <PersonaIdentity />
       </Suspense>
-    </SubPageShell>
+    </AreaSubPage>
   );
 }
