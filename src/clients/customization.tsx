@@ -17,7 +17,7 @@ import {
   type WidgetQuickLink,
 } from "@/redux/api-slice/customization-slice";
 import { darken, getReadableText, mix, normalizeHex } from "@/lib/color";
-import { normalizeUrl, validateQuickLink } from "@/lib/url";
+import { isValidUrl, normalizeUrl } from "@/lib/url";
 import CustomizationTheme from "@/components/custom/customization-theme";
 import CustomizationActionButtons from "@/components/custom/customization-action-buttons";
 import CustomizationBranding from "@/components/custom/customization-branding";
@@ -253,7 +253,7 @@ export default function Customization() {
 
     if (
       normalizedQuickLinks.some(
-        (link) => link.url !== "" && !validateQuickLink(link.url),
+        (link) => link.url !== "" && !isValidUrl(link.url),
       )
     ) {
       toast.error("Invalid links", {
