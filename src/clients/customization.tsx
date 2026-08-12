@@ -17,7 +17,7 @@ import {
   type WidgetQuickLink,
 } from "@/redux/api-slice/customization-slice";
 import { darken, getReadableText, mix, normalizeHex } from "@/lib/color";
-import { isValidUrl, normalizeUrl } from "@/lib/url";
+import { normalizeUrl } from "@/lib/url";
 import CustomizationTheme from "@/components/custom/customization-theme";
 import CustomizationActionButtons from "@/components/custom/customization-action-buttons";
 import CustomizationBranding from "@/components/custom/customization-branding";
@@ -66,6 +66,9 @@ export default function Customization() {
 
   const [actionButtons, setActionButtons] = useState<ActionButton[]>([]);
   const [quickLinks, setQuickLinks] = useState<QuickLinkItem[]>([]);
+  const [quickLinkUrlErrors, setQuickLinkUrlErrors] = useState<
+    Record<number, string>
+  >({});
 
   const applyColor = (which: ColorKey, value: string) => {
     const normalized = normalizeHex(value) ?? value;
@@ -178,6 +181,13 @@ export default function Customization() {
     setQuickLinks((prev) =>
       prev.map((link, i) => (i === index ? { ...link, ...patch } : link)),
     );
+    if (patch.url !== undefined) {
+      setQuickLinkUrlErrors((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+    }
   };
 
   const addQuickLink = () => {
@@ -189,6 +199,7 @@ export default function Customization() {
 
   const removeQuickLink = (index: number) => {
     setQuickLinks((prev) => prev.filter((_, i) => i !== index));
+    setQuickLinkUrlErrors({});
   };
 
   const normalizedQuickLinks = useMemo(
@@ -251,17 +262,6 @@ export default function Customization() {
   const handleSaveAll = async () => {
     if (storeId == null) return;
 
-    if (
-      normalizedQuickLinks.some(
-        (link) => link.url !== "" && !isValidUrl(link.url),
-      )
-    ) {
-      toast.error("Invalid links", {
-        description:
-          "Please fix any invalid URLs in Quick Links before saving.",
-      });
-      return;
-    }
     if (!greetingMessage.trim()) {
       toast.error("Greeting is empty", {
         description: "Please enter a greeting message before saving.",
@@ -312,7 +312,22 @@ export default function Customization() {
         UpdateWidgetCustomizationWithImage.fulfilled.match(result);
 
       if (fulfilled) {
+        setQuickLinkUrlErrors({});
         populate(result.payload as WidgetCustomizationDataResponse);
+      } else {
+        const response = result.payload as {
+          data?: { quick_links?: Array<{ url?: string[] }> };
+        };
+        const submittedIndexes = quickLinks
+          .map((link, index) => (link.label.trim() ? index : -1))
+          .filter((index) => index !== -1);
+        const errors: Record<number, string> = {};
+        response?.data?.quick_links?.forEach((linkError, payloadIndex) => {
+          const message = linkError?.url?.[0];
+          const rowIndex = submittedIndexes[payloadIndex];
+          if (message && rowIndex !== undefined) errors[rowIndex] = message;
+        });
+        setQuickLinkUrlErrors(errors);
       }
     } finally {
       setSavingAll(false);
@@ -348,6 +363,7 @@ export default function Customization() {
         />
         <CustomizationQuickLinks
           quickLinks={quickLinks}
+          urlErrors={quickLinkUrlErrors}
           onUpdate={updateQuickLink}
           onAdd={addQuickLink}
           onRemove={removeQuickLink}
