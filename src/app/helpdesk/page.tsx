@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import HelpDesk from "@/clients/helpdesk";
 
 export const metadata = {
-  title: "HelpDesk",
+  title: "Help Desk",
 };
 
 export default function Page() {

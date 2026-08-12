@@ -78,6 +78,10 @@ export const ENDPOINTS = {
 
   // Store Management
   fetchStoresList: () => "/store/list",
+  // Per-store settings (Django) — currently the widget's allowed-IP list.
+  // GET returns the settings, PATCH updates them.
+  storeAllowedIPsSettings: () =>
+    createAPIUrl("/store/settings/allowed-ips/", "django"),
 
   // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
   // Next.js issues a 308 redirect (an extra round-trip) before each call.

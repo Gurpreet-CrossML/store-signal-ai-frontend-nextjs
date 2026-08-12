@@ -1,17 +1,15 @@
-import SettingsSection from "@/components/custom/settings/settings-section";
 import StaffManagement from "@/components/custom/staff-management";
+import { AreaSubPage } from "@/components/custom/area-sub-page";
+import { areaSectionMetadata } from "@/lib/nav-areas";
 
-export const metadata = {
-  title: "Staff Management",
-};
+const HREF = "/settings/staff-management";
+
+export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
   return (
-    <SettingsSection
-      title="Staff Management"
-      description="Manage your company's users. New staff receive an emailed temporary password."
-    >
+    <AreaSubPage href={HREF}>
       <StaffManagement />
-    </SettingsSection>
+    </AreaSubPage>
   );
 }

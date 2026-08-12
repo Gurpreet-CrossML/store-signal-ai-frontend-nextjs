@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Typography } from "@/components/ui/typography";
 
-import { ChipList } from "@/clients/never-say-rules";
+import { ChipList } from "@/components/custom/chip-list";
 
 // ReplacementRow
 
@@ -160,7 +160,7 @@ function ChipSectionCard({
         <ChipList
           items={items}
           placeholder={placeholder}
-          onAdd={(value) => onChange([...items, value])}
+          onAdd={(values) => onChange([...items, ...values])}
           onRemove={(index) => onChange(items.filter((_, i) => i !== index))}
           chipClassName={chipClassName}
         />

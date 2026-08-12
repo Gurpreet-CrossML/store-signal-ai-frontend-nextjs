@@ -1,24 +1,20 @@
 import {
   IconChartDots,
-  IconBooks,
-  IconBrandMeta,
-  IconDashboard,
   IconHeadset,
   IconMessage2,
   IconMessageUser,
-  IconSettings,
-  IconVolume,
-  type Icon,
-  IconPhotoVideo,
-  IconBrandMessenger,
-  IconSend,
+  IconDashboard,
+  IconInbox,
   IconUser,
   IconAlarmSnoozeFilled,
   IconPackageOff,
   IconCreditCardOff,
   IconArrowsExchange,
   IconTags,
+  type Icon,
 } from "@tabler/icons-react";
+
+import { NAV_AREAS, type NavAreaKey } from "@/lib/nav-areas";
 
 export type SideBarMenuItem = {
   title: string;
@@ -78,7 +74,13 @@ export function resolveSubSidebarKey(pathname: string | null): string | null {
       return key;
     }
   }
-  return null;
+
+  // An area's menu page, which none of the above covers when the section's
+  // icon points at a screen rather than the menu (Settings, Brand Voice).
+  const area = Object.entries(NAV_AREAS).find(
+    ([, item]) => pathname === item.href,
+  );
+  return area ? area[0] : null;
 }
 
 /**
@@ -116,6 +118,43 @@ export function findMenuItemByUrl(
   return undefined;
 }
 
+/**
+ * The main-nav entry for an area. Title, icon and screens all come from
+ * NAV_AREAS, so a renamed area renames everywhere at once.
+ *
+ * `url` is where the section's own icon lands you — usually its first
+ * screen, since an area with a sub-sidebar lists the rest anyway.
+ */
+function areaMenuItem(
+  key: NavAreaKey,
+  url: string = NAV_AREAS[key].sections[0].href,
+): MainSidebarMenuItem {
+  return {
+    title: NAV_AREAS[key].title,
+    url,
+    icon: NAV_AREAS[key].icon,
+    subSidebarKey: key,
+  };
+}
+
+/** Every area in NAV_AREAS as a sub-sidebar, keyed by its area key. */
+function areaSubSidebars(): Record<string, SubSidebarMenuItem> {
+  return Object.fromEntries(
+    Object.entries(NAV_AREAS).map(([key, area]) => [
+      key,
+      {
+        title: area.title,
+        icon: area.icon,
+        items: area.sections.map((section) => ({
+          title: section.title,
+          url: section.href,
+          icon: section.icon,
+        })),
+      },
+    ]),
+  );
+}
+
 export const sidebarMenus: SideBarMenus = {
   navMain: [
     {
@@ -133,42 +172,14 @@ export const sidebarMenus: SideBarMenus = {
       url: "/support",
       icon: IconMessageUser,
     },
-    {
-      title: "Social AI",
-      url: "/social-ai/facebook-post",
-      icon: IconBrandMeta,
-      subSidebarKey: "socialAI",
-    },
+    areaMenuItem("socialAI"),
   ],
 
-  // Social AI sub-sidebar items
   navSubSidebar: {
-    socialAI: {
-      title: "Social AI",
-      icon: IconBrandMeta,
-      items: [
-        {
-          title: "Facebook Posts",
-          url: "/social-ai/facebook-post",
-          icon: IconPhotoVideo,
-        },
-        {
-          title: "Facebook Messages",
-          url: "/social-ai/facebook-messages",
-          icon: IconBrandMessenger,
-        },
-        {
-          title: "Instagram Posts",
-          url: "/social-ai/instagram-post",
-          icon: IconPhotoVideo,
-        },
-        {
-          title: "Instagram Messages",
-          url: "/social-ai/instagram-messages",
-          icon: IconSend,
-        },
-      ],
-    },
+    // Settings, Brand Voice, Knowledge and Social AI come straight from
+    // NAV_AREAS — adding a screen there adds it here.
+    ...areaSubSidebars(),
+
     helpdesk: {
       title: "Help Desk",
       icon: IconHeadset,
@@ -176,7 +187,7 @@ export const sidebarMenus: SideBarMenus = {
         {
           title: "All Inboxes",
           url: "/helpdesk",
-          icon: IconPhotoVideo,
+          icon: IconInbox,
         },
         {
           title: "Unassigned",
@@ -220,34 +231,14 @@ export const sidebarMenus: SideBarMenus = {
       icon: IconHeadset,
       subSidebarKey: "helpdesk",
     },
+    areaMenuItem("brandVoice"),
+    areaMenuItem("settings"),
     {
-      title: "Brand Voice",
-      url: "/brand-voice",
-      icon: IconVolume,
+      title: "AI Usage",
+      url: "/ai-usage",
+      icon: IconChartDots,
     },
-    {
-      title: "Settings",
-      url: "#",
-      icon: IconSettings,
-      isMenuHeading: true,
-      items: [
-        {
-          title: "Settings",
-          url: "/settings",
-          icon: IconSettings,
-        },
-        {
-          title: "AI Usage",
-          url: "/ai-usage",
-          icon: IconChartDots,
-        },
-        {
-          title: "Knowledge",
-          url: "/knowledge",
-          icon: IconBooks,
-        },
-      ],
-    },
+    areaMenuItem("knowledge"),
   ],
 
   // navSecondary: [
