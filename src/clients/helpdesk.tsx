@@ -2844,8 +2844,7 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
           onLoadMore={() => {
             if (Boolean(FetchSupportTicketsListData?.next)) {
               const totalPages = Math.ceil(
-                FetchSupportTicketsListData.count /
-                  MAX_TICKETS_PER_PAGE,
+                FetchSupportTicketsListData.count / MAX_TICKETS_PER_PAGE,
               );
               setPage((current) =>
                 current < totalPages ? current + 1 : current,
