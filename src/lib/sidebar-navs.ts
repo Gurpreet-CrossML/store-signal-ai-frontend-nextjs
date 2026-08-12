@@ -4,7 +4,7 @@ import {
   IconMessage2,
   IconMessageUser,
   IconDashboard,
-  IconPhotoVideo,
+  IconInbox,
   IconUser,
   IconAlarmSnoozeFilled,
   IconPackageOff,
@@ -187,7 +187,7 @@ export const sidebarMenus: SideBarMenus = {
         {
           title: "All Inboxes",
           url: "/helpdesk",
-          icon: IconPhotoVideo,
+          icon: IconInbox,
         },
         {
           title: "Unassigned",
@@ -238,8 +238,7 @@ export const sidebarMenus: SideBarMenus = {
       url: "/ai-usage",
       icon: IconChartDots,
     },
-    // Knowledge opens its menu page rather than a screen.
-    areaMenuItem("knowledge", NAV_AREAS.knowledge.href),
+    areaMenuItem("knowledge"),
   ],
 
   // navSecondary: [

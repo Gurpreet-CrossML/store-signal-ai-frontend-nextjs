@@ -9,12 +9,12 @@ import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import { PageHeading } from "@/components/custom/page-heading";
 import { DataTable } from "@/components/custom/data-table";
 import { getTagColumns } from "@/components/custom/helpdesk/tags-columns";
-import { Button } from "@/components/ui/button";
+import { TagBadge } from "@/components/custom/helpdesk/tag-badge";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {} from "@/components/ui/select";
-import {} from "@/components/ui/table";
+import { Typography } from "@/components/ui/typography";
 import {
   Dialog,
   DialogContent,
@@ -32,7 +32,6 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import {} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -84,6 +83,15 @@ const validateWithZod = (values: TagFormValues) => {
     return acc;
   }, {});
 };
+
+/** The asterisk on a required field label. */
+function RequiredMark() {
+  return (
+    <span className="text-destructive" aria-hidden>
+      *
+    </span>
+  );
+}
 
 export default function Tags() {
   const dispatch = useAppDispatch();
@@ -204,7 +212,6 @@ export default function Tags() {
     { setSubmitting }: { setSubmitting: (v: boolean) => void },
   ) => {
     if (!storeCode) return;
-    console.log("editingTag>>", editingTag);
 
     try {
       const payload = {
@@ -341,7 +348,7 @@ export default function Tags() {
               <Form className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">
-                    Tag name <span className="text-red-500">*</span>
+                    Tag name <RequiredMark />
                   </Label>
                   <Field name="name">
                     {({ field }: FieldProps) => (
@@ -349,13 +356,13 @@ export default function Tags() {
                     )}
                   </Field>
                   {errors.name && touched.name && (
-                    <p className="text-xs text-red-600">{errors.name}</p>
+                    <p className="text-xs text-destructive">{errors.name}</p>
                   )}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="color">
-                    Color <span className="text-red-500">*</span>
+                    Color <RequiredMark />
                   </Label>
                   <div className="flex items-center gap-2">
                     {/* selected color hex value */}
@@ -379,7 +386,7 @@ export default function Tags() {
                         className={cn(
                           "size-5 rounded-full border-2 transition",
                           values.color.toLowerCase() === hex
-                            ? "border-slate-900"
+                            ? "border-foreground"
                             : "border-transparent",
                         )}
                         style={{ backgroundColor: hex }}
@@ -389,13 +396,13 @@ export default function Tags() {
                   </div>
 
                   {errors.color && touched.color && (
-                    <p className="text-xs text-red-600">{errors.color}</p>
+                    <p className="text-xs text-destructive">{errors.color}</p>
                   )}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="description">
-                    Description <span className="text-red-500">*</span>
+                    Description <RequiredMark />
                   </Label>
                   <Field name="description">
                     {({ field }: FieldProps) => (
@@ -409,19 +416,21 @@ export default function Tags() {
                     )}
                   </Field>
                   {errors.description && touched.description && (
-                    <p className="text-xs text-red-600">{errors.description}</p>
+                    <p className="text-xs text-destructive">
+                      {errors.description}
+                    </p>
                   )}
                 </div>
 
-                <div className="rounded-md border bg-slate-50 p-3">
-                  <p className="mb-1 text-xs text-muted-foreground">Preview</p>
-                  <span className="flex items-center gap-2 text-sm font-medium">
-                    <span
-                      className="size-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: values.color }}
-                    />
-                    {values.name || "Tag name"}
-                  </span>
+                <div className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
+                  <Typography variant="muted">Preview</Typography>
+                  <TagBadge
+                    tag={{
+                      name: values.name || "Tag name",
+                      color: values.color,
+                      description: values.description,
+                    }}
+                  />
                 </div>
 
                 <DialogFooter>
@@ -474,7 +483,7 @@ export default function Tags() {
                 confirmRemoveTag();
               }}
               disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              className={buttonVariants({ variant: "destructive" })}
             >
               {isDeleting ? "Removing..." : "Remove tag"}
             </AlertDialogAction>
