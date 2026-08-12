@@ -1,159 +1,57 @@
 "use client";
 
-import { useSession } from "next-auth/react";
-
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import {
   IconBrandMeta,
   IconBuildingSkyscraper,
-  IconLock,
   IconPlugConnected,
   IconUsers,
 } from "@tabler/icons-react";
-import CompanyProfileForm from "@/components/custom/company-profile-form";
-import StaffManagement from "@/components/custom/staff-management";
-import StoreIntegrationsTabContent from "@/components/custom/store-integrations-tab-content";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { useState } from "react";
-import SocialAITabContent from "@/components/custom/settings/social-ai/store-social-ai-tab-content";
-import { useAppSelector } from "@/redux/hooks";
 
-const SETTINGSNAV = [
+import { PageHeading } from "@/components/custom/page-heading";
+import SettingsAdminGate from "@/components/custom/settings/settings-admin-gate";
+import {
+  SectionNav,
+  type SectionNavItem,
+} from "@/components/custom/section-nav";
+
+const SETTINGS_SECTIONS: SectionNavItem[] = [
   {
-    key: "company_profile",
-    value: "Company Profile",
+    href: "/settings/general",
+    title: "General",
+    description: "Company profile — name, logo, and identity details.",
     icon: IconBuildingSkyscraper,
   },
   {
-    key: "staff_management",
-    value: "Staff Management",
+    href: "/settings/staff-management",
+    title: "Staff Management",
+    description: "Invite teammates and control who has access.",
     icon: IconUsers,
   },
   {
-    key: "store_integrations",
-    value: "Connectors",
+    href: "/settings/integrations",
+    title: "Integrations",
+    description: "Connect your store and third-party platforms.",
     icon: IconPlugConnected,
   },
   {
-    key: "social_ai",
-    value: "Social AI",
+    href: "/settings/social-ai",
+    title: "Social AI",
+    description:
+      "Facebook and Instagram accounts connected to Store Signal AI.",
     icon: IconBrandMeta,
   },
 ];
 
-function SidebarNav({
-  className,
-  value,
-  items,
-  setCategory,
-  ...props
-}: {
-  className?: string;
-  value: string;
-  items: {
-    key: string;
-    value: string;
-    icon?: React.ComponentType<{ className?: string }>;
-  }[];
-  setCategory: (key: string) => void;
-}) {
-  return (
-    <nav
-      className={cn(
-        "flex flex-col justify-start w-full lg:space-y-1",
-        className,
-      )}
-      {...props}
-    >
-      {items.map((item, idx) => (
-        <div
-          key={idx}
-          className={cn(
-            buttonVariants({ variant: "ghost" }),
-            value === item.key
-              ? "bg-muted hover:bg-muted"
-              : "hover:bg-gray-100 hover:no-underline",
-            "justify-between cursor-pointer w-full",
-          )}
-        >
-          <div
-            onClick={() => setCategory(item.key)}
-            className={cn(
-              value === item.key ? "w-full p-0 text-primary" : "w-full p-0",
-              "flex items-center",
-            )}
-          >
-            {item.icon && <item.icon className="mr-2 h-4 w-4" />}
-            {item.value}
-          </div>
-        </div>
-      ))}
-    </nav>
-  );
-}
-
 export default function Settings() {
-  const { data: session, status } = useSession();
-  const [activeTab, setActiveTab] = useState("company_profile");
-
-  const storeCode = useAppSelector(
-    (state) => state.GetStoresReducer.selectedStore,
-  );
-
-  // Company settings + staff management are company-admin (is_staff) only.
-  // The Django endpoints enforce this server-side too; this is just the UX gate.
-  if (status === "authenticated" && !session?.user?.is_staff) {
-    return (
-      <div className="p-4">
-        <Empty className="h-full">
-          <EmptyHeader>
-            <EmptyMedia>
-              <IconLock />
-            </EmptyMedia>
-            <EmptyTitle>Admins only</EmptyTitle>
-            <EmptyDescription>
-              Company settings and staff management are available to company
-              admins only.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </div>
-    );
-  }
-
   return (
-    <div className="px-4">
-      <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
-        General Settings
-      </h4>
-      <p className="text-sm text-muted-foreground">
-        Edit the general information of your queue.
-      </p>
-      <div className="flex flex-row py-4 w-full gap-4">
-        <SidebarNav
-          className="lg:w-64"
-          value={activeTab}
-          items={SETTINGSNAV}
-          setCategory={setActiveTab}
+    <SettingsAdminGate>
+      <div className="flex flex-col gap-6 p-4">
+        <PageHeading
+          title="Settings"
+          description="Manage your company, team, and connected platforms."
         />
-        {activeTab === "company_profile" && (
-          <CompanyProfileForm className="border-none shadow-none lg:w-full" />
-        )}
-        {activeTab === "staff_management" && (
-          <StaffManagement className="lg:w-full" />
-        )}
-        {activeTab === "store_integrations" && <StoreIntegrationsTabContent />}
-        {activeTab === "social_ai" && (
-          <SocialAITabContent storeCode={storeCode} />
-        )}
+        <SectionNav items={SETTINGS_SECTIONS} ariaLabel="Settings sections" />
       </div>
-    </div>
+    </SettingsAdminGate>
   );
 }

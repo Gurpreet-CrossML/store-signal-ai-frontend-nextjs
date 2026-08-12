@@ -7,21 +7,33 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type CSSProperties,
+  type ReactNode,
 } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
+import { LoadingState } from "@/components/custom/loading-state";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInput,
+  SidebarInset,
+  SidebarProvider,
+} from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
+import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { CardTitle } from "@/components/ui/card";
+import { Typography } from "@/components/ui/typography";
 import MessagePan from "@/components/custom/message-pan";
 import {
   CartDetailsCard,
   UserMetadataCard,
   OrdersCard,
+  SupportTicketsCard,
 } from "@/components/custom/thread-detail-panels";
 import {
   FetchAIInsight,
@@ -44,18 +56,18 @@ import {
   IconAlertTriangle,
   IconHeadset,
   IconMessage2,
+  IconMessageChatbot,
   IconMoodSmile,
   IconPaperclip,
   IconRobot,
-  IconSearch,
   IconSend,
   IconX,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
-import { formatRelativeTime } from "@/lib/helpers";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { formatRelativeDateTime } from "@/lib/helpers";
 
@@ -64,38 +76,34 @@ import { formatRelativeDateTime } from "@/lib/helpers";
 // but until then we track it client-side, defaulting to true on load.
 type ThreadWithReadState = Thread & { is_read?: boolean };
 
+// Message teasers render through react-markdown so formatting like **bold**
+// shows properly, but flattened to inline spans: block elements would break
+// the two-line clamp, and links/images don't belong inside a list row.
+const teaserInline = ({ children }: { children?: ReactNode }) => (
+  <span>{children} </span>
+);
+const TEASER_MARKDOWN_COMPONENTS: Components = {
+  p: teaserInline,
+  h1: teaserInline,
+  h2: teaserInline,
+  h3: teaserInline,
+  h4: teaserInline,
+  h5: teaserInline,
+  h6: teaserInline,
+  ul: teaserInline,
+  ol: teaserInline,
+  li: teaserInline,
+  blockquote: teaserInline,
+  pre: teaserInline,
+  a: ({ children }) => <span>{children}</span>,
+  img: () => null,
+};
+
 function normalizeThreads(threads: Thread[] | undefined) {
   return (threads ?? []).map((thread) => ({
     ...thread,
     is_read: (thread as ThreadWithReadState).is_read ?? true,
   }));
-}
-
-// Deterministic avatar accent so the same customer always gets the same color.
-const AVATAR_PALETTE = [
-  "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
-  "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
-  "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
-  "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-];
-
-function getAvatarColor(seed: string) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash << 5) - hash + seed.charCodeAt(i);
-    hash |= 0;
-  }
-  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
-}
-
-function getInitials(name: string | null | undefined) {
-  if (!name) return null;
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return null;
-  const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase());
-  return initials.join("");
 }
 
 type AttachmentStatus = "uploading" | "uploaded" | "error";
@@ -185,48 +193,54 @@ function ThreadChatControls({
       className={`relative border-t border-border/50 bg-background/95 p-4 ${className ?? ""}`}
     >
       {!connectedAgent && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-border/70 bg-muted/30 px-4 py-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <IconRobot className="h-4 w-4 shrink-0" />
-            <span>
-              The AI assistant is currently handling this conversation.
-            </span>
+        <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 p-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <IconMessageChatbot className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <Typography variant="small" as="p" className="leading-normal">
+                AI Assistant is handling this conversation
+              </Typography>
+              <Typography variant="muted">
+                Take over anytime to reply as a human agent.
+              </Typography>
+            </div>
           </div>
           {activeThreadId && connectedAgent !== user && (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                onClick={onTakeOver}
-                disabled={
-                  transitionState !== "idle" ||
-                  !!(connectedAgent && connectedAgent !== user)
-                }
-              >
-                <IconHeadset className="h-4 w-4" />
-                Take Over
-              </Button>
-            </div>
+            <Button
+              type="button"
+              onClick={onTakeOver}
+              disabled={
+                transitionState !== "idle" ||
+                !!(connectedAgent && connectedAgent !== user)
+              }
+            >
+              <IconHeadset className="h-4 w-4" />
+              Take Over
+            </Button>
           )}
         </div>
       )}
 
       {connectedAgent && connectedAgent !== user && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-border/70 bg-muted/30 px-4 py-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <IconRobot className="h-4 w-4 shrink-0" />
-            <span>A human agent is currently handling this conversation.</span>
+        <div className="flex items-center gap-3 rounded-xl border bg-muted/30 p-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <IconHeadset className="size-5" />
+          </div>
+          <div className="min-w-0">
+            <Typography variant="small" as="p" className="leading-normal">
+              Another agent is handling this conversation
+            </Typography>
+            <Typography variant="muted">
+              Only the connected agent can reply right now.
+            </Typography>
           </div>
         </div>
       )}
 
       {connectedAgent === user && (
-        <div className="rounded-2xl border border-border/60 bg-background shadow-sm transition-shadow focus-within:border-primary/50 focus-within:shadow-md">
-          <div className="flex items-center justify-between border-b border-border/50 px-3 py-1.5">
-            <span className="text-[11px] font-medium text-muted-foreground">
-              Replying as agent
-            </span>
-          </div>
-
+        <div className="rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm">
           {isEmojiPickerOpen && (
             <div className="border-b border-border/50 p-2">
               <EmojiPicker
@@ -284,13 +298,13 @@ function ThreadChatControls({
                         </div>
                       )}
                     </div>
-                    <span className="max-w-[140px] truncate">
+                    <span className="max-w-35 truncate">
                       {attachment.file.name}
                     </span>
                     {isError && (
                       <button
                         type="button"
-                        className="text-[11px] font-medium text-primary underline-offset-2 hover:underline"
+                        className="font-medium text-primary underline-offset-2 hover:underline"
                         onClick={() => onRetryAttachment(attachment.id)}
                       >
                         Retry
@@ -312,7 +326,7 @@ function ThreadChatControls({
           )}
 
           {/* Text input row */}
-          <div className="px-3 pt-2">
+          <div className="px-3 pt-3">
             <textarea
               ref={textareaRef}
               rows={1}
@@ -328,91 +342,105 @@ function ThreadChatControls({
                   onSendAgentMessage();
                 }
               }}
-              className="max-h-[120px] w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+              className="max-h-30 w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
 
-          {/* Controls row: emoji + attach on the left, send on the right */}
-          <div className="flex items-center justify-between gap-2 p-2">
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                disabled={inputsDisabled}
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted transition-colors hover:bg-muted/80 ${
-                  isEmojiPickerOpen
-                    ? "text-foreground ring-1 ring-primary/40"
-                    : "text-muted-foreground"
-                }`}
-                onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                title="Add emoji"
-              >
-                <IconMoodSmile className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                disabled={inputsDisabled}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => fileInputRef.current?.click()}
-                title="Attach image or file"
-              >
-                <IconPaperclip className="h-4 w-4" />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*"
-                disabled={inputsDisabled}
-                onChange={onFileSelection}
-                className="hidden"
-              />
-            </div>
-
-            <button
+          {/* Toolbar: emoji + attach + hint on the left, send on the right */}
+          <div className="flex items-center gap-1 p-2">
+            <Button
               type="button"
-              onClick={onSendAgentMessage}
-              disabled={!canSend}
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed ${
-                canSend
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
-                  : "bg-muted text-muted-foreground"
-              }`}
-              title={
-                isUploadingAttachments ? "Waiting for upload…" : "Send message"
-              }
+              variant="secondary"
+              size="icon-sm"
+              disabled={inputsDisabled}
+              aria-pressed={isEmojiPickerOpen}
+              className={isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined}
+              onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+              title="Add emoji"
             >
-              <IconSend className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between border-t border-border/50 px-3 py-1.5 text-[11px] text-muted-foreground">
-            <span>
+              <IconMoodSmile className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon-sm"
+              disabled={inputsDisabled}
+              onClick={() => fileInputRef.current?.click()}
+              title="Attach image or file"
+            >
+              <IconPaperclip className="size-4" />
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*"
+              disabled={inputsDisabled}
+              onChange={onFileSelection}
+              className="hidden"
+            />
+            <Typography
+              variant="muted"
+              as="span"
+              className="ml-2 hidden truncate sm:inline"
+            >
               {isUploadingAttachments
                 ? "Uploading attachment…"
                 : "Enter to send · Shift + Enter for a new line"}
-            </span>
-            {attachments.length > 0 && (
-              <span>{attachments.length} attached</span>
-            )}
+            </Typography>
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              {attachments.length > 0 && (
+                <Typography variant="muted" as="span">
+                  {attachments.length} attached
+                </Typography>
+              )}
+              {/* Sits beside Send because it's the other thing an agent can
+                  do from here: hand the conversation back instead of
+                  replying. Outline keeps Send the primary action. */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onReturnToAI}
+                disabled={transitionState !== "idle"}
+              >
+                <IconRobot className="size-4" />
+                Return to AI
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={onSendAgentMessage}
+                disabled={!canSend}
+                title={
+                  isUploadingAttachments
+                    ? "Waiting for upload…"
+                    : "Send message"
+                }
+              >
+                <IconSend className="size-4" />
+                Send
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
       {transitionState !== "idle" && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-sm">
-          <div className="flex min-w-[280px] flex-col items-center gap-3 rounded-lg border bg-background p-6 shadow-lg">
+        <div className="fixed inset-0 z-70 flex items-center justify-center bg-background/70 backdrop-blur-sm">
+          <div className="flex min-w-70 flex-col items-center gap-3 rounded-lg border bg-background p-6 shadow-lg">
             <Spinner className="size-6" />
             <div className="text-center">
-              <p className="font-medium">
+              <Typography variant="medium" as="p">
                 {transitionState === "taking_over"
                   ? "Connecting..."
                   : "Returning to AI..."}
-              </p>
-              <p className="text-sm text-muted-foreground">
+              </Typography>
+              <Typography variant="muted">
                 {transitionState === "taking_over"
                   ? "Taking over this conversation"
                   : "Handing conversation back to AI assistant"}
-              </p>
+              </Typography>
             </div>
           </div>
         </div>
@@ -470,6 +498,10 @@ export default function Support() {
   const { FetchThreadDetailsIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchThreadDetailsState,
   );
+  const { FetchFreshdeskTicketIdData, FetchFreshdeskTicketIdIsLoading } =
+    useAppSelector(
+      (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
+    );
   const { FetchCartData, FetchCartDataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchCartDataState,
   );
@@ -501,6 +533,7 @@ export default function Support() {
   const [attachments, setAttachments] = useState<AttachmentUpload[]>([]);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
+  const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
   const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
     "all",
   );
@@ -510,13 +543,24 @@ export default function Support() {
 
   const { data: session } = useSession();
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // The open chat lives in the URL (?chat=<id>) so conversations can be
+  // shared with teammates and deep-linked directly.
+  const chatParam = searchParams?.get("chat") ?? null;
+
   const wsRef = useRef<WebSocket | null>(null);
   const dashboardWsRef = useRef<WebSocket | null>(null);
   const connectedAgentRef = useRef<string | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
+  // Last ?chat= value already applied to local state — stops the render-time
+  // URL sync from re-applying a stale param right after a click updates
+  // state but before the router has caught up.
+  const [appliedChatParam, setAppliedChatParam] = useState<string | null>(null);
 
   // Generate a unique client ID for this session. This is used to identify messages sent by this client, so we can ignore them when they come back from the server.
-  const [clientID, setClientID] = useState<string | null>(crypto.randomUUID());
+  const [clientID] = useState<string | null>(crypto.randomUUID());
 
   // Reset the socket-mutable copy when Redux supplies a new response. React
   // applies this guarded render-time adjustment before committing children,
@@ -526,15 +570,40 @@ export default function Support() {
     setLocalThreads(normalizeThreads(FetchThreadsListData?.results));
   }
 
-  const selectedThreadStillExists =
-    selectedThreadId !== null &&
-    localThreads.some((thread) => thread.id === selectedThreadId);
-  if (selectedThreadId !== null && !selectedThreadStillExists) {
-    setSelectedThreadId(localThreads[0]?.id ?? null);
+  // If the URL points at an active chat, open it. Otherwise, fall back to the
+  // first active chat so the support inbox always lands on a usable thread.
+  const urlThreadExists =
+    !!chatParam && localThreads.some((thread) => thread.id === chatParam);
+  const fallbackThreadId = localThreads[0]?.id ?? null;
+  const desiredThreadId =
+    !FetchThreadsIsLoading && (urlThreadExists || fallbackThreadId)
+      ? urlThreadExists
+        ? chatParam
+        : fallbackThreadId
+      : null;
+
+  if (
+    !FetchThreadsIsLoading &&
+    (selectedThreadId !== desiredThreadId ||
+      appliedChatParam !== (chatParam ?? null))
+  ) {
+    setSelectedThreadId(desiredThreadId);
+    setAttachments([]);
+    setAppliedChatParam(chatParam ?? null);
   }
-  const activeThreadId = selectedThreadStillExists
-    ? selectedThreadId
-    : (localThreads[0]?.id ?? null);
+
+  const selectedThreadStillExists =
+    desiredThreadId !== null &&
+    localThreads.some((thread) => thread.id === desiredThreadId);
+  const activeThreadId = selectedThreadStillExists ? desiredThreadId : null;
+
+  useEffect(() => {
+    if (!activeThreadId || chatParam === activeThreadId) return;
+
+    router.replace(`${pathname}?chat=${encodeURIComponent(activeThreadId)}`, {
+      scroll: false,
+    });
+  }, [activeThreadId, chatParam, pathname, router]);
 
   const playNotificationSound = useNotificationSound();
 
@@ -561,17 +630,7 @@ export default function Support() {
   );
 
   const filteredThreads = useMemo(() => {
-    const query = threadSearch.trim().toLowerCase();
-
     return visibleThreads.filter((thread: ThreadWithReadState) => {
-      if (query) {
-        const name = thread.customer?.name?.toLowerCase() ?? "";
-        const preview = thread.last_message?.toLowerCase() ?? "";
-        if (!name.includes(query) && !preview.includes(query)) {
-          return false;
-        }
-      }
-
       if (readFilter === "unread" && thread.is_read !== false) {
         return false;
       }
@@ -581,7 +640,7 @@ export default function Support() {
 
       return true;
     });
-  }, [visibleThreads, threadSearch, readFilter]);
+  }, [visibleThreads, readFilter]);
 
   useEffect(() => {
     if (!storeCode) return;
@@ -591,33 +650,62 @@ export default function Support() {
         store_code: storeCode,
         page: 1,
         limit: 50,
-        filters: { is_active: true },
+        filters: {
+          is_active: true,
+          // Resolved server-side so it can reach customer email, name and
+          // order ids — none of which are on the thread rows themselves.
+          ...(debouncedThreadSearch ? { search: debouncedThreadSearch } : {}),
+        },
       }),
     );
-  }, [dispatch, storeCode]);
+  }, [dispatch, storeCode, debouncedThreadSearch]);
+
+  useEffect(() => {
+    const timeout = setTimeout(
+      () => setDebouncedThreadSearch(threadSearch.trim()),
+      300,
+    );
+    return () => clearTimeout(timeout);
+  }, [threadSearch]);
 
   useEffect(() => {
     if (!activeThreadId || !storeCode) {
       return;
     }
 
-    const loadThreadData = async () => {
+    // All thread data loads in parallel — the side panels must not wait on
+    // the messages request, or the previous thread's data lingers on screen
+    // until it finishes.
+    const loadThreadData = () => {
       setThreadMessages([]);
-      const result = await dispatch(
-        FetchThreadDetails(activeThreadId),
-      ).unwrap();
-      setThreadMessages(result.messages ?? []);
+      void dispatch(FetchThreadDetails(activeThreadId))
+        .unwrap()
+        .then((result) => {
+          // Ignore late responses after the user has switched threads.
+          if (activeThreadIdRef.current === activeThreadId) {
+            setThreadMessages(result.messages ?? []);
+          }
+        })
+        .catch(() => {
+          // Errors surface via the slice's fetch state; keep messages empty.
+        });
       dispatch(FetchConversationSummary(activeThreadId));
       dispatch(FetchAIInsight(activeThreadId));
       dispatch(FetchCart(activeThreadId));
       dispatch(FetchUserMetadata(activeThreadId));
       dispatch(FetchFeedbackSequence(activeThreadId));
-      dispatch(FetchFreshdeskTicketId(activeThreadId));
+      dispatch(
+        FetchFreshdeskTicketId({
+          threadId: activeThreadId,
+          customerId: selectedThread?.customer?.id,
+          storeCode,
+        }),
+      );
       dispatch(FetchOrders(activeThreadId));
     };
 
-    void loadThreadData();
-  }, [dispatch, activeThreadId, storeCode]);
+    loadThreadData();
+  }, [dispatch, activeThreadId, storeCode, selectedThread?.customer?.id]);
 
   const handleThreadMessageAdded = useCallback((message: ThreadMessage) => {
     setThreadMessages((prev) => [...prev, message]);
@@ -704,7 +792,7 @@ export default function Support() {
         });
       }
     },
-    [],
+    [dispatch],
   );
 
   const handleSendAgentMessage = useCallback(() => {
@@ -760,7 +848,7 @@ export default function Support() {
     setAgentMessage("");
     setAttachments([]);
     setIsEmojiPickerOpen(false);
-  }, [agentMessage, attachments, handleThreadMessageAdded]);
+  }, [agentMessage, attachments, clientID, handleThreadMessageAdded]);
 
   const handleReplyWithAI = useCallback(
     (message_id: number | string) => {
@@ -838,21 +926,28 @@ export default function Support() {
     [activeThreadId, uploadAttachments],
   );
 
-  const handleSelectThread = useCallback((threadId: string) => {
-    // Close the previously open thread's chat socket immediately on click,
-    // rather than waiting for the effect below to notice the id changed.
-    wsRef.current?.close();
-    wsRef.current = null;
-    setLocalThreads((prev) =>
-      prev.map((thread) =>
-        thread.id === threadId && thread.is_read === false
-          ? { ...thread, is_read: true }
-          : thread,
-      ),
-    );
-    setSelectedThreadId(threadId);
-    setAttachments([]);
-  }, []);
+  const handleSelectThread = useCallback(
+    (threadId: string) => {
+      // Close the previously open thread's chat socket immediately on click,
+      // rather than waiting for the effect below to notice the id changed.
+      wsRef.current?.close();
+      wsRef.current = null;
+      setLocalThreads((prev) =>
+        prev.map((thread) =>
+          thread.id === threadId && thread.is_read === false
+            ? { ...thread, is_read: true }
+            : thread,
+        ),
+      );
+      setSelectedThreadId(threadId);
+      setAttachments([]);
+      setAppliedChatParam(threadId);
+      router.replace(`${pathname}?chat=${encodeURIComponent(threadId)}`, {
+        scroll: false,
+      });
+    },
+    [router, pathname],
+  );
 
   // Insert or patch a thread in localThreads based on an incoming dashboard
   // "message" event. Existing threads keep their position; brand-new
@@ -895,7 +990,7 @@ export default function Support() {
         playNotificationSound();
       }
     },
-    [activeThreadId, handleThreadMessageAdded],
+    [playNotificationSound],
   );
 
   useEffect(() => {
@@ -972,6 +1067,9 @@ export default function Support() {
         dashboardWsRef.current = null;
       }
     };
+    // Socket lifecycle deliberately keys on auth + store only; the handlers
+    // are read fresh via refs inside the socket callbacks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.access_token, storeCode]);
 
   // ---- Per-thread chat socket: opens/closes as the selected thread changes. ----
@@ -1081,6 +1179,9 @@ export default function Support() {
         wsRef.current = null;
       }
     };
+    // Reconnect only when the listed inputs change; clientID and the session
+    // email are stable for the life of the page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeThreadId,
     handleThreadMessageAdded,
@@ -1089,14 +1190,15 @@ export default function Support() {
   ]);
 
   const handleOrdersSync = async () => {
+    if (!activeThreadId) return;
     try {
       await dispatch(SyncOrders({ threadID: activeThreadId })).unwrap();
 
       dispatch(FetchOrders(activeThreadId));
-      toast.error("Order Sync", {
+      toast.success("Order Sync", {
         description: "Orders synced successfully.",
       });
-    } catch (error) {
+    } catch {
       toast.error("Order Sync failed", {
         description: "Could not sync orders. Try again.",
       });
@@ -1104,70 +1206,70 @@ export default function Support() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)_420px]">
-        <Card className="flex min-h-0 flex-col overflow-hidden gap-2 h-[88vh]!">
-          <CardHeader className="border-b border-border/50 space-y-3">
-            <CardTitle className="flex items-center gap-2 text-base">
+    <SidebarProvider
+      style={{ "--sidebar-width": "350px" } as CSSProperties}
+      className="-my-4 h-svh min-h-0 w-full overflow-hidden md:-my-6"
+    >
+      {/* Conversations list — the nested sidebar from the sidebar-09 block. */}
+      <Sidebar collapsible="none" className="hidden border-r md:flex">
+        <SidebarHeader className="gap-3.5 border-b p-4">
+          <div className="flex w-full items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
               <IconMessage2 className="size-4" />
               Active Chats
-              {localThreads.length > 0 && (
-                <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
-                  {localThreads.length}
-                </span>
-              )}
             </CardTitle>
-            <div className="relative">
-              <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={threadSearch}
-                onChange={(event) => setThreadSearch(event.target.value)}
-                placeholder="Search conversations…"
-                className="h-8 w-full border border-input bg-muted/40 pl-8 pr-3 text-xs outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </div>
-            <div className="flex items-center gap-1.5">
-              {(
-                [
-                  { key: "all", label: "All" },
-                  { key: "unread", label: "Unread" },
-                  { key: "read", label: "Read" },
-                ] as const
-              ).map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => setReadFilter(option.key)}
-                  className={`flex items-center gap-1 border px-2.5 py-1 text-[11px] font-medium transition ${
-                    readFilter === option.key
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border/60 bg-background text-muted-foreground hover:bg-muted/60"
-                  }`}
-                >
-                  {option.label}
-                  {option.key === "unread" && unreadCount > 0 && (
-                    <span
-                      className={`rounded-full px-1.5 text-[10px] ${
-                        readFilter === "unread"
-                          ? "bg-primary-foreground/20"
-                          : "bg-muted text-foreground/70"
-                      }`}
-                    >
-                      {unreadCount}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </CardHeader>
-          <CardContent className="flex-1 min-h-0 overflow-y-auto p-3">
-            {FetchThreadsIsLoading ? (
-              <div className="flex h-full items-center justify-center">
-                <Spinner />
-              </div>
-            ) : filteredThreads.length ? (
-              <div className="space-y-1.5">
-                {filteredThreads.map((thread: ThreadWithReadState) => {
+            {localThreads.length > 0 && (
+              <Badge variant="secondary">{localThreads.length}</Badge>
+            )}
+          </div>
+          <SidebarInput
+            value={threadSearch}
+            onChange={(event) => setThreadSearch(event.target.value)}
+            placeholder="Search name, email or order ID…"
+          />
+          <div className="flex items-center gap-1.5">
+            {(
+              [
+                { key: "all", label: "All" },
+                { key: "unread", label: "Unread" },
+                { key: "read", label: "Read" },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => setReadFilter(option.key)}
+                className={cn(
+                  "flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                  readFilter === option.key
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border/60 bg-background text-muted-foreground hover:bg-muted/60",
+                )}
+              >
+                {option.label}
+                {option.key === "unread" && unreadCount > 0 && (
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 text-xs",
+                      readFilter === "unread"
+                        ? "bg-primary-foreground/20"
+                        : "bg-muted text-foreground/70",
+                    )}
+                  >
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup className="px-0">
+            <SidebarGroupContent>
+              {FetchThreadsIsLoading ? (
+                <LoadingState label="Loading conversations…" />
+              ) : filteredThreads.length ? (
+                filteredThreads.map((thread: ThreadWithReadState) => {
                   const isSelected = thread.id === activeThreadId;
                   const isUnread = thread.is_read === false;
 
@@ -1176,210 +1278,186 @@ export default function Support() {
                       key={thread.id}
                       type="button"
                       onClick={() => handleSelectThread(thread.id)}
-                      className={`w-full rounded-xl border-l-[3px] p-3 text-left transition ${
-                        isSelected
-                          ? "border-l-primary bg-primary/[0.07] shadow-sm"
-                          : isUnread
-                            ? "border-l-sky-500 bg-sky-500/[0.06] hover:bg-sky-500/[0.1] dark:bg-sky-400/[0.08]"
-                            : "border-l-transparent hover:bg-muted/50"
-                      }`}
+                      className={cn(
+                        "flex w-full items-start gap-3 border-b p-4 text-left text-sm leading-tight transition-colors last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                        isSelected &&
+                          "bg-sidebar-accent text-sidebar-accent-foreground",
+                      )}
                     >
-                      <div className="flex items-start gap-3">
-                        <CustomerAvatar
-                          name={thread.customer?.name}
-                          online={thread.is_active}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                {thread.customer?.name ? (
-                                  <p
-                                    className={`truncate text-sm ${
-                                      isUnread
-                                        ? "font-semibold text-foreground"
-                                        : "font-medium"
-                                    }`}
-                                  >
-                                    {thread.customer.name}
-                                  </p>
-                                ) : (
-                                  <p
-                                    className={`truncate text-sm text-muted-foreground ${
-                                      isUnread ? "font-semibold" : "font-medium"
-                                    }`}
-                                  >
-                                    Anonymous visitor
-                                  </p>
-                                )}
-                              </div>
-                              <p
-                                className={`mt-0.5 line-clamp-2 text-xs ${
-                                  isUnread
-                                    ? "text-foreground/70 font-bold"
-                                    : "text-muted-foreground"
-                                }`}
-                              >
-                                {thread.last_message ||
-                                  "No message preview available."}
-                              </p>
-                            </div>
-                            <span className="shrink-0 text-[11px] text-muted-foreground">
-                              {formatRelativeDateTime(thread.created_at)}
-                            </span>
-                          </div>
-                          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
-                            <span>{thread.total_messages} messages</span>
-                          </div>
+                      <CustomerAvatar
+                        name={thread.customer?.name}
+                        online={thread.is_active}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex w-full items-center gap-2">
+                          <span
+                            className={cn(
+                              "truncate",
+                              isUnread ? "font-semibold" : "font-medium",
+                              !thread.customer?.name && "text-muted-foreground",
+                            )}
+                          >
+                            {thread.customer?.name || "Guest"}
+                          </span>
+                          <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                            {formatRelativeDateTime(thread.created_at)}
+                          </span>
+                          {isUnread && (
+                            <span className="size-2 shrink-0 rounded-full bg-primary" />
+                          )}
                         </div>
+                        <div
+                          className={cn(
+                            "mt-1 line-clamp-2 text-xs",
+                            isUnread
+                              ? "font-medium text-foreground/80"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          <ReactMarkdown
+                            components={TEASER_MARKDOWN_COMPONENTS}
+                          >
+                            {thread.last_message || "No messages yet."}
+                          </ReactMarkdown>
+                        </div>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {thread.total_messages} messages
+                        </span>
                       </div>
                     </button>
                   );
-                })}
-              </div>
-            ) : threadSearch || readFilter !== "all" ? (
-              <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted-foreground">
-                <p className="font-medium text-foreground">
-                  {readFilter === "unread"
-                    ? "No unread conversations"
-                    : readFilter === "read"
-                      ? "No read conversations"
-                      : "No matches"}
-                </p>
-                <p>
-                  {threadSearch
-                    ? "Try a different name or keyword."
-                    : "Try a different filter."}
-                </p>
-              </div>
-            ) : (
-              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-                No active chats matched the current store scope.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="flex min-h-0 flex-col overflow-hidden h-[88vh]!">
-          <CardHeader className="border-b border-border/50 bg-background/95 py-3.5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <CustomerAvatar
-                  name={selectedThread?.customer?.name}
-                  online={selectedThread?.is_active}
-                />
-                <div>
-                  <CardTitle className="text-base leading-tight">
-                    {selectedThread?.customer?.name || "Anonymous visitor"}
-                  </CardTitle>
-                  {selectedThread?.is_active ? (
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        {connectedAgent
-                          ? "Connected with agent"
-                          : "Assistant ready"}
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-              {activeThreadId && connectedAgent === session?.user?.email && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleReturnToAI}
-                    disabled={transitionState !== "idle"}
-                  >
-                    <IconRobot className="h-4 w-4" />
-                    Return to AI
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
-            {activeThreadId ? (
-              FetchThreadDetailsIsLoading ? (
-                <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
-                  <Spinner />
-                  Loading conversation…
+                })
+              ) : threadSearch || readFilter !== "all" ? (
+                <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
+                  <Typography variant="small" as="p">
+                    {readFilter === "unread"
+                      ? "No unread conversations"
+                      : readFilter === "read"
+                        ? "No read conversations"
+                        : "No matches"}
+                  </Typography>
+                  <Typography variant="muted">
+                    {threadSearch
+                      ? "Try a different name or keyword."
+                      : "Try a different filter."}
+                  </Typography>
                 </div>
               ) : (
-                <div className="flex min-h-0 flex-1 flex-col">
-                  <div className="flex-1 min-h-0 overflow-y-auto p-3">
-                    {threadMessages.length > 0 ? (
-                      <MessagePan
-                        messages={threadMessages}
-                        onReplyWithAI={
-                          connectedAgent === session?.user?.email
-                            ? handleReplyWithAI
-                            : undefined
-                        }
-                        replyWithAILoadingId={replyWithAILoadingId}
-                      />
-                    ) : (
-                      <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted-foreground">
-                        <IconMessage2 className="mb-1 h-6 w-6 opacity-40" />
-                        <p className="font-medium text-foreground">
-                          Nothing here yet
-                        </p>
-                        <p>Messages for this thread will show up here.</p>
-                      </div>
-                    )}
-                  </div>
-                  {selectedThread?.is_active ? (
-                    <ThreadChatControls
-                      activeThreadId={activeThreadId}
-                      isThreadActive={selectedThread.is_active}
-                      className="border-t"
-                      connectedAgent={connectedAgent}
-                      user={session?.user?.email || null}
-                      transitionState={transitionState}
-                      agentMessage={agentMessage}
-                      setAgentMessage={setAgentMessage}
-                      attachments={attachments}
-                      isEmojiPickerOpen={isEmojiPickerOpen}
-                      setIsEmojiPickerOpen={setIsEmojiPickerOpen}
-                      onTakeOver={handleTakeOver}
-                      onReturnToAI={handleReturnToAI}
-                      onSendAgentMessage={handleSendAgentMessage}
-                      onFileSelection={handleFileSelection}
-                      onEmojiSelect={handleEmojiSelect}
-                      onRemoveAttachment={removeAttachment}
-                      onRetryAttachment={retryAttachment}
-                    />
-                  ) : null}
+                <div className="p-4 text-center">
+                  <Typography variant="muted">
+                    No active chats for this store yet.
+                  </Typography>
                 </div>
-              )
-            ) : (
-              <div className="flex h-full items-center justify-center p-6 text-center text-sm text-muted-foreground">
-                Select a chat from the left to view the live conversation.
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
 
-        <Card className="flex min-h-0 flex-col overflow-hidden h-[88vh]!">
-          <CardHeader className="border-b border-border/50">
-            <CardTitle className="text-base">Thread Details</CardTitle>
-            <CardDescription>
-              Customer context and metadata for the selected thread.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex-1 min-h-0 space-y-4 overflow-y-auto p-3">
-            {!activeThreadId ? (
-              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-                Select a conversation to inspect its details.
+      {/* Conversation + thread details. */}
+      <SidebarInset className="min-h-0 overflow-hidden">
+        {activeThreadId ? (
+          <div className="flex h-full min-h-0">
+            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+              <header className="flex h-16 shrink-0 items-center border-b bg-background px-4">
+                <div className="flex w-full items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <CustomerAvatar
+                      name={selectedThread?.customer?.name}
+                      online={selectedThread?.is_active}
+                    />
+                    <div className="min-w-0">
+                      <CardTitle className="truncate leading-tight">
+                        {selectedThread?.customer?.name || "Guest"}
+                      </CardTitle>
+                      {selectedThread?.is_active ? (
+                        <p className="text-xs text-muted-foreground">
+                          {connectedAgent
+                            ? "Connected with agent"
+                            : "Assistant ready"}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </header>
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                {FetchThreadDetailsIsLoading ? (
+                  <div className="flex h-full items-center justify-center">
+                    <LoadingState label="Loading conversation…" />
+                  </div>
+                ) : (
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="flex-1 min-h-0 overflow-y-auto p-3">
+                      {threadMessages.length > 0 ? (
+                        <MessagePan
+                          messages={threadMessages}
+                          onReplyWithAI={
+                            connectedAgent === session?.user?.email
+                              ? handleReplyWithAI
+                              : undefined
+                          }
+                          replyWithAILoadingId={replyWithAILoadingId}
+                        />
+                      ) : (
+                        <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
+                          <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />
+                          <Typography variant="small" as="p">
+                            Nothing here yet
+                          </Typography>
+                          <Typography variant="muted">
+                            Messages for this thread will show up here.
+                          </Typography>
+                        </div>
+                      )}
+                    </div>
+                    {selectedThread?.is_active ? (
+                      <ThreadChatControls
+                        activeThreadId={activeThreadId}
+                        isThreadActive={selectedThread.is_active}
+                        className="border-t"
+                        connectedAgent={connectedAgent}
+                        user={session?.user?.email || null}
+                        transitionState={transitionState}
+                        agentMessage={agentMessage}
+                        setAgentMessage={setAgentMessage}
+                        attachments={attachments}
+                        isEmojiPickerOpen={isEmojiPickerOpen}
+                        setIsEmojiPickerOpen={setIsEmojiPickerOpen}
+                        onTakeOver={handleTakeOver}
+                        onReturnToAI={handleReturnToAI}
+                        onSendAgentMessage={handleSendAgentMessage}
+                        onFileSelection={handleFileSelection}
+                        onEmojiSelect={handleEmojiSelect}
+                        onRemoveAttachment={removeAttachment}
+                        onRetryAttachment={retryAttachment}
+                      />
+                    ) : null}
+                  </div>
+                )}
               </div>
-            ) : (
-              <>
+            </div>
+
+            <aside className="hidden min-h-0 w-95 shrink-0 flex-col border-l xl:flex">
+              <header className="flex h-16 shrink-0 flex-col justify-center border-b px-4">
+                <CardTitle className="leading-tight">
+                  Customer Details
+                </CardTitle>
+                <Typography variant="muted">
+                  Orders, cart, and profile for this conversation.
+                </Typography>
+              </header>
+              <div className="min-h-0 flex-1 overflow-y-auto">
                 <OrdersCard
                   orders={FetchOrderData}
                   loading={FetchOrderDataIsLoading}
                   handleOrdersSync={handleOrdersSync}
                   orderSyncLoading={SyncOrdersIsLoading}
-                  custometData={selectedThread?.customer || null}
+                  customerData={selectedThread?.customer || null}
+                />
+                <SupportTicketsCard
+                  tickets={FetchFreshdeskTicketIdData ?? []}
+                  loading={FetchFreshdeskTicketIdIsLoading}
                 />
                 <CartDetailsCard
                   cartData={FetchCartData}
@@ -1387,14 +1465,24 @@ export default function Support() {
                 />
                 <UserMetadataCard
                   userMetadata={FetchUserMetadataData}
-                  custometData={selectedThread?.customer || null}
+                  customerData={selectedThread?.customer || null}
                   loading={FetchUserMetadataIsLoading}
                 />
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+              </div>
+            </aside>
+          </div>
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
+            <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />
+            <Typography variant="small" as="p">
+              No active chats
+            </Typography>
+            <Typography variant="muted">
+              New active chats will appear here when customers message in.
+            </Typography>
+          </div>
+        )}
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

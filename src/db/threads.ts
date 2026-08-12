@@ -39,8 +39,8 @@ import {
  */
 export type ListThreadsFilters = {
   store_code?: string;
-  from?: string; // YYYY-MM-DD
-  to?: string; // YYYY-MM-DD
+  from?: string; // YYYY-MM-DD or ISO 8601 datetime
+  to?: string; // YYYY-MM-DD or ISO 8601 datetime
   is_active?: string;
   search?: string;
   user_type?: string;
@@ -61,6 +61,22 @@ function toDateString(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseDateTimeFilter(
+  value: string,
+  edge: "start" | "end",
+): Date | undefined {
+  if (DATE_ONLY_RE.test(value)) {
+    return new Date(
+      `${value}T${edge === "start" ? "00:00:00.000Z" : "23:59:59.999Z"}`,
+    );
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
 type ThreadListRow = {
   id: string;
   name: string | null;
@@ -69,6 +85,7 @@ type ThreadListRow = {
   total_messages: number;
   created_at: string;
   ended_at: string | null;
+  customer_id: number | null;
   customer_first_name: string | null;
   customer_last_name: string | null;
   customer_email: string | null;
@@ -77,7 +94,7 @@ type ThreadListRow = {
 export type ThreadListItem = {
   id: string;
   name: string | null;
-  customer: { name: string | null; email: string | null };
+  customer: { id: number | null; name: string | null; email: string | null };
   followup_level: number;
   is_active: boolean;
   total_messages: number;
@@ -97,7 +114,7 @@ export type ThreadListItem = {
  * build the DRF paginated envelope.
  *
  * Serializer fidelity:
- *   - customer: { name: "first last".strip() | null, email | null }
+ *   - customer: { id | null, name: "first last".strip() | null, email | null }
  *   - tags: AiInsights.tags for the thread (first row) or []
  *   - last_message: latest role="assistant" message text, or "" when none.
  *   - followup_level / is_active / total_messages / created_at / ended_at as-is.
@@ -119,19 +136,36 @@ export async function list_threads(
     );
   }
 
-  // Date range on created_at::date, defaulting to the last 30 days (inclusive),
-  // matching the Django view's serializers.DateField()/timezone.now().date() logic.
-  const endDate = filters.to ? filters.to : toDateString(new Date());
-  const startDate = filters.from
-    ? filters.from
-    : toDateString(
-        new Date(
-          new Date(`${endDate}T00:00:00Z`).getTime() - 30 * 24 * 60 * 60 * 1000,
-        ),
-      );
+  // Date/time range on created_at, defaulting to the last 30 days (inclusive).
+  const now = new Date();
+  const todayUtc = new Date(`${toDateString(now)}T00:00:00Z`);
+  const defaultEnd = new Date(`${toDateString(now)}T23:59:59.999Z`);
+
+  const parsedFrom = filters.from
+    ? parseDateTimeFilter(filters.from, "start")
+    : undefined;
+  const parsedTo = filters.to
+    ? parseDateTimeFilter(filters.to, "end")
+    : undefined;
+
+  const endDate = parsedTo ?? defaultEnd;
+  let startDate: Date;
+
+  if (parsedFrom) {
+    startDate = parsedFrom;
+  } else if (parsedTo) {
+    if (DATE_ONLY_RE.test(filters.to!)) {
+      const toDate = new Date(`${filters.to}T00:00:00Z`);
+      startDate = new Date(toDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+    } else {
+      startDate = new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+  } else {
+    startDate = new Date(todayUtc.getTime() - 30 * 24 * 60 * 60 * 1000);
+  }
 
   conditions.push(
-    sql`(${chatThread.createdAt} AT TIME ZONE 'UTC')::date BETWEEN ${startDate} AND ${endDate}`,
+    sql`${chatThread.createdAt} BETWEEN ${startDate} AND ${endDate}`,
   );
 
   if (filters.search) {
@@ -139,6 +173,17 @@ export async function list_threads(
     const searchConditions: SQL[] = [
       ilike(chatCustomer.email, `%${search}%`),
       ilike(chatThread.name, `%${search}%`),
+      sql`EXISTS (SELECT 1 FROM ${chatHistory} WHERE ${chatHistory.threadId} = ${chatThread.id} AND ${chatHistory.message} ILIKE ${`%${search}%`})`,
+      // The customer's own name, which is stored split across two columns
+      // and so isn't covered by the thread name above.
+      sql`concat_ws(' ', ${chatCustomer.firstName}, ${chatCustomer.lastName}) ILIKE ${`%${search}%`}`,
+      // Orders hang off the customer, not the thread, so match with an
+      // EXISTS rather than joining and multiplying the thread rows.
+      sql`EXISTS (
+        SELECT 1 FROM ${chatCustomerorder} o
+        WHERE o.customer_id = ${chatThread.customerId}
+          AND (o.order_number ILIKE ${`%${search}%`} OR o.order_id ILIKE ${`%${search}%`})
+      )`,
     ];
     if (isValidUuid(search)) {
       searchConditions.push(eq(chatThread.id, search));
@@ -213,6 +258,7 @@ export async function list_threads(
       total_messages: count(chatHistory.id),
       created_at: chatThread.createdAt,
       ended_at: chatThread.endedAt,
+      customer_id: chatCustomer.id,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
@@ -224,6 +270,7 @@ export async function list_threads(
     .where(whereClause)
     .groupBy(
       chatThread.id,
+      chatCustomer.id,
       chatCustomer.firstName,
       chatCustomer.lastName,
       chatCustomer.email,
@@ -289,6 +336,8 @@ export async function list_threads(
       id: row.id,
       name: row.name,
       customer: {
+        // Null for a guest — the UI keys its tickets lookup off this.
+        id: row.customer_id ?? null,
         name: hasCustomer ? customerName : null,
         email: row.customer_email,
       },
@@ -371,6 +420,7 @@ export async function get_thread_details(
       followup_level: chatThread.followupLevel,
       created_at: chatThread.createdAt,
       ended_at: chatThread.endedAt,
+      customer_id: chatCustomer.id,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,

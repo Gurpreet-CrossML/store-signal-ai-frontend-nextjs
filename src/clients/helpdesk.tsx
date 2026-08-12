@@ -18,7 +18,6 @@ import {
   IconClock,
   IconDotsVertical,
   IconFilter,
-  IconGift,
   IconLanguage,
   IconLoader2,
   IconMessageChatbot,
@@ -462,7 +461,8 @@ function TicketListPanel({
   onFiltersChange,
   onApplyFilters,
   onClearFilters,
-  dateError,
+  toDateError,
+  fromDateError,
   hasMoreTags,
   isTagListLoading,
   onTagSearchChange,
@@ -489,7 +489,8 @@ function TicketListPanel({
   onFiltersChange: (filters: TicketFilterSelection) => void;
   onApplyFilters: () => void;
   onClearFilters: () => void;
-  dateError?: string;
+  toDateError?: string;
+  fromDateError?: string;
   hasMoreTags: boolean;
   isTagListLoading: boolean;
   onTagSearchChange: (value: string) => void;
@@ -508,6 +509,13 @@ function TicketListPanel({
     if (target.scrollHeight - target.scrollTop <= target.clientHeight + 120) {
       onLoadMore();
     }
+  };
+
+  const getMaxDateTime = () => {
+    const now = new Date();
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16);
   };
 
   return (
@@ -614,6 +622,7 @@ function TicketListPanel({
                     From
                     <Input
                       type="datetime-local"
+                      max={getMaxDateTime()}
                       value={filters.fromDate}
                       onChange={(event) =>
                         onFiltersChange({
@@ -623,10 +632,14 @@ function TicketListPanel({
                       }
                     />
                   </label>
+                  {fromDateError ? (
+                    <p className="text-xs text-red-600">{fromDateError}</p>
+                  ) : null}
                   <label className="grid gap-1 text-xs text-slate-500">
                     To
                     <Input
                       type="datetime-local"
+                      max={getMaxDateTime()}
                       value={filters.toDate}
                       onChange={(event) =>
                         onFiltersChange({
@@ -636,8 +649,8 @@ function TicketListPanel({
                       }
                     />
                   </label>
-                  {dateError ? (
-                    <p className="text-xs text-red-600">{dateError}</p>
+                  {toDateError ? (
+                    <p className="text-xs text-red-600">{toDateError}</p>
                   ) : null}
                 </div>
               </fieldset>
@@ -832,6 +845,9 @@ function ConversationPanel({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
+    // Rebinding the outside-click listener only when the picker opens is
+    // intentional; the toggle callback is read fresh each event.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTagPickerOpen]);
 
   const filteredTags = availableTags.filter((tag) =>
@@ -1558,74 +1574,77 @@ function TicketInsights({
       <div className="space-y-3 overflow-y-auto p-4 h-[88vh]!">
         {activeTab === "ticket" ? (
           <>
-            <section className="rounded-lg border bg-white">
-              <div className="flex items-center justify-between border-b px-3 py-3">
-                <h3 className="flex items-center gap-2 text-sm font-medium text-slate-950">
-                  <IconMessageChatbot className="size-4 text-indigo-600" />
-                  Suggested reply
-                </h3>
-              </div>
-              <div className="p-3">
-                {isAIDraftLoading ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-medium text-indigo-600">
-                      <IconLoader2 className="size-4 animate-spin" />
-                      Generating AI reply...
-                    </div>
+            {!isClosed && (
+              <section className="rounded-lg border bg-white">
+                <div className="flex items-center justify-between border-b px-3 py-3">
+                  <h3 className="flex items-center gap-2 text-sm font-medium text-slate-950">
+                    <IconMessageChatbot className="size-4 text-indigo-600" />
+                    Suggested reply
+                  </h3>
+                </div>
+                <div className="p-3">
+                  {isAIDraftLoading ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-sm font-medium text-indigo-600">
+                        <IconLoader2 className="size-4 animate-spin" />
+                        Generating AI reply...
+                      </div>
 
-                    <div className="space-y-2 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
-                      <div className="h-4 w-full animate-pulse rounded bg-slate-200" />
-                      <div className="h-4 w-5/6 animate-pulse rounded bg-slate-200" />
-                      <div className="h-4 w-4/6 animate-pulse rounded bg-slate-200" />
-                      <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+                      <div className="space-y-2 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
+                        <div className="h-4 w-full animate-pulse rounded bg-slate-200" />
+                        <div className="h-4 w-5/6 animate-pulse rounded bg-slate-200" />
+                        <div className="h-4 w-4/6 animate-pulse rounded bg-slate-200" />
+                        <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+                      </div>
                     </div>
-                  </div>
-                ) : aiDraft?.message ? (
-                  <>
-                    <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-3 text-sm leading-6 text-slate-950">
-                      {aiDraft?.message}
+                  ) : aiDraft?.message ? (
+                    <>
+                      <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 p-3 text-sm leading-6 text-slate-950">
+                        {aiDraft?.message}
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <Button
+                          size="sm"
+                          onClick={onAcceptDraft}
+                          disabled={isClosed}
+                        >
+                          <IconCheck className="size-4" />
+                          Use draft
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="bg-white"
+                          onClick={onAIDraftGenerate}
+                          disabled={isClosed}
+                        >
+                          <IconReload className="size-4" />
+                          Regenerate
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-slate-50 px-6 py-10 text-center">
+                      <div className="flex size-12 items-center justify-center rounded-full bg-indigo-100">
+                        <IconMessageChatbot className="size-6 text-indigo-600" />
+                      </div>
+
+                      <h4 className="mt-4 text-sm font-semibold text-slate-900">
+                        No AI draft available
+                      </h4>
+
+                      <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">
+                        Generate an AI-powered reply based on the
+                        customer&apos;s conversation. You can review and edit it
+                        before sending.
+                      </p>
                     </div>
-
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <Button
-                        size="sm"
-                        onClick={onAcceptDraft}
-                        disabled={isClosed}
-                      >
-                        <IconCheck className="size-4" />
-                        Use draft
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-white"
-                        onClick={onAIDraftGenerate}
-                        disabled={isClosed}
-                      >
-                        <IconReload className="size-4" />
-                        Regenerate
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center justify-center rounded-lg border border-dashed bg-slate-50 px-6 py-10 text-center">
-                    <div className="flex size-12 items-center justify-center rounded-full bg-indigo-100">
-                      <IconMessageChatbot className="size-6 text-indigo-600" />
-                    </div>
-
-                    <h4 className="mt-4 text-sm font-semibold text-slate-900">
-                      No AI draft available
-                    </h4>
-
-                    <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">
-                      Generate an AI-powered reply based on the customer&apos;s
-                      conversation. You can review and edit it before sending.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </section>
+                  )}
+                </div>
+              </section>
+            )}
             <section className="rounded-xl border bg-white">
               <div className="flex items-center gap-2 border-b px-4 py-3">
                 <IconClock className="size-4 text-indigo-600" />
@@ -1740,7 +1759,8 @@ function TicketInsights({
                 loading={isOrdersLoading}
                 handleOrdersSync={() => !isClosed && onOrdersSync()}
                 orderSyncLoading={isOrderSyncLoading}
-                custometData={customerData}
+                customerData={customerData}
+                isDisabled={isClosed}
               />
             </div>
           </>
@@ -1825,8 +1845,8 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
   // Support Ticket Search Filters
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [tagSearch, setTagSearch] = useState("");
-  const [debouncedTagSearch, setDebouncedTagSearch] = useState("");
+  const [, setTagSearch] = useState("");
+  const [, setDebouncedTagSearch] = useState("");
   const [tagPage, setTagPage] = useState(1);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] =
@@ -1835,6 +1855,16 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
   const filterFormik = useFormik<TicketFilterSelection>({
     initialValues: emptyTicketFilters,
     validate: (values) => {
+      const now = new Date();
+
+      if (values.fromDate && new Date(values.fromDate) > now) {
+        return { fromDate: "The From date/time cannot be in the future" };
+      }
+
+      if (values.toDate && new Date(values.toDate) > now) {
+        return { toDate: "The To date/time cannot be in the future." };
+      }
+
       if (
         values.fromDate &&
         values.toDate &&
@@ -2131,7 +2161,7 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
         }, 5000);
       };
 
-      socket.onerror = (error) => {
+      socket.onerror = () => {
         // console.error("Support socket error", error);
       };
     };
@@ -2151,6 +2181,9 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
         supportSocketRef.current = null;
       }
     };
+    // Reopening the socket on mark-read handler changes would churn the
+    // connection; the handler is invoked with fresh state via refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeQueue,
     appendSocketMessage,
@@ -2292,6 +2325,9 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
     dispatch(
       FetchSupportTicketDetails({ storeCode, ticketId: activeTicketId }),
     );
+    // Refetch only when the open ticket changes; storeCode is captured and a
+    // store switch resets the ticket selection anyway.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTicketId]);
 
   useEffect(() => {
@@ -2313,6 +2349,9 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
     if (!FetchSupportTicketDetailsData.is_read) {
       handleSupportTicketMarkRead();
     }
+    // Mark-read should fire once per loaded ticket payload, not when the
+    // handler identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [FetchSupportTicketDetailsData]);
 
   const activeQueueLabel = useMemo(
@@ -3037,7 +3076,8 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
           onFiltersChange={(filters) => filterFormik.setValues(filters)}
           onApplyFilters={handleApplyFilters}
           onClearFilters={handleClearFilters}
-          dateError={filterFormik.errors.toDate}
+          toDateError={filterFormik.errors.toDate}
+          fromDateError={filterFormik.errors.fromDate}
           hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
           isTagListLoading={FetchSupportTicketTagsIsLoading}
           onTagSearchChange={setTagSearch}
@@ -3107,7 +3147,10 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
                 (draft) => draft.draft_type === "ai",
               ) ?? null
             }
-            isClosed={activeSupportTicket.status === "closed"}
+            isClosed={
+              activeSupportTicket.status === "closed" ||
+              activeSupportTicket.status === "resolved"
+            }
             menuOpen={menuOpen}
             onChangeMenuOpen={setMenuOpen}
             onTranslate={handleSupportTicketMessagesTranslate}
@@ -3146,7 +3189,10 @@ function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
             isOrdersLoading={FetchSupportTicketDetailsIsLoading}
             isOrderSyncLoading={SupportTicketCustomerOrderSyncIsLoading}
             onOrdersSync={handleCustomerOrderSync}
-            isClosed={activeSupportTicket.status === "closed"}
+            isClosed={
+              activeSupportTicket.status === "closed" ||
+              activeSupportTicket.status === "resolved"
+            }
           />
         )}
       </div>

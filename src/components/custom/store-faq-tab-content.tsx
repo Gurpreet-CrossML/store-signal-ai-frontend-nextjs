@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import {
-  IconMessageQuestion,
-  IconPencil,
-  IconPlus,
-  IconTrash,
-} from "@tabler/icons-react";
+import { IconPencil, IconPlus, IconTrash } from "@tabler/icons-react";
 
 import {
   Accordion,
@@ -25,7 +20,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Typography } from "@/components/ui/typography";
+import { LoadingState } from "@/components/custom/loading-state";
 import { Spinner } from "@/components/ui/spinner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
@@ -108,105 +106,99 @@ export default function StoreFaqTabContent() {
   };
 
   return (
-    <div className="flex w-full flex-col gap-4 py-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <IconMessageQuestion className="size-5" />
-          <div className="flex flex-col">
-            <h2 className="font-heading font-medium">Quick Q&As</h2>
-            <p className="text-muted-foreground">
-              Add some quick questions and answers to help your chatbot respond
-              faster.
-            </p>
-          </div>
-        </div>
-        <Button onClick={openCreateForm} disabled={!storeCode}>
-          <IconPlus />
-          Add Quick Q&A
-        </Button>
-      </div>
-
+    <div className="flex w-full flex-col gap-6">
       {FetchStoreFaqsIsLoading ? (
-        <div className="flex items-center justify-center py-10 gap-2">
-          <Spinner className="size-6" />
-          Loading Quick Q&As...
-        </div>
-      ) : faqs.length > 0 ? (
-        <Accordion
-          key={faqs[0]?.id}
-          type="single"
-          collapsible
-          defaultValue={String(faqs[0]?.id)}
-          className="gap-2"
-        >
-          {faqs.map((faq) => (
-            <AccordionItem
-              key={faq.id}
-              value={String(faq.id)}
-              className="border border-border/60"
+        <LoadingState label="Loading Quick FAQs…" />
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-2">
+            <Badge variant="secondary">{totalCount} FAQs</Badge>
+            <Button size="sm" onClick={openCreateForm} disabled={!storeCode}>
+              <IconPlus className="size-4" />
+              Add FAQ
+            </Button>
+          </div>
+
+          {faqs.length > 0 ? (
+            <Accordion
+              key={faqs[0]?.id}
+              type="single"
+              collapsible
+              defaultValue={String(faqs[0]?.id)}
+              className="gap-3 overflow-visible rounded-none border-0"
             >
-              <div className="flex items-center gap-1 px-3 *:first:min-w-0 *:first:flex-1">
-                <AccordionTrigger className="text-sm">
-                  {faq.question}
-                </AccordionTrigger>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => openEditForm(faq)}
-                  aria-label="Edit Q&A"
+              {faqs.map((faq) => (
+                <AccordionItem
+                  key={faq.id}
+                  value={String(faq.id)}
+                  className="overflow-hidden rounded-2xl border border-border/60 bg-card"
                 >
-                  <IconPencil />
+                  <div className="flex items-center gap-1 px-3 *:first:min-w-0 *:first:flex-1">
+                    <AccordionTrigger className="text-sm">
+                      {faq.question}
+                    </AccordionTrigger>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => openEditForm(faq)}
+                      aria-label="Edit FAQ"
+                    >
+                      <IconPencil />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setFaqToDelete(faq)}
+                      aria-label="Delete FAQ"
+                    >
+                      <IconTrash />
+                    </Button>
+                  </div>
+                  <AccordionContent className="bg-muted/40 px-3">
+                    <div className="prose prose-sm max-w-none">
+                      <ReactMarkdown>{faq.answer}</ReactMarkdown>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          ) : (
+            <div className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-center text-sm text-muted-foreground">
+              No FAQs yet. Add one to give the chatbot an instant answer.
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <Typography variant="muted" as="span" className="text-xs">
+                Page {page} of {totalPages}
+              </Typography>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1 || FetchStoreFaqsIsLoading}
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                >
+                  Previous
                 </Button>
                 <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => setFaqToDelete(faq)}
-                  aria-label="Delete Q&A"
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages || FetchStoreFaqsIsLoading}
+                  onClick={() =>
+                    setPage((prev) => Math.min(totalPages, prev + 1))
+                  }
                 >
-                  <IconTrash />
+                  Next
                 </Button>
               </div>
-              <AccordionContent className="bg-muted/40 px-3">
-                <div className="prose prose-sm max-w-none">
-                  <ReactMarkdown>{faq.answer}</ReactMarkdown>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      ) : (
-        <div className="flex h-32 flex-col items-center justify-center border border-dashed border-border text-xs text-muted-foreground rounded-lg">
-          No Quick Q&As added yet. Click the button above to add one.
-        </div>
-      )}
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">
-            Page {page} of {totalPages}
-          </span>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1 || FetchStoreFaqsIsLoading}
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages || FetchStoreFaqsIsLoading}
-              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
+            </div>
+          )}
+        </>
       )}
 
       <StoreFaqForm
@@ -225,9 +217,9 @@ export default function StoreFaqTabContent() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Quick Q&A?</AlertDialogTitle>
+            <AlertDialogTitle>Delete FAQ?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove this Q&A. This action cannot be
+              This will permanently remove this FAQ. This action cannot be
               undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

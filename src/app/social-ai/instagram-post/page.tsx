@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import InstagramPosts from "@/clients/instagram-post";
 
 export const metadata = {
@@ -6,8 +8,8 @@ export const metadata = {
 
 export default function Page() {
   return (
-    <>
+    <Suspense fallback={null}>
       <InstagramPosts />
-    </>
+    </Suspense>
   );
 }

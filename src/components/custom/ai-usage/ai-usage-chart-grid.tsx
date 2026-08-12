@@ -23,7 +23,7 @@ export default function AIUsageCharts({
   to?: string;
 }) {
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid gap-4 lg:grid-cols-2">
       <DailyUsageChart data={data.charts.daily_usage} from={from} to={to} />
       <TokenSplitChart summary={data.summary} />
       <WorkflowCostChart data={data.charts.workflow_costs} />

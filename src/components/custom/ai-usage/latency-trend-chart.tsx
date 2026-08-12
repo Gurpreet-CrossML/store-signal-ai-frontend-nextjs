@@ -4,6 +4,7 @@ import { eachDayOfInterval, format, parseISO } from "date-fns";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import ChartEmptyState from "@/components/custom/ai-usage/chart-empty-state";
+import { InfoIcon } from "@/components/custom/info-icon";
 import {
   Card,
   CardContent,
@@ -61,9 +62,12 @@ export default function LatencyTrendChart({
   return (
     <Card className="lg:col-span-2">
       <CardHeader>
-        <CardTitle>Latency trend</CardTitle>
+        <CardTitle className="flex items-center gap-1.5">
+          Latency Trend
+          <InfoIcon text="Average time agent calls took to complete each day. A rising line can signal slower models or heavier workflows." />
+        </CardTitle>
         <CardDescription>
-          Daily average agent latency in milliseconds
+          Average agent response time per day, in milliseconds
         </CardDescription>
       </CardHeader>
       <CardContent>

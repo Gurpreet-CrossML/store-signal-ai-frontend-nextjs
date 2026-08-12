@@ -1,8 +1,10 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+import type { Column } from "@tanstack/react-table";
 import {
   IconAlertCircle,
+  IconArrowsUpDown,
   IconCircleCheck,
   IconClock,
   IconFileTypeDocx,
@@ -10,6 +12,8 @@ import {
 } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Typography } from "@/components/ui/typography";
 import { Spinner } from "@/components/ui/spinner";
 import type {
   StoreDocument,
@@ -27,10 +31,31 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(exponent === 0 ? 0 : 1)} ${units[exponent]}`;
 }
 
-function formatDocumentType(type: string): string {
+export function formatDocumentType(type: string): string {
   if (type.includes("pdf")) return "PDF";
   if (type.includes("word") || type.includes("msword")) return "DOCX";
   return "FILE";
+}
+
+/** Column header that toggles ascending/descending sort on click. */
+function SortableHeader<TData>({
+  column,
+  children,
+}: {
+  column: Column<TData, unknown>;
+  children: React.ReactNode;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="-ml-2 h-8 gap-1 font-medium"
+      onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+    >
+      {children}
+      <IconArrowsUpDown className="size-3.5 text-muted-foreground" />
+    </Button>
+  );
 }
 
 export function formatDateTime(value: string | null | undefined): string {
@@ -73,7 +98,9 @@ const STATUS_CONFIG: Record<
 export const storeDocumentColumns: ColumnDef<StoreDocument>[] = [
   {
     accessorKey: "name",
-    header: "Name",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Name</SortableHeader>
+    ),
     cell: ({ row }) => {
       const doc = row.original;
       const isPdf = doc.type.includes("pdf");
@@ -85,9 +112,9 @@ export const storeDocumentColumns: ColumnDef<StoreDocument>[] = [
             ) : (
               <IconFileTypeDocx className="size-4 shrink-0 text-primary" />
             )}
-            <span className="max-w-xs truncate font-medium text-foreground">
+            <Typography variant="small" as="span" className="max-w-xs truncate">
               {doc.name}
-            </span>
+            </Typography>
           </div>
           {doc.status === "failed" && doc.error && (
             <p
@@ -103,34 +130,46 @@ export const storeDocumentColumns: ColumnDef<StoreDocument>[] = [
   },
   {
     accessorKey: "size",
-    header: "Size",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Size</SortableHeader>
+    ),
     cell: ({ row }) => (
-      <span className="tabular-nums text-muted-foreground">
+      <Typography variant="muted" as="span" className="tabular-nums">
         {formatBytes(row.original.size)}
-      </span>
+      </Typography>
     ),
   },
   {
     accessorKey: "type",
-    header: "Type",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Type</SortableHeader>
+    ),
     cell: ({ row }) => (
-      <span className="text-xs font-semibold tracking-wide text-muted-foreground">
+      <Typography
+        variant="muted"
+        as="span"
+        className="text-xs font-semibold tracking-wide"
+      >
         {formatDocumentType(row.original.type)}
-      </span>
+      </Typography>
     ),
   },
   {
     accessorKey: "created_at",
-    header: "Uploaded",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Uploaded</SortableHeader>
+    ),
     cell: ({ row }) => (
-      <span className="whitespace-nowrap text-muted-foreground">
+      <Typography variant="muted" as="span" className="whitespace-nowrap">
         {formatDateTime(row.original.created_at)}
-      </span>
+      </Typography>
     ),
   },
   {
     accessorKey: "status",
-    header: "Status",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Status</SortableHeader>
+    ),
     cell: ({ row }) => {
       const config = STATUS_CONFIG[row.original.status];
       if (!config) return <span className="text-muted-foreground">—</span>;
