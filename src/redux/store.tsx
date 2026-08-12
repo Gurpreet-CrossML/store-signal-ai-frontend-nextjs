@@ -10,10 +10,12 @@ import IntegrationSlice from "@/redux/api-slice/integrations-slice";
 import SupportTicketsSlice from "@/redux/api-slice/support-ticket-slice";
 import SocialAISlice from "@/redux/api-slice/social-ai-slice";
 import AIUsageSlice from "@/redux/api-slice/ai-usage-slice";
+import StoreSettingsSlice from "@/redux/api-slice/store-settings-slice";
 
 const store = configureStore({
   reducer: {
     GetStoresReducer: StoresSlice,
+    GetStoreSettingsReducer: StoreSettingsSlice,
     GetDashboardReducer: DashboardSlice,
     GetThreadReducer: ThreadSlice,
     GetKnowledgeReducer: KnowledgeSlice,

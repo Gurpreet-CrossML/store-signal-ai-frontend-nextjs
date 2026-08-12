@@ -1,19 +1,15 @@
 import Customization from "@/clients/customization";
-import SubPageShell from "@/components/custom/sub-page-shell";
+import { AreaSubPage } from "@/components/custom/area-sub-page";
+import { areaSectionMetadata } from "@/lib/nav-areas";
 
-export const metadata = {
-  title: "Widget Customisation",
-};
+const HREF = "/brand-voice/customisation";
+
+export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
   return (
-    <SubPageShell
-      backHref="/brand-voice"
-      backLabel="Back to brand voice"
-      title="Widget Customisation"
-      description="How the chat widget looks on your storefront — colors, branding, messages, and quick links."
-    >
+    <AreaSubPage href={HREF}>
       <Customization />
-    </SubPageShell>
+    </AreaSubPage>
   );
 }

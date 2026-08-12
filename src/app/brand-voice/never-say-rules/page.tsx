@@ -1,23 +1,19 @@
 import { Suspense } from "react";
 
 import NeverSayRules from "@/clients/never-say-rules";
-import SubPageShell from "@/components/custom/sub-page-shell";
+import { AreaSubPage } from "@/components/custom/area-sub-page";
+import { areaSectionMetadata } from "@/lib/nav-areas";
 
-export const metadata = {
-  title: "Never-Say Rules",
-};
+const HREF = "/brand-voice/never-say-rules";
+
+export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
   return (
-    <SubPageShell
-      backHref="/brand-voice"
-      backLabel="Back to brand voice"
-      title="Never-Say Rules"
-      description="Language guardrails — the phrases, claims, and behaviors the AI avoids in conversation."
-    >
+    <AreaSubPage href={HREF}>
       <Suspense fallback={null}>
         <NeverSayRules />
       </Suspense>
-    </SubPageShell>
+    </AreaSubPage>
   );
 }
