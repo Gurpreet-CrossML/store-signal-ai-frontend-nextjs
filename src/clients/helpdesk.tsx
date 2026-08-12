@@ -40,6 +40,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge, badgeVariants } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
@@ -772,10 +780,26 @@ function ConversationPanel({
 }) {
   const [tagSearch, setTagSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const tagPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
   }, [ticket.id, messages.length]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        isTagPickerOpen &&
+        tagPickerRef.current &&
+        !tagPickerRef.current.contains(event.target as Node)
+      ) {
+        onToggleTagPicker();
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isTagPickerOpen, onToggleTagPicker]);
 
   const filteredTags = availableTags.filter((tag) =>
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
@@ -1013,29 +1037,25 @@ function ConversationPanel({
             </span>
           </div>
 
-                  <div className="flex items-center justify-between gap-3">
-                    <Label className="text-sm text-slate-500">Priority</Label>
+          <div className="flex items-center justify-between gap-3">
+            <Label className="text-sm text-slate-500">Priority</Label>
 
-                    <Select
-                      value={ticket.priority}
-                      onValueChange={onTicketPriorityUpdate}
-                      disabled={isClosed}
-                    >
-                      <SelectTrigger className="h-8 w-40">
-                        <SelectValue />
-                      </SelectTrigger>
+            <Select
+              value={ticket.priority}
+              onValueChange={onTicketPriorityUpdate}
+              disabled={isClosed}
+            >
+              <SelectTrigger className="h-8 w-40">
+                <SelectValue />
+              </SelectTrigger>
 
-                      <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="urgent">Urgent</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="urgent">Urgent</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -1045,78 +1065,34 @@ function ConversationPanel({
             </Badge>
           )}
           <Badge
-            className={
-              priorityBadgeClass[ticket.priority] ??
-              "border-slate-200 bg-slate-100 text-slate-700"
-            }
+            variant="outline"
+            className={cn(
+              BADGE_TONE_STYLES[PRIORITY_TONE[ticket.priority]],
+              "capitalize",
+            )}
           >
-            <span
-              className={cn(
-                priorityBadgeClass[ticket.priority] ??
-                  "border-slate-200 bg-slate-100 text-slate-700",
-                "capitalize",
-              )}
-            />
             {ticket?.priority?.charAt(0).toUpperCase() +
               ticket?.priority?.slice(1)}
           </Badge>
           {visibleTags?.map((tag) => (
-            <Badge
+            <TagBadge
               key={tag.id}
-              variant="outline"
-              className="cursor-default hover:bg-accent"
-              style={{ color: tag.color }}
-            >
-              {tag.name}
-              <IconX
-                className={cn(
-                  "!pointer-events-auto cursor-pointer",
-                  isTagRemoving && "!pointer-events-none opacity-50",
-                )}
-                onClick={() =>
-                  tag.id && !isClosed && !isTagRemoving && onRemoveTag(tag.id)
-                }
-              />
-            </Badge>
+              tag={tag}
+              onRemove={
+                tag.id && !isClosed && !isTagRemoving
+                  ? () => onRemoveTag(tag.id!)
+                  : undefined
+              }
+            />
           ))}
           {hiddenTags?.length > 0 && (
-            <HoverCard>
-              <HoverCardTrigger asChild>
-                <Badge
-                  variant="outline"
-                  className="cursor-default font-normal hover:bg-accent"
-                >
-                  +{hiddenTags.length} more
-                </Badge>
-              </HoverCardTrigger>
-              <HoverCardContent
-                align="start"
-                className="flex w-auto max-w-xs flex-wrap gap-1.5"
-              >
-                {hiddenTags.map((tag) => (
-                  <Badge
-                    key={tag.id}
-                    variant="outline"
-                    className="cursor-default hover:bg-accent"
-                    style={{ color: tag.color }}
-                  >
-                    {tag.name}
-                    <IconX
-                      className={cn(
-                        "!pointer-events-auto cursor-pointer",
-                        isTagRemoving && "!pointer-events-none opacity-50",
-                      )}
-                      onClick={() =>
-                        tag.id &&
-                        !isClosed &&
-                        !isTagRemoving &&
-                        onRemoveTag(tag.id)
-                      }
-                    />
-                  </Badge>
-                ))}
-              </HoverCardContent>
-            </HoverCard>
+            <HiddenTagsBadge
+              tags={hiddenTags}
+              label={`+${hiddenTags.length} more`}
+              onRemoveTag={
+                !isClosed && !isTagRemoving ? onRemoveTag : undefined
+              }
+            />
           )}
           <div className="relative flex" ref={tagPickerRef}>
             <Button
