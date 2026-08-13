@@ -15,12 +15,6 @@ import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
@@ -1406,7 +1400,7 @@ export default function Support() {
                         open={createTicketOpen}
                         onOpenChange={setCreateTicketOpen}
                         onTicketCreated={() => {
-                          dispatch(FetchFreshdeskTicketId(activeThreadId));
+                          // dispatch(FetchFreshdeskTicketId(activeThreadId));
                           setAgentMessage(
                             "Your support ticket has been created. Our team will review it and follow up with you shortly.",
                           );
@@ -1500,7 +1494,6 @@ export default function Support() {
                 />
                 <SupportTicketsCard
                   tickets={FetchFreshdeskTicketIdData}
-                  threadId={activeThreadId}
                   loading={FetchFreshdeskTicketIdIsLoading}
                 />
                 <UserMetadataCard
