@@ -107,6 +107,8 @@ export const UpdateWidgetCustomization = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
+          data?.data?.quick_links
+            ?.find((link: { url?: string[] }) => link.url?.length)?.url?.[0] ||
           data?.message ||
           "Unable to update widget customization, please try again later.",
       });
@@ -174,6 +176,8 @@ export const UpdateWidgetCustomizationWithImage = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
+          data?.data?.quick_links
+            ?.find((link: { url?: string[] }) => link.url?.length)?.url?.[0] ||
           data?.message ||
           "Unable to update widget customization, please try again later.",
       });
