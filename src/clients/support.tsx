@@ -1383,7 +1383,6 @@ export default function Support() {
                       ) : null}
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
                     <Button
                       type="button"
                       onClick={() => setCreateTicketOpen(true)}
@@ -1391,7 +1390,7 @@ export default function Support() {
                       <IconTicket className="size-4" />
                       Create Ticket
                     </Button>
-                    {activeThreadId ? (
+                    {activeThreadId && (
                       <CreateTicketDialog
                         key={activeThreadId}
                         threadId={activeThreadId}
@@ -1400,15 +1399,13 @@ export default function Support() {
                         open={createTicketOpen}
                         onOpenChange={setCreateTicketOpen}
                         onTicketCreated={() => {
-                          // dispatch(FetchFreshdeskTicketId(activeThreadId));
                           setAgentMessage(
                             "Your support ticket has been created. Our team will review it and follow up with you shortly.",
                           );
                         }}
                       />
-                    ) : null}
+                    )}
                   </div>
-                </div>
               </header>
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 {FetchThreadDetailsIsLoading ? (
