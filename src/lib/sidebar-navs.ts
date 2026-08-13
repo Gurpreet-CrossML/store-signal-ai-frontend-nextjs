@@ -172,6 +172,7 @@ export const sidebarMenus: SideBarMenus = {
       url: "/support",
       icon: IconMessageUser,
     },
+    areaMenuItem("crm"),
     areaMenuItem("socialAI"),
   ],
 

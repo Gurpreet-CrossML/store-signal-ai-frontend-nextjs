@@ -25,6 +25,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { ConversationRow } from "@/components/custom/conversation-row";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
@@ -1270,61 +1271,43 @@ export default function Support() {
                 <LoadingState label="Loading conversations…" />
               ) : filteredThreads.length ? (
                 filteredThreads.map((thread: ThreadWithReadState) => {
-                  const isSelected = thread.id === activeThreadId;
                   const isUnread = thread.is_read === false;
 
                   return (
-                    <button
+                    <ConversationRow
                       key={thread.id}
-                      type="button"
-                      onClick={() => handleSelectThread(thread.id)}
-                      className={cn(
-                        "flex w-full items-start gap-3 border-b p-4 text-left text-sm leading-tight transition-colors last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                        isSelected &&
-                          "bg-sidebar-accent text-sidebar-accent-foreground",
-                      )}
-                    >
-                      <CustomerAvatar
-                        name={thread.customer?.name}
-                        online={thread.is_active}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex w-full items-center gap-2">
-                          <span
-                            className={cn(
-                              "truncate",
-                              isUnread ? "font-semibold" : "font-medium",
-                              !thread.customer?.name && "text-muted-foreground",
-                            )}
-                          >
-                            {thread.customer?.name || "Guest"}
-                          </span>
-                          <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                            {formatRelativeDateTime(thread.created_at)}
-                          </span>
-                          {isUnread && (
-                            <span className="size-2 shrink-0 rounded-full bg-primary" />
-                          )}
-                        </div>
-                        <div
-                          className={cn(
-                            "mt-1 line-clamp-2 text-xs",
-                            isUnread
-                              ? "font-medium text-foreground/80"
-                              : "text-muted-foreground",
-                          )}
+                      active={thread.id === activeThreadId}
+                      onSelect={() => handleSelectThread(thread.id)}
+                      unread={isUnread}
+                      avatar={
+                        <CustomerAvatar
+                          name={thread.customer?.name}
+                          online={thread.is_active}
+                        />
+                      }
+                      title={thread.customer?.name || "Guest"}
+                      timestamp={formatRelativeDateTime(thread.created_at)}
+                      indicator={
+                        isUnread ? (
+                          <span className="size-2 shrink-0 rounded-full bg-primary" />
+                        ) : null
+                      }
+                      preview={
+                        <ReactMarkdown components={TEASER_MARKDOWN_COMPONENTS}>
+                          {thread.last_message || "No messages yet."}
+                        </ReactMarkdown>
+                      }
+                      previewLines={2}
+                      footer={
+                        <Typography
+                          variant="muted"
+                          as="span"
+                          className="text-xs"
                         >
-                          <ReactMarkdown
-                            components={TEASER_MARKDOWN_COMPONENTS}
-                          >
-                            {thread.last_message || "No messages yet."}
-                          </ReactMarkdown>
-                        </div>
-                        <span className="mt-1 block text-xs text-muted-foreground">
                           {thread.total_messages} messages
-                        </span>
-                      </div>
-                    </button>
+                        </Typography>
+                      }
+                    />
                   );
                 })
               ) : threadSearch || readFilter !== "all" ? (

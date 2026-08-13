@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   type ColumnDef,
   type OnChangeFn,
@@ -24,7 +25,12 @@ import { cn } from "@/lib/utils";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
-  data: TData[];
+  /**
+   * The current page's rows. Tolerates undefined so a caller whose fetch
+   * returned an unexpected shape renders an empty table rather than
+   * bringing the page down.
+   */
+  data: TData[] | undefined;
   /** Total rows across all pages (the API's `count`). */
   totalCount: number;
   /** Controlled pagination state, owned by the parent (server-side paging). */
@@ -58,8 +64,13 @@ export function DataTable<TData, TValue>({
   emptyTitle,
   emptyDescription,
 }: DataTableProps<TData, TValue>) {
+  // TanStack builds its row model straight off this array; handed undefined
+  // it produces a row model with no `rows` at all, and every read of it
+  // throws. One default here protects every list screen.
+  const rows = useMemo(() => data ?? [], [data]);
+
   const table = useReactTable({
-    data,
+    data: rows,
     columns,
     state: { pagination },
     onPaginationChange,

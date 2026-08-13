@@ -1,13 +1,11 @@
 "use client";
 
-import { IconHeadset, IconUser } from "@tabler/icons-react";
+import { IconHeadset } from "@tabler/icons-react";
 
 import { InfoIcon } from "@/components/custom/info-icon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Typography } from "@/components/ui/typography";
 import type { SelfReference } from "@/redux/api-slice/brand-voice-slice";
-
-const SAMPLE_CUSTOMER_MESSAGE =
-  "Hi there! I have a question about an order I placed. Can you help me out?";
 
 type PersonaIdentityLivePreviewProps = {
   name?: string;
@@ -15,6 +13,22 @@ type PersonaIdentityLivePreviewProps = {
   selfReference: SelfReference;
 };
 
+/**
+ * What the persona settings resolve to — deliberately not a mock of the
+ * assistant's reply.
+ *
+ * This panel used to render an invented two-line answer to an invented
+ * customer question ("I can help you track an order, sort a return…").
+ * Nothing generated those sentences; they were written here, while a real
+ * reply is composed by the model from the whole brand-voice profile and the
+ * store's knowledge. The two could only ever agree by coincidence, and the
+ * difference read as the assistant ignoring these settings.
+ *
+ * The resolved identity is the part this screen can state truthfully. A
+ * preview of actual wording has to come from the server running the same
+ * system prompt with the unsaved settings — there is no honest way to
+ * produce it in the browser.
+ */
 export default function PersonaIdentityLivePreview({
   name,
   roleDescription,
@@ -23,61 +37,61 @@ export default function PersonaIdentityLivePreview({
   const displayName = name?.trim() || "Your agent";
   const role = roleDescription?.trim() || "a helpful assistant";
   const pronoun = selfReference === "we" ? "We" : "I";
-  const introVerb = selfReference === "we" ? "We're" : "I'm";
-  const pronounLower = pronoun.toLowerCase();
 
-  const replyLine1 = `Hello! ${introVerb} ${displayName}, ${
-    role.charAt(0).toLowerCase() + role.slice(1)
-  }.`;
-  const replyLine2 = `${pronoun} can help you track an order, sort a return, or find the right product. What can ${pronounLower} do for you today?`;
+  const facts = [
+    { label: "Introduces itself as", value: displayName },
+    { label: "Refers to itself as", value: `“${pronoun}”` },
+    { label: "Describes its role as", value: role },
+  ];
 
   return (
     <Card className="sticky top-4">
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
-          Live Preview
-          <InfoIcon text="A sample conversation showing how the AI introduces itself with your persona settings. It updates as you type — nothing is saved until you hit Save Changes." />
+          Persona summary
+          <InfoIcon text="How your settings resolve for the assistant. Updates as you type — nothing is saved until you hit Save Changes." />
         </CardTitle>
         <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
           Updates as you type
         </span>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <div className="flex items-start gap-2">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <IconUser className="size-4" />
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <IconHeadset className="size-5" />
           </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-muted-foreground">
-              Customer
-            </span>
-            <div className="rounded-lg bg-muted px-3 py-2 text-sm">
-              {SAMPLE_CUSTOMER_MESSAGE}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-2">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <IconHeadset className="size-4" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-muted-foreground">
+          <div className="min-w-0">
+            <Typography variant="h6" as="p" className="truncate">
               {displayName}
-            </span>
-            <div className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2 text-sm">
-              <p>{replyLine1}</p>
-              <p>{replyLine2}</p>
-            </div>
+            </Typography>
+            <Typography variant="muted" className="truncate">
+              {role}
+            </Typography>
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          The AI introduces itself as{" "}
-          <span className="font-medium text-foreground">{displayName}</span>,
-          refers to itself as &quot;{pronoun}&quot;, and frames its role exactly
-          as you&apos;ve set it.
-        </p>
+        <dl className="flex flex-col gap-3 border-t border-border pt-4">
+          {facts.map((fact) => (
+            <div
+              key={fact.label}
+              className="flex items-baseline justify-between gap-4"
+            >
+              <dt className="shrink-0 text-sm text-muted-foreground">
+                {fact.label}
+              </dt>
+              <dd className="min-w-0 text-right text-sm font-medium text-foreground">
+                {fact.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        <Typography variant="muted" className="border-t border-border pt-4">
+          These settings decide the identity the assistant uses. What it
+          actually writes is composed for each customer from your tone,
+          vocabulary and knowledge settings, so its exact wording will differ
+          from any sample shown here.
+        </Typography>
       </CardContent>
     </Card>
   );

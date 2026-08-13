@@ -38,7 +38,7 @@ export default function BrandVoiceTonePresetSelector({
         <CardTitle className="flex items-center gap-2">
           <IconMoodSmile className="size-4" />
           Quick-start preset
-          <InfoIcon text="One-click starting points that set all tone dials and writing preferences at once. Fine-tune everything afterwards." />
+          <InfoIcon text="One-click starting points for the five tone dials. Adjust any dial afterwards and the preset becomes Custom; writing preferences are set separately." />
         </CardTitle>
         <CardDescription>
           Pick a starter voice. If the store already has a saved profile, the
@@ -46,8 +46,12 @@ export default function BrandVoiceTonePresetSelector({
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {/* Controlled, not `defaultValue`: an uncontrolled group reads its
+            value once at mount, so moving a dial switched the form to
+            Custom while the radio still showed the old preset — and the
+            selection also missed the presets arriving from the API. */}
         <RadioGroup
-          defaultValue={activePreset.toString()}
+          value={activePreset.toString()}
           onValueChange={(value) => onSelect(parseInt(value, 10))}
           className="grid grid-cols-1 gap-3 sm:grid-cols-4 2xl:grid-cols-6"
         >
