@@ -55,7 +55,6 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
   IconAlertTriangle,
-  IconDotsVertical,
   IconHeadset,
   IconMessage2,
   IconMessageChatbot,
@@ -1488,10 +1487,6 @@ export default function Support() {
                 <CartDetailsCard
                   cartData={FetchCartData}
                   loading={FetchCartDataIsLoading}
-                />
-                <SupportTicketsCard
-                  tickets={FetchFreshdeskTicketIdData}
-                  loading={FetchFreshdeskTicketIdIsLoading}
                 />
                 <UserMetadataCard
                   userMetadata={FetchUserMetadataData}
