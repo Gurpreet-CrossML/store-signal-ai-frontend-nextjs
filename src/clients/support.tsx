@@ -523,10 +523,6 @@ export default function Support() {
   const { SyncOrdersIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.SyncOrdersState,
   );
-  const { FetchFreshdeskTicketIdData, FetchFreshdeskTicketIdIsLoading } =
-    useAppSelector(
-      (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
-    );
 
   // Local, mutable copy of the thread list. Seeded from Redux (is_read
   // defaults to true), then patched in place by the dashboard socket (new
@@ -1394,18 +1390,6 @@ export default function Support() {
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    {activeThreadId &&
-                      connectedAgent === session?.user?.email && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={handleReturnToAI}
-                          disabled={transitionState !== "idle"}
-                        >
-                          <IconRobot className="h-4 w-4" />
-                          Return to AI
-                        </Button>
-                      )}
                     <Button
                       type="button"
                       onClick={() => setCreateTicketOpen(true)}
