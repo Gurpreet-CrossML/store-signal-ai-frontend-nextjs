@@ -5,6 +5,7 @@ import {
   ThreadMessage,
 } from "@/redux/api-slice/thread-slice";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import remarkFgm from "remark-gfm"
 import ReactMarkdown from "react-markdown";
 import { formatDateTime } from "@/lib/helpers";
 import OrderBillCard from "@/components/custom/order-bill-card";
@@ -20,6 +21,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
 import { Spinner } from "../ui/spinner";
+import remarkGfm from "remark-gfm";
 
 export default function MessagePan({
   messages,
@@ -96,7 +98,7 @@ export default function MessagePan({
                           ) {
                             return (
                               <>
-                                <ReactMarkdown>{message.message}</ReactMarkdown>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.message}</ReactMarkdown>
                                 <div className="mt-3">
                                   <OrderBillCard
                                     order={message.json_content.order_details}
@@ -108,7 +110,7 @@ export default function MessagePan({
 
                           // Strategy 2: plain markdown fallback
                           return (
-                            <ReactMarkdown>{message.message}</ReactMarkdown>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.message}</ReactMarkdown>
                           );
                         })()
                       ) : (
