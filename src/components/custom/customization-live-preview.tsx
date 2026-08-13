@@ -27,7 +27,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { normalizeUrl } from "@/lib/url";
+import { isValidUrl, normalizeUrl } from "@/lib/url";
 import type {
   ActionButton,
   QuickLinkItem,
@@ -137,15 +137,18 @@ export default function CustomizationLivePreview({
                             <button
                               key={link.id ?? index}
                               type="button"
+                              disabled={!isValidUrl(link.url)}
                               onClick={() => {
                                 const normalized = normalizeUrl(link.url);
-                                window.open(
-                                  normalized,
-                                  "_blank",
-                                  "noopener,noreferrer",
-                                );
+                                if (isValidUrl(normalized)) {
+                                  window.open(
+                                    normalized,
+                                    "_blank",
+                                    "noopener,noreferrer",
+                                  );
+                                }
                               }}
-                              className="flex w-full items-center justify-between px-3 py-3 text-sm font-medium text-slate-700 transition hover:bg-[var(--cb-hover-bg)]"
+                              className="flex w-full items-center justify-between px-3 py-3 text-sm font-medium text-slate-700 transition enabled:hover:bg-[var(--cb-hover-bg)] disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {link.label}
                               <IconExternalLink className="size-4 text-slate-400" />

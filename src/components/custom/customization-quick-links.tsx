@@ -14,11 +14,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { isValidUrl } from "@/lib/url";
 import type { QuickLinkItem } from "@/components/custom/customization-types";
 
 type CustomizationQuickLinksProps = {
   quickLinks: QuickLinkItem[];
-  urlErrors: Record<number, string>;
   onUpdate: (index: number, patch: Partial<QuickLinkItem>) => void;
   onAdd: () => void;
   onRemove: (index: number) => void;
@@ -26,7 +26,6 @@ type CustomizationQuickLinksProps = {
 
 export default function CustomizationQuickLinks({
   quickLinks,
-  urlErrors,
   onUpdate,
   onAdd,
   onRemove,
@@ -68,10 +67,10 @@ export default function CustomizationQuickLinks({
                   onUpdate(index, { url: event.target.value })
                 }
                 placeholder="https://example.com"
-                aria-invalid={Boolean(urlErrors[index])}
+                aria-invalid={Boolean(link.url) && !isValidUrl(link.url)}
               />
-              {urlErrors[index] && (
-                <p className="text-xs text-destructive">{urlErrors[index]}</p>
+              {link.url && !isValidUrl(link.url) && (
+                <p className="text-xs text-destructive">Enter a valid URL</p>
               )}
             </div>
             <div className="flex flex-col gap-1">
