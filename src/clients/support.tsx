@@ -1383,29 +1383,29 @@ export default function Support() {
                       ) : null}
                     </div>
                   </div>
-                    <Button
-                      type="button"
-                      onClick={() => setCreateTicketOpen(true)}
-                    >
-                      <IconTicket className="size-4" />
-                      Create Ticket
-                    </Button>
-                    {activeThreadId && (
-                      <CreateTicketDialog
-                        key={activeThreadId}
-                        threadId={activeThreadId}
-                        storeCode={storeCode}
-                        customerEmail={selectedThread?.customer?.email ?? ""}
-                        open={createTicketOpen}
-                        onOpenChange={setCreateTicketOpen}
-                        onTicketCreated={() => {
-                          setAgentMessage(
-                            "Your support ticket has been created. Our team will review it and follow up with you shortly.",
-                          );
-                        }}
-                      />
-                    )}
-                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => setCreateTicketOpen(true)}
+                  >
+                    <IconTicket className="size-4" />
+                    Create Ticket
+                  </Button>
+                  {activeThreadId && (
+                    <CreateTicketDialog
+                      key={activeThreadId}
+                      threadId={activeThreadId}
+                      storeCode={storeCode}
+                      customerEmail={selectedThread?.customer?.email ?? ""}
+                      open={createTicketOpen}
+                      onOpenChange={setCreateTicketOpen}
+                      onTicketCreated={() => {
+                        setAgentMessage(
+                          "Your support ticket has been created. Our team will review it and follow up with you shortly.",
+                        );
+                      }}
+                    />
+                  )}
+                </div>
               </header>
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 {FetchThreadDetailsIsLoading ? (
