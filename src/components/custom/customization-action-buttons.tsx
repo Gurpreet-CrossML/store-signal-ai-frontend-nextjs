@@ -137,16 +137,7 @@ export default function CustomizationActionButtons({
             Add new quick action
           </Typography>
           <AddActionButtonForm
-            onAdd={(button) => {
-              const name = button.name.trim().toLocaleLowerCase();
-              if (
-                actionButtons.some(
-                  (current) => current.name.trim().toLocaleLowerCase() === name,
-                )
-              )
-                return;
-              onChange([...actionButtons, button]);
-            }}
+            onAdd={(button) => onChange([...actionButtons, button])}
           />
         </div>
       </CardContent>

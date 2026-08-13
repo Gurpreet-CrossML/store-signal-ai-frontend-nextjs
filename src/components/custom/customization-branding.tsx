@@ -58,7 +58,7 @@ export default function CustomizationBranding({
   onLogoUpload,
   onRemoveLogo,
 }: CustomizationBrandingProps) {
-  const greetingLength = greetingMessage.length;
+  const greetingLength = greetingMessage.trim().length;
   const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
