@@ -4,13 +4,20 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 
-function getValidationMessage(value: unknown): string | undefined {
-  if (typeof value === "string") return value;
+function getValidationMessage(
+  value: unknown,
+  field?: string,
+): string | undefined {
+  if (typeof value === "string") {
+    return field ? `${field}: ${value}` : value;
+  }
   if (Array.isArray(value)) {
-    return value.map(getValidationMessage).find(Boolean);
+    return value.map((item) => getValidationMessage(item, field)).find(Boolean);
   }
   if (value && typeof value === "object") {
-    return Object.values(value).map(getValidationMessage).find(Boolean);
+    return Object.entries(value)
+      .map(([key, item]) => getValidationMessage(item, key))
+      .find(Boolean);
   }
 }
 
@@ -119,7 +126,7 @@ export const UpdateWidgetCustomization = createAsyncThunk(
         description:
           getValidationMessage(data?.data) ||
           data?.message ||
-          "Unable to update widget customization, please try again later.",
+          "",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
