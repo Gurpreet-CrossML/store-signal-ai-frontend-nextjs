@@ -5,7 +5,6 @@ import {
   ThreadMessage,
 } from "@/redux/api-slice/thread-slice";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import remarkFgm from "remark-gfm";
 import ReactMarkdown from "react-markdown";
 import { formatDateTime } from "@/lib/helpers";
 import OrderBillCard from "@/components/custom/order-bill-card";
