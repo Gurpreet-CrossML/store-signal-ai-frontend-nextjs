@@ -21,7 +21,6 @@ export async function list_thread_tickets(thread_id: string) {
       ticket_id: supportTicket.id,
       subject: supportTicket.subject,
       description: supportTicket.description,
-      status: supportTicket.status,
       created_at: supportTicket.createdAt,
       updated_at: supportTicket.updatedAt,
     })
