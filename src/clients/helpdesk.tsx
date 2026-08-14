@@ -82,6 +82,7 @@ import {
   type BadgeTone,
 } from "@/lib/badge-tones";
 
+import { ConversationRow } from "@/components/custom/conversation-row";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import {
   HiddenTagsBadge,
@@ -124,9 +125,11 @@ import {
 } from "@/redux/api-slice/support-ticket-slice";
 import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import {
-  formatRelativeDateTime,
-  formatDateTime,
   capitalizeText,
+  endOfDay,
+  formatDateTime,
+  formatRelativeDateTime,
+  startOfDay,
 } from "@/lib/helpers";
 
 const CKEditorTextArea = dynamic(
@@ -207,20 +210,6 @@ function customerLabel(
   return customer.name?.trim() || customer.email?.trim() || "Guest";
 }
 
-/** Midnight at the start of `value`'s day, as an ISO instant. */
-function startOfDay(value: string) {
-  const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  return date.toISOString();
-}
-
-/** The last instant of `value`'s day, so a range's end day is included. */
-function endOfDay(value: string) {
-  const date = new Date(value);
-  date.setHours(23, 59, 59, 999);
-  return date.toISOString();
-}
-
 /** "3 tags" / "1 tag" — plural agreement for the count rows. */
 function pluralize(count: number, noun: string) {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
@@ -237,54 +226,37 @@ function TicketRow({
 }) {
   const visibleTags = ticket.tags?.slice(0, MAX_VISIBLE_TKT_ROW_TAGS) ?? [];
   const hiddenTags = ticket.tags?.slice(MAX_VISIBLE_TKT_ROW_TAGS) ?? [];
+  const customerName = customerLabel(ticket.customer);
 
   return (
-    <button
-      onClick={onSelect}
-      className={cn(
-        "flex w-full gap-3 rounded-lg px-3 py-3 text-left transition-colors",
-        active ? "bg-accent" : "hover:bg-muted/60",
+    <ConversationRow
+      active={active}
+      onSelect={onSelect}
+      unread={!ticket.is_read}
+      avatar={<CustomerAvatar name={customerName} />}
+      title={ticket.subject}
+      timestamp={formatRelativeDateTime(
+        ticket.last_message_at || ticket.created_at,
       )}
-    >
-      <CustomerAvatar name={customerLabel(ticket.customer)} />
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-2">
-          <span
-            className={cn(
-              "truncate text-sm text-foreground",
-              ticket.is_read ? "font-normal" : "font-semibold",
-            )}
-          >
-            {ticket.subject}
-          </span>
-          <div className="flex shrink-0 items-center gap-1">
-            {ticket.is_snoozed ? (
-              <IconAlarmSnoozeFilled className="size-3 text-primary" />
-            ) : null}
-            <span className="text-xs text-muted-foreground">
-              {formatRelativeDateTime(
-                ticket.last_message_at || ticket.created_at,
-              )}
-            </span>
-          </div>
-        </div>
-
-        {/* Name and preview share a line: every row in a store's inbox
-            repeated the same customer email, which told you nothing and
-            cost a line of height. */}
-        <div className="mt-0.5 truncate text-xs text-muted-foreground [&_p]:inline">
-          <span className="text-foreground/70">
-            {customerLabel(ticket.customer)}
-          </span>
+      indicator={
+        ticket.is_snoozed ? (
+          <IconAlarmSnoozeFilled className="size-3 text-primary" />
+        ) : null
+      }
+      // Name and teaser share a line: every row in a store's inbox repeated
+      // the same customer email, which told you nothing and cost a line.
+      preview={
+        <>
+          <span className="text-foreground/70">{customerName}</span>
           {" · "}
           <ReactMarkdown>
             {ticket.last_message || ticket.description}
           </ReactMarkdown>
-        </div>
-
-        {visibleTags.length > 0 ? (
-          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+        </>
+      }
+      footer={
+        visibleTags.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-1">
             {visibleTags.map((tag) => (
               <TagBadge key={tag.id} tag={tag} />
             ))}
@@ -295,9 +267,9 @@ function TicketRow({
               />
             ) : null}
           </div>
-        ) : null}
-      </div>
-    </button>
+        ) : null
+      }
+    />
   );
 }
 
@@ -731,6 +703,7 @@ function ConversationPanel({
   isClosed,
   onTranslate,
   isTranslating,
+  translatedLanguage,
 }: {
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
@@ -762,6 +735,8 @@ function ConversationPanel({
   isClosed: boolean;
   onTranslate: (code: string) => void;
   isTranslating: boolean;
+  /** Language the messages are currently shown in, if translated. */
+  translatedLanguage: { code: string; name: string } | null;
 }) {
   const [tagSearch, setTagSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -1369,9 +1344,12 @@ function ConversationPanel({
             <Tooltip>
               <TooltipTrigger asChild>
                 <DropdownMenuTrigger asChild>
+                  {/* Icon only until a language is applied — after that the
+                      language is the state of the thread you are reading,
+                      so it is worth the width. */}
                   <Button
                     variant="outline"
-                    size="icon-sm"
+                    size={translatedLanguage ? "sm" : "icon-sm"}
                     aria-label="Translate the conversation"
                     disabled={isClosed || isTranslating}
                   >
@@ -1380,11 +1358,18 @@ function ConversationPanel({
                     ) : (
                       <IconLanguage className="size-4" />
                     )}
+                    {translatedLanguage
+                      ? `Translated to ${translatedLanguage.name}`
+                      : null}
                   </Button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
               <TooltipContent>
-                {isTranslating ? "Translating…" : "Translate"}
+                {isTranslating
+                  ? "Translating…"
+                  : translatedLanguage
+                    ? `Translated to ${translatedLanguage.name}`
+                    : "Translate"}
               </TooltipContent>
             </Tooltip>
             <DropdownMenuContent
@@ -1397,6 +1382,9 @@ function ConversationPanel({
                 <DropdownMenuItem
                   key={language.code}
                   onClick={() => onTranslate(language.code)}
+                  className={cn(
+                    language.code === translatedLanguage?.code && "font-medium",
+                  )}
                 >
                   {language.name}
                 </DropdownMenuItem>
@@ -1596,6 +1584,14 @@ export default function HelpDesk() {
   const supportSocketReconnectTimerRef = useRef<number | null>(null);
 
   const [showTagPicker, setShowTagPicker] = useState(false);
+
+  // Which language the open ticket's messages are being shown in. Scoped to
+  // the ticket: translating rewrites the loaded messages, and opening
+  // another ticket loads untranslated ones.
+  const [translatedLanguage, setTranslatedLanguage] = useState<{
+    code: string;
+    name: string;
+  } | null>(null);
 
   const [reply, setReply] = useState("");
 
@@ -2125,6 +2121,7 @@ export default function HelpDesk() {
     if (!nextTicket) return;
     setActiveTicketId(ticketId);
     setReply("");
+    setTranslatedLanguage(null);
   };
 
   const handleQueueChange = (queue: SupportTicketStatus) => {
@@ -2732,6 +2729,8 @@ export default function HelpDesk() {
         }),
       ).unwrap();
 
+      setTranslatedLanguage({ code: language.code, name: language.name });
+
       if (translatedMessages?.messages?.length) {
         const translatedMessageMap = new Map<string, string>(
           translatedMessages.messages.map((message) => [
@@ -2893,6 +2892,7 @@ export default function HelpDesk() {
             }
             onTranslate={handleSupportTicketMessagesTranslate}
             isTranslating={SupportTicketMessagesTranslateIsLoading}
+            translatedLanguage={translatedLanguage}
           />
         )}
         {(FetchSupportTicketsLoading || FetchSupportTicketDetailsIsLoading) &&

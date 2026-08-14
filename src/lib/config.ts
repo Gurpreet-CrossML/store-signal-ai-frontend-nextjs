@@ -164,6 +164,19 @@ export const ENDPOINTS = {
   toneStyle: () => `/chat/tone-style/`,
   vocabulary: () => `/chat/vocabulary/`,
 
+  // CRM. Store-scoped directories of shoppers and their orders. Both lists
+  // take search, filter and ordering query params — see CustomerFilters and
+  // OrderFilters in their slices for the full set.
+  //
+  // NOTE: the backend confirmed the two list routes. The detail routes are
+  // the DRF convention on top of them and are still to be verified.
+  fetchCustomers: () => createAPIUrl("/chat/customers/", "django"),
+  fetchCustomerDetails: (customerId: number) =>
+    createAPIUrl(`/chat/customers/${customerId}/`, "django"),
+  fetchOrders: () => createAPIUrl("/chat/orders/", "django"),
+  fetchOrderDetails: (orderId: number) =>
+    createAPIUrl(`/chat/orders/${orderId}/`, "django"),
+
   // Helpdesk(Support) apis
   fetchSupportTickets: () => createAPIUrl("/support/tickets", "django"),
   fetchSupportTicketDeatils: (ticket_id: number) =>

@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
   type CSSProperties,
 } from "react";
+import { ConversationRow } from "@/components/custom/conversation-row";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { LoadingState } from "@/components/custom/loading-state";
 import { Button } from "@/components/ui/button";
@@ -1070,57 +1071,38 @@ export default function DmsInbox({
                         conversation.name || conversation.username || "";
 
                       return (
-                        <button
+                        <ConversationRow
                           key={conversation.id}
-                          type="button"
-                          onClick={() =>
+                          active={isSelected}
+                          onSelect={() =>
                             handleSelectConversation(conversation.id)
                           }
-                          className={cn(
-                            "flex w-full items-start gap-3 border-b p-4 text-left text-sm leading-tight transition-colors last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                            isSelected &&
-                              "bg-sidebar-accent text-sidebar-accent-foreground",
-                          )}
-                        >
-                          <CustomerAvatar name={rawName} />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex w-full items-center gap-2">
-                              <span
-                                className={cn(
-                                  "truncate",
-                                  isUnread ? "font-semibold" : "font-medium",
-                                  !rawName && "text-muted-foreground",
-                                )}
-                              >
-                                {rawName || channel.userFallback}
+                          unread={isUnread}
+                          avatar={<CustomerAvatar name={rawName} />}
+                          title={
+                            rawName || (
+                              <span className="text-muted-foreground">
+                                {channel.userFallback}
                               </span>
-                              <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                                {conversation.last_message_at
-                                  ? formatRelativeTime(
-                                      conversation.last_message_at,
-                                    )
-                                  : ""}
-                              </span>
-                              {isUnread && (
-                                <span className="size-2 shrink-0 rounded-full bg-primary" />
-                              )}
-                            </div>
-                            <div
-                              className={cn(
-                                "mt-1 line-clamp-2 text-xs",
-                                isUnread
-                                  ? "font-medium text-foreground/80"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              {conversation.last_message ? (
-                                conversation.last_message
-                              ) : (
-                                <AttachmentPreviewLabel kind={previewKind} />
-                              )}
-                            </div>
-                          </div>
-                        </button>
+                            )
+                          }
+                          timestamp={
+                            conversation.last_message_at
+                              ? formatRelativeTime(conversation.last_message_at)
+                              : ""
+                          }
+                          indicator={
+                            isUnread ? (
+                              <span className="size-2 shrink-0 rounded-full bg-primary" />
+                            ) : null
+                          }
+                          preview={
+                            conversation.last_message ?? (
+                              <AttachmentPreviewLabel kind={previewKind} />
+                            )
+                          }
+                          previewLines={2}
+                        />
                       );
                     })
                   ) : debouncedSearchQuery ? (

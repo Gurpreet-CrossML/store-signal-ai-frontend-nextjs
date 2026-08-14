@@ -187,3 +187,116 @@ export function capitalizeText(value: string): string {
     .replace(/[_-]/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
+
+/**
+ * Format an amount with its currency, e.g. "3850.00" → "$3,850.00".
+ *
+ * Amounts arrive as strings from DRF (DecimalField) and as numbers from the
+ * platform payloads, so both are accepted.
+ */
+export function formatPrice(
+  value: string | number | null | undefined,
+  currency = "USD",
+): string {
+  if (value === null || value === undefined || value === "") return "—";
+  const amount = typeof value === "number" ? value : Number(value);
+  if (Number.isNaN(amount)) return String(value);
+
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      // Without this, some locales render USD as "US$" instead of "$" to
+      // disambiguate from their own local currency — narrowSymbol forces
+      // the plain symbol regardless of locale.
+      currencyDisplay: "narrowSymbol",
+    }).format(amount);
+  } catch {
+    // Unrecognized currency code — fall back to plain formatting.
+    return `${value} ${currency}`;
+  }
+}
+
+/**
+ * Date without a time, e.g. "8 Aug 2026".
+ *
+ * Normalizes before parsing: Date.parse needs the "T" separator instead of
+ * a space, and rejects bare-hour offsets like "+00" unless minutes are
+ * appended ("+00:00") — both shapes arrive from the commerce platforms.
+ */
+export function formatDate(value: string): string {
+  // Normalize before parsing: Date.parse needs the "T" separator instead of
+  // a space, and rejects bare-hour offsets like "+00" unless minutes are
+  // appended ("+00:00").
+  const date = new Date(
+    value.replace(" ", "T").replace(/([+-]\d{2})$/, "$1:00"),
+  );
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/** Midnight at the start of `value`'s day, as an ISO instant. */
+export function startOfDay(value: string) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date.toISOString();
+}
+
+/**
+ * The last instant of `value`'s day, so a date range's end day is included.
+ * Without it, "up to today" stops at midnight and hides everything that
+ * happened today.
+ */
+export function endOfDay(value: string) {
+  const date = new Date(value);
+  date.setHours(23, 59, 59, 999);
+  return date.toISOString();
+}
+
+/**
+ * Coerce a list response into the paginated shape the tables expect.
+ *
+ * The Django routes are not uniform: some wrap their payload in a `data`
+ * envelope and some return DRF's pagination object directly, and an
+ * unpaginated endpoint can answer with a bare array. Reading `results` off
+ * the wrong one yields undefined, which reaches the table as undefined rows
+ * and takes the page down.
+ *
+ * Normalising in one place means a screen shows an empty table when the
+ * shape is unexpected, instead of crashing — and the caller keeps one type.
+ */
+export function toPaginatedList<T>(payload: unknown): {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+} {
+  const empty = { count: 0, next: null, previous: null, results: [] as T[] };
+  if (!payload) return empty;
+
+  // A bare array: everything there is, on one page.
+  if (Array.isArray(payload)) {
+    return { ...empty, count: payload.length, results: payload as T[] };
+  }
+
+  if (typeof payload !== "object") return empty;
+
+  const record = payload as Record<string, unknown>;
+  const results = Array.isArray(record.results)
+    ? (record.results as T[])
+    : Array.isArray(record.data)
+      ? (record.data as T[])
+      : [];
+
+  return {
+    count: typeof record.count === "number" ? record.count : results.length,
+    next: typeof record.next === "string" ? record.next : null,
+    previous: typeof record.previous === "string" ? record.previous : null,
+    results,
+  };
+}

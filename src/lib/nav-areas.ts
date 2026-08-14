@@ -7,6 +7,7 @@ import {
   IconBrandFacebook,
   IconBrandInstagram,
   IconBrandMessenger,
+  IconAddressBook,
   IconBrandMeta,
   IconBuildingSkyscraper,
   IconImageGeneration,
@@ -18,6 +19,8 @@ import {
   IconShieldLock,
   IconUserHexagon,
   IconUsers,
+  IconUsersGroup,
+  IconShoppingBag,
   IconVolume,
   type Icon,
 } from "@tabler/icons-react";
@@ -58,6 +61,33 @@ export type NavArea = {
  * written in sidebar-navs.
  */
 export const NAV_AREAS = {
+  crm: {
+    href: "/crm",
+    title: "CRM",
+    description:
+      "The people who shop with you, and everything you know about them.",
+    icon: IconAddressBook,
+    sections: [
+      {
+        href: "/crm/customers",
+        title: "Customers",
+        description:
+          "Every shopper this store has, with spend and contact details.",
+        pageDescription:
+          "Every shopper this store has — what they have spent, how to reach them, and whether they have opted in.",
+        icon: IconUsersGroup,
+      },
+      {
+        href: "/crm/orders",
+        title: "Orders",
+        description: "Every order placed, with payment and delivery state.",
+        pageDescription:
+          "Every order this store has taken — what was paid, what shipped, and where it got to.",
+        icon: IconShoppingBag,
+      },
+    ],
+  },
+
   settings: {
     href: "/settings",
     title: "Settings",
