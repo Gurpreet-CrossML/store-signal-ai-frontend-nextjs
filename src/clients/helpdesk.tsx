@@ -25,6 +25,8 @@ import {
   IconMessageChatbot,
   IconMoodSmile,
   IconPaperclip,
+  IconLock,
+  IconNote,
   IconPencil,
   IconPlus,
   IconReload,
@@ -81,6 +83,7 @@ import {
 
 import { ConversationRow } from "@/components/custom/conversation-row";
 import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
+import { CrmLinkButton } from "@/components/custom/customer-header";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import {
@@ -697,6 +700,7 @@ function ConversationPanel({
   onTranslate,
   isTranslating,
   translatedLanguage,
+  onLinkCustomer,
 }: {
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
@@ -730,6 +734,8 @@ function ConversationPanel({
   isTranslating: boolean;
   /** Language the messages are currently shown in, if translated. */
   translatedLanguage: { code: string; name: string } | null;
+  /** Offered beside the name when a guest raised this ticket. */
+  onLinkCustomer: () => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -826,9 +832,22 @@ function ConversationPanel({
         <div className="flex min-w-0 items-center gap-2.5">
           <CustomerAvatar name={customerName} />
           <div className="min-w-0">
-            <CardTitle className="truncate leading-tight">
-              {customerName}
-            </CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="truncate leading-tight">
+                {customerName}
+              </CardTitle>
+              {/* Open their record, or attach one when a guest raised this.
+                  No session facts here: a ticket can arrive by email,
+                  phone or social, so there is no browsing session. */}
+              <CrmLinkButton
+                customerId={
+                  ticket.customer && typeof ticket.customer === "object"
+                    ? ticket.customer.id
+                    : null
+                }
+                onLinkCustomer={onLinkCustomer}
+              />
+            </div>
             {customerEmail ? (
               <Typography variant="muted" className="truncate">
                 {customerEmail}
@@ -1204,8 +1223,11 @@ function ConversationPanel({
                   )}
                 >
                   {isNote ? (
-                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                      <IconPencil className="size-3.5" />
+                    // A sticky note, not a pencil: a pencil in a circle
+                    // beside a message reads as an edit button, and this
+                    // is a label, not something you can press.
+                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-primary/40 bg-primary/10 text-primary">
+                      <IconNote className="size-3.5" />
                     </div>
                   ) : isOutgoing ? (
                     <Avatar className="size-7 shrink-0">
@@ -1224,7 +1246,12 @@ function ConversationPanel({
                     className={cn(
                       "min-w-0 max-w-4/5 rounded-2xl px-4 py-3",
                       isNote
-                        ? "rounded-br-md border border-dashed border-border bg-background"
+                        ? // Dashed and tinted: an internal note is the one
+                          // thing here the customer never sees, so it has
+                          // to be unmistakable at a glance. The old
+                          // border-on-background was so faint it read as a
+                          // rendering fault.
+                          "rounded-br-md border border-dashed border-primary/40 bg-primary/5"
                         : isOutgoing
                           ? "rounded-br-md bg-primary/10"
                           : "rounded-bl-md bg-muted",
@@ -1234,8 +1261,9 @@ function ConversationPanel({
                       <Typography
                         variant="small"
                         as="p"
-                        className="mb-1 text-muted-foreground"
+                        className="mb-1 flex items-center gap-1.5 text-primary"
                       >
+                        <IconLock className="size-3.5" />
                         Internal note
                       </Typography>
                     ) : null}
@@ -2931,6 +2959,7 @@ export default function HelpDesk() {
             onTranslate={handleSupportTicketMessagesTranslate}
             isTranslating={SupportTicketMessagesTranslateIsLoading}
             translatedLanguage={translatedLanguage}
+            onLinkCustomer={() => setIsLinkCustomerOpen(true)}
           />
         )}
         {(FetchSupportTicketsLoading || FetchSupportTicketDetailsIsLoading) &&
@@ -2957,7 +2986,6 @@ export default function HelpDesk() {
               data: otherCustomerTickets,
               loading: FetchFreshdeskTicketIdIsLoading,
             }}
-            onLinkCustomer={() => setIsLinkCustomerOpen(true)}
           />
         )}
       </div>

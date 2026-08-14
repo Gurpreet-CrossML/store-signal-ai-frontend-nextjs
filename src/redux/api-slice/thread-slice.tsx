@@ -519,6 +519,36 @@ export const FetchCart = createAsyncThunk(
   },
 );
 
+/** Attach an existing customer record to a chat a guest started. */
+export const ThreadCustomerLink = createAsyncThunk(
+  "ThreadCustomerLink",
+  async (
+    {
+      storeCode,
+      threadId,
+      customerId,
+    }: { storeCode: string; threadId: string; customerId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.threadCustomerLink(threadId)}?store_code=${storeCode}`,
+        { customer: customerId },
+        { useBackend: true },
+      );
+      toast.success("Customer linked to this conversation.");
+      return response.data?.data ?? response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't link the customer", {
+        description: data?.message || "Please try again.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 export const FetchFreshdeskTicketId = createAsyncThunk(
   "FreshdeskTicketId",
   async (

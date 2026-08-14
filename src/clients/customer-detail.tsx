@@ -227,8 +227,42 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
 
   const name = customerDisplayName(customer);
   const addresses = customer.addresses ?? [];
-  const orders = customer.orders_count ?? 0;
-  const spent = Number(customer.total_spent ?? 0);
+  const orderHistory = customer.orders ?? [];
+
+  // The platform's own aggregates are authoritative when it fills them in,
+  // but Shopify frequently leaves orders_count at 0 and total_spent at
+  // "0.0000" while sending the orders themselves. Trusting the aggregate
+  // alone showed a customer with twenty-five orders as having never
+  // bought anything.
+  const orders = customer.orders_count || orderHistory.length;
+  const spent =
+    Number(customer.total_spent ?? 0) ||
+    orderHistory.reduce(
+      (sum, order) => sum + Number(order.total_price ?? 0),
+      0,
+    );
+  const currency = orderHistory[0]?.currency ?? "USD";
+
+  // Same story for addresses: the address book can be empty while every
+  // order carries the address it shipped to.
+  const latestShipping = orderHistory.find(
+    (order) => order.shipping_address?.city || order.shipping_address?.address1,
+  )?.shipping_address;
+
+  const location =
+    formatLocation(
+      addresses.find((address) => address.default_shipping) ?? addresses[0],
+    ) ??
+    (latestShipping
+      ? [
+          [latestShipping.city, latestShipping.province]
+            .filter(Boolean)
+            .join(" "),
+          latestShipping.country,
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -286,9 +320,11 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
         <StatTile
           icon={IconWallet}
           label="Total spent"
-          value={formatPrice(customer.total_spent)}
+          value={formatPrice(spent, currency)}
           hint={
-            orders > 0 ? `${formatPrice(spent / orders)} per order` : undefined
+            orders > 0
+              ? `${formatPrice(spent / orders, currency)} per order`
+              : undefined
           }
         />
         <StatTile
@@ -298,25 +334,15 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
           hint={orders === 0 ? "Never ordered" : undefined}
           href={orders > 0 ? `/crm/orders?customer=${customer.id}` : undefined}
         />
+        {/* The platform's own registration date when it sent one; failing
+            that, when we first saw them, said plainly rather than passed
+            off as the same thing. */}
         <StatTile
           icon={IconCalendarPlus}
-          label="Customer since"
-          value={
-            customer.registered_at
-              ? formatDateTime(customer.registered_at)
-              : "—"
-          }
+          label={customer.registered_at ? "Customer since" : "First seen"}
+          value={formatDateTime(customer.registered_at ?? customer.created_at)}
         />
-        <StatTile
-          icon={IconHome}
-          label="Location"
-          value={
-            formatLocation(
-              addresses.find((address) => address.default_shipping) ??
-                addresses[0],
-            ) ?? "—"
-          }
-        />
+        <StatTile icon={IconHome} label="Location" value={location ?? "—"} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
@@ -332,9 +358,44 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
           </CardHeader>
           <CardContent>
             {addresses.length === 0 ? (
-              <Typography variant="muted">
-                No addresses on file for this customer.
-              </Typography>
+              latestShipping ? (
+                // Not in the address book, but they shipped somewhere —
+                // labelled as coming from an order so nobody mistakes it
+                // for a saved address they can rely on.
+                <div className="flex flex-col gap-2 rounded-lg border border-border p-4">
+                  <Badge
+                    variant="outline"
+                    className={BADGE_TONE_STYLES.neutral}
+                  >
+                    From their latest order
+                  </Badge>
+                  <address className="text-sm leading-6 text-foreground not-italic">
+                    {[
+                      latestShipping.name,
+                      latestShipping.address1,
+                      latestShipping.address2,
+                      [
+                        latestShipping.city,
+                        latestShipping.province,
+                        latestShipping.zip,
+                      ]
+                        .filter(Boolean)
+                        .join(" "),
+                      latestShipping.country,
+                    ]
+                      .filter(Boolean)
+                      .map((line, index) => (
+                        <span key={`${line}-${index}`} className="block">
+                          {line}
+                        </span>
+                      ))}
+                  </address>
+                </div>
+              ) : (
+                <Typography variant="muted">
+                  No addresses on file for this customer.
+                </Typography>
+              )
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {addresses.map((address) => (

@@ -39,6 +39,10 @@ export function MediaCarousel({
 
   return (
     <Carousel setApi={setApi}>
+      {/* Each slide caps its own height and centres, so the carousel is as
+          tall as its tallest slide and never taller. Capping the container
+          instead left the viewport at one height while the slides kept
+          their natural one — the gap and the overflowing image. */}
       <CarouselContent className="ml-0 items-center">
         {mediaEntries.map((media, index) => (
           <CarouselItem key={index} className="pl-0">
@@ -49,11 +53,15 @@ export function MediaCarousel({
                 width={media.width ?? DEFAULT_MEDIA_SIZE}
                 height={media.height ?? DEFAULT_MEDIA_SIZE}
                 unoptimized
-                className="w-full h-auto object-cover"
+                className="mx-auto max-h-112 w-auto object-contain"
               />
             )}
             {media.media_type === "video" && (
-              <video controls src={media.url} className="w-full h-auto" />
+              <video
+                controls
+                src={media.url}
+                className="mx-auto max-h-112 w-auto"
+              />
             )}
           </CarouselItem>
         ))}

@@ -40,6 +40,7 @@ import {
   type RequiredLegalPhrase,
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { formikErrorsFromZod, applyServerFieldErrors } from "@/lib/form-errors";
 
 const validationSchema = z.object({
   no_hollow_apologies: z.boolean(),
@@ -163,12 +164,7 @@ export default function NeverSayRules() {
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
-      return Object.fromEntries(
-        result.error.issues.map((issue) => [
-          issue.path.join("."),
-          issue.message,
-        ]),
-      );
+      return formikErrorsFromZod(result.error.issues);
     },
     onSubmit: async (values) => {
       if (!storeCode) return;
@@ -192,6 +188,9 @@ export default function NeverSayRules() {
       );
       if (createNeverSayRules.fulfilled.match(result)) {
         formik.resetForm({ values: result.payload });
+      }
+      if (createNeverSayRules.rejected.match(result)) {
+        applyServerFieldErrors(formik, result.payload);
       }
     },
   });

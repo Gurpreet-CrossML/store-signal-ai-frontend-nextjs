@@ -16,6 +16,7 @@ import {
   createToneStyle,
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { formikErrorsFromZod, applyServerFieldErrors } from "@/lib/form-errors";
 import { type ToneStylePayload } from "@/db/chat";
 
 // Validation schema for the form using Zod
@@ -98,12 +99,7 @@ export default function BrandVoiceToneStyleEditor() {
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
-      return Object.fromEntries(
-        result.error.issues.map((issue) => [
-          issue.path.join("."),
-          issue.message,
-        ]),
-      );
+      return formikErrorsFromZod(result.error.issues);
     },
     // Handle form submission
     onSubmit: async (values) => {
@@ -118,14 +114,7 @@ export default function BrandVoiceToneStyleEditor() {
         formik.resetForm({ values: result.payload as ToneStylePayload });
       }
       if (createToneStyle.rejected.match(result)) {
-        const payload = result.payload as Record<
-          string,
-          string | Record<string, string>
-        > | null;
-        const errors = (payload?.data as Record<string, string>) || {};
-        formik.setErrors({
-          ...errors,
-        });
+        applyServerFieldErrors(formik, result.payload);
       }
     },
   });
