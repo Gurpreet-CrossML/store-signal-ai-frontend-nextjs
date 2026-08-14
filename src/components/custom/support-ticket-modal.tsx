@@ -170,9 +170,7 @@ export function CreateTicketDialog({
 
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0 space-y-1">
-              <p className="text-sm font-medium">
-                Generate description
-              </p>
+              <p className="text-sm font-medium">Generate description</p>
               <p className="text-sm text-muted-foreground">
                 Let AI help you draft a clear and accurate description based on
                 this conversation.
