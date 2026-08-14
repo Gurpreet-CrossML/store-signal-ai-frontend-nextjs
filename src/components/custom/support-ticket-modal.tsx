@@ -22,6 +22,10 @@ import {
 } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
+type CreatedTicket = {
+  id?: string | number;
+};
+
 export function CreateTicketDialog({
   threadId,
   storeCode,
@@ -41,7 +45,7 @@ export function CreateTicketDialog({
   sourceLabel?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onTicketCreated?: (ticket: unknown) => void;
+  onTicketCreated?: (ticket: CreatedTicket) => void;
 }) {
   const dispatch = useAppDispatch();
   const { GenerateTicketContentIsLoading } = useAppSelector(
@@ -71,7 +75,6 @@ export function CreateTicketDialog({
       resetForm();
     }
   };
-
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -185,15 +188,17 @@ export function CreateTicketDialog({
               disabled={GenerateTicketContentIsLoading || !sourceId}
             >
               <IconSparkles className="size-4" />
-              {GenerateTicketContentIsLoading
-                ? "Generating..."
-                : "Generate Description"}
+              {GenerateTicketContentIsLoading ? "Generating..." : "Generate"}
             </Button>
           </div>
 
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={CreateSupportTicketIsLoading}
+              >
                 Cancel
               </Button>
             </DialogClose>

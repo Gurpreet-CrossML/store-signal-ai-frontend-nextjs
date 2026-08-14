@@ -1477,9 +1477,12 @@ export default function Support() {
                       customerEmail={selectedThread?.customer?.email ?? ""}
                       open={createTicketOpen}
                       onOpenChange={setCreateTicketOpen}
-                      onTicketCreated={() => {
+                      onTicketCreated={(ticket) => {
+                        const ticketReference = ticket.id
+                          ? ` #${ticket.id}`
+                          : "";
                         setAgentMessage(
-                          "Your support ticket has been created. Our team will review it and follow up with you shortly.",
+                          `Your support ticket${ticketReference} has been created. Our team will review it and follow up with you shortly.`,
                         );
                       }}
                     />
