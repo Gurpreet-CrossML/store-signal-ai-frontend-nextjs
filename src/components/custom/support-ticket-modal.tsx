@@ -14,8 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { IconSparkles } from "@tabler/icons-react";
 import {
   CreateSupportTicket,
   GenerateTicketContent,
@@ -53,7 +53,6 @@ export function CreateTicketDialog({
   const [customerEmail, setCustomerEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
-  const [generateDescription, setGenerateDescription] = useState(false);
   const hasThreadCustomerEmail = Boolean(threadCustomerEmail);
   const ticketCustomerEmail = hasThreadCustomerEmail
     ? threadCustomerEmail
@@ -64,7 +63,6 @@ export function CreateTicketDialog({
     setCustomerEmail("");
     setSubject("");
     setDescription("");
-    setGenerateDescription(false);
   };
 
   const handleDialogOpenChange = (nextOpen: boolean) => {
@@ -104,9 +102,8 @@ export function CreateTicketDialog({
     }
   };
 
-  const handleGenerateDescription = async (checked: boolean) => {
-    setGenerateDescription(checked);
-    if (!checked || !sourceId || !storeCode) return;
+  const handleGenerateDescription = async () => {
+    if (!sourceId || !storeCode) return;
 
     try {
       const data = await dispatch(
@@ -119,9 +116,7 @@ export function CreateTicketDialog({
       ).unwrap();
       setSubject(data.subject || "");
       setDescription(data.description || "");
-    } catch {
-      setGenerateDescription(false);
-    }
+    } catch {}
   };
 
   return (
@@ -173,18 +168,28 @@ export function CreateTicketDialog({
             />
           </div>
 
-          <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
-            <Label htmlFor="generate-description" className="text-sm">
-              {GenerateTicketContentIsLoading
-                ? "Generating description..."
-                : "Generate description using AI"}
-            </Label>
-            <Switch
-              id="generate-description"
-              checked={generateDescription}
-              onCheckedChange={handleGenerateDescription}
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0 space-y-1">
+              <p className="text-sm font-medium">
+                Generate description
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Let AI help you draft a clear and accurate description based on
+                this conversation.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0 border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
+              onClick={handleGenerateDescription}
               disabled={GenerateTicketContentIsLoading || !sourceId}
-            />
+            >
+              <IconSparkles className="size-4" />
+              {GenerateTicketContentIsLoading
+                ? "Generating..."
+                : "Generate Description"}
+            </Button>
           </div>
 
           <DialogFooter>
