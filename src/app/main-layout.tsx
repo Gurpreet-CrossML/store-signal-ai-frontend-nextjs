@@ -9,7 +9,7 @@ import {
   sidebarMenus,
   SubSidebarMenuItem,
 } from "@/lib/sidebar-navs";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import {
   Empty,
   EmptyDescription,
@@ -107,10 +107,15 @@ export default function MainLayout({
       }
     >
       {!sidebarHidden && (
-        <AppSidebar
-          subSidebarItems={subSidebarItems}
-          onHide={() => setSidebarHidden(true)}
-        />
+        // The sidebar reads the query string to decide which sub-nav entry
+        // is active, and useSearchParams opts a route out of static
+        // rendering unless it sits under a boundary.
+        <Suspense fallback={null}>
+          <AppSidebar
+            subSidebarItems={subSidebarItems}
+            onHide={() => setSidebarHidden(true)}
+          />
+        </Suspense>
       )}
       <SidebarInset>
         {sidebarHidden && (

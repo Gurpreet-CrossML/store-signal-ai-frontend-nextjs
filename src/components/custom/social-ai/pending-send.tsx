@@ -2,7 +2,7 @@
 
 import { IconAlertTriangle } from "@tabler/icons-react";
 
-import { Spinner } from "@/components/ui/spinner";
+import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
 /**
@@ -27,8 +27,13 @@ export function createPendingSend(content: string): PendingSend {
 }
 
 /**
- * Status line under a pending bubble: a quiet "Sending…" while in flight,
- * and a destructive "Failed to send · Try again" if the API rejected it.
+ * Status line under a sent bubble.
+ *
+ * Nothing at all while it is in flight. Messenger and Instagram both draw
+ * an optimistic message exactly as though it had already sent, and only
+ * say something when that turns out to be wrong — dimming it and spinning
+ * a loader tells the agent their message might not have gone, which is
+ * usually a lie and always a distraction.
  */
 export function PendingSendStatus({
   status,
@@ -39,19 +44,7 @@ export function PendingSendStatus({
   onRetry: () => void;
   className?: string;
 }) {
-  if (status === "sending") {
-    return (
-      <p
-        className={cn(
-          "flex items-center gap-1.5 px-1 text-xs text-muted-foreground",
-          className,
-        )}
-      >
-        <Spinner className="size-3" />
-        Sending…
-      </p>
-    );
-  }
+  if (status === "sending") return null;
 
   return (
     <p
@@ -61,8 +54,7 @@ export function PendingSendStatus({
       )}
     >
       <IconAlertTriangle className="size-3.5 shrink-0" />
-      Failed to send
-      <span aria-hidden>·</span>
+      Couldn&apos;t send.
       <button
         type="button"
         onClick={onRetry}
@@ -71,5 +63,18 @@ export function PendingSendStatus({
         Try again
       </button>
     </p>
+  );
+}
+
+/**
+ * "Sent", under the newest outgoing message once the server has confirmed
+ * it. Only the newest carries it — a column of them down the thread is
+ * noise, and the only one anybody checks is the one they just sent.
+ */
+export function SentReceipt() {
+  return (
+    <Typography variant="caption" as="p" className="px-1 text-right">
+      Sent
+    </Typography>
   );
 }

@@ -11,24 +11,38 @@ import type {
   ThreadTicketData,
 } from "@/redux/api-slice/thread-slice";
 import {
-  IconBrowser,
-  IconDeviceDesktop,
   IconDeviceLaptop,
   IconLocationPin,
   IconNetwork,
   IconShoppingBag,
-  IconUser,
   IconPackage,
   IconChevronRight,
-  IconMail,
   IconTicket,
 } from "@tabler/icons-react";
 import { FulfillmentBadge } from "@/components/ui/status-badge";
 import { OrderDetails } from "@/components/custom/order-details";
-import { Badge } from "@/components/ui/badge";
-import { BADGE_TONE_STYLES, type BadgeTone } from "@/lib/badge-tones";
+import Link from "next/link";
+import { IconExternalLink, IconRefresh } from "@tabler/icons-react";
+
+import { AnimatePresence, motion } from "framer-motion";
+
+import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { LinkCustomerButton } from "@/components/custom/link-customer-dialog";
+import {
+  LIVE_TICKET_STATUSES,
+  SupportTicketCard,
+} from "@/components/custom/support-ticket-card";
+import {
+  ShowMoreToggle,
+  useCollapsibleList,
+} from "@/components/custom/collapsible-list";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatDate, formatPrice } from "@/lib/helpers";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 function CardLoadingState() {
@@ -72,7 +86,7 @@ export function CartDetailsCard({
       {loading ? (
         <CardLoadingState />
       ) : items.length === 0 ? (
-        <Typography variant="muted">Cart is empty.</Typography>
+        <Typography variant="muted">Nothing in the cart right now.</Typography>
       ) : (
         <div className="flex flex-col gap-2.5">
           {items.map((item: CartData, index: number) => (
@@ -140,85 +154,142 @@ function MetaRow({
   );
 }
 
-export function UserMetadataCard({
-  userMetadata,
-  customerData,
-  loading,
-}: {
-  userMetadata: UserMetadata | null;
-  customerData?: Customer | null;
-  loading?: boolean;
-}) {
+/** One figure in the summary card's strip. */
+function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
-    <section className="flex flex-col gap-3 border-b p-4 last:border-b-0">
-      <CardTitle className="flex items-center gap-2">
-        <IconUser className="size-4" />
-        Customer
-      </CardTitle>
-      {loading ? (
+    <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
+      <Typography variant="muted">{label}</Typography>
+      <Typography variant="small" as="p" className="truncate tabular-nums">
+        {value}
+      </Typography>
+    </div>
+  );
+}
+
+/**
+ * Who the agent is talking to, and what they are worth — the two things
+ * worth knowing before reading a word of the conversation.
+ *
+ * It leads the panel because it used to trail it: identity sat under the
+ * cart and the order history, so the answer to "who is this" was three
+ * scrolls below the question. Spend and order count are derived from the
+ * orders already loaded for the panel rather than fetched again.
+ */
+export function CustomerSummaryCard({
+  customerData,
+  orders,
+  userMetadata,
+  loading,
+  metadataLoading,
+  onLinkCustomer,
+}: {
+  customerData?: Customer | null;
+  orders?: OrderData[] | null;
+  /**
+   * Omit entirely where the concept does not apply. Help Desk tickets
+   * arrive by email, phone or social as well as from the widget, so there
+   * is no browsing session behind them to report — `null` means "loading
+   * or unknown", absent means "not a thing here".
+   */
+  userMetadata?: UserMetadata | null;
+  loading?: boolean;
+  metadataLoading?: boolean;
+  /**
+   * Offered when no customer is attached. Omit on screens where linking
+   * one is not possible.
+   */
+  onLinkCustomer?: () => void;
+}) {
+  const showSession = userMetadata !== undefined;
+  const name = customerData?.name?.trim() || "Guest";
+  const orderList = orders ?? [];
+  const totalSpent = orderList.reduce(
+    (sum, order) => sum + Number(order.total_price ?? 0),
+    0,
+  );
+  const currency = orderList[0]?.currency ?? "USD";
+
+  return (
+    <section className="flex flex-col gap-3 border-b p-4">
+      <div className="flex items-center gap-3">
+        <CustomerAvatar name={customerData?.name} size="size-10" />
+        <div className="min-w-0 flex-1">
+          <CardTitle className="truncate">{name}</CardTitle>
+          {customerData?.email ? (
+            <Typography variant="muted" className="truncate">
+              {customerData.email}
+            </Typography>
+          ) : null}
+        </div>
+      </div>
+
+      {/* One loader for the whole body. The stats and the session rows
+          arrive on separate requests, and letting each show its own
+          spinner put two of them in one card, one still turning while the
+          other had already resolved. */}
+      {loading || (showSession && metadataLoading) ? (
         <CardLoadingState />
       ) : (
-        <div className="flex flex-col gap-2.5">
-          <MetaRow
-            icon={<IconUser className="size-4" />}
-            label="Name"
-            value={customerData?.name}
-          />
-          <MetaRow
-            icon={<IconMail className="size-4" />}
-            label="Email"
-            value={customerData?.email}
-          />
-          <MetaRow
-            icon={<IconLocationPin className="size-4" />}
-            label="Location"
-            value={userMetadata?.geo_location}
-          />
-          <MetaRow
-            icon={<IconNetwork className="size-4" />}
-            label="IP Address"
-            value={userMetadata?.ip_address}
-          />
-          <MetaRow
-            icon={<IconDeviceLaptop className="size-4" />}
-            label="Device"
-            value={userMetadata?.device_type}
-          />
-          <MetaRow
-            icon={<IconBrowser className="size-4" />}
-            label="Browser"
-            value={userMetadata?.browser}
-          />
-          <MetaRow
-            icon={<IconDeviceDesktop className="size-4" />}
-            label="OS"
-            value={userMetadata?.os}
-          />
-        </div>
+        <>
+          {/* A 1px gap over a border-coloured ground: even separators
+              however the pair wraps. */}
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
+            <SummaryStat
+              label="Total spent"
+              value={formatPrice(totalSpent, currency)}
+            />
+            <SummaryStat label="Orders" value={String(orderList.length)} />
+          </div>
+
+          {/* A known customer has a record to open; a guest has one to
+              attach. Either way the slot holds the next useful action. */}
+          {customerData?.id ? (
+            <Button variant="outline" size="sm" className="w-full" asChild>
+              <Link href={`/crm/customers/${customerData.id}`}>
+                <IconExternalLink className="size-4" />
+                View in CRM
+              </Link>
+            </Button>
+          ) : onLinkCustomer ? (
+            <LinkCustomerButton onClick={onLinkCustomer} />
+          ) : null}
+
+          {/* Where they are browsing from, in the same card rather than a
+              section of its own at the far end of the panel — it is part
+              of who you are talking to, not a separate subject. Device,
+              browser and OS share a line; each is a word, and three rows
+              of one word is three rows of nothing. */}
+          {showSession ? (
+            <div className="flex flex-col gap-2.5 border-t border-border pt-3">
+              <MetaRow
+                icon={<IconLocationPin className="size-4" />}
+                label="Location"
+                value={userMetadata?.geo_location}
+              />
+              <MetaRow
+                icon={<IconNetwork className="size-4" />}
+                label="IP Address"
+                value={userMetadata?.ip_address}
+              />
+              <MetaRow
+                icon={<IconDeviceLaptop className="size-4" />}
+                label="Device"
+                value={[
+                  userMetadata?.device_type,
+                  userMetadata?.browser,
+                  userMetadata?.os,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              />
+            </div>
+          ) : null}
+        </>
       )}
     </section>
   );
 }
 
-/**
- * Build a readable multi-line shipping address, skipping any parts that
- * are missing rather than rendering "null" or empty lines.
- */
-const TICKET_STATUS_TONES: Record<string, BadgeTone> = {
-  open: "danger",
-  pending: "warning",
-  resolved: "success",
-  closed: "neutral",
-};
-
-/** Still needing attention — these lead the list. */
-const LIVE_TICKET_STATUSES = ["open", "pending"];
-
-/**
- * The customer's support tickets. Live ones (open, pending) come first
- * because they're what an agent has to act on; resolved and closed follow
- * for context.
- */
 export function SupportTicketsCard({
   tickets,
   loading,
@@ -234,6 +305,14 @@ export function SupportTicketsCard({
     const bLive = LIVE_TICKET_STATUSES.includes(b.status) ? 0 : 1;
     return aLive - bLive;
   });
+  // Collapsed after the sort, so the preview is the tickets still needing
+  // attention rather than whichever happened to come back first.
+  const {
+    visible: visibleTickets,
+    hiddenCount: hiddenTicketCount,
+    expanded: ticketsExpanded,
+    toggle: toggleTickets,
+  } = useCollapsibleList(sortedTickets);
 
   return (
     <section className="flex flex-col gap-3 border-b p-4">
@@ -245,70 +324,20 @@ export function SupportTicketsCard({
       {loading ? (
         <CardLoadingState />
       ) : !tickets.length ? (
-        <Typography variant="muted">No tickets raised yet.</Typography>
+        <Typography variant="muted">
+          No other tickets from this customer.
+        </Typography>
       ) : (
         <div className="flex flex-col gap-2">
-          {sortedTickets.map((ticket) => {
-            const body = (
-              <>
-                <div className="flex items-start justify-between gap-2">
-                  <Typography variant="small" as="p" className="truncate">
-                    {ticket.subject || "Untitled ticket"}
-                  </Typography>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "shrink-0 capitalize",
-                      BADGE_TONE_STYLES[
-                        TICKET_STATUS_TONES[ticket.status] ?? "neutral"
-                      ],
-                    )}
-                  >
-                    {ticket.status}
-                  </Badge>
-                </div>
-                {ticket.description && (
-                  <Typography variant="muted" className="mt-1 line-clamp-2">
-                    {ticket.description}
-                  </Typography>
-                )}
-                <div className="mt-1 flex items-center gap-2">
-                  <Typography variant="muted" as="span">
-                    #{ticket.id} · {formatDate(ticket.created_at)}
-                  </Typography>
-                  {ticket.priority === "high" ||
-                  ticket.priority === "urgent" ? (
-                    <Badge
-                      variant="outline"
-                      className={cn("capitalize", BADGE_TONE_STYLES.warning)}
-                    >
-                      {ticket.priority}
-                    </Badge>
-                  ) : null}
-                </div>
-              </>
-            );
-
-            // Only linked when the provider gave us somewhere to go.
-            return ticket.ticket_url ? (
-              <a
-                key={ticket.id}
-                href={ticket.ticket_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-xl border border-border/50 p-2.5 transition-colors hover:bg-muted/50"
-              >
-                {body}
-              </a>
-            ) : (
-              <div
-                key={ticket.id}
-                className="rounded-xl border border-border/50 p-2.5"
-              >
-                {body}
-              </div>
-            );
-          })}
+          {visibleTickets.map((ticket, index) => (
+            <SupportTicketCard key={ticket.id} ticket={ticket} index={index} />
+          ))}
+          <ShowMoreToggle
+            hiddenCount={hiddenTicketCount}
+            expanded={ticketsExpanded}
+            onToggle={toggleTickets}
+            noun="ticket"
+          />
         </div>
       )}
     </section>
@@ -330,7 +359,13 @@ export function OrdersCard({
   customerData?: Customer | null;
   isDisabled?: boolean;
 }) {
-  const orderList = orders;
+  const orderList = orders ?? [];
+  const {
+    visible: visibleOrders,
+    hiddenCount: hiddenOrderCount,
+    expanded: ordersExpanded,
+    toggle: toggleOrders,
+  } = useCollapsibleList(orderList);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const toggleOrder = (id: number) => {
@@ -344,35 +379,58 @@ export function OrdersCard({
           <IconPackage className="h-4 w-4" />
           Orders{!loading && orderList?.length ? ` (${orderList.length})` : ""}
         </CardTitle>
-        <Button
-          type="button"
-          size="xs"
-          onClick={handleOrdersSync}
-          disabled={
-            loading || orderSyncLoading || !customerData?.email || isDisabled
-          }
-        >
-          {orderSyncLoading ? "Syncing..." : "Sync"}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Sync orders"
+              onClick={handleOrdersSync}
+              disabled={
+                loading ||
+                orderSyncLoading ||
+                !customerData?.email ||
+                isDisabled
+              }
+            >
+              {orderSyncLoading ? (
+                <Spinner className="size-4" />
+              ) : (
+                <IconRefresh className="size-4" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {orderSyncLoading ? "Syncing…" : "Sync orders"}
+          </TooltipContent>
+        </Tooltip>
       </div>
       {loading ? (
         <CardLoadingState />
       ) : !orderList || orderList?.length === 0 ? (
         <Typography variant="muted">
           {!customerData?.email
-            ? "No customer email to match orders."
+            ? "Link a customer to see their order history."
             : "No orders yet."}
         </Typography>
       ) : (
         <div className="flex flex-col gap-2">
-          {orderList?.map((order) => {
+          {visibleOrders.map((order, index) => {
             const isExpanded = expandedId === order.id;
 
             return (
               // One box per order: the details continue inside this same
               // container rather than opening a second box beneath it.
-              <div
+              <motion.div
                 key={order.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.18,
+                  // Capped so a long history still settles quickly.
+                  delay: Math.min(index, 5) * 0.04,
+                }}
                 className={`overflow-hidden rounded-xl border transition ${
                   isExpanded ? "border-primary/40" : "border-border/50"
                 }`}
@@ -419,10 +477,31 @@ export function OrdersCard({
                   </div>
                 </button>
 
-                {isExpanded && <OrderDetails order={order} />}
-              </div>
+                {/* Height animates from 0 so the orders below slide down
+                    rather than jumping, and so collapsing reads as the
+                    same motion in reverse. */}
+                <AnimatePresence initial={false}>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.18, ease: "easeOut" }}
+                      className="overflow-hidden"
+                    >
+                      <OrderDetails order={order} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
             );
           })}
+          <ShowMoreToggle
+            hiddenCount={hiddenOrderCount}
+            expanded={ordersExpanded}
+            onToggle={toggleOrders}
+            noun="order"
+          />
         </div>
       )}
     </section>
