@@ -43,6 +43,7 @@ import {
   type PersonaIdentityData,
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { formikErrorsFromZod, applyServerFieldErrors } from "@/lib/form-errors";
 import { SELF_REFERENCE_OPTIONS } from "@/lib/config";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
@@ -99,12 +100,7 @@ export default function PersonaIdentity() {
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
-      return Object.fromEntries(
-        result.error.issues.map((issue) => [
-          issue.path.join("."),
-          issue.message,
-        ]),
-      );
+      return formikErrorsFromZod(result.error.issues);
     },
 
     // Handle form submission
@@ -132,14 +128,7 @@ export default function PersonaIdentity() {
       }
 
       if (createPersonaIdentity.rejected.match(result)) {
-        const payload = result.payload as Record<
-          string,
-          string | Record<string, string>
-        > | null;
-        const errors = (payload?.data as Record<string, string>) || {};
-        formik.setErrors({
-          ...errors,
-        });
+        applyServerFieldErrors(formik, result.payload);
       }
     },
   });

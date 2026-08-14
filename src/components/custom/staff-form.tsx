@@ -18,6 +18,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { formikErrorsFromZod, applyServerFieldErrors } from "@/lib/form-errors";
 import { CreateStaff } from "@/redux/api-slice/tenancy-slice";
 
 const validationSchema = z.object({
@@ -45,19 +46,19 @@ export default function StaffForm({
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
-      return Object.fromEntries(
-        result.error.issues.map((issue) => [
-          issue.path.join("."),
-          issue.message,
-        ]),
-      );
+      return formikErrorsFromZod(result.error.issues);
     },
     onSubmit: async (values) => {
       const result = await dispatch(CreateStaff(values));
       if (CreateStaff.fulfilled.match(result)) {
         onSaved();
         onOpenChange(false);
+        return;
       }
+      // Keeps the sheet open on "that email already has an account", with
+      // the message under the email field rather than in a toast that
+      // disappears while they are still reading the form.
+      applyServerFieldErrors(formik, result.payload);
     },
   });
 
