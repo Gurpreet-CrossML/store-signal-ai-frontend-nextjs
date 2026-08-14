@@ -7,48 +7,79 @@ import { toPaginatedList } from "@/lib/helpers";
 import type { OrderData } from "@/redux/api-slice/thread-slice";
 import { axiosInstance } from "../axios-config";
 
+/** The shopper as the order endpoints nest them — an identity, not a full record. */
+export type OrderCustomerSummary = {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+};
+
 /**
- * A store order as CRM reads it.
+ * One row of the orders list.
  *
- * Built on OrderData — the shape the thread panels already render — rather
- * than restated, so the shared OrderDetails component works here unchanged
- * and the two can't drift. The extra fields are the ones a support agent
- * asks for that a thread never needed: what is still owed, what came back,
- * where the parcel is.
+ * Deliberately narrower than the detail response: the list serializer
+ * returns identity, status, money and tracking, and leaves out line items,
+ * addresses, the price breakdown and merchant notes. Typing the list as
+ * the full order would let a column read a field that is never sent and
+ * render a confident zero.
  */
-export type OrderRecord = OrderData & {
+export type OrderListRow = {
+  id: number;
+  /** Nested object in practice; a bare id is tolerated. Read via `orderCustomer`. */
+  customer: OrderCustomerSummary | number | null;
+  order_id: string;
+  order_number: string;
   /** Display label from the platform, e.g. "#1001". */
   name: string;
-  confirmation_number: string | null;
   customer_email: string;
   customer_phone: string;
-  customer: number;
-  confirmed: boolean;
-  cancelled_at: string | null;
-  cancel_reason: string;
+  /** Arrives capitalised ("Paid"); the badges normalise it. */
+  financial_status: string | null;
+  /** Null means nothing has shipped — the platform has no "unfulfilled" string. */
+  fulfillment_status: string | null;
+  currency: string;
+  total_price: string | number;
   total_paid: string | number;
-  total_outstanding: string | number;
   total_refunded: string | number;
-  total_price_usd: string | number | null;
-  discount_codes: { code: string; amount: string; type?: string }[] | null;
-  payment_details: Record<string, unknown> | null;
-  billing_address: OrderData["shipping_address"] | null;
-  tracking_company: string | null;
   tracking_number: string | null;
-  tracking_url: string | null;
-  order_status_url: string;
-  tags: string;
-  note: string;
-  processed_at: string | null;
-  closed_at: string | null;
-  updated_at: string | null;
+  cancelled_at: string | null;
+  created_at: string;
 };
+
+/**
+ * A whole order, as the detail endpoint returns it.
+ *
+ * Built on OrderData — the shape the thread panels already render — so the
+ * shared OrderDetails component works here unchanged and the two can't
+ * drift. The rest are the fields a support agent asks for that a thread
+ * never needed: what is still owed, what came back, where the parcel is.
+ */
+export type OrderRecord = OrderListRow &
+  OrderData & {
+    confirmation_number: string | null;
+    confirmed: boolean;
+    cancel_reason: string;
+    total_outstanding: string | number;
+    total_price_usd: string | number | null;
+    discount_codes: { code: string; amount: string; type?: string }[] | null;
+    payment_details: Record<string, unknown> | null;
+    billing_address: OrderData["shipping_address"] | null;
+    tracking_company: string | null;
+    tracking_url: string | null;
+    order_status_url: string;
+    tags: string;
+    note: string;
+    processed_at: string | null;
+    closed_at: string | null;
+    updated_at: string | null;
+  };
 
 export type OrderListResponse = {
   count: number;
   next: string | null;
   previous: string | null;
-  results: OrderRecord[];
+  results: OrderListRow[];
 };
 
 /**
@@ -92,6 +123,28 @@ export type OrderOrdering =
   | "total_price"
   | "order_number"
   | "-order_number";
+
+/**
+ * The shopper on an order, from whichever shape the serializer used.
+ *
+ * The email and phone captured at checkout win over the account's: the
+ * model notes they can differ, and what the customer typed at the till is
+ * what an agent should reply to.
+ */
+export function orderCustomer(order: OrderListRow) {
+  const nested = typeof order.customer === "object" ? order.customer : null;
+
+  return {
+    id:
+      typeof order.customer === "number"
+        ? order.customer
+        : (nested?.id ?? null),
+    email: order.customer_email || nested?.email || "",
+    // Only the order carries a phone; the nested customer summary is
+    // identity only.
+    phone: order.customer_phone || "",
+  };
+}
 
 /** Drop empty values so an untouched filter never reaches the query string. */
 function toQueryParams(
@@ -145,7 +198,9 @@ export const FetchOrders = createAsyncThunk(
       );
       // Accepts the payload wrapped in `data` or returned bare, so a
       // change on the backend shows an empty table rather than crashing.
-      return toPaginatedList<OrderRecord>(response.data?.data ?? response.data);
+      return toPaginatedList<OrderListRow>(
+        response.data?.data ?? response.data,
+      );
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;

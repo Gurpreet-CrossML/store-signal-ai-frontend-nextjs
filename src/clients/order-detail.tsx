@@ -36,7 +36,10 @@ import { FulfillmentBadge, StatusBadge } from "@/components/ui/status-badge";
 import { Typography } from "@/components/ui/typography";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import { formatDateTime, formatPrice } from "@/lib/helpers";
-import { FetchOrderDetails } from "@/redux/api-slice/order-slice";
+import {
+  FetchOrderDetails,
+  orderCustomer,
+} from "@/redux/api-slice/order-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 /** One headline number in the money strip. */
@@ -116,6 +119,7 @@ export default function OrderDetail({ orderId }: { orderId: number }) {
     );
   }
 
+  const customer = orderCustomer(order);
   const outstanding = Number(order.total_outstanding ?? 0);
   const refunded = Number(order.total_refunded ?? 0);
   const tags = order.tags
@@ -217,26 +221,41 @@ export default function OrderDetail({ orderId }: { orderId: number }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
-              {order.customer_email ? (
-                <Link
-                  href={`/crm/customers/${order.customer}`}
-                  className="truncate text-sm text-primary hover:underline"
-                >
-                  {order.customer_email}
-                </Link>
+              {/* Both links need the account's row id. An order can carry a
+                  checkout email with no linked customer, so the contact
+                  details show either way and only the links are gated. */}
+              {customer.email ? (
+                customer.id ? (
+                  <Link
+                    href={`/crm/customers/${customer.id}`}
+                    className="truncate text-sm text-primary hover:underline"
+                  >
+                    {customer.email}
+                  </Link>
+                ) : (
+                  <Typography
+                    variant="small"
+                    as="p"
+                    className="truncate font-normal"
+                  >
+                    {customer.email}
+                  </Typography>
+                )
               ) : (
                 <Typography variant="muted">No email on this order.</Typography>
               )}
-              {order.customer_phone ? (
+              {customer.phone ? (
                 <Typography variant="muted" className="font-mono">
-                  {order.customer_phone}
+                  {customer.phone}
                 </Typography>
               ) : null}
-              <Button variant="outline" size="sm" className="mt-1" asChild>
-                <Link href={`/crm/orders?customer=${order.customer}`}>
-                  Their other orders
-                </Link>
-              </Button>
+              {customer.id ? (
+                <Button variant="outline" size="sm" className="mt-1" asChild>
+                  <Link href={`/crm/orders?customer=${customer.id}`}>
+                    Their other orders
+                  </Link>
+                </Button>
+              ) : null}
             </CardContent>
           </Card>
 
