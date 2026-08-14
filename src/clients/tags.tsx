@@ -3,7 +3,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { IconPlus } from "@tabler/icons-react";
 import { toast } from "sonner";
-import { Formik, Form, Field, type FieldProps } from "formik";
+import {
+  Formik,
+  Form,
+  Field,
+  type FieldProps,
+  type FormikHelpers,
+} from "formik";
 import z from "zod";
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import { PageHeading } from "@/components/custom/page-heading";
@@ -36,6 +42,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { applyServerFieldErrors } from "@/lib/form-errors";
 import {
   FetchSupportTicketTags,
   TicketTagDelete,
@@ -210,8 +217,9 @@ export default function Tags() {
 
   const handleSubmitTag = async (
     values: TagFormValues,
-    { setSubmitting }: { setSubmitting: (v: boolean) => void },
+    helpers: FormikHelpers<TagFormValues>,
   ) => {
+    const { setSubmitting } = helpers;
     if (!storeCode) return;
 
     try {
@@ -259,8 +267,10 @@ export default function Tags() {
 
       setDialogOpen(false);
       setEditingTag(null);
-    } catch {
-      //
+    } catch (error) {
+      // unwrap() throws the rejected payload, which is where a duplicate
+      // name or a bad colour comes back named.
+      applyServerFieldErrors(helpers, error);
     } finally {
       setSubmitting(false);
     }

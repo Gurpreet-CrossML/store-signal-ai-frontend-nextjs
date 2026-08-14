@@ -13,7 +13,6 @@ import type {
   Customer,
   OrderData,
   ThreadTicketData,
-  UserMetadata,
 } from "@/redux/api-slice/thread-slice";
 
 /**
@@ -38,11 +37,8 @@ export function CustomerDetailsPanel({
   onOrdersSync,
   orderSyncLoading,
   ordersDisabled,
-  userMetadata,
-  metadataLoading,
   tickets,
   cart,
-  onLinkCustomer,
 }: {
   /** One line under the heading, naming what this pane is about. */
   description: string;
@@ -52,14 +48,10 @@ export function CustomerDetailsPanel({
   onOrdersSync: () => void;
   orderSyncLoading?: boolean;
   ordersDisabled?: boolean;
-  userMetadata?: UserMetadata | null;
-  metadataLoading?: boolean;
   /** Omit entirely on screens with no ticket history to show. */
   tickets?: { data: ThreadTicketData[]; loading?: boolean };
   /** Omit entirely on screens with no live cart. */
   cart?: { data: CartDataResponse | null; loading?: boolean };
-  /** Offered when the record has no customer attached. */
-  onLinkCustomer?: () => void;
 }) {
   return (
     <aside className="hidden min-h-0 w-95 shrink-0 flex-col border-l xl:flex">
@@ -69,14 +61,7 @@ export function CustomerDetailsPanel({
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <CustomerSummaryCard
-          customerData={customerData}
-          orders={orders}
-          loading={ordersLoading}
-          userMetadata={userMetadata}
-          metadataLoading={metadataLoading}
-          onLinkCustomer={onLinkCustomer}
-        />
+        <CustomerSummaryCard orders={orders} loading={ordersLoading} />
         <OrdersCard
           orders={orders}
           loading={ordersLoading}

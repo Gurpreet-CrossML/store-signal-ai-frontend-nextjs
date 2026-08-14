@@ -9,6 +9,7 @@ import {
   type IntegrationAttribute,
 } from "@/redux/api-slice/integrations-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { applyServerFieldErrors } from "@/lib/form-errors";
 import { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
@@ -121,7 +122,12 @@ export function IntegrationConnectionModal({
         // Refresh the connected list so the card flips to "active".
         dispatch(FetchStoreIntegrations(storeCode));
         setOpen(false);
+        return;
       }
+      // Credentials are only ever wrong according to the server, so its
+      // verdict has to land on the field it rejected — the dialog stays
+      // open with the message under that input.
+      applyServerFieldErrors(formik, result.payload);
     },
   });
 
