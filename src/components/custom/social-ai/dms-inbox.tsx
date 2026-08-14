@@ -41,6 +41,7 @@ import {
   IconPaperclip,
   IconPlus,
   IconSearch,
+  IconTicket,
   IconX,
 } from "@tabler/icons-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
@@ -48,6 +49,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { formatRelativeTime } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { CreateTicketDialog } from "@/components/custom/support-ticket-modal";
 import {
   ConnectedAccount,
   SocialConversationUser,
@@ -477,6 +479,7 @@ export default function DmsInbox({
     null,
   );
   const [pendingMessages, setPendingMessages] = useState<PendingDm[]>([]);
+  const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [conversationsPage, setConversationsPage] = useState(1);
   // Also loading before the first request resolves: the flag starts false,
   // so keying only on it flashes an empty switcher on the first paint.
@@ -1161,7 +1164,7 @@ export default function DmsInbox({
           <SidebarInset className="min-h-0 overflow-hidden">
             {activeConversation ? (
               <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-                <header className="flex h-16 shrink-0 items-center border-b bg-background px-4">
+                <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b bg-background px-4">
                   <div className="flex min-w-0 items-center gap-2.5">
                     <CustomerAvatar
                       name={
@@ -1179,6 +1182,25 @@ export default function DmsInbox({
                       )}
                     </div>
                   </div>
+                  <Button
+                    type="button"
+                    onClick={() => setCreateTicketOpen(true)}
+                  >
+                    <IconTicket className="size-4" />
+                    Create Ticket
+                  </Button>
+                  {activeConversationId ? (
+                    <CreateTicketDialog
+                      key={`${channelType}-${activeConversationId}`}
+                      threadId=""
+                      storeCode={storeCode}
+                      channel={channelType}
+                      socialId={String(activeConversationId)}
+                      sourceLabel="Social User ID"
+                      open={createTicketOpen}
+                      onOpenChange={setCreateTicketOpen}
+                    />
+                  ) : null}
                 </header>
 
                 <div className="relative min-h-0 flex-1">

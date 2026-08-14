@@ -26,13 +26,19 @@ export function CreateTicketDialog({
   threadId,
   storeCode,
   customerEmail: threadCustomerEmail = "",
+  channel = "web",
+  socialId = "",
+  sourceLabel = "Thread ID",
   open,
   onOpenChange,
   onTicketCreated,
 }: {
-  threadId: string;
+  threadId?: string;
   storeCode: string;
   customerEmail?: string;
+  channel?: string;
+  socialId?: string;
+  sourceLabel?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onTicketCreated?: (ticket: unknown) => void;
@@ -52,6 +58,7 @@ export function CreateTicketDialog({
   const ticketCustomerEmail = hasThreadCustomerEmail
     ? threadCustomerEmail
     : customerEmail;
+  const sourceId = threadId || socialId;
 
   const resetForm = () => {
     setCustomerEmail("");
@@ -69,9 +76,11 @@ export function CreateTicketDialog({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!threadId || !storeCode) return;
+    if (!sourceId || !storeCode) return;
     const payload = {
-      thread: threadId,
+      channel,
+      thread_id: threadId ?? "",
+      social_id: socialId,
       customer_email: ticketCustomerEmail,
       subject,
       description,
@@ -113,13 +122,13 @@ export function CreateTicketDialog({
           <DialogHeader>
             <DialogTitle>Create Support Ticket</DialogTitle>
             <DialogDescription>
-              Add the details needed to create a ticket for this thread.
+              Add the details needed to create a ticket for this conversation.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2">
-            <Label htmlFor="ticket-thread-id">Thread ID</Label>
-            <Input id="ticket-thread-id" value={threadId} disabled />
+            <Label htmlFor="ticket-source-id">{sourceLabel}</Label>
+            <Input id="ticket-source-id" value={sourceId} disabled />
           </div>
 
           <div className="space-y-2">
@@ -165,7 +174,7 @@ export function CreateTicketDialog({
               id="generate-description"
               checked={generateDescription}
               onCheckedChange={handleGenerateDescription}
-              disabled={GenerateTicketContentIsLoading}
+              disabled={GenerateTicketContentIsLoading || !threadId}
             />
           </div>
 

@@ -240,7 +240,9 @@ export type ThreadTicketData = {
 };
 
 export type CreateSupportTicket = {
-  thread: string;
+  channel: string;
+  thread_id: string;
+  social_id: string;
   customer_email: string;
   subject: string;
   description: string;
@@ -679,7 +681,7 @@ export const CreateSupportTicket = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.post(
-        `${ENDPOINTS.createTicket(payload.thread)}?store_code=${store_code}`,
+        `${ENDPOINTS.createTicket()}?store_code=${store_code}`,
         payload,
       );
       const data = response.data.data;
