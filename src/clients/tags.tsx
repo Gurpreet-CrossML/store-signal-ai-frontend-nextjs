@@ -178,27 +178,21 @@ export default function Tags() {
 
     setIsDeleting(true);
     try {
-      const deletedTag = await dispatch(
+      await dispatch(
         TicketTagDelete({ storeCode, tagId: tagPendingDelete.id }),
       ).unwrap();
 
-      if (deletedTag?.id === tagPendingDelete.id) {
-        // if we deleted the last row on a page beyond the first, step back a page
-        const isLastRowOnPage = tags.length === 1;
-        if (isLastRowOnPage && page > 1) {
-          setPage((p) => p - 1);
-        } else {
-          refetchCurrentPage();
-        }
-
-        toast.success("Tag removed", {
-          description: "The tag has been removed successfully.",
-        });
+      // if we deleted the last row on a page beyond the first, step back a page
+      const isLastRowOnPage = tags.length === 1;
+      if (isLastRowOnPage && page > 1) {
+        setPage((p) => p - 1);
       } else {
-        toast.error("Couldn't remove tag", {
-          description: "The tag could not be removed. Please try again.",
-        });
+        refetchCurrentPage();
       }
+
+      toast.success("Tag removed", {
+        description: "The tag has been removed successfully.",
+      });
     } catch {
       //
     } finally {

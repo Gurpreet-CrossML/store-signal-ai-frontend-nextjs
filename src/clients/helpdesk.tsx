@@ -40,6 +40,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge, badgeVariants } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
@@ -138,6 +146,9 @@ const CKEditorTextArea = dynamic(
     ssr: false,
   },
 );
+
+// Keep this in sync with the page size sent to the support tickets API.
+const MAX_TICKETS_PER_PAGE = 20;
 
 // Max tags to show in ticket row for `TicketListPanel`
 const MAX_VISIBLE_TKT_ROW_TAGS = 2;
@@ -644,7 +655,7 @@ function TicketListPanel({
         className="min-h-0 flex-1 overflow-y-auto px-2 py-1"
         onScroll={handleScroll}
       >
-        {isLoading && rows?.length === 0 ? (
+        {isLoading && !isLoadingMore ? (
           <LoadingState label="Loading tickets…" />
         ) : !rows || rows?.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
@@ -689,7 +700,9 @@ function ConversationPanel({
   onLoadMoreTags,
   onToggleTagPicker,
   onAddTag,
+  isTagAssigning,
   onRemoveTag,
+  isTagRemoving,
   availableStaff,
   onAssignStaff,
   onMessageImprove,
@@ -721,7 +734,9 @@ function ConversationPanel({
   onLoadMoreTags: () => void;
   onToggleTagPicker: () => void;
   onAddTag: (tagId: number) => void;
+  isTagAssigning: boolean;
   onRemoveTag: (tagId: number) => void;
+  isTagRemoving: boolean;
   availableStaff: StaffMember[];
   onAssignStaff: (staffId: number | null) => void;
   onMessageImprove: (action: string) => void;
@@ -740,10 +755,26 @@ function ConversationPanel({
 }) {
   const [tagSearch, setTagSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const tagPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
   }, [ticket.id, messages.length]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        isTagPickerOpen &&
+        tagPickerRef.current &&
+        !tagPickerRef.current.contains(event.target as Node)
+      ) {
+        onToggleTagPicker();
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isTagPickerOpen, onToggleTagPicker]);
 
   const filteredTags = availableTags.filter((tag) =>
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
@@ -981,202 +1012,194 @@ function ConversationPanel({
             </span>
           </div>
 
-          {/* Facts ride the subject line rather than claiming one of their
-              own, and say what each date is — two bare timestamps side by
-              side told you nothing. */}
-          <div className="hidden shrink-0 items-center gap-4 lg:flex">
-            {facts.map((fact) => (
-              <TicketFact key={fact.label} {...fact} />
-            ))}
+          <div className="flex items-center justify-between gap-3">
+            <Label className="text-sm text-slate-500">Priority</Label>
+
+            <Select
+              value={ticket.priority}
+              onValueChange={onTicketPriorityUpdate}
+              disabled={isClosed}
+            >
+              <SelectTrigger className="h-8 w-40">
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="urgent">Urgent</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Status and priority are set on the badges that report them,
-              rather than in a menu behind a ⋮ that showed the same two
-              values a second time. */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label="Change status"
-              className={cn(
-                badgeVariants({ variant: "outline" }),
-                "cursor-pointer capitalize",
-                BADGE_TONE_STYLES[STATUS_TONE[ticket.status]],
-              )}
-            >
-              {capitalizeText(ticket.status)}
-              <IconChevronDown />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel>Status</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {queues.map((queue) => (
-                <DropdownMenuItem
-                  key={queue.key}
-                  onClick={() =>
-                    queue.key !== ticket.status &&
-                    onTicketStatusUpdate(queue.key)
-                  }
-                  className={cn(queue.key === ticket.status && "font-medium")}
-                >
-                  {queue.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label="Change priority"
-              disabled={isClosed}
-              className={cn(
-                badgeVariants({ variant: "outline" }),
-                "cursor-pointer capitalize disabled:cursor-default disabled:opacity-60",
-                BADGE_TONE_STYLES[PRIORITY_TONE[ticket.priority]],
-              )}
-            >
-              {capitalizeText(ticket.priority)}
-              {!isClosed ? <IconChevronDown /> : null}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel>Priority</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {priorityOptions.map((option) => (
-                <DropdownMenuItem
-                  key={option.value}
-                  onClick={() =>
-                    option.value !== ticket.priority &&
-                    onTicketPriorityUpdate(option.value)
-                  }
-                  className={cn(
-                    option.value === ticket.priority && "font-medium",
-                  )}
-                >
-                  {option.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {!ticket.internal_assignee && ticket.status === "open" ? (
-            <Badge variant="outline" className={BADGE_TONE_STYLES.accent}>
-              Unassigned
+        <div className="mt-3 flex flex-wrap gap-2">
+          {!ticket.internal_assignee && ticket.status === "open" && (
+            <Badge className="border-indigo-200 bg-indigo-50 text-indigo-700">
+              Open - Unassigned
             </Badge>
-          ) : null}
-
-          {visibleTags?.map((tag) => {
-            const tagId = tag.id;
-            return (
-              <TagBadge
-                key={tagId}
-                tag={tag}
-                onRemove={
-                  tagId && !isClosed ? () => onRemoveTag(tagId) : undefined
-                }
-              />
-            );
-          })}
-          {hiddenTags?.length > 0 ? (
+          )}
+          <Badge
+            variant="outline"
+            className={cn(
+              BADGE_TONE_STYLES[PRIORITY_TONE[ticket.priority]],
+              "capitalize",
+            )}
+          >
+            {ticket?.priority?.charAt(0).toUpperCase() +
+              ticket?.priority?.slice(1)}
+          </Badge>
+          {visibleTags?.map((tag) => (
+            <TagBadge
+              key={tag.id}
+              tag={tag}
+              onRemove={
+                tag.id && !isClosed && !isTagRemoving
+                  ? () => onRemoveTag(tag.id!)
+                  : undefined
+              }
+            />
+          ))}
+          {hiddenTags?.length > 0 && (
             <HiddenTagsBadge
               tags={hiddenTags}
               label={`+${hiddenTags.length} more`}
-              onRemoveTag={isClosed ? undefined : onRemoveTag}
+              onRemoveTag={
+                !isClosed && !isTagRemoving ? onRemoveTag : undefined
+              }
             />
-          ) : null}
-
-          <Popover
-            open={isTagPickerOpen}
-            onOpenChange={() => onToggleTagPicker()}
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    disabled={isClosed}
-                    aria-label="Add tag"
+          )}
+          <div className="relative flex" ref={tagPickerRef}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="inline-flex h-5 items-center gap-1 rounded-md border px-2 text-[11px] font-semibold bg-white text-slate-700 hover:bg-slate-50"
+              onClick={onToggleTagPicker}
+              disabled={isClosed}
+            >
+              <IconPlus /> Tag
+            </Button>
+            {isTagPickerOpen ? (
+              <div className="absolute right-0 z-10 mt-2 w-[260px] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-200/20">
+                <div className="mb-2 flex items-center justify-between gap-3 px-3 py-2">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      Choose tag
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Add a label to the current ticket.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                    onClick={onToggleTagPicker}
                   >
-                    <IconPlus className="size-4" />
-                  </Button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent>Add tag</TooltipContent>
-            </Tooltip>
-            <PopoverContent align="start" className="w-65 p-0">
-              <div className="border-b px-3 py-2.5">
-                <CardTitle>Add tag</CardTitle>
-                <Typography variant="muted">
-                  Label this ticket so it is easy to find.
-                </Typography>
-              </div>
-              <div className="p-2">
+                    <IconX size={16} />
+                  </button>
+                </div>
+                <div className="border-t border-slate-200" />
+                <div className="border-t border-slate-200" />
+                <div className="p-2">
+                  <div className="relative">
+                    <IconSearch
+                      size={16}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                    <Input
+                      type="text"
+                      placeholder="Search tags..."
+                      value={tagSearch}
+                      onChange={(e) => setTagSearch(e.target.value)}
+                      disabled={isTagAssigning}
+                      className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-primary"
+                    />
+                  </div>
+                </div>
                 <div className="relative">
-                  <IconSearch className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search tags..."
-                    aria-label="Search tags"
-                    value={tagSearch}
-                    onChange={(event) => setTagSearch(event.target.value)}
-                    className="h-9 pl-9"
-                  />
-                </div>
-              </div>
-              {isTagPickerLoading && availableTags.length === 0 ? (
-                <LoadingState label="Loading tags…" className="py-6" />
-              ) : filteredTags.length === 0 ? (
-                <div className="px-3 pb-4 text-center">
-                  <Typography variant="muted">
-                    {availableTags.length === 0
-                      ? "No tags available."
-                      : "No matching tags."}
-                  </Typography>
-                </div>
-              ) : (
-                <div className="max-h-56 space-y-1 overflow-y-auto p-2 pt-0">
-                  {filteredTags.map((tag) => {
-                    const alreadyAdded = ticket.tags.some(
-                      (existingTag) => existingTag.id === tag.id,
-                    );
-                    return (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        className={cn(
-                          "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors",
-                          alreadyAdded
-                            ? "text-muted-foreground line-through"
-                            : "text-foreground hover:bg-muted",
-                        )}
-                        onClick={() =>
-                          !alreadyAdded && tag.id && onAddTag(tag.id)
+                  {isTagPickerLoading && availableTags.length === 0 ? (
+                    <div className="flex min-h-[96px] items-center justify-center gap-2 px-3 py-4 text-sm text-slate-500">
+                      <Spinner className="size-4" />
+                      Loading tags...
+                    </div>
+                  ) : availableTags.length === 0 ? (
+                    <div className="px-3 py-4 text-sm text-slate-500">
+                      No tags available.
+                    </div>
+                  ) : (
+                    <div
+                      className="max-h-56 space-y-2 overflow-y-auto p-2"
+                      onScroll={(event) => {
+                        const target = event.currentTarget;
+                        if (
+                          hasMoreTags &&
+                          !tagSearch &&
+                          !isTagPickerLoading &&
+                          target.scrollHeight - target.scrollTop <=
+                            target.clientHeight + 40
+                        ) {
+                          onLoadMoreTags();
                         }
-                        disabled={alreadyAdded}
-                      >
-                        <span className="truncate">{tag.name}</span>
-                        <span
-                          className="size-2.5 shrink-0 rounded-full"
-                          style={{ backgroundColor: tag.color }}
-                        />
-                      </button>
-                    );
-                  })}
-                  {hasMoreTags && !tagSearch ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={onLoadMoreTags}
-                      disabled={isTagPickerLoading}
+                      }}
                     >
-                      {isTagPickerLoading ? "Loading..." : "Load more"}
-                    </Button>
+                      {filteredTags.length === 0 ? (
+                        <div className="py-6 text-center text-sm text-slate-500">
+                          No matching tags found.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {filteredTags.map((tag) => {
+                            const alreadyAdded = ticket.tags.some(
+                              (existingTag) => existingTag.id === tag.id,
+                            );
+                            return (
+                              <button
+                                key={tag.id}
+                                type="button"
+                                className={cn(
+                                  "flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-left text-sm transition",
+                                  alreadyAdded
+                                    ? "border-slate-200 bg-slate-50 text-slate-500 line-through opacity-80"
+                                    : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50",
+                                )}
+                                onClick={() =>
+                                  !alreadyAdded && tag.id && onAddTag(tag.id)
+                                }
+                                disabled={alreadyAdded}
+                              >
+                                <div className="flex min-w-0 items-center gap-2">
+                                  <span className="truncate text-xs">
+                                    {tag.name}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="h-2.5 w-2.5 rounded-full"
+                                    style={{ backgroundColor: tag.color }}
+                                  />
+                                </div>
+                              </button>
+                            );
+                          })}
+                          {hasMoreTags && !tagSearch && isTagPickerLoading ? (
+                            <div className="flex items-center justify-center gap-2 py-2 text-sm text-slate-500">
+                              <Spinner className="size-4" />
+                              Loading more tags...
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {isTagAssigning ? (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-[1px]">
+                      <Spinner />
+                    </div>
                   ) : null}
                 </div>
-              )}
-            </PopoverContent>
-          </Popover>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -1531,6 +1554,10 @@ export default function HelpDesk() {
   const searchParams = useSearchParams();
   const activeFilter = searchParams?.get("filter") ?? "";
 
+  return <HelpDeskContent key={activeFilter} activeFilter={activeFilter} />;
+}
+
+function HelpDeskContent({ activeFilter }: { activeFilter: string }) {
   const dispatch = useAppDispatch();
   const { data: session } = useSession();
 
@@ -1552,6 +1579,12 @@ export default function HelpDesk() {
     useAppSelector(
       (state) => state.GetSupportTicketsReducer.FetchSupportTicketTagsState,
     );
+  const { SupportTicketTagRemoveIsLoading } = useAppSelector(
+    (state) => state.GetSupportTicketsReducer.SupportTicketTagRemoveState,
+  );
+  const { SupportTicketTagAssignIsLoading } = useAppSelector(
+    (state) => state.GetSupportTicketsReducer.SupportTicketTagAssignState,
+  );
   const { SupportMessageImproveIsLoading } = useAppSelector(
     (state) => state.GetSupportTicketsReducer.SupportMessageImproveState,
   );
@@ -1974,7 +2007,6 @@ export default function HelpDesk() {
         ? { priority: appliedFilters.priorities }
         : {}),
     };
-
     if (activeFilter === "unassigned") {
       filters.is_assigned = false;
     }
@@ -1998,7 +2030,7 @@ export default function HelpDesk() {
     const fetchArgs = {
       store_code: storeCode,
       page,
-      limit: 20,
+      limit: MAX_TICKETS_PER_PAGE,
       filters,
     };
 
@@ -2237,8 +2269,6 @@ export default function HelpDesk() {
             tags: [...current.tags, assignedTag],
           };
         });
-
-        setShowTagPicker(false);
 
         toast.success(`Tag assigned: ${assignedTag.name}`);
       } else {
@@ -2812,7 +2842,12 @@ export default function HelpDesk() {
           hasMore={Boolean(FetchSupportTicketsListData?.next)}
           onLoadMore={() => {
             if (Boolean(FetchSupportTicketsListData?.next)) {
-              setPage((current) => current + 1);
+              const totalPages = Math.ceil(
+                FetchSupportTicketsListData.count / MAX_TICKETS_PER_PAGE,
+              );
+              setPage((current) =>
+                current < totalPages ? current + 1 : current,
+              );
             }
           }}
           searchValue={searchValue}
@@ -2871,7 +2906,9 @@ export default function HelpDesk() {
             }}
             onToggleTagPicker={handleToggleTagPicker}
             onAddTag={handleAddTag}
+            isTagAssigning={SupportTicketTagAssignIsLoading}
             onRemoveTag={handleRemoveTag}
+            isTagRemoving={SupportTicketTagRemoveIsLoading}
             availableStaff={staff}
             onAssignStaff={handleStaffAssign}
             onMessageImprove={handleMessageImprove}
