@@ -9,6 +9,11 @@ import {
   useSyncExternalStore,
   type CSSProperties,
 } from "react";
+import { AnimatePresence } from "framer-motion";
+
+import { ConversationRow } from "@/components/custom/conversation-row";
+import { MessageAppear } from "@/components/custom/message-appear";
+import { SearchInput } from "@/components/custom/search-input";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { LoadingState } from "@/components/custom/loading-state";
 import { Button } from "@/components/ui/button";
@@ -24,7 +29,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
-  SidebarInput,
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar";
@@ -47,7 +51,6 @@ import {
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { formatRelativeTime } from "@/lib/helpers";
-import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { CreateTicketDialog } from "@/components/custom/support-ticket-modal";
 import {
@@ -84,6 +87,7 @@ import { formatPostedAt } from "./format";
 import {
   createPendingSend,
   PendingSendStatus,
+  SentReceipt,
   type PendingSend,
 } from "./pending-send";
 import { ReplyBox } from "./reply-box";
@@ -380,7 +384,6 @@ function PendingDmBubble({
   pending: PendingDm;
   onRetry: () => void;
 }) {
-  const failed = pending.status === "failed";
   // Local previews for the media being uploaded, so an image-only send
   // shows the image rather than an empty bubble. Created once and revoked
   // on unmount — object URLs leak otherwise.
@@ -404,7 +407,7 @@ function PendingDmBubble({
     <div className="flex justify-end">
       <div className="flex max-w-[70%] flex-col items-end gap-1">
         {previews.map((preview, index) => (
-          <div key={index} className="max-w-full opacity-60">
+          <div key={index} className="max-w-full">
             {preview.isImage ? (
               // A local object URL — next/image would only add overhead.
               // eslint-disable-next-line @next/next/no-img-element
@@ -422,14 +425,9 @@ function PendingDmBubble({
           </div>
         ))}
         {pending.content && (
-          <div
-            className={cn(
-              "rounded-2xl px-3 py-2 text-sm",
-              failed
-                ? "bg-muted text-muted-foreground"
-                : "bg-primary/60 text-primary-foreground",
-            )}
-          >
+          // Full strength, failed or not: the bubble is the message, and
+          // what happened to it is said underneath.
+          <div className="rounded-2xl bg-primary px-3 py-2 text-sm text-primary-foreground">
             <p className="wrap-break-word">{pending.content}</p>
           </div>
         )}
@@ -798,6 +796,18 @@ export default function DmsInbox({
       !resolvedPendingIds.includes(pending.tempId),
   );
 
+  // The receipt belongs to the last message in the thread, not to the last
+  // outgoing one. Once the customer has written back, "Sent" is answering
+  // a question nobody is still asking — their reply is the confirmation.
+  // It also stands down while anything is in flight behind it.
+  const lastConfirmedOutgoingIndex = useMemo(() => {
+    if (visiblePendingMessages.length > 0) return -1;
+    const lastIndex = messages.length - 1;
+    return messages[lastIndex]?.message_direction === "outgoing"
+      ? lastIndex
+      : -1;
+  }, [messages, visiblePendingMessages.length]);
+
   // Lets the delayed attachment re-read above call the latest refetch
   // without making the event handler depend on it.
   const refetchMessagesRef = useRef(refetchMessages);
@@ -951,7 +961,7 @@ export default function DmsInbox({
     // A general "type and send" has no specific message the agent chose
     // to reply to — the last message just anchors the Send API call so
     // it knows who to send to. Only a deliberate reply (via a message's
-    // own Reply icon) should ever show a "You replied to ..." quote.
+    // own Reply icon) should ever show a "You replied to …" quote.
     const isExplicitReply = replyingToMessage !== null;
     const targetMessageId = replyingToMessage?.id ?? lastMessage.id;
     const conversationId = activeConversation.id;
@@ -1016,10 +1026,14 @@ export default function DmsInbox({
           style={{ "--sidebar-width": "350px" } as CSSProperties}
           className="-my-4 h-svh min-h-0 w-full overflow-hidden md:-my-6"
         >
-          <Sidebar collapsible="none" className="hidden border-r md:flex">
-            {/* h-16 and px-2 (the menu button adds its own p-2) so this row
-                lines up exactly with the conversation header opposite. */}
-            <SidebarHeader className="h-14.25 shrink-0 justify-center border-b px-2 py-0">
+          <Sidebar
+            collapsible="none"
+            className="hidden border-r bg-background md:flex"
+          >
+            {/* h-16 and px-2 (the switcher adds its own padding) so this
+                row lines up exactly with the conversation header opposite
+                and with the sub-sidebar's heading to the left. */}
+            <SidebarHeader className="h-16 shrink-0 justify-center border-b px-2 py-0">
               <AccountSwitcher
                 loading={accountsLoading}
                 accounts={accounts}
@@ -1030,10 +1044,11 @@ export default function DmsInbox({
               />
             </SidebarHeader>
             <div className="flex flex-col gap-3 border-b p-4">
-              <SidebarInput
+              <SearchInput
                 value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={setSearchQuery}
                 placeholder="Search conversations…"
+                label="Search conversations"
               />
 
               {/* The list stops being live while the stream is down, so say
@@ -1046,7 +1061,10 @@ export default function DmsInbox({
               )}
             </div>
             <SidebarContent>
-              <SidebarGroup className="px-0">
+              {/* px-2 py-1, the same inset Help Desk's ticket list uses. The
+                  rows are rounded and highlight on select, so they need to
+                  sit off the panel edge or the highlight runs into it. */}
+              <SidebarGroup className="px-2 py-1">
                 <SidebarGroupContent>
                   {loading && conversationsPage === 1 ? (
                     <LoadingState label="Loading conversations…" />
@@ -1073,57 +1091,38 @@ export default function DmsInbox({
                         conversation.name || conversation.username || "";
 
                       return (
-                        <button
+                        <ConversationRow
                           key={conversation.id}
-                          type="button"
-                          onClick={() =>
+                          active={isSelected}
+                          onSelect={() =>
                             handleSelectConversation(conversation.id)
                           }
-                          className={cn(
-                            "flex w-full items-start gap-3 border-b p-4 text-left text-sm leading-tight transition-colors last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                            isSelected &&
-                              "bg-sidebar-accent text-sidebar-accent-foreground",
-                          )}
-                        >
-                          <CustomerAvatar name={rawName} />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex w-full items-center gap-2">
-                              <span
-                                className={cn(
-                                  "truncate",
-                                  isUnread ? "font-semibold" : "font-medium",
-                                  !rawName && "text-muted-foreground",
-                                )}
-                              >
-                                {rawName || channel.userFallback}
+                          unread={isUnread}
+                          avatar={<CustomerAvatar name={rawName} />}
+                          title={
+                            rawName || (
+                              <span className="text-muted-foreground">
+                                {channel.userFallback}
                               </span>
-                              <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                                {conversation.last_message_at
-                                  ? formatRelativeTime(
-                                      conversation.last_message_at,
-                                    )
-                                  : ""}
-                              </span>
-                              {isUnread && (
-                                <span className="size-2 shrink-0 rounded-full bg-primary" />
-                              )}
-                            </div>
-                            <div
-                              className={cn(
-                                "mt-1 line-clamp-2 text-xs",
-                                isUnread
-                                  ? "font-medium text-foreground/80"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              {conversation.last_message ? (
-                                conversation.last_message
-                              ) : (
-                                <AttachmentPreviewLabel kind={previewKind} />
-                              )}
-                            </div>
-                          </div>
-                        </button>
+                            )
+                          }
+                          timestamp={
+                            conversation.last_message_at
+                              ? formatRelativeTime(conversation.last_message_at)
+                              : ""
+                          }
+                          indicator={
+                            isUnread ? (
+                              <span className="size-2 shrink-0 rounded-full bg-primary" />
+                            ) : null
+                          }
+                          preview={
+                            conversation.last_message ?? (
+                              <AttachmentPreviewLabel kind={previewKind} />
+                            )
+                          }
+                          previewLines={2}
+                        />
                       );
                     })
                   ) : debouncedSearchQuery ? (
@@ -1214,33 +1213,55 @@ export default function DmsInbox({
                         <LoadingState label="Loading messages…" />
                       </div>
                     ) : messages.length || visiblePendingMessages.length ? (
-                      <>
-                        {messages.map((msg) => (
-                          <DmMessageBubble
+                      // Pending sends are counted in the total so an
+                      // optimistic bubble is the last item and springs
+                      // immediately, rather than inheriting a stagger.
+                      <AnimatePresence>
+                        {messages.map((msg, index) => (
+                          <MessageAppear
                             key={msg.id}
-                            msg={msg}
-                            storeCode={storeCode}
-                            userId={activeConversation.id}
-                            contactName={activeContactName}
-                            replyToAttachment={
-                              msg.reply_to
-                                ? (messagesById.get(msg.reply_to.id)
-                                    ?.attachments?.[0] ?? null)
-                                : null
+                            outgoing={msg.message_direction === "outgoing"}
+                            index={index}
+                            total={
+                              messages.length + visiblePendingMessages.length
                             }
-                            awaitingMedia={awaitingMediaIds.includes(msg.id)}
-                            onReacted={refetchMessages}
-                            onReply={setReplyingToMessage}
-                          />
+                          >
+                            <DmMessageBubble
+                              msg={msg}
+                              storeCode={storeCode}
+                              userId={activeConversation.id}
+                              contactName={activeContactName}
+                              replyToAttachment={
+                                msg.reply_to
+                                  ? (messagesById.get(msg.reply_to.id)
+                                      ?.attachments?.[0] ?? null)
+                                  : null
+                              }
+                              awaitingMedia={awaitingMediaIds.includes(msg.id)}
+                              onReacted={refetchMessages}
+                              onReply={setReplyingToMessage}
+                            />
+                            {index === lastConfirmedOutgoingIndex ? (
+                              <SentReceipt />
+                            ) : null}
+                          </MessageAppear>
                         ))}
-                        {visiblePendingMessages.map((pending) => (
-                          <PendingDmBubble
+                        {visiblePendingMessages.map((pending, index) => (
+                          <MessageAppear
                             key={pending.tempId}
-                            pending={pending}
-                            onRetry={() => handleRetryPending(pending.tempId)}
-                          />
+                            outgoing
+                            index={messages.length + index}
+                            total={
+                              messages.length + visiblePendingMessages.length
+                            }
+                          >
+                            <PendingDmBubble
+                              pending={pending}
+                              onRetry={() => handleRetryPending(pending.tempId)}
+                            />
+                          </MessageAppear>
                         ))}
-                      </>
+                      </AnimatePresence>
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
                         <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />

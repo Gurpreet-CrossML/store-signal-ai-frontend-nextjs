@@ -4,20 +4,31 @@ import {
   IconBook,
   IconBook2,
   IconBooks,
+  IconAlarmSnoozeFilled,
+  IconArrowsExchange,
   IconBrandFacebook,
   IconBrandInstagram,
   IconBrandMessenger,
+  IconAddressBook,
   IconBrandMeta,
   IconBuildingSkyscraper,
+  IconCreditCardOff,
   IconImageGeneration,
+  IconHeadset,
+  IconInbox,
   IconMessageQuestion,
+  IconPackageOff,
   IconPlugConnected,
   IconSend,
   IconSettings,
   IconShield,
   IconShieldLock,
+  IconTags,
   IconUserHexagon,
   IconUsers,
+  IconUser,
+  IconUsersGroup,
+  IconShoppingBag,
   IconVolume,
   type Icon,
 } from "@tabler/icons-react";
@@ -53,11 +64,90 @@ export type NavArea = {
  * description and icon had to be repeated in the landing array, the page
  * itself, and the sidebar nav, which is how they drifted apart.
  *
- * Help Desk is deliberately absent: its sub-nav are query-string filters on
- * one screen (`/helpdesk?filter=…`), not separate pages, so it stays hand
- * written in sidebar-navs.
+ * A section's `href` may carry a query string. Help Desk's sections are
+ * filters on one screen rather than separate pages, and the nav treats
+ * them the same way as any other section — `activeNavUrl` decides which of
+ * a group of siblings is the more specific match.
  */
 export const NAV_AREAS = {
+  crm: {
+    href: "/crm",
+    title: "CRM",
+    description:
+      "The people who shop with you, and everything you know about them.",
+    icon: IconAddressBook,
+    sections: [
+      {
+        href: "/crm/customers",
+        title: "Customers",
+        description:
+          "Every shopper this store has, with spend and contact details.",
+        pageDescription:
+          "Every shopper this store has — what they have spent, how to reach them, and whether they have opted in.",
+        icon: IconUsersGroup,
+      },
+      {
+        href: "/crm/orders",
+        title: "Orders",
+        description: "Every order placed, with payment and delivery state.",
+        pageDescription:
+          "Every order this store has taken — what was paid, what shipped, and where it got to.",
+        icon: IconShoppingBag,
+      },
+    ],
+  },
+
+  helpdesk: {
+    href: "/helpdesk",
+    title: "Help Desk",
+    description: "Customer tickets, grouped by what needs doing next.",
+    icon: IconHeadset,
+    sections: [
+      {
+        href: "/helpdesk",
+        title: "All Inboxes",
+        description: "Every ticket for this store.",
+        icon: IconInbox,
+      },
+      {
+        href: "/helpdesk?filter=unassigned",
+        title: "Unassigned",
+        description: "Tickets nobody has picked up yet.",
+        icon: IconUser,
+      },
+      {
+        href: "/helpdesk?filter=snoozed",
+        title: "Snoozed",
+        description: "Tickets set aside until a chosen time.",
+        icon: IconAlarmSnoozeFilled,
+      },
+      {
+        href: "/helpdesk?filter=Order_Return",
+        title: "Order Return",
+        description: "Tickets tagged as a return.",
+        icon: IconPackageOff,
+      },
+      {
+        href: "/helpdesk?filter=Payment_Failed",
+        title: "Payment Failed",
+        description: "Tickets tagged as a failed payment.",
+        icon: IconCreditCardOff,
+      },
+      {
+        href: "/helpdesk?filter=Exchange_Request",
+        title: "Exchange Request",
+        description: "Tickets tagged as an exchange.",
+        icon: IconArrowsExchange,
+      },
+      {
+        href: "/helpdesk/tags",
+        title: "Tags",
+        description: "The labels used to sort tickets.",
+        icon: IconTags,
+      },
+    ],
+  },
+
   settings: {
     href: "/settings",
     title: "Settings",

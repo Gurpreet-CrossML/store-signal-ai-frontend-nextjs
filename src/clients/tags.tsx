@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { IconPlus, IconSearch } from "@tabler/icons-react";
+import { IconPlus } from "@tabler/icons-react";
 import { toast } from "sonner";
 import { Formik, Form, Field, type FieldProps } from "formik";
 import z from "zod";
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import { PageHeading } from "@/components/custom/page-heading";
 import { DataTable } from "@/components/custom/data-table";
+import { SearchInput } from "@/components/custom/search-input";
 import { getTagColumns } from "@/components/custom/helpdesk/tags-columns";
 import { TagBadge } from "@/components/custom/helpdesk/tag-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -289,15 +290,13 @@ export default function Tags() {
           anatomy as Threads. */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="relative w-full max-w-xs">
-            <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search tags…"
-              className="pl-9"
-            />
-          </div>
+          <SearchInput
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search tags…"
+            label="Search tags"
+            className="w-full max-w-xs"
+          />
           <Button onClick={openCreateDialog}>
             <IconPlus className="size-4" />
             Add Tag
