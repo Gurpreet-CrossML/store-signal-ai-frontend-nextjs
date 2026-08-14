@@ -146,7 +146,7 @@ export function SupportTicketCard({
                   onClick={() => setShowDetails(true)}
                 >
                   <IconEye className="size-3.5" />
-                  Show details
+                  Quick view
                 </Button>
                 <Button type="button" variant="outline" size="xs" asChild>
                   {/* Opens in a new tab: the agent is mid-conversation
@@ -157,7 +157,7 @@ export function SupportTicketCard({
                     rel="noopener noreferrer"
                   >
                     <IconExternalLink className="size-3.5" />
-                    Visit ticket
+                    Open in Help Desk
                   </a>
                 </Button>
               </div>
@@ -218,7 +218,7 @@ export function SupportTicketCard({
                 rel="noopener noreferrer"
               >
                 <IconExternalLink className="size-4" />
-                Visit ticket
+                Open in Help Desk
               </a>
             </Button>
           </DialogFooter>

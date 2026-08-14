@@ -86,7 +86,7 @@ export function CartDetailsCard({
       {loading ? (
         <CardLoadingState />
       ) : items.length === 0 ? (
-        <Typography variant="muted">Cart is empty.</Typography>
+        <Typography variant="muted">Nothing in the cart right now.</Typography>
       ) : (
         <div className="flex flex-col gap-2.5">
           {items.map((item: CartData, index: number) => (
@@ -324,7 +324,9 @@ export function SupportTicketsCard({
       {loading ? (
         <CardLoadingState />
       ) : !tickets.length ? (
-        <Typography variant="muted">No tickets raised yet.</Typography>
+        <Typography variant="muted">
+          No other tickets from this customer.
+        </Typography>
       ) : (
         <div className="flex flex-col gap-2">
           {visibleTickets.map((ticket, index) => (
@@ -409,7 +411,7 @@ export function OrdersCard({
       ) : !orderList || orderList?.length === 0 ? (
         <Typography variant="muted">
           {!customerData?.email
-            ? "No customer email to match orders."
+            ? "Link a customer to see their order history."
             : "No orders yet."}
         </Typography>
       ) : (

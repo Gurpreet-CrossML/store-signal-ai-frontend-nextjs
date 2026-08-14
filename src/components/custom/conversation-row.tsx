@@ -5,6 +5,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
 /**
@@ -109,7 +110,7 @@ export function ConversationRow({
           )}
           <div className="flex shrink-0 items-center gap-1">
             {indicator}
-            <span className="text-xs text-muted-foreground">{timestamp}</span>
+            <Typography variant="caption">{timestamp}</Typography>
           </div>
         </div>
 

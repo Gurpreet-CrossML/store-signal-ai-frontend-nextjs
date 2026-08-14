@@ -958,7 +958,7 @@ export default function DmsInbox({
     // A general "type and send" has no specific message the agent chose
     // to reply to — the last message just anchors the Send API call so
     // it knows who to send to. Only a deliberate reply (via a message's
-    // own Reply icon) should ever show a "You replied to ..." quote.
+    // own Reply icon) should ever show a "You replied to …" quote.
     const isExplicitReply = replyingToMessage !== null;
     const targetMessageId = replyingToMessage?.id ?? lastMessage.id;
     const conversationId = activeConversation.id;

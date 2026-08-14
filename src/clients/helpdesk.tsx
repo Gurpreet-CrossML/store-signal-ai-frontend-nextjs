@@ -525,7 +525,7 @@ function TicketListPanel({
                       channels: channels as SupportTicketChannel[],
                     })
                   }
-                  placeholder="Search channels..."
+                  placeholder="Search channels…"
                   emptyMessage="No channels found."
                 />
               </fieldset>
@@ -545,7 +545,7 @@ function TicketListPanel({
                   onValueChange={(tags) =>
                     onFiltersChange({ ...filters, tags })
                   }
-                  placeholder="Search tags..."
+                  placeholder="Search tags…"
                   emptyMessage="No tags found."
                   onSearchChange={onTagSearchChange}
                   hasMore={hasMoreTags}
@@ -573,7 +573,13 @@ function TicketListPanel({
                   }
                 />
                 {dateError ? (
-                  <p className="mt-2 text-xs text-destructive">{dateError}</p>
+                  <Typography
+                    variant="caption"
+                    as="p"
+                    className="mt-2 text-destructive"
+                  >
+                    {dateError}
+                  </Typography>
                 ) : null}
               </fieldset>
 
@@ -592,7 +598,7 @@ function TicketListPanel({
                       priorities: priorities as SupportTicketPriority[],
                     })
                   }
-                  placeholder="Search priorities..."
+                  placeholder="Search priorities…"
                   emptyMessage="No priorities found."
                 />
               </fieldset>
@@ -622,7 +628,7 @@ function TicketListPanel({
           className="w-full"
           value={searchValue}
           onChange={onSearchChange}
-          placeholder="Search tickets..."
+          placeholder="Search tickets…"
           label="Search tickets"
         />
       </div>
@@ -838,7 +844,7 @@ function ConversationPanel({
               placeholder={
                 ticket?.internal_assignee?.id
                   ? ticket?.internal_assignee?.name
-                  : "Assign staff..."
+                  : "Assign to…"
               }
               disabled={isClosed}
             />
@@ -971,9 +977,9 @@ function ConversationPanel({
                 <p>{ticket.subject}</p>
               </TooltipContent>
             </Tooltip>
-            <span className="shrink-0 text-xs text-muted-foreground">
+            <Typography variant="caption" className="shrink-0">
               #{ticket.id}
-            </span>
+            </Typography>
           </div>
 
           {/* Facts close the subject line, and say what each date is — two
@@ -1109,7 +1115,7 @@ function ConversationPanel({
                 <SearchInput
                   value={tagSearch}
                   onChange={setTagSearch}
-                  placeholder="Search tags..."
+                  placeholder="Search tags…"
                   label="Search tags"
                 />
               </div>
@@ -1161,7 +1167,7 @@ function ConversationPanel({
                       onClick={onLoadMoreTags}
                       disabled={isTagPickerLoading}
                     >
-                      {isTagPickerLoading ? "Loading..." : "Load more"}
+                      {isTagPickerLoading ? "Loading…" : "Load more"}
                     </Button>
                   ) : null}
                 </div>
@@ -1236,9 +1242,13 @@ function ConversationPanel({
                     <div className="text-sm leading-6 text-foreground [&_p]:mb-2 [&_p:last-child]:mb-0">
                       <ReactMarkdown>{message.message}</ReactMarkdown>
                     </div>
-                    <div className="mt-1 text-right text-xs text-muted-foreground">
+                    <Typography
+                      variant="caption"
+                      as="div"
+                      className="mt-1 text-right"
+                    >
                       {formatDateTime(message.created_at)}
-                    </div>
+                    </Typography>
                   </div>
                 </div>
               );
@@ -1255,7 +1265,7 @@ function ConversationPanel({
           onChange={onReplyChange}
           useMarkdown
           disabled={isMessageImproving || isClosed || isTranslating}
-          placeholder="Write a reply, or use the AI draft..."
+          placeholder="Write a reply, or use the AI draft…"
           minHeight="6rem"
         />
 
@@ -1416,7 +1426,7 @@ function ConversationPanel({
               ) : (
                 <IconSend className="size-4" />
               )}
-              {isSending ? "Sending..." : "Send"}
+              {isSending ? "Sending…" : "Send"}
             </Button>
           </div>
         </div>
@@ -1440,9 +1450,9 @@ function TicketFact({
       <TooltipTrigger asChild>
         <div className="flex min-w-0 items-center gap-1.5">
           <Icon className="size-4 shrink-0 text-muted-foreground" />
-          <span className="truncate text-xs text-muted-foreground">
+          <Typography variant="caption" className="truncate">
             {value}
-          </span>
+          </Typography>
         </div>
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>

@@ -477,8 +477,8 @@ function ThreadChatControls({
             <div className="text-center">
               <Typography variant="medium" as="p">
                 {transitionState === "taking_over"
-                  ? "Connecting..."
-                  : "Returning to AI..."}
+                  ? "Connecting…"
+                  : "Returning to AI…"}
               </Typography>
               <Typography variant="muted">
                 {transitionState === "taking_over"

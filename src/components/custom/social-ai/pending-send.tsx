@@ -2,6 +2,7 @@
 
 import { IconAlertTriangle } from "@tabler/icons-react";
 
+import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
 /**
@@ -71,5 +72,9 @@ export function PendingSendStatus({
  * noise, and the only one anybody checks is the one they just sent.
  */
 export function SentReceipt() {
-  return <p className="px-1 text-right text-xs text-muted-foreground">Sent</p>;
+  return (
+    <Typography variant="caption" as="p" className="px-1 text-right">
+      Sent
+    </Typography>
+  );
 }
