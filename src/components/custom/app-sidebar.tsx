@@ -122,7 +122,9 @@ export function AppSidebar({
       {/* We disable collapsible and let it fill remaining space */}
       {subSidebarItems && (
         <Sidebar collapsible="none" className="flex-1">
-          <SidebarHeader className="gap-3.5 border-b p-4">
+          {/* h-16, matching every panel header to its right, so the rules
+              across the top of the app are one continuous line. */}
+          <SidebarHeader className="h-16 shrink-0 justify-center border-b px-4 py-0">
             <div className="flex w-full items-center">
               {subSidebarItems.icon && (
                 <subSidebarItems.icon className="mr-2 size-5" />

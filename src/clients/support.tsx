@@ -20,22 +20,19 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
-  SidebarInput,
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { ConversationRow } from "@/components/custom/conversation-row";
+import { AnimatePresence, motion } from "framer-motion";
+
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
+import { SearchInput } from "@/components/custom/search-input";
 import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
 import MessagePan from "@/components/custom/message-pan";
-import {
-  CartDetailsCard,
-  UserMetadataCard,
-  OrdersCard,
-  SupportTicketsCard,
-} from "@/components/custom/thread-detail-panels";
 import {
   FetchAIInsight,
   FetchCart,
@@ -117,6 +114,13 @@ type AttachmentUpload = {
   status: AttachmentStatus;
 };
 
+/**
+ * Shared between Take Over and Return to AI so framer animates one into
+ * the other across the state change, instead of playing two unrelated
+ * fades.
+ */
+const HANDOVER_ACTION_ID = "thread-handover-action";
+
 function ThreadChatControls({
   activeThreadId,
   isThreadActive = true,
@@ -193,239 +197,278 @@ function ThreadChatControls({
     <div
       className={`relative border-t border-border/50 bg-background/95 p-4 ${className ?? ""}`}
     >
-      {!connectedAgent && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 p-3">
-          <div className="flex min-w-0 items-center gap-3">
+      {/* The three states of this bar are one thing changing, not three
+          things appearing. AnimatePresence keeps the outgoing state
+          mounted while the incoming one arrives — which is what lets the
+          handover button below morph between them rather than one
+          disappearing and another popping in somewhere else. */}
+      <AnimatePresence initial={false}>
+        {!connectedAgent && (
+          <motion.div
+            key="ai-handling"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 p-3"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <IconMessageChatbot className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <Typography variant="small" as="p" className="leading-normal">
+                  AI Assistant is handling this conversation
+                </Typography>
+                <Typography variant="muted">
+                  Take over anytime to reply as a human agent.
+                </Typography>
+              </div>
+            </div>
+            {activeThreadId && connectedAgent !== user && (
+              // Same layoutId as Return to AI: framer treats the two as one
+              // element and slides it from here into the composer, so the
+              // control an agent just pressed is visibly where it went.
+              <motion.div layoutId={HANDOVER_ACTION_ID} className="shrink-0">
+                <Button
+                  type="button"
+                  onClick={onTakeOver}
+                  disabled={
+                    transitionState !== "idle" ||
+                    !!(connectedAgent && connectedAgent !== user)
+                  }
+                >
+                  <IconHeadset className="h-4 w-4" />
+                  Take Over
+                </Button>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+
+        {connectedAgent && connectedAgent !== user && (
+          <motion.div
+            key="other-agent"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="flex items-center gap-3 rounded-xl border bg-muted/30 p-3"
+          >
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <IconMessageChatbot className="size-5" />
+              <IconHeadset className="size-5" />
             </div>
             <div className="min-w-0">
               <Typography variant="small" as="p" className="leading-normal">
-                AI Assistant is handling this conversation
+                Another agent is handling this conversation
               </Typography>
               <Typography variant="muted">
-                Take over anytime to reply as a human agent.
+                Only the connected agent can reply right now.
               </Typography>
             </div>
-          </div>
-          {activeThreadId && connectedAgent !== user && (
-            <Button
-              type="button"
-              onClick={onTakeOver}
-              disabled={
-                transitionState !== "idle" ||
-                !!(connectedAgent && connectedAgent !== user)
-              }
-            >
-              <IconHeadset className="h-4 w-4" />
-              Take Over
-            </Button>
-          )}
-        </div>
-      )}
+          </motion.div>
+        )}
 
-      {connectedAgent && connectedAgent !== user && (
-        <div className="flex items-center gap-3 rounded-xl border bg-muted/30 p-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <IconHeadset className="size-5" />
-          </div>
-          <div className="min-w-0">
-            <Typography variant="small" as="p" className="leading-normal">
-              Another agent is handling this conversation
-            </Typography>
-            <Typography variant="muted">
-              Only the connected agent can reply right now.
-            </Typography>
-          </div>
-        </div>
-      )}
+        {connectedAgent === user && (
+          <motion.div
+            key="composer"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm"
+          >
+            {isEmojiPickerOpen && (
+              <div className="border-b border-border/50 p-2">
+                <EmojiPicker
+                  onEmojiClick={handleEmojiClick}
+                  width="100%"
+                  height={320}
+                  theme={Theme.AUTO}
+                  previewConfig={{ showPreview: false }}
+                  searchPlaceholder="Search emoji…"
+                />
+              </div>
+            )}
 
-      {connectedAgent === user && (
-        <div className="rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm">
-          {isEmojiPickerOpen && (
-            <div className="border-b border-border/50 p-2">
-              <EmojiPicker
-                onEmojiClick={handleEmojiClick}
-                width="100%"
-                height={320}
-                theme={Theme.AUTO}
-                previewConfig={{ showPreview: false }}
-                searchPlaceholder="Search emoji…"
-              />
-            </div>
-          )}
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 border-b border-border/50 p-2">
+                {attachments.map((attachment) => {
+                  const isImage = attachment.file.type.startsWith("image/");
+                  const isUploading = attachment.status === "uploading";
+                  const isError = attachment.status === "error";
 
-          {attachments.length > 0 && (
-            <div className="flex flex-wrap gap-2 border-b border-border/50 p-2">
-              {attachments.map((attachment) => {
-                const isImage = attachment.file.type.startsWith("image/");
-                const isUploading = attachment.status === "uploading";
-                const isError = attachment.status === "error";
-
-                return (
-                  <div
-                    key={attachment.id}
-                    className="group relative flex items-center gap-2 rounded-xl border border-border/60 bg-muted/60 py-1.5 pl-1.5 pr-2.5 text-xs text-muted-foreground"
-                  >
-                    <div className="relative h-8 w-8 shrink-0">
-                      {isImage ? (
-                        <Image
-                          src={attachment.previewUrl}
-                          alt={attachment.file.name}
-                          width={32}
-                          height={32}
-                          unoptimized
-                          className={`h-8 w-8 rounded-lg object-cover ${
-                            isUploading ? "opacity-40" : ""
-                          } ${isError ? "opacity-60" : ""}`}
-                        />
-                      ) : (
-                        <div
-                          className={`flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 ${
-                            isUploading ? "opacity-40" : ""
-                          }`}
-                        >
-                          <IconPaperclip className="h-4 w-4" />
-                        </div>
-                      )}
-                      {isUploading && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <Spinner className="size-4" />
-                        </div>
-                      )}
+                  return (
+                    <div
+                      key={attachment.id}
+                      className="group relative flex items-center gap-2 rounded-xl border border-border/60 bg-muted/60 py-1.5 pl-1.5 pr-2.5 text-xs text-muted-foreground"
+                    >
+                      <div className="relative h-8 w-8 shrink-0">
+                        {isImage ? (
+                          <Image
+                            src={attachment.previewUrl}
+                            alt={attachment.file.name}
+                            width={32}
+                            height={32}
+                            unoptimized
+                            className={`h-8 w-8 rounded-lg object-cover ${
+                              isUploading ? "opacity-40" : ""
+                            } ${isError ? "opacity-60" : ""}`}
+                          />
+                        ) : (
+                          <div
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 ${
+                              isUploading ? "opacity-40" : ""
+                            }`}
+                          >
+                            <IconPaperclip className="h-4 w-4" />
+                          </div>
+                        )}
+                        {isUploading && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Spinner className="size-4" />
+                          </div>
+                        )}
+                        {isError && (
+                          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/60">
+                            <IconAlertTriangle className="size-4 text-destructive" />
+                          </div>
+                        )}
+                      </div>
+                      <span className="max-w-35 truncate">
+                        {attachment.file.name}
+                      </span>
                       {isError && (
-                        <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/60">
-                          <IconAlertTriangle className="size-4 text-destructive" />
-                        </div>
+                        <button
+                          type="button"
+                          className="font-medium text-primary underline-offset-2 hover:underline"
+                          onClick={() => onRetryAttachment(attachment.id)}
+                        >
+                          Retry
+                        </button>
                       )}
-                    </div>
-                    <span className="max-w-35 truncate">
-                      {attachment.file.name}
-                    </span>
-                    {isError && (
                       <button
                         type="button"
-                        className="font-medium text-primary underline-offset-2 hover:underline"
-                        onClick={() => onRetryAttachment(attachment.id)}
+                        disabled={isUploading}
+                        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-0"
+                        onClick={() => onRemoveAttachment(attachment.id)}
+                        title={isUploading ? "Uploading…" : "Remove attachment"}
                       >
-                        Retry
+                        <IconX className="h-3 w-3" />
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      disabled={isUploading}
-                      className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-0"
-                      onClick={() => onRemoveAttachment(attachment.id)}
-                      title={isUploading ? "Uploading…" : "Remove attachment"}
-                    >
-                      <IconX className="h-3 w-3" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-          {/* Text input row */}
-          <div className="px-3 pt-3">
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              placeholder={
-                isUploadingAttachments ? "Uploading image…" : "Type your reply…"
-              }
-              value={agentMessage}
-              disabled={inputsDisabled}
-              onChange={(event) => setAgentMessage(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  onSendAgentMessage();
+            {/* Text input row */}
+            <div className="px-3 pt-3">
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                placeholder={
+                  isUploadingAttachments
+                    ? "Uploading image…"
+                    : "Type your reply…"
                 }
-              }}
-              className="max-h-30 w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
-            />
-          </div>
+                value={agentMessage}
+                disabled={inputsDisabled}
+                onChange={(event) => setAgentMessage(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    onSendAgentMessage();
+                  }
+                }}
+                className="max-h-30 w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </div>
 
-          {/* Toolbar: emoji + attach + hint on the left, send on the right */}
-          <div className="flex items-center gap-1 p-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon-sm"
-              disabled={inputsDisabled}
-              aria-pressed={isEmojiPickerOpen}
-              className={isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined}
-              onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-              title="Add emoji"
-            >
-              <IconMoodSmile className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon-sm"
-              disabled={inputsDisabled}
-              onClick={() => fileInputRef.current?.click()}
-              title="Attach image or file"
-            >
-              <IconPaperclip className="size-4" />
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*"
-              disabled={inputsDisabled}
-              onChange={onFileSelection}
-              className="hidden"
-            />
-            <Typography
-              variant="muted"
-              as="span"
-              className="ml-2 hidden truncate sm:inline"
-            >
-              {isUploadingAttachments
-                ? "Uploading attachment…"
-                : "Enter to send · Shift + Enter for a new line"}
-            </Typography>
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              {attachments.length > 0 && (
-                <Typography variant="muted" as="span">
-                  {attachments.length} attached
-                </Typography>
-              )}
-              {/* Sits beside Send because it's the other thing an agent can
+            {/* Toolbar: emoji + attach + hint on the left, send on the right */}
+            <div className="flex items-center gap-1 p-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                disabled={inputsDisabled}
+                aria-pressed={isEmojiPickerOpen}
+                className={
+                  isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined
+                }
+                onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                title="Add emoji"
+              >
+                <IconMoodSmile className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                disabled={inputsDisabled}
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach image or file"
+              >
+                <IconPaperclip className="size-4" />
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                disabled={inputsDisabled}
+                onChange={onFileSelection}
+                className="hidden"
+              />
+              <Typography
+                variant="muted"
+                as="span"
+                className="ml-2 hidden truncate sm:inline"
+              >
+                {isUploadingAttachments
+                  ? "Uploading attachment…"
+                  : "Enter to send · Shift + Enter for a new line"}
+              </Typography>
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                {attachments.length > 0 && (
+                  <Typography variant="muted" as="span">
+                    {attachments.length} attached
+                  </Typography>
+                )}
+                {/* Sits beside Send because it's the other thing an agent can
                   do from here: hand the conversation back instead of
                   replying. Outline keeps Send the primary action. */}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onReturnToAI}
-                disabled={transitionState !== "idle"}
-              >
-                <IconRobot className="size-4" />
-                Return to AI
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={onSendAgentMessage}
-                disabled={!canSend}
-                title={
-                  isUploadingAttachments
-                    ? "Waiting for upload…"
-                    : "Send message"
-                }
-              >
-                <IconSend className="size-4" />
-                Send
-              </Button>
+                <motion.div layoutId={HANDOVER_ACTION_ID} className="shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={onReturnToAI}
+                    disabled={transitionState !== "idle"}
+                  >
+                    <IconRobot className="size-4" />
+                    Return to AI
+                  </Button>
+                </motion.div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={onSendAgentMessage}
+                  disabled={!canSend}
+                  title={
+                    isUploadingAttachments
+                      ? "Waiting for upload…"
+                      : "Send message"
+                  }
+                >
+                  <IconSend className="size-4" />
+                  Send
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {transitionState !== "idle" && (
         <div className="fixed inset-0 z-70 flex items-center justify-center bg-background/70 backdrop-blur-sm">
@@ -1212,9 +1255,15 @@ export default function Support() {
       className="-my-4 h-svh min-h-0 w-full overflow-hidden md:-my-6"
     >
       {/* Conversations list — the nested sidebar from the sidebar-09 block. */}
-      <Sidebar collapsible="none" className="hidden border-r md:flex">
-        <SidebarHeader className="gap-3.5 border-b p-4">
-          <div className="flex w-full items-center justify-between">
+      {/* The list panel is content, not chrome: white like Help Desk's
+          ticket list, with the same 4rem header over a controls strip. Only
+          the app's own navigation stays on the grey sidebar surface. */}
+      <Sidebar
+        collapsible="none"
+        className="hidden border-r bg-background md:flex"
+      >
+        <SidebarHeader className="gap-0 p-0">
+          <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
             <CardTitle className="flex items-center gap-2">
               <IconMessage2 className="size-4" />
               Active Chats
@@ -1223,49 +1272,53 @@ export default function Support() {
               <Badge variant="secondary">{localThreads.length}</Badge>
             )}
           </div>
-          <SidebarInput
-            value={threadSearch}
-            onChange={(event) => setThreadSearch(event.target.value)}
-            placeholder="Search name, email or order ID…"
-          />
-          <div className="flex items-center gap-1.5">
-            {(
-              [
-                { key: "all", label: "All" },
-                { key: "unread", label: "Unread" },
-                { key: "read", label: "Read" },
-              ] as const
-            ).map((option) => (
-              <button
-                key={option.key}
-                type="button"
-                onClick={() => setReadFilter(option.key)}
-                className={cn(
-                  "flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
-                  readFilter === option.key
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border/60 bg-background text-muted-foreground hover:bg-muted/60",
-                )}
-              >
-                {option.label}
-                {option.key === "unread" && unreadCount > 0 && (
-                  <span
-                    className={cn(
-                      "rounded-full px-1.5 text-xs",
-                      readFilter === "unread"
-                        ? "bg-primary-foreground/20"
-                        : "bg-muted text-foreground/70",
-                    )}
-                  >
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-            ))}
+
+          <div className="flex flex-col gap-2.5 border-b px-4 py-2.5">
+            <SearchInput
+              value={threadSearch}
+              onChange={setThreadSearch}
+              placeholder="Search name, email or order ID…"
+              label="Search conversations"
+            />
+            <div className="flex items-center gap-1.5">
+              {(
+                [
+                  { key: "all", label: "All" },
+                  { key: "unread", label: "Unread" },
+                  { key: "read", label: "Read" },
+                ] as const
+              ).map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setReadFilter(option.key)}
+                  className={cn(
+                    "flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                    readFilter === option.key
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border/60 bg-background text-muted-foreground hover:bg-muted/60",
+                  )}
+                >
+                  {option.label}
+                  {option.key === "unread" && unreadCount > 0 && (
+                    <span
+                      className={cn(
+                        "rounded-md px-1.5 text-xs",
+                        readFilter === "unread"
+                          ? "bg-primary-foreground/20"
+                          : "bg-muted text-foreground/70",
+                      )}
+                    >
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <SidebarGroup className="px-0">
+          <SidebarGroup className="px-2 py-1">
             <SidebarGroupContent>
               {FetchThreadsIsLoading ? (
                 <LoadingState label="Loading conversations…" />
@@ -1353,12 +1406,16 @@ export default function Support() {
                       <CardTitle className="truncate leading-tight">
                         {selectedThread?.customer?.name || "Guest"}
                       </CardTitle>
-                      {selectedThread?.is_active ? (
-                        <p className="text-xs text-muted-foreground">
-                          {connectedAgent
-                            ? "Connected with agent"
-                            : "Assistant ready"}
-                        </p>
+                      {/* Email rather than a status line: who you are
+                          talking to is what an agent needs from a header,
+                          and who is handling the thread is already said by
+                          the take-over banner above the composer. Omitted
+                          entirely for a guest — a line reading "no email"
+                          is worse than no line. */}
+                      {selectedThread?.customer?.email ? (
+                        <Typography variant="muted" className="truncate">
+                          {selectedThread.customer.email}
+                        </Typography>
                       ) : null}
                     </div>
                   </div>
@@ -1421,38 +1478,21 @@ export default function Support() {
               </div>
             </div>
 
-            <aside className="hidden min-h-0 w-95 shrink-0 flex-col border-l xl:flex">
-              <header className="flex h-16 shrink-0 flex-col justify-center border-b px-4">
-                <CardTitle className="leading-tight">
-                  Customer Details
-                </CardTitle>
-                <Typography variant="muted">
-                  Orders, cart, and profile for this conversation.
-                </Typography>
-              </header>
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <OrdersCard
-                  orders={FetchOrderData}
-                  loading={FetchOrderDataIsLoading}
-                  handleOrdersSync={handleOrdersSync}
-                  orderSyncLoading={SyncOrdersIsLoading}
-                  customerData={selectedThread?.customer || null}
-                />
-                <SupportTicketsCard
-                  tickets={FetchFreshdeskTicketIdData ?? []}
-                  loading={FetchFreshdeskTicketIdIsLoading}
-                />
-                <CartDetailsCard
-                  cartData={FetchCartData}
-                  loading={FetchCartDataIsLoading}
-                />
-                <UserMetadataCard
-                  userMetadata={FetchUserMetadataData}
-                  customerData={selectedThread?.customer || null}
-                  loading={FetchUserMetadataIsLoading}
-                />
-              </div>
-            </aside>
+            <CustomerDetailsPanel
+              description="Orders, cart, and profile for this conversation."
+              customerData={selectedThread?.customer || null}
+              orders={FetchOrderData}
+              ordersLoading={FetchOrderDataIsLoading}
+              onOrdersSync={handleOrdersSync}
+              orderSyncLoading={SyncOrdersIsLoading}
+              userMetadata={FetchUserMetadataData}
+              metadataLoading={FetchUserMetadataIsLoading}
+              tickets={{
+                data: FetchFreshdeskTicketIdData ?? [],
+                loading: FetchFreshdeskTicketIdIsLoading,
+              }}
+              cart={{ data: FetchCartData, loading: FetchCartDataIsLoading }}
+            />
           </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">

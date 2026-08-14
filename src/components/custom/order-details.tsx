@@ -1,5 +1,8 @@
 "use client";
 
+import { IconExternalLink } from "@tabler/icons-react";
+
+import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Typography } from "@/components/ui/typography";
 import { formatPrice } from "@/lib/helpers";
@@ -285,6 +288,20 @@ export function OrderDetails({ order }: { order: OrderData }) {
           <ShippingAddress address={order.shipping_address} />
         </div>
       </div>
+
+      {/* Refunds, cancellations and edits stay in the store's own admin —
+          they move money and inventory, and duplicating them here would
+          mean a second place to get them wrong. This is the way through. */}
+      {order.admin_url ? (
+        <div className="border-t border-border/50 pt-2.5">
+          <Button variant="outline" size="sm" className="w-full" asChild>
+            <a href={order.admin_url} target="_blank" rel="noopener noreferrer">
+              <IconExternalLink className="size-4" />
+              Open in store admin
+            </a>
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

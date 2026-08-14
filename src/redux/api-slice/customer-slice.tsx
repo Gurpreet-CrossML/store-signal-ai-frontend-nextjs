@@ -177,6 +177,70 @@ export const FetchCustomerDetails = createAsyncThunk(
   },
 );
 
+/**
+ * Type-ahead lookup for attaching a customer to something — kept apart
+ * from FetchCustomers so searching in a dialog does not overwrite the CRM
+ * list behind it.
+ */
+export const SearchCustomers = createAsyncThunk(
+  "SearchCustomers",
+  async (
+    { storeCode, search }: { storeCode: string; search: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchCustomers()}?store_code=${storeCode}&limit=10&search=${encodeURIComponent(search)}`,
+        { useBackend: true },
+      );
+      return toPaginatedList<CustomerRecord>(
+        response.data?.data ?? response.data,
+      ).results;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+    }
+  },
+);
+
+export const CreateCustomer = createAsyncThunk(
+  "CreateCustomer",
+  async (
+    {
+      storeCode,
+      email,
+      firstName,
+      lastName,
+    }: {
+      storeCode: string;
+      email: string;
+      firstName?: string;
+      lastName?: string;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.createCustomer()}?store_code=${storeCode}`,
+        {
+          email,
+          first_name: firstName ?? "",
+          last_name: lastName ?? "",
+        },
+        { useBackend: true },
+      );
+      return (response.data?.data ?? response.data) as CustomerRecord;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't create the customer", {
+        description: data?.message || "Please check the email and try again.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 const emptyList: CustomerListResponse = {
   count: 0,
   next: null,
@@ -192,6 +256,13 @@ const CustomerSlice = createSlice({
       FetchCustomersIsSuccess: false,
       FetchCustomersIsError: null as null | string | object,
       FetchCustomersData: emptyList,
+    },
+    SearchCustomersState: {
+      SearchCustomersIsLoading: false,
+      SearchCustomersData: [] as CustomerRecord[],
+    },
+    CreateCustomerState: {
+      CreateCustomerIsLoading: false,
     },
     FetchCustomerDetailsState: {
       FetchCustomerDetailsIsLoading: false,
@@ -219,6 +290,26 @@ const CustomerSlice = createSlice({
         state.FetchCustomersState.FetchCustomersIsError = action.payload as
           | string
           | object;
+      })
+      .addCase(SearchCustomers.pending, (state) => {
+        state.SearchCustomersState.SearchCustomersIsLoading = true;
+      })
+      .addCase(SearchCustomers.fulfilled, (state, action) => {
+        state.SearchCustomersState.SearchCustomersIsLoading = false;
+        state.SearchCustomersState.SearchCustomersData = action.payload ?? [];
+      })
+      .addCase(SearchCustomers.rejected, (state) => {
+        state.SearchCustomersState.SearchCustomersIsLoading = false;
+        state.SearchCustomersState.SearchCustomersData = [];
+      })
+      .addCase(CreateCustomer.pending, (state) => {
+        state.CreateCustomerState.CreateCustomerIsLoading = true;
+      })
+      .addCase(CreateCustomer.fulfilled, (state) => {
+        state.CreateCustomerState.CreateCustomerIsLoading = false;
+      })
+      .addCase(CreateCustomer.rejected, (state) => {
+        state.CreateCustomerState.CreateCustomerIsLoading = false;
       })
       .addCase(FetchCustomerDetails.pending, (state) => {
         state.FetchCustomerDetailsState.FetchCustomerDetailsIsLoading = true;

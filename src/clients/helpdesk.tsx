@@ -28,17 +28,14 @@ import {
   IconPencil,
   IconPlus,
   IconReload,
-  IconSearch,
   IconSend,
   IconSparkles,
-  IconX,
 } from "@tabler/icons-react";
 import ReactMarkdown from "react-markdown";
 
 import { useFormik } from "formik";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -83,6 +80,8 @@ import {
 } from "@/lib/badge-tones";
 
 import { ConversationRow } from "@/components/custom/conversation-row";
+import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
+import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import {
   HiddenTagsBadge,
@@ -90,7 +89,7 @@ import {
 } from "@/components/custom/helpdesk/tag-badge";
 import { DateRangePicker } from "@/components/custom/date-range-picker";
 import { LoadingState } from "@/components/custom/loading-state";
-import { OrdersCard } from "@/components/custom/thread-detail-panels";
+import { SearchInput } from "@/components/custom/search-input";
 
 import { ENDPOINTS } from "@/lib/config";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -107,6 +106,7 @@ import {
   SupportTicketSnooze,
   SupportTicketMarkRead,
   SupportTicketAIMessageDraftGenerate,
+  SupportTicketCustomerLink,
   SupportTicketCustomerOrderSync,
   SupportTicketStatusUpdate,
   SupportTicketPriorityUpdate,
@@ -124,6 +124,7 @@ import {
   type SupportSocketPayload,
 } from "@/redux/api-slice/support-ticket-slice";
 import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
+import { FetchFreshdeskTicketId } from "@/redux/api-slice/thread-slice";
 import {
   capitalizeText,
   endOfDay,
@@ -235,6 +236,7 @@ function TicketRow({
       unread={!ticket.is_read}
       avatar={<CustomerAvatar name={customerName} />}
       title={ticket.subject}
+      titleTooltip={ticket.subject}
       timestamp={formatRelativeDateTime(
         ticket.last_message_at || ticket.created_at,
       )}
@@ -243,17 +245,11 @@ function TicketRow({
           <IconAlarmSnoozeFilled className="size-3 text-primary" />
         ) : null
       }
-      // Name and teaser share a line: every row in a store's inbox repeated
-      // the same customer email, which told you nothing and cost a line.
-      preview={
-        <>
-          <span className="text-foreground/70">{customerName}</span>
-          {" · "}
-          <ReactMarkdown>
-            {ticket.last_message || ticket.description}
-          </ReactMarkdown>
-        </>
-      }
+      // Who it is from, and nothing else. The subject above already says
+      // what the ticket is about, so a teaser of the latest message only
+      // competed with it — and trailing off mid-sentence after an email
+      // address read as one run-on string.
+      preview={<span className="text-foreground/70">{customerName}</span>}
       footer={
         visibleTags.length > 0 ? (
           <div className="flex flex-wrap items-center gap-1">
@@ -617,27 +613,18 @@ function TicketListPanel({
         </Popover>
       </header>
 
-      <div className="border-b px-4 py-2.5">
-        <div className="relative">
-          <IconSearch className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={searchValue}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Search tickets..."
-            aria-label="Search tickets"
-            className="h-9 rounded-full bg-muted/50 pl-9"
-          />
-          {searchValue ? (
-            <button
-              type="button"
-              onClick={() => onSearchChange("")}
-              className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label="Clear ticket search"
-            >
-              <IconX className="size-4" />
-            </button>
-          ) : null}
-        </div>
+      {/* h-20, matching the two-row ticket strip opposite so the second
+          rule across the screen meets. The height comes from the busier
+          side; this one takes the extra as padding rather than making the
+          ticket strip give up a row it needs. */}
+      <div className="flex h-20 shrink-0 items-center border-b px-4">
+        <SearchInput
+          className="w-full"
+          value={searchValue}
+          onChange={onSearchChange}
+          placeholder="Search tickets..."
+          label="Search tickets"
+        />
       </div>
 
       <div
@@ -836,9 +823,11 @@ function ConversationPanel({
             <CardTitle className="truncate leading-tight">
               {customerName}
             </CardTitle>
-            <Typography variant="muted" className="truncate">
-              {customerEmail || "No email on file"}
-            </Typography>
+            {customerEmail ? (
+              <Typography variant="muted" className="truncate">
+                {customerEmail}
+              </Typography>
+            ) : null}
           </div>
         </div>
 
@@ -963,9 +952,15 @@ function ConversationPanel({
         </div>
       </header>
 
-      <div className="flex shrink-0 flex-col gap-2 border-b px-4 py-2.5">
-        <div className="flex items-baseline justify-between gap-4">
-          <div className="flex min-w-0 items-baseline gap-2">
+      {/* Two rows, at a fixed h-20 that cannot grow. The subject needs a
+          line of its own — sharing one with the status chips left it
+          truncated to a few words. Height stays independent of the data:
+          neither row wraps, the subject truncates, and the tag list is
+          capped with a +N, so a ticket with nine tags sits at exactly the
+          same height as one with none. */}
+      <div className="flex h-20 shrink-0 flex-col justify-center gap-2 overflow-hidden border-b px-4">
+        <div className="flex items-baseline gap-3">
+          <div className="flex min-w-0 flex-1 items-baseline gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Typography variant="small" as="h3" className="truncate">
@@ -981,9 +976,9 @@ function ConversationPanel({
             </span>
           </div>
 
-          {/* Facts ride the subject line rather than claiming one of their
-              own, and say what each date is — two bare timestamps side by
-              side told you nothing. */}
+          {/* Facts close the subject line, and say what each date is — two
+              bare timestamps side by side told you nothing. First to go
+              when the pane narrows, being the least urgent thing here. */}
           <div className="hidden shrink-0 items-center gap-4 lg:flex">
             {facts.map((fact) => (
               <TicketFact key={fact.label} {...fact} />
@@ -991,7 +986,7 @@ function ConversationPanel({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           {/* Status and priority are set on the badges that report them,
               rather than in a menu behind a ⋮ that showed the same two
               values a second time. */}
@@ -1111,16 +1106,12 @@ function ConversationPanel({
                 </Typography>
               </div>
               <div className="p-2">
-                <div className="relative">
-                  <IconSearch className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search tags..."
-                    aria-label="Search tags"
-                    value={tagSearch}
-                    onChange={(event) => setTagSearch(event.target.value)}
-                    className="h-9 pl-9"
-                  />
-                </div>
+                <SearchInput
+                  value={tagSearch}
+                  onChange={setTagSearch}
+                  placeholder="Search tags..."
+                  label="Search tags"
+                />
               </div>
               {isTagPickerLoading && availableTags.length === 0 ? (
                 <LoadingState label="Loading tags…" className="py-6" />
@@ -1460,52 +1451,6 @@ function TicketFact({
 }
 
 /**
- * The right pane. It used to carry a Ticket tab repeating the header's
- * status, priority and tags, so the two could disagree mid-save; now the
- * header owns the ticket and this pane owns the one thing it can't fit —
- * what the customer has bought.
- */
-function CustomerOrdersPanel({
-  ticket,
-  isOrdersLoading,
-  isOrderSyncLoading,
-  onOrdersSync,
-  isClosed,
-}: {
-  ticket: SupportTicket;
-  isOrdersLoading: boolean;
-  isOrderSyncLoading: boolean;
-  onOrdersSync: () => void;
-  isClosed: boolean;
-}) {
-  const customerData =
-    ticket.customer && typeof ticket.customer === "object"
-      ? ticket.customer
-      : null;
-
-  return (
-    <aside className="hidden min-h-0 w-95 shrink-0 flex-col border-l xl:flex">
-      <header className="flex h-16 shrink-0 flex-col justify-center border-b px-4">
-        <CardTitle className="leading-tight">Orders</CardTitle>
-        <Typography variant="muted">
-          What this customer has bought from you.
-        </Typography>
-      </header>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <OrdersCard
-          orders={customerData?.orders}
-          loading={isOrdersLoading}
-          handleOrdersSync={() => !isClosed && onOrdersSync()}
-          orderSyncLoading={isOrderSyncLoading}
-          customerData={customerData}
-          isDisabled={isClosed}
-        />
-      </div>
-    </aside>
-  );
-}
-
-/**
  * The orders pane before a ticket is chosen, and while one loads. One
  * component so both states keep the pane exactly as wide as the real one.
  */
@@ -1530,6 +1475,8 @@ function TicketInsightsPlaceholder({
 export default function HelpDesk() {
   const searchParams = useSearchParams();
   const activeFilter = searchParams?.get("filter") ?? "";
+  /** Deep link to one ticket, e.g. from the Live Support detail panel. */
+  const linkedTicketId = Number(searchParams?.get("ticket") ?? "");
 
   const dispatch = useAppDispatch();
   const { data: session } = useSession();
@@ -1568,6 +1515,10 @@ export default function HelpDesk() {
       state.GetSupportTicketsReducer.SupportTicketMessagesTranslateState,
   );
   const { staff } = useAppSelector((state) => state.GetTenancyReducer);
+  const { FetchFreshdeskTicketIdData, FetchFreshdeskTicketIdIsLoading } =
+    useAppSelector(
+      (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
+    );
 
   const [ticketRows, setTicketRows] = useState<SupportTicket[]>([]);
   const [page, setPage] = useState(1);
@@ -1604,6 +1555,19 @@ export default function HelpDesk() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] =
     useState<TicketFilterSelection>(emptyTicketFilters);
+
+  // Open a deep-linked ticket once. The detail request keys on the id
+  // alone, so the ticket does not have to be on the loaded page — which is
+  // the point, since the link may arrive from another screen entirely.
+  const [seededTicketId, setSeededTicketId] = useState<number | null>(null);
+  if (
+    Number.isInteger(linkedTicketId) &&
+    linkedTicketId > 0 &&
+    seededTicketId !== linkedTicketId
+  ) {
+    setSeededTicketId(linkedTicketId);
+    setActiveTicketId(linkedTicketId);
+  }
 
   // Switching sidebar filter resets paging. The list request keys on
   // `page`, so arriving on a filter while page 2 was loaded asked for a
@@ -2127,6 +2091,58 @@ export default function HelpDesk() {
     () => queues.find((queue) => queue.key === activeQueue)?.label ?? "Open",
     [activeQueue],
   );
+
+  // The customer behind the open ticket, and their other tickets. No
+  // session data is requested: a ticket can arrive by email, phone or
+  // social, so there is no browsing session behind it to report.
+  const ticketCustomer =
+    activeSupportTicket?.customer &&
+    typeof activeSupportTicket.customer === "object"
+      ? activeSupportTicket.customer
+      : null;
+
+  useEffect(() => {
+    if (!storeCode || !ticketCustomer?.id) return;
+    dispatch(
+      FetchFreshdeskTicketId({
+        threadId: ticketCustomer.thread_id ?? "",
+        customerId: ticketCustomer.id,
+        storeCode,
+      }),
+    );
+  }, [dispatch, storeCode, ticketCustomer?.id, ticketCustomer?.thread_id]);
+
+  // The ticket being read is not "another ticket from this customer" — it
+  // is the one on screen, and listing it beside itself is noise.
+  const otherCustomerTickets = (FetchFreshdeskTicketIdData ?? []).filter(
+    (ticket) => ticket.id !== activeSupportTicket?.id,
+  );
+
+  // Linking a customer to a guest ticket. Offered only when there is none
+  // attached — once linked, the panel shows the record instead.
+  const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
+  const { SupportTicketCustomerLinkIsLoading } = useAppSelector(
+    (state) => state.GetSupportTicketsReducer.SupportTicketCustomerLinkState,
+  );
+
+  const handleLinkCustomer = async (customerId: number) => {
+    if (!storeCode || !activeTicketId) return;
+    const result = await dispatch(
+      SupportTicketCustomerLink({
+        storeCode,
+        ticketId: activeTicketId,
+        customerId,
+      }),
+    );
+    if (SupportTicketCustomerLink.fulfilled.match(result)) {
+      setIsLinkCustomerOpen(false);
+      // Refetch rather than patching locally: linking changes the orders
+      // and ticket history the panel shows, not just the name on it.
+      dispatch(
+        FetchSupportTicketDetails({ storeCode, ticketId: activeTicketId }),
+      );
+    }
+  };
 
   const handleSelectTicket = (ticketId: number) => {
     const nextTicket = ticketRows.find((ticket) => ticket.id === ticketId);
@@ -2909,22 +2925,42 @@ export default function HelpDesk() {
         )}
         {(FetchSupportTicketsLoading || FetchSupportTicketDetailsIsLoading) &&
         activeSupportTicket?.id !== activeTicketId ? (
-          <TicketInsightsPlaceholder loading label="Loading orders…" />
+          <TicketInsightsPlaceholder
+            loading
+            label="Loading customer details…"
+          />
         ) : !activeSupportTicket ? (
-          <TicketInsightsPlaceholder label="Select a ticket to see the customer\u2019s orders." />
+          <TicketInsightsPlaceholder label="Select a ticket to see the customer's details." />
         ) : (
-          <CustomerOrdersPanel
-            ticket={activeSupportTicket}
-            isOrdersLoading={FetchSupportTicketDetailsIsLoading}
-            isOrderSyncLoading={SupportTicketCustomerOrderSyncIsLoading}
+          <CustomerDetailsPanel
+            description="Orders and other tickets from this customer."
+            customerData={ticketCustomer}
+            orders={ticketCustomer?.orders}
+            ordersLoading={FetchSupportTicketDetailsIsLoading}
             onOrdersSync={handleCustomerOrderSync}
-            isClosed={
+            orderSyncLoading={SupportTicketCustomerOrderSyncIsLoading}
+            ordersDisabled={
               activeSupportTicket.status === "closed" ||
               activeSupportTicket.status === "resolved"
             }
+            tickets={{
+              data: otherCustomerTickets,
+              loading: FetchFreshdeskTicketIdIsLoading,
+            }}
+            onLinkCustomer={() => setIsLinkCustomerOpen(true)}
           />
         )}
       </div>
+
+      {storeCode ? (
+        <LinkCustomerDialog
+          open={isLinkCustomerOpen}
+          onOpenChange={setIsLinkCustomerOpen}
+          storeCode={storeCode}
+          linking={SupportTicketCustomerLinkIsLoading}
+          onLink={(customer) => handleLinkCustomer(customer.id)}
+        />
+      ) : null}
     </div>
   );
 }
