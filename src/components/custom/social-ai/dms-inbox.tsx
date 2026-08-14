@@ -1195,7 +1195,7 @@ export default function DmsInbox({
                       threadId=""
                       storeCode={storeCode}
                       channel={channelType}
-                      socialId={String(activeConversationId)}
+                      socialUserId={String(activeConversationId)}
                       sourceLabel="Social User ID"
                       open={createTicketOpen}
                       onOpenChange={setCreateTicketOpen}

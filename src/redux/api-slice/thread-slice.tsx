@@ -241,8 +241,8 @@ export type ThreadTicketData = {
 
 export type CreateSupportTicket = {
   channel: string;
-  thread_id: string;
-  social_id: string;
+  thread_id?: string;
+  social_user_id?: string;
   customer_email: string;
   subject: string;
   description: string;

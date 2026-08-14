@@ -27,7 +27,7 @@ export function CreateTicketDialog({
   storeCode,
   customerEmail: threadCustomerEmail = "",
   channel = "web",
-  socialId = "",
+  socialUserId = "",
   sourceLabel = "Thread ID",
   open,
   onOpenChange,
@@ -37,7 +37,7 @@ export function CreateTicketDialog({
   storeCode: string;
   customerEmail?: string;
   channel?: string;
-  socialId?: string;
+  socialUserId?: string;
   sourceLabel?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -58,7 +58,7 @@ export function CreateTicketDialog({
   const ticketCustomerEmail = hasThreadCustomerEmail
     ? threadCustomerEmail
     : customerEmail;
-  const sourceId = threadId || socialId;
+  const sourceId = threadId || socialUserId;
 
   const resetForm = () => {
     setCustomerEmail("");
@@ -77,14 +77,18 @@ export function CreateTicketDialog({
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!sourceId || !storeCode) return;
-    const payload = {
+    const payload: CreateSupportTicket = {
       channel,
-      thread_id: threadId ?? "",
-      social_id: socialId,
       customer_email: ticketCustomerEmail,
       subject,
       description,
     };
+    if (threadId) {
+      payload.thread_id = threadId;
+    }
+    if (socialUserId) {
+      payload.social_user_id = socialUserId;
+    }
     try {
       const ticket = await dispatch(
         CreateSupportTicket({
