@@ -34,10 +34,7 @@ import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
 import MessagePan from "@/components/custom/message-pan";
 import {
-  FetchAIInsight,
   FetchCart,
-  FetchConversationSummary,
-  FetchFeedbackSequence,
   FetchFreshdeskTicketId,
   FetchThreadDetails,
   FetchThreads,
@@ -531,6 +528,10 @@ const useNotificationSound = (soundUrl: string = "/notification_sound.mp3") => {
   return play;
 };
 
+/** chat_thread.id is a uuid; anything else cannot be a thread. */
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default function Support() {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
@@ -639,7 +640,15 @@ export default function Support() {
   const selectedThreadStillExists =
     desiredThreadId !== null &&
     localThreads.some((thread) => thread.id === desiredThreadId);
-  const activeThreadId = selectedThreadStillExists ? desiredThreadId : null;
+  // chat_thread.id is a uuid column, so anything else — a stale ?chat=
+  // value, a ticket number pasted into the URL — makes every thread-scoped
+  // query fail in Postgres and come back as a 500. Refusing it here turns
+  // seven failing requests into none, and the screen falls back to "no
+  // conversation selected" rather than a pane of broken cards.
+  const activeThreadId =
+    selectedThreadStillExists && UUID_PATTERN.test(desiredThreadId)
+      ? desiredThreadId
+      : null;
 
   useEffect(() => {
     if (!activeThreadId || chatParam === activeThreadId) return;
@@ -733,11 +742,12 @@ export default function Support() {
         .catch(() => {
           // Errors surface via the slice's fetch state; keep messages empty.
         });
-      dispatch(FetchConversationSummary(activeThreadId));
-      dispatch(FetchAIInsight(activeThreadId));
+      // Summary, AI insight and feedback sequence are deliberately not
+      // fetched here. They belong to the Threads detail screen, which
+      // renders them; this one never read the results, so opening a
+      // conversation fired three requests whose responses were dropped.
       dispatch(FetchCart(activeThreadId));
       dispatch(FetchUserMetadata(activeThreadId));
-      dispatch(FetchFeedbackSequence(activeThreadId));
       dispatch(
         FetchFreshdeskTicketId({
           threadId: activeThreadId,
@@ -1137,7 +1147,16 @@ export default function Support() {
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
+    // Set when the effect is torn down before the handshake finishes, so
+    // the socket can be closed cleanly once it opens instead of being
+    // aborted mid-connect.
+    let cancelled = false;
+
     ws.onopen = () => {
+      if (cancelled) {
+        ws.close(1000, "superseded");
+        return;
+      }
       console.info("Agent connected");
     };
 
@@ -1206,19 +1225,40 @@ export default function Support() {
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       if (wsRef.current === ws) {
         wsRef.current = null;
       }
-      console.info("Agent disconnected");
+      // 1000 is a clean close and 1001 is the page going away — both are us
+      // leaving, not a fault. Anything else is worth knowing about, and the
+      // code and reason here are the only real diagnostics a WebSocket
+      // gives; the error event carries none.
+      if (cancelled || event.code === 1000 || event.code === 1001) {
+        console.info("Agent disconnected");
+        return;
+      }
+      console.warn(
+        `Live chat socket closed unexpectedly (${event.code}${
+          event.reason ? `: ${event.reason}` : ""
+        })`,
+      );
     };
 
-    ws.onerror = (error) => {
-      console.error("WebSocket error", error);
+    ws.onerror = () => {
+      // Deliberately silent. A WebSocket error event carries no detail by
+      // design — logging it prints "[object Event]" and nothing more. A
+      // close event always follows, and that one says what happened.
     };
 
     return () => {
-      ws.close();
+      cancelled = true;
+      // Closing a socket that is still CONNECTING aborts the handshake and
+      // fires an error event, which is where the console noise came from:
+      // this effect re-runs whenever the open thread changes. Only an open
+      // socket is closed here; a connecting one closes itself in onopen.
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close(1000, "thread changed");
+      }
       if (wsRef.current === ws) {
         wsRef.current = null;
       }
