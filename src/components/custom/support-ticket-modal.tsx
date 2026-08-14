@@ -106,11 +106,16 @@ export function CreateTicketDialog({
 
   const handleGenerateDescription = async (checked: boolean) => {
     setGenerateDescription(checked);
-    if (!checked || !threadId || !storeCode) return;
+    if (!checked || !sourceId || !storeCode) return;
 
     try {
       const data = await dispatch(
-        GenerateTicketContent({ thread_id: threadId, store_code: storeCode }),
+        GenerateTicketContent({
+          channel,
+          thread_id: threadId,
+          social_user_id: socialUserId,
+          store_code: storeCode,
+        }),
       ).unwrap();
       setSubject(data.subject || "");
       setDescription(data.description || "");
@@ -178,7 +183,7 @@ export function CreateTicketDialog({
               id="generate-description"
               checked={generateDescription}
               onCheckedChange={handleGenerateDescription}
-              disabled={GenerateTicketContentIsLoading || !threadId}
+              disabled={GenerateTicketContentIsLoading || !sourceId}
             />
           </div>
 

@@ -640,17 +640,33 @@ export const GenerateTicketContent = createAsyncThunk(
   "GenerateTicketContent",
   async (
     {
+      channel,
       thread_id,
+      social_user_id,
       store_code,
     }: {
-      thread_id: string;
+      channel: string;
+      thread_id?: string;
+      social_user_id?: string;
       store_code: string;
     },
     thunkAPI,
   ) => {
     try {
+      const payload: {
+        channel: string;
+        thread_id?: string;
+        social_user_id?: string;
+      } = { channel };
+      if (thread_id) {
+        payload.thread_id = thread_id;
+      }
+      if (social_user_id) {
+        payload.social_user_id = social_user_id;
+      }
       const response = await axiosInstance.post(
-        `${ENDPOINTS.generateTicketContent(thread_id)}?store_code=${store_code}`,
+        `${ENDPOINTS.generateTicketContent()}?store_code=${store_code}`,
+        payload,
       );
       const data = response.data.data;
 
