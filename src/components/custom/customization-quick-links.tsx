@@ -1,6 +1,7 @@
 "use client";
 
 import { IconLink, IconTrash } from "@tabler/icons-react";
+import { FieldError } from "@/components/custom/field-error";
 
 import { InfoIcon } from "@/components/custom/info-icon";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,8 @@ import { isValidUrl } from "@/lib/url";
 import type { QuickLinkItem } from "@/components/custom/customization-types";
 
 type CustomizationQuickLinksProps = {
+  /** Field errors from the last rejected save, keyed as the API names them. */
+  fieldErrors?: Record<string, string>;
   quickLinks: QuickLinkItem[];
   onUpdate: (index: number, patch: Partial<QuickLinkItem>) => void;
   onAdd: () => void;
@@ -25,6 +28,7 @@ type CustomizationQuickLinksProps = {
 };
 
 export default function CustomizationQuickLinks({
+  fieldErrors,
   quickLinks,
   onUpdate,
   onAdd,
@@ -141,6 +145,9 @@ export default function CustomizationQuickLinks({
             Add link
           </Button>
         </div>
+        {/* Whatever the server rejected among this card's fields.
+            Renders nothing when it rejected none. */}
+        <FieldError errors={fieldErrors} name="quick_links" />
       </CardContent>
     </Card>
   );

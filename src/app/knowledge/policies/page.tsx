@@ -1,19 +1,15 @@
 import StorePolicyTabContent from "@/components/custom/store-policy-tab-content";
-import SubPageShell from "@/components/custom/sub-page-shell";
+import { AreaSubPage } from "@/components/custom/area-sub-page";
+import { areaSectionMetadata } from "@/lib/nav-areas";
 
-export const metadata = {
-  title: "Company Policies",
-};
+const HREF = "/knowledge/policies";
+
+export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
   return (
-    <SubPageShell
-      backHref="/knowledge"
-      backLabel="Back to knowledge"
-      title="Company Policies"
-      description="Link your refund, shipping, and other policies so the AI can reference them."
-    >
+    <AreaSubPage href={HREF}>
       <StorePolicyTabContent />
-    </SubPageShell>
+    </AreaSubPage>
   );
 }

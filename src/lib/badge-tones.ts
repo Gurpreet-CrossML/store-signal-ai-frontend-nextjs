@@ -22,3 +22,24 @@ export const BADGE_TONE_STYLES: Record<BadgeTone, string> = {
   accent: "border-primary/20 bg-primary/10 text-primary",
   neutral: "border-border bg-muted text-muted-foreground",
 };
+
+/**
+ * The same tones as an *action* rather than a label: a colored mark and
+ * hover ground on an otherwise plain button. A filled badge would shout
+ * next to its neighbours, but the meaning still has to carry — resolving,
+ * closing and snoozing a ticket are not interchangeable.
+ *
+ * `danger` and `accent` use theme tokens; the rest have no token, so they
+ * borrow the hues above to stay in step with the badges.
+ */
+export const ACTION_TONE_STYLES: Record<BadgeTone, string> = {
+  success:
+    "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950 dark:hover:text-emerald-300",
+  warning:
+    "text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-amber-950 dark:hover:text-amber-300",
+  info: "text-sky-600 hover:bg-sky-50 hover:text-sky-700 dark:text-sky-400 dark:hover:bg-sky-950 dark:hover:text-sky-300",
+  danger:
+    "text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20",
+  accent: "text-primary hover:bg-primary/10 hover:text-primary",
+  neutral: "text-muted-foreground hover:text-foreground",
+};

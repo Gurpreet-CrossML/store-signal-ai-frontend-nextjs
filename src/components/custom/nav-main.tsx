@@ -89,10 +89,17 @@ function CollapsibleMenuItem({
 export function SidebarMenuItemWrapper({
   item,
   pathname,
+  isActive,
   expanded = false,
 }: {
   item: SideBarMenuItem;
   pathname: string | null;
+  /**
+   * Overrides the path-based check. Sub-sidebar entries can carry a query
+   * string, and which of a group of siblings wins is decided once by
+   * `activeNavUrl` rather than re-derived per item.
+   */
+  isActive?: boolean;
   /**
    * Render as a full-width labelled row instead of a collapsed icon.
    *
@@ -104,11 +111,13 @@ export function SidebarMenuItemWrapper({
    */
   expanded?: boolean;
 }) {
+  const active = isActive ?? isMenuItemActive(pathname, item.url);
+
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         tooltip={expanded ? undefined : item.title}
-        isActive={isMenuItemActive(pathname, item.url)}
+        isActive={active}
         className={cn(
           "data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15 data-[active=true]:hover:text-primary",
           expanded &&
@@ -118,11 +127,7 @@ export function SidebarMenuItemWrapper({
       >
         <Link href={item.url}>
           {item.icon && (
-            <item.icon
-              className={cn(
-                isMenuItemActive(pathname, item.url) ? "text-primary!" : "",
-              )}
-            />
+            <item.icon className={cn(active ? "text-primary!" : "")} />
           )}
           <span>{item.title}</span>
         </Link>

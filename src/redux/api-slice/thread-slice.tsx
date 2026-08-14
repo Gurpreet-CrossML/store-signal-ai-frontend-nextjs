@@ -292,6 +292,17 @@ export type OrderData = {
   shipping_method: string | null;
   shipping_address: OrderShippingAddress;
   items: OrderItemData[];
+  /**
+   * Deep link to this order in the store's own admin, for the actions we
+   * deliberately do not reimplement — refunds, cancellations, edits.
+   *
+   * Built server-side rather than here: the shape differs per platform
+   * (Shopify's admin.shopify.com/store/<handle>/orders/<id> against
+   * Magento's own admin path), and nothing the client holds identifies the
+   * store's admin host. Absent until the backend sends it, in which case
+   * the button simply does not render.
+   */
+  admin_url?: string | null;
 };
 
 export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
@@ -503,6 +514,36 @@ export const FetchCart = createAsyncThunk(
         });
       }
 
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+/** Attach an existing customer record to a chat a guest started. */
+export const ThreadCustomerLink = createAsyncThunk(
+  "ThreadCustomerLink",
+  async (
+    {
+      storeCode,
+      threadId,
+      customerId,
+    }: { storeCode: string; threadId: string; customerId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.threadCustomerLink(threadId)}?store_code=${storeCode}`,
+        { customer: customerId },
+        { useBackend: true },
+      );
+      toast.success("Customer linked to this conversation.");
+      return response.data?.data ?? response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't link the customer", {
+        description: data?.message || "Please try again.",
+      });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },

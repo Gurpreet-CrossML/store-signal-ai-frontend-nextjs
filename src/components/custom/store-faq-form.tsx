@@ -19,6 +19,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { formikErrorsFromZod, applyServerFieldErrors } from "@/lib/form-errors";
 import {
   CreateStoreFaq,
   UpdateStoreFaq,
@@ -73,12 +74,7 @@ export default function StoreFaqForm({
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
-      return Object.fromEntries(
-        result.error.issues.map((issue) => [
-          issue.path.join("."),
-          issue.message,
-        ]),
-      );
+      return formikErrorsFromZod(result.error.issues);
     },
     onSubmit: async (values) => {
       const result = isEditing
@@ -105,7 +101,9 @@ export default function StoreFaqForm({
       if (succeeded) {
         onSaved();
         onOpenChange(false);
+        return;
       }
+      applyServerFieldErrors(formik, result.payload);
     },
   });
 
