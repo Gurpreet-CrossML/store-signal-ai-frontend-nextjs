@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
+import { TagBadge } from "@/components/custom/helpdesk/tag-badge";
 import type { SupportTicketTagData } from "@/redux/api-slice/support-ticket-slice";
 
 export function getTagColumns({
@@ -23,15 +24,7 @@ export function getTagColumns({
     {
       accessorKey: "name",
       header: "Tag",
-      cell: ({ row }) => (
-        <span className="flex items-center gap-2 font-medium">
-          <span
-            className="size-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: row.original.color }}
-          />
-          {row.original.name}
-        </span>
-      ),
+      cell: ({ row }) => <TagBadge tag={row.original} />,
     },
     {
       accessorKey: "description",

@@ -4,30 +4,38 @@ import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
 import type {
   CartDataResponse,
-  UserMetadata,
   Customer,
   OrderData,
-  OrderShippingAddress,
   CartData,
   ThreadTicketData,
 } from "@/redux/api-slice/thread-slice";
 import {
-  IconBrowser,
-  IconDeviceDesktop,
-  IconDeviceLaptop,
-  IconLocationPin,
-  IconNetwork,
   IconShoppingBag,
-  IconUser,
   IconPackage,
   IconChevronRight,
-  IconMail,
   IconTicket,
 } from "@tabler/icons-react";
-import { FulfillmentBadge, StatusBadge } from "@/components/ui/status-badge";
-import { Badge } from "@/components/ui/badge";
-import { BADGE_TONE_STYLES, type BadgeTone } from "@/lib/badge-tones";
-import { cn } from "@/lib/utils";
+import { FulfillmentBadge } from "@/components/ui/status-badge";
+import { OrderDetails } from "@/components/custom/order-details";
+import { IconRefresh } from "@tabler/icons-react";
+
+import { AnimatePresence, motion } from "framer-motion";
+
+import {
+  LIVE_TICKET_STATUSES,
+  SupportTicketCard,
+} from "@/components/custom/support-ticket-card";
+import {
+  ShowMoreToggle,
+  useCollapsibleList,
+} from "@/components/custom/collapsible-list";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { formatDate, formatPrice } from "@/lib/helpers";
 import { Button } from "@/components/ui/button";
 
 function CardLoadingState() {
@@ -71,7 +79,7 @@ export function CartDetailsCard({
       {loading ? (
         <CardLoadingState />
       ) : items.length === 0 ? (
-        <Typography variant="muted">Cart is empty.</Typography>
+        <Typography variant="muted">Nothing in the cart right now.</Typography>
       ) : (
         <div className="flex flex-col gap-2.5">
           {items.map((item: CartData, index: number) => (
@@ -114,416 +122,59 @@ export function CartDetailsCard({
   );
 }
 
-function MetaRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value?: string | null;
-}) {
-  // Icon-only rows: the label survives as a hover tooltip, and missing
-  // values render as "-" so every row keeps its slot.
+/** One figure in the summary card's strip. */
+function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2.5" title={label}>
-      <span className="shrink-0 text-muted-foreground">{icon}</span>
-      <Typography
-        variant="small"
-        as="span"
-        className="min-w-0 leading-normal font-normal wrap-break-word"
-      >
-        {value || "-"}
+    <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
+      <Typography variant="muted">{label}</Typography>
+      <Typography variant="small" as="p" className="truncate tabular-nums">
+        {value}
       </Typography>
     </div>
   );
 }
 
-export function UserMetadataCard({
-  userMetadata,
-  customerData,
+/**
+ * What this customer is worth, and nothing else.
+ *
+ * Their name, email, where they are browsing from and the link to their
+ * record all live on the conversation header now — repeating them at the
+ * top of this pane pushed the orders and tickets an agent actually works
+ * from below the fold.
+ */
+export function CustomerSummaryCard({
+  orders,
   loading,
 }: {
-  userMetadata: UserMetadata | null;
-  customerData?: Customer | null;
+  orders?: OrderData[] | null;
   loading?: boolean;
 }) {
+  const orderList = orders ?? [];
+  const totalSpent = orderList.reduce(
+    (sum, order) => sum + Number(order.total_price ?? 0),
+    0,
+  );
+  const currency = orderList[0]?.currency ?? "USD";
+
   return (
-    <section className="flex flex-col gap-3 border-b p-4 last:border-b-0">
-      <CardTitle className="flex items-center gap-2">
-        <IconUser className="size-4" />
-        Customer
-      </CardTitle>
+    <section className="border-b p-4">
       {loading ? (
         <CardLoadingState />
       ) : (
-        <div className="flex flex-col gap-2.5">
-          <MetaRow
-            icon={<IconUser className="size-4" />}
-            label="Name"
-            value={customerData?.name}
+        // A 1px gap over a border-coloured ground: even separators however
+        // the pair wraps.
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
+          <SummaryStat
+            label="Total spent"
+            value={formatPrice(totalSpent, currency)}
           />
-          <MetaRow
-            icon={<IconMail className="size-4" />}
-            label="Email"
-            value={customerData?.email}
-          />
-          <MetaRow
-            icon={<IconLocationPin className="size-4" />}
-            label="Location"
-            value={userMetadata?.geo_location}
-          />
-          <MetaRow
-            icon={<IconNetwork className="size-4" />}
-            label="IP Address"
-            value={userMetadata?.ip_address}
-          />
-          <MetaRow
-            icon={<IconDeviceLaptop className="size-4" />}
-            label="Device"
-            value={userMetadata?.device_type}
-          />
-          <MetaRow
-            icon={<IconBrowser className="size-4" />}
-            label="Browser"
-            value={userMetadata?.browser}
-          />
-          <MetaRow
-            icon={<IconDeviceDesktop className="size-4" />}
-            label="OS"
-            value={userMetadata?.os}
-          />
+          <SummaryStat label="Orders" value={String(orderList.length)} />
         </div>
       )}
     </section>
   );
 }
 
-/**
- * Build a readable multi-line shipping address, skipping any parts that
- * are missing rather than rendering "null" or empty lines.
- */
-function formatShippingAddress(address: OrderShippingAddress): {
-  recipient: string | null;
-  lines: string[];
-} {
-  const recipient =
-    address.name ??
-    [
-      address.first_name || address.firstname,
-      address.last_name || address.lastname,
-    ]
-      .filter(Boolean)
-      .join(" ") ??
-    null;
-
-  const streetLine =
-    [address.address1, address.address2].filter(Boolean).join(", ") ||
-    (address?.street ?? []).filter(Boolean).join(", ");
-
-  const cityLine = [
-    address.city,
-    address.province_code ?? address.province,
-    address.zip || address.postcode,
-  ]
-    .filter(Boolean)
-    .join(", ");
-
-  const lines = [
-    streetLine,
-    cityLine,
-    address.country || address.country_id,
-    address.telephone,
-  ].filter((line): line is string => Boolean(line));
-
-  return { recipient: recipient || null, lines };
-}
-
-function ShippingAddress({
-  address,
-}: {
-  address: OrderShippingAddress | null;
-}) {
-  if (!address) {
-    return <Typography variant="muted">No shipping address on file</Typography>;
-  }
-
-  const { recipient, lines } = formatShippingAddress(address);
-
-  if (!recipient && lines.length === 0) {
-    return <Typography variant="muted">No shipping address on file</Typography>;
-  }
-
-  return (
-    <div>
-      {recipient && (
-        <Typography variant="small" as="p" className="leading-normal">
-          {recipient}
-        </Typography>
-      )}
-      {lines.map((line, idx) => (
-        <Typography
-          key={idx}
-          variant="small"
-          as="p"
-          className="leading-normal font-normal"
-        >
-          {line}
-        </Typography>
-      ))}
-    </div>
-  );
-}
-
-/** Format a "YYYY-MM-DD HH:mm:ss+TZ" timestamp into a short readable date. */
-function formatDate(value: string): string {
-  // Normalize before parsing: Date.parse needs the "T" separator instead of
-  // a space, and rejects bare-hour offsets like "+00" unless minutes are
-  // appended ("+00:00").
-  const date = new Date(
-    value.replace(" ", "T").replace(/([+-]\d{2})$/, "$1:00"),
-  );
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-/** Format a price string with the order's currency, e.g. "3850.00" → "$3,850.00". */
-function formatPrice(value: string | number, currency: string): string {
-  const amount = typeof value === "number" ? value : Number(value);
-  if (Number.isNaN(amount)) return String(value);
-
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency,
-      // Without this, some locales render USD as "US$" instead of "$" to
-      // disambiguate from their own local currency — narrowSymbol forces
-      // the plain symbol regardless of locale.
-      currencyDisplay: "narrowSymbol",
-    }).format(amount);
-  } catch {
-    // Unrecognized currency code — fall back to plain formatting.
-    return `${value} ${currency}`;
-  }
-}
-
-/**
- * Build the optional price-breakdown rows (subtotal, discount, shipping,
- * tax) for the order summary — each only appears when the platform
- * actually captured that value, since not every synced order has one.
- */
-function getPriceBreakdownRows(
-  order: OrderData,
-): { label: string; value: string }[] {
-  const rows: { label: string; value: string }[] = [];
-
-  if (order.subtotal_price) {
-    rows.push({
-      label: "Subtotal",
-      value: formatPrice(order.subtotal_price, order.currency),
-    });
-  }
-
-  if (order.total_discounts && Number(order.total_discounts) > 0) {
-    rows.push({
-      label: "Discount",
-      value: `−${formatPrice(order.total_discounts, order.currency)}`,
-    });
-  }
-
-  if (order.total_shipping) {
-    rows.push({
-      label: "Shipping",
-      value: formatPrice(order.total_shipping, order.currency),
-    });
-  }
-
-  if (order.total_tax) {
-    rows.push({
-      label: "Tax",
-      value: formatPrice(order.total_tax, order.currency),
-    });
-  }
-
-  if (order.total_price) {
-    rows.push({
-      label: "Total",
-      value: formatPrice(order.total_price, order.currency),
-    });
-  }
-
-  return rows;
-}
-
-function DetailRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <Typography variant="muted" className="shrink-0">
-        {label}
-      </Typography>
-      <div className="flex min-w-0 justify-end wrap-anywhere">{children}</div>
-    </div>
-  );
-}
-
-function OrderDetails({ order }: { order: OrderData }) {
-  const breakdownRows = getPriceBreakdownRows(order);
-
-  return (
-    <div className="space-y-3 border-t border-border/50 p-3">
-      <div>
-        <Typography variant="muted" className="font-medium">
-          Items
-        </Typography>
-        <div className="mt-1.5 space-y-2">
-          {order.items.map((item, idx) => {
-            const unitPrice =
-              typeof item.price === "number" ? item.price : Number(item.price);
-            const lineTotal =
-              item.total_price ??
-              (Number.isNaN(unitPrice)
-                ? item.price
-                : unitPrice * item.quantity);
-
-            return (
-              <div key={idx}>
-                <div className="flex items-start justify-between gap-2">
-                  <Typography
-                    variant="small"
-                    as="span"
-                    className="leading-normal font-normal"
-                  >
-                    {item.name}
-                  </Typography>
-                  <Typography variant="small" as="span" className="shrink-0">
-                    {formatPrice(lineTotal, order.currency)}
-                  </Typography>
-                </div>
-                {/* Wraps onto its own line on narrow screens instead of
-                    overflowing the card. */}
-                <Typography
-                  variant="muted"
-                  as="div"
-                  className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5"
-                >
-                  <span>
-                    {formatPrice(item.price, order.currency)} × {item.quantity}
-                  </span>
-                  {/* Tax is Magento-only — Shopify items don't include a
-                      per-item tax breakdown, so this is skipped rather
-                      than shown as $0.00 when the field is absent. */}
-                  {item.total_tax_price != null && (
-                    <span>
-                      · Tax {formatPrice(item.total_tax_price, order.currency)}
-                    </span>
-                  )}
-                </Typography>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {breakdownRows.length > 0 && (
-        <div className="space-y-1.5 border-t border-border/50 pt-2.5">
-          {breakdownRows.map((row) => {
-            const isTotal = row.label === "Total";
-            const isDiscount = row.label === "Discount";
-
-            return (
-              <div
-                key={row.label}
-                className={
-                  isTotal
-                    ? "mt-1 flex items-center justify-between border-t border-border/50 pt-2"
-                    : "flex items-center justify-between"
-                }
-              >
-                <Typography variant={isTotal ? "large" : "muted"} as="span">
-                  {row.label}
-                </Typography>
-                <Typography
-                  variant={isTotal ? "large" : "small"}
-                  as="span"
-                  className={
-                    isTotal
-                      ? "text-primary"
-                      : isDiscount
-                        ? "text-emerald-600 dark:text-emerald-500"
-                        : undefined
-                  }
-                >
-                  {row.value}
-                </Typography>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Same label-left / value-right rhythm as the price rows above, so
-          the status badge lands in the value column instead of floating
-          under its label. */}
-      <div className="space-y-2 border-t border-border/50 pt-2.5">
-        <DetailRow label="Payment">
-          <Typography variant="small" as="span" className="capitalize">
-            {order.gateway}
-          </Typography>
-        </DetailRow>
-        <DetailRow label="Payment Status">
-          <StatusBadge status={order.financial_status} />
-        </DetailRow>
-        {order.shipping_method && (
-          <DetailRow label="Shipping Method">
-            <Typography
-              variant="small"
-              as="span"
-              className="text-right capitalize"
-            >
-              {order.shipping_method.replace(/_/g, " ")}
-            </Typography>
-          </DetailRow>
-        )}
-      </div>
-
-      <div className="border-t border-border/50 pt-2.5">
-        <Typography variant="muted" className="font-medium">
-          Shipping Address
-        </Typography>
-        <div className="mt-1">
-          <ShippingAddress address={order.shipping_address} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const TICKET_STATUS_TONES: Record<string, BadgeTone> = {
-  open: "danger",
-  pending: "warning",
-  resolved: "success",
-  closed: "neutral",
-};
-
-/** Still needing attention — these lead the list. */
-const LIVE_TICKET_STATUSES = ["open", "pending"];
-
-/**
- * The customer's support tickets. Live ones (open, pending) come first
- * because they're what an agent has to act on; resolved and closed follow
- * for context.
- */
 export function SupportTicketsCard({
   tickets,
   loading,
@@ -539,6 +190,14 @@ export function SupportTicketsCard({
     const bLive = LIVE_TICKET_STATUSES.includes(b.status) ? 0 : 1;
     return aLive - bLive;
   });
+  // Collapsed after the sort, so the preview is the tickets still needing
+  // attention rather than whichever happened to come back first.
+  const {
+    visible: visibleTickets,
+    hiddenCount: hiddenTicketCount,
+    expanded: ticketsExpanded,
+    toggle: toggleTickets,
+  } = useCollapsibleList(sortedTickets);
 
   return (
     <section className="flex flex-col gap-3 border-b p-4">
@@ -550,70 +209,20 @@ export function SupportTicketsCard({
       {loading ? (
         <CardLoadingState />
       ) : !tickets.length ? (
-        <Typography variant="muted">No tickets raised yet.</Typography>
+        <Typography variant="muted">
+          No other tickets from this customer.
+        </Typography>
       ) : (
         <div className="flex flex-col gap-2">
-          {sortedTickets.map((ticket) => {
-            const body = (
-              <>
-                <div className="flex items-start justify-between gap-2">
-                  <Typography variant="small" as="p" className="truncate">
-                    {ticket.subject || "Untitled ticket"}
-                  </Typography>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "shrink-0 capitalize",
-                      BADGE_TONE_STYLES[
-                        TICKET_STATUS_TONES[ticket.status] ?? "neutral"
-                      ],
-                    )}
-                  >
-                    {ticket.status}
-                  </Badge>
-                </div>
-                {ticket.description && (
-                  <Typography variant="muted" className="mt-1 line-clamp-2">
-                    {ticket.description}
-                  </Typography>
-                )}
-                <div className="mt-1 flex items-center gap-2">
-                  <Typography variant="muted" as="span">
-                    #{ticket.id} · {formatDate(ticket.created_at)}
-                  </Typography>
-                  {ticket.priority === "high" ||
-                  ticket.priority === "urgent" ? (
-                    <Badge
-                      variant="outline"
-                      className={cn("capitalize", BADGE_TONE_STYLES.warning)}
-                    >
-                      {ticket.priority}
-                    </Badge>
-                  ) : null}
-                </div>
-              </>
-            );
-
-            // Only linked when the provider gave us somewhere to go.
-            return ticket.ticket_url ? (
-              <a
-                key={ticket.id}
-                href={ticket.ticket_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-xl border border-border/50 p-2.5 transition-colors hover:bg-muted/50"
-              >
-                {body}
-              </a>
-            ) : (
-              <div
-                key={ticket.id}
-                className="rounded-xl border border-border/50 p-2.5"
-              >
-                {body}
-              </div>
-            );
-          })}
+          {visibleTickets.map((ticket, index) => (
+            <SupportTicketCard key={ticket.id} ticket={ticket} index={index} />
+          ))}
+          <ShowMoreToggle
+            hiddenCount={hiddenTicketCount}
+            expanded={ticketsExpanded}
+            onToggle={toggleTickets}
+            noun="ticket"
+          />
         </div>
       )}
     </section>
@@ -635,7 +244,13 @@ export function OrdersCard({
   customerData?: Customer | null;
   isDisabled?: boolean;
 }) {
-  const orderList = orders;
+  const orderList = orders ?? [];
+  const {
+    visible: visibleOrders,
+    hiddenCount: hiddenOrderCount,
+    expanded: ordersExpanded,
+    toggle: toggleOrders,
+  } = useCollapsibleList(orderList);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const toggleOrder = (id: number) => {
@@ -649,35 +264,58 @@ export function OrdersCard({
           <IconPackage className="h-4 w-4" />
           Orders{!loading && orderList?.length ? ` (${orderList.length})` : ""}
         </CardTitle>
-        <Button
-          type="button"
-          size="xs"
-          onClick={handleOrdersSync}
-          disabled={
-            loading || orderSyncLoading || !customerData?.email || isDisabled
-          }
-        >
-          {orderSyncLoading ? "Syncing..." : "Sync"}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Sync orders"
+              onClick={handleOrdersSync}
+              disabled={
+                loading ||
+                orderSyncLoading ||
+                !customerData?.email ||
+                isDisabled
+              }
+            >
+              {orderSyncLoading ? (
+                <Spinner className="size-4" />
+              ) : (
+                <IconRefresh className="size-4" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {orderSyncLoading ? "Syncing…" : "Sync orders"}
+          </TooltipContent>
+        </Tooltip>
       </div>
       {loading ? (
         <CardLoadingState />
       ) : !orderList || orderList?.length === 0 ? (
         <Typography variant="muted">
           {!customerData?.email
-            ? "No customer email to match orders."
+            ? "Link a customer to see their order history."
             : "No orders yet."}
         </Typography>
       ) : (
         <div className="flex flex-col gap-2">
-          {orderList?.map((order) => {
+          {visibleOrders.map((order, index) => {
             const isExpanded = expandedId === order.id;
 
             return (
               // One box per order: the details continue inside this same
               // container rather than opening a second box beneath it.
-              <div
+              <motion.div
                 key={order.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.18,
+                  // Capped so a long history still settles quickly.
+                  delay: Math.min(index, 5) * 0.04,
+                }}
                 className={`overflow-hidden rounded-xl border transition ${
                   isExpanded ? "border-primary/40" : "border-border/50"
                 }`}
@@ -724,10 +362,31 @@ export function OrdersCard({
                   </div>
                 </button>
 
-                {isExpanded && <OrderDetails order={order} />}
-              </div>
+                {/* Height animates from 0 so the orders below slide down
+                    rather than jumping, and so collapsing reads as the
+                    same motion in reverse. */}
+                <AnimatePresence initial={false}>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.18, ease: "easeOut" }}
+                      className="overflow-hidden"
+                    >
+                      <OrderDetails order={order} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
             );
           })}
+          <ShowMoreToggle
+            hiddenCount={hiddenOrderCount}
+            expanded={ordersExpanded}
+            onToggle={toggleOrders}
+            noun="order"
+          />
         </div>
       )}
     </section>

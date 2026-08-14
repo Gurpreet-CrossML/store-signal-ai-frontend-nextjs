@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formikErrorsFromZod } from "@/lib/form-errors";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
@@ -48,12 +49,7 @@ export function LoginForm({
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
-      return Object.fromEntries(
-        result.error.issues.map((issue) => [
-          issue.path.join("."),
-          issue.message,
-        ]),
-      );
+      return formikErrorsFromZod(result.error.issues);
     },
     onSubmit: async (values) => {
       setIsLoading(true);

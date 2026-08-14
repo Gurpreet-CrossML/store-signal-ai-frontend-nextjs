@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useFormik } from "formik";
 import z from "zod";
 import {
@@ -12,9 +12,9 @@ import {
   IconPlus,
   IconScale,
   IconTrash,
-  IconX,
 } from "@tabler/icons-react";
 
+import { ChipList } from "@/components/custom/chip-list";
 import { InfoIcon } from "@/components/custom/info-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ import {
   type RequiredLegalPhrase,
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { formikErrorsFromZod, applyServerFieldErrors } from "@/lib/form-errors";
 
 const validationSchema = z.object({
   no_hollow_apologies: z.boolean(),
@@ -52,61 +53,6 @@ const validationSchema = z.object({
     z.object({ context: z.string().max(1000), phrase: z.string().max(1000) }),
   ),
 });
-
-export function ChipList({
-  items,
-  placeholder,
-  onAdd,
-  onRemove,
-  chipClassName = "bg-muted text-foreground",
-}: {
-  items: string[];
-  placeholder: string;
-  onAdd: (value: string) => void;
-  onRemove: (index: number) => void;
-  chipClassName?: string;
-}) {
-  const [draft, setDraft] = useState("");
-
-  const commit = () => {
-    if (!draft.trim()) return;
-    onAdd(draft);
-    setDraft("");
-  };
-
-  return (
-    <div className="flex flex-col gap-3">
-      <Input
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            commit();
-          }
-        }}
-        placeholder={placeholder}
-      />
-      <div className="flex flex-wrap gap-2">
-        {items.map((item, index) => (
-          <span
-            key={`${item}-${index}`}
-            className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${chipClassName}`}
-          >
-            {item}
-            <button
-              type="button"
-              onClick={() => onRemove(index)}
-              className="ml-0.5 opacity-60 hover:opacity-100"
-            >
-              <IconX className="size-3" />
-            </button>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // A single switch row inside the Behavior Rules card — label with icon and
 // info tooltip on the left, switch on the right. Not its own card.
@@ -218,12 +164,7 @@ export default function NeverSayRules() {
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
-      return Object.fromEntries(
-        result.error.issues.map((issue) => [
-          issue.path.join("."),
-          issue.message,
-        ]),
-      );
+      return formikErrorsFromZod(result.error.issues);
     },
     onSubmit: async (values) => {
       if (!storeCode) return;
@@ -248,16 +189,23 @@ export default function NeverSayRules() {
       if (createNeverSayRules.fulfilled.match(result)) {
         formik.resetForm({ values: result.payload });
       }
+      if (createNeverSayRules.rejected.match(result)) {
+        applyServerFieldErrors(formik, result.payload);
+      }
     },
   });
 
-  const addPhrase = (
+  const addPhrases = (
     field: "do_not_say_phrases" | "forbidden_claims",
-    value: string,
+    values: string[],
   ) => {
-    const phrase = value.trim();
-    if (phrase)
-      formik.setFieldValue(field, [...(formik.values[field] ?? []), phrase]);
+    const phrases = values.map((value) => value.trim()).filter(Boolean);
+    if (phrases.length) {
+      formik.setFieldValue(field, [
+        ...(formik.values[field] ?? []),
+        ...phrases,
+      ]);
+    }
   };
 
   const removePhrase = (
@@ -316,7 +264,7 @@ export default function NeverSayRules() {
                   <ChipList
                     items={formik.values.do_not_say_phrases ?? []}
                     placeholder="Add a phrase and press Enter"
-                    onAdd={(value) => addPhrase("do_not_say_phrases", value)}
+                    onAdd={(values) => addPhrases("do_not_say_phrases", values)}
                     onRemove={(index) =>
                       removePhrase("do_not_say_phrases", index)
                     }
@@ -345,7 +293,7 @@ export default function NeverSayRules() {
                   <ChipList
                     items={formik.values.forbidden_claims ?? []}
                     placeholder="Add a claim and press Enter"
-                    onAdd={(value) => addPhrase("forbidden_claims", value)}
+                    onAdd={(values) => addPhrases("forbidden_claims", values)}
                     onRemove={(index) =>
                       removePhrase("forbidden_claims", index)
                     }

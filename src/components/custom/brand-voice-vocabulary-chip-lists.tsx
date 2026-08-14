@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Typography } from "@/components/ui/typography";
 
-import { ChipList } from "@/clients/never-say-rules";
+import { ChipList } from "@/components/custom/chip-list";
 
 // ReplacementRow
 
@@ -59,44 +59,60 @@ function ReplacementRow({
   replaceWord,
   formik,
 }: ReplacementRowProps) {
+  // A pair is valid or it is not, so one message serves the row rather
+  // than repeating itself under both boxes.
+  const rowErrors = (
+    formik.errors.word_replacements as
+      | { say_word?: string; replace_word?: string }[]
+      | undefined
+  )?.[index];
+  const rowError = rowErrors?.say_word ?? rowErrors?.replace_word;
+
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2">
-      <Input
-        id={`word_replacements.${index}.say_word`}
-        name={`word_replacements.${index}.say_word`}
-        value={sayWord}
-        onChange={formik.handleChange}
-        onBlur={formik.handleBlur}
-        placeholder="e.g. basket"
-        autoComplete="off"
-        className="border-red-200 bg-red-50/60 dark:border-red-900/50 dark:bg-red-950/30"
-      />
-      <IconArrowRight className="size-4 shrink-0 text-muted-foreground" />
-      <Input
-        id={`word_replacements.${index}.replace_word`}
-        name={`word_replacements.${index}.replace_word`}
-        value={replaceWord}
-        onChange={formik.handleChange}
-        onBlur={formik.handleBlur}
-        placeholder="e.g. cart"
-        autoComplete="off"
-        className="border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/50 dark:bg-emerald-950/30"
-      />
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        type="button"
-        aria-label="Remove replacement"
-        className="text-destructive hover:text-destructive"
-        onClick={() => {
-          const updatedReplacements = formik.values.word_replacements.filter(
-            (_, i) => i !== index,
-          );
-          formik.setFieldValue("word_replacements", updatedReplacements);
-        }}
-      >
-        <IconTrash className="size-4" />
-      </Button>
+    <div className="flex flex-col gap-1">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2">
+        <Input
+          id={`word_replacements.${index}.say_word`}
+          name={`word_replacements.${index}.say_word`}
+          value={sayWord}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
+          placeholder="e.g. basket"
+          autoComplete="off"
+          className="border-red-200 bg-red-50/60 dark:border-red-900/50 dark:bg-red-950/30"
+        />
+        <IconArrowRight className="size-4 shrink-0 text-muted-foreground" />
+        <Input
+          id={`word_replacements.${index}.replace_word`}
+          name={`word_replacements.${index}.replace_word`}
+          value={replaceWord}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
+          placeholder="e.g. cart"
+          autoComplete="off"
+          className="border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/50 dark:bg-emerald-950/30"
+        />
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          type="button"
+          aria-label="Remove replacement"
+          className="text-destructive hover:text-destructive"
+          onClick={() => {
+            const updatedReplacements = formik.values.word_replacements.filter(
+              (_, i) => i !== index,
+            );
+            formik.setFieldValue("word_replacements", updatedReplacements);
+          }}
+        >
+          <IconTrash className="size-4" />
+        </Button>
+      </div>
+      {rowError ? (
+        <Typography variant="caption" as="p" className="text-destructive">
+          {rowError}
+        </Typography>
+      ) : null}
     </div>
   );
 }
@@ -160,7 +176,7 @@ function ChipSectionCard({
         <ChipList
           items={items}
           placeholder={placeholder}
-          onAdd={(value) => onChange([...items, value])}
+          onAdd={(values) => onChange([...items, ...values])}
           onRemove={(index) => onChange(items.filter((_, i) => i !== index))}
           chipClassName={chipClassName}
         />

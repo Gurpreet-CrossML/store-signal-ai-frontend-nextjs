@@ -3,13 +3,12 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Typography } from "@/components/ui/typography";
 import { SocialPost } from "@/redux/api-slice/social-ai-slice";
 import {
   IconExternalLink,
-  IconNews,
+  IconMessageCircle,
   IconRosetteDiscountCheckFilled,
 } from "@tabler/icons-react";
 import Image from "next/image";
@@ -26,23 +25,12 @@ import { formatPostedAt } from "./format";
  * rather than a card — it fills the detail pane the way the open
  * conversation does in the DM inbox.
  */
-/** 12.4K rather than 12400 — these sit in a narrow metric column. */
+/** 12.4K rather than 12400 — engagement counts run long on a live page. */
 function formatCount(value: number) {
   return new Intl.NumberFormat(undefined, {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(value);
-}
-
-function PostMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex min-w-16 flex-col items-center gap-0.5">
-      <Typography variant="muted">{label}</Typography>
-      <Typography variant="large" as="span">
-        {formatCount(value)}
-      </Typography>
-    </div>
-  );
 }
 
 /**
@@ -93,60 +81,78 @@ export function SocialPostDetail({ post }: { post: SocialPost }) {
         )}
       </header>
 
-      {/* Summary strip — stays put so scrolling moves the comments only. */}
-      <div className="flex shrink-0 items-start gap-4 border-b p-4">
-        {/* Real media, not a still: a carousel post keeps its slides and a
-            video stays playable, just sized to leave room for the comments. */}
-        <div className="w-56 shrink-0 overflow-hidden rounded-lg border bg-muted">
-          {post.media_entries.length > 1 ? (
-            <MediaCarousel mediaEntries={post.media_entries} />
-          ) : post.media_type === "video" && media ? (
-            <video
-              controls
-              preload="metadata"
-              src={media.url}
-              className="h-auto w-full"
-            />
-          ) : media ? (
-            <a
-              href={post.permalink || undefined}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block"
-            >
-              <Image
+      {/* Read top to bottom the way the post reads on the platform:
+          caption, then the media it is about, then what it earned, then
+          the conversation under it. The whole thing scrolls as one — the
+          media is part of the post, not a fixed panel above the comments,
+          so an agent working through a long thread can scroll it away. */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {post.content ? (
+          <div className="px-4 pt-4">
+            <ExpandableText text={post.content} maxHeightClass="max-h-40" />
+          </div>
+        ) : null}
+
+        {/* Full width, letterboxed on a muted ground rather than cropped:
+            a portrait post is as common as a square one, and cropping to
+            fill hides the part a comment is usually about. */}
+        {post.media_entries.length > 0 ? (
+          <div className="mt-3 flex justify-center border-y bg-muted">
+            {post.media_entries.length > 1 ? (
+              // No height cap here: the carousel's slides cap themselves,
+              // and constraining its viewport as well is what broke it.
+              <div className="w-full">
+                <MediaCarousel mediaEntries={post.media_entries} />
+              </div>
+            ) : post.media_type === "video" && media ? (
+              <video
+                controls
+                preload="metadata"
                 src={media.url}
-                alt="Post media"
-                width={media.width ?? DEFAULT_MEDIA_SIZE}
-                height={media.height ?? DEFAULT_MEDIA_SIZE}
-                unoptimized
-                className="h-auto w-full object-cover"
+                className="max-h-112 w-auto"
               />
-            </a>
-          ) : (
-            <div className="flex h-32 items-center justify-center">
-              <IconNews className="size-6 text-muted-foreground" />
-            </div>
-          )}
+            ) : media ? (
+              <a
+                href={post.permalink || undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex"
+              >
+                <Image
+                  src={media.url}
+                  alt="Post media"
+                  width={media.width ?? DEFAULT_MEDIA_SIZE}
+                  height={media.height ?? DEFAULT_MEDIA_SIZE}
+                  unoptimized
+                  className="max-h-112 w-auto object-contain"
+                />
+              </a>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* The engagement bar, where the platform puts it: between the
+            post and its comments, separating one from the other. */}
+        <div className="flex items-center gap-4 border-b px-4 py-2.5 text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <channel.LikeIcon className="size-4" />
+            <Typography variant="small" as="span" className="font-normal">
+              {formatCount(post.like_count)}
+            </Typography>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <IconMessageCircle className="size-4" />
+            <Typography variant="small" as="span" className="font-normal">
+              {formatCount(post.comments_count)}{" "}
+              {post.comments_count === 1 ? "comment" : "comments"}
+            </Typography>
+          </span>
         </div>
 
-        {/* max-h-56 mirrors the media column's w-56: for a squarish post the
-            caption runs exactly as tall as the image beside it, and only
-            then collapses to "See more". */}
-        <div className="min-w-0 flex-1">
-          <ExpandableText text={post.content} maxHeightClass="max-h-56" />
+        <div className="p-4">
+          {/* Comments are addressed by the post's external Graph id. */}
+          <CommentsSection postId={post.external_id} />
         </div>
-
-        <Separator orientation="vertical" className="self-stretch" />
-        <div className="flex shrink-0 items-start gap-6">
-          <PostMetric label="Likes" value={post.like_count} />
-          <PostMetric label="Comments" value={post.comments_count} />
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        {/* Comments are addressed by the post's external Graph id. */}
-        <CommentsSection postId={post.external_id} />
       </div>
     </div>
   );

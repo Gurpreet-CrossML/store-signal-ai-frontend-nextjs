@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FieldError } from "@/components/custom/field-error";
 import {
   IconChevronDown,
   IconMessageCircle,
@@ -27,6 +28,8 @@ import { Typography } from "@/components/ui/typography";
 import type { ActionButton } from "@/components/custom/customization-types";
 
 type CustomizationActionButtonsProps = {
+  /** Field errors from the last rejected save, keyed as the API names them. */
+  fieldErrors?: Record<string, string>;
   actionButtons: ActionButton[];
   onChange: (actionButtons: ActionButton[]) => void;
 };
@@ -69,6 +72,7 @@ function AddActionButtonForm({
 }
 
 export default function CustomizationActionButtons({
+  fieldErrors,
   actionButtons,
   onChange,
 }: CustomizationActionButtonsProps) {
@@ -140,6 +144,9 @@ export default function CustomizationActionButtons({
             onAdd={(button) => onChange([...actionButtons, button])}
           />
         </div>
+        {/* Whatever the server rejected among this card's fields.
+            Renders nothing when it rejected none. */}
+        <FieldError errors={fieldErrors} name="quick_actions" />
       </CardContent>
     </Card>
   );

@@ -34,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { applyServerFieldErrors } from "@/lib/form-errors";
 import {
   FetchCompanyProfile,
   UpdateCompanyProfile,
@@ -122,6 +123,9 @@ export default function CompanyProfileForm({
       if (UpdateCompanyProfile.fulfilled.match(result)) {
         setLogoFile(null);
         setRemoveLogo(false);
+      }
+      if (UpdateCompanyProfile.rejected.match(result)) {
+        applyServerFieldErrors(formik, result.payload);
       }
     },
   });

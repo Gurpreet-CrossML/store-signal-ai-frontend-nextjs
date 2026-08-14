@@ -1,9 +1,10 @@
-import Settings from "@/clients/settings";
+import { AreaLanding } from "@/components/custom/area-landing";
+import { NAV_AREAS } from "@/lib/nav-areas";
 
 export const metadata = {
-  title: "Settings",
+  title: NAV_AREAS.settings.title,
 };
 
 export default function Page() {
-  return <Settings />;
+  return <AreaLanding area="settings" />;
 }

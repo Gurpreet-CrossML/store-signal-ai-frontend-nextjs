@@ -1,23 +1,19 @@
 import { Suspense } from "react";
 
 import BrandVoiceVocabularyEditor from "@/clients/vocabulary";
-import SubPageShell from "@/components/custom/sub-page-shell";
+import { AreaSubPage } from "@/components/custom/area-sub-page";
+import { areaSectionMetadata } from "@/lib/nav-areas";
 
-export const metadata = {
-  title: "Vocabulary",
-};
+const HREF = "/brand-voice/vocabulary";
+
+export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
   return (
-    <SubPageShell
-      backHref="/brand-voice"
-      backLabel="Back to brand voice"
-      title="Vocabulary"
-      description="The specific words that make your brand sound like you — phrases to lean into, words to avoid, and swaps the AI applies."
-    >
+    <AreaSubPage href={HREF}>
       <Suspense fallback={null}>
         <BrandVoiceVocabularyEditor />
       </Suspense>
-    </SubPageShell>
+    </AreaSubPage>
   );
 }

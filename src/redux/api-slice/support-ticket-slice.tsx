@@ -338,6 +338,36 @@ export const FetchSupportTicketTags = createAsyncThunk(
   },
 );
 
+/** Attach an existing customer record to a ticket a guest raised. */
+export const SupportTicketCustomerLink = createAsyncThunk(
+  "SupportTicketCustomerLink",
+  async (
+    {
+      storeCode,
+      ticketId,
+      customerId,
+    }: { storeCode: string; ticketId: number; customerId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.supportTicketCustomerLink(ticketId)}?store_code=${storeCode}`,
+        { customer: customerId },
+        { useBackend: true },
+      );
+      toast.success("Customer linked to this ticket.");
+      return response.data.data as SupportTicket;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't link the customer", {
+        description: data?.message || "Please try again.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 export const SupportTicketStaffAssign = createAsyncThunk(
   "SupportTicketStaffAssign",
   async (
@@ -947,6 +977,9 @@ const SupportTicketsSlice = createSlice({
         | unknown,
       SupportTicketAIMessageDraftGenerateData: {} as SupportTicketDraftMessage,
     },
+    SupportTicketCustomerLinkState: {
+      SupportTicketCustomerLinkIsLoading: false,
+    },
     SupportTicketCustomerOrderSyncState: {
       SupportTicketCustomerOrderSyncIsLoading: false,
       SupportTicketCustomerOrderSyncIsSuccess: false,
@@ -1286,6 +1319,15 @@ const SupportTicketsSlice = createSlice({
           state.SupportTicketAIMessageDraftGenerateState.SupportTicketAIMessageDraftGenerateIsSuccess = false;
         },
       )
+      .addCase(SupportTicketCustomerLink.pending, (state) => {
+        state.SupportTicketCustomerLinkState.SupportTicketCustomerLinkIsLoading = true;
+      })
+      .addCase(SupportTicketCustomerLink.fulfilled, (state) => {
+        state.SupportTicketCustomerLinkState.SupportTicketCustomerLinkIsLoading = false;
+      })
+      .addCase(SupportTicketCustomerLink.rejected, (state) => {
+        state.SupportTicketCustomerLinkState.SupportTicketCustomerLinkIsLoading = false;
+      })
       .addCase(SupportTicketCustomerOrderSync.pending, (state) => {
         state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsLoading = true;
         state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsError =

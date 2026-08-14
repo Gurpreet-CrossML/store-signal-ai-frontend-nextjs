@@ -19,6 +19,11 @@ const typographyVariants = cva("", {
       medium: "text-md font-medium",
       small: "text-sm leading-none font-medium",
       muted: "text-sm text-muted-foreground",
+      // The smallest step in the scale, for the text that annotates
+      // something else: timestamps, counts, a field's units. Added because
+      // its absence was pushing every one of those onto a raw
+      // `text-xs text-muted-foreground` span.
+      caption: "text-xs text-muted-foreground",
       code: "relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold",
       blockquote: "border-l-2 pl-6 italic",
       list: "ml-6 list-disc [&>li]:mt-2",
@@ -46,6 +51,7 @@ const defaultElements: Record<TypographyVariant, React.ElementType> = {
   medium: "span",
   small: "small",
   muted: "p",
+  caption: "span",
   code: "code",
   blockquote: "blockquote",
   list: "ul",

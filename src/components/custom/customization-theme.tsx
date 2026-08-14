@@ -1,6 +1,7 @@
 "use client";
 
 import { IconPalette } from "@tabler/icons-react";
+import { FieldError } from "@/components/custom/field-error";
 
 import { InfoIcon } from "@/components/custom/info-icon";
 import {
@@ -15,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import type { ColorKey } from "@/components/custom/customization-types";
 
 type CustomizationThemeProps = {
+  /** Field errors from the last rejected save, keyed as the API names them. */
+  fieldErrors?: Record<string, string>;
   themeColor: string;
   themeHexInput: string;
   secondaryColor: string;
@@ -27,6 +30,7 @@ type CustomizationThemeProps = {
 };
 
 export default function CustomizationTheme({
+  fieldErrors,
   themeColor,
   themeHexInput,
   secondaryColor,
@@ -115,6 +119,11 @@ export default function CustomizationTheme({
             Accents &amp; surfaces
           </span>
         </div>
+        {/* Whatever the server rejected among this card's fields.
+            Renders nothing when it rejected none. */}
+        <FieldError errors={fieldErrors} name="primary_color" />
+        <FieldError errors={fieldErrors} name="secondary_color" />
+        <FieldError errors={fieldErrors} name="tertiary_color" />
       </CardContent>
     </Card>
   );

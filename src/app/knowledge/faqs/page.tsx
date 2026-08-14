@@ -1,19 +1,15 @@
 import StoreFaqTabContent from "@/components/custom/store-faq-tab-content";
-import SubPageShell from "@/components/custom/sub-page-shell";
+import { AreaSubPage } from "@/components/custom/area-sub-page";
+import { areaSectionMetadata } from "@/lib/nav-areas";
 
-export const metadata = {
-  title: "Quick FAQs",
-};
+const HREF = "/knowledge/faqs";
+
+export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
   return (
-    <SubPageShell
-      backHref="/knowledge"
-      backLabel="Back to knowledge"
-      title="Quick FAQs"
-      description="Question-and-answer pairs the chatbot can respond with instantly."
-    >
+    <AreaSubPage href={HREF}>
       <StoreFaqTabContent />
-    </SubPageShell>
+    </AreaSubPage>
   );
 }
