@@ -292,6 +292,17 @@ export type OrderData = {
   shipping_method: string | null;
   shipping_address: OrderShippingAddress;
   items: OrderItemData[];
+  /**
+   * Deep link to this order in the store's own admin, for the actions we
+   * deliberately do not reimplement — refunds, cancellations, edits.
+   *
+   * Built server-side rather than here: the shape differs per platform
+   * (Shopify's admin.shopify.com/store/<handle>/orders/<id> against
+   * Magento's own admin path), and nothing the client holds identifies the
+   * store's admin host. Absent until the backend sends it, in which case
+   * the button simply does not render.
+   */
+  admin_url?: string | null;
 };
 
 export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(

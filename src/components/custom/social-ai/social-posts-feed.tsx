@@ -1,6 +1,7 @@
 "use client";
 
 import { LoadingState } from "@/components/custom/loading-state";
+import { SearchInput } from "@/components/custom/search-input";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 import {
@@ -9,7 +10,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
-  SidebarInput,
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar";
@@ -33,7 +33,7 @@ import {
   SocialPost,
 } from "@/redux/api-slice/social-ai-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { cn } from "@/lib/utils";
+import { listRowClassName } from "@/components/custom/conversation-row";
 
 import { AccountSwitcher } from "./account-switcher";
 import {
@@ -284,7 +284,10 @@ export default function SocialPostsFeed({
           style={{ "--sidebar-width": "350px" } as CSSProperties}
           className="-my-4 h-svh min-h-0 w-full overflow-hidden md:-my-6"
         >
-          <Sidebar collapsible="none" className="hidden border-r md:flex">
+          <Sidebar
+            collapsible="none"
+            className="hidden border-r bg-background md:flex"
+          >
             {/* h-16 and px-2 (the menu button adds its own p-2) so this row
                 lines up exactly with the post header opposite. */}
             <SidebarHeader className="h-16 shrink-0 justify-center border-b px-2 py-0">
@@ -298,10 +301,11 @@ export default function SocialPostsFeed({
               />
             </SidebarHeader>
             <div className="flex items-center gap-2 border-b p-4">
-              <SidebarInput
+              <SearchInput
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={setSearch}
                 placeholder="Search post content…"
+                label="Search posts"
                 className="min-w-0 flex-1"
               />
               <PostFiltersPopover
@@ -314,7 +318,10 @@ export default function SocialPostsFeed({
               />
             </div>
             <SidebarContent>
-              <SidebarGroup className="px-0">
+              {/* px-2 py-1, the same inset Help Desk's ticket list uses. The
+                  rows are rounded and highlight on select, so they need to
+                  sit off the panel edge or the highlight runs into it. */}
+              <SidebarGroup className="px-2 py-1">
                 <SidebarGroupContent>
                   {postsLoading && page === 1 ? (
                     <>
@@ -338,11 +345,7 @@ export default function SocialPostsFeed({
                           key={post.external_id}
                           type="button"
                           onClick={() => handleSelectPost(post)}
-                          className={cn(
-                            "flex w-full items-start gap-3 border-b p-4 text-left text-sm leading-tight transition-colors last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                            isSelected &&
-                              "bg-sidebar-accent text-sidebar-accent-foreground",
-                          )}
+                          className={listRowClassName(isSelected)}
                         >
                           <PostRowThumbnail post={post} />
                           <div className="min-w-0 flex-1">

@@ -164,6 +164,23 @@ export const ENDPOINTS = {
   toneStyle: () => `/chat/tone-style/`,
   vocabulary: () => `/chat/vocabulary/`,
 
+  // CRM. Store-scoped directories of shoppers and their orders. Both lists
+  // take search, filter and ordering query params — see CustomerFilters and
+  // OrderFilters in their slices for the full set.
+  //
+  // NOTE: the backend confirmed the two list routes. The detail routes are
+  // the DRF convention on top of them and are still to be verified.
+  fetchCustomers: () => createAPIUrl("/chat/customers/", "django"),
+  fetchCustomerDetails: (customerId: number) =>
+    createAPIUrl(`/chat/customers/${customerId}/`, "django"),
+  // POST — create a shopper from just an email, so a guest ticket can be
+  // attached to a real record and filled in later from CRM.
+  // NOTE: pending confirmation from the backend team.
+  createCustomer: () => createAPIUrl("/chat/customers/", "django"),
+  fetchOrders: () => createAPIUrl("/chat/orders/", "django"),
+  fetchOrderDetails: (orderId: number) =>
+    createAPIUrl(`/chat/orders/${orderId}/`, "django"),
+
   // Helpdesk(Support) apis
   fetchSupportTickets: () => createAPIUrl("/support/tickets", "django"),
   fetchSupportTicketDeatils: (ticket_id: number) =>
@@ -171,6 +188,10 @@ export const ENDPOINTS = {
   supportTicketMessageSend: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/messages/`, "django"),
   fetchSupportTicketTags: () => createAPIUrl("/support/ticket-tags", "django"),
+  // PATCH — attach an existing customer to a ticket raised by a guest.
+  // NOTE: pending confirmation from the backend team.
+  supportTicketCustomerLink: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/customer/`, "django"),
   supportTicketStaffAssign: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/assignee/`, "django"),
   supportTicketAgentDraftSave: (ticket_id: number) =>
