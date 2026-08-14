@@ -1234,9 +1234,15 @@ export default function Support() {
   ]);
 
   const handleOrdersSync = async () => {
-    if (!activeThreadId) return;
+    const customerEmail = selectedThread?.customer?.email;
+    if (!storeCode || !customerEmail || !activeThreadId) return;
     try {
-      await dispatch(SyncOrders({ threadID: activeThreadId })).unwrap();
+      await dispatch(
+        SyncOrders({
+          storeCode,
+          customerEmail,
+        }),
+      ).unwrap();
 
       dispatch(FetchOrders(activeThreadId));
       toast.success("Order Sync", {
