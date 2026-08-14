@@ -17,11 +17,15 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { sidebarMenus, SubSidebarMenuItem } from "@/lib/sidebar-navs";
+import {
+  activeNavUrl,
+  sidebarMenus,
+  SubSidebarMenuItem,
+} from "@/lib/sidebar-navs";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import { IconLayoutSidebar } from "@tabler/icons-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -37,6 +41,16 @@ export function AppSidebar({
   onHide: () => void;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Resolved once for the whole group: an entry carrying a query string
+  // and its bare-path sibling can both match the path, and only the more
+  // specific one should light up.
+  const activeSubNavUrl = activeNavUrl(
+    subSidebarItems?.items ?? [],
+    pathname,
+    searchParams?.toString() ?? "",
+  );
   const { data: session } = useSession();
   // Company admins (is_staff) get the admin nav (company settings + staff mgmt).
 
@@ -120,16 +134,15 @@ export function AppSidebar({
             <SidebarGroup>
               <SidebarGroupContent className="flex flex-col gap-2">
                 <SidebarMenu>
-                  {subSidebarItems.items.map((item) => {
-                    return (
-                      <SidebarMenuItemWrapper
-                        key={item.title}
-                        item={item}
-                        pathname={pathname}
-                        expanded
-                      />
-                    );
-                  })}
+                  {subSidebarItems.items.map((item) => (
+                    <SidebarMenuItemWrapper
+                      key={item.title}
+                      item={item}
+                      pathname={pathname}
+                      isActive={item.url === activeSubNavUrl}
+                      expanded
+                    />
+                  ))}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

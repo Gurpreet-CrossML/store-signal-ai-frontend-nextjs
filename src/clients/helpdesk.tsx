@@ -1605,6 +1605,18 @@ export default function HelpDesk() {
   const [appliedFilters, setAppliedFilters] =
     useState<TicketFilterSelection>(emptyTicketFilters);
 
+  // Switching sidebar filter resets paging. The list request keys on
+  // `page`, so arriving on a filter while page 2 was loaded asked for a
+  // second page that a narrower filter may not have — the API answers
+  // "invalid page" and the screen shows nothing.
+  const [lastActiveFilter, setLastActiveFilter] = useState(activeFilter);
+  if (lastActiveFilter !== activeFilter) {
+    setLastActiveFilter(activeFilter);
+    setPage(1);
+    setTicketRows([]);
+    setActiveTicketId(null);
+  }
+
   const filterFormik = useFormik<TicketFilterSelection>({
     initialValues: emptyTicketFilters,
     validate: (values) => {
