@@ -282,7 +282,7 @@ export default function SocialPostsFeed({
             filling the viewport below the header. */}
         <SidebarProvider
           style={{ "--sidebar-width": "350px" } as CSSProperties}
-          className="-my-4 h-svh min-h-0 w-full overflow-hidden md:-my-6"
+          className="h-svh min-h-0 w-full overflow-hidden"
         >
           <Sidebar
             collapsible="none"

@@ -330,36 +330,47 @@ export function OrdersCard({
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                     <IconPackage className="h-4 w-4" />
                   </div>
+                  {/* The order number is how an agent knows which order to
+                      open, so it owns the first line and never truncates —
+                      a fixed price column squeezed it down to "#11…" in the
+                      narrow panel. The price sits at the end of the meta
+                      line instead, and only the date/items text truncates,
+                      so every row keeps the same height. */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <Typography
                         variant="small"
                         as="p"
-                        className="truncate leading-normal"
+                        className="shrink-0 leading-normal"
                       >
                         #{order.order_number}
                       </Typography>
                       <FulfillmentBadge status={order.fulfillment_status} />
                     </div>
-                    <Typography variant="muted" className="mt-0.5">
-                      {formatDate(order.created_at)} · {order.items.length} item
-                      {order.items.length !== 1 ? "s" : ""}
-                    </Typography>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <Typography
+                        variant="muted"
+                        as="p"
+                        className="min-w-0 flex-1 truncate"
+                      >
+                        {formatDate(order.created_at)} · {order.items.length}{" "}
+                        item
+                        {order.items.length !== 1 ? "s" : ""}
+                      </Typography>
+                      <Typography
+                        variant="small"
+                        as="span"
+                        className="shrink-0 text-primary"
+                      >
+                        {formatPrice(order.total_price, order.currency)}
+                      </Typography>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Typography
-                      variant="small"
-                      as="span"
-                      className="text-primary"
-                    >
-                      {formatPrice(order.total_price, order.currency)}
-                    </Typography>
-                    <IconChevronRight
-                      className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
-                        isExpanded ? "rotate-90" : ""
-                      }`}
-                    />
-                  </div>
+                  <IconChevronRight
+                    className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${
+                      isExpanded ? "rotate-90" : ""
+                    }`}
+                  />
                 </button>
 
                 {/* Height animates from 0 so the orders below slide down

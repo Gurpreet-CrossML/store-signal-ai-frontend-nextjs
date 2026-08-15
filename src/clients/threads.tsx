@@ -6,6 +6,7 @@ import type { PaginationState } from "@tanstack/react-table";
 
 import { FetchThreads } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { PageHeading } from "@/components/custom/page-heading";
 import { ThreadsDataTable } from "@/components/custom/threads-data-table";
 import { threadsColumns } from "@/components/custom/threads-columns";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -147,6 +148,10 @@ export default function Threads() {
 
   return (
     <div className="flex flex-col gap-6 p-4">
+      <PageHeading
+        title="Threads"
+        description="Every conversation your AI assistant has handled — search, filter, and open any thread for its full transcript."
+      />
       <ThreadFilteration
         filters={filters}
         onChange={setFilters}

@@ -54,10 +54,14 @@ export function CustomerDetailsPanel({
   cart?: { data: CartDataResponse | null; loading?: boolean };
 }) {
   return (
-    <aside className="hidden min-h-0 w-95 shrink-0 flex-col border-l xl:flex">
+    <aside className="hidden min-h-0 w-80 shrink-0 flex-col border-l xl:flex 2xl:w-95">
       <header className="flex h-16 shrink-0 flex-col justify-center border-b px-4">
         <CardTitle className="leading-tight">Customer Details</CardTitle>
-        <Typography variant="muted">{description}</Typography>
+        {/* One line, whatever the width — wrapping would overflow the fixed
+            h-16 header and shove the title against its top edge. */}
+        <Typography variant="muted" className="truncate">
+          {description}
+        </Typography>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
