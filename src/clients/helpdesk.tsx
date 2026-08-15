@@ -8,7 +8,7 @@ import {
   useRef,
   startTransition,
 } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
@@ -1518,6 +1518,13 @@ export default function HelpDesk() {
 
   const dispatch = useAppDispatch();
   const { data: session } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -1839,6 +1846,50 @@ export default function HelpDesk() {
           payload = JSON.parse(event.data) as SupportSocketPayload;
         } catch (error) {
           console.error("Failed to parse support socket message", error);
+          return;
+        }
+
+        if (payload.type === "ticket_created" || payload.type === "live_support_message") {
+          const agentData = payload.data;
+          const isNativeGranted = typeof Notification !== "undefined" && Notification.permission === "granted";
+
+          if (payload.type === "ticket_created") {
+            const title = "New Support Ticket";
+            const body = agentData.subject;
+            const handleClick = () => setActiveTicketId(Number(agentData.ticket_id));
+
+            if (isNativeGranted) {
+              const notif = new Notification(title, { body, icon: "/favicon.ico" });
+              notif.onclick = () => {
+                window.focus();
+                handleClick();
+                notif.close();
+              };
+            } else {
+              const tId = toast(title, {
+                description: body,
+                action: { label: "View", onClick: () => { handleClick(); toast.dismiss(tId); } },
+              });
+            }
+          } else if (payload.type === "live_support_message") {
+            const title = "Live Message from " + agentData.customer_name;
+            const body = agentData.message;
+            const handleClick = () => router.push(`/support/${agentData.store_code}?chat=${agentData.conversation_id}`);
+
+            if (isNativeGranted) {
+              const notif = new Notification(title, { body, icon: "/favicon.ico" });
+              notif.onclick = () => {
+                window.focus();
+                handleClick();
+                notif.close();
+              };
+            } else {
+              const tId = toast(title, {
+                description: body,
+                action: { label: "View", onClick: () => { handleClick(); toast.dismiss(tId); } },
+              });
+            }
+          }
           return;
         }
 
