@@ -1017,11 +1017,10 @@ export default function DmsInbox({
     <ChannelContext.Provider value={channel}>
       <AccountContext.Provider value={account}>
         {/* Same three-part shell as Live Support: a flush conversation list
-            beside the open thread, filling the viewport below the header.
-            The negative margins escape the layout's page padding. */}
+            beside the open thread, filling the viewport below the header. */}
         <SidebarProvider
           style={{ "--sidebar-width": "350px" } as CSSProperties}
-          className="-my-4 h-svh min-h-0 w-full overflow-hidden md:-my-6"
+          className="h-svh min-h-0 w-full overflow-hidden"
         >
           <Sidebar
             collapsible="none"
