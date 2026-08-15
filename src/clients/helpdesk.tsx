@@ -1854,13 +1854,15 @@ export default function HelpDesk() {
           payload.type === "live_support_message"
         ) {
           const agentData = payload.data;
+          if (!agentData) return;
+
           const isNativeGranted =
             typeof Notification !== "undefined" &&
             Notification.permission === "granted";
 
           if (payload.type === "ticket_created") {
             const title = "New Support Ticket";
-            const body = agentData.subject;
+            const body = agentData.subject || "";
             const handleClick = () =>
               setActiveTicketId(Number(agentData.ticket_id));
 
@@ -1887,8 +1889,8 @@ export default function HelpDesk() {
               });
             }
           } else if (payload.type === "live_support_message") {
-            const title = "Live Message from " + agentData.customer_name;
-            const body = agentData.message;
+            const title = "Live Message from " + (agentData.customer_name || "Customer");
+            const body = agentData.message || "";
             const handleClick = () =>
               router.push(
                 `/support/${agentData.store_code}?chat=${agentData.conversation_id}`,

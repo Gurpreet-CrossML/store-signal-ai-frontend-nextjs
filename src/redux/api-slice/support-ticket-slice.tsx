@@ -32,7 +32,15 @@ export type SupportSocketPayload = {
   ticket?: SupportTicket;
   message?: SupportTicketMessage;
   type?: string;
-  data?: Record<string, unknown> | null;
+  data?: {
+    ticket_id?: string;
+    store_code?: string;
+    subject?: string;
+    created_at?: string;
+    conversation_id?: string;
+    message?: string;
+    customer_name?: string;
+  };
 };
 
 export type SupportTicketFilters = {
