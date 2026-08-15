@@ -1849,17 +1849,26 @@ export default function HelpDesk() {
           return;
         }
 
-        if (payload.type === "ticket_created" || payload.type === "live_support_message") {
+        if (
+          payload.type === "ticket_created" ||
+          payload.type === "live_support_message"
+        ) {
           const agentData = payload.data;
-          const isNativeGranted = typeof Notification !== "undefined" && Notification.permission === "granted";
+          const isNativeGranted =
+            typeof Notification !== "undefined" &&
+            Notification.permission === "granted";
 
           if (payload.type === "ticket_created") {
             const title = "New Support Ticket";
             const body = agentData.subject;
-            const handleClick = () => setActiveTicketId(Number(agentData.ticket_id));
+            const handleClick = () =>
+              setActiveTicketId(Number(agentData.ticket_id));
 
             if (isNativeGranted) {
-              const notif = new Notification(title, { body, icon: "/favicon.ico" });
+              const notif = new Notification(title, {
+                body,
+                icon: "/favicon.ico",
+              });
               notif.onclick = () => {
                 window.focus();
                 handleClick();
@@ -1868,16 +1877,28 @@ export default function HelpDesk() {
             } else {
               const tId = toast(title, {
                 description: body,
-                action: { label: "View", onClick: () => { handleClick(); toast.dismiss(tId); } },
+                action: {
+                  label: "View",
+                  onClick: () => {
+                    handleClick();
+                    toast.dismiss(tId);
+                  },
+                },
               });
             }
           } else if (payload.type === "live_support_message") {
             const title = "Live Message from " + agentData.customer_name;
             const body = agentData.message;
-            const handleClick = () => router.push(`/support/${agentData.store_code}?chat=${agentData.conversation_id}`);
+            const handleClick = () =>
+              router.push(
+                `/support/${agentData.store_code}?chat=${agentData.conversation_id}`,
+              );
 
             if (isNativeGranted) {
-              const notif = new Notification(title, { body, icon: "/favicon.ico" });
+              const notif = new Notification(title, {
+                body,
+                icon: "/favicon.ico",
+              });
               notif.onclick = () => {
                 window.focus();
                 handleClick();
@@ -1886,7 +1907,13 @@ export default function HelpDesk() {
             } else {
               const tId = toast(title, {
                 description: body,
-                action: { label: "View", onClick: () => { handleClick(); toast.dismiss(tId); } },
+                action: {
+                  label: "View",
+                  onClick: () => {
+                    handleClick();
+                    toast.dismiss(tId);
+                  },
+                },
               });
             }
           }
