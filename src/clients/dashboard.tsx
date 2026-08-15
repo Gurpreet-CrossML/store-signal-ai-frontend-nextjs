@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { InfoIcon } from "@/components/custom/info-icon";
+import { PageHeading } from "@/components/custom/page-heading";
 import { Typography } from "@/components/ui/typography";
 import { custructTimeInHumanReadableFormat } from "@/lib/helpers";
 import {
@@ -250,6 +251,10 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-6 p-4">
+      <PageHeading
+        title="Dashboard"
+        description="How your AI assistant is performing — engagement, efficiency, sentiment, and conversions at a glance."
+      />
       <section className="flex flex-col gap-4">
         <Typography variant="h4">Performance Summary</Typography>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

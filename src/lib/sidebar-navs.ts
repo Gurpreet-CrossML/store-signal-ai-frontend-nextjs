@@ -28,6 +28,12 @@ export type MainSidebarMenuItem = {
   isMenuHeading?: boolean; // Optional property to indicate if the item is a menu heading
   items?: SideBarMenuItem[]; // Optional property for nested items
   subSidebarKey?: string; // Optional property for sub-sidebar key
+  /**
+   * Path the active check matches against when it differs from `url`.
+   * An area's icon lands on its first screen, but must stay lit on every
+   * screen of the area — so it matches the area root instead.
+   */
+  activeBasePath?: string;
 };
 
 export type SideBarMenus = {
@@ -68,7 +74,9 @@ function queryMatches(currentSearch: string, entryQuery: string) {
  * The rule is most-specific-wins. An entry carrying a query is active only
  * when all of its params match. A bare-path entry is active for its path
  * and everything under it, but stands down when a sibling's query matches
- * — that sibling is the more specific answer.
+ * — that sibling is the more specific answer. When several bare paths
+ * match, the deepest one wins: on /helpdesk/tags both "All Inboxes"
+ * (/helpdesk) and "Tags" (/helpdesk/tags) match, and Tags is the answer.
  *
  * Returns the winning url so callers compare by identity rather than each
  * re-deriving the rule.
@@ -86,10 +94,14 @@ export function activeNavUrl(
   });
   if (withQuery) return withQuery.url;
 
-  const bare = items.find((item) => {
+  let bare: { url: string; pathLength: number } | null = null;
+  for (const item of items) {
     const { path, query } = splitHref(item.url);
-    return query === "" && isMenuItemActive(pathname, path);
-  });
+    if (query !== "" || !isMenuItemActive(pathname, path)) continue;
+    if (!bare || path.length > bare.pathLength) {
+      bare = { url: item.url, pathLength: path.length };
+    }
+  }
   return bare?.url ?? null;
 }
 
@@ -182,6 +194,9 @@ function areaMenuItem(
     url,
     icon: NAV_AREAS[key].icon,
     subSidebarKey: key,
+    // The icon lands on the first screen, but stays lit for the whole
+    // area — without this it would unlight on every sibling screen.
+    activeBasePath: NAV_AREAS[key].href,
   };
 }
 
