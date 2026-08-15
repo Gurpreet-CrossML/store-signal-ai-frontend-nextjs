@@ -67,9 +67,9 @@ const COLOR_PRESETS = [
 
 const HEX_REGEX = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
 
-// keep in sync with the thunk's default `limit`
-const PER_PAGE_OPTIONS = [10, 15, 20, 25, 50] as const;
-const DEFAULT_PER_PAGE = PER_PAGE_OPTIONS[0];
+// Matches the smallest entry in the shared pagination's PAGE_SIZE_OPTIONS,
+// so the rows-per-page dropdown always shows a real option.
+const DEFAULT_PER_PAGE = 25;
 
 const tagSchema = z.object({
   name: z.string().trim().min(3, "Too short").max(30, "Too long"),
