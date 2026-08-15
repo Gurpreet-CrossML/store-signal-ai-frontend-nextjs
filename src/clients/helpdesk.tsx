@@ -1889,7 +1889,8 @@ export default function HelpDesk() {
               });
             }
           } else if (payload.type === "live_support_message") {
-            const title = "Live Message from " + (agentData.customer_name || "Customer");
+            const title =
+              "Live Message from " + (agentData.customer_name || "Customer");
             const body = agentData.message || "";
             const handleClick = () =>
               router.push(
