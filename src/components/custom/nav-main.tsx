@@ -92,7 +92,7 @@ export function SidebarMenuItemWrapper({
   isActive,
   expanded = false,
 }: {
-  item: SideBarMenuItem;
+  item: SideBarMenuItem & { activeBasePath?: string };
   pathname: string | null;
   /**
    * Overrides the path-based check. Sub-sidebar entries can carry a query
@@ -111,7 +111,8 @@ export function SidebarMenuItemWrapper({
    */
   expanded?: boolean;
 }) {
-  const active = isActive ?? isMenuItemActive(pathname, item.url);
+  const active =
+    isActive ?? isMenuItemActive(pathname, item.activeBasePath ?? item.url);
 
   return (
     <SidebarMenuItem>

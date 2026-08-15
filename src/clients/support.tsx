@@ -1328,7 +1328,7 @@ export default function Support() {
   return (
     <SidebarProvider
       style={{ "--sidebar-width": "350px" } as CSSProperties}
-      className="-my-4 h-svh min-h-0 w-full overflow-hidden md:-my-6"
+      className="h-svh min-h-0 w-full overflow-hidden"
     >
       {/* Conversations list — the nested sidebar from the sidebar-09 block. */}
       {/* The list panel is content, not chrome: white like Help Desk's
@@ -1473,7 +1473,7 @@ export default function Support() {
             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
               <header className="flex h-16 shrink-0 items-center border-b bg-background px-4">
                 <div className="flex w-full items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2.5">
+                  <div className="flex min-w-0 flex-1 items-center gap-2.5">
                     <CustomerAvatar
                       name={selectedThread?.customer?.name}
                       online={selectedThread?.is_active}

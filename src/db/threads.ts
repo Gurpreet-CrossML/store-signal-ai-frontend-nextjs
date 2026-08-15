@@ -374,6 +374,8 @@ export type ThreadDetail =
       last_message_at: string | null;
       customer_name: string | null;
       customer_email: string | null;
+      /** Identity only — enough to link the thread to its CRM record. */
+      customer: { id: number } | null;
       verdict: {
         verdict: string;
         reason: string | null;
@@ -518,6 +520,9 @@ export async function get_thread_details(
     last_message_at,
     customer_name,
     customer_email: t.customer_email,
+    // The id was always selected by the join but never returned, so the
+    // client's `customer?.id` reads were silently undefined.
+    customer: t.customer_id != null ? { id: Number(t.customer_id) } : null,
     verdict,
     created_at: t.created_at,
     ended_at: t.ended_at,
