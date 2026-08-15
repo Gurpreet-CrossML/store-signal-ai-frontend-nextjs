@@ -139,6 +139,9 @@ export function orderCustomer(order: OrderListRow) {
       typeof order.customer === "number"
         ? order.customer
         : (nested?.id ?? null),
+    name: nested
+      ? [nested.first_name, nested.last_name].filter(Boolean).join(" ")
+      : "",
     email: order.customer_email || nested?.email || "",
     // Only the order carries a phone; the nested customer summary is
     // identity only.

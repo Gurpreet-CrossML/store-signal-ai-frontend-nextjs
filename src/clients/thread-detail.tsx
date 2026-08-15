@@ -13,19 +13,20 @@ import {
   IconDeviceLaptop,
   IconHash,
   IconLocationPin,
-  IconMail,
   IconMessage2,
   IconMessages,
   IconNetwork,
   IconShoppingBag,
   IconTicket,
-  IconUser,
   IconX,
 } from "@tabler/icons-react";
 
 import MessagePan from "@/components/custom/message-pan";
 import { TagsCell } from "@/components/custom/threads-columns";
+import { CrmLinkButton } from "@/components/custom/customer-header";
+import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { InfoIcon } from "@/components/custom/info-icon";
+import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,7 +55,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
 import { FEEDBACK_RATINGS } from "@/lib/config";
-import { formatDateTime, getDuration } from "@/lib/helpers";
+import { formatDateTime, formatPrice, getDuration } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import {
   FetchAIInsight,
@@ -62,11 +63,14 @@ import {
   FetchConversationSummary,
   FetchFeedbackSequence,
   FetchFreshdeskTicketId,
+  FetchOrders,
   FetchTags,
   FetchThreadDetails,
   FetchUserMetadata,
+  ThreadCustomerLink,
   type CartData,
   type CartDataResponse,
+  type OrderData,
   type ThreadMessage,
   type ThreadTicketData,
   type UserMetadata,
@@ -164,15 +168,14 @@ function CustomerFact({
 /* Customer group                                                      */
 /* ------------------------------------------------------------------ */
 
-/** Who the customer is and the environment they chatted from. */
+/**
+ * The environment the customer chatted from. Identity (name, email, CRM
+ * link) lives in the CustomerCard above — this strip is only the session.
+ */
 function CustomerProfileStrip({
-  name,
-  email,
   metadata,
   loading,
 }: {
-  name: string;
-  email: string | null;
   metadata: UserMetadata | null;
   loading: boolean;
 }) {
@@ -180,22 +183,12 @@ function CustomerProfileStrip({
     <div className="border-t bg-muted/20 px-3 py-2">
       {loading ? (
         <div className="flex items-center gap-3 overflow-hidden">
-          {Array.from({ length: 6 }).map((_, index) => (
+          {Array.from({ length: 5 }).map((_, index) => (
             <Skeleton key={index} className="h-7 w-28 shrink-0" />
           ))}
         </div>
       ) : (
         <div className="flex items-center gap-1 overflow-x-auto">
-          <CustomerFact
-            icon={<IconUser className="size-4" />}
-            label="Name"
-            value={name}
-          />
-          <CustomerFact
-            icon={<IconMail className="size-4" />}
-            label="Email"
-            value={email}
-          />
           <CustomerFact
             icon={<IconLocationPin className="size-4" />}
             label="Location"
@@ -226,6 +219,106 @@ function CustomerProfileStrip({
         </div>
       )}
     </div>
+  );
+}
+
+/** One figure in the customer card's stat strip. */
+function CustomerStat({
+  label,
+  value,
+  loading,
+}: {
+  label: string;
+  value: string;
+  loading: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
+      <Typography variant="muted">{label}</Typography>
+      {loading ? (
+        <Skeleton className="h-5 w-16" />
+      ) : (
+        <Typography variant="small" as="p" className="truncate tabular-nums">
+          {value}
+        </Typography>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Who this conversation is with, and what they are worth — the same
+ * affordances as Live Support and Help Desk: a linked customer opens in
+ * CRM with their spend beside them, a guest offers "link a customer".
+ */
+function CustomerCard({
+  name,
+  email,
+  customerId,
+  orders,
+  ordersLoading,
+  loading,
+  onLinkCustomer,
+}: {
+  name: string;
+  email: string | null;
+  customerId: number | null;
+  orders: OrderData[];
+  ordersLoading: boolean;
+  loading: boolean;
+  onLinkCustomer: () => void;
+}) {
+  const totalSpent = orders.reduce(
+    (sum, order) => sum + Number(order.total_price ?? 0),
+    0,
+  );
+  const currency = orders[0]?.currency ?? "USD";
+
+  return (
+    <Card size="sm">
+      <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <CustomerAvatar name={name} />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1">
+              {loading ? (
+                <Skeleton className="h-5 w-32" />
+              ) : (
+                <CardTitle className="truncate leading-tight">{name}</CardTitle>
+              )}
+              <CrmLinkButton
+                customerId={customerId}
+                onLinkCustomer={customerId ? undefined : onLinkCustomer}
+              />
+            </div>
+            {email ? (
+              <Typography variant="muted" className="truncate">
+                {email}
+              </Typography>
+            ) : (
+              <Typography variant="muted">Guest session</Typography>
+            )}
+          </div>
+        </div>
+
+        {/* What they are worth, only for a real customer — a guest has no
+            order history to sum. Same 1px-gap strip as the details panel. */}
+        {customerId ? (
+          <div className="grid w-full shrink-0 grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:w-auto sm:min-w-64">
+            <CustomerStat
+              label="Total spent"
+              value={formatPrice(totalSpent, currency)}
+              loading={ordersLoading}
+            />
+            <CustomerStat
+              label="Orders"
+              value={String(orders.length)}
+              loading={ordersLoading}
+            />
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -627,6 +720,9 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const { FetchFreshdeskTicketIdData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
   );
+  const { FetchOrderData, FetchOrderDataIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchOrderDataState,
+  );
   const threadTags = useAppSelector(
     (state) =>
       (
@@ -637,6 +733,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   );
 
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
+  const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
+  const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
 
   useEffect(() => {
     if (!storeCode || !threadId) return;
@@ -650,6 +748,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
       dispatch(FetchCart(threadId));
       dispatch(FetchUserMetadata(threadId));
       dispatch(FetchFeedbackSequence(threadId));
+      dispatch(FetchOrders(threadId));
       dispatch(
         FetchFreshdeskTicketId({
           threadId,
@@ -662,6 +761,33 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
 
     loadData();
   }, [dispatch, storeCode, threadId]);
+
+  const handleLinkCustomer = async (customerId: number) => {
+    if (!storeCode || !threadId) return;
+    setIsLinkingCustomer(true);
+    try {
+      const result = await dispatch(
+        ThreadCustomerLink({ storeCode, threadId, customerId }),
+      );
+      if (ThreadCustomerLink.fulfilled.match(result)) {
+        setIsLinkCustomerOpen(false);
+        // Identity, order history and tickets all change with the link, so
+        // refetch rather than patching a guess into three places.
+        const detail = await dispatch(FetchThreadDetails(threadId)).unwrap();
+        setThreadMessages(detail.messages ?? []);
+        dispatch(FetchOrders(threadId));
+        dispatch(
+          FetchFreshdeskTicketId({
+            threadId,
+            customerId: detail.customer?.id,
+            storeCode,
+          }),
+        );
+      }
+    } finally {
+      setIsLinkingCustomer(false);
+    }
+  };
 
   const details = FetchThreadDetailsData;
   const detailsLoading = FetchThreadDetailsIsLoading;
@@ -799,13 +925,22 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             />
           </div>
           <CustomerProfileStrip
-            name={customerName}
-            email={details?.customer_email ?? null}
             metadata={FetchUserMetadataData}
             loading={detailsLoading || FetchUserMetadataIsLoading}
           />
         </CardContent>
       </Card>
+
+      {/* ── Customer — identity, CRM link and spend, above the fold ────── */}
+      <CustomerCard
+        name={customerName}
+        email={details?.customer_email ?? null}
+        customerId={details?.customer?.id ?? null}
+        orders={FetchOrderData ?? []}
+        ordersLoading={FetchOrderDataIsLoading}
+        loading={detailsLoading}
+        onLinkCustomer={() => setIsLinkCustomerOpen(true)}
+      />
 
       {/* ── Group 2 & 3: Conversation | AI Analysis — equal fixed height ─ */}
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
@@ -867,6 +1002,16 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           loading={detailsLoading}
         />
       </section>
+
+      {storeCode ? (
+        <LinkCustomerDialog
+          open={isLinkCustomerOpen}
+          onOpenChange={setIsLinkCustomerOpen}
+          storeCode={storeCode}
+          linking={isLinkingCustomer}
+          onLink={(customer) => handleLinkCustomer(customer.id)}
+        />
+      ) : null}
     </div>
   );
 }

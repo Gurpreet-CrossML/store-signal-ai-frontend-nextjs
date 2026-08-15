@@ -21,12 +21,11 @@ import {
   quickLink,
   storeFaqs,
   storeCredentials,
-  chatCustomer,
-  chatAddress,
   chatHistory,
   chatbotFeedback,
   chatThread,
   chatBotevent,
+  chatCustomer,
   aiInsights,
   sentimentAnalysis,
   sessionResolutionVerdict,
@@ -71,6 +70,7 @@ import {
   socialCommentAnalysis,
   socialMessageAttachment,
   socialAiUsage,
+  chatAddress,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -333,22 +333,6 @@ export const storeCredentialsRelations = relations(
   }),
 );
 
-export const chatAddressRelations = relations(chatAddress, ({ one }) => ({
-  chatCustomer: one(chatCustomer, {
-    fields: [chatAddress.customerId],
-    references: [chatCustomer.id],
-  }),
-}));
-
-export const chatCustomerRelations = relations(chatCustomer, ({ many }) => ({
-  chatAddresss: many(chatAddress),
-  chatThreads: many(chatThread),
-  chatCustomerorders: many(chatCustomerorder),
-  ticketMessages: many(ticketMessage),
-  supportTickets: many(supportTicket),
-  socialUsers: many(socialUser),
-}));
-
 export const chatbotFeedbackRelations = relations(
   chatbotFeedback,
   ({ one }) => ({
@@ -406,6 +390,15 @@ export const chatBoteventRelations = relations(chatBotevent, ({ one }) => ({
     fields: [chatBotevent.threadId],
     references: [chatThread.id],
   }),
+}));
+
+export const chatCustomerRelations = relations(chatCustomer, ({ many }) => ({
+  chatThreads: many(chatThread),
+  chatCustomerorders: many(chatCustomerorder),
+  ticketMessages: many(ticketMessage),
+  supportTickets: many(supportTicket),
+  socialUsers: many(socialUser),
+  chatAddresss: many(chatAddress),
 }));
 
 export const aiInsightsRelations = relations(aiInsights, ({ one }) => ({
@@ -958,5 +951,12 @@ export const socialAiUsageRelations = relations(socialAiUsage, ({ one }) => ({
   socialMessage: one(socialMessage, {
     fields: [socialAiUsage.messageId],
     references: [socialMessage.id],
+  }),
+}));
+
+export const chatAddressRelations = relations(chatAddress, ({ one }) => ({
+  chatCustomer: one(chatCustomer, {
+    fields: [chatAddress.customerId],
+    references: [chatCustomer.id],
   }),
 }));
