@@ -65,6 +65,8 @@ export function CreateTicketDialog({
   const [customerEmail, setCustomerEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const hasThreadCustomerEmail = Boolean(threadCustomerEmail);
   const ticketCustomerEmail = hasThreadCustomerEmail
     ? threadCustomerEmail
@@ -80,6 +82,8 @@ export function CreateTicketDialog({
     setCustomerEmail("");
     setSubject("");
     setDescription("");
+    setPriority("");
+    setTags([]);
   };
 
   const handleDialogOpenChange = (nextOpen: boolean) => {
@@ -97,6 +101,8 @@ export function CreateTicketDialog({
       customer_email: ticketCustomerEmail,
       subject,
       description,
+      priority,
+      tags,
     };
     try {
       const ticket =
@@ -110,6 +116,8 @@ export function CreateTicketDialog({
                   customer_email: ticketCustomerEmail,
                   subject,
                   description,
+                  priority,
+                  tags,
                 },
               }),
             ).unwrap()
@@ -148,6 +156,8 @@ export function CreateTicketDialog({
             ).unwrap();
       setSubject(data.subject || "");
       setDescription(data.description || "");
+      setPriority(data.priority || "");
+      setTags(Array.isArray(data.tags) ? data.tags : []);
     } catch {}
   };
 

@@ -243,6 +243,8 @@ export type CreateSupportTicket = {
   customer_email: string;
   subject: string;
   description: string;
+  priority: string;
+  tags: string[];
 };
 
 export type CreateSocialSupportTicketPayload = {
@@ -250,6 +252,8 @@ export type CreateSocialSupportTicketPayload = {
   customer_email: string;
   subject: string;
   description: string;
+  priority: string;
+  tags: string[];
 };
 
 export type OrderItemData = {
