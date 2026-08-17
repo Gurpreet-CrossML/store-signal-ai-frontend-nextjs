@@ -73,7 +73,7 @@ export type NavArea = {
 export const NAV_AREAS = {
   crm: {
     href: "/crm",
-    title: "CRM",
+    title: "Catalog",
     description:
       "The people who shop with you, and everything you know about them.",
     icon: IconAddressBook,
@@ -140,12 +140,6 @@ export const NAV_AREAS = {
         description: "Tickets tagged as an exchange.",
         icon: IconArrowsExchange,
       },
-      {
-        href: "/helpdesk/tags",
-        title: "Tags",
-        description: "The labels used to sort tickets.",
-        icon: IconTags,
-      },
     ],
   },
 
@@ -177,6 +171,14 @@ export const NAV_AREAS = {
         description: "Restrict which visitors can see the chat widget.",
         pageDescription: "Controls that apply to the store you have selected.",
         icon: IconShieldLock,
+      },
+      {
+        href: "/settings/tags",
+        title: "Help Desk Tags",
+        description: "The labels used to sort tickets.",
+        pageDescription:
+          "Label support tickets so they can be grouped, filtered and found quickly.",
+        icon: IconTags,
       },
       {
         href: "/settings/integrations",

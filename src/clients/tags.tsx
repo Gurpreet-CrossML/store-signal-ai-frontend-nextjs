@@ -12,7 +12,6 @@ import {
 } from "formik";
 import z from "zod";
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
-import { PageHeading } from "@/components/custom/page-heading";
 import { DataTable } from "@/components/custom/data-table";
 import { SearchInput } from "@/components/custom/search-input";
 import { getTagColumns } from "@/components/custom/helpdesk/tags-columns";
@@ -290,12 +289,7 @@ export default function Tags() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-4">
-      <PageHeading
-        title="Tags"
-        description="Label support tickets so they can be grouped, filtered and found quickly."
-      />
-
+    <>
       {/* Toolbar sits above the table rather than inside a card — the same
           anatomy as Threads. */}
       <div className="flex flex-col gap-4">
@@ -499,6 +493,6 @@ export default function Tags() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }

@@ -165,7 +165,7 @@ export const ENDPOINTS = {
   toneStyle: () => `/chat/tone-style/`,
   vocabulary: () => `/chat/vocabulary/`,
 
-  // CRM. Store-scoped directories of shoppers and their orders. Both lists
+  // Catalog. Store-scoped directories of shoppers and their orders. Both lists
   // take search, filter and ordering query params — see CustomerFilters and
   // OrderFilters in their slices for the full set.
   //
@@ -175,7 +175,7 @@ export const ENDPOINTS = {
   fetchCustomerDetails: (customerId: number) =>
     createAPIUrl(`/chat/customers/${customerId}/`, "django"),
   // POST — create a shopper from just an email, so a guest ticket can be
-  // attached to a real record and filled in later from CRM.
+  // attached to a real record and filled in later from Catalog.
   // NOTE: pending confirmation from the backend team.
   createCustomer: () => createAPIUrl("/chat/customers/", "django"),
   fetchOrders: () => createAPIUrl("/chat/orders/", "django"),

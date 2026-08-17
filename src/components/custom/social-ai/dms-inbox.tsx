@@ -157,6 +157,7 @@ function DmMessageBubble({
   contactName,
   replyToAttachment,
   awaitingMedia = false,
+  windowOpen,
   onReacted,
   onReply,
 }: {
@@ -170,6 +171,12 @@ function DmMessageBubble({
   // This message arrived over the socket with no text and no attachments,
   // meaning its media is still being written server-side.
   awaitingMedia?: boolean;
+  /**
+   * Whether Meta's 24-hour window is still open. Reacting and quoting are
+   * both outbound calls it rejects once the window has closed, so they are
+   * withdrawn along with the composer rather than left to fail on click.
+   */
+  windowOpen: boolean;
   onReacted: () => void;
   onReply: (msg: SocialDm) => void;
 }) {
@@ -213,7 +220,7 @@ function DmMessageBubble({
     }
   };
 
-  const actions = (
+  const actions = !windowOpen ? null : (
     <Popover
       open={pickerOpen}
       onOpenChange={(open) => {
@@ -704,6 +711,14 @@ export default function DmsInbox({
   const messagingWindowOpen =
     !lastIncomingAt ||
     now - new Date(lastIncomingAt).getTime() < 24 * 60 * 60 * 1000;
+
+  // A quote staged before the window shut can no longer be sent, so drop
+  // it rather than leave it hanging over a dead composer — and so it does
+  // not resurface, aimed at a days-old message, when the contact writes
+  // back and the window reopens.
+  if (!messagingWindowOpen && replyingToMessage) {
+    setReplyingToMessage(null);
+  }
 
   // Trigger 1: switching conversations always jumps straight to the
   // latest message, no animation — like opening a fresh thread. The
@@ -1215,6 +1230,7 @@ export default function DmsInbox({
                                   : null
                               }
                               awaitingMedia={awaitingMediaIds.includes(msg.id)}
+                              windowOpen={messagingWindowOpen}
                               onReacted={refetchMessages}
                               onReply={setReplyingToMessage}
                             />

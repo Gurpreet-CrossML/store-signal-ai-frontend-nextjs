@@ -45,7 +45,7 @@ function customerName(customer: CustomerRecord) {
  * until they have already searched.
  *
  * A created record holds only the email. The rest — name, phone, addresses
- * — arrives from the next store sync or gets filled in from CRM, and
+ * — arrives from the next store sync or gets filled in from Catalog, and
  * demanding it here would stall the agent mid-ticket.
  */
 export function LinkCustomerDialog({
@@ -181,7 +181,7 @@ export function LinkCustomerDialog({
               </Typography>
               <Typography variant="muted">
                 {canCreate
-                  ? "Create one now and fill in the rest from CRM later."
+                  ? "Create one now and fill in the rest from Catalog later."
                   : "Enter a full email address to create one."}
               </Typography>
             </div>
