@@ -138,7 +138,7 @@ export default function CustomizationActionButtons({
 
         <div className="flex flex-col gap-2 border-t border-border pt-3">
           <Typography variant="muted" className="text-xs font-medium">
-            Add new quick action
+            Add New Quick Action
           </Typography>
           <AddActionButtonForm
             onAdd={(button) => onChange([...actionButtons, button])}

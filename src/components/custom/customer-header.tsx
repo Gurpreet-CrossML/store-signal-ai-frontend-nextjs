@@ -68,13 +68,13 @@ export function CrmLinkButton({
         <Button
           variant="ghost"
           size="icon-xs"
-          aria-label="Link a customer"
+          aria-label="Link a Customer"
           onClick={onLinkCustomer}
         >
           <IconUserPlus className="size-4" />
         </Button>
       </TooltipTrigger>
-      <TooltipContent>Link a customer</TooltipContent>
+      <TooltipContent>Link a Customer</TooltipContent>
     </Tooltip>
   );
 }

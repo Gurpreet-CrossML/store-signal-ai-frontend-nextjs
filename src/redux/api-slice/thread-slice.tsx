@@ -13,8 +13,22 @@ type ThreadFilters = {
   has_ticket?: boolean;
   has_feedback?: boolean;
   feedback_rating?: string;
-  tags?: string[];
+  tags?: (string | ThreadTagData)[];
   handled_by?: string;
+};
+
+/**
+ * A tag as the threads endpoints return it.
+ *
+ * Declared here rather than imported from the support-ticket slice, which
+ * already imports from this file — the shape is identical, so `TagBadge`
+ * takes either without a conversion.
+ */
+export type ThreadTagData = {
+  id?: number;
+  name: string;
+  color: string;
+  description: string;
 };
 
 export type FeedbackEntry = {
@@ -50,7 +64,7 @@ export type Thread = {
   total_messages: number;
   created_at: string;
   ended_at: string | null;
-  tags?: string[];
+  tags?: (string | ThreadTagData)[];
   last_message?: string | null;
 };
 

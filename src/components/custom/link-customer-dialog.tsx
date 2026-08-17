@@ -117,7 +117,7 @@ export function LinkCustomerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Link a customer</DialogTitle>
+          <DialogTitle>Link a Customer</DialogTitle>
           <DialogDescription>
             Search by email to attach an existing customer, or create one from
             an email you have.
@@ -208,7 +208,7 @@ export function LinkCustomerDialog({
             ) : (
               <IconPlus className="size-4" />
             )}
-            Create and link
+            Create and Link
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -221,7 +221,7 @@ export function LinkCustomerButton({ onClick }: { onClick: () => void }) {
   return (
     <Button variant="outline" size="sm" className="w-full" onClick={onClick}>
       <IconUserPlus className="size-4" />
-      Link a customer
+      Link a Customer
     </Button>
   );
 }

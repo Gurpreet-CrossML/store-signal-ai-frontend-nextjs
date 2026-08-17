@@ -315,7 +315,7 @@ export default function BrandVoiceVocabularyChipLists({
             onClick={onReplacementAdd}
           >
             <IconPlus className="size-4" />
-            Add replacement
+            Add Replacement
           </Button>
         </CardContent>
       </Card>

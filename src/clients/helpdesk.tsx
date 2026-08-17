@@ -8,7 +8,7 @@ import {
   useRef,
   startTransition,
 } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
@@ -82,6 +82,11 @@ import {
 } from "@/lib/badge-tones";
 
 import { ConversationRow } from "@/components/custom/conversation-row";
+import {
+  TicketPriorityBar,
+  TICKET_PRIORITY_TONES,
+  ticketRef,
+} from "@/components/custom/ticket-priority-bar";
 import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
 import { CrmLinkButton } from "@/components/custom/customer-header";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
@@ -194,12 +199,7 @@ const STATUS_TONE: Record<SupportTicketStatus, BadgeTone> = {
   closed: "neutral",
 };
 
-const PRIORITY_TONE: Record<SupportTicketPriority, BadgeTone> = {
-  low: "success",
-  normal: "neutral",
-  high: "warning",
-  urgent: "danger",
-};
+const PRIORITY_TONE = TICKET_PRIORITY_TONES;
 
 /**
  * How a customer is named on screen. The API sends either a customer object
@@ -237,6 +237,7 @@ function TicketRow({
       active={active}
       onSelect={onSelect}
       unread={!ticket.is_read}
+      accent={<TicketPriorityBar priority={ticket.priority} />}
       avatar={<CustomerAvatar name={customerName} />}
       title={ticket.subject}
       titleTooltip={ticket.subject}
@@ -498,7 +499,7 @@ function TicketListPanel({
               variant="outline"
               size="icon-sm"
               className="relative"
-              aria-label="Filter tickets"
+              aria-label="Filter Tickets"
             >
               <IconFilter className="size-4" />
               {activeFilterCount > 0 ? (
@@ -510,7 +511,7 @@ function TicketListPanel({
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 p-0">
             <div className="border-b px-4 py-3">
-              <CardTitle>Filter tickets</CardTitle>
+              <CardTitle>Filter Tickets</CardTitle>
             </div>
             <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4">
               <fieldset>
@@ -615,7 +616,7 @@ function TicketListPanel({
                 <span />
               )}
               <Button size="sm" onClick={onApplyFilters}>
-                Apply filters
+                Apply Filters
               </Button>
             </div>
           </PopoverContent>
@@ -997,7 +998,7 @@ function ConversationPanel({
               </TooltipContent>
             </Tooltip>
             <Typography variant="caption" className="shrink-0">
-              #{ticket.id}
+              {ticketRef(ticket.id)}
             </Typography>
           </div>
 
@@ -1123,7 +1124,7 @@ function ConversationPanel({
                     variant="ghost"
                     size="icon-xs"
                     disabled={isClosed}
-                    aria-label="Add tag"
+                    aria-label="Add Tag"
                     className="shrink-0"
                   >
                     <IconPlus className="size-4" />
@@ -1195,7 +1196,7 @@ function ConversationPanel({
                       onClick={onLoadMoreTags}
                       disabled={isTagPickerLoading}
                     >
-                      {isTagPickerLoading ? "Loading…" : "Load more"}
+                      {isTagPickerLoading ? "Loading…" : "Load More"}
                     </Button>
                   ) : null}
                 </div>
@@ -1440,13 +1441,13 @@ function ConversationPanel({
                   size="sm"
                   onClick={onSaveDraft}
                   disabled={isClosed || isTranslating}
-                  aria-label="Save draft"
+                  aria-label="Save Draft"
                 >
                   <IconDeviceFloppy className="size-4" />
-                  <span className="hidden 2xl:inline">Save draft</span>
+                  <span className="hidden 2xl:inline">Save Draft</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Save draft</TooltipContent>
+              <TooltipContent>Save Draft</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1457,15 +1458,15 @@ function ConversationPanel({
                   disabled={
                     isSending || isMessageImproving || isClosed || isTranslating
                   }
-                  aria-label="Send as internal note"
+                  aria-label="Send as Internal Note"
                 >
                   <IconPencil className="size-4" />
                   <span className="hidden 2xl:inline">
-                    Send as internal note
+                    Send as Internal Note
                   </span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Send as internal note</TooltipContent>
+              <TooltipContent>Send as Internal Note</TooltipContent>
             </Tooltip>
             <Button
               size="sm"
@@ -1539,6 +1540,8 @@ function TicketInsightsPlaceholder({
 
 export default function HelpDesk() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const activeFilter = searchParams?.get("filter") ?? "";
   /** Deep link to one ticket, e.g. from the Live Support detail panel. */
   const linkedTicketId = Number(searchParams?.get("ticket") ?? "");
@@ -1553,10 +1556,13 @@ export default function HelpDesk() {
     useAppSelector(
       (state) => state.GetSupportTicketsReducer.FetchSupportTicketsState,
     );
-  const { FetchSupportTicketDetailsData, FetchSupportTicketDetailsIsLoading } =
-    useAppSelector(
-      (state) => state.GetSupportTicketsReducer.FetchSupportTicketDetailsState,
-    );
+  const {
+    FetchSupportTicketDetailsData,
+    FetchSupportTicketDetailsIsLoading,
+    FetchSupportTicketDetailsIsError,
+  } = useAppSelector(
+    (state) => state.GetSupportTicketsReducer.FetchSupportTicketDetailsState,
+  );
   const { SupportTicketMessageSendIsLoading } = useAppSelector(
     (state) => state.GetSupportTicketsReducer.SupportTicketMessageSendState,
   );
@@ -1632,6 +1638,22 @@ export default function HelpDesk() {
   ) {
     setSeededTicketId(linkedTicketId);
     setActiveTicketId(linkedTicketId);
+  }
+
+  // A ticket belongs to a store, so switching stores cannot leave one
+  // open. Guarded on the *previous* code being set: the first transition is
+  // "" → the loaded store, which is initialisation, not a switch — treating
+  // it as one would throw away a ticket named in the URL before its request
+  // was ever made.
+  const [lastStoreCode, setLastStoreCode] = useState(storeCode);
+  if (lastStoreCode !== storeCode) {
+    setLastStoreCode(storeCode);
+    if (lastStoreCode) {
+      setActiveTicketId(null);
+      setActiveSupportTicket(null);
+      setTicketRows([]);
+      setPage(1);
+    }
   }
 
   // Switching sidebar filter resets paging. The list request keys on
@@ -2053,27 +2075,22 @@ export default function HelpDesk() {
       try {
         const data = await dispatch(FetchSupportTickets(fetchArgs)).unwrap();
 
-        setTicketRows((prev) => {
-          const rows = page === 1 ? data.results : [...prev, ...data.results];
+        setTicketRows((prev) =>
+          page === 1 ? data.results : [...prev, ...data.results],
+        );
 
-          setActiveTicketId((current) => {
-            if (rows.length === 0) return null;
-
-            return current && rows.some((t) => t.id === current)
-              ? current
-              : rows[0].id;
-          });
-
-          setActiveSupportTicket((current) => {
-            if (rows.length === 0) return null;
-
-            return current && rows.some((t) => t.id === current.id)
-              ? current
-              : rows[0];
-          });
-
-          return rows;
-        });
+        // Open the first ticket only when nothing is open yet.
+        //
+        // This used to replace the open ticket with the list's first row
+        // whenever that ticket was not among the loaded ones — so every
+        // link to a ticket sitting under another filter, or past the first
+        // page, silently landed on a different ticket instead. The list is
+        // a view of the queue; it does not get to decide what is open.
+        if (page === 1 && !currentActiveSupportTicketIdRef.current) {
+          const first = data.results[0] ?? null;
+          setActiveTicketId(first?.id ?? null);
+          setActiveSupportTicket(first);
+        }
       } finally {
         if (isLoadMore) {
           setIsLoadingMore(false);
@@ -2116,6 +2133,27 @@ export default function HelpDesk() {
     );
   }, [dispatch, storeCode, tagPage]);
 
+  // Mirror the open ticket into the query string, so a refresh, a shared
+  // link and the back button all land on the same ticket. `replace`, not
+  // `push`: clicking down a queue should not bury the previous page under
+  // twenty history entries.
+  useEffect(() => {
+    if (!pathname) return;
+
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    const current = params.get("ticket");
+    const next = activeTicketId ? String(activeTicketId) : null;
+    if (current === next) return;
+
+    if (next) params.set("ticket", next);
+    else params.delete("ticket");
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }, [activeTicketId, pathname, router, searchParams]);
+
   useEffect(() => {
     currentActiveSupportTicketIdRef.current = activeTicketId || null;
     if (!storeCode || !activeTicketId) return;
@@ -2123,10 +2161,13 @@ export default function HelpDesk() {
     dispatch(
       FetchSupportTicketDetails({ storeCode, ticketId: activeTicketId }),
     );
-    // Refetch only when the open ticket changes; storeCode is captured and a
-    // store switch resets the ticket selection anyway.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTicketId]);
+    // `storeCode` belongs in here, not just in the guard above. A ticket
+    // deep-linked in the address bar is selected on the very first render,
+    // before the store list has resolved — so this effect ran once, bailed
+    // on the empty store code, and never ran again. The list masked it:
+    // it used to overwrite the selection when its rows arrived, which
+    // re-fired this effect by accident, on the wrong ticket.
+  }, [dispatch, storeCode, activeTicketId]);
 
   useEffect(() => {
     if (!FetchSupportTicketDetailsData) return;
@@ -2134,6 +2175,16 @@ export default function HelpDesk() {
     startTransition(() => {
       setActiveSupportTicket(FetchSupportTicketDetailsData);
       setSupportTicketMessages(FetchSupportTicketDetailsData.messages ?? []);
+
+      // Followed from a link, it may belong to another queue or sit ten
+      // pages down. Put it at the head of the list so the open ticket is
+      // visible and selected there, rather than leaving the list with
+      // nothing highlighted while the pane shows a conversation.
+      setTicketRows((rows) =>
+        rows.some((row) => row.id === FetchSupportTicketDetailsData.id)
+          ? rows
+          : [FetchSupportTicketDetailsData, ...rows],
+      );
 
       const agentDraft = FetchSupportTicketDetailsData.drafts?.find(
         (draft) => draft.draft_type === "manual",
@@ -2151,6 +2202,15 @@ export default function HelpDesk() {
     // handler identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [FetchSupportTicketDetailsData]);
+
+  // A link can name a ticket that was deleted, belongs to another store,
+  // or was simply mistyped. Saying so beats "no ticket selected", which
+  // reads as though nothing was asked for.
+  const linkedTicketMissing =
+    Boolean(activeTicketId) &&
+    !FetchSupportTicketDetailsIsLoading &&
+    Boolean(FetchSupportTicketDetailsIsError) &&
+    activeSupportTicket?.id !== activeTicketId;
 
   const activeQueueLabel = useMemo(
     () => queues.find((queue) => queue.key === activeQueue)?.label ?? "Open",
@@ -2933,6 +2993,25 @@ export default function HelpDesk() {
           <div className="flex min-w-0 flex-1 items-center justify-center">
             <LoadingState label="Loading conversation…" />
           </div>
+        ) : linkedTicketMissing ? (
+          <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
+            <IconInbox className="mb-1 size-6 text-muted-foreground opacity-40" />
+            <Typography variant="small" as="p">
+              Ticket Not Found
+            </Typography>
+            <Typography variant="muted">
+              {ticketRef(activeTicketId ?? "")} could not be opened. It may
+              belong to another store, or have been removed.
+            </Typography>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => setActiveTicketId(null)}
+            >
+              Back to Inbox
+            </Button>
+          </div>
         ) : !activeSupportTicket ? (
           <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
             <IconInbox className="mb-1 size-6 text-muted-foreground opacity-40" />
@@ -2999,7 +3078,6 @@ export default function HelpDesk() {
           <TicketInsightsPlaceholder label="Select a ticket to see the customer's details." />
         ) : (
           <CustomerDetailsPanel
-            description="Orders and other tickets from this customer."
             customerData={ticketCustomer}
             orders={ticketCustomer?.orders}
             ordersLoading={FetchSupportTicketDetailsIsLoading}

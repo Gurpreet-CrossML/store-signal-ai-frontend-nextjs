@@ -122,59 +122,6 @@ export function CartDetailsCard({
   );
 }
 
-/** One figure in the summary card's strip. */
-function SummaryStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
-      <Typography variant="muted">{label}</Typography>
-      <Typography variant="small" as="p" className="truncate tabular-nums">
-        {value}
-      </Typography>
-    </div>
-  );
-}
-
-/**
- * What this customer is worth, and nothing else.
- *
- * Their name, email, where they are browsing from and the link to their
- * record all live on the conversation header now — repeating them at the
- * top of this pane pushed the orders and tickets an agent actually works
- * from below the fold.
- */
-export function CustomerSummaryCard({
-  orders,
-  loading,
-}: {
-  orders?: OrderData[] | null;
-  loading?: boolean;
-}) {
-  const orderList = orders ?? [];
-  const totalSpent = orderList.reduce(
-    (sum, order) => sum + Number(order.total_price ?? 0),
-    0,
-  );
-  const currency = orderList[0]?.currency ?? "USD";
-
-  return (
-    <section className="border-b p-4">
-      {loading ? (
-        <CardLoadingState />
-      ) : (
-        // A 1px gap over a border-coloured ground: even separators however
-        // the pair wraps.
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
-          <SummaryStat
-            label="Total spent"
-            value={formatPrice(totalSpent, currency)}
-          />
-          <SummaryStat label="Orders" value={String(orderList.length)} />
-        </div>
-      )}
-    </section>
-  );
-}
-
 export function SupportTicketsCard({
   tickets,
   loading,
@@ -229,6 +176,18 @@ export function SupportTicketsCard({
   );
 }
 
+/** One figure in the orders summary. */
+function SummaryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
+      <Typography variant="muted">{label}</Typography>
+      <Typography variant="small" as="p" className="truncate tabular-nums">
+        {value}
+      </Typography>
+    </div>
+  );
+}
+
 export function OrdersCard({
   orders,
   loading,
@@ -253,16 +212,25 @@ export function OrdersCard({
   } = useCollapsibleList(orderList);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
+  // The two figures that used to sit in a card of their own above this
+  // one. They are a fact about these orders, so they belong to the section
+  // that lists them — and the pane gets a whole card's height back.
+  const totalSpent = orderList.reduce(
+    (sum, order) => sum + Number(order.total_price ?? 0),
+    0,
+  );
+  const currency = orderList[0]?.currency ?? "USD";
+
   const toggleOrder = (id: number) => {
     setExpandedId((prev) => (prev === id ? null : id));
   };
 
   return (
     <section className="flex flex-col gap-3 border-b p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <CardTitle className="flex items-center gap-2">
           <IconPackage className="h-4 w-4" />
-          Orders{!loading && orderList?.length ? ` (${orderList.length})` : ""}
+          Orders
         </CardTitle>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -291,6 +259,20 @@ export function OrdersCard({
           </TooltipContent>
         </Tooltip>
       </div>
+      {/* The figures the orders below add up to, in the section that
+          lists them rather than a card of its own above it. A 1px gap over
+          a border-coloured ground gives even separators however the pair
+          wraps. */}
+      {!loading ? (
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
+          <SummaryStat
+            label="Total Spent"
+            value={formatPrice(totalSpent, currency)}
+          />
+          <SummaryStat label="Orders" value={String(orderList.length)} />
+        </div>
+      ) : null}
+
       {loading ? (
         <CardLoadingState />
       ) : !orderList || orderList?.length === 0 ? (

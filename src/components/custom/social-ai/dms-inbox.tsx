@@ -101,7 +101,7 @@ const QUICK_REACTIONS = ["❤️", "😆", "😮", "😢", "😠", "👍"];
 
 /**
  * A reply shown optimistically, plus everything needed to send it again
- * from the "Try again" link. `expectedCount` is how many outgoing messages
+ * from the "Try Again" link. `expectedCount` is how many outgoing messages
  * with this exact text must exist before this bubble is considered
  * delivered — see the reconciliation note in the component.
  */
