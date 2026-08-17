@@ -10,10 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import type {
-  WorkflowGatePatch,
-  WorkflowSection,
-} from "@/lib/workflow-types";
+import type { WorkflowGatePatch, WorkflowSection } from "@/lib/workflow-types";
 
 import { WorkflowGateRow } from "./workflow-gate-row";
 
@@ -55,6 +52,7 @@ export function WorkflowSectionCard({
             {gateIndex > 0 && <Separator />}
             <WorkflowGateRow
               gate={gate}
+              parentDisabled={!section.enabled}
               onChange={(patch) => onGateChange(gate.id, patch)}
             />
           </div>

@@ -11,7 +11,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
-import type { WorkflowGateControl, WorkflowGatePatch } from "@/lib/workflow-types";
+import type {
+  WorkflowGateControl,
+  WorkflowGatePatch,
+} from "@/lib/workflow-types";
 
 /** The inline control a gate row shows below its description, keyed on `control.kind`. */
 export function WorkflowGateControlView({

@@ -1,8 +1,4 @@
-import {
-  IconArrowBackUp,
-  IconCircleX,
-  IconEdit,
-} from "@tabler/icons-react";
+import { IconArrowBackUp, IconCircleX, IconEdit } from "@tabler/icons-react";
 
 import {
   WORKFLOW_IDS,
@@ -369,7 +365,8 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           {
             id: "om-price-higher",
             title: "New total is higher",
-            description: "Collects the difference before confirming the change.",
+            description:
+              "Collects the difference before confirming the change.",
             enabled: true,
             control: {
               kind: "select",
@@ -467,8 +464,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           {
             id: "rr-returnable-category",
             title: "Item is in a returnable category",
-            description:
-              "Some categories can never be returned once received.",
+            description: "Some categories can never be returned once received.",
             enabled: true,
             locked: true,
             control: {

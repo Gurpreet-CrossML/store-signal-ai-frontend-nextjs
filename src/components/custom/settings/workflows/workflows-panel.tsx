@@ -4,17 +4,16 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type CSSProperties } from "react";
 
 import { listRowClassName } from "@/components/custom/conversation-row";
+import { CardTitle } from "@/components/ui/card";
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { Typography } from "@/components/ui/typography";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import { cn } from "@/lib/utils";
 import {
@@ -50,7 +49,9 @@ export default function WorkflowsPanel() {
   const searchParams = useSearchParams();
 
   const workflowParam = searchParams?.get("workflow") ?? null;
-  const initialId = isWorkflowId(workflowParam) ? workflowParam : WORKFLOWS[0].id;
+  const initialId = isWorkflowId(workflowParam)
+    ? workflowParam
+    : WORKFLOWS[0].id;
 
   const [selectedId, setSelectedId] = useState<WorkflowId>(initialId);
   const [workflow, setWorkflow] = useState<Workflow>(
@@ -69,7 +70,9 @@ export default function WorkflowsPanel() {
   };
 
   const handleSectionToggle = (sectionId: string, enabled: boolean) => {
-    setWorkflow((prev) => updateStaticWorkflowSection(prev, sectionId, enabled));
+    setWorkflow((prev) =>
+      updateStaticWorkflowSection(prev, sectionId, enabled),
+    );
   };
 
   return (
@@ -82,10 +85,9 @@ export default function WorkflowsPanel() {
         className="hidden border-r bg-background md:flex"
       >
         <SidebarHeader className="h-16 shrink-0 justify-center border-b px-4 py-0">
-          <Typography variant="small">Workflows</Typography>
-          <Typography variant="caption">
-            Rules the AI follows when acting on an order
-          </Typography>
+          <div className="flex w-full items-center justify-left">
+            <CardTitle>Workflows</CardTitle>
+          </div>
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup className="px-2 py-2">

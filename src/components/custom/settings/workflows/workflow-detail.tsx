@@ -5,10 +5,7 @@ import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import { cn } from "@/lib/utils";
-import type {
-  Workflow,
-  WorkflowGatePatch,
-} from "@/lib/workflow-types";
+import type { Workflow, WorkflowGatePatch } from "@/lib/workflow-types";
 
 import { RISK_TONE } from "./workflow-risk";
 import { WorkflowBranchCard } from "./workflow-branch-card";
@@ -44,9 +41,14 @@ export function WorkflowDetail({
         >
           <Icon className="size-5" />
         </div>
-        <CardTitle className="truncate leading-tight">
-          {workflow.title}
-        </CardTitle>
+        <div className="min-w-0">
+          <CardTitle className="truncate leading-tight">
+            {workflow.title}
+          </CardTitle>
+          <Typography variant="muted" className="truncate">
+            Rules the AI follows when acting on an order
+          </Typography>
+        </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
