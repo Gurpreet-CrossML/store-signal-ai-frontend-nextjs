@@ -659,10 +659,10 @@ export async function get_conversation_summary(
   }
 
   const rows = await db
-    .select({ conversation_summary: chatbotFeedback.conversationSummary })
-    .from(chatbotFeedback)
-    .where(scopedThreadFilter(chatbotFeedback.threadId, thread_id))
-    .orderBy(desc(chatbotFeedback.createdAt))
+    .select({ conversation_summary: aiInsights.conversationSummary })
+    .from(aiInsights)
+    .where(scopedThreadFilter(aiInsights.threadId, thread_id))
+    .orderBy(desc(aiInsights.createdAt))
     .limit(1);
 
   const summary =
