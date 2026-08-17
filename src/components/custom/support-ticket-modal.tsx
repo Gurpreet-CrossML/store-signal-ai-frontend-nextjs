@@ -25,6 +25,7 @@ import {
   generateSocialTicketContent,
 } from "@/redux/api-slice/social-ai-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { toast } from "sonner";
 
 type CreatedTicket = {
   id?: string | number;
@@ -130,6 +131,7 @@ export function CreateTicketDialog({
                 payload,
               }),
             ).unwrap();
+      toast.success("Support ticket created successfully.");
       onTicketCreated?.(ticket);
       onOpenChange(false);
       resetForm();
@@ -140,6 +142,8 @@ export function CreateTicketDialog({
 
   const handleGenerateDescription = async () => {
     if (!sourceId || !storeCode) return;
+    if (!isSocialTicket && !threadId) return;
+    const ticketThreadId = threadId ?? "";
 
     try {
       const data =
@@ -152,7 +156,7 @@ export function CreateTicketDialog({
             ).unwrap()
           : await dispatch(
               GenerateTicketContent({
-                thread_id: threadId,
+                thread_id: ticketThreadId,
                 store_code: storeCode,
               }),
             ).unwrap();
