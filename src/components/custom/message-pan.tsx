@@ -22,7 +22,6 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
 import { Spinner } from "../ui/spinner";
-import remarkGfm from "remark-gfm";
 
 export default function MessagePan({
   messages,

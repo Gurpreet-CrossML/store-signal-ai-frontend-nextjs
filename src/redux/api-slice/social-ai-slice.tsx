@@ -289,6 +289,7 @@ export const generateSocialTicketContent = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
+          data?.data?.non_field_errors ||
           data?.message ||
           "Unable to generate ticket content, please try again later.",
       });

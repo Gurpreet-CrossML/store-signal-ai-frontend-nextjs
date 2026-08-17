@@ -712,7 +712,6 @@ export const SupportTicketAIMessageDraftGenerate = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
-          data?.data?.non_field_errors ||
           data?.message ||
           "Unable to generate ai draft, please try again later.",
       });
