@@ -17,11 +17,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { IconSparkles } from "@tabler/icons-react";
 import {
-  CreateSocialSupportTicket,
   CreateSupportTicket,
-  GenerateSocialTicketContent,
   GenerateTicketContent,
 } from "@/redux/api-slice/thread-slice";
+import {
+  createSocialSupportTicket,
+  generateSocialTicketContent,
+} from "@/redux/api-slice/social-ai-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 type CreatedTicket = {
@@ -54,13 +56,13 @@ export function CreateTicketDialog({
     (state) => state.GetThreadReducer.GenerateTicketContentState,
   );
   const { GenerateSocialTicketContentIsLoading } = useAppSelector(
-    (state) => state.GetThreadReducer.GenerateSocialTicketContentState,
+    (state) => state.GetSocialAIReducer.GenerateSocialTicketContentState,
   );
   const { CreateSupportTicketIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.CreateSupportTicketState,
   );
   const { CreateSocialSupportTicketIsLoading } = useAppSelector(
-    (state) => state.GetThreadReducer.CreateSocialSupportTicketState,
+    (state) => state.GetSocialAIReducer.CreateSocialSupportTicketState,
   );
   const [customerEmail, setCustomerEmail] = useState("");
   const [subject, setSubject] = useState("");
@@ -108,7 +110,7 @@ export function CreateTicketDialog({
       const ticket =
         isSocialTicket && socialUserId
           ? await dispatch(
-              CreateSocialSupportTicket({
+              createSocialSupportTicket({
                 store_code: storeCode,
                 social_user_id: socialUserId,
                 payload: {
@@ -143,7 +145,7 @@ export function CreateTicketDialog({
       const data =
         isSocialTicket && socialUserId
           ? await dispatch(
-              GenerateSocialTicketContent({
+              generateSocialTicketContent({
                 social_user_id: socialUserId,
                 store_code: storeCode,
               }),
