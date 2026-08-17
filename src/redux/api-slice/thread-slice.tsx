@@ -241,6 +241,14 @@ export type ThreadTicketData = {
   updated_at: string;
 };
 
+export type CreateSupportTicket = {
+  customer_email: string;
+  subject: string;
+  description: string;
+  priority: string;
+  tags: string[];
+};
+
 export type OrderItemData = {
   sku: string;
   name: string;
@@ -670,6 +678,74 @@ export const SyncOrders = createAsyncThunk(
   },
 );
 
+export const GenerateTicketContent = createAsyncThunk(
+  "GenerateTicketContent",
+  async (
+    {
+      thread_id,
+      store_code,
+    }: {
+      thread_id: string;
+      store_code: string;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.generateThreadTicketContent(thread_id)}?store_code=${store_code}`,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.data?.non_field_errors ||
+          data?.message ||
+          "Unable to generate ticket content, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const CreateSupportTicket = createAsyncThunk(
+  "CreateSupportTicket",
+  async (
+    {
+      store_code,
+      thread_id,
+      payload,
+    }: { store_code: string; thread_id: string; payload: CreateSupportTicket },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.createThreadTicket(thread_id)}?store_code=${store_code}`,
+        payload,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to create support ticket, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 const ThreadSlice = createSlice({
   name: "Thread",
   initialState: {
@@ -747,6 +823,16 @@ const ThreadSlice = createSlice({
       SyncOrdersIsLoading: false,
       SyncOrdersIsSuccess: false,
       SyncOrdersIsError: null as null | string | object | unknown,
+    },
+    GenerateTicketContentState: {
+      GenerateTicketContentIsLoading: false,
+      GenerateTicketContentIsSuccess: false,
+      GenerateTicketContentIsError: null as null | string | object | unknown,
+    },
+    CreateSupportTicketState: {
+      CreateSupportTicketIsLoading: false,
+      CreateSupportTicketIsSuccess: false,
+      CreateSupportTicketIsError: null as null | string | object | unknown,
     },
   },
   reducers: {},
@@ -939,6 +1025,36 @@ const ThreadSlice = createSlice({
         state.SyncOrdersState.SyncOrdersIsLoading = false;
         state.SyncOrdersState.SyncOrdersIsError = action.payload;
         state.SyncOrdersState.SyncOrdersIsSuccess = false;
+      })
+      .addCase(GenerateTicketContent.pending, (state) => {
+        state.GenerateTicketContentState.GenerateTicketContentIsLoading = true;
+        state.GenerateTicketContentState.GenerateTicketContentIsError = null;
+        state.GenerateTicketContentState.GenerateTicketContentIsSuccess = false;
+      })
+      .addCase(GenerateTicketContent.fulfilled, (state) => {
+        state.GenerateTicketContentState.GenerateTicketContentIsLoading = false;
+        state.GenerateTicketContentState.GenerateTicketContentIsSuccess = true;
+      })
+      .addCase(GenerateTicketContent.rejected, (state, action) => {
+        state.GenerateTicketContentState.GenerateTicketContentIsLoading = false;
+        state.GenerateTicketContentState.GenerateTicketContentIsError =
+          action.payload;
+        state.GenerateTicketContentState.GenerateTicketContentIsSuccess = false;
+      })
+      .addCase(CreateSupportTicket.pending, (state) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = true;
+        state.CreateSupportTicketState.CreateSupportTicketIsError = null;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = false;
+      })
+      .addCase(CreateSupportTicket.fulfilled, (state) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = false;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = true;
+      })
+      .addCase(CreateSupportTicket.rejected, (state, action) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = false;
+        state.CreateSupportTicketState.CreateSupportTicketIsError =
+          action.payload;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = false;
       });
   },
 });

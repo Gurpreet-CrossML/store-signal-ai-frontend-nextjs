@@ -15,6 +15,11 @@ import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
@@ -38,6 +43,7 @@ import { SearchInput } from "@/components/custom/search-input";
 import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
 import MessagePan from "@/components/custom/message-pan";
+import { CreateTicketDialog } from "@/components/custom/support-ticket-modal";
 import {
   FetchCart,
   FetchFreshdeskTicketId,
@@ -60,6 +66,7 @@ import {
   IconMessageChatbot,
   IconMoodSmile,
   IconPaperclip,
+  IconPlus,
   IconRobot,
   IconSend,
   IconX,
@@ -593,6 +600,7 @@ export default function Support() {
   const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
     "all",
   );
+  const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
     string | number | null
   >(null);
@@ -1505,11 +1513,43 @@ export default function Support() {
                       ) : null}
                     </div>
                   </div>
-
                   {/* Where they are browsing from, beside who they are —
                       context for the person already on screen, and three
                       rows the details pane gets back for orders. */}
                   <SessionFacts userMetadata={FetchUserMetadataData} />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        className="size-7"
+                        onClick={() => setCreateTicketOpen(true)}
+                        aria-label="Create ticket"
+                      >
+                        <IconPlus className="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Create Ticket</TooltipContent>
+                  </Tooltip>
+                  {activeThreadId && (
+                    <CreateTicketDialog
+                      key={activeThreadId}
+                      threadId={activeThreadId}
+                      storeCode={storeCode}
+                      customerEmail={selectedThread?.customer?.email ?? ""}
+                      open={createTicketOpen}
+                      onOpenChange={setCreateTicketOpen}
+                      onTicketCreated={(ticket) => {
+                        const ticketReference = ticket.id
+                          ? ` #${ticket.id}`
+                          : "";
+                        setAgentMessage(
+                          `Your support ticket${ticketReference} has been created. Our team will review it and follow up with you shortly.`,
+                        );
+                      }}
+                    />
+                  )}
                 </div>
               </header>
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

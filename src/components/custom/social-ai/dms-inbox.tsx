@@ -33,6 +33,11 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
 import {
   IconArrowBackUp,
@@ -51,6 +56,7 @@ import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { formatRelativeTime } from "@/lib/helpers";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { CreateTicketDialog } from "@/components/custom/support-ticket-modal";
 import {
   ConnectedAccount,
   SocialConversationUser,
@@ -475,6 +481,7 @@ export default function DmsInbox({
     null,
   );
   const [pendingMessages, setPendingMessages] = useState<PendingDm[]>([]);
+  const [createTicketOpen, setCreateTicketOpen] = useState(false);
   const [conversationsPage, setConversationsPage] = useState(1);
   // Also loading before the first request resolves: the flag starts false,
   // so keying only on it flashes an empty switcher on the first paint.
@@ -1159,7 +1166,7 @@ export default function DmsInbox({
           <SidebarInset className="min-h-0 overflow-hidden">
             {activeConversation ? (
               <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-                <header className="flex h-16 shrink-0 items-center border-b bg-background px-4">
+                <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b bg-background px-4">
                   <div className="flex min-w-0 items-center gap-2.5">
                     <CustomerAvatar
                       name={
@@ -1177,6 +1184,33 @@ export default function DmsInbox({
                       )}
                     </div>
                   </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        className="size-7"
+                        onClick={() => setCreateTicketOpen(true)}
+                        aria-label="Create ticket"
+                      >
+                        <IconPlus className="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Create Ticket</TooltipContent>
+                  </Tooltip>
+                  {activeConversationId ? (
+                    <CreateTicketDialog
+                      key={`${channelType}-${activeConversationId}`}
+                      threadId=""
+                      storeCode={storeCode}
+                      channel={channelType}
+                      socialUserId={String(activeConversationId)}
+                      sourceLabel="Social User ID"
+                      open={createTicketOpen}
+                      onOpenChange={setCreateTicketOpen}
+                    />
+                  ) : null}
                 </header>
 
                 <div className="relative min-h-0 flex-1">
