@@ -171,7 +171,7 @@ export type ThreadDetails = {
   store: number;
   customer_name: string | null;
   customer_email: string | null;
-  /** Identity only — enough to link the thread to its CRM record. */
+  /** Identity only — enough to link the thread to its Catalog record. */
   customer: { id: number } | null;
   is_active: boolean;
   total_messages: number;

@@ -184,7 +184,7 @@ export const FetchCustomerDetails = createAsyncThunk(
 
 /**
  * Type-ahead lookup for attaching a customer to something — kept apart
- * from FetchCustomers so searching in a dialog does not overwrite the CRM
+ * from FetchCustomers so searching in a dialog does not overwrite the Catalog
  * list behind it.
  */
 export const SearchCustomers = createAsyncThunk(

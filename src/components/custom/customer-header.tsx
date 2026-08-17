@@ -29,7 +29,7 @@ import type { UserMetadata } from "@/redux/api-slice/thread-slice";
  * or attach one if this is a guest.
  *
  * An icon rather than a full-width button — it sat in the details pane as
- * "View in CRM" taking a whole row, which is a lot of furniture for a
+ * "View in Catalog" taking a whole row, which is a lot of furniture for a
  * link, and put it a long way from the name it refers to.
  */
 export function CrmLinkButton({
@@ -47,7 +47,7 @@ export function CrmLinkButton({
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label="View in CRM"
+            aria-label="View in Catalog"
             asChild
           >
             <Link href={`/crm/customers/${customerId}`}>
@@ -55,7 +55,7 @@ export function CrmLinkButton({
             </Link>
           </Button>
         </TooltipTrigger>
-        <TooltipContent>View in CRM</TooltipContent>
+        <TooltipContent>View in Catalog</TooltipContent>
       </Tooltip>
     );
   }

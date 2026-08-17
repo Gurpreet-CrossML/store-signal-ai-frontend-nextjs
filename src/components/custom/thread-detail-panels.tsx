@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { LoadingState } from "@/components/custom/loading-state";
 import { CardTitle } from "@/components/ui/card";
@@ -36,6 +38,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatDate, formatPrice } from "@/lib/helpers";
+import { FetchOrderDetails } from "@/redux/api-slice/order-slice";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Button } from "@/components/ui/button";
 
 function CardLoadingState() {
@@ -212,6 +216,23 @@ export function OrdersCard({
   } = useCollapsibleList(orderList);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
+  // Opening a row loads that order from /chat/orders/{id}/.
+  //
+  // The lists these panels are handed come from thinner sources — the
+  // thread's own order-data route reads a fixed column list straight out
+  // of Postgres, and the ticket detail embeds CustomerOrderDetailSerializer
+  // — and neither carries `admin_url`, which is built from the Store the
+  // client never sees. So the row an agent actually opens is fetched from
+  // the endpoint that does, which also brings refunds and fulfillments the
+  // panels had no way to show.
+  const dispatch = useAppDispatch();
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
+  const { FetchOrderDetailsData, FetchOrderDetailsIsLoading } = useAppSelector(
+    (state) => state.GetOrderReducer.FetchOrderDetailsState,
+  );
+
   // The two figures that used to sit in a card of their own above this
   // one. They are a fact about these orders, so they belong to the section
   // that lists them — and the pane gets a whole card's height back.
@@ -222,7 +243,11 @@ export function OrdersCard({
   const currency = orderList[0]?.currency ?? "USD";
 
   const toggleOrder = (id: number) => {
-    setExpandedId((prev) => (prev === id ? null : id));
+    setExpandedId((prev) => {
+      if (prev === id) return null;
+      if (storeCode) dispatch(FetchOrderDetails({ storeCode, orderId: id }));
+      return id;
+    });
   };
 
   return (
@@ -367,7 +392,21 @@ export function OrdersCard({
                       transition={{ duration: 0.18, ease: "easeOut" }}
                       className="overflow-hidden"
                     >
-                      <OrderDetails order={order} />
+                      {/* The fetched record while it is this row's, the
+                          list row until then — so opening an order shows
+                          what it already knows rather than a blank panel,
+                          and fills in the rest when it lands. */}
+                      <OrderDetails
+                        order={
+                          FetchOrderDetailsData?.id === order.id
+                            ? FetchOrderDetailsData
+                            : order
+                        }
+                        loading={
+                          FetchOrderDetailsIsLoading &&
+                          FetchOrderDetailsData?.id !== order.id
+                        }
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>

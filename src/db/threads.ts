@@ -414,7 +414,7 @@ export type ThreadDetail =
       last_message_at: string | null;
       customer_name: string | null;
       customer_email: string | null;
-      /** Identity only — enough to link the thread to its CRM record. */
+      /** Identity only — enough to link the thread to its Catalog record. */
       customer: { id: number } | null;
       verdict: {
         verdict: string;
