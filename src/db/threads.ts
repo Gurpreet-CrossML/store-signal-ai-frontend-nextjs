@@ -47,6 +47,8 @@ export type ListThreadsFilters = {
   has_ticket?: string;
   has_feedback?: string;
   feedback_rating?: string; // very_bad | bad | neutral | good | excellent
+  tags?: string[]; // matches threads tagged with ANY of the given tags
+  handled_by?: string; // ai | human
 };
 
 const UUID_RE =
@@ -198,6 +200,10 @@ export async function list_threads(
     conditions.push(isNotNull(chatThread.customerId));
   }
 
+  if (filters.handled_by === "ai" || filters.handled_by === "human") {
+    conditions.push(eq(chatThread.chatHandler, filters.handled_by));
+  }
+
   // has_ticket / has_feedback are correlated EXISTS subqueries (Django uses
   // support_tickets__isnull / feedbacks__isnull with .distinct()).
   if (filters.has_ticket === "true") {
@@ -228,6 +234,17 @@ export async function list_threads(
   } else if (filters.has_feedback === "false") {
     conditions.push(
       sql`NOT EXISTS (SELECT 1 FROM ${chatbotFeedback} WHERE ${chatbotFeedback.threadId} = ${chatThread.id})`,
+    );
+  }
+
+  // Any-match: a thread qualifies if its AiInsights.tags contains at least
+  // one of the selected tags.
+  if (filters.tags && filters.tags.length) {
+    const tagConditions = filters.tags.map(
+      (tag) => sql`${aiInsights.tags} @> ${JSON.stringify([tag])}::jsonb`,
+    );
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM ${aiInsights} WHERE ${aiInsights.threadId} = ${chatThread.id} AND (${sql.join(tagConditions, sql` OR `)}))`,
     );
   }
 
@@ -352,6 +369,29 @@ export async function list_threads(
   });
 
   return { count: total, results };
+}
+
+/**
+ * Distinct AiInsights.tags values across a store's threads — powers the
+ * Threads page's tags filter option list.
+ */
+export async function list_thread_tags(storeCode?: string): Promise<string[]> {
+  const db = getDb();
+  const conditions: SQL[] = [];
+
+  const storeScope = storeIdScope(chatThread.storeId, storeCode);
+  if (storeScope) conditions.push(storeScope);
+
+  const rows = await db
+    .selectDistinct({
+      tag: sql<string>`jsonb_array_elements_text(${aiInsights.tags})`,
+    })
+    .from(aiInsights)
+    .innerJoin(chatThread, eq(aiInsights.threadId, chatThread.id))
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(sql`1`);
+
+  return rows.map((row) => row.tag).filter(Boolean);
 }
 
 type ThreadMessage = {

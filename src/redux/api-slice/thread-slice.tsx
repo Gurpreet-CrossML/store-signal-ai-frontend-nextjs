@@ -13,6 +13,8 @@ type ThreadFilters = {
   has_ticket?: boolean;
   has_feedback?: boolean;
   feedback_rating?: string;
+  tags?: string[];
+  handled_by?: string;
 };
 
 export type FeedbackEntry = {
@@ -468,6 +470,31 @@ export const FetchTags = createAsyncThunk(
   },
 );
 
+/** Distinct tags across a store's threads, for the Threads page tags filter. */
+export const FetchThreadTagOptions = createAsyncThunk(
+  "ThreadTagOptions",
+  async ({ store_code }: { store_code?: string } = {}, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        ENDPOINTS.fetchThreadTagOptions(),
+        { params: { store_code } },
+      );
+      return response.data.data as string[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch tag options, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 export const FetchAIInsight = createAsyncThunk(
   "AIInsight",
   async (threadId: string, thunkAPI) => {
@@ -714,6 +741,12 @@ const ThreadSlice = createSlice({
       FetchTagsIsError: null as null | string | object | unknown,
       FetchTags: [] as string[],
     },
+    FetchThreadTagOptionsState: {
+      FetchThreadTagOptionsIsLoading: false,
+      FetchThreadTagOptionsIsSuccess: false,
+      FetchThreadTagOptionsIsError: null as null | string | object | unknown,
+      FetchThreadTagOptionsData: [] as string[],
+    },
     FetchAIInsightState: {
       FetchAIInsightIsLoading: false,
       FetchAIInsightIsSuccess: false,
@@ -847,6 +880,23 @@ const ThreadSlice = createSlice({
         state.FetchTagsState.FetchTagsIsLoading = false;
         state.FetchTagsState.FetchTagsIsError = action.payload;
         state.FetchTagsState.FetchTagsIsSuccess = false;
+      })
+      .addCase(FetchThreadTagOptions.pending, (state) => {
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsLoading = true;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsError = null;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsSuccess = false;
+      })
+      .addCase(FetchThreadTagOptions.fulfilled, (state, action) => {
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsLoading = false;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsData =
+          action.payload;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsSuccess = true;
+      })
+      .addCase(FetchThreadTagOptions.rejected, (state, action) => {
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsLoading = false;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsError =
+          action.payload;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsSuccess = false;
       })
       .addCase(FetchAIInsight.pending, (state) => {
         state.FetchAIInsightState.FetchAIInsightIsLoading = true;
