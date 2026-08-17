@@ -104,7 +104,7 @@ export function LoginForm({
           </Typography>
         </div>
         <Field data-invalid={formik.touched.email && !!formik.errors.email}>
-          <FieldLabel htmlFor="email">Email address</FieldLabel>
+          <FieldLabel htmlFor="email">Email Address</FieldLabel>
           <InputGroup>
             <InputGroupAddon>
               <IconMail />

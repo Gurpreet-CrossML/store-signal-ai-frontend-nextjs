@@ -89,12 +89,12 @@ export function AccountSwitcher({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               {selectedAccount && account.profilePictureUrl ? (
-                <Avatar className="size-8 rounded-lg">
+                <Avatar className="size-8">
                   <AvatarImage
                     src={account.profilePictureUrl}
                     alt={account.name}
                   />
-                  <AvatarFallback className="rounded-lg font-medium">
+                  <AvatarFallback className="font-medium">
                     {account.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
@@ -132,7 +132,7 @@ export function AccountSwitcher({
                   onClick={() => onSelectAccount(String(acc.id))}
                   className="gap-2 p-2"
                 >
-                  <Avatar className="size-6 shrink-0 rounded-md">
+                  <Avatar className="size-6 shrink-0">
                     {acc.profile_picture_url && (
                       <AvatarImage
                         src={acc.profile_picture_url}
@@ -141,7 +141,7 @@ export function AccountSwitcher({
                     )}
                     {/* Falls back to the channel mark when the page has no
                         picture, or when Meta's CDN link has expired. */}
-                    <AvatarFallback className="rounded-md">
+                    <AvatarFallback>
                       <ChannelIcon className="size-3.5" />
                     </AvatarFallback>
                   </Avatar>

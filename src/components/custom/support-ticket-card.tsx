@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { IconExternalLink, IconEye } from "@tabler/icons-react";
+import { motion } from "framer-motion";
+import {
+  IconArrowUpRight,
+  IconExternalLink,
+  IconInfoCircle,
+} from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +18,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
+import {
+  TicketPriorityBar,
+  TICKET_PRIORITY_TONES,
+  ticketRef,
+} from "@/components/custom/ticket-priority-bar";
 import { BADGE_TONE_STYLES, type BadgeTone } from "@/lib/badge-tones";
 import { capitalizeText, formatDate, formatDateTime } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
@@ -76,13 +90,7 @@ export function SupportTicketCard({
   index: number;
 }) {
   const [showDetails, setShowDetails] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
-
   const isLive = LIVE_TICKET_STATUSES.includes(ticket.status);
-  // Focus counts as hover so the actions are reachable by keyboard, where
-  // there is no pointer to hover with.
-  const showActions = isLive && (hovered || focused);
 
   return (
     <>
@@ -90,80 +98,85 @@ export function SupportTicketCard({
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.18, delay: Math.min(index, 5) * 0.04 }}
-        onHoverStart={() => setHovered(true)}
-        onHoverEnd={() => setHovered(false)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
         className={cn(
-          "rounded-xl border border-border/50 p-2.5 transition-colors",
+          "flex items-stretch gap-2.5 rounded-xl border border-border/50 p-2.5 transition-colors",
           isLive && "hover:bg-muted/50",
         )}
       >
-        <div className="flex items-start justify-between gap-2">
-          <Typography variant="small" as="p" className="truncate">
-            {ticket.subject || "Untitled ticket"}
-          </Typography>
-          <StatusBadge status={ticket.status} />
-        </div>
+        <TicketPriorityBar priority={ticket.priority} />
 
-        {ticket.description && (
-          <Typography variant="muted" className="mt-1 line-clamp-2">
-            {ticket.description}
-          </Typography>
-        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <Typography variant="small" as="p" className="truncate">
+              {ticket.subject || "Untitled ticket"}
+            </Typography>
+            <StatusBadge status={ticket.status} />
+          </div>
 
-        <div className="mt-1 flex items-center gap-2">
-          <Typography variant="muted" as="span">
-            #{ticket.id} · {formatDate(ticket.created_at)}
-          </Typography>
-          {ticket.priority === "high" || ticket.priority === "urgent" ? (
-            <Badge
-              variant="outline"
-              className={cn("capitalize", BADGE_TONE_STYLES.warning)}
-            >
-              {ticket.priority}
-            </Badge>
-          ) : null}
-        </div>
-
-        {/* Height animates from 0 so the cards below settle rather than
-            jumping, and `overflow-hidden` keeps the buttons clipped while
-            the row is still opening. */}
-        <AnimatePresence initial={false}>
-          {showActions && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="overflow-hidden"
-            >
-              <div className="mt-2.5 flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="xs"
-                  onClick={() => setShowDetails(true)}
-                >
-                  <IconEye className="size-3.5" />
-                  Quick view
-                </Button>
-                <Button type="button" variant="outline" size="xs" asChild>
-                  {/* Opens in a new tab: the agent is mid-conversation
-                      here, and this is somewhere else to work. */}
-                  <a
-                    href={`/helpdesk?ticket=${ticket.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <IconExternalLink className="size-3.5" />
-                    Open in Help Desk
-                  </a>
-                </Button>
-              </div>
-            </motion.div>
+          {ticket.description && (
+            <Typography variant="muted" className="mt-1 line-clamp-2">
+              {ticket.description}
+            </Typography>
           )}
-        </AnimatePresence>
+
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <Typography variant="muted" as="span">
+                {ticketRef(ticket.id)} · {formatDate(ticket.created_at)}
+              </Typography>
+              {ticket.priority === "high" || ticket.priority === "urgent" ? (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "capitalize",
+                    BADGE_TONE_STYLES[TICKET_PRIORITY_TONES[ticket.priority]],
+                  )}
+                >
+                  {ticket.priority}
+                </Badge>
+              ) : null}
+            </div>
+
+            {/* Always on show rather than revealed on hover: a hover-only
+              action is invisible until you happen to be over the right
+              card, and unreachable on touch entirely. Two icons cost less
+              room than the buttons they replace. */}
+            <div className="flex shrink-0 items-center">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label="Ticket details"
+                    onClick={() => setShowDetails(true)}
+                  >
+                    <IconInfoCircle className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Ticket details</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon-xs" asChild>
+                    {/* Opens in a new tab: the agent is mid-conversation
+                      here, and this is somewhere else to work. */}
+                    <a
+                      href={`/helpdesk?ticket=${ticket.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Open in Help Desk"
+                    >
+                      <IconArrowUpRight className="size-4" />
+                    </a>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Open in Help Desk</TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+        </div>
       </motion.div>
 
       <Dialog open={showDetails} onOpenChange={setShowDetails}>
@@ -176,7 +189,8 @@ export function SupportTicketCard({
               <StatusBadge status={ticket.status} />
             </div>
             <DialogDescription className="text-left">
-              Ticket #{ticket.id} · raised {formatDateTime(ticket.created_at)}
+              {ticketRef(ticket.id)} · raised{" "}
+              {formatDateTime(ticket.created_at)}
             </DialogDescription>
           </DialogHeader>
 
@@ -201,7 +215,7 @@ export function SupportTicketCard({
                 value={capitalizeText(ticket.channel)}
               />
               <DetailRow
-                label="Last updated"
+                label="Last Updated"
                 value={formatDateTime(ticket.updated_at)}
               />
             </div>

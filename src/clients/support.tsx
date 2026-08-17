@@ -1570,7 +1570,6 @@ export default function Support() {
             </div>
 
             <CustomerDetailsPanel
-              description="Orders, cart, and profile for this conversation."
               customerData={selectedThread?.customer || null}
               orders={FetchOrderData}
               ordersLoading={FetchOrderDataIsLoading}

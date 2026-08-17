@@ -60,7 +60,7 @@ export function PendingSendStatus({
         onClick={onRetry}
         className="font-medium underline underline-offset-2 hover:no-underline"
       >
-        Try again
+        Try Again
       </button>
     </p>
   );

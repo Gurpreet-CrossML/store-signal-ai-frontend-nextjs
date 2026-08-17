@@ -8,6 +8,8 @@ import {
   type Integration,
   type IntegrationAttribute,
 } from "@/redux/api-slice/integrations-slice";
+import { IconPlugConnected } from "@tabler/icons-react";
+
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { applyServerFieldErrors } from "@/lib/form-errors";
 import { useEffect, useState } from "react";
@@ -48,6 +50,13 @@ import {
   SelectValue,
 } from "../ui/select";
 import { LoadingState } from "@/components/custom/loading-state";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Spinner } from "../ui/spinner";
 
 // Attributes vary per integration, so form values are keyed by attribute `code`.
@@ -414,6 +423,25 @@ export default function StoreIntegrationsTabContent() {
 
   if (FetchIntegrationsIsLoading || FetchStoreIntegrationsIsLoading) {
     return <LoadingState className="w-full" />;
+  }
+
+  // A store with nothing to connect rendered an empty grid, which reads as
+  // a screen that failed to load rather than one with nothing in it.
+  if (FetchIntegrationsListData.length === 0) {
+    return (
+      <Empty className="w-full">
+        <EmptyHeader>
+          <EmptyMedia>
+            <IconPlugConnected />
+          </EmptyMedia>
+          <EmptyTitle>No Integrations Available</EmptyTitle>
+          <EmptyDescription>
+            There is nothing to connect to this store yet. New platforms appear
+            here as they are added.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   }
 
   return (

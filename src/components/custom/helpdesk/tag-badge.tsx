@@ -26,7 +26,11 @@ export function TagBadge({
     <Badge
       variant="outline"
       className="max-w-40"
-      style={{ color: tag.color, borderColor: `${tag.color}40` }}
+      style={
+        tag.color
+          ? { color: tag.color, borderColor: `${tag.color}40` }
+          : undefined
+      }
     >
       <span className="truncate">{tag.name}</span>
       {onRemove ? (

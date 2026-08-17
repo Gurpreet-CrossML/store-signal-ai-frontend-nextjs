@@ -340,7 +340,7 @@ export default function Tags() {
       >
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>{editingTag ? "Edit tag" : "Add tag"}</DialogTitle>
+            <DialogTitle>{editingTag ? "Edit Tag" : "Add Tag"}</DialogTitle>
           </DialogHeader>
 
           <Formik<TagFormValues>
@@ -456,8 +456,8 @@ export default function Tags() {
                         ? "Saving..."
                         : "Adding..."
                       : editingTag
-                        ? "Save changes"
-                        : "Add tag"}
+                        ? "Save Changes"
+                        : "Add Tag"}
                   </Button>
                 </DialogFooter>
               </Form>
@@ -494,7 +494,7 @@ export default function Tags() {
               disabled={isDeleting}
               className={buttonVariants({ variant: "destructive" })}
             >
-              {isDeleting ? "Removing..." : "Remove tag"}
+              {isDeleting ? "Removing..." : "Remove Tag"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

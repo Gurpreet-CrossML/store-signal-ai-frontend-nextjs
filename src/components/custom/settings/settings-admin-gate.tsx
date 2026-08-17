@@ -31,7 +31,7 @@ export default function SettingsAdminGate({
             <EmptyMedia>
               <IconLock />
             </EmptyMedia>
-            <EmptyTitle>Admins only</EmptyTitle>
+            <EmptyTitle>Admins Only</EmptyTitle>
             <EmptyDescription>
               Company settings and staff management are available to company
               admins only.
