@@ -240,9 +240,13 @@ export type ThreadTicketData = {
 };
 
 export type CreateSupportTicket = {
+  customer_email: string;
+  subject: string;
+  description: string;
+};
+
+export type CreateSocialSupportTicketPayload = {
   channel: string;
-  thread_id?: string;
-  social_user_id?: string;
   customer_email: string;
   subject: string;
   description: string;
@@ -651,33 +655,51 @@ export const GenerateTicketContent = createAsyncThunk(
   "GenerateTicketContent",
   async (
     {
-      channel,
       thread_id,
-      social_user_id,
       store_code,
     }: {
-      channel: string;
-      thread_id?: string;
-      social_user_id?: string;
+      thread_id: string;
       store_code: string;
     },
     thunkAPI,
   ) => {
     try {
-      const payload: {
-        channel: string;
-        thread_id?: string;
-        social_user_id?: string;
-      } = { channel };
-      if (thread_id) {
-        payload.thread_id = thread_id;
-      }
-      if (social_user_id) {
-        payload.social_user_id = social_user_id;
-      }
       const response = await axiosInstance.post(
-        `${ENDPOINTS.generateTicketContent()}?store_code=${store_code}`,
-        payload,
+        `${ENDPOINTS.generateThreadTicketContent(thread_id)}?store_code=${store_code}`,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to generate ticket content, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const GenerateSocialTicketContent = createAsyncThunk(
+  "GenerateSocialTicketContent",
+  async (
+    {
+      social_user_id,
+      store_code,
+    }: {
+      social_user_id: string;
+      store_code: string;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.generateSocialTicketContent(social_user_id)}?store_code=${store_code}`,
       );
       const data = response.data.data;
 
@@ -702,20 +724,54 @@ export const CreateSupportTicket = createAsyncThunk(
   async (
     {
       store_code,
+      thread_id,
       payload,
-    }: { store_code: string; payload: CreateSupportTicket },
+    }: { store_code: string; thread_id: string; payload: CreateSupportTicket },
     thunkAPI,
   ) => {
     try {
       const response = await axiosInstance.post(
-        `${ENDPOINTS.createTicket()}?store_code=${store_code}`,
+        `${ENDPOINTS.createThreadTicket(thread_id)}?store_code=${store_code}`,
         payload,
       );
       const data = response.data.data;
 
-      toast.success(
-        response.data?.message || "Support ticket created successfully.",
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to create support ticket, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const CreateSocialSupportTicket = createAsyncThunk(
+  "CreateSocialSupportTicket",
+  async (
+    {
+      store_code,
+      social_user_id,
+      payload,
+    }: {
+      store_code: string;
+      social_user_id: string;
+      payload: CreateSocialSupportTicketPayload;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.createSocialTicket(social_user_id)}?store_code=${store_code}`,
+        payload,
       );
+      const data = response.data.data;
 
       return data;
     } catch (error) {
@@ -816,10 +872,28 @@ const ThreadSlice = createSlice({
       GenerateTicketContentIsSuccess: false,
       GenerateTicketContentIsError: null as null | string | object | unknown,
     },
+    GenerateSocialTicketContentState: {
+      GenerateSocialTicketContentIsLoading: false,
+      GenerateSocialTicketContentIsSuccess: false,
+      GenerateSocialTicketContentIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+    },
     CreateSupportTicketState: {
       CreateSupportTicketIsLoading: false,
       CreateSupportTicketIsSuccess: false,
       CreateSupportTicketIsError: null as null | string | object | unknown,
+    },
+    CreateSocialSupportTicketState: {
+      CreateSocialSupportTicketIsLoading: false,
+      CreateSocialSupportTicketIsSuccess: false,
+      CreateSocialSupportTicketIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
     },
   },
   reducers: {},
@@ -1028,6 +1102,22 @@ const ThreadSlice = createSlice({
           action.payload;
         state.GenerateTicketContentState.GenerateTicketContentIsSuccess = false;
       })
+      .addCase(GenerateSocialTicketContent.pending, (state) => {
+        state.GenerateSocialTicketContentState.GenerateSocialTicketContentIsLoading = true;
+        state.GenerateSocialTicketContentState.GenerateSocialTicketContentIsError =
+          null;
+        state.GenerateSocialTicketContentState.GenerateSocialTicketContentIsSuccess = false;
+      })
+      .addCase(GenerateSocialTicketContent.fulfilled, (state) => {
+        state.GenerateSocialTicketContentState.GenerateSocialTicketContentIsLoading = false;
+        state.GenerateSocialTicketContentState.GenerateSocialTicketContentIsSuccess = true;
+      })
+      .addCase(GenerateSocialTicketContent.rejected, (state, action) => {
+        state.GenerateSocialTicketContentState.GenerateSocialTicketContentIsLoading = false;
+        state.GenerateSocialTicketContentState.GenerateSocialTicketContentIsError =
+          action.payload;
+        state.GenerateSocialTicketContentState.GenerateSocialTicketContentIsSuccess = false;
+      })
       .addCase(CreateSupportTicket.pending, (state) => {
         state.CreateSupportTicketState.CreateSupportTicketIsLoading = true;
         state.CreateSupportTicketState.CreateSupportTicketIsError = null;
@@ -1042,6 +1132,22 @@ const ThreadSlice = createSlice({
         state.CreateSupportTicketState.CreateSupportTicketIsError =
           action.payload;
         state.CreateSupportTicketState.CreateSupportTicketIsSuccess = false;
+      })
+      .addCase(CreateSocialSupportTicket.pending, (state) => {
+        state.CreateSocialSupportTicketState.CreateSocialSupportTicketIsLoading = true;
+        state.CreateSocialSupportTicketState.CreateSocialSupportTicketIsError =
+          null;
+        state.CreateSocialSupportTicketState.CreateSocialSupportTicketIsSuccess = false;
+      })
+      .addCase(CreateSocialSupportTicket.fulfilled, (state) => {
+        state.CreateSocialSupportTicketState.CreateSocialSupportTicketIsLoading = false;
+        state.CreateSocialSupportTicketState.CreateSocialSupportTicketIsSuccess = true;
+      })
+      .addCase(CreateSocialSupportTicket.rejected, (state, action) => {
+        state.CreateSocialSupportTicketState.CreateSocialSupportTicketIsLoading = false;
+        state.CreateSocialSupportTicketState.CreateSocialSupportTicketIsError =
+          action.payload;
+        state.CreateSocialSupportTicketState.CreateSocialSupportTicketIsSuccess = false;
       });
   },
 });

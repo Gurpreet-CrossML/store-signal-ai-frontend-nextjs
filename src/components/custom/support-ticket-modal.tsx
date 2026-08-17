@@ -17,7 +17,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { IconSparkles } from "@tabler/icons-react";
 import {
+  CreateSocialSupportTicket,
   CreateSupportTicket,
+  GenerateSocialTicketContent,
   GenerateTicketContent,
 } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -51,8 +53,14 @@ export function CreateTicketDialog({
   const { GenerateTicketContentIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.GenerateTicketContentState,
   );
+  const { GenerateSocialTicketContentIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.GenerateSocialTicketContentState,
+  );
   const { CreateSupportTicketIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.CreateSupportTicketState,
+  );
+  const { CreateSocialSupportTicketIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.CreateSocialSupportTicketState,
   );
   const [customerEmail, setCustomerEmail] = useState("");
   const [subject, setSubject] = useState("");
@@ -62,6 +70,11 @@ export function CreateTicketDialog({
     ? threadCustomerEmail
     : customerEmail;
   const sourceId = threadId || socialUserId;
+  const isSocialTicket = channel === "facebook" || channel === "instagram";
+  const generateLoading =
+    GenerateTicketContentIsLoading || GenerateSocialTicketContentIsLoading;
+  const createLoading =
+    CreateSupportTicketIsLoading || CreateSocialSupportTicketIsLoading;
 
   const resetForm = () => {
     setCustomerEmail("");
@@ -79,25 +92,34 @@ export function CreateTicketDialog({
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!sourceId || !storeCode) return;
+    if (!isSocialTicket && !threadId) return;
     const payload: CreateSupportTicket = {
-      channel,
       customer_email: ticketCustomerEmail,
       subject,
       description,
     };
-    if (threadId) {
-      payload.thread_id = threadId;
-    }
-    if (socialUserId) {
-      payload.social_user_id = socialUserId;
-    }
     try {
-      const ticket = await dispatch(
-        CreateSupportTicket({
-          store_code: storeCode,
-          payload,
-        }),
-      ).unwrap();
+      const ticket =
+        isSocialTicket && socialUserId
+          ? await dispatch(
+              CreateSocialSupportTicket({
+                store_code: storeCode,
+                social_user_id: socialUserId,
+                payload: {
+                  channel,
+                  customer_email: ticketCustomerEmail,
+                  subject,
+                  description,
+                },
+              }),
+            ).unwrap()
+          : await dispatch(
+              CreateSupportTicket({
+                store_code: storeCode,
+                thread_id: threadId || "",
+                payload,
+              }),
+            ).unwrap();
       onTicketCreated?.(ticket);
       onOpenChange(false);
       resetForm();
@@ -110,14 +132,20 @@ export function CreateTicketDialog({
     if (!sourceId || !storeCode) return;
 
     try {
-      const data = await dispatch(
-        GenerateTicketContent({
-          channel,
-          thread_id: threadId,
-          social_user_id: socialUserId,
-          store_code: storeCode,
-        }),
-      ).unwrap();
+      const data =
+        isSocialTicket && socialUserId
+          ? await dispatch(
+              GenerateSocialTicketContent({
+                social_user_id: socialUserId,
+                store_code: storeCode,
+              }),
+            ).unwrap()
+          : await dispatch(
+              GenerateTicketContent({
+                thread_id: threadId,
+                store_code: storeCode,
+              }),
+            ).unwrap();
       setSubject(data.subject || "");
       setDescription(data.description || "");
     } catch {}
@@ -185,34 +213,30 @@ export function CreateTicketDialog({
               variant="outline"
               className="shrink-0 border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
               onClick={handleGenerateDescription}
-              disabled={GenerateTicketContentIsLoading || !sourceId}
+              disabled={generateLoading || !sourceId}
             >
               <IconSparkles className="size-4" />
-              {GenerateTicketContentIsLoading ? "Generating..." : "Generate"}
+              {generateLoading ? "Generating..." : "Generate"}
             </Button>
           </div>
 
           <DialogFooter>
             <DialogClose asChild>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={CreateSupportTicketIsLoading}
-              >
+              <Button type="button" variant="outline" disabled={createLoading}>
                 Cancel
               </Button>
             </DialogClose>
             <Button
               type="submit"
               disabled={
-                CreateSupportTicketIsLoading ||
-                GenerateTicketContentIsLoading ||
+                createLoading ||
+                generateLoading ||
                 !ticketCustomerEmail.trim() ||
                 !subject.trim() ||
                 !description.trim()
               }
             >
-              {CreateSupportTicketIsLoading ? "Creating..." : "Create Ticket"}
+              {createLoading ? "Creating..." : "Create Ticket"}
             </Button>
           </DialogFooter>
         </form>
