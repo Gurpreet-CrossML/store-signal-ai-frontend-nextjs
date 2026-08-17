@@ -33,6 +33,11 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
 import {
   IconArrowBackUp,
@@ -45,7 +50,6 @@ import {
   IconPaperclip,
   IconPlus,
   IconSearch,
-  IconTicket,
   IconX,
 } from "@tabler/icons-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
@@ -1180,13 +1184,21 @@ export default function DmsInbox({
                       )}
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    onClick={() => setCreateTicketOpen(true)}
-                  >
-                    <IconTicket className="size-4" />
-                    Create Ticket
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        className="size-7"
+                        onClick={() => setCreateTicketOpen(true)}
+                        aria-label="Create ticket"
+                      >
+                        <IconPlus className="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Create Ticket</TooltipContent>
+                  </Tooltip>
                   {activeConversationId ? (
                     <CreateTicketDialog
                       key={`${channelType}-${activeConversationId}`}

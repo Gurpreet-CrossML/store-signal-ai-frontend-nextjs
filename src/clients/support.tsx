@@ -15,6 +15,11 @@ import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
@@ -61,9 +66,9 @@ import {
   IconMessageChatbot,
   IconMoodSmile,
   IconPaperclip,
+  IconPlus,
   IconRobot,
   IconSend,
-  IconTicket,
   IconX,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
@@ -1508,13 +1513,25 @@ export default function Support() {
                       ) : null}
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    onClick={() => setCreateTicketOpen(true)}
-                  >
-                    <IconTicket className="size-4" />
-                    Create Ticket
-                  </Button>
+                  {/* Where they are browsing from, beside who they are —
+                      context for the person already on screen, and three
+                      rows the details pane gets back for orders. */}
+                  <SessionFacts userMetadata={FetchUserMetadataData} />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        className="size-7"
+                        onClick={() => setCreateTicketOpen(true)}
+                        aria-label="Create ticket"
+                      >
+                        <IconPlus className="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Create Ticket</TooltipContent>
+                  </Tooltip>
                   {activeThreadId && (
                     <CreateTicketDialog
                       key={activeThreadId}
@@ -1534,10 +1551,6 @@ export default function Support() {
                     />
                   )}
 
-                  {/* Where they are browsing from, beside who they are —
-                      context for the person already on screen, and three
-                      rows the details pane gets back for orders. */}
-                  <SessionFacts userMetadata={FetchUserMetadataData} />
                 </div>
               </header>
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
