@@ -15,7 +15,7 @@ import type {
  * The body of one order — line items, price breakdown, payment and the
  * shipping address.
  *
- * Lifted out of the thread detail panels when CRM gained its own order
+ * Lifted out of the thread detail panels when Catalog gained its own order
  * screen: an order looks the same wherever it is read, and the price
  * breakdown in particular encodes rules (skip a row the platform never
  * captured, show Magento-only per-item tax) that are not worth getting
@@ -160,7 +160,18 @@ function DetailRow({
   );
 }
 
-export function OrderDetails({ order }: { order: OrderData }) {
+export function OrderDetails({
+  order,
+  loading = false,
+}: {
+  order: OrderData;
+  /**
+   * The full record is still on its way. The order passed in is the list
+   * row that opened it — enough for items and totals, so it renders rather
+   * than flashing a spinner, with a quiet note that more is coming.
+   */
+  loading?: boolean;
+}) {
   const breakdownRows = getPriceBreakdownRows(order);
 
   return (
@@ -292,6 +303,12 @@ export function OrderDetails({ order }: { order: OrderData }) {
       {/* Refunds, cancellations and edits stay in the store's own admin —
           they move money and inventory, and duplicating them here would
           mean a second place to get them wrong. This is the way through. */}
+      {loading ? (
+        <div className="border-t border-border/50 pt-2.5">
+          <Typography variant="caption">Loading full order…</Typography>
+        </div>
+      ) : null}
+
       {order.admin_url ? (
         <div className="border-t border-border/50 pt-2.5">
           <Button variant="outline" size="sm" className="w-full" asChild>
