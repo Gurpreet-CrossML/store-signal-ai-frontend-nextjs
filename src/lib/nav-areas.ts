@@ -19,6 +19,7 @@ import {
   IconMessageQuestion,
   IconPackageOff,
   IconPlugConnected,
+  IconRoute2,
   IconSend,
   IconSettings,
   IconShield,
@@ -191,6 +192,15 @@ export const NAV_AREAS = {
         pageDescription:
           "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
         icon: IconBrandMeta,
+      },
+      {
+        href: "/settings/workflows",
+        title: "Workflows",
+        description:
+          "The rules the AI follows for order cancellation, modification, and returns.",
+        pageDescription:
+          "The rules and guardrails the AI follows when it cancels, modifies, or refunds an order on your behalf.",
+        icon: IconRoute2,
       },
     ],
   },
