@@ -4,16 +4,12 @@ import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
 import type {
   CartDataResponse,
-  UserMetadata,
   Customer,
   OrderData,
   CartData,
   ThreadTicketData,
 } from "@/redux/api-slice/thread-slice";
 import {
-  IconDeviceLaptop,
-  IconLocationPin,
-  IconNetwork,
   IconShoppingBag,
   IconPackage,
   IconChevronRight,
@@ -21,13 +17,10 @@ import {
 } from "@tabler/icons-react";
 import { FulfillmentBadge } from "@/components/ui/status-badge";
 import { OrderDetails } from "@/components/custom/order-details";
-import Link from "next/link";
-import { IconExternalLink, IconRefresh } from "@tabler/icons-react";
+import { IconRefresh } from "@tabler/icons-react";
 
 import { AnimatePresence, motion } from "framer-motion";
 
-import { CustomerAvatar } from "@/components/custom/customer-avatar";
-import { LinkCustomerButton } from "@/components/custom/link-customer-dialog";
 import {
   LIVE_TICKET_STATUSES,
   SupportTicketCard,
@@ -129,31 +122,6 @@ export function CartDetailsCard({
   );
 }
 
-function MetaRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value?: string | null;
-}) {
-  // Icon-only rows: the label survives as a hover tooltip, and missing
-  // values render as "-" so every row keeps its slot.
-  return (
-    <div className="flex items-center gap-2.5" title={label}>
-      <span className="shrink-0 text-muted-foreground">{icon}</span>
-      <Typography
-        variant="small"
-        as="span"
-        className="min-w-0 leading-normal font-normal wrap-break-word"
-      >
-        {value || "-"}
-      </Typography>
-    </div>
-  );
-}
-
 /** One figure in the summary card's strip. */
 function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
@@ -167,41 +135,20 @@ function SummaryStat({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * Who the agent is talking to, and what they are worth — the two things
- * worth knowing before reading a word of the conversation.
+ * What this customer is worth, and nothing else.
  *
- * It leads the panel because it used to trail it: identity sat under the
- * cart and the order history, so the answer to "who is this" was three
- * scrolls below the question. Spend and order count are derived from the
- * orders already loaded for the panel rather than fetched again.
+ * Their name, email, where they are browsing from and the link to their
+ * record all live on the conversation header now — repeating them at the
+ * top of this pane pushed the orders and tickets an agent actually works
+ * from below the fold.
  */
 export function CustomerSummaryCard({
-  customerData,
   orders,
-  userMetadata,
   loading,
-  metadataLoading,
-  onLinkCustomer,
 }: {
-  customerData?: Customer | null;
   orders?: OrderData[] | null;
-  /**
-   * Omit entirely where the concept does not apply. Help Desk tickets
-   * arrive by email, phone or social as well as from the widget, so there
-   * is no browsing session behind them to report — `null` means "loading
-   * or unknown", absent means "not a thing here".
-   */
-  userMetadata?: UserMetadata | null;
   loading?: boolean;
-  metadataLoading?: boolean;
-  /**
-   * Offered when no customer is attached. Omit on screens where linking
-   * one is not possible.
-   */
-  onLinkCustomer?: () => void;
 }) {
-  const showSession = userMetadata !== undefined;
-  const name = customerData?.name?.trim() || "Guest";
   const orderList = orders ?? [];
   const totalSpent = orderList.reduce(
     (sum, order) => sum + Number(order.total_price ?? 0),
@@ -210,81 +157,19 @@ export function CustomerSummaryCard({
   const currency = orderList[0]?.currency ?? "USD";
 
   return (
-    <section className="flex flex-col gap-3 border-b p-4">
-      <div className="flex items-center gap-3">
-        <CustomerAvatar name={customerData?.name} size="size-10" />
-        <div className="min-w-0 flex-1">
-          <CardTitle className="truncate">{name}</CardTitle>
-          {customerData?.email ? (
-            <Typography variant="muted" className="truncate">
-              {customerData.email}
-            </Typography>
-          ) : null}
-        </div>
-      </div>
-
-      {/* One loader for the whole body. The stats and the session rows
-          arrive on separate requests, and letting each show its own
-          spinner put two of them in one card, one still turning while the
-          other had already resolved. */}
-      {loading || (showSession && metadataLoading) ? (
+    <section className="border-b p-4">
+      {loading ? (
         <CardLoadingState />
       ) : (
-        <>
-          {/* A 1px gap over a border-coloured ground: even separators
-              however the pair wraps. */}
-          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
-            <SummaryStat
-              label="Total spent"
-              value={formatPrice(totalSpent, currency)}
-            />
-            <SummaryStat label="Orders" value={String(orderList.length)} />
-          </div>
-
-          {/* A known customer has a record to open; a guest has one to
-              attach. Either way the slot holds the next useful action. */}
-          {customerData?.id ? (
-            <Button variant="outline" size="sm" className="w-full" asChild>
-              <Link href={`/crm/customers/${customerData.id}`}>
-                <IconExternalLink className="size-4" />
-                View in CRM
-              </Link>
-            </Button>
-          ) : onLinkCustomer ? (
-            <LinkCustomerButton onClick={onLinkCustomer} />
-          ) : null}
-
-          {/* Where they are browsing from, in the same card rather than a
-              section of its own at the far end of the panel — it is part
-              of who you are talking to, not a separate subject. Device,
-              browser and OS share a line; each is a word, and three rows
-              of one word is three rows of nothing. */}
-          {showSession ? (
-            <div className="flex flex-col gap-2.5 border-t border-border pt-3">
-              <MetaRow
-                icon={<IconLocationPin className="size-4" />}
-                label="Location"
-                value={userMetadata?.geo_location}
-              />
-              <MetaRow
-                icon={<IconNetwork className="size-4" />}
-                label="IP Address"
-                value={userMetadata?.ip_address}
-              />
-              <MetaRow
-                icon={<IconDeviceLaptop className="size-4" />}
-                label="Device"
-                value={[
-                  userMetadata?.device_type,
-                  userMetadata?.browser,
-                  userMetadata?.os,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              />
-            </div>
-          ) : null}
-        </>
+        // A 1px gap over a border-coloured ground: even separators however
+        // the pair wraps.
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
+          <SummaryStat
+            label="Total spent"
+            value={formatPrice(totalSpent, currency)}
+          />
+          <SummaryStat label="Orders" value={String(orderList.length)} />
+        </div>
       )}
     </section>
   );
@@ -445,36 +330,47 @@ export function OrdersCard({
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                     <IconPackage className="h-4 w-4" />
                   </div>
+                  {/* The order number is how an agent knows which order to
+                      open, so it owns the first line and never truncates —
+                      a fixed price column squeezed it down to "#11…" in the
+                      narrow panel. The price sits at the end of the meta
+                      line instead, and only the date/items text truncates,
+                      so every row keeps the same height. */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <Typography
                         variant="small"
                         as="p"
-                        className="truncate leading-normal"
+                        className="shrink-0 leading-normal"
                       >
                         #{order.order_number}
                       </Typography>
                       <FulfillmentBadge status={order.fulfillment_status} />
                     </div>
-                    <Typography variant="muted" className="mt-0.5">
-                      {formatDate(order.created_at)} · {order.items.length} item
-                      {order.items.length !== 1 ? "s" : ""}
-                    </Typography>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <Typography
+                        variant="muted"
+                        as="p"
+                        className="min-w-0 flex-1 truncate"
+                      >
+                        {formatDate(order.created_at)} · {order.items.length}{" "}
+                        item
+                        {order.items.length !== 1 ? "s" : ""}
+                      </Typography>
+                      <Typography
+                        variant="small"
+                        as="span"
+                        className="shrink-0 text-primary"
+                      >
+                        {formatPrice(order.total_price, order.currency)}
+                      </Typography>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Typography
-                      variant="small"
-                      as="span"
-                      className="text-primary"
-                    >
-                      {formatPrice(order.total_price, order.currency)}
-                    </Typography>
-                    <IconChevronRight
-                      className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
-                        isExpanded ? "rotate-90" : ""
-                      }`}
-                    />
-                  </div>
+                  <IconChevronRight
+                    className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${
+                      isExpanded ? "rotate-90" : ""
+                    }`}
+                  />
                 </button>
 
                 {/* Height animates from 0 so the orders below slide down

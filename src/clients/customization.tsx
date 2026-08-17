@@ -18,6 +18,7 @@ import {
 } from "@/redux/api-slice/customization-slice";
 import { darken, getReadableText, mix, normalizeHex } from "@/lib/color";
 import { isValidUrl, normalizeUrl } from "@/lib/url";
+import { serverFieldErrors } from "@/lib/form-errors";
 import CustomizationTheme from "@/components/custom/customization-theme";
 import CustomizationActionButtons from "@/components/custom/customization-action-buttons";
 import CustomizationBranding from "@/components/custom/customization-branding";
@@ -59,6 +60,8 @@ export default function Customization() {
 
   const [welcomeMessage, setWelcomeMessage] = useState(DEFAULT_WELCOME);
   const [greetingMessage, setGreetingMessage] = useState(DEFAULT_GREETING);
+  /** Field errors from the last rejected save, keyed as the API names them. */
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -296,6 +299,10 @@ export default function Customization() {
     };
 
     setSavingAll(true);
+    // Cleared on every attempt: leaving the last rejection on screen while
+    // a new save is in flight tells the reader something that may no
+    // longer be true.
+    setFieldErrors({});
     try {
       let result;
       if (logoFile) {
@@ -314,6 +321,11 @@ export default function Customization() {
 
       if (fulfilled) {
         populate(result.payload as WidgetCustomizationDataResponse);
+      } else {
+        // The server owns rules the client cannot check — the greeting's
+        // real length limit among them — so its verdict goes on the field
+        // it named rather than into a toast that names none.
+        setFieldErrors(serverFieldErrors(result.payload));
       }
     } finally {
       setSavingAll(false);
@@ -324,6 +336,7 @@ export default function Customization() {
     <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
       <div className="flex flex-col gap-6">
         <CustomizationTheme
+          fieldErrors={fieldErrors}
           themeColor={themeColor}
           themeHexInput={themeHexInput}
           secondaryColor={secondaryColor}
@@ -335,10 +348,12 @@ export default function Customization() {
           handleHexChange={handleHexChange}
         />
         <CustomizationActionButtons
+          fieldErrors={fieldErrors}
           actionButtons={actionButtons}
           onChange={setActionButtons}
         />
         <CustomizationBranding
+          fieldErrors={fieldErrors}
           logoUrl={logoUrl}
           welcomeMessage={welcomeMessage}
           greetingMessage={greetingMessage}
@@ -348,6 +363,7 @@ export default function Customization() {
           onRemoveLogo={removeLogo}
         />
         <CustomizationQuickLinks
+          fieldErrors={fieldErrors}
           quickLinks={quickLinks}
           onUpdate={updateQuickLink}
           onAdd={addQuickLink}

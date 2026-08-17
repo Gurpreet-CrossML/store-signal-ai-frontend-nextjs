@@ -25,6 +25,8 @@ import {
   IconMessageChatbot,
   IconMoodSmile,
   IconPaperclip,
+  IconLock,
+  IconNote,
   IconPencil,
   IconPlus,
   IconReload,
@@ -81,6 +83,7 @@ import {
 
 import { ConversationRow } from "@/components/custom/conversation-row";
 import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
+import { CrmLinkButton } from "@/components/custom/customer-header";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import {
@@ -452,7 +455,7 @@ function TicketListPanel({
   };
 
   return (
-    <section className="hidden h-full min-h-0 w-84 shrink-0 flex-col border-r md:flex">
+    <section className="hidden h-full min-h-0 w-72 shrink-0 flex-col border-r md:flex 2xl:w-84">
       {/* One header, not two: the queue switcher is the inbox's title, so a
           separate "Your inbox" line above it said nothing extra. */}
       <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
@@ -697,6 +700,7 @@ function ConversationPanel({
   onTranslate,
   isTranslating,
   translatedLanguage,
+  onLinkCustomer,
 }: {
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
@@ -730,6 +734,8 @@ function ConversationPanel({
   isTranslating: boolean;
   /** Language the messages are currently shown in, if translated. */
   translatedLanguage: { code: string; name: string } | null;
+  /** Offered beside the name when a guest raised this ticket. */
+  onLinkCustomer: () => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -823,12 +829,25 @@ function ConversationPanel({
           up across the screen. The customer leads — who you are talking to
           is the first thing you need — and the subject follows below. */}
       <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4">
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <CustomerAvatar name={customerName} />
           <div className="min-w-0">
-            <CardTitle className="truncate leading-tight">
-              {customerName}
-            </CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="truncate leading-tight">
+                {customerName}
+              </CardTitle>
+              {/* Open their record, or attach one when a guest raised this.
+                  No session facts here: a ticket can arrive by email,
+                  phone or social, so there is no browsing session. */}
+              <CrmLinkButton
+                customerId={
+                  ticket.customer && typeof ticket.customer === "object"
+                    ? ticket.customer.id
+                    : null
+                }
+                onLinkCustomer={onLinkCustomer}
+              />
+            </div>
             {customerEmail ? (
               <Typography variant="muted" className="truncate">
                 {customerEmail}
@@ -840,7 +859,7 @@ function ConversationPanel({
         <div className="flex shrink-0 items-center gap-2">
           <Combobox items={availableStaff}>
             <ComboboxInput
-              className="h-8 w-40"
+              className="h-8 w-28 2xl:w-40"
               placeholder={
                 ticket?.internal_assignee?.id
                   ? ticket?.internal_assignee?.name
@@ -983,9 +1002,10 @@ function ConversationPanel({
           </div>
 
           {/* Facts close the subject line, and say what each date is — two
-              bare timestamps side by side told you nothing. First to go
-              when the pane narrows, being the least urgent thing here. */}
-          <div className="hidden shrink-0 items-center gap-4 lg:flex">
+              bare timestamps side by side told you nothing. Below 2xl they
+              collapse to their icons (the tooltip carries the value), so
+              the subject keeps the line on a laptop screen. */}
+          <div className="hidden shrink-0 items-center gap-3 lg:flex 2xl:gap-4">
             {facts.map((fact) => (
               <TicketFact key={fact.label} {...fact} />
             ))}
@@ -993,97 +1013,104 @@ function ConversationPanel({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Status and priority are set on the badges that report them,
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Status and priority are set on the badges that report them,
               rather than in a menu behind a ⋮ that showed the same two
               values a second time. */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label="Change status"
-              className={cn(
-                badgeVariants({ variant: "outline" }),
-                "cursor-pointer capitalize",
-                BADGE_TONE_STYLES[STATUS_TONE[ticket.status]],
-              )}
-            >
-              {capitalizeText(ticket.status)}
-              <IconChevronDown />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel>Status</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {queues.map((queue) => (
-                <DropdownMenuItem
-                  key={queue.key}
-                  onClick={() =>
-                    queue.key !== ticket.status &&
-                    onTicketStatusUpdate(queue.key)
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Change status"
+                className={cn(
+                  badgeVariants({ variant: "outline" }),
+                  "cursor-pointer capitalize",
+                  BADGE_TONE_STYLES[STATUS_TONE[ticket.status]],
+                )}
+              >
+                {capitalizeText(ticket.status)}
+                <IconChevronDown />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {queues.map((queue) => (
+                  <DropdownMenuItem
+                    key={queue.key}
+                    onClick={() =>
+                      queue.key !== ticket.status &&
+                      onTicketStatusUpdate(queue.key)
+                    }
+                    className={cn(queue.key === ticket.status && "font-medium")}
+                  >
+                    {queue.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Change priority"
+                disabled={isClosed}
+                className={cn(
+                  badgeVariants({ variant: "outline" }),
+                  "cursor-pointer capitalize disabled:cursor-default disabled:opacity-60",
+                  BADGE_TONE_STYLES[PRIORITY_TONE[ticket.priority]],
+                )}
+              >
+                {capitalizeText(ticket.priority)}
+                {!isClosed ? <IconChevronDown /> : null}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Priority</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {priorityOptions.map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    onClick={() =>
+                      option.value !== ticket.priority &&
+                      onTicketPriorityUpdate(option.value)
+                    }
+                    className={cn(
+                      option.value === ticket.priority && "font-medium",
+                    )}
+                  >
+                    {option.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {!ticket.internal_assignee && ticket.status === "open" ? (
+              <Badge variant="outline" className={BADGE_TONE_STYLES.accent}>
+                Unassigned
+              </Badge>
+            ) : null}
+          </div>
+
+          {/* Tags live in their own scrollable strip, so however many
+              there are they can never push the +N chip or the add button
+              out of the pane on a narrow screen. */}
+          <div className="scrollbar-none flex min-w-0 flex-1 items-center gap-2 overflow-x-auto *:shrink-0">
+            {visibleTags?.map((tag) => {
+              const tagId = tag.id;
+              return (
+                <TagBadge
+                  key={tagId}
+                  tag={tag}
+                  onRemove={
+                    tagId && !isClosed ? () => onRemoveTag(tagId) : undefined
                   }
-                  className={cn(queue.key === ticket.status && "font-medium")}
-                >
-                  {queue.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label="Change priority"
-              disabled={isClosed}
-              className={cn(
-                badgeVariants({ variant: "outline" }),
-                "cursor-pointer capitalize disabled:cursor-default disabled:opacity-60",
-                BADGE_TONE_STYLES[PRIORITY_TONE[ticket.priority]],
-              )}
-            >
-              {capitalizeText(ticket.priority)}
-              {!isClosed ? <IconChevronDown /> : null}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel>Priority</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {priorityOptions.map((option) => (
-                <DropdownMenuItem
-                  key={option.value}
-                  onClick={() =>
-                    option.value !== ticket.priority &&
-                    onTicketPriorityUpdate(option.value)
-                  }
-                  className={cn(
-                    option.value === ticket.priority && "font-medium",
-                  )}
-                >
-                  {option.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {!ticket.internal_assignee && ticket.status === "open" ? (
-            <Badge variant="outline" className={BADGE_TONE_STYLES.accent}>
-              Unassigned
-            </Badge>
-          ) : null}
-
-          {visibleTags?.map((tag) => {
-            const tagId = tag.id;
-            return (
-              <TagBadge
-                key={tagId}
-                tag={tag}
-                onRemove={
-                  tagId && !isClosed ? () => onRemoveTag(tagId) : undefined
-                }
+                />
+              );
+            })}
+            {hiddenTags?.length > 0 ? (
+              <HiddenTagsBadge
+                tags={hiddenTags}
+                label={`+${hiddenTags.length} more`}
+                onRemoveTag={isClosed ? undefined : onRemoveTag}
               />
-            );
-          })}
-          {hiddenTags?.length > 0 ? (
-            <HiddenTagsBadge
-              tags={hiddenTags}
-              label={`+${hiddenTags.length} more`}
-              onRemoveTag={isClosed ? undefined : onRemoveTag}
-            />
-          ) : null}
+            ) : null}
+          </div>
 
           <Popover
             open={isTagPickerOpen}
@@ -1097,6 +1124,7 @@ function ConversationPanel({
                     size="icon-xs"
                     disabled={isClosed}
                     aria-label="Add tag"
+                    className="shrink-0"
                   >
                     <IconPlus className="size-4" />
                   </Button>
@@ -1204,8 +1232,11 @@ function ConversationPanel({
                   )}
                 >
                   {isNote ? (
-                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                      <IconPencil className="size-3.5" />
+                    // A sticky note, not a pencil: a pencil in a circle
+                    // beside a message reads as an edit button, and this
+                    // is a label, not something you can press.
+                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-primary/40 bg-primary/10 text-primary">
+                      <IconNote className="size-3.5" />
                     </div>
                   ) : isOutgoing ? (
                     <Avatar className="size-7 shrink-0">
@@ -1224,7 +1255,12 @@ function ConversationPanel({
                     className={cn(
                       "min-w-0 max-w-4/5 rounded-2xl px-4 py-3",
                       isNote
-                        ? "rounded-br-md border border-dashed border-border bg-background"
+                        ? // Dashed and tinted: an internal note is the one
+                          // thing here the customer never sees, so it has
+                          // to be unmistakable at a glance. The old
+                          // border-on-background was so faint it read as a
+                          // rendering fault.
+                          "rounded-br-md border border-dashed border-primary/40 bg-primary/5"
                         : isOutgoing
                           ? "rounded-br-md bg-primary/10"
                           : "rounded-bl-md bg-muted",
@@ -1234,8 +1270,9 @@ function ConversationPanel({
                       <Typography
                         variant="small"
                         as="p"
-                        className="mb-1 text-muted-foreground"
+                        className="mb-1 flex items-center gap-1.5 text-primary"
                       >
+                        <IconLock className="size-3.5" />
                         Internal note
                       </Typography>
                     ) : null}
@@ -1394,26 +1431,42 @@ function ConversationPanel({
           </DropdownMenu>
 
           <div className="ml-auto flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onSaveDraft}
-              disabled={isClosed || isTranslating}
-            >
-              <IconDeviceFloppy className="size-4" />
-              Save draft
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onSend("note")}
-              disabled={
-                isSending || isMessageImproving || isClosed || isTranslating
-              }
-            >
-              <IconPencil className="size-4" />
-              Send as internal note
-            </Button>
+            {/* Below 2xl the secondary actions keep their icons and hand
+                the label to a tooltip — same rule as the header actions. */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onSaveDraft}
+                  disabled={isClosed || isTranslating}
+                  aria-label="Save draft"
+                >
+                  <IconDeviceFloppy className="size-4" />
+                  <span className="hidden 2xl:inline">Save draft</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Save draft</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onSend("note")}
+                  disabled={
+                    isSending || isMessageImproving || isClosed || isTranslating
+                  }
+                  aria-label="Send as internal note"
+                >
+                  <IconPencil className="size-4" />
+                  <span className="hidden 2xl:inline">
+                    Send as internal note
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Send as internal note</TooltipContent>
+            </Tooltip>
             <Button
               size="sm"
               onClick={() => onSend("reply")}
@@ -1450,12 +1503,14 @@ function TicketFact({
       <TooltipTrigger asChild>
         <div className="flex min-w-0 items-center gap-1.5">
           <Icon className="size-4 shrink-0 text-muted-foreground" />
-          <Typography variant="caption" className="truncate">
+          <Typography variant="caption" className="hidden truncate 2xl:inline">
             {value}
           </Typography>
         </div>
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent>
+        {label}: {value}
+      </TooltipContent>
     </Tooltip>
   );
 }
@@ -1472,7 +1527,7 @@ function TicketInsightsPlaceholder({
   label: string;
 }) {
   return (
-    <aside className="hidden w-95 shrink-0 flex-col items-center justify-center border-l px-6 text-center xl:flex">
+    <aside className="hidden w-80 shrink-0 flex-col items-center justify-center border-l px-6 text-center xl:flex 2xl:w-95">
       {loading ? (
         <LoadingState label={label} />
       ) : (
@@ -2836,7 +2891,7 @@ export default function HelpDesk() {
   };
 
   return (
-    <div className="-my-4 flex h-svh min-h-0 flex-col overflow-hidden border-y md:-my-6">
+    <div className="flex h-svh min-h-0 flex-col overflow-hidden border-y">
       <div className="flex min-h-0 flex-1">
         <TicketListPanel
           rows={ticketRows}
@@ -2931,6 +2986,7 @@ export default function HelpDesk() {
             onTranslate={handleSupportTicketMessagesTranslate}
             isTranslating={SupportTicketMessagesTranslateIsLoading}
             translatedLanguage={translatedLanguage}
+            onLinkCustomer={() => setIsLinkCustomerOpen(true)}
           />
         )}
         {(FetchSupportTicketsLoading || FetchSupportTicketDetailsIsLoading) &&
@@ -2957,7 +3013,6 @@ export default function HelpDesk() {
               data: otherCustomerTickets,
               loading: FetchFreshdeskTicketIdIsLoading,
             }}
-            onLinkCustomer={() => setIsLinkCustomerOpen(true)}
           />
         )}
       </div>

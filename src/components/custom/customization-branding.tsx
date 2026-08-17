@@ -28,6 +28,8 @@ import {
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Typography } from "@/components/ui/typography";
+import { cn } from "@/lib/utils";
 
 const CKEditorTextArea = dynamic(
   () => import("@/components/custom/ckeditor-text-area"),
@@ -43,6 +45,12 @@ type CustomizationBrandingProps = {
   logoUrl: string | null;
   welcomeMessage: string;
   greetingMessage: string;
+  /**
+   * Whatever the server rejected, keyed by its own field names. Some rules
+   * only it knows — the greeting's real length limit among them — so its
+   * verdict has to land on the field rather than in a toast.
+   */
+  fieldErrors?: Record<string, string>;
   onWelcomeChange: (value: string) => void;
   onGreetingChange: (value: string) => void;
   onLogoUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -53,6 +61,7 @@ export default function CustomizationBranding({
   logoUrl,
   welcomeMessage,
   greetingMessage,
+  fieldErrors,
   onWelcomeChange,
   onGreetingChange,
   onLogoUpload,
@@ -158,9 +167,16 @@ export default function CustomizationBranding({
             placeholder="What are you shopping for today?"
             maxLength={WELCOME_LIMIT}
           />
-          <FieldDescription className="text-xs">
-            {welcomeMessage.length}/{WELCOME_LIMIT} characters
-          </FieldDescription>
+          <div className="flex items-baseline justify-between gap-3">
+            <Typography variant="caption">
+              {welcomeMessage.length}/{WELCOME_LIMIT} characters
+            </Typography>
+            {fieldErrors?.welcome_message ? (
+              <Typography variant="caption" className="text-destructive">
+                {fieldErrors.welcome_message}
+              </Typography>
+            ) : null}
+          </div>
         </Field>
 
         <Separator />
@@ -179,9 +195,23 @@ export default function CustomizationBranding({
             useMarkdown
             onChange={onGreetingChange}
           />
-          <FieldDescription className="text-xs">
-            {greetingLength}/{GREETING_LIMIT} characters
-          </FieldDescription>
+          <div className="flex items-baseline justify-between gap-3">
+            {/* Over the limit reads as an error before the server says so
+                — the count is the rule, so it should look like one. */}
+            <Typography
+              variant="caption"
+              className={cn(
+                greetingLength > GREETING_LIMIT && "text-destructive",
+              )}
+            >
+              {greetingLength}/{GREETING_LIMIT} characters
+            </Typography>
+            {fieldErrors?.greeting_message ? (
+              <Typography variant="caption" className="text-destructive">
+                {fieldErrors.greeting_message}
+              </Typography>
+            ) : null}
+          </div>
         </Field>
       </CardContent>
     </Card>

@@ -16,6 +16,7 @@ import {
   fetchVocabularyPresets,
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { formikErrorsFromZod, applyServerFieldErrors } from "@/lib/form-errors";
 
 // Type definition for form values
 type VocabularyFormValues = {
@@ -144,12 +145,7 @@ export default function BrandVoiceVocabularyEditor() {
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
-      return Object.fromEntries(
-        result.error.issues.map((issue) => [
-          issue.path.join("."),
-          issue.message,
-        ]),
-      );
+      return formikErrorsFromZod(result.error.issues);
     },
     // Handle form submission
     onSubmit: async (values) => {
@@ -173,14 +169,7 @@ export default function BrandVoiceVocabularyEditor() {
         formik.resetForm({ values: result.payload as VocabularyFormValues });
       }
       if (createVocabulary.rejected.match(result)) {
-        const payload = result.payload as Record<
-          string,
-          string | Record<string, string>
-        > | null;
-        const errors = (payload?.data as Record<string, string>) || {};
-        formik.setErrors({
-          ...errors,
-        });
+        applyServerFieldErrors(formik, result.payload);
       }
     },
   });

@@ -45,6 +45,9 @@ import {
   PendingSendStatus,
   type PendingSend,
 } from "./pending-send";
+import { AnimatePresence, motion } from "framer-motion";
+
+import { MessageAppear } from "@/components/custom/message-appear";
 import { ReplyBox } from "./reply-box";
 import { useInfiniteScroll } from "./use-infinite-scroll";
 import { useSocialSocket, type SocialSocketEvent } from "./use-social-socket";
@@ -52,8 +55,9 @@ import { useSocialSocket, type SocialSocketEvent } from "./use-social-socket";
 const COMMENTS_PAGE_SIZE = SOCIAL_PAGE_SIZE;
 
 /**
- * A reply the agent has submitted that isn't confirmed yet. Same shape as a
- * real comment row but dimmed, with the send status underneath.
+ * A reply the agent has submitted that isn't confirmed yet. Drawn exactly
+ * as a posted reply is — the send status underneath is what speaks up, and
+ * only when it failed.
  */
 function PendingCommentRow({
   pending,
@@ -68,10 +72,10 @@ function PendingCommentRow({
 }) {
   return (
     <div className="flex items-start gap-2">
-      <Avatar
-        size="sm"
-        className={pending.status === "failed" ? "" : "opacity-60"}
-      >
+      {/* Full strength while sending. Messenger and Instagram draw an
+          optimistic reply exactly as though it had posted, and say
+          otherwise only if it fails. */}
+      <Avatar size="sm">
         {avatarUrl ? (
           <AvatarImage src={avatarUrl} alt={name} />
         ) : (
@@ -81,7 +85,7 @@ function PendingCommentRow({
         )}
       </Avatar>
       <div className="min-w-0 flex-1">
-        <div className="inline-block max-w-full rounded-lg bg-muted px-3 py-2 text-muted-foreground">
+        <div className="inline-block max-w-full rounded-lg bg-muted px-3 py-2">
           <Typography variant="small" as="p" className="leading-tight">
             {name}
           </Typography>
@@ -377,7 +381,10 @@ function CommentItem({
           <span title={formatPostedAt(comment.external_created_at)}>
             {formatRelativeTime(comment.external_created_at)}
           </span>
-          {channel.key === "facebook" && !comment.is_deleted && (
+          {/* Both channels put the like here, before Reply. Instagram's
+              used to hang off the far right of the row, level with the
+              comment body, which read as belonging to nothing. */}
+          {!comment.is_deleted && (
             <button
               type="button"
               onClick={handleToggleLike}
@@ -446,9 +453,21 @@ function CommentItem({
             </DropdownMenu>
           )}
         </div>
-        {showReplyBox && (
-          <ReplyBox replyingTo={name} onSubmit={handleReplySubmit} />
-        )}
+        {/* Opens to its own height so the comments below slide down
+            rather than jumping, and closes the same way in reverse. */}
+        <AnimatePresence initial={false}>
+          {showReplyBox && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
+              <ReplyBox replyingTo={name} onSubmit={handleReplySubmit} />
+            </motion.div>
+          )}
+        </AnimatePresence>
         {localReplyCount > 0 && (
           <>
             <Button
@@ -489,35 +508,26 @@ function CommentItem({
             nothing to expand yet, and a pending reply must still show. */}
         {pendingReplies.length > 0 && (
           <div className="mt-2 flex flex-col gap-2 border-l-2 pl-3">
-            {pendingReplies.map((pending) => (
-              <PendingCommentRow
-                key={pending.tempId}
-                pending={pending}
-                name={account.name}
-                avatarUrl={account.profilePictureUrl}
-                onRetry={() => handleRetryReply(pending.tempId)}
-              />
-            ))}
+            <AnimatePresence initial={false}>
+              {pendingReplies.map((pending, index) => (
+                <MessageAppear
+                  key={pending.tempId}
+                  outgoing
+                  index={index}
+                  total={pendingReplies.length}
+                >
+                  <PendingCommentRow
+                    pending={pending}
+                    name={account.name}
+                    avatarUrl={account.profilePictureUrl}
+                    onRetry={() => handleRetryReply(pending.tempId)}
+                  />
+                </MessageAppear>
+              ))}
+            </AnimatePresence>
           </div>
         )}
       </div>
-      {channel.key === "instagram" && (
-        <button
-          type="button"
-          onClick={handleToggleLike}
-          disabled={likeDisabled}
-          aria-label={isLiked ? "Unlike" : "Like"}
-          className="mt-1 shrink-0 disabled:cursor-default disabled:opacity-50"
-        >
-          {isLiked ? (
-            <channel.LikeIconFilled
-              className={`size-4 ${channel.likeColorClass}`}
-            />
-          ) : (
-            <channel.LikeIcon className="size-4 text-muted-foreground" />
-          )}
-        </button>
-      )}
     </div>
   );
 }
@@ -694,18 +704,31 @@ function CommentsList({
           {!parentId && <CommentSkeleton />}
         </>
       )}
-      {comments.map((comment) => (
-        <CommentItem
-          key={comment.id}
-          comment={comment}
-          postId={postId}
-          nested={Boolean(parentId)}
-          onDeleted={handleCommentDeleted}
-          onHiddenChange={handleCommentHiddenChange}
-          disableReply={disableReply}
-          disableLike={disableLike}
-        />
-      ))}
+      {/* Keyed by comment id so AnimatePresence can tell a comment that
+          just arrived — over the socket or from the next page — from a
+          re-render of one already on screen. Staggered from the end, so a
+          page of history settles quickly while a single new comment
+          springs in immediately. */}
+      <AnimatePresence initial={false}>
+        {comments.map((comment, index) => (
+          <MessageAppear
+            key={comment.id}
+            outgoing={false}
+            index={index}
+            total={comments.length}
+          >
+            <CommentItem
+              comment={comment}
+              postId={postId}
+              nested={Boolean(parentId)}
+              onDeleted={handleCommentDeleted}
+              onHiddenChange={handleCommentHiddenChange}
+              disableReply={disableReply}
+              disableLike={disableLike}
+            />
+          </MessageAppear>
+        ))}
+      </AnimatePresence>
       {!initialLoading && total === 0 && (
         <Typography variant="muted">
           {`No ${noun === "reply" ? "replies" : "comments"} yet.`}

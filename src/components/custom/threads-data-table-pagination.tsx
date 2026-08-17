@@ -9,9 +9,15 @@ import {
 } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-export const PAGE_SIZE_OPTIONS = [10, 15, 20, 25, 50];
+export const PAGE_SIZE_OPTIONS = [25, 50, 75, 100];
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
@@ -24,15 +30,11 @@ export function DataTablePagination<TData>({
   totalCount,
   noun = "thread",
 }: DataTablePaginationProps<TData>) {
-  const [{ pageIndex, pageSize }, setPagination] = useState(
-    table.getState().pagination,
-  );
+  // Read straight off the table: the parent owns pagination state, and a
+  // local mirror here went stale whenever a filter reset the page from
+  // outside this component.
+  const { pageIndex, pageSize } = table.getState().pagination;
   const pageCount = table.getPageCount();
-
-  const handlePageIndexChange = (newPageIndex: number) => {
-    table.setPageIndex(newPageIndex);
-    setPagination((prev) => ({ ...prev, pageIndex: newPageIndex }));
-  };
 
   return (
     <div className="flex flex-col gap-4 px-2 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -41,11 +43,30 @@ export function DataTablePagination<TData>({
       </div>
 
       <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:gap-6">
-        {/* Page size selector */}
+        {/* Page size selector. One setPagination call, not a setPageSize +
+            setPageIndex pair — parents that apply updaters against a
+            snapshot would see the second call undo the first. Back to the
+            first page because the current page may not exist at the new
+            size. */}
         <div className="flex items-center gap-2">
-          <p className="text-sm font-medium whitespace-nowrap">
-            {pageSize} rows per page
-          </p>
+          <p className="text-sm font-medium whitespace-nowrap">Rows per page</p>
+          <Select
+            value={String(pageSize)}
+            onValueChange={(value) =>
+              table.setPagination({ pageIndex: 0, pageSize: Number(value) })
+            }
+          >
+            <SelectTrigger size="sm" aria-label="Rows per page">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZE_OPTIONS.map((option) => (
+                <SelectItem key={option} value={String(option)}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Page indicator */}
@@ -59,7 +80,7 @@ export function DataTablePagination<TData>({
             variant="outline"
             size="icon"
             className="hidden h-8 w-8 lg:flex"
-            onClick={() => handlePageIndexChange(0)}
+            onClick={() => table.setPageIndex(0)}
             disabled={pageIndex === 0}
             aria-label="Go to first page"
           >
@@ -69,7 +90,7 @@ export function DataTablePagination<TData>({
             variant="outline"
             size="icon"
             className="h-8 w-8"
-            onClick={() => handlePageIndexChange(pageIndex - 1)}
+            onClick={() => table.setPageIndex(pageIndex - 1)}
             disabled={pageIndex === 0}
             aria-label="Go to previous page"
           >
@@ -79,8 +100,8 @@ export function DataTablePagination<TData>({
             variant="outline"
             size="icon"
             className="h-8 w-8"
-            onClick={() => handlePageIndexChange(pageIndex + 1)}
-            disabled={pageIndex === pageCount - 1}
+            onClick={() => table.setPageIndex(pageIndex + 1)}
+            disabled={pageIndex >= pageCount - 1}
             aria-label="Go to next page"
           >
             <IconChevronRight className="h-4 w-4" />
@@ -89,8 +110,8 @@ export function DataTablePagination<TData>({
             variant="outline"
             size="icon"
             className="hidden h-8 w-8 lg:flex"
-            onClick={() => handlePageIndexChange(pageCount - 1)}
-            disabled={pageIndex === pageCount - 1}
+            onClick={() => table.setPageIndex(pageCount - 1)}
+            disabled={pageIndex >= pageCount - 1}
             aria-label="Go to last page"
           >
             <IconChevronsRight className="h-4 w-4" />

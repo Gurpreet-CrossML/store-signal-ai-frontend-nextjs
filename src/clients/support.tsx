@@ -29,6 +29,11 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
+import {
+  CrmLinkButton,
+  SessionFacts,
+} from "@/components/custom/customer-header";
+import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { SearchInput } from "@/components/custom/search-input";
 import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
@@ -39,6 +44,7 @@ import {
   FetchFreshdeskTicketId,
   FetchThreadDetails,
   FetchThreads,
+  ThreadCustomerLink,
   FetchUserMetadata,
   type Thread,
   type ThreadMessage,
@@ -555,7 +561,7 @@ export default function Support() {
   const { FetchOrderData, FetchOrderDataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchOrderDataState,
   );
-  const { FetchUserMetadataData, FetchUserMetadataIsLoading } = useAppSelector(
+  const { FetchUserMetadataData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchUserMetadataState,
   );
   const { SyncOrdersIsLoading } = useAppSelector(
@@ -578,6 +584,11 @@ export default function Support() {
   >("idle");
   const [agentMessage, setAgentMessage] = useState("");
   const [attachments, setAttachments] = useState<AttachmentUpload[]>([]);
+
+  // Attaching a real customer to a chat a guest started, offered from the
+  // conversation header where the guest's name sits.
+  const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
+  const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
   const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
@@ -652,6 +663,31 @@ export default function Support() {
     selectedThreadStillExists && UUID_PATTERN.test(desiredThreadId)
       ? desiredThreadId
       : null;
+
+  const handleLinkCustomer = async (customerId: number) => {
+    if (!storeCode || !activeThreadId) return;
+    setIsLinkingCustomer(true);
+    try {
+      const result = await dispatch(
+        ThreadCustomerLink({ storeCode, threadId: activeThreadId, customerId }),
+      );
+      if (ThreadCustomerLink.fulfilled.match(result)) {
+        setIsLinkCustomerOpen(false);
+        // The customer lives on the thread rows, so the list is what has to
+        // come back — the header and the panel both read identity from it.
+        dispatch(
+          FetchThreads({
+            store_code: storeCode,
+            page: 1,
+            limit: 50,
+            filters: { is_active: true },
+          }),
+        );
+      }
+    } finally {
+      setIsLinkingCustomer(false);
+    }
+  };
 
   useEffect(() => {
     if (!activeThreadId || chatParam === activeThreadId) return;
@@ -1295,7 +1331,7 @@ export default function Support() {
   return (
     <SidebarProvider
       style={{ "--sidebar-width": "350px" } as CSSProperties}
-      className="-my-4 h-svh min-h-0 w-full overflow-hidden md:-my-6"
+      className="h-svh min-h-0 w-full overflow-hidden"
     >
       {/* Conversations list — the nested sidebar from the sidebar-09 block. */}
       {/* The list panel is content, not chrome: white like Help Desk's
@@ -1440,15 +1476,25 @@ export default function Support() {
             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
               <header className="flex h-16 shrink-0 items-center border-b bg-background px-4">
                 <div className="flex w-full items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2.5">
+                  <div className="flex min-w-0 flex-1 items-center gap-2.5">
                     <CustomerAvatar
                       name={selectedThread?.customer?.name}
                       online={selectedThread?.is_active}
                     />
                     <div className="min-w-0">
-                      <CardTitle className="truncate leading-tight">
-                        {selectedThread?.customer?.name || "Guest"}
-                      </CardTitle>
+                      <div className="flex items-center gap-1">
+                        <CardTitle className="truncate leading-tight">
+                          {selectedThread?.customer?.name || "Guest"}
+                        </CardTitle>
+                        <CrmLinkButton
+                          customerId={selectedThread?.customer?.id}
+                          onLinkCustomer={
+                            activeThreadId
+                              ? () => setIsLinkCustomerOpen(true)
+                              : undefined
+                          }
+                        />
+                      </div>
                       {/* Email rather than a status line: who you are
                           talking to is what an agent needs from a header,
                           and who is handling the thread is already said by
@@ -1487,6 +1533,11 @@ export default function Support() {
                       }}
                     />
                   )}
+
+                  {/* Where they are browsing from, beside who they are —
+                      context for the person already on screen, and three
+                      rows the details pane gets back for orders. */}
+                  <SessionFacts userMetadata={FetchUserMetadataData} />
                 </div>
               </header>
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -1553,8 +1604,6 @@ export default function Support() {
               ordersLoading={FetchOrderDataIsLoading}
               onOrdersSync={handleOrdersSync}
               orderSyncLoading={SyncOrdersIsLoading}
-              userMetadata={FetchUserMetadataData}
-              metadataLoading={FetchUserMetadataIsLoading}
               tickets={{
                 data: FetchFreshdeskTicketIdData ?? [],
                 loading: FetchFreshdeskTicketIdIsLoading,
@@ -1574,6 +1623,15 @@ export default function Support() {
           </div>
         )}
       </SidebarInset>
+      {storeCode ? (
+        <LinkCustomerDialog
+          open={isLinkCustomerOpen}
+          onOpenChange={setIsLinkCustomerOpen}
+          storeCode={storeCode}
+          linking={isLinkingCustomer}
+          onLink={(customer) => handleLinkCustomer(customer.id)}
+        />
+      ) : null}
     </SidebarProvider>
   );
 }

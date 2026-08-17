@@ -200,6 +200,12 @@ export const ENDPOINTS = {
   // NOTE: pending confirmation from the backend team.
   supportTicketCustomerLink: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/customer/`, "django"),
+  // PATCH — the same for a live chat thread a guest started. A separate
+  // route because a thread is not a ticket; the two are different objects
+  // with different owners.
+  // NOTE: pending confirmation from the backend team.
+  threadCustomerLink: (threadId: string) =>
+    createAPIUrl(`/chat/threads/${threadId}/customer/`, "django"),
   supportTicketStaffAssign: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/assignee/`, "django"),
   supportTicketAgentDraftSave: (ticket_id: number) =>

@@ -3,7 +3,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { IconPlus } from "@tabler/icons-react";
 import { toast } from "sonner";
-import { Formik, Form, Field, type FieldProps } from "formik";
+import {
+  Formik,
+  Form,
+  Field,
+  type FieldProps,
+  type FormikHelpers,
+} from "formik";
 import z from "zod";
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import { PageHeading } from "@/components/custom/page-heading";
@@ -36,6 +42,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { applyServerFieldErrors } from "@/lib/form-errors";
 import {
   FetchSupportTicketTags,
   TicketTagDelete,
@@ -60,9 +67,9 @@ const COLOR_PRESETS = [
 
 const HEX_REGEX = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
 
-// keep in sync with the thunk's default `limit`
-const PER_PAGE_OPTIONS = [10, 15, 20, 25, 50] as const;
-const DEFAULT_PER_PAGE = PER_PAGE_OPTIONS[0];
+// Matches the smallest entry in the shared pagination's PAGE_SIZE_OPTIONS,
+// so the rows-per-page dropdown always shows a real option.
+const DEFAULT_PER_PAGE = 25;
 
 const tagSchema = z.object({
   name: z.string().trim().min(3, "Too short").max(30, "Too long"),
@@ -210,8 +217,9 @@ export default function Tags() {
 
   const handleSubmitTag = async (
     values: TagFormValues,
-    { setSubmitting }: { setSubmitting: (v: boolean) => void },
+    helpers: FormikHelpers<TagFormValues>,
   ) => {
+    const { setSubmitting } = helpers;
     if (!storeCode) return;
 
     try {
@@ -259,8 +267,10 @@ export default function Tags() {
 
       setDialogOpen(false);
       setEditingTag(null);
-    } catch {
-      //
+    } catch (error) {
+      // unwrap() throws the rejected payload, which is where a duplicate
+      // name or a bad colour comes back named.
+      applyServerFieldErrors(helpers, error);
     } finally {
       setSubmitting(false);
     }

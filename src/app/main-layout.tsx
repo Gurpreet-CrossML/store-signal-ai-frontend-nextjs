@@ -123,12 +123,11 @@ export default function MainLayout({
         )}
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
-            <div
-              className={cn(
-                "flex flex-col gap-4 py-4 md:gap-6 md:py-6",
-                "h-full",
-              )}
-            >
+            {/* No vertical padding here: each page owns its spacing with a
+                uniform p-4 container, and the full-bleed screens (help desk,
+                live support, social inbox/feed) fill the viewport edge to
+                edge. Padding added here would double up on every page. */}
+            <div className={cn("flex flex-col", "h-full")}>
               {GetStoresIsLoading ? <StoreLoading /> : children}
             </div>
           </div>
