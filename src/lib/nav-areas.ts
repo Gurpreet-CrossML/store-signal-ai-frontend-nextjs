@@ -31,6 +31,7 @@ import {
   IconShoppingBag,
   IconVolume,
   type Icon,
+  IconChartBar,
 } from "@tabler/icons-react";
 
 /**
@@ -182,6 +183,14 @@ export const NAV_AREAS = {
         title: "Integrations",
         description: "Connect your store and third-party platforms.",
         icon: IconPlugConnected,
+      },
+      {
+        href: "/settings/ai-usage",
+        title: "AI Usage",
+        description: "What the assistant costs to run, and how hard it works.",
+        pageDescription:
+          "Token spend, workflow costs and response latency for this store's assistant.",
+        icon: IconChartBar,
       },
       {
         href: "/settings/social-ai",

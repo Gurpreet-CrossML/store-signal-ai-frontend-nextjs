@@ -210,7 +210,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
           <EmptyMedia>
             <IconBuildingStore />
           </EmptyMedia>
-          <EmptyTitle>Customer not found</EmptyTitle>
+          <EmptyTitle>Customer Not Found</EmptyTitle>
           <EmptyDescription>
             This customer may belong to another store, or have been removed.
           </EmptyDescription>
@@ -218,7 +218,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
         <Button variant="outline" asChild>
           <Link href="/crm/customers">
             <IconArrowLeft />
-            Back to customers
+            Back to Customers
           </Link>
         </Button>
       </Empty>
@@ -269,7 +269,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
       <Button variant="ghost" size="sm" className="-ml-2 self-start" asChild>
         <Link href="/crm/customers">
           <IconArrowLeft />
-          All customers
+          All Customers
         </Link>
       </Button>
 
@@ -319,7 +319,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-4">
         <StatTile
           icon={IconWallet}
-          label="Total spent"
+          label="Total Spent"
           value={formatPrice(spent, currency)}
           hint={
             orders > 0
@@ -339,7 +339,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
             off as the same thing. */}
         <StatTile
           icon={IconCalendarPlus}
-          label={customer.registered_at ? "Customer since" : "First seen"}
+          label={customer.registered_at ? "Customer Since" : "First Seen"}
           value={formatDateTime(customer.registered_at ?? customer.created_at)}
         />
         <StatTile icon={IconHome} label="Location" value={location ?? "—"} />
@@ -411,7 +411,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <IconMessage className="size-4" />
-                Marketing permissions
+                Marketing Permissions
               </CardTitle>
               <CardDescription>
                 What this customer has agreed to receive.
@@ -435,7 +435,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <IconBuildingStore className="size-4" />
-                Store record
+                Store Record
               </CardTitle>
               <CardDescription>
                 How this customer is identified on your platform.

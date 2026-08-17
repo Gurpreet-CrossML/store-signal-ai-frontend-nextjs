@@ -13,6 +13,22 @@ type ThreadFilters = {
   has_ticket?: boolean;
   has_feedback?: boolean;
   feedback_rating?: string;
+  tags?: (string | ThreadTagData)[];
+  handled_by?: string;
+};
+
+/**
+ * A tag as the threads endpoints return it.
+ *
+ * Declared here rather than imported from the support-ticket slice, which
+ * already imports from this file — the shape is identical, so `TagBadge`
+ * takes either without a conversion.
+ */
+export type ThreadTagData = {
+  id?: number;
+  name: string;
+  color: string;
+  description: string;
 };
 
 export type FeedbackEntry = {
@@ -48,7 +64,7 @@ export type Thread = {
   total_messages: number;
   created_at: string;
   ended_at: string | null;
-  tags?: string[];
+  tags?: (string | ThreadTagData)[];
   last_message?: string | null;
 };
 
@@ -468,6 +484,31 @@ export const FetchTags = createAsyncThunk(
   },
 );
 
+/** Distinct tags across a store's threads, for the Threads page tags filter. */
+export const FetchThreadTagOptions = createAsyncThunk(
+  "ThreadTagOptions",
+  async ({ store_code }: { store_code?: string } = {}, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        ENDPOINTS.fetchThreadTagOptions(),
+        { params: { store_code } },
+      );
+      return response.data.data as string[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch tag options, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 export const FetchAIInsight = createAsyncThunk(
   "AIInsight",
   async (threadId: string, thunkAPI) => {
@@ -714,6 +755,12 @@ const ThreadSlice = createSlice({
       FetchTagsIsError: null as null | string | object | unknown,
       FetchTags: [] as string[],
     },
+    FetchThreadTagOptionsState: {
+      FetchThreadTagOptionsIsLoading: false,
+      FetchThreadTagOptionsIsSuccess: false,
+      FetchThreadTagOptionsIsError: null as null | string | object | unknown,
+      FetchThreadTagOptionsData: [] as string[],
+    },
     FetchAIInsightState: {
       FetchAIInsightIsLoading: false,
       FetchAIInsightIsSuccess: false,
@@ -847,6 +894,23 @@ const ThreadSlice = createSlice({
         state.FetchTagsState.FetchTagsIsLoading = false;
         state.FetchTagsState.FetchTagsIsError = action.payload;
         state.FetchTagsState.FetchTagsIsSuccess = false;
+      })
+      .addCase(FetchThreadTagOptions.pending, (state) => {
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsLoading = true;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsError = null;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsSuccess = false;
+      })
+      .addCase(FetchThreadTagOptions.fulfilled, (state, action) => {
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsLoading = false;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsData =
+          action.payload;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsSuccess = true;
+      })
+      .addCase(FetchThreadTagOptions.rejected, (state, action) => {
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsLoading = false;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsError =
+          action.payload;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsSuccess = false;
       })
       .addCase(FetchAIInsight.pending, (state) => {
         state.FetchAIInsightState.FetchAIInsightIsLoading = true;

@@ -112,6 +112,7 @@ export const ENDPOINTS = {
   fetchFeedbackSequence: (threadId: string) =>
     `/analytics/threads/${threadId}/feedback-sequence`,
   fetchTags: (threadId: string) => `/analytics/threads/${threadId}/tags`,
+  fetchThreadTagOptions: () => "/analytics/threads/tags",
   fetchAIInsight: (threadId: string) =>
     `/analytics/threads/${threadId}/ai-insights`,
   fetchCartData: (threadId: string) =>
