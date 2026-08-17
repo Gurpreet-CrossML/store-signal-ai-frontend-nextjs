@@ -1,4 +1,5 @@
 import {
+  IconAdjustmentsSearch,
   IconAdjustmentsSpark,
   IconBan,
   IconBook,
@@ -16,6 +17,7 @@ import {
   IconImageGeneration,
   IconHeadset,
   IconInbox,
+  IconLibrary,
   IconMessageQuestion,
   IconPackageOff,
   IconPlugConnected,
@@ -24,6 +26,7 @@ import {
   IconShield,
   IconBuildingStore,
   IconTags,
+  IconTestPipe,
   IconUserHexagon,
   IconUsers,
   IconUser,
@@ -329,6 +332,33 @@ export const NAV_AREAS = {
         description:
           "Upload PDFs and DOCX files to enrich the chatbot's knowledge.",
         icon: IconBook,
+      },
+      {
+        href: "/knowledge/library",
+        title: "Knowledge Library",
+        description:
+          "Every type of knowledge the AI can draw on, in one searchable place.",
+        pageDescription:
+          "General info, product & category knowledge, FAQs, policies, documents, and offers — all in one searchable, filterable library.",
+        icon: IconLibrary,
+      },
+      {
+        href: "/knowledge/retrieval",
+        title: "Retrieval & Matching",
+        description:
+          "Configure how the AI searches, ranks, and grounds its answers.",
+        pageDescription:
+          "The rules that decide how the AI searches, ranks, and grounds every answer — and which knowledge each AI is allowed to use.",
+        icon: IconAdjustmentsSearch,
+      },
+      {
+        href: "/knowledge/test-console",
+        title: "Test Console",
+        description:
+          "Ask a question and see exactly what the AI would retrieve and answer.",
+        pageDescription:
+          "Ask a question as any AI and see exactly what retrieval finds — which sources, how confident, and the grounded answer.",
+        icon: IconTestPipe,
       },
     ],
   },
