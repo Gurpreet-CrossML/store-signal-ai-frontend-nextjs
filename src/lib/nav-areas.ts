@@ -32,7 +32,6 @@ import {
   IconVolume,
   type Icon,
   IconChartBar,
-  IconAutomaticGearbox,
 } from "@tabler/icons-react";
 
 /**
