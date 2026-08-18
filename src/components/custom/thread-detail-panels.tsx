@@ -265,11 +265,12 @@ export function OrdersCard({
               size="icon-sm"
               aria-label="Sync orders"
               onClick={handleOrdersSync}
+              // Gated on the customer record, not their email address.
+              // Syncing now asks the platform for one customer's history
+              // by id, so a guest — who may well have left an email but
+              // has no record — has nothing to refresh.
               disabled={
-                loading ||
-                orderSyncLoading ||
-                !customerData?.email ||
-                isDisabled
+                loading || orderSyncLoading || !customerData?.id || isDisabled
               }
             >
               {orderSyncLoading ? (
@@ -302,7 +303,7 @@ export function OrdersCard({
         <CardLoadingState />
       ) : !orderList || orderList?.length === 0 ? (
         <Typography variant="muted">
-          {!customerData?.email
+          {!customerData?.id
             ? "Link a customer to see their order history."
             : "No orders yet."}
         </Typography>

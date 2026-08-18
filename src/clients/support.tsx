@@ -53,12 +53,12 @@ import {
   type ThreadMessage,
   FetchOrders,
   UploadMessageAttachments,
-  SyncOrders,
 } from "@/redux/api-slice/thread-slice";
 import {
   CreateSupportTicket,
   FetchThreadTicketDraft,
 } from "@/redux/api-slice/support-ticket-slice";
+import { SyncCustomerOrders } from "@/redux/api-slice/order-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -571,8 +571,8 @@ export default function Support() {
   const { FetchUserMetadataData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchUserMetadataState,
   );
-  const { SyncOrdersIsLoading } = useAppSelector(
-    (state) => state.GetThreadReducer.SyncOrdersState,
+  const { SyncCustomerOrdersIsLoading } = useAppSelector(
+    (state) => state.GetOrderReducer.SyncCustomerOrdersState,
   );
 
   // Local, mutable copy of the thread list. Seeded from Redux (is_read
@@ -1319,19 +1319,25 @@ export default function Support() {
     session?.user?.access_token,
   ]);
 
+  // Addressed by the customer, not the thread: syncing is a fact about a
+  // shopper's history, and the thread-scoped route resolved to this same
+  // customer before doing anything. A guest has none, so there is nothing
+  // to refresh — the button is disabled rather than failing on click.
+  const syncCustomerId = selectedThread?.customer?.id ?? null;
+
   const handleOrdersSync = async () => {
-    if (!activeThreadId) return;
+    if (!storeCode || !activeThreadId || !syncCustomerId) return;
     try {
-      await dispatch(SyncOrders({ threadID: activeThreadId })).unwrap();
+      await dispatch(
+        SyncCustomerOrders({ storeCode, customerId: syncCustomerId }),
+      ).unwrap();
 
       dispatch(FetchOrders(activeThreadId));
       toast.success("Order Sync", {
         description: "Orders synced successfully.",
       });
     } catch {
-      toast.error("Order Sync failed", {
-        description: "Could not sync orders. Try again.",
-      });
+      // The thunk has already said what went wrong.
     }
   };
 
@@ -1594,7 +1600,7 @@ export default function Support() {
               orders={FetchOrderData}
               ordersLoading={FetchOrderDataIsLoading}
               onOrdersSync={handleOrdersSync}
-              orderSyncLoading={SyncOrdersIsLoading}
+              orderSyncLoading={SyncCustomerOrdersIsLoading}
               tickets={{
                 data: FetchFreshdeskTicketIdData ?? [],
                 loading: FetchFreshdeskTicketIdIsLoading,
