@@ -58,9 +58,6 @@ export const ENDPOINTS = {
   uploadAttachments: () =>
     createAPIUrl("/support/attachments/upload/", "django"),
 
-  // Customer Orders Sync (Django) — POST
-  syncOrders: (threadId: string) =>
-    createAPIUrl(`/chat/threads/${threadId}/orders/sync/`, "django"),
 
   // Company & staff management (Django /api/tenancy/). These are Django-owned;
   // GET calls must pass `useBackend: true` (writes auto-route to Django).
@@ -179,6 +176,15 @@ export const ENDPOINTS = {
   // NOTE: pending confirmation from the backend team.
   createCustomer: () => createAPIUrl("/chat/customers/", "django"),
   fetchOrders: () => createAPIUrl("/chat/orders/", "django"),
+  // One customer's stored orders. Read-only — it never calls the commerce
+  // platform, so it is the cheap one to reach for.
+  fetchCustomerOrders: (customerId: number) =>
+    createAPIUrl(`/chat/customers/${customerId}/orders/`, "django"),
+  // GET, not POST: refreshing a customer's history from Shopify or Magento
+  // and handing it back. The single sync route — the thread-scoped and
+  // ticket-scoped ones it replaced both went through the customer anyway.
+  syncCustomerOrders: (customerId: number) =>
+    createAPIUrl(`/chat/customers/${customerId}/orders/sync/`, "django"),
   fetchOrderDetails: (orderId: number) =>
     createAPIUrl(`/chat/orders/${orderId}/`, "django"),
 
@@ -245,11 +251,6 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/ticket-tags/${tag_id}/delete/`, "django"),
   supportTicketAIMessageDraftGenerate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/draft-messages/ai/`, "django"),
-  supportTicketCustomerOrderSync: (ticket_id: number) =>
-    createAPIUrl(
-      `/support/tickets/${ticket_id}/customer/order-sync/`,
-      "django",
-    ),
   supportTicketStatusUpdate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/status/`, "django"),
   supportTicketPriorityUpdate: (ticket_id: number) =>

@@ -689,28 +689,6 @@ export const FetchOrders = createAsyncThunk(
   },
 );
 
-export const SyncOrders = createAsyncThunk(
-  "SyncOrders",
-  async ({ threadID }: { threadID: string }, thunkAPI) => {
-    try {
-      const response = await axiosInstance.post(ENDPOINTS.syncOrders(threadID));
-      const data = response.data.data;
-
-      return data;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Could not sync orders. Please try again later.",
-      });
-
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
-
 const ThreadSlice = createSlice({
   name: "Thread",
   initialState: {
@@ -789,11 +767,6 @@ const ThreadSlice = createSlice({
       FetchOrderDataIsSuccess: false,
       FetchOrderDataIsError: null as null | string | object | unknown,
       FetchOrderData: [] as OrderData[],
-    },
-    SyncOrdersState: {
-      SyncOrdersIsLoading: false,
-      SyncOrdersIsSuccess: false,
-      SyncOrdersIsError: null as null | string | object | unknown,
     },
   },
   reducers: {},
@@ -989,20 +962,6 @@ const ThreadSlice = createSlice({
         state.FetchOrderDataState.FetchOrderDataIsLoading = false;
         state.FetchOrderDataState.FetchOrderDataIsError = action.payload;
         state.FetchOrderDataState.FetchOrderDataIsSuccess = false;
-      })
-      .addCase(SyncOrders.pending, (state) => {
-        state.SyncOrdersState.SyncOrdersIsLoading = true;
-        state.SyncOrdersState.SyncOrdersIsError = null;
-        state.SyncOrdersState.SyncOrdersIsSuccess = false;
-      })
-      .addCase(SyncOrders.fulfilled, (state) => {
-        state.SyncOrdersState.SyncOrdersIsLoading = false;
-        state.SyncOrdersState.SyncOrdersIsSuccess = true;
-      })
-      .addCase(SyncOrders.rejected, (state, action) => {
-        state.SyncOrdersState.SyncOrdersIsLoading = false;
-        state.SyncOrdersState.SyncOrdersIsError = action.payload;
-        state.SyncOrdersState.SyncOrdersIsSuccess = false;
       });
   },
 });

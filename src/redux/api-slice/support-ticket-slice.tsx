@@ -836,34 +836,6 @@ export const SupportTicketAIMessageDraftGenerate = createAsyncThunk(
   },
 );
 
-export const SupportTicketCustomerOrderSync = createAsyncThunk(
-  "SupportTicketCustomerOrderSync",
-  async (
-    { storeCode, ticketId }: { storeCode: string; ticketId: number },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.post(
-        `${ENDPOINTS.supportTicketCustomerOrderSync(ticketId)}?store_code=${storeCode}`,
-      );
-      const data = response.data.data;
-
-      return data;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to sync customer orders, please try again later.",
-      });
-
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
-
 export const SupportTicketStatusUpdate = createAsyncThunk(
   "SupportTicketStatusUpdate",
   async (
@@ -1100,16 +1072,6 @@ const SupportTicketsSlice = createSlice({
     },
     SupportTicketCustomerLinkState: {
       SupportTicketCustomerLinkIsLoading: false,
-    },
-    SupportTicketCustomerOrderSyncState: {
-      SupportTicketCustomerOrderSyncIsLoading: false,
-      SupportTicketCustomerOrderSyncIsSuccess: false,
-      SupportTicketCustomerOrderSyncIsError: null as
-        | null
-        | string
-        | object
-        | unknown,
-      SupportTicketCustomerOrderSyncData: [] as OrderData[],
     },
     SupportTicketStatusUpdateState: {
       SupportTicketStatusUpdateIsLoading: false,
@@ -1464,24 +1426,6 @@ const SupportTicketsSlice = createSlice({
       })
       .addCase(SupportTicketCustomerLink.rejected, (state) => {
         state.SupportTicketCustomerLinkState.SupportTicketCustomerLinkIsLoading = false;
-      })
-      .addCase(SupportTicketCustomerOrderSync.pending, (state) => {
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsLoading = true;
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsError =
-          null;
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsSuccess = false;
-      })
-      .addCase(SupportTicketCustomerOrderSync.fulfilled, (state, action) => {
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsLoading = false;
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncData =
-          action.payload;
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsSuccess = true;
-      })
-      .addCase(SupportTicketCustomerOrderSync.rejected, (state, action) => {
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsLoading = false;
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsError =
-          action.payload;
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsSuccess = false;
       })
       .addCase(SupportTicketStatusUpdate.pending, (state) => {
         state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsLoading = true;

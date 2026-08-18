@@ -215,6 +215,81 @@ export const FetchOrders = createAsyncThunk(
   },
 );
 
+/**
+ * One customer's stored orders.
+ *
+ * Kept apart from FetchOrders, which backs the Catalog table: a dialog or a
+ * details pane asking about one shopper must not overwrite the list screen's
+ * page, filters and count.
+ */
+export const FetchCustomerOrders = createAsyncThunk(
+  "FetchCustomerOrders",
+  async (
+    {
+      storeCode,
+      customerId,
+      page = 1,
+      limit = 50,
+      filters = {},
+    }: {
+      storeCode: string;
+      customerId: number;
+      page?: number;
+      limit?: number;
+      filters?: OrderFilters;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchCustomerOrders(customerId)}?${toQueryParams(storeCode, page, limit, filters)}`,
+        { useBackend: true },
+      );
+      return toPaginatedList<OrderListRow>(
+        response.data?.data ?? response.data,
+      );
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to load this customer's orders.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+/**
+ * Pull a customer's order history from the commerce platform.
+ *
+ * The one sync route. It replaced a thread-scoped POST and a ticket-scoped
+ * POST that both resolved to this same customer before doing anything —
+ * addressing the shopper directly means one endpoint for every screen.
+ */
+export const SyncCustomerOrders = createAsyncThunk(
+  "SyncCustomerOrders",
+  async (
+    { storeCode, customerId }: { storeCode: string; customerId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.syncCustomerOrders(customerId)}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return (response.data?.data ?? []) as OrderData[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't refresh orders", {
+        description:
+          data?.message || "The store did not return this customer's orders.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 export const FetchOrderDetails = createAsyncThunk(
   "FetchOrderDetails",
   async (
@@ -254,6 +329,18 @@ const OrderSlice = createSlice({
       FetchOrdersIsError: null as null | string | object,
       FetchOrdersData: emptyList,
     },
+    FetchCustomerOrdersState: {
+      FetchCustomerOrdersIsLoading: false,
+      FetchCustomerOrdersIsSuccess: false,
+      FetchCustomerOrdersIsError: null as null | string | object,
+      FetchCustomerOrdersData: emptyList,
+    },
+    SyncCustomerOrdersState: {
+      SyncCustomerOrdersIsLoading: false,
+      SyncCustomerOrdersIsSuccess: false,
+      SyncCustomerOrdersIsError: null as null | string | object,
+      SyncCustomerOrdersData: [] as OrderData[],
+    },
     FetchOrderDetailsState: {
       FetchOrderDetailsIsLoading: false,
       FetchOrderDetailsIsSuccess: false,
@@ -279,6 +366,38 @@ const OrderSlice = createSlice({
         state.FetchOrdersState.FetchOrdersIsError = action.payload as
           | string
           | object;
+      })
+      .addCase(FetchCustomerOrders.pending, (state) => {
+        state.FetchCustomerOrdersState.FetchCustomerOrdersIsLoading = true;
+        state.FetchCustomerOrdersState.FetchCustomerOrdersIsError = null;
+        state.FetchCustomerOrdersState.FetchCustomerOrdersIsSuccess = false;
+      })
+      .addCase(FetchCustomerOrders.fulfilled, (state, action) => {
+        state.FetchCustomerOrdersState.FetchCustomerOrdersIsLoading = false;
+        state.FetchCustomerOrdersState.FetchCustomerOrdersData = action.payload;
+        state.FetchCustomerOrdersState.FetchCustomerOrdersIsSuccess = true;
+      })
+      .addCase(FetchCustomerOrders.rejected, (state, action) => {
+        state.FetchCustomerOrdersState.FetchCustomerOrdersIsLoading = false;
+        state.FetchCustomerOrdersState.FetchCustomerOrdersIsError =
+          action.payload as null | string | object;
+        state.FetchCustomerOrdersState.FetchCustomerOrdersIsSuccess = false;
+      })
+      .addCase(SyncCustomerOrders.pending, (state) => {
+        state.SyncCustomerOrdersState.SyncCustomerOrdersIsLoading = true;
+        state.SyncCustomerOrdersState.SyncCustomerOrdersIsError = null;
+        state.SyncCustomerOrdersState.SyncCustomerOrdersIsSuccess = false;
+      })
+      .addCase(SyncCustomerOrders.fulfilled, (state, action) => {
+        state.SyncCustomerOrdersState.SyncCustomerOrdersIsLoading = false;
+        state.SyncCustomerOrdersState.SyncCustomerOrdersData = action.payload;
+        state.SyncCustomerOrdersState.SyncCustomerOrdersIsSuccess = true;
+      })
+      .addCase(SyncCustomerOrders.rejected, (state, action) => {
+        state.SyncCustomerOrdersState.SyncCustomerOrdersIsLoading = false;
+        state.SyncCustomerOrdersState.SyncCustomerOrdersIsError =
+          action.payload as null | string | object;
+        state.SyncCustomerOrdersState.SyncCustomerOrdersIsSuccess = false;
       })
       .addCase(FetchOrderDetails.pending, (state) => {
         state.FetchOrderDetailsState.FetchOrderDetailsIsLoading = true;
