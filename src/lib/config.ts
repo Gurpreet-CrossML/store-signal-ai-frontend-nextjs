@@ -184,6 +184,14 @@ export const ENDPOINTS = {
 
   // Helpdesk(Support) apis
   fetchSupportTickets: () => createAPIUrl("/support/tickets", "django"),
+  // POST — raise a ticket from a live-chat conversation. The counterpart
+  // of metaCreateSupportTicket: same fields, same payload, addressed by
+  // the thread behind it rather than a social contact.
+  createThreadSupportTicket: (threadId: string) =>
+    createAPIUrl(
+      `/support/threads/${threadId}/create-support-ticket/`,
+      "django",
+    ),
   fetchSupportTicketDeatils: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/`, "django"),
   supportTicketMessageSend: (ticket_id: number) =>
@@ -305,6 +313,11 @@ export const ENDPOINTS = {
     userId: number;
     messageId: number;
   }) => `/social/meta/users/${userId}/messages/${messageId}/react/`,
+  // POST — raise a help desk ticket for a DM contact. Addressed by the
+  // SocialUser rather than a chat thread: a Messenger conversation has no
+  // Thread behind it, which is why the ticket's own thread stays null.
+  metaCreateSupportTicket: (userId: number) =>
+    `/social/meta/users/${userId}/create-support-ticket/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

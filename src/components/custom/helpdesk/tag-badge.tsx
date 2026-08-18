@@ -11,9 +11,41 @@ import {
 import type { SupportTicketTagData } from "@/redux/api-slice/support-ticket-slice";
 
 /**
+ * A tag's colour at a given opacity, as a CSS colour.
+ *
+ * Not `${hex}1f`: the tag form accepts `#abc` as well as `#aabbcc`, and an
+ * alpha suffix on the short form produces `#abc1f`, which is not a colour
+ * at all — the browser drops the declaration and the chip silently loses
+ * its tint. Parsing to rgb() handles both lengths.
+ */
+function tint(hex: string, alpha: number): string | undefined {
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+  if (!match) return undefined;
+
+  const value = match[1];
+  const full =
+    value.length === 3
+      ? value
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : value;
+
+  const channels = [0, 2, 4].map((offset) =>
+    parseInt(full.slice(offset, offset + 2), 16),
+  );
+  return `rgb(${channels.join(" ")} / ${alpha})`;
+}
+
+/**
  * One tag chip. A tag used to be drawn three different ways — a bespoke
  * span in the list, a Badge in the header, another in the hover card — so
  * the same tag changed shape as you moved across the screen.
+ *
+ * Filled with a wash of its own colour rather than left transparent: a row
+ * of outline chips reads as one grey band, and the colour an agent chose
+ * for a tag is what lets them find it without reading. The text keeps the
+ * colour at full strength so it stays legible on the tint.
  */
 export function TagBadge({
   tag,
@@ -28,7 +60,11 @@ export function TagBadge({
       className="max-w-40"
       style={
         tag.color
-          ? { color: tag.color, borderColor: `${tag.color}40` }
+          ? {
+              color: tag.color,
+              backgroundColor: tint(tag.color, 0.12),
+              borderColor: tint(tag.color, 0.3),
+            }
           : undefined
       }
     >
