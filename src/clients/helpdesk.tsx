@@ -21,6 +21,12 @@ import {
   IconDeviceFloppy,
   IconFilter,
   IconInbox,
+  IconMail,
+  IconWorld,
+  IconBrandFacebook,
+  IconBrandInstagram,
+  IconBrandWhatsapp,
+  type Icon,
   IconLanguage,
   IconMessageChatbot,
   IconMoodSmile,
@@ -292,13 +298,31 @@ const emptyTicketFilters: TicketFilterSelection = {
   toDate: "",
 };
 
-const channelOptions: { value: SupportTicketChannel; label: string }[] = [
-  { value: "web", label: "Web" },
-  { value: "email", label: "Email" },
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "facebook", label: "Facebook" },
-  { value: "instagram", label: "Instagram" },
-];
+/**
+ * How each channel is named and drawn.
+ *
+ * One map rather than a label list and an icon chosen at the point of use:
+ * the ticket header was showing a generic inbox for every channel, so a
+ * Facebook ticket and an email ticket looked identical until you read the
+ * word beside them — which is the one thing an icon is there to save.
+ */
+const CHANNEL_META: Record<
+  SupportTicketChannel,
+  { label: string; icon: Icon }
+> = {
+  web: { label: "Web", icon: IconWorld },
+  email: { label: "Email", icon: IconMail },
+  whatsapp: { label: "WhatsApp", icon: IconBrandWhatsapp },
+  facebook: { label: "Facebook", icon: IconBrandFacebook },
+  instagram: { label: "Instagram", icon: IconBrandInstagram },
+};
+
+const channelOptions: { value: SupportTicketChannel; label: string }[] =
+  // Derived, so adding a channel to the map offers it as a filter too.
+  (Object.keys(CHANNEL_META) as SupportTicketChannel[]).map((value) => ({
+    value,
+    label: CHANNEL_META[value].label,
+  }));
 
 const priorityOptions: { value: SupportTicketPriority; label: string }[] = [
   { value: "low", label: "Low" },
@@ -685,9 +709,12 @@ function ConversationPanel({
   // Attachments only earn their place when there are some.
   const facts = [
     {
-      icon: IconInbox,
+      // Falls back to the inbox icon and the raw value for a channel the
+      // backend adds before this map hears about it.
+      icon: CHANNEL_META[ticket.channel]?.icon ?? IconInbox,
       label: "Channel",
-      value: capitalizeText(ticket.channel),
+      value:
+        CHANNEL_META[ticket.channel]?.label ?? capitalizeText(ticket.channel),
     },
     {
       icon: IconCalendarPlus,
@@ -1415,7 +1442,9 @@ function TicketFact({
   label,
   value,
 }: {
-  icon: typeof IconInbox;
+  // The shared tabler type rather than one specific icon's: the channel
+  // fact now picks its icon from a map, and every entry has to fit.
+  icon: Icon;
   label: string;
   value: string;
 }) {
@@ -2244,8 +2273,16 @@ export default function HelpDesk() {
           };
         });
 
-        toast.success("AI draft generated", {
-          description: "A new AI draft is ready to review.",
+        // Straight into the composer. Generating and then using it were
+        // two clicks on the same button: the first produced a draft and a
+        // toast about it, and the agent had to press again to see it —
+        // having asked for a draft, they are not asking to be told one
+        // exists. Taken from the response rather than read back out of
+        // state, which has not been updated yet this tick.
+        setReply(generatedDraft.message);
+
+        toast.success("AI draft ready", {
+          description: "It is in the composer — edit it before sending.",
         });
       } else {
         toast.error("Draft generate", {
