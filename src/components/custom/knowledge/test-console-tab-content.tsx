@@ -50,7 +50,10 @@ function KnowledgeScopePicker({
   onChange: (value: KnowledgeType[]) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const label = value.length === 0 ? "All knowledge types" : `${value.length} type${value.length > 1 ? "s" : ""}`;
+  const label =
+    value.length === 0
+      ? "All knowledge types"
+      : `${value.length} type${value.length > 1 ? "s" : ""}`;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -112,7 +115,10 @@ export default function TestConsoleTabContent() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs text-muted-foreground">Select AI</Label>
-              <Select value={aiScope} onValueChange={(value) => setAiScope(value as AIScope)}>
+              <Select
+                value={aiScope}
+                onValueChange={(value) => setAiScope(value as AIScope)}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -126,13 +132,21 @@ export default function TestConsoleTabContent() {
               </Select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">Knowledge scope</Label>
-              <KnowledgeScopePicker value={knowledgeScope} onChange={setKnowledgeScope} />
+              <Label className="text-xs text-muted-foreground">
+                Knowledge scope
+              </Label>
+              <KnowledgeScopePicker
+                value={knowledgeScope}
+                onChange={setKnowledgeScope}
+              />
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="test-query" className="text-xs text-muted-foreground">
+            <Label
+              htmlFor="test-query"
+              className="text-xs text-muted-foreground"
+            >
               Question
             </Label>
             <Textarea
@@ -146,7 +160,11 @@ export default function TestConsoleTabContent() {
 
           <div className="flex flex-wrap gap-1.5">
             {EXAMPLE_QUESTIONS.map((question) => (
-              <button key={question} type="button" onClick={() => runQuery(question)}>
+              <button
+                key={question}
+                type="button"
+                onClick={() => runQuery(question)}
+              >
                 <Badge
                   variant="outline"
                   className="cursor-pointer font-normal hover:border-primary/40 hover:text-primary"
@@ -176,7 +194,10 @@ export default function TestConsoleTabContent() {
         </CardContent>
       </Card>
 
-      <TestConsoleResults result={RunTestQueryData} isLoading={RunTestQueryIsLoading} />
+      <TestConsoleResults
+        result={RunTestQueryData}
+        isLoading={RunTestQueryIsLoading}
+      />
     </div>
   );
 }

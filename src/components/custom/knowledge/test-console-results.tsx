@@ -1,14 +1,13 @@
 "use client";
 
-import { IconCircleCheck, IconSearchOff, IconSparkles } from "@tabler/icons-react";
+import {
+  IconCircleCheck,
+  IconSearchOff,
+  IconSparkles,
+} from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Typography } from "@/components/ui/typography";
 import { LoadingState } from "@/components/custom/loading-state";
@@ -78,7 +77,9 @@ export function TestConsoleResults({
           <CardTitle>Query</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <p className="text-sm italic text-muted-foreground">&quot;{result.query}&quot;</p>
+          <p className="text-sm italic text-muted-foreground">
+            &quot;{result.query}&quot;
+          </p>
           <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/70 py-10 text-center">
             <IconSearchOff className="size-7 text-muted-foreground" />
             <Typography variant="small" as="p" className="font-medium">
@@ -99,7 +100,9 @@ export function TestConsoleResults({
         <CardTitle>Query</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        <p className="text-sm italic text-muted-foreground">&quot;{result.query}&quot;</p>
+        <p className="text-sm italic text-muted-foreground">
+          &quot;{result.query}&quot;
+        </p>
 
         <div className="flex flex-col gap-2">
           <Typography
@@ -113,22 +116,34 @@ export function TestConsoleResults({
               key={source.knowledgeItemId}
               className="flex items-start gap-3 rounded-lg border border-border/60 p-3"
             >
-              <KnowledgeTypeIcon type={source.type} className="size-8 shrink-0" />
+              <KnowledgeTypeIcon
+                type={source.type}
+                className="size-8 shrink-0"
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-muted-foreground">
                     #{index + 1}
                   </span>
-                  <Typography variant="small" as="p" className="truncate font-medium">
+                  <Typography
+                    variant="small"
+                    as="p"
+                    className="truncate font-medium"
+                  >
                     {source.title}
                   </Typography>
                 </div>
                 <Typography variant="muted" className="text-xs">
                   {KNOWLEDGE_TYPE_META[source.type].label}
                 </Typography>
-                <p className="mt-1.5 text-xs text-foreground/80">{source.excerpt}</p>
+                <p className="mt-1.5 text-xs text-foreground/80">
+                  {source.excerpt}
+                </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  <ScoreBadge label="Similarity" score={source.similarityScore} />
+                  <ScoreBadge
+                    label="Similarity"
+                    score={source.similarityScore}
+                  />
                   <ScoreBadge label="Matching" score={source.matchingScore} />
                   <ScoreBadge label="Reranking" score={source.rerankingScore} />
                 </div>
@@ -158,9 +173,14 @@ export function TestConsoleResults({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Badge variant="outline">Top {result.retrievedSources.length} sources</Badge>
+          <Badge variant="outline">
+            Top {result.retrievedSources.length} sources
+          </Badge>
           <Badge variant="outline" className="capitalize">
-            Scope: {result.knowledgeScope.length ? result.knowledgeScope.join(", ") : "All"}
+            Scope:{" "}
+            {result.knowledgeScope.length
+              ? result.knowledgeScope.join(", ")
+              : "All"}
           </Badge>
         </div>
       </CardContent>

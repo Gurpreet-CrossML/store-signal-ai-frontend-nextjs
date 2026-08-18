@@ -1,9 +1,7 @@
 import type {
   AIKnowledgeScopeConfig,
-  CategoryOption,
   GroundingSettings,
   KnowledgeItem,
-  ProductOption,
   RagSettings,
   RetrievalSettings,
   TestConsoleResult,
@@ -39,26 +37,6 @@ function generateId(prefix: string): string {
   itemIdCounter += 1;
   return `${prefix}-${itemIdCounter}`;
 }
-
-export const MOCK_PRODUCTS: ProductOption[] = [
-  { id: "p1", name: "Nike Air Max 270", sku: "NK-AM270" },
-  { id: "p2", name: "Nike Air Zoom Pegasus 40", sku: "NK-PEG40" },
-  { id: "p3", name: "Classic Leather Tote", sku: "BAG-CLT01" },
-  { id: "p4", name: "Wireless Noise-Cancelling Headphones", sku: "AUD-WNC02" },
-  { id: "p5", name: "Organic Cotton Bath Towel Set", sku: "HOME-BTS03" },
-  { id: "p6", name: "Stainless Steel Water Bottle", sku: "HOME-SWB01" },
-  { id: "p7", name: "Merino Wool Crew Socks (3-Pack)", sku: "APP-MWS03" },
-  { id: "p8", name: "Ceramic Coffee Mug Set", sku: "KIT-CMS04" },
-];
-
-export const MOCK_CATEGORIES: CategoryOption[] = [
-  { id: "c1", name: "Running Shoes" },
-  { id: "c2", name: "Bags & Accessories" },
-  { id: "c3", name: "Electronics" },
-  { id: "c4", name: "Home & Living" },
-  { id: "c5", name: "Apparel" },
-  { id: "c6", name: "Kitchenware" },
-];
 
 export const MOCK_KNOWLEDGE_ITEMS: KnowledgeItem[] = [
   {
@@ -133,190 +111,190 @@ export const MOCK_KNOWLEDGE_ITEMS: KnowledgeItem[] = [
     createdAt: daysAgo(45),
     updatedAt: daysAgo(45),
   },
-  {
-    id: "k6",
-    type: "category",
-    source: "text",
-    title: "Running Shoe Buying Guide",
-    status: "active",
-    aiScope: ["sales", "social"],
-    tags: ["guide"],
-    categoryIds: ["c1"],
-    categoryNames: ["Running Shoes"],
-    content:
-      "Neutral runners suit most people; overpronators should look for stability shoes. Measure feet in the evening, when they're at their largest, and leave a thumb's width at the toe.",
-    createdAt: daysAgo(90),
-    updatedAt: daysAgo(20),
-  },
-  {
-    id: "k7",
-    type: "category",
-    source: "file",
-    title: "Kitchenware Care & Cleaning Guide",
-    status: "failed",
-    aiScope: ["support"],
-    tags: ["care"],
-    categoryIds: ["c6"],
-    categoryNames: ["Kitchenware"],
-    fileName: "kitchenware-care.docx",
-    fileType: "docx",
-    fileSize: 156_000,
-    processingError:
-      "Could not extract text from page 4 — the file may be corrupted or password protected.",
-    createdAt: daysAgo(3),
-    updatedAt: daysAgo(3),
-  },
-  {
-    id: "k8",
-    type: "faq",
-    source: "faq",
-    title: "Do you offer free shipping?",
-    status: "active",
-    aiScope: ["sales", "support", "social"],
-    tags: ["shipping"],
-    question: "Do you offer free shipping?",
-    answer: "Yes, orders above ₹999 qualify for free standard shipping.",
-    createdAt: daysAgo(75),
-    updatedAt: daysAgo(10),
-  },
-  {
-    id: "k9",
-    type: "faq",
-    source: "faq",
-    title: "How do I track my order?",
-    status: "active",
-    aiScope: ["support"],
-    tags: ["orders"],
-    question: "How do I track my order?",
-    answer:
-      "You'll receive a tracking link by email once your order ships. You can also find it under Account > Orders.",
-    createdAt: daysAgo(75),
-    updatedAt: daysAgo(10),
-  },
-  {
-    id: "k10",
-    type: "faq",
-    source: "faq",
-    title: "Can I change my shipping address after placing an order?",
-    status: "disabled",
-    aiScope: ["support"],
-    tags: ["orders"],
-    question: "Can I change my shipping address after placing an order?",
-    answer:
-      "Address changes are only possible before an order ships — contact support immediately if you need to update it.",
-    createdAt: daysAgo(75),
-    updatedAt: daysAgo(40),
-  },
-  {
-    id: "k11",
-    type: "policy",
-    source: "url",
-    title: "Return Policy",
-    status: "active",
-    aiScope: ["sales", "support"],
-    tags: ["policy"],
-    url: "https://example-store.com/policies/returns",
-    policyType: "return",
-    syncFrequency: "weekly",
-    lastSyncedAt: daysAgo(2),
-    nextSyncAt: daysFromNow(5),
-    createdAt: daysAgo(150),
-    updatedAt: daysAgo(2),
-  },
-  {
-    id: "k12",
-    type: "policy",
-    source: "url",
-    title: "Shipping Policy",
-    status: "syncing",
-    aiScope: ["support"],
-    tags: ["policy"],
-    url: "https://example-store.com/policies/shipping",
-    policyType: "shipping",
-    syncFrequency: "daily",
-    lastSyncedAt: hoursAgo(20),
-    nextSyncAt: hoursAgo(-4),
-    createdAt: daysAgo(150),
-    updatedAt: hoursAgo(20),
-  },
-  {
-    id: "k13",
-    type: "policy",
-    source: "url",
-    title: "Privacy Policy",
-    status: "active",
-    aiScope: ["internal"],
-    tags: ["policy", "legal"],
-    url: "https://example-store.com/policies/privacy",
-    policyType: "privacy",
-    syncFrequency: "manual",
-    lastSyncedAt: daysAgo(30),
-    nextSyncAt: null,
-    createdAt: daysAgo(150),
-    updatedAt: daysAgo(30),
-  },
-  {
-    id: "k14",
-    type: "document",
-    source: "file",
-    title: "Escalation & Exception SOP",
-    status: "active",
-    aiScope: ["internal"],
-    tags: ["sop", "internal"],
-    fileName: "escalation-sop.pdf",
-    fileType: "pdf",
-    fileSize: 210_000,
-    lastProcessedAt: daysAgo(14),
-    createdAt: daysAgo(14),
-    updatedAt: daysAgo(14),
-  },
-  {
-    id: "k15",
-    type: "google_drive",
-    source: "google_drive",
-    title: "Vendor Compliance Checklist",
-    status: "active",
-    aiScope: ["internal"],
-    tags: ["vendor"],
-    driveUrl: "https://drive.google.com/file/d/1a2b3c4d5e6f/view",
-    fileName: "vendor-compliance-checklist.docx",
-    fileType: "docx",
-    lastSyncedAt: daysAgo(7),
-    createdAt: daysAgo(60),
-    updatedAt: daysAgo(7),
-  },
-  {
-    id: "k16",
-    type: "offer",
-    source: "offer",
-    title: "Festive Season Sale",
-    status: "active",
-    aiScope: ["sales", "social"],
-    tags: ["promo"],
-    offerName: "Festive Season Sale",
-    couponCode: "FESTIVE20",
-    startDate: daysAgo(5),
-    endDate: daysFromNow(25),
-    conditions: "20% off storewide. Cannot be combined with other offers.",
-    createdAt: daysAgo(5),
-    updatedAt: daysAgo(5),
-  },
-  {
-    id: "k17",
-    type: "offer",
-    source: "offer",
-    title: "New Customer Welcome Discount",
-    status: "disabled",
-    aiScope: ["sales"],
-    tags: ["promo"],
-    offerName: "Welcome10",
-    couponCode: "WELCOME10",
-    startDate: daysAgo(200),
-    endDate: daysAgo(1),
-    conditions: "10% off a customer's first order. One use per customer.",
-    createdAt: daysAgo(200),
-    updatedAt: daysAgo(1),
-  },
+  // {
+  //   id: "k6",
+  //   type: "category",
+  //   source: "text",
+  //   title: "Running Shoe Buying Guide",
+  //   status: "active",
+  //   aiScope: ["sales", "social"],
+  //   tags: ["guide"],
+  //   categoryIds: ["c1"],
+  //   categoryNames: ["Running Shoes"],
+  //   content:
+  //     "Neutral runners suit most people; overpronators should look for stability shoes. Measure feet in the evening, when they're at their largest, and leave a thumb's width at the toe.",
+  //   createdAt: daysAgo(90),
+  //   updatedAt: daysAgo(20),
+  // },
+  // {
+  //   id: "k7",
+  //   type: "category",
+  //   source: "file",
+  //   title: "Kitchenware Care & Cleaning Guide",
+  //   status: "failed",
+  //   aiScope: ["support"],
+  //   tags: ["care"],
+  //   categoryIds: ["c6"],
+  //   categoryNames: ["Kitchenware"],
+  //   fileName: "kitchenware-care.docx",
+  //   fileType: "docx",
+  //   fileSize: 156_000,
+  //   processingError:
+  //     "Could not extract text from page 4 — the file may be corrupted or password protected.",
+  //   createdAt: daysAgo(3),
+  //   updatedAt: daysAgo(3),
+  // },
+  // {
+  //   id: "k8",
+  //   type: "faq",
+  //   source: "faq",
+  //   title: "Do you offer free shipping?",
+  //   status: "active",
+  //   aiScope: ["sales", "support", "social"],
+  //   tags: ["shipping"],
+  //   question: "Do you offer free shipping?",
+  //   answer: "Yes, orders above ₹999 qualify for free standard shipping.",
+  //   createdAt: daysAgo(75),
+  //   updatedAt: daysAgo(10),
+  // },
+  // {
+  //   id: "k9",
+  //   type: "faq",
+  //   source: "faq",
+  //   title: "How do I track my order?",
+  //   status: "active",
+  //   aiScope: ["support"],
+  //   tags: ["orders"],
+  //   question: "How do I track my order?",
+  //   answer:
+  //     "You'll receive a tracking link by email once your order ships. You can also find it under Account > Orders.",
+  //   createdAt: daysAgo(75),
+  //   updatedAt: daysAgo(10),
+  // },
+  // {
+  //   id: "k10",
+  //   type: "faq",
+  //   source: "faq",
+  //   title: "Can I change my shipping address after placing an order?",
+  //   status: "disabled",
+  //   aiScope: ["support"],
+  //   tags: ["orders"],
+  //   question: "Can I change my shipping address after placing an order?",
+  //   answer:
+  //     "Address changes are only possible before an order ships — contact support immediately if you need to update it.",
+  //   createdAt: daysAgo(75),
+  //   updatedAt: daysAgo(40),
+  // },
+  // {
+  //   id: "k11",
+  //   type: "policy",
+  //   source: "url",
+  //   title: "Return Policy",
+  //   status: "active",
+  //   aiScope: ["sales", "support"],
+  //   tags: ["policy"],
+  //   url: "https://example-store.com/policies/returns",
+  //   policyType: "return",
+  //   syncFrequency: "weekly",
+  //   lastSyncedAt: daysAgo(2),
+  //   nextSyncAt: daysFromNow(5),
+  //   createdAt: daysAgo(150),
+  //   updatedAt: daysAgo(2),
+  // },
+  // {
+  //   id: "k12",
+  //   type: "policy",
+  //   source: "url",
+  //   title: "Shipping Policy",
+  //   status: "syncing",
+  //   aiScope: ["support"],
+  //   tags: ["policy"],
+  //   url: "https://example-store.com/policies/shipping",
+  //   policyType: "shipping",
+  //   syncFrequency: "daily",
+  //   lastSyncedAt: hoursAgo(20),
+  //   nextSyncAt: hoursAgo(-4),
+  //   createdAt: daysAgo(150),
+  //   updatedAt: hoursAgo(20),
+  // },
+  // {
+  //   id: "k13",
+  //   type: "policy",
+  //   source: "url",
+  //   title: "Privacy Policy",
+  //   status: "active",
+  //   aiScope: ["internal"],
+  //   tags: ["policy", "legal"],
+  //   url: "https://example-store.com/policies/privacy",
+  //   policyType: "privacy",
+  //   syncFrequency: "manual",
+  //   lastSyncedAt: daysAgo(30),
+  //   nextSyncAt: null,
+  //   createdAt: daysAgo(150),
+  //   updatedAt: daysAgo(30),
+  // },
+  // {
+  //   id: "k14",
+  //   type: "document",
+  //   source: "file",
+  //   title: "Escalation & Exception SOP",
+  //   status: "active",
+  //   aiScope: ["internal"],
+  //   tags: ["sop", "internal"],
+  //   fileName: "escalation-sop.pdf",
+  //   fileType: "pdf",
+  //   fileSize: 210_000,
+  //   lastProcessedAt: daysAgo(14),
+  //   createdAt: daysAgo(14),
+  //   updatedAt: daysAgo(14),
+  // },
+  // {
+  //   id: "k15",
+  //   type: "google_drive",
+  //   source: "google_drive",
+  //   title: "Vendor Compliance Checklist",
+  //   status: "active",
+  //   aiScope: ["internal"],
+  //   tags: ["vendor"],
+  //   driveUrl: "https://drive.google.com/file/d/1a2b3c4d5e6f/view",
+  //   fileName: "vendor-compliance-checklist.docx",
+  //   fileType: "docx",
+  //   lastSyncedAt: daysAgo(7),
+  //   createdAt: daysAgo(60),
+  //   updatedAt: daysAgo(7),
+  // },
+  // {
+  //   id: "k16",
+  //   type: "offer",
+  //   source: "offer",
+  //   title: "Festive Season Sale",
+  //   status: "active",
+  //   aiScope: ["sales", "social"],
+  //   tags: ["promo"],
+  //   offerName: "Festive Season Sale",
+  //   couponCode: "FESTIVE20",
+  //   startDate: daysAgo(5),
+  //   endDate: daysFromNow(25),
+  //   conditions: "20% off storewide. Cannot be combined with other offers.",
+  //   createdAt: daysAgo(5),
+  //   updatedAt: daysAgo(5),
+  // },
+  // {
+  //   id: "k17",
+  //   type: "offer",
+  //   source: "offer",
+  //   title: "New Customer Welcome Discount",
+  //   status: "disabled",
+  //   aiScope: ["sales"],
+  //   tags: ["promo"],
+  //   offerName: "Welcome10",
+  //   couponCode: "WELCOME10",
+  //   startDate: daysAgo(200),
+  //   endDate: daysAgo(1),
+  //   conditions: "10% off a customer's first order. One use per customer.",
+  //   createdAt: daysAgo(200),
+  //   updatedAt: daysAgo(1),
+  // },
 ];
 
 export const DEFAULT_RETRIEVAL_SETTINGS: RetrievalSettings = {
@@ -334,10 +312,10 @@ export const DEFAULT_GROUNDING_SETTINGS: GroundingSettings = {
 };
 
 export const DEFAULT_AI_KNOWLEDGE_SCOPE: AIKnowledgeScopeConfig = {
-  sales: ["general", "product", "category", "faq", "policy", "offer"],
-  support: ["general", "product", "faq", "policy", "offer"],
-  social: ["general", "product", "category", "offer"],
-  internal: ["document", "general", "faq"],
+  sales: ["general", "product"],
+  support: ["general", "product"],
+  social: ["general", "product"],
+  internal: ["general"],
 };
 
 let ragSettingsState: RagSettings = {
@@ -405,24 +383,6 @@ export function retryKnowledgeItemProcessing(id: string): KnowledgeItem {
   return updateKnowledgeItem(id, { status: "active", processingError: null });
 }
 
-// --- Product / category catalogs (mocked for this feature only) ----
-
-export function listProductOptions(query = ""): ProductOption[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return MOCK_PRODUCTS;
-  return MOCK_PRODUCTS.filter((product) =>
-    product.name.toLowerCase().includes(q),
-  );
-}
-
-export function listCategoryOptions(query = ""): CategoryOption[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return MOCK_CATEGORIES;
-  return MOCK_CATEGORIES.filter((category) =>
-    category.name.toLowerCase().includes(q),
-  );
-}
-
 // --- Retrieval, grounding & AI knowledge scope settings -------------
 
 export function getRagSettings(): RagSettings {
@@ -466,7 +426,10 @@ export function saveAIKnowledgeScope(
 type TestScenario = {
   keywords: string[];
   itemIds: string[];
-  scores: Record<string, { similarity: number; matching: number; reranking: number }>;
+  scores: Record<
+    string,
+    { similarity: number; matching: number; reranking: number }
+  >;
   excerpts: Record<string, string>;
   answer: string;
 };

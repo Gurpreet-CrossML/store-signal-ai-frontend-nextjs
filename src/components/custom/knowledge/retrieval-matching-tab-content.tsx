@@ -58,7 +58,8 @@ export default function RetrievalMatchingTabContent() {
   const isLoading =
     (FetchRetrievalSettingsIsLoading && !settings) ||
     (FetchAIKnowledgeScopeIsLoading && !scope);
-  const isSaving = SaveRetrievalSettingsIsLoading || SaveAIKnowledgeScopeIsLoading;
+  const isSaving =
+    SaveRetrievalSettingsIsLoading || SaveAIKnowledgeScopeIsLoading;
 
   const handleSave = async () => {
     if (settings) await dispatch(SaveRetrievalSettings(settings));
@@ -79,7 +80,7 @@ export default function RetrievalMatchingTabContent() {
         value={settings.grounding}
         onChange={(grounding) => setSettings({ ...settings, grounding })}
       />
-      <AIKnowledgeScopeCard value={scope} onChange={setScope} />
+      {/* <AIKnowledgeScopeCard value={scope} onChange={setScope} /> */}
 
       <div className="flex justify-start border-t border-border py-3">
         <Button size="lg" onClick={handleSave} disabled={isSaving}>

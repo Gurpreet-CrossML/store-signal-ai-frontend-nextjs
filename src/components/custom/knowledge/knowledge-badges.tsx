@@ -1,39 +1,57 @@
-import { IconAlertCircle, IconCircleCheck, IconClock } from "@tabler/icons-react";
+import {
+  IconAlertCircle,
+  IconBan,
+  IconClock,
+  IconCircleCheck,
+  IconShieldCheck,
+} from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
-import type { AIScope, KnowledgeStatus, KnowledgeType } from "@/redux/api-slice/knowledge-rag-slice";
-import { AI_SCOPE_META, KNOWLEDGE_TYPE_META } from "@/components/custom/knowledge/knowledge-meta";
+import type {
+  AIScope,
+  KnowledgeSource,
+  KnowledgeStatus,
+  KnowledgeType,
+  PolicyType,
+} from "@/redux/api-slice/knowledge-rag-slice";
+import {
+  AI_SCOPE_META,
+  KNOWLEDGE_SOURCE_ICON,
+  KNOWLEDGE_STATUS_META,
+  KNOWLEDGE_TYPE_META,
+  POLICY_TYPE_OPTIONS,
+} from "@/components/custom/knowledge/knowledge-meta";
 
 const STATUS_ICON: Record<KnowledgeStatus, React.ReactNode> = {
   active: <IconCircleCheck className="size-3.5" />,
+  pending: <IconClock className="size-3.5" />,
   processing: <Spinner className="size-3.5" />,
-  syncing: <Spinner className="size-3.5" />,
   failed: <IconAlertCircle className="size-3.5" />,
-  disabled: <IconClock className="size-3.5" />,
+  disabled: <IconBan className="size-3.5" />,
 };
 
 export function KnowledgeStatusBadge({ status }: { status: KnowledgeStatus }) {
-  const label = {
-    active: "Active",
-    processing: "Processing",
-    syncing: "Syncing",
-    failed: "Failed",
-    disabled: "Disabled",
-  }[status];
-  const variant = {
-    active: "default" as const,
-    processing: "secondary" as const,
-    syncing: "secondary" as const,
-    failed: "destructive" as const,
-    disabled: "outline" as const,
-  }[status];
+  const { label, variant } = KNOWLEDGE_STATUS_META[status];
 
   return (
     <Badge variant={variant} className="gap-1 font-normal">
       {STATUS_ICON[status]}
+      {label}
+    </Badge>
+  );
+}
+
+export function PolicyTypeBadge({ policyType }: { policyType: PolicyType }) {
+  const label =
+    POLICY_TYPE_OPTIONS.find((option) => option.value === policyType)?.label ??
+    policyType;
+
+  return (
+    <Badge variant="outline" className="gap-1 font-normal">
+      <IconShieldCheck className="size-3.5" />
       {label}
     </Badge>
   );
@@ -57,6 +75,26 @@ export function AIScopeBadges({ scope }: { scope: AIScope[] }) {
           {AI_SCOPE_META[entry].label}
         </Badge>
       ))}
+    </div>
+  );
+}
+
+export function KnowledgeSourceIcon({
+  source,
+  className,
+}: {
+  source: KnowledgeSource;
+  className?: string;
+}) {
+  const Icon = KNOWLEDGE_SOURCE_ICON[source];
+  return (
+    <div
+      className={cn(
+        "flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground",
+        className,
+      )}
+    >
+      <Icon className="size-4.5" />
     </div>
   );
 }
