@@ -5,12 +5,13 @@ import {
   type Icon,
 } from "@tabler/icons-react";
 
-import { NAV_AREAS, type NavAreaKey } from "@/lib/nav-areas";
+import { NAV_AREAS, type AreaSection, type NavAreaKey } from "@/lib/nav-areas";
 
 export type SideBarMenuItem = {
   title: string;
   url: string;
   icon: Icon;
+  items?: SideBarMenuItem[];
 };
 
 export type SubSidebarMenuItem = {
@@ -114,6 +115,32 @@ export function activeNavUrl(
 }
 
 /**
+ * Every entry in a menu tree, parents included, depth-first.
+ *
+ * The nav is no longer one level: a section can carry its own screens, and
+ * both "which entry is active" and "which sub-sidebar am I in" have to see
+ * the leaves, not just the branches.
+ */
+export function flattenMenuItems(
+  items: readonly SideBarMenuItem[],
+): SideBarMenuItem[] {
+  return items.flatMap((item) => [
+    item,
+    ...(item.items ? flattenMenuItems(item.items) : []),
+  ]);
+}
+
+/** Is this entry, or anything beneath it, the one currently open? */
+export function isBranchActive(
+  item: SideBarMenuItem,
+  pathname: string | null,
+  search = "",
+): boolean {
+  const winner = activeNavUrl(flattenMenuItems([item]), pathname, search);
+  return winner !== null;
+}
+
+/**
  * Which sub-sidebar belongs to a route, if any. Derived from the path
  * rather than tracked on click, so a refresh or a shared deep link opens
  * the same sub-sidebar the click would have.
@@ -131,8 +158,11 @@ export function resolveSubSidebarKey(pathname: string | null): string | null {
   // Compared on the path alone: an entry may carry a query string, which
   // says which section you are in, not which screen.
   for (const [key, items] of Object.entries(sidebarMenus.navSubSidebar ?? {})) {
+    // Flattened: a nested screen is as much "in" this area as a top-level
+    // one, and only checking the first level lost the sub-sidebar the
+    // moment you opened one.
     if (
-      items?.items?.some((item) =>
+      flattenMenuItems(items?.items ?? []).some((item) =>
         isMenuItemActive(pathname, splitHref(item.url).path),
       )
     ) {
@@ -207,6 +237,22 @@ function areaMenuItem(
   };
 }
 
+/**
+ * One section as a menu entry, carrying its children.
+ *
+ * The nesting is load-bearing: an entry with `items` renders as a
+ * collapsible group rather than a link, and dropping them here — as this
+ * did — left every section flat however NAV_AREAS described it.
+ */
+function toMenuItem(section: AreaSection): SideBarMenuItem {
+  return {
+    title: section.title,
+    url: section.href,
+    icon: section.icon,
+    ...(section.items?.length ? { items: section.items.map(toMenuItem) } : {}),
+  };
+}
+
 /** Every area in NAV_AREAS as a sub-sidebar, keyed by its area key. */
 function areaSubSidebars(): Record<string, SubSidebarMenuItem> {
   return Object.fromEntries(
@@ -215,11 +261,7 @@ function areaSubSidebars(): Record<string, SubSidebarMenuItem> {
       {
         title: area.title,
         icon: area.icon,
-        items: area.sections.map((section) => ({
-          title: section.title,
-          url: section.href,
-          icon: section.icon,
-        })),
+        items: area.sections.map(toMenuItem),
       },
     ]),
   );
