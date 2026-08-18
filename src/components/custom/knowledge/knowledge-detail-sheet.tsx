@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { IconExternalLink, IconPencil, IconRefresh, IconTrash } from "@tabler/icons-react";
+import {
+  IconExternalLink,
+  IconPencil,
+  IconRefresh,
+  IconTrash,
+} from "@tabler/icons-react";
 
 import {
   AlertDialog,
@@ -37,17 +42,20 @@ import {
   AIScopeBadges,
   KnowledgeStatusBadge,
   KnowledgeTypeIcon,
+  PolicyTypeBadge,
 } from "@/components/custom/knowledge/knowledge-badges";
 import {
   KNOWLEDGE_SOURCE_LABEL,
   KNOWLEDGE_TYPE_META,
-  POLICY_TYPE_OPTIONS,
 } from "@/components/custom/knowledge/knowledge-meta";
 
 function formatBytes(bytes?: number): string {
   if (!bytes) return "—";
   const units = ["B", "KB", "MB", "GB"];
-  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const exponent = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
+  );
   const value = bytes / Math.pow(1024, exponent);
   return `${value.toFixed(exponent === 0 ? 0 : 1)} ${units[exponent]}`;
 }
@@ -104,16 +112,21 @@ export function KnowledgeDetailSheet({
   const { DeleteKnowledgeItemIsLoading } = useAppSelector(
     (state) => state.GetKnowledgeRagReducer.DeleteKnowledgeItemState,
   );
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
 
   if (!item) return null;
   const meta = KNOWLEDGE_TYPE_META[item.type];
 
   const handleRetry = async () => {
-    await dispatch(RetryKnowledgeItemProcessing({ id: item.id }));
+    await dispatch(RetryKnowledgeItemProcessing({ id: item.id, storeCode }));
   };
 
   const handleDelete = async () => {
-    const result = await dispatch(DeleteKnowledgeItem({ id: item.id }));
+    const result = await dispatch(
+      DeleteKnowledgeItem({ id: item.id, storeCode }),
+    );
     if (DeleteKnowledgeItem.fulfilled.match(result)) {
       setConfirmDelete(false);
       onOpenChange(false);
@@ -127,7 +140,10 @@ export function KnowledgeDetailSheet({
         <SheetContent className="gap-0 sm:max-w-lg">
           <SheetHeader>
             <div className="flex items-start gap-3">
-              <KnowledgeTypeIcon type={item.type} className="size-11 rounded-xl" />
+              <KnowledgeTypeIcon
+                type={item.type}
+                className="size-11 rounded-xl"
+              />
               <div className="min-w-0 flex-1">
                 <SheetTitle className="truncate">{item.title}</SheetTitle>
                 <SheetDescription>
@@ -141,11 +157,18 @@ export function KnowledgeDetailSheet({
             {item.status === "failed" && (
               <div className="flex items-start justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5">
                 <div className="min-w-0">
-                  <Typography variant="small" as="p" className="font-medium text-destructive">
+                  <Typography
+                    variant="small"
+                    as="p"
+                    className="font-medium text-destructive"
+                  >
                     Processing failed
                   </Typography>
                   {item.processingError && (
-                    <Typography variant="muted" className="text-xs text-destructive/90">
+                    <Typography
+                      variant="muted"
+                      className="text-xs text-destructive/90"
+                    >
                       {item.processingError}
                     </Typography>
                   )}
@@ -169,8 +192,14 @@ export function KnowledgeDetailSheet({
 
             <Section title="Basic information">
               <MetaRow label="Knowledge type" value={meta.label} />
-              <MetaRow label="Source" value={KNOWLEDGE_SOURCE_LABEL[item.source]} />
-              <MetaRow label="Status" value={<KnowledgeStatusBadge status={item.status} />} />
+              <MetaRow
+                label="Source"
+                value={KNOWLEDGE_SOURCE_LABEL[item.source]}
+              />
+              <MetaRow
+                label="Status"
+                value={<KnowledgeStatusBadge status={item.status} />}
+              />
               <MetaRow label="Created" value={formatDateTime(item.createdAt)} />
               <MetaRow label="Updated" value={formatDateTime(item.updatedAt)} />
             </Section>
@@ -178,9 +207,20 @@ export function KnowledgeDetailSheet({
             <Separator />
 
             <Section title="Associations">
-              {item.productName && <MetaRow label="Product" value={item.productName} />}
+              {item.productName && (
+                <MetaRow label="Product" value={item.productName} />
+              )}
+              {item.policyType && (
+                <MetaRow
+                  label="Policy type"
+                  value={<PolicyTypeBadge policyType={item.policyType} />}
+                />
+              )}
               {item.categoryNames && item.categoryNames.length > 0 && (
-                <MetaRow label="Categories" value={item.categoryNames.join(", ")} />
+                <MetaRow
+                  label="Categories"
+                  value={item.categoryNames.join(", ")}
+                />
               )}
               <div className="flex items-center justify-between gap-4 border-b border-border py-2 text-sm last:border-b-0">
                 <span className="text-muted-foreground">AI scope</span>
@@ -191,7 +231,11 @@ export function KnowledgeDetailSheet({
                 <div className="flex flex-wrap justify-end gap-1">
                   {item.tags.length > 0 ? (
                     item.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="font-normal">
+                      <Badge
+                        key={tag}
+                        variant="secondary"
+                        className="font-normal"
+                      >
                         {tag}
                       </Badge>
                     ))
@@ -205,13 +249,13 @@ export function KnowledgeDetailSheet({
             <Separator />
 
             <Section title="Source information">
-              {(item.type === "general" || item.content) && item.content && (
+              {item.source === "text" && item.content && (
                 <p className="whitespace-pre-wrap py-2 text-sm text-foreground">
                   {item.content}
                 </p>
               )}
 
-              {item.type === "faq" && (
+              {item.source === "faq" && (
                 <>
                   <div className="py-2">
                     <Typography variant="muted" className="text-xs">
@@ -228,77 +272,43 @@ export function KnowledgeDetailSheet({
                 </>
               )}
 
-              {item.type === "policy" && (
-                <>
-                  <MetaRow
-                    label="Policy type"
-                    value={
-                      POLICY_TYPE_OPTIONS.find((option) => option.value === item.policyType)
-                        ?.label ?? item.policyType
-                    }
-                  />
-                  <div className="flex items-center justify-between gap-4 border-b border-border py-2 text-sm">
-                    <span className="text-muted-foreground">Source URL</span>
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex max-w-56 items-center gap-1 truncate font-medium text-primary underline underline-offset-2"
-                    >
-                      <span className="truncate">{item.url}</span>
-                      <IconExternalLink className="size-3.5 shrink-0" />
-                    </a>
-                  </div>
-                  <MetaRow label="Last synced" value={formatDateTime(item.lastSyncedAt ?? null)} />
-                  <MetaRow label="Next sync" value={formatDateTime(item.nextSyncAt ?? null)} />
-                </>
+              {item.source === "url" && (
+                <div className="flex items-center justify-between gap-4 border-b border-border py-2 text-sm last:border-b-0">
+                  <span className="text-muted-foreground">Page URL</span>
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex max-w-56 items-center gap-1 truncate font-medium text-primary underline underline-offset-2"
+                  >
+                    <span className="truncate">{item.url}</span>
+                    <IconExternalLink className="size-3.5 shrink-0" />
+                  </a>
+                </div>
               )}
 
-              {(item.type === "document" || item.type === "google_drive") && (
+              {item.source === "file" && (
                 <>
                   <MetaRow label="File name" value={item.fileName ?? "—"} />
-                  <MetaRow label="File type" value={(item.fileType ?? "—").toUpperCase()} />
-                  {item.type === "document" && (
-                    <MetaRow label="File size" value={formatBytes(item.fileSize)} />
-                  )}
-                  {item.type === "google_drive" && item.driveUrl && (
-                    <div className="flex items-center justify-between gap-4 border-b border-border py-2 text-sm">
-                      <span className="text-muted-foreground">Drive URL</span>
-                      <a
-                        href={item.driveUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex max-w-56 items-center gap-1 truncate font-medium text-primary underline underline-offset-2"
-                      >
-                        <span className="truncate">{item.driveUrl}</span>
-                        <IconExternalLink className="size-3.5 shrink-0" />
-                      </a>
-                    </div>
-                  )}
                   <MetaRow
-                    label="Processing status"
-                    value={<KnowledgeStatusBadge status={item.status} />}
+                    label="File type"
+                    value={(item.fileType ?? "—").toUpperCase()}
                   />
-                </>
-              )}
-
-              {item.type === "offer" && (
-                <>
-                  <MetaRow label="Coupon code" value={item.couponCode ?? "—"} />
-                  <MetaRow label="Start date" value={formatDateTime(item.startDate ?? null)} />
-                  <MetaRow label="End date" value={formatDateTime(item.endDate ?? null)} />
-                  {item.conditions && (
-                    <p className="whitespace-pre-wrap py-2 text-sm text-foreground">
-                      {item.conditions}
-                    </p>
-                  )}
+                  <MetaRow
+                    label="File size"
+                    value={formatBytes(item.fileSize)}
+                  />
                 </>
               )}
             </Section>
           </div>
 
           <SheetFooter className="flex-row">
-            <Button variant="outline" className="flex-1" onClick={() => onEdit(item)}>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => onEdit(item)}
+            >
               <IconPencil />
               Edit
             </Button>
@@ -319,7 +329,8 @@ export function KnowledgeDetailSheet({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this knowledge?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove &quot;{item.title}&quot;. This action cannot be undone.
+              This will permanently remove &quot;{item.title}&quot;. This action
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

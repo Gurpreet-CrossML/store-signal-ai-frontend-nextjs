@@ -17,7 +17,11 @@ import type {
   UnsupportedAnswerPolicy,
 } from "@/redux/api-slice/knowledge-rag-slice";
 
-const GROUNDING_MODE_OPTIONS: { value: GroundingMode; title: string; description: string }[] = [
+const GROUNDING_MODE_OPTIONS: {
+  value: GroundingMode;
+  title: string;
+  description: string;
+}[] = [
   {
     value: "strict",
     title: "Strict",
@@ -105,7 +109,9 @@ export function GroundingSettingsCard({
           </Typography>
           <RadioGroup
             value={value.mode}
-            onValueChange={(mode) => onChange({ ...value, mode: mode as GroundingMode })}
+            onValueChange={(mode) =>
+              onChange({ ...value, mode: mode as GroundingMode })
+            }
           >
             {GROUNDING_MODE_OPTIONS.map((option) => (
               <RadioOptionCard key={option.value} {...option} />
@@ -120,15 +126,16 @@ export function GroundingSettingsCard({
             Unsupported Answer Policy
           </Typography>
           <Typography variant="muted" className="text-xs">
-            Controls how the AI behaves when reliable knowledge cannot be
-            found for a question.
+            Controls how the AI behaves when reliable knowledge cannot be found
+            for a question.
           </Typography>
           <RadioGroup
             value={value.unsupportedAnswerPolicy}
             onValueChange={(unsupportedAnswerPolicy) =>
               onChange({
                 ...value,
-                unsupportedAnswerPolicy: unsupportedAnswerPolicy as UnsupportedAnswerPolicy,
+                unsupportedAnswerPolicy:
+                  unsupportedAnswerPolicy as UnsupportedAnswerPolicy,
               })
             }
             className="mt-1"

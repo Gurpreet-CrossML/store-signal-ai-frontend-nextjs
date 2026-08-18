@@ -118,7 +118,12 @@ export function RetrievalSettingsCard({
             max={20}
             value={value.topK}
             onChange={(event) =>
-              update({ topK: Math.max(1, Math.min(20, Number(event.target.value) || 1)) })
+              update({
+                topK: Math.max(
+                  1,
+                  Math.min(20, Number(event.target.value) || 1),
+                ),
+              })
             }
           />
         </SettingRow>
@@ -142,7 +147,9 @@ export function RetrievalSettingsCard({
           <div className="flex justify-end sm:justify-end">
             <Switch
               checked={value.hybridSearchEnabled}
-              onCheckedChange={(hybridSearchEnabled) => update({ hybridSearchEnabled })}
+              onCheckedChange={(hybridSearchEnabled) =>
+                update({ hybridSearchEnabled })
+              }
             />
           </div>
         </SettingRow>
@@ -155,7 +162,9 @@ export function RetrievalSettingsCard({
           <div className="flex justify-end sm:justify-end">
             <Switch
               checked={value.rerankingEnabled}
-              onCheckedChange={(rerankingEnabled) => update({ rerankingEnabled })}
+              onCheckedChange={(rerankingEnabled) =>
+                update({ rerankingEnabled })
+              }
             />
           </div>
         </SettingRow>

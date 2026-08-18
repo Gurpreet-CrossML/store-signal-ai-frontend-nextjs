@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { IconPlus, IconSearch, IconX } from "@tabler/icons-react";
 
 import {
@@ -24,38 +24,26 @@ import {
   RetryKnowledgeItemProcessing,
   ToggleKnowledgeItemStatus,
   type KnowledgeItem,
-  type KnowledgeType,
 } from "@/redux/api-slice/knowledge-rag-slice";
 import {
   EMPTY_KNOWLEDGE_FILTERS,
-  KnowledgeFilterPopover,
+  KnowledgeTypeSourceStatusFilters,
   countActiveKnowledgeFilters,
   type KnowledgeFilterSelection,
 } from "@/components/custom/knowledge/knowledge-filters";
 import { KnowledgeList } from "@/components/custom/knowledge/knowledge-list";
 import { AddKnowledgeDialog } from "@/components/custom/knowledge/add-knowledge-dialog";
-import { KnowledgeForm } from "@/components/custom/knowledge/knowledge-form";
+import { EditKnowledgeDialog } from "@/components/custom/knowledge/edit-knowledge-dialog";
 import { KnowledgeDetailSheet } from "@/components/custom/knowledge/knowledge-detail-sheet";
+import { KnowledgeDataTablePagination } from "@/components/custom/knowledge/knowledge-data-table-pagination";
 
-function matchesSearch(item: KnowledgeItem, query: string): boolean {
-  if (!query) return true;
-  const haystack = [
-    item.title,
-    item.question,
-    item.answer,
-    item.productName,
-    item.url,
-    ...(item.categoryNames ?? []),
-    ...item.tags,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return haystack.includes(query);
-}
+const DEFAULT_PAGE_SIZE = 25;
 
 export default function KnowledgeLibraryTabContent() {
   const dispatch = useAppDispatch();
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
 
   const { FetchKnowledgeItemsListData, FetchKnowledgeItemsIsLoading } =
     useAppSelector(
@@ -65,47 +53,77 @@ export default function KnowledgeLibraryTabContent() {
     (state) => state.GetKnowledgeRagReducer.DeleteKnowledgeItemState,
   );
 
-  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filters, setFilters] = useState<KnowledgeFilterSelection>(
     EMPTY_KNOWLEDGE_FILTERS,
   );
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<KnowledgeItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editItem, setEditItem] = useState<KnowledgeItem | null>(null);
-  const [editType, setEditType] = useState<KnowledgeType | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<KnowledgeItem | null>(null);
 
-  const items = FetchKnowledgeItemsListData;
+  const items = FetchKnowledgeItemsListData.results;
+  const totalCount = FetchKnowledgeItemsListData.count;
   const activeFilterCount = countActiveKnowledgeFilters(filters);
-  const hasFilters = activeFilterCount > 0 || search.trim() !== "";
+  const hasFilters = activeFilterCount > 0 || debouncedSearch !== "";
 
-  const filteredItems = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return items.filter((item) => {
-      if (filters.types.length && !filters.types.includes(item.type)) return false;
-      if (filters.sources.length && !filters.sources.includes(item.source)) return false;
-      if (filters.statuses.length && !filters.statuses.includes(item.status)) return false;
-      if (
-        filters.aiScopes.length &&
-        !filters.aiScopes.some((scope) => item.aiScope.includes(scope))
-      ) {
-        return false;
-      }
-      return matchesSearch(item, query);
-    });
-  }, [items, filters, search]);
+  // Debounce so a request isn't fired per keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Reset to page 1 whenever the store, page size, or a server-side filter
+  // changes — the current page may not exist at a new size or filter set.
+  // Adjusted during render against a sentinel, the endorsed alternative to
+  // setting state from an effect (same pattern as the Threads screen).
+  const filterSignature = JSON.stringify([
+    storeCode,
+    pageSize,
+    debouncedSearch,
+    filters.type,
+    filters.source,
+    filters.status,
+  ]);
+  const [prevFilterSignature, setPrevFilterSignature] =
+    useState(filterSignature);
+  if (filterSignature !== prevFilterSignature) {
+    setPrevFilterSignature(filterSignature);
+    setPage(1);
+  }
 
   const loadItems = () => {
-    dispatch(FetchKnowledgeItems());
+    if (!storeCode) return;
+    dispatch(
+      FetchKnowledgeItems({
+        storeCode,
+        page,
+        pageSize,
+        search: debouncedSearch,
+        type: filters.type || undefined,
+        source: filters.source || undefined,
+        status: filters.status || undefined,
+      }),
+    );
   };
 
   useEffect(() => {
     loadItems();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [
+    storeCode,
+    page,
+    pageSize,
+    debouncedSearch,
+    filters.type,
+    filters.source,
+    filters.status,
+  ]);
 
   const handleOpenItem = (item: KnowledgeItem) => {
     setDetailItem(item);
@@ -115,7 +133,6 @@ export default function KnowledgeLibraryTabContent() {
   const handleEditItem = (item: KnowledgeItem) => {
     setDetailOpen(false);
     setEditItem(item);
-    setEditType(item.type);
     setEditOpen(true);
   };
 
@@ -123,6 +140,7 @@ export default function KnowledgeLibraryTabContent() {
     await dispatch(
       ToggleKnowledgeItemStatus({
         id: item.id,
+        storeCode,
         status: item.status === "disabled" ? "active" : "disabled",
       }),
     );
@@ -130,13 +148,15 @@ export default function KnowledgeLibraryTabContent() {
   };
 
   const handleRetry = async (item: KnowledgeItem) => {
-    await dispatch(RetryKnowledgeItemProcessing({ id: item.id }));
+    await dispatch(RetryKnowledgeItemProcessing({ id: item.id, storeCode }));
     loadItems();
   };
 
   const handleConfirmDelete = async () => {
     if (!itemToDelete) return;
-    const result = await dispatch(DeleteKnowledgeItem({ id: itemToDelete.id }));
+    const result = await dispatch(
+      DeleteKnowledgeItem({ id: itemToDelete.id, storeCode }),
+    );
     if (DeleteKnowledgeItem.fulfilled.match(result)) {
       setItemToDelete(null);
       loadItems();
@@ -149,20 +169,17 @@ export default function KnowledgeLibraryTabContent() {
         <div className="relative w-full sm:w-72">
           <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search knowledge…"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="Search by title…"
             className="pl-8"
             aria-label="Search knowledge"
           />
         </div>
 
-        <KnowledgeFilterPopover
-          open={filtersOpen}
-          onOpenChange={setFiltersOpen}
+        <KnowledgeTypeSourceStatusFilters
           filters={filters}
           onFiltersChange={setFilters}
-          activeCount={activeFilterCount}
         />
 
         {hasFilters && (
@@ -172,7 +189,7 @@ export default function KnowledgeLibraryTabContent() {
             size="sm"
             className="text-muted-foreground"
             onClick={() => {
-              setSearch("");
+              setSearchInput("");
               setFilters(EMPTY_KNOWLEDGE_FILTERS);
             }}
           >
@@ -182,7 +199,7 @@ export default function KnowledgeLibraryTabContent() {
         )}
 
         <Badge variant="secondary">
-          {filteredItems.length} of {items.length}
+          {items.length} of {totalCount}
         </Badge>
 
         <Button size="sm" className="ml-auto" onClick={() => setAddOpen(true)}>
@@ -192,7 +209,7 @@ export default function KnowledgeLibraryTabContent() {
       </div>
 
       <KnowledgeList
-        items={filteredItems}
+        items={items}
         isLoading={FetchKnowledgeItemsIsLoading}
         onOpenItem={handleOpenItem}
         onEditItem={handleEditItem}
@@ -203,12 +220,26 @@ export default function KnowledgeLibraryTabContent() {
         hasFilters={hasFilters}
       />
 
-      <AddKnowledgeDialog open={addOpen} onOpenChange={setAddOpen} onSaved={loadItems} />
+      <KnowledgeDataTablePagination
+        items={items}
+        totalCount={totalCount}
+        pageSize={pageSize}
+        page={page}
+        onPaginationChange={(next) => {
+          setPage(next.page);
+          setPageSize(next.pageSize);
+        }}
+      />
 
-      <KnowledgeForm
+      <AddKnowledgeDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onSaved={loadItems}
+      />
+
+      <EditKnowledgeDialog
         open={editOpen}
         onOpenChange={setEditOpen}
-        type={editType}
         item={editItem}
         onSaved={loadItems}
       />
@@ -231,8 +262,8 @@ export default function KnowledgeLibraryTabContent() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this knowledge?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove &quot;{itemToDelete?.title}&quot;. This
-              action cannot be undone.
+              This will permanently remove &quot;{itemToDelete?.title}&quot;.
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

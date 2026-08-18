@@ -70,8 +70,12 @@ export function AIKnowledgeScopeCard({
                   className="flex cursor-pointer items-center gap-2 text-sm font-normal"
                 >
                   <Checkbox
-                    checked={value[scopeOption.value].includes(typeOption.value)}
-                    onCheckedChange={() => toggle(scopeOption.value, typeOption.value)}
+                    checked={value[scopeOption.value].includes(
+                      typeOption.value,
+                    )}
+                    onCheckedChange={() =>
+                      toggle(scopeOption.value, typeOption.value)
+                    }
                   />
                   {typeOption.label}
                 </Label>
