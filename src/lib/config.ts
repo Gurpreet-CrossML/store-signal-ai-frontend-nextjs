@@ -192,6 +192,14 @@ export const ENDPOINTS = {
       `/support/threads/${threadId}/create-support-ticket/`,
       "django",
     ),
+  // GET — an AI reading of the conversation, as a ticket an agent can edit.
+  // Slow (it calls the model), so it is asked for on demand rather than on
+  // opening the form.
+  threadSupportTicketDraft: (threadId: string) =>
+    createAPIUrl(
+      `/support/threads/${threadId}/support-ticket/draft/`,
+      "django",
+    ),
   fetchSupportTicketDeatils: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/`, "django"),
   supportTicketMessageSend: (ticket_id: number) =>
@@ -318,6 +326,11 @@ export const ENDPOINTS = {
   // Thread behind it, which is why the ticket's own thread stays null.
   metaCreateSupportTicket: (userId: number) =>
     `/social/meta/users/${userId}/create-support-ticket/`,
+  // The social counterpart of threadSupportTicketDraft. Contacts are
+  // page-scoped, so the same shopper on Facebook and on Instagram drafts
+  // from two separate conversations.
+  metaSupportTicketDraft: (userId: number) =>
+    `/social/meta/users/${userId}/support-ticket/draft/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

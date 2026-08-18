@@ -7,7 +7,10 @@ import { axiosInstance } from "../axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
-import type { CreateSupportTicketPayload } from "@/redux/api-slice/support-ticket-slice";
+import type {
+  CreateSupportTicketPayload,
+  SupportTicketDraft,
+} from "@/redux/api-slice/support-ticket-slice";
 
 /**
  * One page size for every social list. Filtering and searching are the
@@ -802,6 +805,38 @@ export const replyToMetaComment = createAsyncThunk(
       const data = response?.data;
       toast.error("Uh oh! Something went wrong.", {
         description: data?.message || "Unable to reply to comment.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+/**
+ * Draft a ticket from a DM conversation, reading its recent messages.
+ *
+ * The social counterpart of FetchThreadTicketDraft, and quiet about
+ * failure for the same reason: the agent can still fill the form in.
+ */
+export const FetchSocialTicketDraft = createAsyncThunk(
+  "FetchSocialTicketDraft",
+  async (
+    { storeCode, userId }: { storeCode: string; userId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.metaSupportTicketDraft(userId)}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as SupportTicketDraft;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.info("Couldn't draft this one", {
+        description:
+          data?.data?.detail?.[0] ||
+          data?.message ||
+          "Fill the form in manually.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }

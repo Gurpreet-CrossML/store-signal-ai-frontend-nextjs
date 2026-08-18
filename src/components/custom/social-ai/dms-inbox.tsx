@@ -59,6 +59,7 @@ import {
   SocialDm,
   SocialDmAttachment,
   CreateSocialSupportTicket,
+  FetchSocialTicketDraft,
   fetchSocialAccountsSubscriptions,
   fetchSocialDms,
   fetchSocialUsers,
@@ -1388,6 +1389,18 @@ export default function DmsInbox({
             initialSubject={
               activeContactName ? `DM from ${activeContactName}` : ""
             }
+            onDraft={async () => {
+              if (!activeConversationId) return null;
+              const result = await dispatch(
+                FetchSocialTicketDraft({
+                  storeCode,
+                  userId: activeConversationId,
+                }),
+              );
+              return FetchSocialTicketDraft.fulfilled.match(result)
+                ? result.payload
+                : null;
+            }}
             // Addressed by the DM contact: the backend links the resolved
             // customer back to them, so the next ticket for this shopper
             // needs no retyping. It also sets the channel from the account,

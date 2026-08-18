@@ -55,7 +55,10 @@ import {
   UploadMessageAttachments,
   SyncOrders,
 } from "@/redux/api-slice/thread-slice";
-import { CreateSupportTicket } from "@/redux/api-slice/support-ticket-slice";
+import {
+  CreateSupportTicket,
+  FetchThreadTicketDraft,
+} from "@/redux/api-slice/support-ticket-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -1634,6 +1637,18 @@ export default function Support() {
                   } satisfies TicketCustomer)
                 : null
           }
+          onDraft={async () => {
+            if (!activeThreadId) return null;
+            const result = await dispatch(
+              FetchThreadTicketDraft({
+                storeCode,
+                threadId: activeThreadId,
+              }),
+            );
+            return FetchThreadTicketDraft.fulfilled.match(result)
+              ? result.payload
+              : null;
+          }}
           // Addressed by the open thread, which the backend stores on the
           // ticket — so the conversation that produced it stays reachable
           // from the help desk.
