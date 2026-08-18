@@ -26,12 +26,12 @@ import {
   chatThread,
   chatBotevent,
   chatCustomer,
-  aiInsights,
   sentimentAnalysis,
   sessionResolutionVerdict,
-  userMetadata,
+  aiInsights,
   storeAccess,
   fraudFlag,
+  userMetadata,
   scrapeLinkslinks,
   knowledgeStorelibrarydocument,
   chatCustomerorder,
@@ -377,11 +377,11 @@ export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
     references: [store.id],
   }),
   chatHistorys: many(chatHistory),
-  aiInsightss: many(aiInsights),
   sentimentAnalysiss: many(sentimentAnalysis),
   sessionResolutionVerdicts: many(sessionResolutionVerdict),
-  userMetadatas: many(userMetadata),
+  aiInsightss: many(aiInsights),
   fraudFlags: many(fraudFlag),
+  userMetadatas: many(userMetadata),
   supportTickets: many(supportTicket),
 }));
 
@@ -399,13 +399,6 @@ export const chatCustomerRelations = relations(chatCustomer, ({ many }) => ({
   supportTickets: many(supportTicket),
   socialUsers: many(socialUser),
   chatAddresss: many(chatAddress),
-}));
-
-export const aiInsightsRelations = relations(aiInsights, ({ one }) => ({
-  chatThread: one(chatThread, {
-    fields: [aiInsights.threadId],
-    references: [chatThread.id],
-  }),
 }));
 
 export const sentimentAnalysisRelations = relations(
@@ -432,9 +425,9 @@ export const sessionResolutionVerdictRelations = relations(
   }),
 );
 
-export const userMetadataRelations = relations(userMetadata, ({ one }) => ({
+export const aiInsightsRelations = relations(aiInsights, ({ one }) => ({
   chatThread: one(chatThread, {
-    fields: [userMetadata.threadId],
+    fields: [aiInsights.threadId],
     references: [chatThread.id],
   }),
 }));
@@ -463,6 +456,13 @@ export const fraudFlagRelations = relations(fraudFlag, ({ one }) => ({
   }),
   chatThread: one(chatThread, {
     fields: [fraudFlag.threadId],
+    references: [chatThread.id],
+  }),
+}));
+
+export const userMetadataRelations = relations(userMetadata, ({ one }) => ({
+  chatThread: one(chatThread, {
+    fields: [userMetadata.threadId],
     references: [chatThread.id],
   }),
 }));

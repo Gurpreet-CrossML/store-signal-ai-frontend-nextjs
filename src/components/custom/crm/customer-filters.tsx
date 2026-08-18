@@ -176,7 +176,7 @@ export function CustomerFilterPopover({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline" aria-label="Filter customers">
+        <Button variant="outline" aria-label="Filter Customers">
           <IconFilter className="size-4" />
           Filters
           {activeCount > 0 ? (
@@ -188,13 +188,13 @@ export function CustomerFilterPopover({
       </PopoverTrigger>
       <PopoverContent align="end" className="w-90 p-0">
         <div className="border-b px-4 py-3">
-          <CardTitle>Filter customers</CardTitle>
+          <CardTitle>Filter Customers</CardTitle>
         </div>
 
         <div className="max-h-[65vh] space-y-6 overflow-y-auto p-4">
           <FilterGroup title="Permissions">
             <TriStateRow
-              label="Email marketing"
+              label="Email Marketing"
               description="Opted in to email campaigns."
               value={filters.emailConsent}
               onChange={(emailConsent) =>
@@ -202,7 +202,7 @@ export function CustomerFilterPopover({
               }
             />
             <TriStateRow
-              label="SMS marketing"
+              label="SMS Marketing"
               description="Opted in to SMS and WhatsApp."
               value={filters.smsConsent}
               onChange={(smsConsent) =>
@@ -210,7 +210,7 @@ export function CustomerFilterPopover({
               }
             />
             <TriStateRow
-              label="Email verified"
+              label="Email Verified"
               description="Address confirmed by the platform."
               value={filters.emailVerified}
               onChange={(emailVerified) =>
@@ -230,9 +230,9 @@ export function CustomerFilterPopover({
             />
           </FilterGroup>
 
-          <FilterGroup title="Total spent">
+          <FilterGroup title="Total Spent">
             <RangeRow
-              label="Total spent"
+              label="Total Spent"
               min={filters.spentMin}
               max={filters.spentMax}
               onChange={({ min, max }) =>
@@ -241,7 +241,7 @@ export function CustomerFilterPopover({
             />
           </FilterGroup>
 
-          <FilterGroup title="Customer since">
+          <FilterGroup title="Customer Since">
             <DateRangePicker
               from={filters.registeredFrom}
               to={filters.registeredTo}
@@ -262,7 +262,7 @@ export function CustomerFilterPopover({
             <span />
           )}
           <Button size="sm" onClick={onApply}>
-            Apply filters
+            Apply Filters
           </Button>
         </div>
       </PopoverContent>

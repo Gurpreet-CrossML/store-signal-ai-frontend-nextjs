@@ -895,7 +895,6 @@ export const chatbotFeedback = pgTable(
     }),
     rating: varchar({ length: 10 }).notNull(),
     feedbackMessage: varchar("feedback_message", { length: 500 }),
-    conversationSummary: text("conversation_summary"),
     createdAt: timestamp("created_at", {
       withTimezone: true,
       mode: "string",
@@ -1128,48 +1127,6 @@ export const chatHistory = pgTable(
   ],
 );
 
-export const aiInsights = pgTable(
-  "ai_insights",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "ai_insights_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    underperformingCases: jsonb("underperforming_cases").notNull(),
-    overperformingCases: jsonb("overperforming_cases").notNull(),
-    resolutionSuccessRate: numeric("resolution_success_rate", {
-      precision: 5,
-      scale: 2,
-    }).notNull(),
-    reasonForScore: text("reason_for_score").notNull(),
-    tags: jsonb().notNull(),
-    aiInsightRequired: boolean("ai_insight_required").notNull(),
-    nextActionableItems: jsonb("next_actionable_items").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    threadId: uuid("thread_id").notNull(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.threadId],
-      foreignColumns: [chatThread.id],
-      name: "ai_insights_thread_id_ff0c2d42_fk_chat_thread_id",
-    }),
-    unique("ai_insights_thread_id_key").on(table.threadId),
-  ],
-);
-
 export const sentimentAnalysis = pgTable(
   "sentiment_analysis",
   {
@@ -1259,26 +1216,28 @@ export const sessionResolutionVerdict = pgTable(
   ],
 );
 
-export const userMetadata = pgTable(
-  "user_metadata",
+export const aiInsights = pgTable(
+  "ai_insights",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "user_metadata_id_seq",
+      name: "ai_insights_id_seq",
       startWith: 1,
       increment: 1,
       minValue: 1,
       maxValue: 9223372036854775807,
       cache: 1,
     }),
-    customerName: varchar("customer_name", { length: 255 }),
-    geoLocation: varchar("geo_location", { length: 255 }),
-    ipAddress: inet("ip_address"),
-    deviceType: varchar("device_type", { length: 100 }),
-    browser: varchar({ length: 100 }),
-    os: varchar({ length: 100 }),
-    initialCartData: jsonb("initial_cart_data").notNull(),
-    updatedCartData: jsonb("updated_cart_data").notNull(),
+    underperformingCases: jsonb("underperforming_cases").notNull(),
+    overperformingCases: jsonb("overperforming_cases").notNull(),
+    resolutionSuccessRate: numeric("resolution_success_rate", {
+      precision: 5,
+      scale: 2,
+    }).notNull(),
+    reasonForScore: text("reason_for_score").notNull(),
+    tags: jsonb().notNull(),
+    aiInsightRequired: boolean("ai_insight_required").notNull(),
+    nextActionableItems: jsonb("next_actionable_items").notNull(),
     createdAt: timestamp("created_at", {
       withTimezone: true,
       mode: "string",
@@ -1288,14 +1247,15 @@ export const userMetadata = pgTable(
       mode: "string",
     }).notNull(),
     threadId: uuid("thread_id").notNull(),
+    conversationSummary: text("conversation_summary"),
   },
   (table) => [
     foreignKey({
       columns: [table.threadId],
       foreignColumns: [chatThread.id],
-      name: "user_metadata_thread_id_368d9e3f_fk_chat_thread_id",
+      name: "ai_insights_thread_id_ff0c2d42_fk_chat_thread_id",
     }),
-    unique("user_metadata_thread_id_key").on(table.threadId),
+    unique("ai_insights_thread_id_key").on(table.threadId),
   ],
 );
 
@@ -1413,6 +1373,47 @@ export const fraudFlag = pgTable(
       foreignColumns: [chatThread.id],
       name: "fraud_flag_thread_id_f2c39240_fk_chat_thread_id",
     }),
+  ],
+);
+
+export const userMetadata = pgTable(
+  "user_metadata",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "user_metadata_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    customerName: varchar("customer_name", { length: 255 }),
+    geoLocation: varchar("geo_location", { length: 255 }),
+    ipAddress: inet("ip_address"),
+    deviceType: varchar("device_type", { length: 100 }),
+    browser: varchar({ length: 100 }),
+    os: varchar({ length: 100 }),
+    initialCartData: jsonb("initial_cart_data").notNull(),
+    updatedCartData: jsonb("updated_cart_data").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    threadId: uuid("thread_id").notNull(),
+    cartStatus: varchar("cart_status", { length: 20 }).notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.threadId],
+      foreignColumns: [chatThread.id],
+      name: "user_metadata_thread_id_368d9e3f_fk_chat_thread_id",
+    }),
+    unique("user_metadata_thread_id_key").on(table.threadId),
   ],
 );
 
@@ -1558,9 +1559,9 @@ export const chatCustomerorder = pgTable(
     shippingLines: jsonb("shipping_lines"),
     trackingCompany: varchar("tracking_company", { length: 100 }),
     trackingNumber: varchar("tracking_number", { length: 100 }),
-    trackingUrl: varchar("tracking_url", { length: 200 }),
-    orderStatusUrl: varchar("order_status_url", { length: 200 }).notNull(),
-    landingSite: varchar("landing_site", { length: 200 }).notNull(),
+    trackingUrl: varchar("tracking_url", { length: 1000 }),
+    orderStatusUrl: varchar("order_status_url", { length: 1000 }).notNull(),
+    landingSite: varchar("landing_site", { length: 2000 }).notNull(),
     tags: varchar({ length: 500 }).notNull(),
     note: text().notNull(),
     noteAttributes: jsonb("note_attributes"),

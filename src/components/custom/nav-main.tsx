@@ -1,7 +1,5 @@
 "use client";
 
-import { Icon, IconChevronRight } from "@tabler/icons-react";
-
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -9,9 +7,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
@@ -22,69 +17,6 @@ import {
   MainSidebarMenuItem,
   SideBarMenuItem,
 } from "@/lib/sidebar-navs";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-
-function CollapsibleMenuItem({
-  pathname,
-  title,
-  icon: ItemIcon,
-  defaultOpen,
-  items,
-}: {
-  pathname: string | null;
-  title: string;
-  icon?: Icon;
-  defaultOpen?: boolean;
-  items?: MainSidebarMenuItem[];
-}) {
-  return (
-    <Collapsible
-      asChild
-      defaultOpen={defaultOpen}
-      className="group/collapsible"
-    >
-      <SidebarMenuItem>
-        <CollapsibleTrigger asChild>
-          <SidebarMenuButton tooltip={title}>
-            {ItemIcon && <ItemIcon />}
-            <span>{title}</span>
-            <IconChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-          </SidebarMenuButton>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <SidebarMenuSub>
-            {items?.map((subItem) => (
-              <SidebarMenuSubItem key={subItem.title}>
-                <SidebarMenuSubButton
-                  isActive={isMenuItemActive(pathname, subItem.url)}
-                  className="data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15"
-                  asChild
-                >
-                  <Link href={subItem.url}>
-                    {subItem.icon && (
-                      <subItem.icon
-                        className={cn(
-                          isMenuItemActive(pathname, subItem.url)
-                            ? "text-primary!"
-                            : "",
-                        )}
-                      />
-                    )}
-                    <span>{subItem.title}</span>
-                  </Link>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            ))}
-          </SidebarMenuSub>
-        </CollapsibleContent>
-      </SidebarMenuItem>
-    </Collapsible>
-  );
-}
 
 export function SidebarMenuItemWrapper({
   item,
@@ -186,19 +118,6 @@ function NavMainContent({ items }: { items: MainSidebarMenuItem[] }) {
                   key={item.title}
                   item={item}
                   pathname={pathname}
-                />
-              );
-            }
-
-            if (item.items && item.items.length > 0) {
-              return (
-                <CollapsibleMenuItem
-                  key={item.title}
-                  pathname={pathname}
-                  title={item.title}
-                  icon={item.icon}
-                  defaultOpen={item.isExpanded}
-                  items={item.items}
                 />
               );
             }

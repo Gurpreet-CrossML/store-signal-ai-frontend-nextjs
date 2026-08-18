@@ -35,10 +35,14 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Typography } from "@/components/ui/typography";
+import { customerDisplayName } from "@/components/custom/crm/customers-columns";
 import {
-  customerDisplayName,
-  formatLocation,
-} from "@/components/custom/crm/customers-columns";
+  customerLocation,
+  customerOrderCount,
+  customerSince,
+  customerTotalSpent,
+  latestShippingAddress,
+} from "@/lib/customer-facts";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import { formatDateTime, formatPrice } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
@@ -210,7 +214,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
           <EmptyMedia>
             <IconBuildingStore />
           </EmptyMedia>
-          <EmptyTitle>Customer not found</EmptyTitle>
+          <EmptyTitle>Customer Not Found</EmptyTitle>
           <EmptyDescription>
             This customer may belong to another store, or have been removed.
           </EmptyDescription>
@@ -218,7 +222,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
         <Button variant="outline" asChild>
           <Link href="/crm/customers">
             <IconArrowLeft />
-            Back to customers
+            Back to Customers
           </Link>
         </Button>
       </Empty>
@@ -227,49 +231,23 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
 
   const name = customerDisplayName(customer);
   const addresses = customer.addresses ?? [];
-  const orderHistory = customer.orders ?? [];
 
-  // The platform's own aggregates are authoritative when it fills them in,
-  // but Shopify frequently leaves orders_count at 0 and total_spent at
-  // "0.0000" while sending the orders themselves. Trusting the aggregate
-  // alone showed a customer with twenty-five orders as having never
-  // bought anything.
-  const orders = customer.orders_count || orderHistory.length;
-  const spent =
-    Number(customer.total_spent ?? 0) ||
-    orderHistory.reduce(
-      (sum, order) => sum + Number(order.total_price ?? 0),
-      0,
-    );
-  const currency = orderHistory[0]?.currency ?? "USD";
-
-  // Same story for addresses: the address book can be empty while every
-  // order carries the address it shipped to.
-  const latestShipping = orderHistory.find(
-    (order) => order.shipping_address?.city || order.shipping_address?.address1,
-  )?.shipping_address;
-
-  const location =
-    formatLocation(
-      addresses.find((address) => address.default_shipping) ?? addresses[0],
-    ) ??
-    (latestShipping
-      ? [
-          [latestShipping.city, latestShipping.province]
-            .filter(Boolean)
-            .join(" "),
-          latestShipping.country,
-        ]
-          .filter(Boolean)
-          .join(", ")
-      : null);
+  // Shared with the listing: the same shopper must not read differently
+  // depending on whether you are looking at the table or the record. The
+  // fallbacks these apply — and why the platform's own figures need them —
+  // are documented in customer-facts.
+  const orders = customerOrderCount(customer);
+  const latestShipping = latestShippingAddress(customer);
+  const { amount: spent, currency } = customerTotalSpent(customer);
+  const location = customerLocation(customer);
+  const since = customerSince(customer);
 
   return (
     <div className="flex flex-col gap-6">
       <Button variant="ghost" size="sm" className="-ml-2 self-start" asChild>
         <Link href="/crm/customers">
           <IconArrowLeft />
-          All customers
+          All Customers
         </Link>
       </Button>
 
@@ -319,7 +297,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-4">
         <StatTile
           icon={IconWallet}
-          label="Total spent"
+          label="Total Spent"
           value={formatPrice(spent, currency)}
           hint={
             orders > 0
@@ -339,8 +317,8 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
             off as the same thing. */}
         <StatTile
           icon={IconCalendarPlus}
-          label={customer.registered_at ? "Customer since" : "First seen"}
-          value={formatDateTime(customer.registered_at ?? customer.created_at)}
+          label={since.registered ? "Customer Since" : "First Seen"}
+          value={formatDateTime(since.value)}
         />
         <StatTile icon={IconHome} label="Location" value={location ?? "—"} />
       </div>
@@ -411,7 +389,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <IconMessage className="size-4" />
-                Marketing permissions
+                Marketing Permissions
               </CardTitle>
               <CardDescription>
                 What this customer has agreed to receive.
@@ -435,7 +413,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <IconBuildingStore className="size-4" />
-                Store record
+                Store Record
               </CardTitle>
               <CardDescription>
                 How this customer is identified on your platform.

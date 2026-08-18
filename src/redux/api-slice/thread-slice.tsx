@@ -13,6 +13,22 @@ type ThreadFilters = {
   has_ticket?: boolean;
   has_feedback?: boolean;
   feedback_rating?: string;
+  tags?: (string | ThreadTagData)[];
+  handled_by?: string;
+};
+
+/**
+ * A tag as the threads endpoints return it.
+ *
+ * Declared here rather than imported from the support-ticket slice, which
+ * already imports from this file — the shape is identical, so `TagBadge`
+ * takes either without a conversion.
+ */
+export type ThreadTagData = {
+  id?: number;
+  name: string;
+  color: string;
+  description: string;
 };
 
 export type FeedbackEntry = {
@@ -48,7 +64,7 @@ export type Thread = {
   total_messages: number;
   created_at: string;
   ended_at: string | null;
-  tags?: string[];
+  tags?: (string | ThreadTagData)[];
   last_message?: string | null;
 };
 
@@ -155,7 +171,7 @@ export type ThreadDetails = {
   store: number;
   customer_name: string | null;
   customer_email: string | null;
-  /** Identity only — enough to link the thread to its CRM record. */
+  /** Identity only — enough to link the thread to its Catalog record. */
   customer: { id: number } | null;
   is_active: boolean;
   total_messages: number;
@@ -468,6 +484,31 @@ export const FetchTags = createAsyncThunk(
   },
 );
 
+/** Distinct tags across a store's threads, for the Threads page tags filter. */
+export const FetchThreadTagOptions = createAsyncThunk(
+  "ThreadTagOptions",
+  async ({ store_code }: { store_code?: string } = {}, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        ENDPOINTS.fetchThreadTagOptions(),
+        { params: { store_code } },
+      );
+      return response.data.data as string[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch tag options, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 export const FetchAIInsight = createAsyncThunk(
   "AIInsight",
   async (threadId: string, thunkAPI) => {
@@ -648,28 +689,6 @@ export const FetchOrders = createAsyncThunk(
   },
 );
 
-export const SyncOrders = createAsyncThunk(
-  "SyncOrders",
-  async ({ threadID }: { threadID: string }, thunkAPI) => {
-    try {
-      const response = await axiosInstance.post(ENDPOINTS.syncOrders(threadID));
-      const data = response.data.data;
-
-      return data;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Could not sync orders. Please try again later.",
-      });
-
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
-
 const ThreadSlice = createSlice({
   name: "Thread",
   initialState: {
@@ -714,6 +733,12 @@ const ThreadSlice = createSlice({
       FetchTagsIsError: null as null | string | object | unknown,
       FetchTags: [] as string[],
     },
+    FetchThreadTagOptionsState: {
+      FetchThreadTagOptionsIsLoading: false,
+      FetchThreadTagOptionsIsSuccess: false,
+      FetchThreadTagOptionsIsError: null as null | string | object | unknown,
+      FetchThreadTagOptionsData: [] as string[],
+    },
     FetchAIInsightState: {
       FetchAIInsightIsLoading: false,
       FetchAIInsightIsSuccess: false,
@@ -742,11 +767,6 @@ const ThreadSlice = createSlice({
       FetchOrderDataIsSuccess: false,
       FetchOrderDataIsError: null as null | string | object | unknown,
       FetchOrderData: [] as OrderData[],
-    },
-    SyncOrdersState: {
-      SyncOrdersIsLoading: false,
-      SyncOrdersIsSuccess: false,
-      SyncOrdersIsError: null as null | string | object | unknown,
     },
   },
   reducers: {},
@@ -848,6 +868,23 @@ const ThreadSlice = createSlice({
         state.FetchTagsState.FetchTagsIsError = action.payload;
         state.FetchTagsState.FetchTagsIsSuccess = false;
       })
+      .addCase(FetchThreadTagOptions.pending, (state) => {
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsLoading = true;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsError = null;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsSuccess = false;
+      })
+      .addCase(FetchThreadTagOptions.fulfilled, (state, action) => {
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsLoading = false;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsData =
+          action.payload;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsSuccess = true;
+      })
+      .addCase(FetchThreadTagOptions.rejected, (state, action) => {
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsLoading = false;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsError =
+          action.payload;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsSuccess = false;
+      })
       .addCase(FetchAIInsight.pending, (state) => {
         state.FetchAIInsightState.FetchAIInsightIsLoading = true;
         state.FetchAIInsightState.FetchAIInsightIsError = null;
@@ -925,20 +962,6 @@ const ThreadSlice = createSlice({
         state.FetchOrderDataState.FetchOrderDataIsLoading = false;
         state.FetchOrderDataState.FetchOrderDataIsError = action.payload;
         state.FetchOrderDataState.FetchOrderDataIsSuccess = false;
-      })
-      .addCase(SyncOrders.pending, (state) => {
-        state.SyncOrdersState.SyncOrdersIsLoading = true;
-        state.SyncOrdersState.SyncOrdersIsError = null;
-        state.SyncOrdersState.SyncOrdersIsSuccess = false;
-      })
-      .addCase(SyncOrders.fulfilled, (state) => {
-        state.SyncOrdersState.SyncOrdersIsLoading = false;
-        state.SyncOrdersState.SyncOrdersIsSuccess = true;
-      })
-      .addCase(SyncOrders.rejected, (state, action) => {
-        state.SyncOrdersState.SyncOrdersIsLoading = false;
-        state.SyncOrdersState.SyncOrdersIsError = action.payload;
-        state.SyncOrdersState.SyncOrdersIsSuccess = false;
       });
   },
 });

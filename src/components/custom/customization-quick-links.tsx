@@ -142,7 +142,7 @@ export default function CustomizationQuickLinks({
             These labels show inside the chatbot and open the link URL.
           </p>
           <Button type="button" variant="outline" size="sm" onClick={onAdd}>
-            Add link
+            Add Link
           </Button>
         </div>
         {/* Whatever the server rejected among this card's fields.
