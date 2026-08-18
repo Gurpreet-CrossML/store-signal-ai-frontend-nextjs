@@ -32,6 +32,9 @@ import {
   IconVolume,
   type Icon,
   IconChartBar,
+  IconAutomaticGearbox,
+  IconPackageImport,
+  IconShoppingBagEdit,
 } from "@tabler/icons-react";
 
 /**
@@ -203,6 +206,44 @@ export const NAV_AREAS = {
         pageDescription:
           "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
         icon: IconBrandMeta,
+      },
+      {
+        href: "/settings/workflows",
+        title: "Workflows",
+        description:
+          "The rules the AI follows for order cancellation, modification, and returns.",
+        pageDescription:
+          "The rules and guardrails the AI follows when it cancels, modifies, or refunds an order on your behalf.",
+        icon: IconAutomaticGearbox,
+        items: [
+          {
+            href: "/settings/workflows/order-cancellation",
+            title: "Order Cancellation",
+            description:
+              "The rules the AI follows when it cancels an order on your behalf.",
+            pageDescription:
+              "The rules and guardrails the AI follows when it cancels an order on your behalf.",
+            icon: IconPackageOff,
+          },
+          {
+            href: "/settings/workflows/order-modification",
+            title: "Order Modification",
+            description:
+              "The rules the AI follows when it modifies an order on your behalf.",
+            pageDescription:
+              "The rules and guardrails the AI follows when it modifies an order on your behalf.",
+            icon: IconShoppingBagEdit,
+          },
+          {
+            href: "/settings/workflows/order-returns",
+            title: "Order Returns",
+            description:
+              "The rules the AI follows when it processes a return on your behalf.",
+            pageDescription:
+              "The rules and guardrails the AI follows when it processes a return on your behalf.",
+            icon: IconPackageImport,
+          },
+        ],
       },
     ],
   },

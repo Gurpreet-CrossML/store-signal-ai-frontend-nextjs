@@ -15,6 +15,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { EXPANDED_MENU_BUTTON } from "@/components/custom/nav-main";
 import { isMenuItemActive, type SideBarMenuItem } from "@/lib/sidebar-navs";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +56,7 @@ export function CollapsibleMenuItem({
           <SidebarMenuButton
             // No tooltip: the label is right there. Tooltips exist to name
             // an icon that has none.
-            className="group-data-[collapsible=icon]:mx-0 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:[&_svg]:size-4"
+            className={cn("w-full", EXPANDED_MENU_BUTTON)}
           >
             {ItemIcon && <ItemIcon />}
             <span>{title}</span>
