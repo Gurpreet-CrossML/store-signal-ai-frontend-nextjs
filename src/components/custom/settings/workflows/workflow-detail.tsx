@@ -1,7 +1,6 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import { cn } from "@/lib/utils";
@@ -31,82 +30,65 @@ export function WorkflowDetail({
   const tone = RISK_TONE[workflow.risk];
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <header className="flex h-16 shrink-0 items-center gap-3 border-b bg-background px-6">
-        <div
-          className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-lg",
-            BADGE_TONE_STYLES[tone],
-          )}
+    // No header of its own and no scroller of its own: the page shell
+    // supplies the heading, the padding and the page's scroll, the same
+    // way every other settings screen gets them. This used to be a
+    // full-height pane with its own h-16 bar, left over from when the
+    // three workflows shared one route behind an in-page list — which
+    // gave the screen two titles and a column of content marooned in the
+    // middle of an empty page.
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
+        <Typography variant="muted">{workflow.description}</Typography>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            variant="outline"
+            className={cn("uppercase", BADGE_TONE_STYLES[tone])}
+          >
+            <Icon data-icon="inline-start" />
+            {workflow.risk} risk
+          </Badge>
+          <Typography variant="caption">{workflow.riskNote}</Typography>
+        </div>
+        <Typography
+          variant="caption"
+          className="rounded-md border bg-muted/40 px-3 py-2"
         >
-          <Icon className="size-5" />
-        </div>
-        <div className="min-w-0">
-          <CardTitle className="truncate leading-tight">
-            {workflow.title}
-          </CardTitle>
-          <Typography variant="muted" className="truncate">
-            Rules the AI follows when acting on an order
+          {workflow.autonomyNote}
+        </Typography>
+      </div>
+
+      {workflow.sections.map((section) => (
+        <WorkflowSectionCard
+          key={section.id}
+          section={section}
+          onToggleSection={onSectionToggle}
+          onGateChange={onGateChange}
+        />
+      ))}
+
+      {workflow.branches && workflow.branches.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <Typography variant="small" as="h3">
+            Branch by Return Reason
           </Typography>
-        </div>
-      </header>
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-3xl flex-col gap-5 p-6">
-          <div className="flex flex-col gap-3">
-            <Typography variant="muted">{workflow.description}</Typography>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                variant="outline"
-                className={cn(
-                  "text-[10px] font-semibold uppercase tracking-wide",
-                  BADGE_TONE_STYLES[tone],
-                )}
-              >
-                {workflow.risk} risk
-              </Badge>
-              <Typography variant="caption">{workflow.riskNote}</Typography>
-            </div>
-            <Typography
-              variant="caption"
-              className="rounded-md border bg-muted/40 px-3 py-2"
-            >
-              {workflow.autonomyNote}
-            </Typography>
-          </div>
-
-          {workflow.sections.map((section, index) => (
-            <WorkflowSectionCard
-              key={section.id}
-              section={section}
-              index={index + 1}
-              onToggleSection={onSectionToggle}
+          {workflow.branches.map((branch) => (
+            <WorkflowBranchCard
+              key={branch.id}
+              branch={branch}
               onGateChange={onGateChange}
             />
           ))}
-
-          {workflow.branches && workflow.branches.length > 0 && (
-            <div className="flex flex-col gap-3">
-              <Typography variant="small">Branch by return reason</Typography>
-              {workflow.branches.map((branch) => (
-                <WorkflowBranchCard
-                  key={branch.id}
-                  branch={branch}
-                  onGateChange={onGateChange}
-                />
-              ))}
-            </div>
-          )}
-
-          {workflow.callouts.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {workflow.callouts.map((callout, index) => (
-                <WorkflowCalloutBox key={index} callout={callout} />
-              ))}
-            </div>
-          )}
         </div>
-      </div>
+      )}
+
+      {workflow.callouts.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {workflow.callouts.map((callout, index) => (
+            <WorkflowCalloutBox key={index} callout={callout} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
+import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 import type { WorkflowCallout } from "@/lib/workflow-types";
 
@@ -11,14 +12,18 @@ const CALLOUT_TONE = {
 /** A tone-colored summary banner — the "what this all adds up to" note at the bottom of a workflow. */
 export function WorkflowCalloutBox({ callout }: { callout: WorkflowCallout }) {
   return (
-    <div
+    <Typography
+      variant="caption"
+      as="p"
+      // The tone class carries the text colour, so `caption`'s muted
+      // default has to give way to it.
       className={cn(
-        "rounded-lg border px-4 py-3 text-xs leading-relaxed",
+        "rounded-lg border px-4 py-3 leading-relaxed text-inherit",
         CALLOUT_TONE[callout.tone],
       )}
     >
       <span className="font-semibold">{callout.title}: </span>
       {callout.body}
-    </div>
+    </Typography>
   );
 }

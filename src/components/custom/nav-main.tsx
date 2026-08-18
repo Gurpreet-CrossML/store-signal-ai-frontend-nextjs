@@ -18,6 +18,20 @@ import {
   SideBarMenuItem,
 } from "@/lib/sidebar-navs";
 
+/**
+ * Opt a menu button out of the sidebar's icon-mode rules.
+ *
+ * The whole sidebar is pinned collapsed, so every button inside inherits
+ * `size-9!` and a clipped label — fine on the icon rail, wrong in the
+ * sub-sidebar, which has the width. Height and width are both `!` here:
+ * the earlier `size-auto!` set `width: auto !important`, which beat the
+ * plain `w-full` beside it and left every row shrunk to its own text.
+ *
+ * Shared so the plain rows and the collapsible groups cannot drift apart.
+ */
+export const EXPANDED_MENU_BUTTON =
+  "group-data-[collapsible=icon]:mx-0 group-data-[collapsible=icon]:h-8! group-data-[collapsible=icon]:w-full! group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:[&_svg]:size-4";
+
 export function SidebarMenuItemWrapper({
   item,
   pathname,
@@ -53,8 +67,7 @@ export function SidebarMenuItemWrapper({
         isActive={active}
         className={cn(
           "data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15 data-[active=true]:hover:text-primary",
-          expanded &&
-            "group-data-[collapsible=icon]:mx-0 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:[&_svg]:size-4",
+          expanded && EXPANDED_MENU_BUTTON,
         )}
         asChild
       >

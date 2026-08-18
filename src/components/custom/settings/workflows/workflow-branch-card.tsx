@@ -26,13 +26,10 @@ export function WorkflowBranchCard({
   return (
     <Card size="sm">
       <CardHeader>
-        <CardTitle className="flex flex-wrap items-center gap-2 text-sm">
+        <CardTitle className="flex flex-wrap items-center gap-2">
           <Badge
             variant="outline"
-            className={cn(
-              "text-[10px] font-semibold uppercase tracking-wide",
-              BADGE_TONE_STYLES.warning,
-            )}
+            className={cn("uppercase", BADGE_TONE_STYLES.warning)}
           >
             Reason
           </Badge>

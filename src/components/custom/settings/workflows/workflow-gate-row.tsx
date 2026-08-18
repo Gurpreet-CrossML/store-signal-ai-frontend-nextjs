@@ -40,30 +40,28 @@ export function WorkflowGateRow({
       )}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
+        <Typography
+          variant="small"
+          as="span"
+          className="flex flex-wrap items-center gap-2"
+        >
           {gate.title}
           {gate.locked && (
-            <Badge
-              variant="secondary"
-              className="text-[10px] font-semibold uppercase tracking-wide"
-            >
-              Always on
+            <Badge variant="secondary" className="uppercase">
+              Always On
             </Badge>
           )}
           {gate.recommended && (
             <Badge
               variant="outline"
-              className={cn(
-                "text-[10px] font-semibold uppercase tracking-wide",
-                BADGE_TONE_STYLES.success,
-              )}
+              className={cn("uppercase", BADGE_TONE_STYLES.success)}
             >
               Recommended
             </Badge>
           )}
-        </span>
+        </Typography>
         {gate.description && (
-          <Typography variant="muted" className="text-xs leading-relaxed">
+          <Typography variant="caption" as="p" className="leading-relaxed">
             {gate.description}
           </Typography>
         )}

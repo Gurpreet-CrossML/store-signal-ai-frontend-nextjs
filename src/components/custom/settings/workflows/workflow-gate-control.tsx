@@ -29,15 +29,13 @@ export function WorkflowGateControlView({
   if (control.kind === "select") {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <Typography variant="muted" className="text-xs">
-          {control.label}
-        </Typography>
+        <Typography variant="caption">{control.label}</Typography>
         <Select
           value={control.value}
           disabled={disabled}
           onValueChange={(value) => onChange({ controlValue: value })}
         >
-          <SelectTrigger size="sm" className="h-8 w-fit text-xs">
+          <SelectTrigger size="sm" className="w-fit">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -55,17 +53,12 @@ export function WorkflowGateControlView({
   if (control.kind === "number" || control.kind === "text") {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <Typography variant="muted" className="text-xs">
-          {control.label}
-        </Typography>
+        <Typography variant="caption">{control.label}</Typography>
         <Input
           value={control.value}
           disabled={disabled}
           onChange={(event) => onChange({ controlValue: event.target.value })}
-          className={cn(
-            "h-8 text-xs",
-            control.kind === "number" ? "w-20" : "w-72",
-          )}
+          className={cn("h-8", control.kind === "number" ? "w-20" : "w-72")}
         />
         {control.kind === "number" && control.suffix && (
           <Typography variant="caption">{control.suffix}</Typography>
@@ -77,9 +70,7 @@ export function WorkflowGateControlView({
   // chips
   return (
     <div className="flex flex-col gap-2">
-      <Typography variant="muted" className="text-xs">
-        {control.label}
-      </Typography>
+      <Typography variant="caption">{control.label}</Typography>
       <ChipList
         items={control.values}
         disabled={disabled}

@@ -1,24 +1,12 @@
-import { Suspense } from "react";
-
-import SettingsWorkflows from "@/clients/settings-workflows";
-import { areaSectionMetadata } from "@/lib/nav-areas";
-
-const HREF = "/settings/workflows";
+import { redirect } from "next/navigation";
 
 /**
- * Rendered per request. Which workflow is open lives in the query string
- * (?workflow), and a statically prerendered page is served from the client
- * router cache for the path alone — so changing only the query could leave
- * the previous view on screen.
+ * Workflows has no screen of its own — it is a heading over three.
+ *
+ * The sub-sidebar renders it as a collapsible trigger rather than a link,
+ * so this path is only reached by typing it or by an older bookmark. Land
+ * on the first workflow rather than a blank page.
  */
-export const dynamic = "force-dynamic";
-
-export const metadata = areaSectionMetadata(HREF);
-
 export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <SettingsWorkflows />
-    </Suspense>
-  );
+  redirect("/settings/workflows/order-cancellation");
 }

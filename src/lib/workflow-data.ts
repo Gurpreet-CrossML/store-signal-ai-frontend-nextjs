@@ -31,7 +31,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
     sections: [
       {
         id: "status-gate",
-        title: "Order-status gate",
+        title: "Order-Status Gate",
         subtitle:
           "The master check — cancellation logic forks on where the order is in fulfilment",
         enabled: true,
@@ -86,7 +86,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
       },
       {
         id: "eligibility",
-        title: "Eligibility conditions",
+        title: "Eligibility Conditions",
         subtitle: "Additional checks once status allows a cancellation",
         enabled: true,
         gates: [
@@ -110,7 +110,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
             enabled: true,
             control: {
               kind: "chips",
-              label: "Eligible payment types",
+              label: "Eligible Payment Types",
               values: [
                 "Prepaid — refund to source",
                 "COD — void, no refund needed",
@@ -125,7 +125,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
             enabled: true,
             control: {
               kind: "chips",
-              label: "Restricted types",
+              label: "Restricted Types",
               values: [
                 "Made-to-order items",
                 "Customised / personalised items",
@@ -151,7 +151,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
       },
       {
         id: "partial-cancel",
-        title: "Partial cancellation",
+        title: "Partial Cancellation",
         subtitle: "Multi-item orders — cancel some lines, keep the rest",
         enabled: true,
         gates: [
@@ -184,7 +184,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
       },
       {
         id: "refund-handling",
-        title: "Refund handling",
+        title: "Refund Handling",
         subtitle: "How the money goes back once a cancellation is approved",
         enabled: true,
         gates: [
@@ -237,7 +237,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
     callouts: [
       {
         tone: "info",
-        title: "Autonomy summary",
+        title: "Autonomy Summary",
         body: "If the order is pre-dispatch, within the cancellation window, not a restricted type, and the fraud check passes, the AI cancels and refunds on its own. A dispatched, delivered, restricted, or flagged order is confirmed with the customer or escalated.",
       },
     ],
@@ -256,7 +256,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
     sections: [
       {
         id: "status-gate",
-        title: "Order-status gate",
+        title: "Order-Status Gate",
         subtitle:
           "Modification is only ever possible before an order leaves the warehouse",
         enabled: true,
@@ -290,7 +290,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
       },
       {
         id: "modifiable",
-        title: "What can be modified",
+        title: "What Can Be Modified",
         subtitle:
           "Each change type has different downstream effects — enable per your operations",
         enabled: true,
@@ -333,7 +333,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
       },
       {
         id: "stock-recheck",
-        title: "Stock & availability re-check",
+        title: "Stock & Availability Re-check",
         subtitle:
           "The check a cancellation never needs, since modification always re-validates inventory",
         enabled: true,
@@ -358,7 +358,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
       },
       {
         id: "price-difference",
-        title: "Price-difference handling",
+        title: "Price-Difference Handling",
         subtitle: "Unique to modification — money can move in either direction",
         enabled: true,
         gates: [
@@ -418,7 +418,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
     callouts: [
       {
         tone: "warning",
-        title: "Why this differs from cancellation",
+        title: "Why This Differs From Cancellation",
         body: "A cancellation just reverses. A modification re-checks live stock, re-prices, and settles a difference in either direction — two gates cancellation doesn't need. Only the price-neutral, in-stock, pre-dispatch case is fully autonomous.",
       },
     ],
@@ -437,7 +437,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
     sections: [
       {
         id: "eligibility",
-        title: "Basic return eligibility",
+        title: "Basic Return Eligibility",
         subtitle: "Order-level checks before any reason-specific logic",
         enabled: true,
         gates: [
@@ -469,7 +469,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
             locked: true,
             control: {
               kind: "chips",
-              label: "Non-returnable categories",
+              label: "Non-Returnable Categories",
               values: [
                 "Innerwear & intimates",
                 "Opened / used cosmetics",
@@ -505,7 +505,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
       },
       {
         id: "refund-calculation",
-        title: "Refund calculation & method",
+        title: "Refund Calculation & Method",
         subtitle: "Once approved, exactly how much goes back and how",
         enabled: true,
         gates: [
@@ -533,7 +533,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
             enabled: true,
             control: {
               kind: "chips",
-              label: "Offered methods",
+              label: "Offered Methods",
               values: [
                 "Store credit — instant",
                 "Original method — 3–5 days",
@@ -574,7 +574,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
       },
       {
         id: "reverse-logistics",
-        title: "Reverse logistics",
+        title: "Reverse Logistics",
         subtitle: "Getting the item back — or deciding not to",
         enabled: true,
         gates: [
@@ -739,7 +739,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
     callouts: [
       {
         tone: "danger",
-        title: "Why this is the hardest workflow",
+        title: "Why This Is the Hardest Workflow",
         body: "It branches on reason, gates on category, moves money out, and carries the largest fraud surface. Autonomy is earned narrowly — low-value, trusted-customer, clear-cut cases resolve automatically; everything else gets verification or a human.",
       },
     ],
