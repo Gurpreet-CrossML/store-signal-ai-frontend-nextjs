@@ -1468,7 +1468,6 @@ export default function HelpDesk() {
 
   const dispatch = useAppDispatch();
   const { data: session } = useSession();
-  const router = useRouter();
 
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
