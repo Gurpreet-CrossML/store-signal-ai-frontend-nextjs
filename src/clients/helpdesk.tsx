@@ -1853,10 +1853,13 @@ export default function HelpDesk() {
             }
           } else if (payload.type === "customer_message") {
             // Displays a notification when a customer sends a new message on a ticket.
-            // The payload data is populated by support/signals.py which extracts the 
+            // The payload data is populated by support/signals.py which extracts the
             // message text directly from the SupportTicketMessage instance.
             const title = "Customer Reply on Ticket #" + agentData.ticket_id;
-            const body = agentData.message || agentData.subject || "A customer replied to their ticket.";
+            const body =
+              agentData.message ||
+              agentData.subject ||
+              "A customer replied to their ticket.";
             const handleClick = () =>
               setActiveTicketId(Number(agentData.ticket_id));
 

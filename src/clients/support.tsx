@@ -320,13 +320,15 @@ function ThreadChatControls({
                             width={32}
                             height={32}
                             unoptimized
-                            className={`h-8 w-8 rounded-lg object-cover ${isUploading ? "opacity-40" : ""
-                              } ${isError ? "opacity-60" : ""}`}
+                            className={`h-8 w-8 rounded-lg object-cover ${
+                              isUploading ? "opacity-40" : ""
+                            } ${isError ? "opacity-60" : ""}`}
                           />
                         ) : (
                           <div
-                            className={`flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 ${isUploading ? "opacity-40" : ""
-                              }`}
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 ${
+                              isUploading ? "opacity-40" : ""
+                            }`}
                           >
                             <IconPaperclip className="h-4 w-4" />
                           </div>
@@ -1205,7 +1207,7 @@ export default function Support() {
       console.info("Dashboard socket disconnected");
     };
 
-    dashboardWs.onerror = () => { };
+    dashboardWs.onerror = () => {};
 
     return () => {
       dashboardWs.close();
@@ -1330,7 +1332,8 @@ export default function Support() {
         return;
       }
       console.warn(
-        `Live chat socket closed unexpectedly (${event.code}${event.reason ? `: ${event.reason}` : ""
+        `Live chat socket closed unexpectedly (${event.code}${
+          event.reason ? `: ${event.reason}` : ""
         })`,
       );
     };
