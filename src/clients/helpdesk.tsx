@@ -1851,7 +1851,8 @@ export default function HelpDesk() {
 
         if (
           payload.type === "ticket_created" ||
-          payload.type === "live_support_message"
+          payload.type === "live_support_message" ||
+          payload.type === "customer_message"
         ) {
           const agentData = payload.data;
           if (!agentData) return;
@@ -1877,15 +1878,32 @@ export default function HelpDesk() {
                 notif.close();
               };
             } else {
-              const tId = toast(title, {
+              toast(title, {
                 description: body,
-                action: {
-                  label: "View",
-                  onClick: () => {
-                    handleClick();
-                    toast.dismiss(tId);
-                  },
-                },
+              });
+            }
+          } else if (payload.type === "customer_message") {
+            // Displays a notification when a customer sends a new message on a ticket.
+            // The payload data is populated by support/signals.py which extracts the 
+            // message text directly from the SupportTicketMessage instance.
+            const title = "Customer Reply on Ticket #" + agentData.ticket_id;
+            const body = agentData.message || agentData.subject || "A customer replied to their ticket.";
+            const handleClick = () =>
+              setActiveTicketId(Number(agentData.ticket_id));
+
+            if (isNativeGranted) {
+              const notif = new Notification(title, {
+                body,
+                icon: "/favicon.ico",
+              });
+              notif.onclick = () => {
+                window.focus();
+                handleClick();
+                notif.close();
+              };
+            } else {
+              toast(title, {
+                description: body,
               });
             }
           } else if (payload.type === "live_support_message") {
@@ -1908,15 +1926,8 @@ export default function HelpDesk() {
                 notif.close();
               };
             } else {
-              const tId = toast(title, {
+              toast(title, {
                 description: body,
-                action: {
-                  label: "View",
-                  onClick: () => {
-                    handleClick();
-                    toast.dismiss(tId);
-                  },
-                },
               });
             }
           }

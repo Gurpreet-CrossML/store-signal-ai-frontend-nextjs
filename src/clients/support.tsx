@@ -314,15 +314,13 @@ function ThreadChatControls({
                             width={32}
                             height={32}
                             unoptimized
-                            className={`h-8 w-8 rounded-lg object-cover ${
-                              isUploading ? "opacity-40" : ""
-                            } ${isError ? "opacity-60" : ""}`}
+                            className={`h-8 w-8 rounded-lg object-cover ${isUploading ? "opacity-40" : ""
+                              } ${isError ? "opacity-60" : ""}`}
                           />
                         ) : (
                           <div
-                            className={`flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 ${
-                              isUploading ? "opacity-40" : ""
-                            }`}
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 ${isUploading ? "opacity-40" : ""
+                              }`}
                           >
                             <IconPaperclip className="h-4 w-4" />
                           </div>
@@ -513,6 +511,16 @@ type DashboardSocketPayload =
       success: boolean;
       action_type: "thread_closed";
       data: { thread_id: string };
+    }
+  | {
+      type: "live_support_message";
+      data: {
+        conversation_id: string;
+        store_code: string;
+        message: string;
+        customer_name: string;
+        created_at: string;
+      };
     };
 
 const useNotificationSound = (soundUrl: string = "/notification_sound.mp3") => {
@@ -1124,21 +1132,62 @@ export default function Support() {
         return;
       }
 
-      if (!data?.success) {
+      // Intercept agent_events like live_support_message before checking data.success
+      // because agent_events do not have a success envelope.
+      // Note: We deliberately DO NOT handle 'customer_message' or 'ticket_created'
+      // here because this Active Chats screen should only notify about live chat.
+      if ("type" in data && data.type === "live_support_message") {
+        const agentData = data.data;
+        if (!agentData) return;
+
+        const isNativeGranted =
+          typeof Notification !== "undefined" &&
+          Notification.permission === "granted";
+
+        const title =
+          "Live Message from " + (agentData.customer_name || "Customer");
+        const body = agentData.message || "";
+        const handleClick = () =>
+          router.push(
+            `/support/${agentData.store_code}?chat=${agentData.conversation_id}`,
+          );
+
+        if (isNativeGranted) {
+          const notif = new Notification(title, {
+            body,
+            icon: "/favicon.ico",
+          });
+          notif.onclick = () => {
+            window.focus();
+            handleClick();
+            notif.close();
+          };
+        } else {
+          toast(title, {
+            description: body,
+          });
+        }
         return;
       }
 
-      if (data.action_type === "connection") {
+      if ("success" in data && !data.success) {
         return;
       }
 
-      if (data.action_type === "message") {
-        upsertThreadFromMessage(data.data);
-        return;
-      }
+      if ("action_type" in data) {
+        if (data.action_type === "connection") {
+          return;
+        }
 
-      if (data.action_type === "thread_closed") {
-        removeClosedThread(data.data.thread_id);
+        if (data.action_type === "message") {
+          upsertThreadFromMessage(data.data as DashboardMessageEvent);
+          return;
+        }
+
+        if (data.action_type === "thread_closed") {
+          const threadClosedData = data.data as { thread_id: string };
+          removeClosedThread(threadClosedData.thread_id);
+        }
       }
     };
 
@@ -1149,7 +1198,7 @@ export default function Support() {
       console.info("Dashboard socket disconnected");
     };
 
-    dashboardWs.onerror = () => {};
+    dashboardWs.onerror = () => { };
 
     return () => {
       dashboardWs.close();
@@ -1274,8 +1323,7 @@ export default function Support() {
         return;
       }
       console.warn(
-        `Live chat socket closed unexpectedly (${event.code}${
-          event.reason ? `: ${event.reason}` : ""
+        `Live chat socket closed unexpectedly (${event.code}${event.reason ? `: ${event.reason}` : ""
         })`,
       );
     };
