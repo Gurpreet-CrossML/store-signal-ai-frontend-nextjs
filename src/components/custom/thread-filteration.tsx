@@ -12,6 +12,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/components/ui/combobox";
 import { FEEDBACK_RATINGS, type FeedbackRatingValue } from "@/lib/config";
 
 export type FeedbackRating = "" | FeedbackRatingValue;
@@ -23,6 +35,8 @@ export type ThreadFilterState = {
   has_ticket: "" | "true" | "false";
   has_feedback: "" | "true" | "false";
   feedback_rating: FeedbackRating;
+  tags: string[];
+  handled_by: "" | "ai" | "human";
   from: string;
   to: string;
 };
@@ -34,6 +48,8 @@ export const DEFAULT_THREAD_FILTERS: ThreadFilterState = {
   has_ticket: "",
   has_feedback: "",
   feedback_rating: "",
+  tags: [],
+  handled_by: "",
   from: "",
   to: "",
 };
@@ -42,6 +58,8 @@ type ThreadFilterationProps = {
   filters: ThreadFilterState;
   onChange: (filters: ThreadFilterState) => void;
   onClear: () => void;
+  tagOptions: string[];
+  isLoadingTagOptions?: boolean;
 };
 
 // Radix Select forbids empty-string item values, so "All" uses a sentinel
@@ -78,10 +96,73 @@ function FilterSelect({
   );
 }
 
+// Multi-select combobox for an "any of the selected values" filter. Filtering
+// happens server-side; this just lets the user build the selection. Options
+// are plain strings (the filter value); `labelFor` maps a value to its
+// display text when that differs (e.g. workflow slugs -> readable labels).
+function MultiSelectFilter({
+  options,
+  value,
+  onChange,
+  labelFor = (option) => option,
+  placeholder,
+  emptyText,
+  isLoading,
+}: {
+  options: string[];
+  value: string[];
+  onChange: (value: string[]) => void;
+  labelFor?: (option: string) => string;
+  placeholder: string;
+  emptyText: string;
+  isLoading?: boolean;
+}) {
+  const anchor = useComboboxAnchor();
+
+  return (
+    <Combobox
+      multiple
+      autoHighlight
+      items={options}
+      value={value}
+      onValueChange={onChange}
+    >
+      <ComboboxChips ref={anchor} className="w-56">
+        <ComboboxValue>
+          {(selected) => (
+            <>
+              {(selected as string[]).map((item) => (
+                <ComboboxChip key={item}>{labelFor(item)}</ComboboxChip>
+              ))}
+              <ComboboxChipsInput
+                placeholder={
+                  value.length ? "" : isLoading ? "Loading…" : placeholder
+                }
+              />
+            </>
+          )}
+        </ComboboxValue>
+      </ComboboxChips>
+      <ComboboxContent anchor={anchor}>
+        <ComboboxEmpty>{isLoading ? "Loading…" : emptyText}</ComboboxEmpty>
+        <ComboboxList>
+          {(item) => (
+            <ComboboxItem key={item} value={item}>
+              {labelFor(item)}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
 export default function ThreadFilteration({
   filters,
   onChange,
   onClear,
+  tagOptions,
+  isLoadingTagOptions,
 }: ThreadFilterationProps) {
   const hasActiveFilters =
     filters.search !== "" ||
@@ -90,6 +171,8 @@ export default function ThreadFilteration({
     filters.has_ticket !== "" ||
     filters.has_feedback !== "" ||
     filters.feedback_rating !== "" ||
+    filters.tags.length > 0 ||
+    filters.handled_by !== "" ||
     filters.from !== "" ||
     filters.to !== "";
 
@@ -145,6 +228,31 @@ export default function ThreadFilteration({
           { value: "true", label: "With Ticket" },
           { value: "false", label: "Without Ticket" },
         ]}
+      />
+
+      <FilterSelect
+        ariaLabel="Filter by handled by"
+        value={filters.handled_by}
+        onChange={(handled_by) =>
+          onChange({
+            ...filters,
+            handled_by: handled_by as ThreadFilterState["handled_by"],
+          })
+        }
+        options={[
+          { value: "", label: "All Handlers" },
+          { value: "ai", label: "AI" },
+          { value: "human", label: "Agent" },
+        ]}
+      />
+
+      <MultiSelectFilter
+        options={tagOptions}
+        value={filters.tags}
+        onChange={(tags) => onChange({ ...filters, tags })}
+        placeholder="Filter by tags…"
+        emptyText="No tags found."
+        isLoading={isLoadingTagOptions}
       />
 
       {filters.has_feedback === "true" && (

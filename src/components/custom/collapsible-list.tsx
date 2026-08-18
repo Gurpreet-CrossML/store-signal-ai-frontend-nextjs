@@ -4,6 +4,7 @@ import { useState } from "react";
 import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
+import { capitalizeText } from "@/lib/helpers";
 
 /**
  * Show the first few of a list, with the rest behind a toggle.
@@ -58,12 +59,15 @@ export function ShowMoreToggle({
       {expanded ? (
         <>
           <IconChevronUp className="size-4" />
-          Show less
+          Show Less
         </>
       ) : (
         <>
           <IconChevronDown className="size-4" />
-          Show {hiddenCount} more {hiddenCount === 1 ? noun : nounPlural}
+          {/* Title case like every other button, so the two states of this
+              one toggle do not read as two different styles. */}
+          Show {hiddenCount} More{" "}
+          {capitalizeText(hiddenCount === 1 ? noun : nounPlural)}
         </>
       )}
     </Button>

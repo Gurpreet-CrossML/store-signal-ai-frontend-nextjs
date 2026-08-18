@@ -58,10 +58,6 @@ export const ENDPOINTS = {
   uploadAttachments: () =>
     createAPIUrl("/support/attachments/upload/", "django"),
 
-  // Customer Orders Sync (Django) — POST
-  syncOrders: (threadId: string) =>
-    createAPIUrl(`/chat/threads/${threadId}/orders/sync/`, "django"),
-
   // Company & staff management (Django /api/tenancy/). These are Django-owned;
   // GET calls must pass `useBackend: true` (writes auto-route to Django).
   fetchCompanyProfile: () => "/tenancy/company/",
@@ -112,6 +108,7 @@ export const ENDPOINTS = {
   fetchFeedbackSequence: (threadId: string) =>
     `/analytics/threads/${threadId}/feedback-sequence`,
   fetchTags: (threadId: string) => `/analytics/threads/${threadId}/tags`,
+  fetchThreadTagOptions: () => "/analytics/threads/tags",
   fetchAIInsight: (threadId: string) =>
     `/analytics/threads/${threadId}/ai-insights`,
   fetchCartData: (threadId: string) =>
@@ -164,7 +161,7 @@ export const ENDPOINTS = {
   toneStyle: () => `/chat/tone-style/`,
   vocabulary: () => `/chat/vocabulary/`,
 
-  // CRM. Store-scoped directories of shoppers and their orders. Both lists
+  // Catalog. Store-scoped directories of shoppers and their orders. Both lists
   // take search, filter and ordering query params — see CustomerFilters and
   // OrderFilters in their slices for the full set.
   //
@@ -174,15 +171,40 @@ export const ENDPOINTS = {
   fetchCustomerDetails: (customerId: number) =>
     createAPIUrl(`/chat/customers/${customerId}/`, "django"),
   // POST — create a shopper from just an email, so a guest ticket can be
-  // attached to a real record and filled in later from CRM.
+  // attached to a real record and filled in later from Catalog.
   // NOTE: pending confirmation from the backend team.
   createCustomer: () => createAPIUrl("/chat/customers/", "django"),
   fetchOrders: () => createAPIUrl("/chat/orders/", "django"),
+  // One customer's stored orders. Read-only — it never calls the commerce
+  // platform, so it is the cheap one to reach for.
+  fetchCustomerOrders: (customerId: number) =>
+    createAPIUrl(`/chat/customers/${customerId}/orders/`, "django"),
+  // GET, not POST: refreshing a customer's history from Shopify or Magento
+  // and handing it back. The single sync route — the thread-scoped and
+  // ticket-scoped ones it replaced both went through the customer anyway.
+  syncCustomerOrders: (customerId: number) =>
+    createAPIUrl(`/chat/customers/${customerId}/orders/sync/`, "django"),
   fetchOrderDetails: (orderId: number) =>
     createAPIUrl(`/chat/orders/${orderId}/`, "django"),
 
   // Helpdesk(Support) apis
   fetchSupportTickets: () => createAPIUrl("/support/tickets", "django"),
+  // POST — raise a ticket from a live-chat conversation. The counterpart
+  // of metaCreateSupportTicket: same fields, same payload, addressed by
+  // the thread behind it rather than a social contact.
+  createThreadSupportTicket: (threadId: string) =>
+    createAPIUrl(
+      `/support/threads/${threadId}/create-support-ticket/`,
+      "django",
+    ),
+  // GET — an AI reading of the conversation, as a ticket an agent can edit.
+  // Slow (it calls the model), so it is asked for on demand rather than on
+  // opening the form.
+  threadSupportTicketDraft: (threadId: string) =>
+    createAPIUrl(
+      `/support/threads/${threadId}/support-ticket/draft/`,
+      "django",
+    ),
   fetchSupportTicketDeatils: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/`, "django"),
   supportTicketMessageSend: (ticket_id: number) =>
@@ -228,11 +250,6 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/ticket-tags/${tag_id}/delete/`, "django"),
   supportTicketAIMessageDraftGenerate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/draft-messages/ai/`, "django"),
-  supportTicketCustomerOrderSync: (ticket_id: number) =>
-    createAPIUrl(
-      `/support/tickets/${ticket_id}/customer/order-sync/`,
-      "django",
-    ),
   supportTicketStatusUpdate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/status/`, "django"),
   supportTicketPriorityUpdate: (ticket_id: number) =>
@@ -304,6 +321,16 @@ export const ENDPOINTS = {
     userId: number;
     messageId: number;
   }) => `/social/meta/users/${userId}/messages/${messageId}/react/`,
+  // POST — raise a help desk ticket for a DM contact. Addressed by the
+  // SocialUser rather than a chat thread: a Messenger conversation has no
+  // Thread behind it, which is why the ticket's own thread stays null.
+  metaCreateSupportTicket: (userId: number) =>
+    `/social/meta/users/${userId}/create-support-ticket/`,
+  // The social counterpart of threadSupportTicketDraft. Contacts are
+  // page-scoped, so the same shopper on Facebook and on Instagram drafts
+  // from two separate conversations.
+  metaSupportTicketDraft: (userId: number) =>
+    `/social/meta/users/${userId}/support-ticket/draft/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

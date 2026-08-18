@@ -24,6 +24,21 @@ export const BADGE_TONE_STYLES: Record<BadgeTone, string> = {
 };
 
 /**
+ * The same tones as a solid bar, for the priority stripe down the side of
+ * a ticket. A bar carries no text, so it needs the saturated hue rather
+ * than the badge's pale ground — at 4px wide the 50-weight fills read as
+ * grey.
+ */
+export const BAR_TONE_STYLES: Record<BadgeTone, string> = {
+  success: "bg-emerald-500",
+  warning: "bg-amber-500",
+  info: "bg-sky-500",
+  danger: "bg-rose-500",
+  accent: "bg-primary",
+  neutral: "bg-border",
+};
+
+/**
  * The same tones as an *action* rather than a label: a colored mark and
  * hover ground on an otherwise plain button. A filled badge would shout
  * next to its neighbours, but the meaning still has to carry — resolving,

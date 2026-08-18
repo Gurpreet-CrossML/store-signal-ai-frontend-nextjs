@@ -206,7 +206,7 @@ export function OrderFilterPopover({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline" aria-label="Filter orders">
+        <Button variant="outline" aria-label="Filter Orders">
           <IconFilter className="size-4" />
           Filters
           {activeCount > 0 ? (
@@ -218,11 +218,11 @@ export function OrderFilterPopover({
       </PopoverTrigger>
       <PopoverContent align="end" className="w-90 p-0">
         <div className="border-b px-4 py-3">
-          <CardTitle>Filter orders</CardTitle>
+          <CardTitle>Filter Orders</CardTitle>
         </div>
 
         <div className="max-h-[65vh] space-y-6 overflow-y-auto p-4">
-          <FilterGroup title="Payment status">
+          <FilterGroup title="Payment Status">
             <StatusChips
               options={FINANCIAL_STATUSES}
               selected={filters.financialStatuses}
@@ -230,7 +230,7 @@ export function OrderFilterPopover({
             />
           </FilterGroup>
 
-          <FilterGroup title="Delivery status">
+          <FilterGroup title="Delivery Status">
             <StatusChips
               options={FULFILLMENT_STATUSES}
               selected={filters.fulfillmentStatuses}
@@ -280,9 +280,9 @@ export function OrderFilterPopover({
             </Select>
           </FilterGroup>
 
-          <FilterGroup title="Order total">
+          <FilterGroup title="Order Total">
             <RangeRow
-              label="Order total"
+              label="Order Total"
               min={filters.totalMin}
               max={filters.totalMax}
               onChange={({ min, max }) =>
@@ -312,7 +312,7 @@ export function OrderFilterPopover({
             <span />
           )}
           <Button size="sm" onClick={onApply}>
-            Apply filters
+            Apply Filters
           </Button>
         </div>
       </PopoverContent>

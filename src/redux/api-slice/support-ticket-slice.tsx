@@ -338,6 +338,121 @@ export const FetchSupportTicketTags = createAsyncThunk(
   },
 );
 
+/**
+ * What an agent fills in to raise a ticket by hand.
+ *
+ * `customer` is an email, never an id, even when the agent picked a shopper
+ * out of the directory: the serializer resolves the address to a record and
+ * creates one when it is new, so an address is the only input that works
+ * for both a known shopper and a stranger. A DM contact is always the
+ * second case — Meta hands over a name and a PSID, never an email.
+ *
+ * `tags` are names rather than ids for the same reason: the backend reuses
+ * a tag that exists and creates one that does not, so the caller does not
+ * have to know which it is holding.
+ */
+export type CreateSupportTicketPayload = {
+  /** The shopper's email. Resolved to a customer, or one is created. */
+  customer: string;
+  subject: string;
+  description: string;
+  priority: SupportTicketPriority;
+  /** The order this is about, by id. Omitted when it is about nothing in particular. */
+  order?: number;
+  tags?: { name: string }[];
+};
+
+/**
+ * The AI's reading of a conversation, as a ticket an agent can edit.
+ *
+ * Every field is a suggestion — nothing is saved until the agent submits
+ * the create call — so the shape mirrors the form rather than the model.
+ * An empty conversation comes back with blank strings rather than a
+ * guessed ticket, which the form treats as "nothing to prefill".
+ */
+export type SupportTicketDraft = {
+  subject: string;
+  description: string;
+  priority: SupportTicketPriority;
+  /** 0–3, Title Case. Safe to post back — tags resolve case-insensitively. */
+  tags: { name: string }[];
+};
+
+/**
+ * Draft a ticket from a live chat, reading its recent messages.
+ *
+ * A failure here is not a blocking one: the agent asked for help filling
+ * the form and can still fill it themselves, so this says so quietly and
+ * leaves the form alone rather than raising an error over it.
+ */
+export const FetchThreadTicketDraft = createAsyncThunk(
+  "FetchThreadTicketDraft",
+  async (
+    { storeCode, threadId }: { storeCode: string; threadId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.threadSupportTicketDraft(threadId)}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as SupportTicketDraft;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.info("Couldn't draft this one", {
+        description:
+          data?.data?.detail?.[0] ||
+          data?.message ||
+          "Fill the form in manually.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+/**
+ * Raise a ticket from a live chat an agent is already handling.
+ *
+ * Addressed by the thread, which the backend stores on the ticket — so the
+ * conversation that produced it stays reachable, and the channel is set to
+ * the web widget without the client saying so.
+ */
+export const CreateSupportTicket = createAsyncThunk(
+  "CreateSupportTicket",
+  async (
+    {
+      storeCode,
+      threadId,
+      payload,
+    }: {
+      storeCode: string;
+      threadId: string;
+      payload: CreateSupportTicketPayload;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.createThreadSupportTicket(threadId)}?store_code=${storeCode}`,
+        payload,
+        { useBackend: true },
+      );
+      toast.success("Ticket created.", {
+        description: "It is now in the help desk queue.",
+      });
+      return response.data.data as SupportTicket;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't create the ticket", {
+        description: data?.message || "Please check the form and try again.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 /** Attach an existing customer record to a ticket a guest raised. */
 export const SupportTicketCustomerLink = createAsyncThunk(
   "SupportTicketCustomerLink",
@@ -721,34 +836,6 @@ export const SupportTicketAIMessageDraftGenerate = createAsyncThunk(
   },
 );
 
-export const SupportTicketCustomerOrderSync = createAsyncThunk(
-  "SupportTicketCustomerOrderSync",
-  async (
-    { storeCode, ticketId }: { storeCode: string; ticketId: number },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.post(
-        `${ENDPOINTS.supportTicketCustomerOrderSync(ticketId)}?store_code=${storeCode}`,
-      );
-      const data = response.data.data;
-
-      return data;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to sync customer orders, please try again later.",
-      });
-
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
-
 export const SupportTicketStatusUpdate = createAsyncThunk(
   "SupportTicketStatusUpdate",
   async (
@@ -886,6 +973,12 @@ const SupportTicketsSlice = createSlice({
         | unknown,
       FetchSupportTicketDetailsData: null as SupportTicket | null,
     },
+    CreateSupportTicketState: {
+      CreateSupportTicketIsLoading: false,
+      CreateSupportTicketIsSuccess: false,
+      CreateSupportTicketIsError: null as null | string | object | unknown,
+      CreateSupportTicketData: null as SupportTicket | null,
+    },
     SupportTicketMessageSendState: {
       SupportTicketMessageSendIsLoading: false,
       SupportTicketMessageSendIsSuccess: false,
@@ -979,16 +1072,6 @@ const SupportTicketsSlice = createSlice({
     },
     SupportTicketCustomerLinkState: {
       SupportTicketCustomerLinkIsLoading: false,
-    },
-    SupportTicketCustomerOrderSyncState: {
-      SupportTicketCustomerOrderSyncIsLoading: false,
-      SupportTicketCustomerOrderSyncIsSuccess: false,
-      SupportTicketCustomerOrderSyncIsError: null as
-        | null
-        | string
-        | object
-        | unknown,
-      SupportTicketCustomerOrderSyncData: [] as OrderData[],
     },
     SupportTicketStatusUpdateState: {
       SupportTicketStatusUpdateIsLoading: false,
@@ -1319,6 +1402,22 @@ const SupportTicketsSlice = createSlice({
           state.SupportTicketAIMessageDraftGenerateState.SupportTicketAIMessageDraftGenerateIsSuccess = false;
         },
       )
+      .addCase(CreateSupportTicket.pending, (state) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = true;
+        state.CreateSupportTicketState.CreateSupportTicketIsError = null;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = false;
+      })
+      .addCase(CreateSupportTicket.fulfilled, (state, action) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = false;
+        state.CreateSupportTicketState.CreateSupportTicketData = action.payload;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = true;
+      })
+      .addCase(CreateSupportTicket.rejected, (state, action) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = false;
+        state.CreateSupportTicketState.CreateSupportTicketIsError =
+          action.payload;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = false;
+      })
       .addCase(SupportTicketCustomerLink.pending, (state) => {
         state.SupportTicketCustomerLinkState.SupportTicketCustomerLinkIsLoading = true;
       })
@@ -1327,24 +1426,6 @@ const SupportTicketsSlice = createSlice({
       })
       .addCase(SupportTicketCustomerLink.rejected, (state) => {
         state.SupportTicketCustomerLinkState.SupportTicketCustomerLinkIsLoading = false;
-      })
-      .addCase(SupportTicketCustomerOrderSync.pending, (state) => {
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsLoading = true;
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsError =
-          null;
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsSuccess = false;
-      })
-      .addCase(SupportTicketCustomerOrderSync.fulfilled, (state, action) => {
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsLoading = false;
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncData =
-          action.payload;
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsSuccess = true;
-      })
-      .addCase(SupportTicketCustomerOrderSync.rejected, (state, action) => {
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsLoading = false;
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsError =
-          action.payload;
-        state.SupportTicketCustomerOrderSyncState.SupportTicketCustomerOrderSyncIsSuccess = false;
       })
       .addCase(SupportTicketStatusUpdate.pending, (state) => {
         state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsLoading = true;

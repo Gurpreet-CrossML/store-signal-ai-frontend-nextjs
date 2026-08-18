@@ -12,7 +12,6 @@ import {
 } from "formik";
 import z from "zod";
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
-import { PageHeading } from "@/components/custom/page-heading";
 import { DataTable } from "@/components/custom/data-table";
 import { SearchInput } from "@/components/custom/search-input";
 import { getTagColumns } from "@/components/custom/helpdesk/tags-columns";
@@ -186,27 +185,26 @@ export default function Tags() {
 
     setIsDeleting(true);
     try {
-      const deletedTag = await dispatch(
+      // Reaching the next line is the success signal: `unwrap` throws on
+      // any rejection, and the thunk rejects on any non-2xx. This used to
+      // compare the response against the deleted tag's id — but a delete
+      // answers with `data: {}`, so every successful removal reported a
+      // failure while the row vanished from the list behind the toast.
+      await dispatch(
         TicketTagDelete({ storeCode, tagId: tagPendingDelete.id }),
       ).unwrap();
 
-      if (deletedTag?.id === tagPendingDelete.id) {
-        // if we deleted the last row on a page beyond the first, step back a page
-        const isLastRowOnPage = tags.length === 1;
-        if (isLastRowOnPage && page > 1) {
-          setPage((p) => p - 1);
-        } else {
-          refetchCurrentPage();
-        }
-
-        toast.success("Tag removed", {
-          description: "The tag has been removed successfully.",
-        });
+      // if we deleted the last row on a page beyond the first, step back a page
+      const isLastRowOnPage = tags.length === 1;
+      if (isLastRowOnPage && page > 1) {
+        setPage((p) => p - 1);
       } else {
-        toast.error("Couldn't remove tag", {
-          description: "The tag could not be removed. Please try again.",
-        });
+        refetchCurrentPage();
       }
+
+      toast.success("Tag removed", {
+        description: "The tag has been removed successfully.",
+      });
     } catch {
       //
     } finally {
@@ -290,12 +288,7 @@ export default function Tags() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-4">
-      <PageHeading
-        title="Tags"
-        description="Label support tickets so they can be grouped, filtered and found quickly."
-      />
-
+    <>
       {/* Toolbar sits above the table rather than inside a card — the same
           anatomy as Threads. */}
       <div className="flex flex-col gap-4">
@@ -340,7 +333,7 @@ export default function Tags() {
       >
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>{editingTag ? "Edit tag" : "Add tag"}</DialogTitle>
+            <DialogTitle>{editingTag ? "Edit Tag" : "Add Tag"}</DialogTitle>
           </DialogHeader>
 
           <Formik<TagFormValues>
@@ -456,8 +449,8 @@ export default function Tags() {
                         ? "Saving..."
                         : "Adding..."
                       : editingTag
-                        ? "Save changes"
-                        : "Add tag"}
+                        ? "Save Changes"
+                        : "Add Tag"}
                   </Button>
                 </DialogFooter>
               </Form>
@@ -494,11 +487,11 @@ export default function Tags() {
               disabled={isDeleting}
               className={buttonVariants({ variant: "destructive" })}
             >
-              {isDeleting ? "Removing..." : "Remove tag"}
+              {isDeleting ? "Removing..." : "Remove Tag"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }
