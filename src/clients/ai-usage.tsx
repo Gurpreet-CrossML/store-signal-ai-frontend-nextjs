@@ -285,6 +285,11 @@ export default function AIUsage() {
                     selected={dateRange}
                     onSelect={updateDateRange}
                     numberOfMonths={2}
+                    // Usage is a record of what has already happened, so a
+                    // future date can only ever return nothing. The second
+                    // month is still shown, greyed, rather than hidden —
+                    // hiding it would move the calendar under the cursor.
+                    disabled={{ after: new Date() }}
                   />
                 </PopoverContent>
               </Popover>
