@@ -7,6 +7,7 @@ import { axiosInstance } from "../axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
+import type { CreateSupportTicketPayload } from "@/redux/api-slice/support-ticket-slice";
 
 /**
  * One page size for every social list. Filtering and searching are the
@@ -801,6 +802,49 @@ export const replyToMetaComment = createAsyncThunk(
       const data = response?.data;
       toast.error("Uh oh! Something went wrong.", {
         description: data?.message || "Unable to reply to comment.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+/**
+ * Raise a help desk ticket for the DM contact an agent is reading.
+ *
+ * Addressed by the SocialUser, not a chat thread: a Messenger or Instagram
+ * conversation has no Thread behind it. The backend resolves the email to
+ * a customer (creating one when it is new) and links it back to the
+ * contact, so the next ticket for the same shopper needs no retyping.
+ */
+export const CreateSocialSupportTicket = createAsyncThunk(
+  "CreateSocialSupportTicket",
+  async (
+    {
+      storeCode,
+      userId,
+      payload,
+    }: {
+      storeCode: string;
+      userId: number;
+      payload: CreateSupportTicketPayload;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.metaCreateSupportTicket(userId)}?store_code=${storeCode}`,
+        payload,
+        { useBackend: true },
+      );
+      toast.success("Ticket created.", {
+        description: "It is now in the help desk queue.",
+      });
+      return response.data.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't create the ticket", {
+        description: data?.message || "Please check the form and try again.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
