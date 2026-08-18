@@ -1,52 +1,40 @@
 "use client";
 
-import { IconFilter } from "@tabler/icons-react";
-
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { CardTitle } from "@/components/ui/card";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Typography } from "@/components/ui/typography";
-import { cn } from "@/lib/utils";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type {
-  AIScope,
   KnowledgeSource,
   KnowledgeStatus,
   KnowledgeType,
 } from "@/redux/api-slice/knowledge-rag-slice";
 import {
-  AI_SCOPE_OPTIONS,
   KNOWLEDGE_SOURCE_LABEL,
   KNOWLEDGE_STATUS_META,
   KNOWLEDGE_TYPE_OPTIONS,
 } from "@/components/custom/knowledge/knowledge-meta";
 
 export type KnowledgeFilterSelection = {
-  types: KnowledgeType[];
-  sources: KnowledgeSource[];
-  statuses: KnowledgeStatus[];
-  aiScopes: AIScope[];
+  type: KnowledgeType | "";
+  source: KnowledgeSource | "";
+  status: KnowledgeStatus | "";
 };
 
 export const EMPTY_KNOWLEDGE_FILTERS: KnowledgeFilterSelection = {
-  types: [],
-  sources: [],
-  statuses: [],
-  aiScopes: [],
+  type: "",
+  source: "",
+  status: "",
 };
 
-export function countActiveKnowledgeFilters(
-  filters: KnowledgeFilterSelection,
-) {
+export function countActiveKnowledgeFilters(filters: KnowledgeFilterSelection) {
   return (
-    Number(filters.types.length > 0) +
-    Number(filters.sources.length > 0) +
-    Number(filters.statuses.length > 0) +
-    Number(filters.aiScopes.length > 0)
+    Number(filters.type !== "") +
+    Number(filters.source !== "") +
+    Number(filters.status !== "")
   );
 }
 
@@ -58,147 +46,86 @@ const STATUS_OPTIONS = Object.entries(KNOWLEDGE_STATUS_META).map(
   ([value, meta]) => ({ value: value as KnowledgeStatus, label: meta.label }),
 );
 
-function FilterGroup({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <fieldset className="flex flex-col gap-3">
-      <legend className="mb-3">
-        <Typography variant="small" as="span">
-          {title}
-        </Typography>
-      </legend>
-      {children}
-    </fieldset>
-  );
-}
+// Radix Select forbids empty-string item values, so "All" uses a sentinel
+// that maps back to "" (filter off) in state — same pattern as the Threads
+// screen's filter bar (thread-filteration.tsx).
+const ALL = "all";
 
-function ToggleChips<T extends string>({
+function FilterSelect({
+  ariaLabel,
+  value,
+  onChange,
   options,
-  selected,
-  onToggle,
 }: {
-  options: readonly { value: T; label: string }[];
-  selected: T[];
-  onToggle: (value: T) => void;
+  ariaLabel: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {options.map((option) => {
-        const isOn = selected.includes(option.value);
-        return (
-          <button key={option.value} type="button" onClick={() => onToggle(option.value)}>
-            <Badge
-              variant="outline"
-              className={cn(
-                "cursor-pointer",
-                isOn && "border-primary/20 bg-primary/10 text-primary",
-              )}
-            >
-              {option.label}
-            </Badge>
-          </button>
-        );
-      })}
-    </div>
+    <Select
+      value={value || ALL}
+      onValueChange={(next) => onChange(next === ALL ? "" : next)}
+    >
+      <SelectTrigger size="sm" aria-label={ariaLabel} className="w-fit">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value || ALL} value={option.value || ALL}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
-export function KnowledgeFilterPopover({
-  open,
-  onOpenChange,
+/** Type / source / status filters — single-select dropdowns, one per field. */
+export function KnowledgeTypeSourceStatusFilters({
   filters,
   onFiltersChange,
-  activeCount,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   filters: KnowledgeFilterSelection;
   onFiltersChange: (filters: KnowledgeFilterSelection) => void;
-  activeCount: number;
 }) {
-  const toggle =
-    (key: keyof KnowledgeFilterSelection) => (value: string) =>
-      onFiltersChange({
-        ...filters,
-        [key]: (filters[key] as string[]).includes(value)
-          ? (filters[key] as string[]).filter((entry) => entry !== value)
-          : [...(filters[key] as string[]), value],
-      });
-
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" aria-label="Filter knowledge">
-          <IconFilter className="size-4" />
-          Filters
-          {activeCount > 0 ? (
-            <span className="flex size-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-              {activeCount}
-            </span>
-          ) : null}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-90 p-0">
-        <div className="border-b px-4 py-3">
-          <CardTitle>Filter knowledge</CardTitle>
-        </div>
+    <>
+      <FilterSelect
+        ariaLabel="Filter by knowledge type"
+        value={filters.type}
+        onChange={(type) =>
+          onFiltersChange({
+            ...filters,
+            type: type as KnowledgeFilterSelection["type"],
+          })
+        }
+        options={[{ value: "", label: "All Types" }, ...KNOWLEDGE_TYPE_OPTIONS]}
+      />
 
-        <div className="max-h-[65vh] space-y-6 overflow-y-auto p-4">
-          <FilterGroup title="Knowledge type">
-            <ToggleChips
-              options={KNOWLEDGE_TYPE_OPTIONS}
-              selected={filters.types}
-              onToggle={toggle("types") as (value: KnowledgeType) => void}
-            />
-          </FilterGroup>
+      <FilterSelect
+        ariaLabel="Filter by source"
+        value={filters.source}
+        onChange={(source) =>
+          onFiltersChange({
+            ...filters,
+            source: source as KnowledgeFilterSelection["source"],
+          })
+        }
+        options={[{ value: "", label: "All Sources" }, ...SOURCE_OPTIONS]}
+      />
 
-          <FilterGroup title="Source">
-            <ToggleChips
-              options={SOURCE_OPTIONS}
-              selected={filters.sources}
-              onToggle={toggle("sources") as (value: KnowledgeSource) => void}
-            />
-          </FilterGroup>
-
-          <FilterGroup title="Status">
-            <ToggleChips
-              options={STATUS_OPTIONS}
-              selected={filters.statuses}
-              onToggle={toggle("statuses") as (value: KnowledgeStatus) => void}
-            />
-          </FilterGroup>
-
-          <FilterGroup title="AI scope">
-            <ToggleChips
-              options={AI_SCOPE_OPTIONS}
-              selected={filters.aiScopes}
-              onToggle={toggle("aiScopes") as (value: AIScope) => void}
-            />
-          </FilterGroup>
-        </div>
-
-        <div className="flex items-center justify-between border-t p-3">
-          {activeCount > 0 ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onFiltersChange(EMPTY_KNOWLEDGE_FILTERS)}
-            >
-              Clear
-            </Button>
-          ) : (
-            <span />
-          )}
-          <Button size="sm" onClick={() => onOpenChange(false)}>
-            Done
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+      <FilterSelect
+        ariaLabel="Filter by status"
+        value={filters.status}
+        onChange={(status) =>
+          onFiltersChange({
+            ...filters,
+            status: status as KnowledgeFilterSelection["status"],
+          })
+        }
+        options={[{ value: "", label: "All Statuses" }, ...STATUS_OPTIONS]}
+      />
+    </>
   );
 }

@@ -34,6 +34,7 @@ import {
   AIScopeBadges,
   KnowledgeStatusBadge,
   KnowledgeTypeIcon,
+  PolicyTypeBadge,
 } from "@/components/custom/knowledge/knowledge-badges";
 import {
   KNOWLEDGE_SOURCE_LABEL,
@@ -92,7 +93,9 @@ export function KnowledgeList({
             <IconBooks />
           </EmptyMedia>
           <EmptyTitle>
-            {hasFilters ? "No knowledge matches your filters" : "No knowledge yet"}
+            {hasFilters
+              ? "No knowledge matches your filters"
+              : "No knowledge yet"}
           </EmptyTitle>
           <EmptyDescription>
             {hasFilters
@@ -131,7 +134,11 @@ export function KnowledgeList({
             <KnowledgeTypeIcon type={item.type} />
 
             <div className="min-w-0 flex-1">
-              <Typography variant="small" as="p" className="truncate font-medium">
+              <Typography
+                variant="small"
+                as="p"
+                className="truncate font-medium"
+              >
                 {item.title}
               </Typography>
               <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
@@ -158,6 +165,12 @@ export function KnowledgeList({
               <AIScopeBadges scope={item.aiScope} />
             </div>
 
+            {item.policyType && (
+              <div className="hidden shrink-0 sm:block">
+                <PolicyTypeBadge policyType={item.policyType} />
+              </div>
+            )}
+
             <div className="shrink-0">
               <KnowledgeStatusBadge status={item.status} />
             </div>
@@ -181,10 +194,12 @@ export function KnowledgeList({
                   <IconPencil />
                   Edit
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onToggleStatus(item)}>
-                  <IconPower />
-                  {item.status === "disabled" ? "Enable" : "Disable"}
-                </DropdownMenuItem>
+                {(item.status === "active" || item.status === "disabled") && (
+                  <DropdownMenuItem onClick={() => onToggleStatus(item)}>
+                    <IconPower />
+                    {item.status === "disabled" ? "Enable" : "Disable"}
+                  </DropdownMenuItem>
+                )}
                 {item.status === "failed" && (
                   <DropdownMenuItem onClick={() => onRetry(item)}>
                     <IconRefresh />

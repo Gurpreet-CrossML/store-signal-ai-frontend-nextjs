@@ -1,8 +1,6 @@
 import {
-  IconBrandGoogleDrive,
-  IconCategory2,
-  IconDiscount,
-  IconFileText,
+  IconCloudUpload,
+  IconLink,
   IconMessageQuestion,
   IconNotes,
   IconShieldCheck,
@@ -16,6 +14,7 @@ import type {
   KnowledgeSource,
   KnowledgeStatus,
   KnowledgeType,
+  PolicyType,
 } from "@/redux/api-slice/knowledge-rag-slice";
 
 /**
@@ -38,7 +37,7 @@ export const KNOWLEDGE_TYPE_META: Record<
   },
   product: {
     label: "Product Knowledge",
-    description: "Manuals, usage, care, FAQs, warranty tied to one product.",
+    description: "Manuals, usage, care, warranty tied to one product.",
     icon: IconShoppingBag,
     tone: "info",
   },
@@ -91,13 +90,27 @@ export const KNOWLEDGE_SOURCE_LABEL: Record<KnowledgeSource, string> = {
   offer: "Offers",
 };
 
+export const KNOWLEDGE_SOURCE_ICON: Record<KnowledgeSource, Icon> = {
+  text: IconNotes,
+  file: IconCloudUpload,
+  url: IconLink,
+  google_drive: IconCloudUpload,
+  product: IconNotes,
+  category: IconNotes,
+  faq: IconMessageQuestion,
+  offer: IconMessageQuestion,
+};
+
 export const KNOWLEDGE_STATUS_META: Record<
   KnowledgeStatus,
-  { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
+  {
+    label: string;
+    variant: "default" | "secondary" | "outline" | "destructive";
+  }
 > = {
   active: { label: "Active", variant: "default" },
+  pending: { label: "Pending", variant: "secondary" },
   processing: { label: "Processing", variant: "secondary" },
-  syncing: { label: "Syncing", variant: "secondary" },
   failed: { label: "Failed", variant: "destructive" },
   disabled: { label: "Disabled", variant: "outline" },
 };
@@ -136,13 +149,62 @@ export const AI_SCOPE_OPTIONS = Object.entries(AI_SCOPE_META).map(
   ([value, meta]) => ({ value: value as AIScope, ...meta }),
 );
 
-export const POLICY_TYPE_OPTIONS: { value: string; label: string }[] = [
-  { value: "return", label: "Return" },
-  { value: "refund", label: "Refund" },
-  { value: "shipping", label: "Shipping" },
-  { value: "cancellation", label: "Cancellation" },
-  { value: "warranty", label: "Warranty" },
-  { value: "privacy", label: "Privacy" },
-  { value: "terms", label: "Terms & Conditions" },
-  { value: "other", label: "Other" },
+export const POLICY_TYPE_OPTIONS: { value: PolicyType; label: string }[] = [
+  { value: "privacy_policy", label: "Privacy Policy" },
+  { value: "terms_conditions", label: "Terms & Conditions" },
+  { value: "return_policy", label: "Return & Refund Policy" },
+  { value: "shipping_policy", label: "Shipping Policy" },
+  { value: "cookie_policy", label: "Cookie Policy" },
+  { value: "contact_us", label: "Contact Us" },
+  { value: "about_us", label: "About Us" },
+  { value: "faq", label: "FAQs" },
+  { value: "blog", label: "Blog" },
+  { value: "careers", label: "Careers" },
+  { value: "size_guide", label: "Size Guide" },
+  { value: "generic_link", label: "Generic Link" },
+  { value: "cancellation_policy", label: "Cancellation Policy" },
+  { value: "terms_of_service", label: "Terms of Service" },
+  { value: "refund_policy", label: "Refund Policy" },
+  { value: "data_protection_policy", label: "Data Protection Policy" },
 ];
+
+/**
+ * "How do you want to add this knowledge?" step in the Add Knowledge wizard.
+ * "policy" isn't a KnowledgeSource — picking it embeds the existing Company
+ * Policies widget instead of creating a mock KnowledgeItem.
+ */
+export type AddKnowledgeSource = "file" | "faq" | "policy";
+
+const ADD_KNOWLEDGE_SOURCE_META: Record<
+  AddKnowledgeSource,
+  { label: string; description: string; icon: Icon; tone: BadgeTone }
+> = {
+  file: {
+    label: "Upload File",
+    description: "Add a PDF, DOCX, or TXT document.",
+    icon: IconCloudUpload,
+    tone: "info",
+  },
+  faq: {
+    label: "Customer FAQs",
+    description: "Add one or more question and answer pairs.",
+    icon: IconMessageQuestion,
+    tone: "success",
+  },
+  policy: {
+    label: "Policies",
+    description: "Link your refund, shipping, and other policy pages.",
+    icon: IconShieldCheck,
+    tone: "warning",
+  },
+};
+
+function sourceOption(value: AddKnowledgeSource) {
+  return { value, ...ADD_KNOWLEDGE_SOURCE_META[value] };
+}
+
+export const GENERAL_SOURCE_OPTIONS = (["file", "faq", "policy"] as const).map(
+  sourceOption,
+);
+
+export const PRODUCT_SOURCE_OPTIONS = (["file"] as const).map(sourceOption);

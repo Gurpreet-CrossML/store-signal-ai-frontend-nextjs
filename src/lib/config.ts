@@ -167,6 +167,17 @@ export const ENDPOINTS = {
   createScrapeLink: () => `/knowledge/scrape-links/`,
   fetchScrapeLink: () => `/knowledge/scrape-links`,
 
+  // Knowledge Library items (general/product knowledge entries). GET is
+  // routed to Django via `useBackend: true` (not ported to a local API
+  // route); writes go to Django by the axios-config default.
+  fetchKnowledgeItems: () => `/knowledge/knowledge-items/`,
+  createKnowledgeItem: () => `/knowledge/knowledge-items/`,
+  knowledgeItemDetail: (id: number) => `/knowledge/knowledge-items/${id}/`,
+  knowledgeItemRetry: (id: number) => `/knowledge/knowledge-items/${id}/retry/`,
+  // Product picker for Product Knowledge (Django; GET needs useBackend).
+  // Returns a default page of products, narrowed by the `search` query param.
+  searchProducts: () => `/knowledge/products/search/`,
+
   // Integrations
   fetchIntegrations: () => `/integrations`,
   // Write — connecting a store to an integration stays on the Django backend.

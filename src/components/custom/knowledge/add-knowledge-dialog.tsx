@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Dialog,
@@ -9,12 +9,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Typography } from "@/components/ui/typography";
-import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
-import { cn } from "@/lib/utils";
-import type { KnowledgeType } from "@/redux/api-slice/knowledge-rag-slice";
-import { KNOWLEDGE_TYPE_OPTIONS } from "@/components/custom/knowledge/knowledge-meta";
-import { KnowledgeForm } from "@/components/custom/knowledge/knowledge-form";
+import { type KnowledgeType } from "@/redux/api-slice/knowledge-rag-slice";
+import {
+  KNOWLEDGE_TYPE_META,
+  KNOWLEDGE_TYPE_OPTIONS,
+} from "@/components/custom/knowledge/knowledge-meta";
+import { OptionCard } from "@/components/custom/knowledge/option-card";
+import { ProductKnowledgeStep } from "@/components/custom/knowledge/add-knowledge-sources/product-knowledge-step";
+import { GeneralKnowledgeStep } from "@/components/custom/knowledge/add-knowledge-sources/general-knowledge-step";
+
+type Step = "type" | "details";
 
 export function AddKnowledgeDialog({
   open,
@@ -25,65 +29,73 @@ export function AddKnowledgeDialog({
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
 }) {
-  const [selectedType, setSelectedType] = useState<KnowledgeType | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
+  const [step, setStep] = useState<Step>("type");
+  const [knowledgeType, setKnowledgeType] = useState<KnowledgeType | null>(
+    null,
+  );
 
-  const handlePick = (type: KnowledgeType) => {
-    setSelectedType(type);
+  useEffect(() => {
+    if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets the wizard to step 1 whenever it (re)opens
+    setStep("type");
+    setKnowledgeType(null);
+  }, [open]);
+
+  const handlePickType = (type: KnowledgeType) => {
+    setKnowledgeType(type);
+    setStep("details");
+  };
+
+  const handleDone = () => {
+    onSaved();
     onOpenChange(false);
-    setFormOpen(true);
   };
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Add Knowledge</DialogTitle>
-            <DialogDescription>
-              What type of knowledge do you want to add?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {KNOWLEDGE_TYPE_OPTIONS.map((option) => {
-              const Icon = option.icon;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handlePick(option.value)}
-                  className="flex items-start gap-3 rounded-xl border border-border/60 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
-                >
-                  <div
-                    className={cn(
-                      "flex size-9 shrink-0 items-center justify-center rounded-lg",
-                      BADGE_TONE_STYLES[option.tone],
-                    )}
-                  >
-                    <Icon className="size-4.5" />
-                  </div>
-                  <div className="min-w-0">
-                    <Typography variant="small" as="p" className="font-medium">
-                      {option.label}
-                    </Typography>
-                    <Typography variant="muted" className="text-xs">
-                      {option.description}
-                    </Typography>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </DialogContent>
-      </Dialog>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>
+            {step === "type"
+              ? "Add Knowledge"
+              : `Add ${KNOWLEDGE_TYPE_META[knowledgeType!].label}`}
+          </DialogTitle>
+          <DialogDescription>
+            {step === "type"
+              ? "What type of knowledge do you want to add?"
+              : KNOWLEDGE_TYPE_META[knowledgeType!].description}
+          </DialogDescription>
+        </DialogHeader>
 
-      <KnowledgeForm
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        type={selectedType}
-        item={null}
-        onSaved={onSaved}
-      />
-    </>
+        {step === "type" && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {KNOWLEDGE_TYPE_OPTIONS.map((option) => (
+              <OptionCard
+                key={option.value}
+                label={option.label}
+                description={option.description}
+                icon={option.icon}
+                tone={option.tone}
+                onClick={() => handlePickType(option.value)}
+              />
+            ))}
+          </div>
+        )}
+
+        {step === "details" && knowledgeType === "product" && (
+          <ProductKnowledgeStep
+            onBack={() => setStep("type")}
+            onDone={handleDone}
+          />
+        )}
+
+        {step === "details" && knowledgeType === "general" && (
+          <GeneralKnowledgeStep
+            onBack={() => setStep("type")}
+            onDone={handleDone}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
