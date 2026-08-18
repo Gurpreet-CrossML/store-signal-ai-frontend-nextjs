@@ -107,11 +107,14 @@ export function HiddenTagsBadge({
         align="start"
         className="flex w-auto max-w-xs flex-wrap gap-1.5"
       >
-        {tags.map((tag) => {
+        {tags.map((tag, index) => {
           const tagId = tag.id;
           return (
             <TagBadge
-              key={tagId}
+              // `id` is optional on this type: the thread endpoints send
+              // tags as bare names, so an id is not always there to key on.
+              // The name is unique per record and the index closes the gap.
+              key={tagId ?? `${tag.name}-${index}`}
               tag={tag}
               onRemove={
                 onRemoveTag && tagId ? () => onRemoveTag(tagId) : undefined

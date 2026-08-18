@@ -79,7 +79,7 @@ export function AppSidebar({
     >
       {/* Collapses the sub-sidebar, never the rail. The rail is 3.5rem of
           icons and the app's only navigation, so hiding it would cost the
-          user their way around for almost no room; the sub-sidebar's 16rem
+          user their way around for almost no room; the sub-sidebar's 14rem
           is the width actually worth reclaiming. It stays on the rail, so
           bringing the menu back needs no separate control elsewhere. */}
       {subSidebarItems && (
