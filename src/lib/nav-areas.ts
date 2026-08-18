@@ -47,6 +47,7 @@ export type AreaSection = {
   description: string;
   pageDescription?: string;
   icon: Icon;
+  items?: AreaSection[];
 };
 
 export type NavArea = {
@@ -336,8 +337,23 @@ export function findAreaSection(
   href: string,
 ): { key: NavAreaKey; area: NavArea; section: AreaSection } | undefined {
   for (const [key, area] of Object.entries(NAV_AREAS)) {
-    const section = area.sections.find((item) => item.href === href);
+    // Depth-first: a section can hold its own screens, and a nested one
+    // needs its heading and description found here just as much as a
+    // top-level one — AreaSubPage throws when it is not.
+    const section = findSection(area.sections, href);
     if (section) return { key: key as NavAreaKey, area, section };
+  }
+  return undefined;
+}
+
+function findSection(
+  sections: readonly AreaSection[],
+  href: string,
+): AreaSection | undefined {
+  for (const section of sections) {
+    if (section.href === href) return section;
+    const nested = section.items && findSection(section.items, href);
+    if (nested) return nested;
   }
   return undefined;
 }

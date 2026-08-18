@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { NavMain, SidebarMenuItemWrapper } from "@/components/custom/nav-main";
+import { CollapsibleMenuItem } from "@/components/custom/sub-sidebar-menu";
 import { StoreSwitcher } from "@/components/custom/store-switcher";
 import { NavSecondary } from "@/components/custom/nav-secondary";
 import { NavUser } from "@/components/custom/nav-user";
@@ -19,6 +20,8 @@ import {
 } from "@/components/ui/sidebar";
 import {
   activeNavUrl,
+  flattenMenuItems,
+  isBranchActive,
   sidebarMenus,
   SubSidebarMenuItem,
 } from "@/lib/sidebar-navs";
@@ -52,10 +55,13 @@ export function AppSidebar({
   // Resolved once for the whole group: an entry carrying a query string
   // and its bare-path sibling can both match the path, and only the more
   // specific one should light up.
+  // Flattened, so a nested screen can win. Matching only the top level
+  // meant opening one lit its parent's sibling — or nothing at all.
+  const subNavSearch = searchParams?.toString() ?? "";
   const activeSubNavUrl = activeNavUrl(
-    subSidebarItems?.items ?? [],
+    flattenMenuItems(subSidebarItems?.items ?? []),
     pathname,
-    searchParams?.toString() ?? "",
+    subNavSearch,
   );
   const { data: session } = useSession();
   // Company admins (is_staff) get the admin nav (company settings + staff mgmt).
@@ -158,15 +164,36 @@ export function AppSidebar({
             <SidebarGroup>
               <SidebarGroupContent className="flex flex-col gap-2">
                 <SidebarMenu>
-                  {subSidebarItems.items.map((item) => (
-                    <SidebarMenuItemWrapper
-                      key={item.title}
-                      item={item}
-                      pathname={pathname}
-                      isActive={item.url === activeSubNavUrl}
-                      expanded
-                    />
-                  ))}
+                  {subSidebarItems.items.map((item) => {
+                    if (item.items && item.items?.length > 0) {
+                      return (
+                        <CollapsibleMenuItem
+                          key={item.title}
+                          pathname={pathname}
+                          title={item.title}
+                          icon={item.icon}
+                          // Open when anything inside is the current
+                          // screen — the parent is a heading, not a link,
+                          // so it is never the active url itself.
+                          defaultOpen={isBranchActive(
+                            item,
+                            pathname,
+                            subNavSearch,
+                          )}
+                          items={item.items}
+                        />
+                      );
+                    }
+                    return (
+                      <SidebarMenuItemWrapper
+                        key={item.title}
+                        item={item}
+                        pathname={pathname}
+                        isActive={item.url === activeSubNavUrl}
+                        expanded
+                      />
+                    );
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
