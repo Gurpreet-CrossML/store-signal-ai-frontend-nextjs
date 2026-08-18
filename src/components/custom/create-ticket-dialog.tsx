@@ -5,6 +5,7 @@ import { useFormik } from "formik";
 import { z } from "zod";
 import {
   IconSearch,
+  IconSparkles,
   IconTicket,
   IconUserPlus,
   IconX,
@@ -42,6 +43,7 @@ import { FetchOrders } from "@/redux/api-slice/order-slice";
 import {
   FetchSupportTicketTags,
   type CreateSupportTicketPayload,
+  type SupportTicketDraft,
   type SupportTicketPriority,
 } from "@/redux/api-slice/support-ticket-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -272,6 +274,7 @@ export function CreateTicketDialog({
   /** Who the conversation is with, so the agent does not search for someone already on screen. */
   initialCustomer = null,
   initialSubject = "",
+  onDraft,
   onSubmit,
 }: {
   open: boolean;
@@ -279,6 +282,13 @@ export function CreateTicketDialog({
   storeCode: string;
   initialCustomer?: TicketCustomer;
   initialSubject?: string;
+  /**
+   * Read the conversation and suggest the ticket. Optional — a screen with
+   * no conversation behind it simply does not offer the button. Like
+   * `onSubmit`, the caller owns the request: the two inboxes draft from
+   * different routes.
+   */
+  onDraft?: () => Promise<SupportTicketDraft | null>;
   /**
    * Send the ticket. The caller owns the request because the two inboxes
    * post to different routes — a DM goes to its social contact's own
@@ -296,6 +306,7 @@ export function CreateTicketDialog({
   // portal target is read during render — a ref would still be null on the
   // render that matters.
   const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
+  const [drafting, setDrafting] = useState(false);
 
   const { CreateSupportTicketIsLoading } = useAppSelector(
     (state) => state.GetSupportTicketsReducer.CreateSupportTicketState,
@@ -393,13 +404,41 @@ export function CreateTicketDialog({
     );
   }, [dispatch, open, storeCode, customerId]);
 
+  const handleDraft = async () => {
+    if (!onDraft) return;
+    setDrafting(true);
+    try {
+      const draft = await onDraft();
+      // An empty conversation comes back with blank fields rather than a
+      // guessed ticket, so there is nothing to write and the agent types.
+      if (!draft?.subject && !draft?.description) return;
+
+      formik.setValues({
+        ...formik.values,
+        subject: draft.subject,
+        description: draft.description,
+        priority: draft.priority,
+        tagNames: draft.tags.map((tag) => tag.name),
+      });
+    } finally {
+      setDrafting(false);
+    }
+  };
+
   // Keyed by name, not id: the API resolves a tag by name, reusing one
   // that exists and creating one that does not, so a name is the value
   // that survives the round trip.
-  const tagOptions = (FetchSupportTicketTagsData?.results ?? []).map((tag) => ({
-    value: tag.name,
-    label: tag.name,
-  }));
+  //
+  // A drafted tag is merged in even when it is not in the store's list —
+  // the AI returns Title Case and tags resolve case-insensitively, so
+  // "Wrong Item" is the store's "wrong item" and must still show as a
+  // chip the agent can see and remove.
+  const tagOptions = [
+    ...new Set([
+      ...(FetchSupportTicketTagsData?.results ?? []).map((tag) => tag.name),
+      ...formik.values.tagNames,
+    ]),
+  ].map((name) => ({ value: name, label: name }));
 
   const orders = customerId ? (FetchOrdersData?.results ?? []) : [];
   const busy = CreateSupportTicketIsLoading;
@@ -417,8 +456,40 @@ export function CreateTicketDialog({
 
         <form
           onSubmit={formik.handleSubmit}
-          className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto"
+          className="flex max-h-[60vh] flex-col gap-6 overflow-y-auto px-1"
         >
+          {/* Above the fields it writes, and separated by a rule rather
+              than sitting in a box of its own — it is an action on this
+              form, not a section of it. */}
+          {onDraft ? (
+            <div className="flex items-center justify-between gap-3 border-b border-border pb-4">
+              <div className="min-w-0">
+                <Typography variant="small" as="p">
+                  Draft from Conversation
+                </Typography>
+                <Typography variant="muted">
+                  Reads the recent messages and fills in the subject,
+                  description, priority and tags. Everything stays editable.
+                </Typography>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                disabled={drafting || busy}
+                onClick={handleDraft}
+              >
+                {drafting ? (
+                  <Spinner className="size-4" />
+                ) : (
+                  <IconSparkles className="size-4" />
+                )}
+                {drafting ? "Drafting…" : "Draft with AI"}
+              </Button>
+            </div>
+          ) : null}
+
           <Field>
             <FieldLabel>
               Customer

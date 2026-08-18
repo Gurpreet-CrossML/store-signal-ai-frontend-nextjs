@@ -363,6 +363,55 @@ export type CreateSupportTicketPayload = {
 };
 
 /**
+ * The AI's reading of a conversation, as a ticket an agent can edit.
+ *
+ * Every field is a suggestion — nothing is saved until the agent submits
+ * the create call — so the shape mirrors the form rather than the model.
+ * An empty conversation comes back with blank strings rather than a
+ * guessed ticket, which the form treats as "nothing to prefill".
+ */
+export type SupportTicketDraft = {
+  subject: string;
+  description: string;
+  priority: SupportTicketPriority;
+  /** 0–3, Title Case. Safe to post back — tags resolve case-insensitively. */
+  tags: { name: string }[];
+};
+
+/**
+ * Draft a ticket from a live chat, reading its recent messages.
+ *
+ * A failure here is not a blocking one: the agent asked for help filling
+ * the form and can still fill it themselves, so this says so quietly and
+ * leaves the form alone rather than raising an error over it.
+ */
+export const FetchThreadTicketDraft = createAsyncThunk(
+  "FetchThreadTicketDraft",
+  async (
+    { storeCode, threadId }: { storeCode: string; threadId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.threadSupportTicketDraft(threadId)}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as SupportTicketDraft;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.info("Couldn't draft this one", {
+        description:
+          data?.data?.detail?.[0] ||
+          data?.message ||
+          "Fill the form in manually.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+/**
  * Raise a ticket from a live chat an agent is already handling.
  *
  * Addressed by the thread, which the backend stores on the ticket — so the
