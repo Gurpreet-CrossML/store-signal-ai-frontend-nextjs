@@ -171,10 +171,18 @@ export function PolicyStep({ onBack, onDone }: SourceStepProps) {
 
         <div className="flex flex-col gap-2">
           <div className="grid grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto] items-center gap-2">
-            <Typography variant="muted" as="span" className="text-xs font-medium">
+            <Typography
+              variant="muted"
+              as="span"
+              className="text-xs font-medium"
+            >
               Policy Type
             </Typography>
-            <Typography variant="muted" as="span" className="text-xs font-medium">
+            <Typography
+              variant="muted"
+              as="span"
+              className="text-xs font-medium"
+            >
               Policy URL
             </Typography>
             <span aria-hidden className="w-8" />
@@ -201,7 +209,9 @@ export function PolicyStep({ onBack, onDone }: SourceStepProps) {
               </Select>
               <Input
                 value={draft.url}
-                onChange={(event) => updateDraft(draft.uid, "url", event.target.value)}
+                onChange={(event) =>
+                  updateDraft(draft.uid, "url", event.target.value)
+                }
                 placeholder="https://company.com/policy"
                 autoComplete="off"
               />
@@ -251,7 +261,11 @@ export function PolicyStep({ onBack, onDone }: SourceStepProps) {
         >
           Back
         </Button>
-        <Button type="button" onClick={handleSave} disabled={CreateKnowledgeItemIsLoading}>
+        <Button
+          type="button"
+          onClick={handleSave}
+          disabled={CreateKnowledgeItemIsLoading}
+        >
           {CreateKnowledgeItemIsLoading ? (
             <>
               <Spinner data-icon="inline-start" />
