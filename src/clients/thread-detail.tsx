@@ -3,50 +3,46 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  IconAlertTriangle,
   IconArrowLeft,
   IconBrain,
-  IconBrowser,
   IconCalendarTime,
   IconCheck,
   IconClockHour4,
-  IconDeviceDesktop,
-  IconDeviceLaptop,
   IconHash,
-  IconLocationPin,
-  IconMail,
+  IconListCheck,
   IconMessage2,
   IconMessages,
-  IconNetwork,
-  IconShoppingBag,
-  IconTicket,
-  IconUser,
+  IconSparkles,
+  IconTargetArrow,
+  IconThumbUp,
   IconX,
+  type Icon,
 } from "@tabler/icons-react";
 
 import MessagePan from "@/components/custom/message-pan";
+import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
+import {
+  CrmLinkButton,
+  SessionFacts,
+} from "@/components/custom/customer-header";
 import { TagsCell } from "@/components/custom/threads-columns";
 import { InfoIcon } from "@/components/custom/info-icon";
+import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { LoadingState } from "@/components/custom/loading-state";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Tooltip,
   TooltipContent,
@@ -62,14 +58,12 @@ import {
   FetchConversationSummary,
   FetchFeedbackSequence,
   FetchFreshdeskTicketId,
+  FetchOrders,
   FetchTags,
   FetchThreadDetails,
   FetchUserMetadata,
-  type CartData,
-  type CartDataResponse,
+  ThreadCustomerLink,
   type ThreadMessage,
-  type ThreadTicketData,
-  type UserMetadata,
 } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
@@ -77,7 +71,14 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 /* Shared bits                                                         */
 /* ------------------------------------------------------------------ */
 
-/** One cell of the thread strip. Labels are exposed through tooltips. */
+/**
+ * One fact in the session strip. Labels are exposed through tooltips.
+ *
+ * Muted and on a single line on purpose: when was it, how long, how many
+ * messages is reference data an agent checks occasionally. It used to be a
+ * full card at the top of the page, which put the least-needed thing in the
+ * most valuable place and pushed the conversation below the fold.
+ */
 function MetaCell({
   icon,
   label,
@@ -89,26 +90,22 @@ function MetaCell({
   label: string;
   value: React.ReactNode;
   mono?: boolean;
-  loading: boolean;
+  loading?: boolean;
 }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <div
-          className="flex min-w-0 flex-1 items-center gap-2"
+          className="flex min-w-0 shrink-0 items-center gap-1.5 text-muted-foreground"
           aria-label={label}
         >
-          <span className="shrink-0 text-muted-foreground">{icon}</span>
+          <span className="shrink-0">{icon}</span>
           {loading ? (
-            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-4 w-24" />
           ) : (
             <Typography
-              variant="small"
-              as="span"
-              className={cn(
-                "min-w-0 font-normal",
-                mono ? "truncate font-mono text-xs" : "whitespace-nowrap",
-              )}
+              variant="caption"
+              className={cn("truncate", mono && "font-mono")}
             >
               {value}
             </Typography>
@@ -120,335 +117,51 @@ function MetaCell({
   );
 }
 
-/** One compact item in the customer strip. Labels are exposed through tooltips. */
-function CustomerFact({
-  icon,
-  label,
-  value,
-  mono = false,
-  truncate = true,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value?: string | null;
-  mono?: boolean;
-  truncate?: boolean;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div
-          className="flex min-w-0 shrink-0 items-center gap-2 rounded-md px-2 py-1.5"
-          aria-label={`${label}: ${value || "Unknown"}`}
-        >
-          <span className="shrink-0 text-muted-foreground">{icon}</span>
-          <Typography
-            variant="small"
-            as="span"
-            className={cn(
-              "min-w-0 font-normal",
-              truncate ? "max-w-44 truncate" : "shrink-0 whitespace-nowrap",
-              mono && "font-mono text-xs",
-            )}
-          >
-            {value || "Unknown"}
-          </Typography>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  );
-}
-
 /* ------------------------------------------------------------------ */
-/* Customer group                                                      */
+/* Sections                                                            */
 /* ------------------------------------------------------------------ */
 
-/** Who the customer is and the environment they chatted from. */
-function CustomerProfileStrip({
-  name,
-  email,
-  metadata,
-  loading,
+/**
+ * The heading of one section of the thread pane.
+ *
+ * Sections rather than cards: the pane was three stacked boxes inside a
+ * bordered pane inside the page, and every nested edge cost width and made
+ * the screen read as furniture rather than content. A tinted icon and a
+ * rule carry the same separation without the frame.
+ */
+function SectionHeader({
+  icon: Icon,
+  title,
+  info,
+  action,
 }: {
-  name: string;
-  email: string | null;
-  metadata: UserMetadata | null;
-  loading: boolean;
+  icon: Icon;
+  title: React.ReactNode;
+  info: string;
+  action?: React.ReactNode;
 }) {
   return (
-    <div className="border-t bg-muted/20 px-3 py-2">
-      {loading ? (
-        <div className="flex items-center gap-3 overflow-hidden">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <Skeleton key={index} className="h-7 w-28 shrink-0" />
-          ))}
-        </div>
-      ) : (
-        <div className="flex items-center gap-1 overflow-x-auto">
-          <CustomerFact
-            icon={<IconUser className="size-4" />}
-            label="Name"
-            value={name}
-          />
-          <CustomerFact
-            icon={<IconMail className="size-4" />}
-            label="Email"
-            value={email}
-          />
-          <CustomerFact
-            icon={<IconLocationPin className="size-4" />}
-            label="Location"
-            value={metadata?.geo_location}
-            truncate={false}
-          />
-          <CustomerFact
-            icon={<IconNetwork className="size-4" />}
-            label="IP Address"
-            value={metadata?.ip_address}
-            mono
-          />
-          <CustomerFact
-            icon={<IconDeviceLaptop className="size-4" />}
-            label="Device"
-            value={metadata?.device_type}
-          />
-          <CustomerFact
-            icon={<IconBrowser className="size-4" />}
-            label="Browser"
-            value={metadata?.browser}
-          />
-          <CustomerFact
-            icon={<IconDeviceDesktop className="size-4" />}
-            label="OS"
-            value={metadata?.os}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Items the customer had in their cart during this session. */
-function CartCard({
-  cartData,
-  loading,
-}: {
-  cartData: CartDataResponse | null;
-  loading: boolean;
-}) {
-  const items = cartData?.updated_cart_data?.items ?? [];
-
-  // Prices arrive as display strings (e.g. "$6,419.00"). Total is only shown
-  // when every line parses cleanly.
-  const currencyPrefix = (String(items[0]?.price ?? "").match(/^[^0-9-]+/) ?? [
-    "",
-  ])[0].trim();
-  const total = items.reduce((sum, item) => {
-    const unit = Number(String(item.price ?? "").replace(/[^0-9.-]/g, ""));
-    const qty = Number(item.qty) || 1;
-    return sum + (Number.isFinite(unit) ? unit * qty : NaN);
-  }, 0);
-  const totalLabel = Number.isFinite(total)
-    ? `${currencyPrefix}${total.toLocaleString("en-US", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`
-    : null;
-
-  return (
-    <Card size="sm">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <IconShoppingBag className="size-4" />
-          Cart
-          <InfoIcon text="What the customer had in their cart during this session, as last seen by the assistant." />
-        </CardTitle>
-        {items.length > 0 && (
-          <CardAction>
-            <Badge variant="secondary">
-              {items.length} {items.length === 1 ? "item" : "items"}
-            </Badge>
-          </CardAction>
-        )}
-      </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
-        {loading ? (
-          <LoadingState className="py-6" />
-        ) : items.length === 0 ? (
-          <Typography variant="muted">
-            No cart activity was captured for this session.
-          </Typography>
-        ) : (
-          <>
-            <div className="flex max-h-72 flex-col overflow-y-auto pr-1">
-              {items.map((item: CartData, index: number) => (
-                <div key={index}>
-                  {index > 0 && <Separator className="my-3" />}
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-muted">
-                        {item.product_image ? (
-                          // Product images come from arbitrary store CDNs, so
-                          // next/image's domain allowlist can't cover them.
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={item.product_image}
-                            alt={item.name}
-                            className="h-full w-full object-contain"
-                          />
-                        ) : (
-                          <IconShoppingBag className="size-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex min-w-0 flex-col">
-                        <Typography
-                          variant="small"
-                          as="span"
-                          className="truncate"
-                        >
-                          {item.name}
-                        </Typography>
-                        <Typography
-                          variant="muted"
-                          as="span"
-                          className="text-xs"
-                        >
-                          Qty: {item.qty}
-                        </Typography>
-                      </div>
-                    </div>
-                    <Typography
-                      variant="small"
-                      as="span"
-                      className="shrink-0 font-normal tabular-nums"
-                    >
-                      {item.price || "—"}
-                    </Typography>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {totalLabel && (
-              <div className="mt-auto flex flex-col gap-3">
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <Typography variant="small" as="span">
-                    Cart Total
-                  </Typography>
-                  <Typography
-                    variant="small"
-                    as="span"
-                    className="tabular-nums"
-                  >
-                    {totalLabel}
-                  </Typography>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-/** Support tickets raised from this session, as a scannable table. */
-function TicketsBlock({
-  tickets,
-  loading,
-}: {
-  tickets: ThreadTicketData[];
-  loading: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <Typography
-          variant="small"
-          as="h4"
-          className="flex items-center gap-1.5"
-        >
-          <IconTicket className="size-4" />
-          Support Tickets
-          <InfoIcon text="Tickets raised from this conversation — created when the AI escalated or the customer asked for human help." />
+    <div className="sticky top-0 z-10 flex items-center gap-2.5 border-b bg-muted px-4 py-3">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="size-4" />
+      </span>
+      <div className="flex min-w-0 items-center gap-2">
+        <Typography variant="h6" as="h3" className="truncate">
+          {title}
         </Typography>
-        <Badge variant="secondary">{tickets.length}</Badge>
+        <InfoIcon text={info} />
       </div>
-      {loading ? (
-        <LoadingState className="py-6" />
-      ) : tickets.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-center text-sm text-muted-foreground">
-          No tickets were raised from this conversation.
-        </div>
-      ) : (
-        <div className="max-h-80 overflow-x-auto overflow-y-auto rounded-xl border border-border/50">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Ticket</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tickets.map((ticket, index) => (
-                <TableRow key={ticket.id ?? index}>
-                  <TableCell>
-                    <Badge variant="outline" className="font-normal">
-                      TCK-{ticket.id}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-56">
-                    <Typography
-                      variant="small"
-                      as="span"
-                      className="block truncate"
-                      title={ticket.subject}
-                    >
-                      {ticket.subject}
-                    </Typography>
-                  </TableCell>
-                  <TableCell className="max-w-md">
-                    <Typography
-                      variant="muted"
-                      as="span"
-                      className="block truncate text-xs"
-                      title={ticket.description ?? undefined}
-                    >
-                      {ticket.description || "—"}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography
-                      variant="muted"
-                      as="span"
-                      className="whitespace-nowrap text-xs"
-                    >
-                      {formatDateTime(ticket.created_at) || "—"}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      {action ? <div className="ml-auto shrink-0">{action}</div> : null}
     </div>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* AI Analysis group                                                   */
-/* ------------------------------------------------------------------ */
 
 /** Colored-dot list item for insight cases. */
 function InsightItem({
   tone,
   children,
 }: {
-  tone: "positive" | "negative";
+  tone: "positive" | "negative" | "action";
   children: React.ReactNode;
 }) {
   return (
@@ -456,7 +169,9 @@ function InsightItem({
       <span
         className={cn(
           "mt-1.5 size-1.5 shrink-0 rounded-full",
-          tone === "positive" ? "bg-emerald-500" : "bg-red-500",
+          tone === "positive" && "bg-emerald-500",
+          tone === "negative" && "bg-red-500",
+          tone === "action" && "bg-primary",
         )}
       />
       {children}
@@ -464,8 +179,54 @@ function InsightItem({
   );
 }
 
-/** The AI's recap and self-review of the conversation, as one card. */
-function AIAnalysisCard({
+/** A titled list of insight cases, or nothing when the AI found none. */
+function InsightGroup({
+  icon: Icon,
+  title,
+  tone,
+  items,
+}: {
+  icon: Icon;
+  title: string;
+  tone: "positive" | "negative" | "action";
+  items: string[];
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <Icon
+          className={cn(
+            "size-4",
+            tone === "positive" && "text-emerald-600 dark:text-emerald-500",
+            tone === "negative" && "text-red-600 dark:text-red-500",
+            tone === "action" && "text-primary",
+          )}
+        />
+        <Typography variant="small" as="h4">
+          {title}
+        </Typography>
+      </div>
+      <ul className="flex flex-col gap-1.5">
+        {items.map((item, index) => (
+          <InsightItem key={index} tone={tone}>
+            {item}
+          </InsightItem>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * The AI's read on the conversation, above the transcript.
+ *
+ * First on the page because it answers in a paragraph what the transcript
+ * answers in fifty messages — an agent picking up a thread wants the recap
+ * and the score before deciding whether to read the whole exchange.
+ */
+function AIInsightsSection({
   summary,
   summaryLoading,
   nextActionableItems,
@@ -487,20 +248,25 @@ function AIAnalysisCard({
   const rate = Math.min(100, Math.max(0, parseInt(resolutionSuccessRate) || 0));
 
   return (
-    <Card size="sm" className="h-[65vh] min-h-96">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <IconBrain className="size-4" />
-          AI Analysis
-          <InfoIcon text="The AI's read on this conversation — a recap of what happened, how well it resolved the request, and where it struggled." />
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="min-h-0 flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <Typography variant="small" as="h4">
-              Summary
-            </Typography>
+    <section className="shrink-0">
+      <SectionHeader
+        icon={IconBrain}
+        title="AI Insights"
+        info="The AI's read on this conversation — a recap of what happened, how well it resolved the request, and where it struggled."
+      />
+
+      <div className="flex flex-col gap-4 p-4">
+        {/* Recap and score side by side: the two things read first, and
+            the only two tinted, so the eye lands on them before the
+            plainer lists below. */}
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <div className="flex flex-col gap-2 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-center gap-2 text-primary">
+              <IconSparkles className="size-4" />
+              <Typography variant="small" as="h4">
+                Summary
+              </Typography>
+            </div>
             {summaryLoading ? (
               <Skeleton className="h-16 w-full" />
             ) : (
@@ -510,88 +276,67 @@ function AIAnalysisCard({
             )}
           </div>
 
-          {insightsLoading ? (
-            <LoadingState className="py-6" />
-          ) : (
-            <>
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <Typography variant="small" as="h4">
-                    Resolution Score
-                  </Typography>
-                  <Typography
-                    variant="small"
-                    as="span"
-                    className="tabular-nums"
-                  >
-                    {rate}%
-                  </Typography>
-                </div>
+          <div className="flex flex-col gap-2 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-center gap-2 text-primary">
+              <IconTargetArrow className="size-4" />
+              <Typography variant="small" as="h4">
+                Resolution Score
+              </Typography>
+            </div>
+            {insightsLoading ? (
+              <Skeleton className="h-16 w-full" />
+            ) : (
+              <>
+                <Typography
+                  variant="h3"
+                  as="span"
+                  className="text-primary tabular-nums"
+                >
+                  {rate}%
+                </Typography>
                 <Progress value={rate} />
-                {reasonForScore && (
-                  <Typography variant="muted" className="text-xs">
-                    {reasonForScore}
-                  </Typography>
-                )}
-              </div>
-
-              {nextActionableItems.length > 0 && (
-                <div className="flex flex-col gap-2 rounded-xl bg-amber-50 p-3 dark:bg-amber-950/40">
-                  <Typography
-                    variant="small"
-                    as="h4"
-                    className="text-xs text-amber-800 dark:text-amber-300"
-                  >
-                    Suggested follow-ups
-                  </Typography>
-                  <ul className="flex flex-col gap-1.5">
-                    {nextActionableItems.map((item, index) => (
-                      <li
-                        key={index}
-                        className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-200"
-                      >
-                        <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-500" />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {overperformingCases.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  <Typography variant="small" as="h4" className="text-xs">
-                    What went well
-                  </Typography>
-                  <ul className="flex flex-col gap-1.5">
-                    {overperformingCases.map((item, index) => (
-                      <InsightItem key={index} tone="positive">
-                        {item}
-                      </InsightItem>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {underperformingCases.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  <Typography variant="small" as="h4" className="text-xs">
-                    What to improve
-                  </Typography>
-                  <ul className="flex flex-col gap-1.5">
-                    {underperformingCases.map((item, index) => (
-                      <InsightItem key={index} tone="negative">
-                        {item}
-                      </InsightItem>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
-      </CardContent>
-    </Card>
+
+        {insightsLoading ? (
+          <LoadingState className="py-6" />
+        ) : (
+          <>
+            {reasonForScore && (
+              <Typography variant="muted" className="leading-relaxed">
+                {reasonForScore}
+              </Typography>
+            )}
+
+            <InsightGroup
+              icon={IconListCheck}
+              title="Suggested Follow-ups"
+              tone="action"
+              items={nextActionableItems}
+            />
+
+            {/* What worked and what did not, side by side — they are two
+                answers to one question and read as a pair. */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <InsightGroup
+                icon={IconThumbUp}
+                title="What Went Well"
+                tone="positive"
+                items={overperformingCases}
+              />
+              <InsightGroup
+                icon={IconAlertTriangle}
+                title="What To Improve"
+                tone="negative"
+                items={underperformingCases}
+              />
+            </div>
+          </>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -605,8 +350,9 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     (state) => state.GetStoresReducer.selectedStore,
   );
 
-  const { FetchThreadDetailsData, FetchThreadDetailsIsLoading } =
-    useAppSelector((state) => state.GetThreadReducer.FetchThreadDetailsState);
+  const { FetchThreadDetailsData, FetchThreadDetailsIsError } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchThreadDetailsState,
+  );
   const { FetchConversationSummaryData, FetchConversationSummaryIsLoading } =
     useAppSelector(
       (state) => state.GetThreadReducer.FetchConversationSummaryState,
@@ -624,8 +370,12 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     useAppSelector(
       (state) => state.GetThreadReducer.FetchFeedbackSequenceState,
     );
-  const { FetchFreshdeskTicketIdData } = useAppSelector(
-    (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
+  const { FetchFreshdeskTicketIdData, FetchFreshdeskTicketIdIsLoading } =
+    useAppSelector(
+      (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
+    );
+  const { FetchOrderData, FetchOrderDataIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchOrderDataState,
   );
   const threadTags = useAppSelector(
     (state) =>
@@ -635,8 +385,13 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         }
       ).FetchTags?.tags ?? [],
   );
+  const tagsLoading = useAppSelector(
+    (state) => state.GetThreadReducer.FetchTagsState.FetchTagsIsLoading,
+  );
 
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
+  const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
+  const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
 
   useEffect(() => {
     if (!storeCode || !threadId) return;
@@ -650,6 +405,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
       dispatch(FetchCart(threadId));
       dispatch(FetchUserMetadata(threadId));
       dispatch(FetchFeedbackSequence(threadId));
+      dispatch(FetchOrders(threadId));
       dispatch(
         FetchFreshdeskTicketId({
           threadId,
@@ -663,8 +419,45 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     loadData();
   }, [dispatch, storeCode, threadId]);
 
-  const details = FetchThreadDetailsData;
-  const detailsLoading = FetchThreadDetailsIsLoading;
+  const handleLinkCustomer = async (customerId: number) => {
+    if (!storeCode || !threadId) return;
+    setIsLinkingCustomer(true);
+    try {
+      const result = await dispatch(
+        ThreadCustomerLink({ storeCode, threadId, customerId }),
+      );
+      if (ThreadCustomerLink.fulfilled.match(result)) {
+        setIsLinkCustomerOpen(false);
+        // Identity, order history and tickets all change with the link, so
+        // refetch rather than patching a guess into three places.
+        const detail = await dispatch(FetchThreadDetails(threadId)).unwrap();
+        setThreadMessages(detail.messages ?? []);
+        dispatch(FetchOrders(threadId));
+        dispatch(
+          FetchFreshdeskTicketId({
+            threadId,
+            customerId: detail.customer?.id,
+            storeCode,
+          }),
+        );
+      }
+    } finally {
+      setIsLinkingCustomer(false);
+    }
+  };
+
+  // Only this thread's data counts as loaded. The store keeps the previous
+  // response while a new one is in flight — right for a refetch, wrong on
+  // navigation, where it left the last thread's customer, summary and score
+  // on screen under the new thread's URL as though they were its own.
+  const isThisThread =
+    FetchThreadDetailsData?.id?.toLowerCase() === threadId.toLowerCase();
+  const details = isThisThread ? FetchThreadDetailsData : null;
+  // The thread's own request is still out — or what is in the store belongs
+  // to the thread we came from. Either way this screen has no basics yet,
+  // so every section shows its own loader rather than the last thread's
+  // answer. Each section then falls back to its own request's flag.
+  const detailsLoading = !isThisThread;
   const isResolved = details?.verdict?.verdict === "resolved";
   const customerName = details?.customer_name || "Guest";
   const feedback = FetchFeedbackSequenceData?.feedback;
@@ -673,29 +466,82 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         ?.label ?? null)
     : null;
 
+  // Only a genuine failure replaces the screen. Everything else renders
+  // the shell and fills in section by section.
+  if (!details && FetchThreadDetailsIsError) {
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia>
+            <IconMessage2 />
+          </EmptyMedia>
+          <EmptyTitle>Thread Not Found</EmptyTitle>
+          <EmptyDescription>
+            This conversation may belong to another store, or have been removed.
+          </EmptyDescription>
+        </EmptyHeader>
+        <Button variant="outline" asChild>
+          <Link href="/threads">Back to Threads</Link>
+        </Button>
+      </Empty>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 p-4">
-      {/* ── Group 1: Thread — status, tags, and session facts ─────────── */}
-      <div className="flex items-start gap-3">
+    // The same shell as Live Support and Help Desk: the thread on one
+    // side, who it is with on the other. It used to be one long column, so
+    // reading a conversation meant scrolling past the customer and then
+    // back down for their cart and tickets.
+    <div className="flex h-svh min-h-0 flex-col overflow-hidden border-y">
+      {/* Who the agent is talking to comes first — the same header Live
+          Support and Help Desk lead with, so a customer reads identically
+          whichever screen you reach them from. The thread's own subject
+          titles the Conversation card below, where it names the thing it
+          is the subject of. */}
+      <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3">
         <Button
           variant="ghost"
           size="icon-sm"
           asChild
-          aria-label="Back to threads"
+          aria-label="Back to Threads"
         >
           <Link href="/threads">
             <IconArrowLeft />
           </Link>
         </Button>
+
+        <div className="flex min-w-0 items-center gap-2.5">
+          <CustomerAvatar name={customerName} online={details?.is_active} />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1">
+              {detailsLoading ? (
+                <Skeleton className="h-5 w-32" />
+              ) : (
+                <CardTitle className="truncate leading-tight">
+                  {customerName}
+                </CardTitle>
+              )}
+              <CrmLinkButton
+                customerId={details?.customer?.id}
+                onLinkCustomer={
+                  details?.customer?.id
+                    ? undefined
+                    : () => setIsLinkCustomerOpen(true)
+                }
+              />
+            </div>
+            {/* Nothing rather than "no email on file" for a guest — the
+                avatar and the link action already say which this is. */}
+            {details?.customer_email ? (
+              <Typography variant="muted" className="truncate">
+                {details.customer_email}
+              </Typography>
+            ) : null}
+          </div>
+        </div>
+
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          <Typography variant="h4" as="h2">
-            {detailsLoading ? (
-              <Skeleton className="h-7 w-48" />
-            ) : (
-              (details?.name ?? customerName)
-            )}
-          </Typography>
-          {!detailsLoading && details && (
+          {details && (
             <>
               <Badge variant={details.is_active ? "default" : "secondary"}>
                 {details.is_active ? "Active" : "Closed"}
@@ -730,35 +576,39 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                   </TooltipContent>
                 </Tooltip>
               )}
-              {threadTags.length > 0 && <TagsCell tags={threadTags} />}
+              {!tagsLoading && !detailsLoading && threadTags.length > 0 && (
+                <TagsCell tags={threadTags} />
+              )}
             </>
           )}
         </div>
-      </div>
 
-      <Card size="sm">
-        <CardContent className="p-0 gap-0">
-          <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+        <SessionFacts
+          userMetadata={
+            FetchUserMetadataIsLoading || detailsLoading
+              ? null
+              : FetchUserMetadataData
+          }
+        />
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {/* When and how long, on one muted line. The device and location
+              half of this strip now sits in the header beside the name, so
+              what is left is the session's own timing. */}
+          <div className="flex shrink-0 items-center gap-4 overflow-x-auto border-b px-4 py-2">
             <MetaCell
               icon={<IconHash className="size-3.5" />}
               label="Session ID"
-              value={<span title={threadId}>{threadId}</span>}
+              value={threadId}
               mono
-              loading={false}
-            />
-            <Separator
-              orientation="vertical"
-              className="hidden h-auto self-stretch sm:block"
             />
             <MetaCell
               icon={<IconCalendarTime className="size-3.5" />}
               label="Started"
               value={formatDateTime(details?.created_at || null) || "—"}
               loading={detailsLoading}
-            />
-            <Separator
-              orientation="vertical"
-              className="hidden h-auto self-stretch sm:block"
             />
             <MetaCell
               icon={<IconCalendarTime className="size-3.5" />}
@@ -772,10 +622,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               }
               loading={detailsLoading}
             />
-            <Separator
-              orientation="vertical"
-              className="hidden h-auto self-stretch sm:block"
-            />
             <MetaCell
               icon={<IconClockHour4 className="size-3.5" />}
               label="Duration"
@@ -787,86 +633,112 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               }
               loading={detailsLoading}
             />
-            <Separator
-              orientation="vertical"
-              className="hidden h-auto self-stretch sm:block"
-            />
-            <MetaCell
-              icon={<IconMessages className="size-3.5" />}
-              label="Messages"
-              value={details?.total_messages ?? threadMessages.length}
-              loading={detailsLoading}
-            />
           </div>
-          <CustomerProfileStrip
-            name={customerName}
-            email={details?.customer_email ?? null}
-            metadata={FetchUserMetadataData}
-            loading={detailsLoading || FetchUserMetadataIsLoading}
-          />
-        </CardContent>
-      </Card>
 
-      {/* ── Group 2 & 3: Conversation | AI Analysis — equal fixed height ─ */}
-      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <Card size="sm" className="h-[65vh] min-h-96">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <IconMessages className="size-4" />
-              Conversation
-              <InfoIcon text="The full exchange between the customer and the AI assistant for this session." />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="min-h-0 flex-1 p-0">
-            {detailsLoading ? (
-              <LoadingState label="Loading Conversation…" />
-            ) : threadMessages.length > 0 ? (
-              <div className="h-full overflow-y-auto">
-                <MessagePan messages={threadMessages} />
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-                <IconMessage2 className="size-8 text-muted-foreground/50" />
-                <Typography variant="small" as="p">
-                  No messages in this conversation
-                </Typography>
-                <Typography variant="muted" className="max-w-xs text-xs">
-                  The session was opened but the customer never sent a message.
-                </Typography>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          {/* One column, insights above the transcript. The two used to sit
+              side by side in boxes, which split the reading width in half
+              and asked an agent to choose where to look first. */}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <AIInsightsSection
+              summary={FetchConversationSummaryData?.conversation_summary || ""}
+              summaryLoading={
+                detailsLoading || FetchConversationSummaryIsLoading
+              }
+              nextActionableItems={
+                FetchAIInsightData?.next_actionable_items || []
+              }
+              resolutionSuccessRate={
+                FetchAIInsightData?.resolution_success_rate || "0"
+              }
+              reasonForScore={FetchAIInsightData?.reason_for_score || ""}
+              overperformingCases={
+                FetchAIInsightData?.overperforming_cases || []
+              }
+              underperformingCases={
+                FetchAIInsightData?.underperforming_cases || []
+              }
+              insightsLoading={detailsLoading || FetchAIInsightIsLoading}
+            />
 
-        <AIAnalysisCard
-          summary={FetchConversationSummaryData?.conversation_summary || ""}
-          summaryLoading={FetchConversationSummaryIsLoading}
-          nextActionableItems={FetchAIInsightData?.next_actionable_items || []}
-          resolutionSuccessRate={
-            FetchAIInsightData?.resolution_success_rate || "0"
-          }
-          reasonForScore={FetchAIInsightData?.reason_for_score || ""}
-          overperformingCases={FetchAIInsightData?.overperforming_cases || []}
-          underperformingCases={FetchAIInsightData?.underperforming_cases || []}
-          insightsLoading={FetchAIInsightIsLoading}
+            <section>
+              <SectionHeader
+                icon={IconMessages}
+                // The thread's subject names the exchange it is the
+                // subject of; full text on hover when it truncates.
+                title={
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>{details?.name || "Conversation"}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {details?.name || "Conversation"}
+                    </TooltipContent>
+                  </Tooltip>
+                }
+                info="The full exchange between the customer and the AI assistant for this session."
+                action={
+                  detailsLoading ? null : (
+                    <Badge variant="secondary" className="font-normal">
+                      {details?.total_messages ?? threadMessages.length}{" "}
+                      Messages
+                    </Badge>
+                  )
+                }
+              />
+
+              {detailsLoading ? (
+                <LoadingState label="Loading conversation…" />
+              ) : threadMessages.length > 0 ? (
+                <div className="p-2">
+                  <MessagePan messages={threadMessages} />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+                  <IconMessage2 className="size-8 text-muted-foreground/50" />
+                  <Typography variant="small" as="p">
+                    No messages in this conversation
+                  </Typography>
+                  <Typography variant="muted">
+                    The session was opened but the customer never sent a
+                    message.
+                  </Typography>
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+
+        <CustomerDetailsPanel
+          // The detail response carries the customer's id and their name
+          // and email as separate fields; the panel wants them together.
+          customerData={{
+            id: details?.customer?.id ?? null,
+            name: customerName,
+            email: details?.customer_email ?? "",
+          }}
+          orders={FetchOrderData}
+          ordersLoading={detailsLoading || FetchOrderDataIsLoading}
+          onOrdersSync={() => dispatch(FetchOrders(threadId))}
+          tickets={{
+            data: FetchFreshdeskTicketIdData ?? [],
+            loading: detailsLoading || FetchFreshdeskTicketIdIsLoading,
+          }}
+          cart={{
+            data: FetchCartData,
+            loading: detailsLoading || FetchCartDataIsLoading,
+          }}
         />
       </div>
 
-      {/* ── Group 4: Customer activity — cart and tickets ─────────────── */}
-      <section className="flex flex-col gap-4">
-        <Typography variant="h6" as="h3" className="flex items-center gap-2">
-          <IconShoppingBag className="size-4" />
-          Customer Activity
-          <InfoIcon text="Cart activity and support tickets connected to this session." />
-        </Typography>
-        <div className="grid grid-cols-1 gap-4">
-          <CartCard cartData={FetchCartData} loading={FetchCartDataIsLoading} />
-        </div>
-        <TicketsBlock
-          tickets={FetchFreshdeskTicketIdData || []}
-          loading={detailsLoading}
+      {storeCode ? (
+        <LinkCustomerDialog
+          open={isLinkCustomerOpen}
+          onOpenChange={setIsLinkCustomerOpen}
+          storeCode={storeCode}
+          linking={isLinkingCustomer}
+          onLink={(customer) => handleLinkCustomer(customer.id)}
         />
-      </section>
+      ) : null}
     </div>
   );
 }

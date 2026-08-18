@@ -1,9 +1,7 @@
 "use client";
 
 import { AppSidebar } from "@/components/custom/app-sidebar";
-import { Button } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { IconLayoutSidebar } from "@tabler/icons-react";
 import {
   resolveSubSidebarKey,
   sidebarMenus,
@@ -39,25 +37,6 @@ function StoreLoading() {
   );
 }
 
-/**
- * Brings the sidebar back once it's been hidden. Rendered in the content
- * area because the sidebar's own trigger disappears with it.
- */
-function SidebarRevealTrigger({ onShow }: { onShow: () => void }) {
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="icon-xs"
-      onClick={onShow}
-      aria-label="Show sidebar"
-      className="fixed top-2 left-2 z-20 rounded-full bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
-    >
-      <IconLayoutSidebar className="size-4" />
-    </Button>
-  );
-}
-
 export default function MainLayout({
   children,
 }: Readonly<{
@@ -68,7 +47,10 @@ export default function MainLayout({
   );
   const pathname = usePathname();
 
-  const [sidebarHidden, setSidebarHidden] = useState(false);
+  // Collapses the sub-sidebar only. The icon rail is the app's navigation
+  // and stays put — the width worth reclaiming is the sub-sidebar's 16rem,
+  // not the rail's 3.5rem.
+  const [subSidebarHidden, setSubSidebarHidden] = useState(false);
 
   // Derived from the route, so it survives a refresh and works on a deep
   // link. Computed here rather than in AppSidebar because the sidebar's
@@ -100,35 +82,31 @@ export default function MainLayout({
         {
           // Literal values: the rail keeps 3.5rem, and the collapsed
           // sidebar grows by the sub-sidebar's width when one is open.
-          "--sidebar-width-icon": hasSubSidebar
-            ? "calc(3.5rem + 16rem)"
-            : "3.5rem",
+          "--sidebar-width-icon":
+            hasSubSidebar && !subSidebarHidden
+              ? "calc(3.5rem + 16rem)"
+              : "3.5rem",
         } as React.CSSProperties
       }
     >
-      {!sidebarHidden && (
-        // The sidebar reads the query string to decide which sub-nav entry
-        // is active, and useSearchParams opts a route out of static
-        // rendering unless it sits under a boundary.
-        <Suspense fallback={null}>
-          <AppSidebar
-            subSidebarItems={subSidebarItems}
-            onHide={() => setSidebarHidden(true)}
-          />
-        </Suspense>
-      )}
+      {/* The sidebar reads the query string to decide which sub-nav entry
+          is active, and useSearchParams opts a route out of static
+          rendering unless it sits under a boundary. */}
+      <Suspense fallback={null}>
+        <AppSidebar
+          subSidebarItems={subSidebarItems}
+          subSidebarHidden={subSidebarHidden}
+          onToggleSubSidebar={() => setSubSidebarHidden((hidden) => !hidden)}
+        />
+      </Suspense>
       <SidebarInset>
-        {sidebarHidden && (
-          <SidebarRevealTrigger onShow={() => setSidebarHidden(false)} />
-        )}
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
-            <div
-              className={cn(
-                "flex flex-col gap-4 py-4 md:gap-6 md:py-6",
-                "h-full",
-              )}
-            >
+            {/* No vertical padding here: each page owns its spacing with a
+                uniform p-4 container, and the full-bleed screens (help desk,
+                live support, social inbox/feed) fill the viewport edge to
+                edge. Padding added here would double up on every page. */}
+            <div className={cn("flex flex-col", "h-full")}>
               {GetStoresIsLoading ? <StoreLoading /> : children}
             </div>
           </div>

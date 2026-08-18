@@ -8,7 +8,7 @@ import {
   useRef,
   startTransition,
 } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
@@ -52,11 +52,6 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
-  ComboboxChip,
-  ComboboxChips,
-  ComboboxChipsInput,
-  ComboboxValue,
-  useComboboxAnchor,
 } from "@/components/ui/combobox";
 import {
   Popover,
@@ -82,6 +77,12 @@ import {
 } from "@/lib/badge-tones";
 
 import { ConversationRow } from "@/components/custom/conversation-row";
+import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
+import {
+  TicketPriorityBar,
+  TICKET_PRIORITY_TONES,
+  ticketRef,
+} from "@/components/custom/ticket-priority-bar";
 import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
 import { CrmLinkButton } from "@/components/custom/customer-header";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
@@ -194,12 +195,7 @@ const STATUS_TONE: Record<SupportTicketStatus, BadgeTone> = {
   closed: "neutral",
 };
 
-const PRIORITY_TONE: Record<SupportTicketPriority, BadgeTone> = {
-  low: "success",
-  normal: "neutral",
-  high: "warning",
-  urgent: "danger",
-};
+const PRIORITY_TONE = TICKET_PRIORITY_TONES;
 
 /**
  * How a customer is named on screen. The API sends either a customer object
@@ -237,6 +233,7 @@ function TicketRow({
       active={active}
       onSelect={onSelect}
       unread={!ticket.is_read}
+      accent={<TicketPriorityBar priority={ticket.priority} />}
       avatar={<CustomerAvatar name={customerName} />}
       title={ticket.subject}
       titleTooltip={ticket.subject}
@@ -310,82 +307,6 @@ const priorityOptions: { value: SupportTicketPriority; label: string }[] = [
   { value: "urgent", label: "Urgent" },
 ];
 
-function MultiSelectCombobox({
-  options,
-  value,
-  onValueChange,
-  placeholder,
-  emptyMessage,
-  onSearchChange,
-  hasMore = false,
-  isLoading = false,
-  onLoadMore,
-}: {
-  options: { value: string; label: string }[];
-  value: string[];
-  onValueChange: (value: string[]) => void;
-  placeholder: string;
-  emptyMessage: string;
-  onSearchChange?: (value: string) => void;
-  hasMore?: boolean;
-  isLoading?: boolean;
-  onLoadMore?: () => void;
-}) {
-  const anchor = useComboboxAnchor();
-  const optionLabels = new Map(
-    options.map((option) => [option.value, option.label]),
-  );
-  const values = options.map((option) => option.value);
-
-  return (
-    <Combobox
-      multiple
-      autoHighlight
-      items={values}
-      value={value}
-      onValueChange={onValueChange}
-      itemToStringLabel={(item) => optionLabels.get(item) ?? item}
-      onInputValueChange={(inputValue) => onSearchChange?.(inputValue)}
-    >
-      <ComboboxChips ref={anchor} className="w-full">
-        <ComboboxValue>
-          {(selectedValues) => (
-            <>
-              {(selectedValues as string[]).map((selectedValue) => (
-                <ComboboxChip key={selectedValue}>
-                  {optionLabels.get(selectedValue) ?? selectedValue}
-                </ComboboxChip>
-              ))}
-              <ComboboxChipsInput placeholder={placeholder} />
-            </>
-          )}
-        </ComboboxValue>
-      </ComboboxChips>
-      <ComboboxContent anchor={anchor}>
-        <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
-        <ComboboxList
-          onScroll={(event) => {
-            const target = event.currentTarget;
-            if (
-              hasMore &&
-              !isLoading &&
-              target.scrollHeight - target.scrollTop <= target.clientHeight + 40
-            ) {
-              onLoadMore?.();
-            }
-          }}
-        >
-          {(item) => (
-            <ComboboxItem key={item} value={item}>
-              {optionLabels.get(item) ?? item}
-            </ComboboxItem>
-          )}
-        </ComboboxList>
-      </ComboboxContent>
-    </Combobox>
-  );
-}
-
 function TicketListPanel({
   rows,
   activeTicketId,
@@ -455,7 +376,7 @@ function TicketListPanel({
   };
 
   return (
-    <section className="hidden h-full min-h-0 w-84 shrink-0 flex-col border-r md:flex">
+    <section className="hidden h-full min-h-0 w-72 shrink-0 flex-col border-r md:flex 2xl:w-84">
       {/* One header, not two: the queue switcher is the inbox's title, so a
           separate "Your inbox" line above it said nothing extra. */}
       <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
@@ -498,7 +419,7 @@ function TicketListPanel({
               variant="outline"
               size="icon-sm"
               className="relative"
-              aria-label="Filter tickets"
+              aria-label="Filter Tickets"
             >
               <IconFilter className="size-4" />
               {activeFilterCount > 0 ? (
@@ -510,7 +431,7 @@ function TicketListPanel({
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 p-0">
             <div className="border-b px-4 py-3">
-              <CardTitle>Filter tickets</CardTitle>
+              <CardTitle>Filter Tickets</CardTitle>
             </div>
             <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4">
               <fieldset>
@@ -615,7 +536,7 @@ function TicketListPanel({
                 <span />
               )}
               <Button size="sm" onClick={onApplyFilters}>
-                Apply filters
+                Apply Filters
               </Button>
             </div>
           </PopoverContent>
@@ -829,7 +750,7 @@ function ConversationPanel({
           up across the screen. The customer leads — who you are talking to
           is the first thing you need — and the subject follows below. */}
       <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4">
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <CustomerAvatar name={customerName} />
           <div className="min-w-0">
             <div className="flex items-center gap-1">
@@ -859,7 +780,7 @@ function ConversationPanel({
         <div className="flex shrink-0 items-center gap-2">
           <Combobox items={availableStaff}>
             <ComboboxInput
-              className="h-8 w-40"
+              className="h-8 w-28 2xl:w-40"
               placeholder={
                 ticket?.internal_assignee?.id
                   ? ticket?.internal_assignee?.name
@@ -997,14 +918,15 @@ function ConversationPanel({
               </TooltipContent>
             </Tooltip>
             <Typography variant="caption" className="shrink-0">
-              #{ticket.id}
+              {ticketRef(ticket.id)}
             </Typography>
           </div>
 
           {/* Facts close the subject line, and say what each date is — two
-              bare timestamps side by side told you nothing. First to go
-              when the pane narrows, being the least urgent thing here. */}
-          <div className="hidden shrink-0 items-center gap-4 lg:flex">
+              bare timestamps side by side told you nothing. Below 2xl they
+              collapse to their icons (the tooltip carries the value), so
+              the subject keeps the line on a laptop screen. */}
+          <div className="hidden shrink-0 items-center gap-3 lg:flex 2xl:gap-4">
             {facts.map((fact) => (
               <TicketFact key={fact.label} {...fact} />
             ))}
@@ -1012,97 +934,104 @@ function ConversationPanel({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Status and priority are set on the badges that report them,
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Status and priority are set on the badges that report them,
               rather than in a menu behind a ⋮ that showed the same two
               values a second time. */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label="Change status"
-              className={cn(
-                badgeVariants({ variant: "outline" }),
-                "cursor-pointer capitalize",
-                BADGE_TONE_STYLES[STATUS_TONE[ticket.status]],
-              )}
-            >
-              {capitalizeText(ticket.status)}
-              <IconChevronDown />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel>Status</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {queues.map((queue) => (
-                <DropdownMenuItem
-                  key={queue.key}
-                  onClick={() =>
-                    queue.key !== ticket.status &&
-                    onTicketStatusUpdate(queue.key)
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Change status"
+                className={cn(
+                  badgeVariants({ variant: "outline" }),
+                  "cursor-pointer capitalize",
+                  BADGE_TONE_STYLES[STATUS_TONE[ticket.status]],
+                )}
+              >
+                {capitalizeText(ticket.status)}
+                <IconChevronDown />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {queues.map((queue) => (
+                  <DropdownMenuItem
+                    key={queue.key}
+                    onClick={() =>
+                      queue.key !== ticket.status &&
+                      onTicketStatusUpdate(queue.key)
+                    }
+                    className={cn(queue.key === ticket.status && "font-medium")}
+                  >
+                    {queue.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Change priority"
+                disabled={isClosed}
+                className={cn(
+                  badgeVariants({ variant: "outline" }),
+                  "cursor-pointer capitalize disabled:cursor-default disabled:opacity-60",
+                  BADGE_TONE_STYLES[PRIORITY_TONE[ticket.priority]],
+                )}
+              >
+                {capitalizeText(ticket.priority)}
+                {!isClosed ? <IconChevronDown /> : null}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Priority</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {priorityOptions.map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    onClick={() =>
+                      option.value !== ticket.priority &&
+                      onTicketPriorityUpdate(option.value)
+                    }
+                    className={cn(
+                      option.value === ticket.priority && "font-medium",
+                    )}
+                  >
+                    {option.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {!ticket.internal_assignee && ticket.status === "open" ? (
+              <Badge variant="outline" className={BADGE_TONE_STYLES.accent}>
+                Unassigned
+              </Badge>
+            ) : null}
+          </div>
+
+          {/* Tags live in their own scrollable strip, so however many
+              there are they can never push the +N chip or the add button
+              out of the pane on a narrow screen. */}
+          <div className="scrollbar-none flex min-w-0 flex-1 items-center gap-2 overflow-x-auto *:shrink-0">
+            {visibleTags?.map((tag) => {
+              const tagId = tag.id;
+              return (
+                <TagBadge
+                  key={tagId}
+                  tag={tag}
+                  onRemove={
+                    tagId && !isClosed ? () => onRemoveTag(tagId) : undefined
                   }
-                  className={cn(queue.key === ticket.status && "font-medium")}
-                >
-                  {queue.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label="Change priority"
-              disabled={isClosed}
-              className={cn(
-                badgeVariants({ variant: "outline" }),
-                "cursor-pointer capitalize disabled:cursor-default disabled:opacity-60",
-                BADGE_TONE_STYLES[PRIORITY_TONE[ticket.priority]],
-              )}
-            >
-              {capitalizeText(ticket.priority)}
-              {!isClosed ? <IconChevronDown /> : null}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel>Priority</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {priorityOptions.map((option) => (
-                <DropdownMenuItem
-                  key={option.value}
-                  onClick={() =>
-                    option.value !== ticket.priority &&
-                    onTicketPriorityUpdate(option.value)
-                  }
-                  className={cn(
-                    option.value === ticket.priority && "font-medium",
-                  )}
-                >
-                  {option.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {!ticket.internal_assignee && ticket.status === "open" ? (
-            <Badge variant="outline" className={BADGE_TONE_STYLES.accent}>
-              Unassigned
-            </Badge>
-          ) : null}
-
-          {visibleTags?.map((tag) => {
-            const tagId = tag.id;
-            return (
-              <TagBadge
-                key={tagId}
-                tag={tag}
-                onRemove={
-                  tagId && !isClosed ? () => onRemoveTag(tagId) : undefined
-                }
+                />
+              );
+            })}
+            {hiddenTags?.length > 0 ? (
+              <HiddenTagsBadge
+                tags={hiddenTags}
+                label={`+${hiddenTags.length} more`}
+                onRemoveTag={isClosed ? undefined : onRemoveTag}
               />
-            );
-          })}
-          {hiddenTags?.length > 0 ? (
-            <HiddenTagsBadge
-              tags={hiddenTags}
-              label={`+${hiddenTags.length} more`}
-              onRemoveTag={isClosed ? undefined : onRemoveTag}
-            />
-          ) : null}
+            ) : null}
+          </div>
 
           <Popover
             open={isTagPickerOpen}
@@ -1115,7 +1044,8 @@ function ConversationPanel({
                     variant="ghost"
                     size="icon-xs"
                     disabled={isClosed}
-                    aria-label="Add tag"
+                    aria-label="Add Tag"
+                    className="shrink-0"
                   >
                     <IconPlus className="size-4" />
                   </Button>
@@ -1186,7 +1116,7 @@ function ConversationPanel({
                       onClick={onLoadMoreTags}
                       disabled={isTagPickerLoading}
                     >
-                      {isTagPickerLoading ? "Loading…" : "Load more"}
+                      {isTagPickerLoading ? "Loading…" : "Load More"}
                     </Button>
                   ) : null}
                 </div>
@@ -1422,26 +1352,42 @@ function ConversationPanel({
           </DropdownMenu>
 
           <div className="ml-auto flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onSaveDraft}
-              disabled={isClosed || isTranslating}
-            >
-              <IconDeviceFloppy className="size-4" />
-              Save draft
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onSend("note")}
-              disabled={
-                isSending || isMessageImproving || isClosed || isTranslating
-              }
-            >
-              <IconPencil className="size-4" />
-              Send as internal note
-            </Button>
+            {/* Below 2xl the secondary actions keep their icons and hand
+                the label to a tooltip — same rule as the header actions. */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onSaveDraft}
+                  disabled={isClosed || isTranslating}
+                  aria-label="Save Draft"
+                >
+                  <IconDeviceFloppy className="size-4" />
+                  <span className="hidden 2xl:inline">Save Draft</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Save Draft</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onSend("note")}
+                  disabled={
+                    isSending || isMessageImproving || isClosed || isTranslating
+                  }
+                  aria-label="Send as Internal Note"
+                >
+                  <IconPencil className="size-4" />
+                  <span className="hidden 2xl:inline">
+                    Send as Internal Note
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Send as Internal Note</TooltipContent>
+            </Tooltip>
             <Button
               size="sm"
               onClick={() => onSend("reply")}
@@ -1478,12 +1424,14 @@ function TicketFact({
       <TooltipTrigger asChild>
         <div className="flex min-w-0 items-center gap-1.5">
           <Icon className="size-4 shrink-0 text-muted-foreground" />
-          <Typography variant="caption" className="truncate">
+          <Typography variant="caption" className="hidden truncate 2xl:inline">
             {value}
           </Typography>
         </div>
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent>
+        {label}: {value}
+      </TooltipContent>
     </Tooltip>
   );
 }
@@ -1500,7 +1448,7 @@ function TicketInsightsPlaceholder({
   label: string;
 }) {
   return (
-    <aside className="hidden w-95 shrink-0 flex-col items-center justify-center border-l px-6 text-center xl:flex">
+    <aside className="hidden w-80 shrink-0 flex-col items-center justify-center border-l px-6 text-center xl:flex 2xl:w-95">
       {loading ? (
         <LoadingState label={label} />
       ) : (
@@ -1512,6 +1460,8 @@ function TicketInsightsPlaceholder({
 
 export default function HelpDesk() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const activeFilter = searchParams?.get("filter") ?? "";
   /** Deep link to one ticket, e.g. from the Live Support detail panel. */
   const linkedTicketId = Number(searchParams?.get("ticket") ?? "");
@@ -1533,10 +1483,13 @@ export default function HelpDesk() {
     useAppSelector(
       (state) => state.GetSupportTicketsReducer.FetchSupportTicketsState,
     );
-  const { FetchSupportTicketDetailsData, FetchSupportTicketDetailsIsLoading } =
-    useAppSelector(
-      (state) => state.GetSupportTicketsReducer.FetchSupportTicketDetailsState,
-    );
+  const {
+    FetchSupportTicketDetailsData,
+    FetchSupportTicketDetailsIsLoading,
+    FetchSupportTicketDetailsIsError,
+  } = useAppSelector(
+    (state) => state.GetSupportTicketsReducer.FetchSupportTicketDetailsState,
+  );
   const { SupportTicketMessageSendIsLoading } = useAppSelector(
     (state) => state.GetSupportTicketsReducer.SupportTicketMessageSendState,
   );
@@ -1612,6 +1565,22 @@ export default function HelpDesk() {
   ) {
     setSeededTicketId(linkedTicketId);
     setActiveTicketId(linkedTicketId);
+  }
+
+  // A ticket belongs to a store, so switching stores cannot leave one
+  // open. Guarded on the *previous* code being set: the first transition is
+  // "" → the loaded store, which is initialisation, not a switch — treating
+  // it as one would throw away a ticket named in the URL before its request
+  // was ever made.
+  const [lastStoreCode, setLastStoreCode] = useState(storeCode);
+  if (lastStoreCode !== storeCode) {
+    setLastStoreCode(storeCode);
+    if (lastStoreCode) {
+      setActiveTicketId(null);
+      setActiveSupportTicket(null);
+      setTicketRows([]);
+      setPage(1);
+    }
   }
 
   // Switching sidebar filter resets paging. The list request keys on
@@ -2118,27 +2087,22 @@ export default function HelpDesk() {
       try {
         const data = await dispatch(FetchSupportTickets(fetchArgs)).unwrap();
 
-        setTicketRows((prev) => {
-          const rows = page === 1 ? data.results : [...prev, ...data.results];
+        setTicketRows((prev) =>
+          page === 1 ? data.results : [...prev, ...data.results],
+        );
 
-          setActiveTicketId((current) => {
-            if (rows.length === 0) return null;
-
-            return current && rows.some((t) => t.id === current)
-              ? current
-              : rows[0].id;
-          });
-
-          setActiveSupportTicket((current) => {
-            if (rows.length === 0) return null;
-
-            return current && rows.some((t) => t.id === current.id)
-              ? current
-              : rows[0];
-          });
-
-          return rows;
-        });
+        // Open the first ticket only when nothing is open yet.
+        //
+        // This used to replace the open ticket with the list's first row
+        // whenever that ticket was not among the loaded ones — so every
+        // link to a ticket sitting under another filter, or past the first
+        // page, silently landed on a different ticket instead. The list is
+        // a view of the queue; it does not get to decide what is open.
+        if (page === 1 && !currentActiveSupportTicketIdRef.current) {
+          const first = data.results[0] ?? null;
+          setActiveTicketId(first?.id ?? null);
+          setActiveSupportTicket(first);
+        }
       } finally {
         if (isLoadMore) {
           setIsLoadingMore(false);
@@ -2181,6 +2145,27 @@ export default function HelpDesk() {
     );
   }, [dispatch, storeCode, tagPage]);
 
+  // Mirror the open ticket into the query string, so a refresh, a shared
+  // link and the back button all land on the same ticket. `replace`, not
+  // `push`: clicking down a queue should not bury the previous page under
+  // twenty history entries.
+  useEffect(() => {
+    if (!pathname) return;
+
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    const current = params.get("ticket");
+    const next = activeTicketId ? String(activeTicketId) : null;
+    if (current === next) return;
+
+    if (next) params.set("ticket", next);
+    else params.delete("ticket");
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }, [activeTicketId, pathname, router, searchParams]);
+
   useEffect(() => {
     currentActiveSupportTicketIdRef.current = activeTicketId || null;
     if (!storeCode || !activeTicketId) return;
@@ -2188,10 +2173,13 @@ export default function HelpDesk() {
     dispatch(
       FetchSupportTicketDetails({ storeCode, ticketId: activeTicketId }),
     );
-    // Refetch only when the open ticket changes; storeCode is captured and a
-    // store switch resets the ticket selection anyway.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTicketId]);
+    // `storeCode` belongs in here, not just in the guard above. A ticket
+    // deep-linked in the address bar is selected on the very first render,
+    // before the store list has resolved — so this effect ran once, bailed
+    // on the empty store code, and never ran again. The list masked it:
+    // it used to overwrite the selection when its rows arrived, which
+    // re-fired this effect by accident, on the wrong ticket.
+  }, [dispatch, storeCode, activeTicketId]);
 
   useEffect(() => {
     if (!FetchSupportTicketDetailsData) return;
@@ -2199,6 +2187,16 @@ export default function HelpDesk() {
     startTransition(() => {
       setActiveSupportTicket(FetchSupportTicketDetailsData);
       setSupportTicketMessages(FetchSupportTicketDetailsData.messages ?? []);
+
+      // Followed from a link, it may belong to another queue or sit ten
+      // pages down. Put it at the head of the list so the open ticket is
+      // visible and selected there, rather than leaving the list with
+      // nothing highlighted while the pane shows a conversation.
+      setTicketRows((rows) =>
+        rows.some((row) => row.id === FetchSupportTicketDetailsData.id)
+          ? rows
+          : [FetchSupportTicketDetailsData, ...rows],
+      );
 
       const agentDraft = FetchSupportTicketDetailsData.drafts?.find(
         (draft) => draft.draft_type === "manual",
@@ -2216,6 +2214,15 @@ export default function HelpDesk() {
     // handler identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [FetchSupportTicketDetailsData]);
+
+  // A link can name a ticket that was deleted, belongs to another store,
+  // or was simply mistyped. Saying so beats "no ticket selected", which
+  // reads as though nothing was asked for.
+  const linkedTicketMissing =
+    Boolean(activeTicketId) &&
+    !FetchSupportTicketDetailsIsLoading &&
+    Boolean(FetchSupportTicketDetailsIsError) &&
+    activeSupportTicket?.id !== activeTicketId;
 
   const activeQueueLabel = useMemo(
     () => queues.find((queue) => queue.key === activeQueue)?.label ?? "Open",
@@ -2956,7 +2963,7 @@ export default function HelpDesk() {
   };
 
   return (
-    <div className="-my-4 flex h-svh min-h-0 flex-col overflow-hidden border-y md:-my-6">
+    <div className="flex h-svh min-h-0 flex-col overflow-hidden border-y">
       <div className="flex min-h-0 flex-1">
         <TicketListPanel
           rows={ticketRows}
@@ -2997,6 +3004,25 @@ export default function HelpDesk() {
         activeSupportTicket?.id !== activeTicketId ? (
           <div className="flex min-w-0 flex-1 items-center justify-center">
             <LoadingState label="Loading conversation…" />
+          </div>
+        ) : linkedTicketMissing ? (
+          <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
+            <IconInbox className="mb-1 size-6 text-muted-foreground opacity-40" />
+            <Typography variant="small" as="p">
+              Ticket Not Found
+            </Typography>
+            <Typography variant="muted">
+              {ticketRef(activeTicketId ?? "")} could not be opened. It may
+              belong to another store, or have been removed.
+            </Typography>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => setActiveTicketId(null)}
+            >
+              Back to Inbox
+            </Button>
           </div>
         ) : !activeSupportTicket ? (
           <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
@@ -3064,7 +3090,6 @@ export default function HelpDesk() {
           <TicketInsightsPlaceholder label="Select a ticket to see the customer's details." />
         ) : (
           <CustomerDetailsPanel
-            description="Orders and other tickets from this customer."
             customerData={ticketCustomer}
             orders={ticketCustomer?.orders}
             ordersLoading={FetchSupportTicketDetailsIsLoading}

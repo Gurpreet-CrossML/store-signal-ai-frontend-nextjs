@@ -8,7 +8,8 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  * GET /analytics/threads/  ->  ThreadListAPIView (analytics/views.py)
  *
  * Query params: store_code, page, page_size, from, to, search, is_active,
- * user_type, has_ticket, has_feedback, feedback_rating.
+ * user_type, has_ticket, has_feedback, feedback_rating, tags (comma-separated
+ * or repeated), handled_by (ai | human).
  *
  * Paginated (DRF PageNumberPagination, default page_size=15). When there are no
  * results, Django sets response_data=None which create_api_response renders as
@@ -27,6 +28,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   const q = req.query;
   const getStr = (v: string | string[] | undefined): string | undefined =>
     Array.isArray(v) ? v[0] : v;
+  const getList = (v: string | string[] | undefined): string[] | undefined => {
+    if (!v) return undefined;
+    const tags = (Array.isArray(v) ? v : [v])
+      .flatMap((part) => part.split(","))
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    return tags.length ? tags : undefined;
+  };
 
   const filters: ListThreadsFilters = {
     store_code: getStr(q.store_code),
@@ -38,6 +47,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
     has_ticket: getStr(q.has_ticket),
     has_feedback: getStr(q.has_feedback),
     feedback_rating: getStr(q.feedback_rating),
+    tags: getList(q.tags),
+    handled_by: getStr(q.handled_by),
   };
 
   const pageParam = getStr(q.page);

@@ -12,7 +12,6 @@ import {
 } from "formik";
 import z from "zod";
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
-import { PageHeading } from "@/components/custom/page-heading";
 import { DataTable } from "@/components/custom/data-table";
 import { SearchInput } from "@/components/custom/search-input";
 import { getTagColumns } from "@/components/custom/helpdesk/tags-columns";
@@ -67,9 +66,9 @@ const COLOR_PRESETS = [
 
 const HEX_REGEX = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
 
-// keep in sync with the thunk's default `limit`
-const PER_PAGE_OPTIONS = [10, 15, 20, 25, 50] as const;
-const DEFAULT_PER_PAGE = PER_PAGE_OPTIONS[0];
+// Matches the smallest entry in the shared pagination's PAGE_SIZE_OPTIONS,
+// so the rows-per-page dropdown always shows a real option.
+const DEFAULT_PER_PAGE = 25;
 
 const tagSchema = z.object({
   name: z.string().trim().min(3, "Too short").max(30, "Too long"),
@@ -290,12 +289,7 @@ export default function Tags() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-4">
-      <PageHeading
-        title="Tags"
-        description="Label support tickets so they can be grouped, filtered and found quickly."
-      />
-
+    <>
       {/* Toolbar sits above the table rather than inside a card — the same
           anatomy as Threads. */}
       <div className="flex flex-col gap-4">
@@ -340,7 +334,7 @@ export default function Tags() {
       >
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>{editingTag ? "Edit tag" : "Add tag"}</DialogTitle>
+            <DialogTitle>{editingTag ? "Edit Tag" : "Add Tag"}</DialogTitle>
           </DialogHeader>
 
           <Formik<TagFormValues>
@@ -456,8 +450,8 @@ export default function Tags() {
                         ? "Saving..."
                         : "Adding..."
                       : editingTag
-                        ? "Save changes"
-                        : "Add tag"}
+                        ? "Save Changes"
+                        : "Add Tag"}
                   </Button>
                 </DialogFooter>
               </Form>
@@ -494,11 +488,11 @@ export default function Tags() {
               disabled={isDeleting}
               className={buttonVariants({ variant: "destructive" })}
             >
-              {isDeleting ? "Removing..." : "Remove tag"}
+              {isDeleting ? "Removing..." : "Remove Tag"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }

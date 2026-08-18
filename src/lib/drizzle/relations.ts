@@ -21,18 +21,17 @@ import {
   quickLink,
   storeFaqs,
   storeCredentials,
-  chatCustomer,
-  chatAddress,
   chatHistory,
   chatbotFeedback,
   chatThread,
   chatBotevent,
-  aiInsights,
+  chatCustomer,
   sentimentAnalysis,
   sessionResolutionVerdict,
-  userMetadata,
+  aiInsights,
   storeAccess,
   fraudFlag,
+  userMetadata,
   scrapeLinkslinks,
   knowledgeStorelibrarydocument,
   chatCustomerorder,
@@ -71,6 +70,7 @@ import {
   socialCommentAnalysis,
   socialMessageAttachment,
   socialAiUsage,
+  chatAddress,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -333,22 +333,6 @@ export const storeCredentialsRelations = relations(
   }),
 );
 
-export const chatAddressRelations = relations(chatAddress, ({ one }) => ({
-  chatCustomer: one(chatCustomer, {
-    fields: [chatAddress.customerId],
-    references: [chatCustomer.id],
-  }),
-}));
-
-export const chatCustomerRelations = relations(chatCustomer, ({ many }) => ({
-  chatAddresss: many(chatAddress),
-  chatThreads: many(chatThread),
-  chatCustomerorders: many(chatCustomerorder),
-  ticketMessages: many(ticketMessage),
-  supportTickets: many(supportTicket),
-  socialUsers: many(socialUser),
-}));
-
 export const chatbotFeedbackRelations = relations(
   chatbotFeedback,
   ({ one }) => ({
@@ -393,11 +377,11 @@ export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
     references: [store.id],
   }),
   chatHistorys: many(chatHistory),
-  aiInsightss: many(aiInsights),
   sentimentAnalysiss: many(sentimentAnalysis),
   sessionResolutionVerdicts: many(sessionResolutionVerdict),
-  userMetadatas: many(userMetadata),
+  aiInsightss: many(aiInsights),
   fraudFlags: many(fraudFlag),
+  userMetadatas: many(userMetadata),
   supportTickets: many(supportTicket),
 }));
 
@@ -408,11 +392,13 @@ export const chatBoteventRelations = relations(chatBotevent, ({ one }) => ({
   }),
 }));
 
-export const aiInsightsRelations = relations(aiInsights, ({ one }) => ({
-  chatThread: one(chatThread, {
-    fields: [aiInsights.threadId],
-    references: [chatThread.id],
-  }),
+export const chatCustomerRelations = relations(chatCustomer, ({ many }) => ({
+  chatThreads: many(chatThread),
+  chatCustomerorders: many(chatCustomerorder),
+  ticketMessages: many(ticketMessage),
+  supportTickets: many(supportTicket),
+  socialUsers: many(socialUser),
+  chatAddresss: many(chatAddress),
 }));
 
 export const sentimentAnalysisRelations = relations(
@@ -439,9 +425,9 @@ export const sessionResolutionVerdictRelations = relations(
   }),
 );
 
-export const userMetadataRelations = relations(userMetadata, ({ one }) => ({
+export const aiInsightsRelations = relations(aiInsights, ({ one }) => ({
   chatThread: one(chatThread, {
-    fields: [userMetadata.threadId],
+    fields: [aiInsights.threadId],
     references: [chatThread.id],
   }),
 }));
@@ -470,6 +456,13 @@ export const fraudFlagRelations = relations(fraudFlag, ({ one }) => ({
   }),
   chatThread: one(chatThread, {
     fields: [fraudFlag.threadId],
+    references: [chatThread.id],
+  }),
+}));
+
+export const userMetadataRelations = relations(userMetadata, ({ one }) => ({
+  chatThread: one(chatThread, {
+    fields: [userMetadata.threadId],
     references: [chatThread.id],
   }),
 }));
@@ -958,5 +951,12 @@ export const socialAiUsageRelations = relations(socialAiUsage, ({ one }) => ({
   socialMessage: one(socialMessage, {
     fields: [socialAiUsage.messageId],
     references: [socialMessage.id],
+  }),
+}));
+
+export const chatAddressRelations = relations(chatAddress, ({ one }) => ({
+  chatCustomer: one(chatCustomer, {
+    fields: [chatAddress.customerId],
+    references: [chatCustomer.id],
   }),
 }));

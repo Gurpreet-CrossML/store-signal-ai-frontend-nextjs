@@ -33,6 +33,10 @@ import {
   CrmLinkButton,
   SessionFacts,
 } from "@/components/custom/customer-header";
+import {
+  CreateTicketDialog,
+  type TicketCustomer,
+} from "@/components/custom/create-ticket-dialog";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { SearchInput } from "@/components/custom/search-input";
 import { CardTitle } from "@/components/ui/card";
@@ -51,6 +55,7 @@ import {
   UploadMessageAttachments,
   SyncOrders,
 } from "@/redux/api-slice/thread-slice";
+import { CreateSupportTicket } from "@/redux/api-slice/support-ticket-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -62,6 +67,7 @@ import {
   IconPaperclip,
   IconRobot,
   IconSend,
+  IconTicket,
   IconX,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
@@ -594,6 +600,7 @@ export default function Support() {
   // Attaching a real customer to a chat a guest started, offered from the
   // conversation header where the guest's name sits.
   const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
+  const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
@@ -1376,7 +1383,7 @@ export default function Support() {
   return (
     <SidebarProvider
       style={{ "--sidebar-width": "350px" } as CSSProperties}
-      className="-my-4 h-svh min-h-0 w-full overflow-hidden md:-my-6"
+      className="h-svh min-h-0 w-full overflow-hidden"
     >
       {/* Conversations list — the nested sidebar from the sidebar-09 block. */}
       {/* The list panel is content, not chrome: white like Help Desk's
@@ -1521,7 +1528,7 @@ export default function Support() {
             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
               <header className="flex h-16 shrink-0 items-center border-b bg-background px-4">
                 <div className="flex w-full items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2.5">
+                  <div className="flex min-w-0 flex-1 items-center gap-2.5">
                     <CustomerAvatar
                       name={selectedThread?.customer?.name}
                       online={selectedThread?.is_active}
@@ -1554,10 +1561,20 @@ export default function Support() {
                     </div>
                   </div>
 
-                  {/* Where they are browsing from, beside who they are —
-                      context for the person already on screen, and three
-                      rows the details pane gets back for orders. */}
-                  <SessionFacts userMetadata={FetchUserMetadataData} />
+                  <div className="flex shrink-0 items-center gap-3">
+                    {/* Where they are browsing from, beside who they are —
+                        context for the person already on screen, and three
+                        rows the details pane gets back for orders. */}
+                    <SessionFacts userMetadata={FetchUserMetadataData} />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsCreateTicketOpen(true)}
+                    >
+                      <IconTicket className="size-4" />
+                      Create Ticket
+                    </Button>
+                  </div>
                 </div>
               </header>
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -1618,7 +1635,6 @@ export default function Support() {
             </div>
 
             <CustomerDetailsPanel
-              description="Orders, cart, and profile for this conversation."
               customerData={selectedThread?.customer || null}
               orders={FetchOrderData}
               ordersLoading={FetchOrderDataIsLoading}
@@ -1643,6 +1659,47 @@ export default function Support() {
           </div>
         )}
       </SidebarInset>
+      {storeCode ? (
+        <CreateTicketDialog
+          open={isCreateTicketOpen}
+          onOpenChange={setIsCreateTicketOpen}
+          storeCode={storeCode}
+          // Seeded from the conversation on screen: the shopper is already
+          // known here, and making the agent search for them again is the
+          // retyping this dialog exists to remove.
+          initialCustomer={
+            selectedThread?.customer?.id
+              ? ({
+                  kind: "record",
+                  id: selectedThread.customer.id,
+                  name: selectedThread.customer.name,
+                  email: selectedThread.customer.email,
+                } satisfies TicketCustomer)
+              : selectedThread?.customer?.email
+                ? ({
+                    kind: "email",
+                    email: selectedThread.customer.email,
+                  } satisfies TicketCustomer)
+                : null
+          }
+          // Addressed by the open thread, which the backend stores on the
+          // ticket — so the conversation that produced it stays reachable
+          // from the help desk.
+          onSubmit={async (payload) => {
+            if (!activeThreadId) return { ok: false };
+            const result = await dispatch(
+              CreateSupportTicket({
+                storeCode,
+                threadId: activeThreadId,
+                payload,
+              }),
+            );
+            return CreateSupportTicket.fulfilled.match(result)
+              ? { ok: true }
+              : { ok: false, payload: result.payload };
+          }}
+        />
+      ) : null}
       {storeCode ? (
         <LinkCustomerDialog
           open={isLinkCustomerOpen}

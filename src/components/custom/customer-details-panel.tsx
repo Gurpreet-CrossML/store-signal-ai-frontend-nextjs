@@ -1,10 +1,7 @@
 "use client";
 
-import { CardTitle } from "@/components/ui/card";
-import { Typography } from "@/components/ui/typography";
 import {
   CartDetailsCard,
-  CustomerSummaryCard,
   OrdersCard,
   SupportTicketsCard,
 } from "@/components/custom/thread-detail-panels";
@@ -30,7 +27,6 @@ import type {
  * never going to be there.
  */
 export function CustomerDetailsPanel({
-  description,
   customerData,
   orders,
   ordersLoading,
@@ -40,8 +36,6 @@ export function CustomerDetailsPanel({
   tickets,
   cart,
 }: {
-  /** One line under the heading, naming what this pane is about. */
-  description: string;
   customerData?: Customer | null;
   orders?: OrderData[] | null;
   ordersLoading?: boolean;
@@ -54,14 +48,8 @@ export function CustomerDetailsPanel({
   cart?: { data: CartDataResponse | null; loading?: boolean };
 }) {
   return (
-    <aside className="hidden min-h-0 w-95 shrink-0 flex-col border-l xl:flex">
-      <header className="flex h-16 shrink-0 flex-col justify-center border-b px-4">
-        <CardTitle className="leading-tight">Customer Details</CardTitle>
-        <Typography variant="muted">{description}</Typography>
-      </header>
-
+    <aside className="hidden min-h-0 w-80 shrink-0 flex-col border-l xl:flex 2xl:w-95">
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <CustomerSummaryCard orders={orders} loading={ordersLoading} />
         <OrdersCard
           orders={orders}
           loading={ordersLoading}

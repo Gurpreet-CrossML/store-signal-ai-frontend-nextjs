@@ -348,6 +348,72 @@ export const FetchSupportTicketTags = createAsyncThunk(
   },
 );
 
+/**
+ * What an agent fills in to raise a ticket by hand.
+ *
+ * `customer` is an email, never an id, even when the agent picked a shopper
+ * out of the directory: the serializer resolves the address to a record and
+ * creates one when it is new, so an address is the only input that works
+ * for both a known shopper and a stranger. A DM contact is always the
+ * second case — Meta hands over a name and a PSID, never an email.
+ *
+ * `tags` are names rather than ids for the same reason: the backend reuses
+ * a tag that exists and creates one that does not, so the caller does not
+ * have to know which it is holding.
+ */
+export type CreateSupportTicketPayload = {
+  /** The shopper's email. Resolved to a customer, or one is created. */
+  customer: string;
+  subject: string;
+  description: string;
+  priority: SupportTicketPriority;
+  /** The order this is about, by id. Omitted when it is about nothing in particular. */
+  order?: number;
+  tags?: { name: string }[];
+};
+
+/**
+ * Raise a ticket from a live chat an agent is already handling.
+ *
+ * Addressed by the thread, which the backend stores on the ticket — so the
+ * conversation that produced it stays reachable, and the channel is set to
+ * the web widget without the client saying so.
+ */
+export const CreateSupportTicket = createAsyncThunk(
+  "CreateSupportTicket",
+  async (
+    {
+      storeCode,
+      threadId,
+      payload,
+    }: {
+      storeCode: string;
+      threadId: string;
+      payload: CreateSupportTicketPayload;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.createThreadSupportTicket(threadId)}?store_code=${storeCode}`,
+        payload,
+        { useBackend: true },
+      );
+      toast.success("Ticket created.", {
+        description: "It is now in the help desk queue.",
+      });
+      return response.data.data as SupportTicket;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't create the ticket", {
+        description: data?.message || "Please check the form and try again.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 /** Attach an existing customer record to a ticket a guest raised. */
 export const SupportTicketCustomerLink = createAsyncThunk(
   "SupportTicketCustomerLink",
@@ -896,6 +962,12 @@ const SupportTicketsSlice = createSlice({
         | unknown,
       FetchSupportTicketDetailsData: null as SupportTicket | null,
     },
+    CreateSupportTicketState: {
+      CreateSupportTicketIsLoading: false,
+      CreateSupportTicketIsSuccess: false,
+      CreateSupportTicketIsError: null as null | string | object | unknown,
+      CreateSupportTicketData: null as SupportTicket | null,
+    },
     SupportTicketMessageSendState: {
       SupportTicketMessageSendIsLoading: false,
       SupportTicketMessageSendIsSuccess: false,
@@ -1329,6 +1401,22 @@ const SupportTicketsSlice = createSlice({
           state.SupportTicketAIMessageDraftGenerateState.SupportTicketAIMessageDraftGenerateIsSuccess = false;
         },
       )
+      .addCase(CreateSupportTicket.pending, (state) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = true;
+        state.CreateSupportTicketState.CreateSupportTicketIsError = null;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = false;
+      })
+      .addCase(CreateSupportTicket.fulfilled, (state, action) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = false;
+        state.CreateSupportTicketState.CreateSupportTicketData = action.payload;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = true;
+      })
+      .addCase(CreateSupportTicket.rejected, (state, action) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = false;
+        state.CreateSupportTicketState.CreateSupportTicketIsError =
+          action.payload;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = false;
+      })
       .addCase(SupportTicketCustomerLink.pending, (state) => {
         state.SupportTicketCustomerLinkState.SupportTicketCustomerLinkIsLoading = true;
       })

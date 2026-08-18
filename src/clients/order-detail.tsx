@@ -104,7 +104,7 @@ export default function OrderDetail({ orderId }: { orderId: number }) {
           <EmptyMedia>
             <IconShoppingBag />
           </EmptyMedia>
-          <EmptyTitle>Order not found</EmptyTitle>
+          <EmptyTitle>Order Not Found</EmptyTitle>
           <EmptyDescription>
             This order may belong to another store, or have been removed.
           </EmptyDescription>
@@ -112,7 +112,7 @@ export default function OrderDetail({ orderId }: { orderId: number }) {
         <Button variant="outline" asChild>
           <Link href="/crm/orders">
             <IconArrowLeft />
-            Back to orders
+            Back to Orders
           </Link>
         </Button>
       </Empty>
@@ -134,7 +134,7 @@ export default function OrderDetail({ orderId }: { orderId: number }) {
       <Button variant="ghost" size="sm" className="-ml-2 self-start" asChild>
         <Link href="/crm/orders">
           <IconArrowLeft />
-          All orders
+          All Orders
         </Link>
       </Button>
 
@@ -163,7 +163,7 @@ export default function OrderDetail({ orderId }: { orderId: number }) {
               rel="noopener noreferrer"
             >
               <IconExternalLink className="size-4" />
-              Status page
+              Status Page
             </a>
           </Button>
         ) : null}
@@ -172,7 +172,7 @@ export default function OrderDetail({ orderId }: { orderId: number }) {
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-4">
         <MoneyTile
           icon={IconReceipt}
-          label="Order total"
+          label="Order Total"
           value={formatPrice(order.total_price, order.currency)}
         />
         <MoneyTile
@@ -252,7 +252,7 @@ export default function OrderDetail({ orderId }: { orderId: number }) {
               {customer.id ? (
                 <Button variant="outline" size="sm" className="mt-1" asChild>
                   <Link href={`/crm/orders?customer=${customer.id}`}>
-                    Their other orders
+                    Their Other Orders
                   </Link>
                 </Button>
               ) : null}
@@ -286,7 +286,7 @@ export default function OrderDetail({ orderId }: { orderId: number }) {
                       rel="noopener noreferrer"
                     >
                       <IconExternalLink className="size-4" />
-                      Track parcel
+                      Track Parcel
                     </a>
                   </Button>
                 ) : null}
@@ -297,7 +297,7 @@ export default function OrderDetail({ orderId }: { orderId: number }) {
           {tags.length > 0 || order.note ? (
             <Card size="sm">
               <CardHeader>
-                <CardTitle>Merchant notes</CardTitle>
+                <CardTitle>Merchant Notes</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
                 {tags.length > 0 ? (

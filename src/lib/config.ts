@@ -112,6 +112,7 @@ export const ENDPOINTS = {
   fetchFeedbackSequence: (threadId: string) =>
     `/analytics/threads/${threadId}/feedback-sequence`,
   fetchTags: (threadId: string) => `/analytics/threads/${threadId}/tags`,
+  fetchThreadTagOptions: () => "/analytics/threads/tags",
   fetchAIInsight: (threadId: string) =>
     `/analytics/threads/${threadId}/ai-insights`,
   fetchCartData: (threadId: string) =>
@@ -164,7 +165,7 @@ export const ENDPOINTS = {
   toneStyle: () => `/chat/tone-style/`,
   vocabulary: () => `/chat/vocabulary/`,
 
-  // CRM. Store-scoped directories of shoppers and their orders. Both lists
+  // Catalog. Store-scoped directories of shoppers and their orders. Both lists
   // take search, filter and ordering query params — see CustomerFilters and
   // OrderFilters in their slices for the full set.
   //
@@ -174,7 +175,7 @@ export const ENDPOINTS = {
   fetchCustomerDetails: (customerId: number) =>
     createAPIUrl(`/chat/customers/${customerId}/`, "django"),
   // POST — create a shopper from just an email, so a guest ticket can be
-  // attached to a real record and filled in later from CRM.
+  // attached to a real record and filled in later from Catalog.
   // NOTE: pending confirmation from the backend team.
   createCustomer: () => createAPIUrl("/chat/customers/", "django"),
   fetchOrders: () => createAPIUrl("/chat/orders/", "django"),
@@ -183,6 +184,14 @@ export const ENDPOINTS = {
 
   // Helpdesk(Support) apis
   fetchSupportTickets: () => createAPIUrl("/support/tickets", "django"),
+  // POST — raise a ticket from a live-chat conversation. The counterpart
+  // of metaCreateSupportTicket: same fields, same payload, addressed by
+  // the thread behind it rather than a social contact.
+  createThreadSupportTicket: (threadId: string) =>
+    createAPIUrl(
+      `/support/threads/${threadId}/create-support-ticket/`,
+      "django",
+    ),
   fetchSupportTicketDeatils: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/`, "django"),
   supportTicketMessageSend: (ticket_id: number) =>
@@ -304,6 +313,11 @@ export const ENDPOINTS = {
     userId: number;
     messageId: number;
   }) => `/social/meta/users/${userId}/messages/${messageId}/react/`,
+  // POST — raise a help desk ticket for a DM contact. Addressed by the
+  // SocialUser rather than a chat thread: a Messenger conversation has no
+  // Thread behind it, which is why the ticket's own thread stays null.
+  metaCreateSupportTicket: (userId: number) =>
+    `/social/meta/users/${userId}/create-support-ticket/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

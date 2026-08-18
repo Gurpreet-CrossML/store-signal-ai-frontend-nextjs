@@ -40,7 +40,7 @@ export default function SocialAITabContent({
   const [pagination, setPagination] = useState<PaginationState>(() => {
     const pageParam = Number(searchParams?.get("page"));
     const pageIndex = pageParam > 1 ? Math.floor(pageParam) - 1 : 0;
-    return { pageIndex, pageSize: 15 };
+    return { pageIndex, pageSize: 25 };
   });
 
   // Platform tab + search filter both apply client-side, since the

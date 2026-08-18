@@ -4,8 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { PaginationState } from "@tanstack/react-table";
 
-import { FetchThreads } from "@/redux/api-slice/thread-slice";
+import {
+  FetchThreads,
+  FetchThreadTagOptions,
+} from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { PageHeading } from "@/components/custom/page-heading";
 import { ThreadsDataTable } from "@/components/custom/threads-data-table";
 import { threadsColumns } from "@/components/custom/threads-columns";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -25,6 +29,13 @@ export default function Threads() {
 
   const { FetchThreadsListData, FetchThreadsIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchThreadsState,
+  );
+
+  const {
+    FetchThreadTagOptionsData: tagOptions,
+    FetchThreadTagOptionsIsLoading: isLoadingTagOptions,
+  } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchThreadTagOptionsState,
   );
 
   // `useSearchParams`/`usePathname` are typed as nullable for migration compat;
@@ -87,6 +98,8 @@ export default function Threads() {
     filters.has_ticket,
     filters.has_feedback,
     filters.feedback_rating,
+    filters.tags,
+    filters.handled_by,
     filters.from,
     filters.to,
   ]);
@@ -114,6 +127,8 @@ export default function Threads() {
       ...(filters.feedback_rating
         ? { feedback_rating: filters.feedback_rating }
         : {}),
+      ...(filters.tags.length ? { tags: filters.tags } : {}),
+      ...(filters.handled_by ? { handled_by: filters.handled_by } : {}),
       ...(filters.from ? { from: filters.from } : {}),
       ...(filters.to ? { to: filters.to } : {}),
     };
@@ -136,9 +151,17 @@ export default function Threads() {
     filters.has_ticket,
     filters.has_feedback,
     filters.feedback_rating,
+    filters.tags,
+    filters.handled_by,
     filters.from,
     filters.to,
   ]);
+
+  // Tag options for the filter bar's tags combobox — refetched per store.
+  useEffect(() => {
+    if (!storeCode) return;
+    dispatch(FetchThreadTagOptions({ store_code: storeCode }));
+  }, [dispatch, storeCode]);
 
   const rows = useMemo(
     () => FetchThreadsListData?.results ?? [],
@@ -147,10 +170,16 @@ export default function Threads() {
 
   return (
     <div className="flex flex-col gap-6 p-4">
+      <PageHeading
+        title="Threads"
+        description="Every conversation your AI assistant has handled — search, filter, and open any thread for its full transcript."
+      />
       <ThreadFilteration
         filters={filters}
         onChange={setFilters}
         onClear={() => setFilters(DEFAULT_THREAD_FILTERS)}
+        tagOptions={tagOptions}
+        isLoadingTagOptions={isLoadingTagOptions}
       />
       <ThreadsDataTable
         columns={threadsColumns}

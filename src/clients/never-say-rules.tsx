@@ -443,7 +443,7 @@ export default function NeverSayRules() {
                   }
                 >
                   <IconPlus className="size-4" />
-                  Add required phrase
+                  Add Required Phrase
                 </Button>
               </CardContent>
             </Card>

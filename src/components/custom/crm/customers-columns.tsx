@@ -123,7 +123,7 @@ export function getCustomerColumns(): ColumnDef<CustomerRecord>[] {
                     <TooltipTrigger asChild>
                       <IconRosetteDiscountCheck className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                     </TooltipTrigger>
-                    <TooltipContent>Email verified</TooltipContent>
+                    <TooltipContent>Email Verified</TooltipContent>
                   </Tooltip>
                 ) : null}
               </div>
@@ -178,7 +178,7 @@ export function getCustomerColumns(): ColumnDef<CustomerRecord>[] {
     },
     {
       accessorKey: "total_spent",
-      header: () => <div className="text-right">Total spent</div>,
+      header: () => <div className="text-right">Total Spent</div>,
       cell: ({ row }) => {
         const spent = Number(row.original.total_spent ?? 0);
         return (
@@ -200,7 +200,7 @@ export function getCustomerColumns(): ColumnDef<CustomerRecord>[] {
     },
     {
       accessorKey: "registered_at",
-      header: () => <div className="text-right">Customer since</div>,
+      header: () => <div className="text-right">Customer Since</div>,
       cell: ({ row }) =>
         row.original.registered_at ? (
           <div className="text-right">

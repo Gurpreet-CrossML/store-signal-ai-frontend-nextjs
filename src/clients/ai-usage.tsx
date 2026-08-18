@@ -13,7 +13,6 @@ import {
   IconX,
 } from "@tabler/icons-react";
 
-import { PageHeading } from "@/components/custom/page-heading";
 import AIUsageCharts from "@/components/custom/ai-usage/ai-usage-chart-grid";
 import { InfoIcon } from "@/components/custom/info-icon";
 import { Button } from "@/components/ui/button";
@@ -200,122 +199,122 @@ export default function AIUsage() {
   ];
 
   return (
-    <div className="flex flex-col gap-6 p-4">
-      <PageHeading
-        title="AI Usage"
-        description="Track token spend, model costs, and latency across your AI workflows."
-        action={
-          <div className="flex flex-col gap-2 md:items-end">
-            <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
-              <Combobox
-                multiple
-                autoHighlight
-                items={threadIds}
-                value={filters.threadIds}
-                onValueChange={(threadIds) =>
-                  setFilters((current) => ({ ...current, threadIds }))
-                }
+    // Padding and the page heading both come from the shell this screen
+    // is rendered inside; repeating either here doubled them.
+    <div className="flex flex-col gap-6">
+      {/* The filters that used to hang off the page heading, now a
+          toolbar of their own above the figures they filter. */}
+      <div className="flex justify-end">
+        <div className="flex flex-col gap-2 md:items-end">
+          <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
+            <Combobox
+              multiple
+              autoHighlight
+              items={threadIds}
+              value={filters.threadIds}
+              onValueChange={(threadIds) =>
+                setFilters((current) => ({ ...current, threadIds }))
+              }
+            >
+              <ComboboxChips
+                ref={threadComboboxAnchor}
+                className="w-64 max-w-full"
               >
-                <ComboboxChips
-                  ref={threadComboboxAnchor}
-                  className="w-64 max-w-full"
-                >
-                  <IconMessage className="size-4 shrink-0 text-muted-foreground" />
-                  <ComboboxValue>
-                    {(selectedIds) => (
-                      <>
-                        {(selectedIds as string[]).map((id) => (
-                          <ComboboxChip key={id}>{id}</ComboboxChip>
-                        ))}
-                        <ComboboxChipsInput
-                          aria-label="Thread IDs"
-                          placeholder={
-                            FetchThreadsIsLoading
-                              ? "Loading threads..."
-                              : "Select thread IDs"
-                          }
-                        />
-                      </>
-                    )}
-                  </ComboboxValue>
-                </ComboboxChips>
-                <ComboboxContent anchor={threadComboboxAnchor}>
-                  <ComboboxEmpty>No threads found.</ComboboxEmpty>
-                  <ComboboxList>
-                    {(id) => (
-                      <ComboboxItem key={id} value={id}>
-                        {id}
-                      </ComboboxItem>
-                    )}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-              <Field className="gap-0">
-                <FieldLabel htmlFor="ai-usage-date-range" className="sr-only">
-                  Date range
-                </FieldLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      id="ai-usage-date-range"
-                      className="justify-start px-2.5 font-normal"
-                    >
-                      <IconCalendar />
-                      {dateRange?.from ? (
-                        dateRange.to ? (
-                          <>
-                            {format(dateRange.from, "LLL dd, y")} -{" "}
-                            {format(dateRange.to, "LLL dd, y")}
-                          </>
-                        ) : (
-                          format(dateRange.from, "LLL dd, y")
-                        )
+                <IconMessage className="size-4 shrink-0 text-muted-foreground" />
+                <ComboboxValue>
+                  {(selectedIds) => (
+                    <>
+                      {(selectedIds as string[]).map((id) => (
+                        <ComboboxChip key={id}>{id}</ComboboxChip>
+                      ))}
+                      <ComboboxChipsInput
+                        aria-label="Thread IDs"
+                        placeholder={
+                          FetchThreadsIsLoading
+                            ? "Loading threads..."
+                            : "Select thread IDs"
+                        }
+                      />
+                    </>
+                  )}
+                </ComboboxValue>
+              </ComboboxChips>
+              <ComboboxContent anchor={threadComboboxAnchor}>
+                <ComboboxEmpty>No threads found.</ComboboxEmpty>
+                <ComboboxList>
+                  {(id) => (
+                    <ComboboxItem key={id} value={id}>
+                      {id}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+            <Field className="gap-0">
+              <FieldLabel htmlFor="ai-usage-date-range" className="sr-only">
+                Date range
+              </FieldLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    id="ai-usage-date-range"
+                    className="justify-start px-2.5 font-normal"
+                  >
+                    <IconCalendar />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "LLL dd, y")} -{" "}
+                          {format(dateRange.to, "LLL dd, y")}
+                        </>
                       ) : (
-                        <span className="text-muted-foreground">
-                          Pick a date range
-                        </span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar
-                      mode="range"
-                      defaultMonth={dateRange?.from}
-                      selected={dateRange}
-                      onSelect={updateDateRange}
-                      numberOfMonths={2}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </Field>
-            </div>
-            {hasFilters && (
-              <div className="flex flex-wrap items-center gap-2">
-                {(["from", "to"] as const).map((key) =>
-                  filters[key] ? (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => update(key, "")}
-                      className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/15"
-                    >
-                      {filters[key]} <IconX className="size-3" />
-                    </button>
-                  ) : null,
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setFilters(EMPTY_FILTERS)}
-                >
-                  Clear filters
-                </Button>
-              </div>
-            )}
+                        format(dateRange.from, "LLL dd, y")
+                      )
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Pick a date range
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={updateDateRange}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+            </Field>
           </div>
-        }
-      />
+          {hasFilters && (
+            <div className="flex flex-wrap items-center gap-2">
+              {(["from", "to"] as const).map((key) =>
+                filters[key] ? (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => update(key, "")}
+                    className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/15"
+                  >
+                    {filters[key]} <IconX className="size-3" />
+                  </button>
+                ) : null,
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setFilters(EMPTY_FILTERS)}
+              >
+                Clear Filters
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map(({ label, value, note, infoText, icon: Icon }) => (
