@@ -37,6 +37,7 @@ export function listRowClassName(active?: boolean) {
  * geometry to add its own detail.
  */
 export function ConversationRow({
+  accent,
   avatar,
   title,
   titleTooltip,
@@ -49,6 +50,12 @@ export function ConversationRow({
   active = false,
   onSelect,
 }: {
+  /**
+   * A full-height stripe down the row's leading edge, before the avatar —
+   * a ticket's priority. Optional: a list whose rows have no such ranking
+   * leaves it out and loses the column entirely.
+   */
+  accent?: React.ReactNode;
   avatar: React.ReactNode;
   title: React.ReactNode;
   /**
@@ -78,6 +85,7 @@ export function ConversationRow({
       // full height, dropping the dot to the bottom of the card.
       className={listRowClassName(active)}
     >
+      {accent}
       {avatar}
 
       <div className="min-w-0 flex-1">

@@ -16,37 +16,21 @@ import {
 import { Typography } from "@/components/ui/typography";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
+import {
+  customerLocation,
+  customerOrderCount,
+  customerSince,
+  customerTotalSpent,
+} from "@/lib/customer-facts";
 import { formatPrice, formatRelativeDateTime } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
-import type {
-  CustomerAddress,
-  CustomerRecord,
-} from "@/redux/api-slice/customer-slice";
+import type { CustomerRecord } from "@/redux/api-slice/customer-slice";
 
 /** The customer's own name, or their email when the platform sent none. */
 export function customerDisplayName(customer: CustomerRecord) {
   const full =
     `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim();
   return full || customer.email || "Guest";
-}
-
-/** Default shipping address, then billing, then whatever exists. */
-export function primaryAddress(
-  customer: CustomerRecord,
-): CustomerAddress | undefined {
-  const addresses = customer.addresses ?? [];
-  return (
-    addresses.find((address) => address.default_shipping) ??
-    addresses.find((address) => address.default_billing) ??
-    addresses[0]
-  );
-}
-
-/** "Everson WA, United States" — the parts that exist, in reading order. */
-export function formatLocation(address?: CustomerAddress) {
-  if (!address) return null;
-  const locality = [address.city, address.region].filter(Boolean).join(" ");
-  return [locality, address.country_id].filter(Boolean).join(", ") || null;
 }
 
 /**
@@ -123,7 +107,7 @@ export function getCustomerColumns(): ColumnDef<CustomerRecord>[] {
                     <TooltipTrigger asChild>
                       <IconRosetteDiscountCheck className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                     </TooltipTrigger>
-                    <TooltipContent>Email verified</TooltipContent>
+                    <TooltipContent>Email Verified</TooltipContent>
                   </Tooltip>
                 ) : null}
               </div>
@@ -152,7 +136,7 @@ export function getCustomerColumns(): ColumnDef<CustomerRecord>[] {
       id: "location",
       header: "Location",
       cell: ({ row }) => {
-        const location = formatLocation(primaryAddress(row.original));
+        const location = customerLocation(row.original);
         return location ? (
           <Typography variant="small" as="span" className="font-normal">
             {location}
@@ -172,15 +156,15 @@ export function getCustomerColumns(): ColumnDef<CustomerRecord>[] {
       header: () => <div className="text-right">Orders</div>,
       cell: ({ row }) => (
         <div className="text-right tabular-nums">
-          {row.original.orders_count}
+          {customerOrderCount(row.original)}
         </div>
       ),
     },
     {
       accessorKey: "total_spent",
-      header: () => <div className="text-right">Total spent</div>,
+      header: () => <div className="text-right">Total Spent</div>,
       cell: ({ row }) => {
-        const spent = Number(row.original.total_spent ?? 0);
+        const { amount: spent, currency } = customerTotalSpent(row.original);
         return (
           <div
             className={cn(
@@ -193,26 +177,44 @@ export function getCustomerColumns(): ColumnDef<CustomerRecord>[] {
                 : "text-muted-foreground",
             )}
           >
-            {formatPrice(row.original.total_spent)}
+            {formatPrice(spent, currency)}
           </div>
         );
       },
     },
     {
       accessorKey: "registered_at",
-      header: () => <div className="text-right">Customer since</div>,
-      cell: ({ row }) =>
-        row.original.registered_at ? (
+      header: () => <div className="text-right">Customer Since</div>,
+      cell: ({ row }) => {
+        const since = customerSince(row.original);
+        if (!since.value) {
+          return (
+            <div className="text-right">
+              <Typography variant="muted">—</Typography>
+            </div>
+          );
+        }
+
+        return (
           <div className="text-right">
-            <Badge variant="outline" className="font-normal">
-              {formatRelativeDateTime(row.original.registered_at)}
-            </Badge>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="outline" className="font-normal">
+                  {formatRelativeDateTime(since.value)}
+                </Badge>
+              </TooltipTrigger>
+              {/* Which question the date answers. Most synced shoppers have
+                  no registration date on the platform, and showing when we
+                  first saw them as though it were one would misdate them. */}
+              <TooltipContent>
+                {since.registered
+                  ? "Registered with the store"
+                  : "First seen — the store sent no registration date"}
+              </TooltipContent>
+            </Tooltip>
           </div>
-        ) : (
-          <div className="text-right">
-            <Typography variant="muted">—</Typography>
-          </div>
-        ),
+        );
+      },
     },
   ];
 }

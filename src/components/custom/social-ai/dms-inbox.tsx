@@ -15,6 +15,7 @@ import { ConversationRow } from "@/components/custom/conversation-row";
 import { MessageAppear } from "@/components/custom/message-appear";
 import { SearchInput } from "@/components/custom/search-input";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { CreateTicketDialog } from "@/components/custom/create-ticket-dialog";
 import { LoadingState } from "@/components/custom/loading-state";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
@@ -42,6 +43,7 @@ import {
   IconClock,
   IconMessage2,
   IconMoodSmile,
+  IconTicket,
   IconPaperclip,
   IconPlus,
   IconSearch,
@@ -56,6 +58,8 @@ import {
   SocialConversationUser,
   SocialDm,
   SocialDmAttachment,
+  CreateSocialSupportTicket,
+  FetchSocialTicketDraft,
   fetchSocialAccountsSubscriptions,
   fetchSocialDms,
   fetchSocialUsers,
@@ -101,7 +105,7 @@ const QUICK_REACTIONS = ["❤️", "😆", "😮", "😢", "😠", "👍"];
 
 /**
  * A reply shown optimistically, plus everything needed to send it again
- * from the "Try again" link. `expectedCount` is how many outgoing messages
+ * from the "Try Again" link. `expectedCount` is how many outgoing messages
  * with this exact text must exist before this bubble is considered
  * delivered — see the reconciliation note in the component.
  */
@@ -157,6 +161,7 @@ function DmMessageBubble({
   contactName,
   replyToAttachment,
   awaitingMedia = false,
+  windowOpen,
   onReacted,
   onReply,
 }: {
@@ -170,6 +175,12 @@ function DmMessageBubble({
   // This message arrived over the socket with no text and no attachments,
   // meaning its media is still being written server-side.
   awaitingMedia?: boolean;
+  /**
+   * Whether Meta's 24-hour window is still open. Reacting and quoting are
+   * both outbound calls it rejects once the window has closed, so they are
+   * withdrawn along with the composer rather than left to fail on click.
+   */
+  windowOpen: boolean;
   onReacted: () => void;
   onReply: (msg: SocialDm) => void;
 }) {
@@ -213,7 +224,7 @@ function DmMessageBubble({
     }
   };
 
-  const actions = (
+  const actions = !windowOpen ? null : (
     <Popover
       open={pickerOpen}
       onOpenChange={(open) => {
@@ -471,6 +482,7 @@ export default function DmsInbox({
   const [selectedConversation, setSelectedConversation] = useState<
     number | null
   >(null);
+  const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
   const [replyingToMessage, setReplyingToMessage] = useState<SocialDm | null>(
     null,
   );
@@ -704,6 +716,14 @@ export default function DmsInbox({
   const messagingWindowOpen =
     !lastIncomingAt ||
     now - new Date(lastIncomingAt).getTime() < 24 * 60 * 60 * 1000;
+
+  // A quote staged before the window shut can no longer be sent, so drop
+  // it rather than leave it hanging over a dead composer — and so it does
+  // not resurface, aimed at a days-old message, when the contact writes
+  // back and the window reopens.
+  if (!messagingWindowOpen && replyingToMessage) {
+    setReplyingToMessage(null);
+  }
 
   // Trigger 1: switching conversations always jumps straight to the
   // latest message, no animation — like opening a fresh thread. The
@@ -1177,6 +1197,20 @@ export default function DmsInbox({
                       )}
                     </div>
                   </div>
+
+                  {/* No customer is seeded here: a Facebook or Instagram
+                      contact is a social profile, not a shopper record, and
+                      Meta gives no email to match one on. The agent picks
+                      or types one in the dialog. */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto shrink-0"
+                    onClick={() => setIsCreateTicketOpen(true)}
+                  >
+                    <IconTicket className="size-4" />
+                    Create Ticket
+                  </Button>
                 </header>
 
                 <div className="relative min-h-0 flex-1">
@@ -1215,6 +1249,7 @@ export default function DmsInbox({
                                   : null
                               }
                               awaitingMedia={awaitingMediaIds.includes(msg.id)}
+                              windowOpen={messagingWindowOpen}
                               onReacted={refetchMessages}
                               onReply={setReplyingToMessage}
                             />
@@ -1345,6 +1380,46 @@ export default function DmsInbox({
             )}
           </SidebarInset>
         </SidebarProvider>
+
+        {storeCode ? (
+          <CreateTicketDialog
+            open={isCreateTicketOpen}
+            onOpenChange={setIsCreateTicketOpen}
+            storeCode={storeCode}
+            initialSubject={
+              activeContactName ? `DM from ${activeContactName}` : ""
+            }
+            onDraft={async () => {
+              if (!activeConversationId) return null;
+              const result = await dispatch(
+                FetchSocialTicketDraft({
+                  storeCode,
+                  userId: activeConversationId,
+                }),
+              );
+              return FetchSocialTicketDraft.fulfilled.match(result)
+                ? result.payload
+                : null;
+            }}
+            // Addressed by the DM contact: the backend links the resolved
+            // customer back to them, so the next ticket for this shopper
+            // needs no retyping. It also sets the channel from the account,
+            // which is why nothing here says Facebook or Instagram.
+            onSubmit={async (payload) => {
+              if (!activeConversationId) return { ok: false };
+              const result = await dispatch(
+                CreateSocialSupportTicket({
+                  storeCode,
+                  userId: activeConversationId,
+                  payload,
+                }),
+              );
+              return CreateSocialSupportTicket.fulfilled.match(result)
+                ? { ok: true }
+                : { ok: false, payload: result.payload };
+            }}
+          />
+        ) : null}
       </AccountContext.Provider>
     </ChannelContext.Provider>
   );

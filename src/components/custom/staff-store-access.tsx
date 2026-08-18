@@ -80,7 +80,7 @@ export default function StaffStoreAccess({
             ) : stores.length === 0 ? (
               <Empty>
                 <EmptyHeader>
-                  <EmptyTitle>No stores</EmptyTitle>
+                  <EmptyTitle>No Stores</EmptyTitle>
                   <EmptyDescription>
                     There are no stores in your company yet.
                   </EmptyDescription>

@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { LoadingState } from "@/components/custom/loading-state";
 import { CardTitle } from "@/components/ui/card";
@@ -36,6 +38,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatDate, formatPrice } from "@/lib/helpers";
+import { FetchOrderDetails } from "@/redux/api-slice/order-slice";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Button } from "@/components/ui/button";
 
 function CardLoadingState() {
@@ -122,59 +126,6 @@ export function CartDetailsCard({
   );
 }
 
-/** One figure in the summary card's strip. */
-function SummaryStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
-      <Typography variant="muted">{label}</Typography>
-      <Typography variant="small" as="p" className="truncate tabular-nums">
-        {value}
-      </Typography>
-    </div>
-  );
-}
-
-/**
- * What this customer is worth, and nothing else.
- *
- * Their name, email, where they are browsing from and the link to their
- * record all live on the conversation header now — repeating them at the
- * top of this pane pushed the orders and tickets an agent actually works
- * from below the fold.
- */
-export function CustomerSummaryCard({
-  orders,
-  loading,
-}: {
-  orders?: OrderData[] | null;
-  loading?: boolean;
-}) {
-  const orderList = orders ?? [];
-  const totalSpent = orderList.reduce(
-    (sum, order) => sum + Number(order.total_price ?? 0),
-    0,
-  );
-  const currency = orderList[0]?.currency ?? "USD";
-
-  return (
-    <section className="border-b p-4">
-      {loading ? (
-        <CardLoadingState />
-      ) : (
-        // A 1px gap over a border-coloured ground: even separators however
-        // the pair wraps.
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
-          <SummaryStat
-            label="Total spent"
-            value={formatPrice(totalSpent, currency)}
-          />
-          <SummaryStat label="Orders" value={String(orderList.length)} />
-        </div>
-      )}
-    </section>
-  );
-}
-
 export function SupportTicketsCard({
   tickets,
   loading,
@@ -229,6 +180,18 @@ export function SupportTicketsCard({
   );
 }
 
+/** One figure in the orders summary. */
+function SummaryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
+      <Typography variant="muted">{label}</Typography>
+      <Typography variant="small" as="p" className="truncate tabular-nums">
+        {value}
+      </Typography>
+    </div>
+  );
+}
+
 export function OrdersCard({
   orders,
   loading,
@@ -253,16 +216,46 @@ export function OrdersCard({
   } = useCollapsibleList(orderList);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
+  // Opening a row loads that order from /chat/orders/{id}/.
+  //
+  // The lists these panels are handed come from thinner sources — the
+  // thread's own order-data route reads a fixed column list straight out
+  // of Postgres, and the ticket detail embeds CustomerOrderDetailSerializer
+  // — and neither carries `admin_url`, which is built from the Store the
+  // client never sees. So the row an agent actually opens is fetched from
+  // the endpoint that does, which also brings refunds and fulfillments the
+  // panels had no way to show.
+  const dispatch = useAppDispatch();
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
+  const { FetchOrderDetailsData, FetchOrderDetailsIsLoading } = useAppSelector(
+    (state) => state.GetOrderReducer.FetchOrderDetailsState,
+  );
+
+  // The two figures that used to sit in a card of their own above this
+  // one. They are a fact about these orders, so they belong to the section
+  // that lists them — and the pane gets a whole card's height back.
+  const totalSpent = orderList.reduce(
+    (sum, order) => sum + Number(order.total_price ?? 0),
+    0,
+  );
+  const currency = orderList[0]?.currency ?? "USD";
+
   const toggleOrder = (id: number) => {
-    setExpandedId((prev) => (prev === id ? null : id));
+    setExpandedId((prev) => {
+      if (prev === id) return null;
+      if (storeCode) dispatch(FetchOrderDetails({ storeCode, orderId: id }));
+      return id;
+    });
   };
 
   return (
     <section className="flex flex-col gap-3 border-b p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <CardTitle className="flex items-center gap-2">
           <IconPackage className="h-4 w-4" />
-          Orders{!loading && orderList?.length ? ` (${orderList.length})` : ""}
+          Orders
         </CardTitle>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -272,11 +265,12 @@ export function OrdersCard({
               size="icon-sm"
               aria-label="Sync orders"
               onClick={handleOrdersSync}
+              // Gated on the customer record, not their email address.
+              // Syncing now asks the platform for one customer's history
+              // by id, so a guest — who may well have left an email but
+              // has no record — has nothing to refresh.
               disabled={
-                loading ||
-                orderSyncLoading ||
-                !customerData?.email ||
-                isDisabled
+                loading || orderSyncLoading || !customerData?.id || isDisabled
               }
             >
               {orderSyncLoading ? (
@@ -291,11 +285,25 @@ export function OrdersCard({
           </TooltipContent>
         </Tooltip>
       </div>
+      {/* The figures the orders below add up to, in the section that
+          lists them rather than a card of its own above it. A 1px gap over
+          a border-coloured ground gives even separators however the pair
+          wraps. */}
+      {!loading ? (
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
+          <SummaryStat
+            label="Total Spent"
+            value={formatPrice(totalSpent, currency)}
+          />
+          <SummaryStat label="Orders" value={String(orderList.length)} />
+        </div>
+      ) : null}
+
       {loading ? (
         <CardLoadingState />
       ) : !orderList || orderList?.length === 0 ? (
         <Typography variant="muted">
-          {!customerData?.email
+          {!customerData?.id
             ? "Link a customer to see their order history."
             : "No orders yet."}
         </Typography>
@@ -385,7 +393,21 @@ export function OrdersCard({
                       transition={{ duration: 0.18, ease: "easeOut" }}
                       className="overflow-hidden"
                     >
-                      <OrderDetails order={order} />
+                      {/* The fetched record while it is this row's, the
+                          list row until then — so opening an order shows
+                          what it already knows rather than a blank panel,
+                          and fills in the rest when it lands. */}
+                      <OrderDetails
+                        order={
+                          FetchOrderDetailsData?.id === order.id
+                            ? FetchOrderDetailsData
+                            : order
+                        }
+                        loading={
+                          FetchOrderDetailsIsLoading &&
+                          FetchOrderDetailsData?.id !== order.id
+                        }
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>

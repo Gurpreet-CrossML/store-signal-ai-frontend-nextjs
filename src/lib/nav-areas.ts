@@ -31,6 +31,7 @@ import {
   IconShoppingBag,
   IconVolume,
   type Icon,
+  IconChartBar,
 } from "@tabler/icons-react";
 
 /**
@@ -72,7 +73,7 @@ export type NavArea = {
 export const NAV_AREAS = {
   crm: {
     href: "/crm",
-    title: "CRM",
+    title: "Catalog",
     description:
       "The people who shop with you, and everything you know about them.",
     icon: IconAddressBook,
@@ -139,12 +140,6 @@ export const NAV_AREAS = {
         description: "Tickets tagged as an exchange.",
         icon: IconArrowsExchange,
       },
-      {
-        href: "/helpdesk/tags",
-        title: "Tags",
-        description: "The labels used to sort tickets.",
-        icon: IconTags,
-      },
     ],
   },
 
@@ -178,10 +173,26 @@ export const NAV_AREAS = {
         icon: IconShieldLock,
       },
       {
+        href: "/settings/tags",
+        title: "Help Desk Tags",
+        description: "The labels used to sort tickets.",
+        pageDescription:
+          "Label support tickets so they can be grouped, filtered and found quickly.",
+        icon: IconTags,
+      },
+      {
         href: "/settings/integrations",
         title: "Integrations",
         description: "Connect your store and third-party platforms.",
         icon: IconPlugConnected,
+      },
+      {
+        href: "/settings/ai-usage",
+        title: "AI Usage",
+        description: "What the assistant costs to run, and how hard it works.",
+        pageDescription:
+          "Token spend, workflow costs and response latency for this store's assistant.",
+        icon: IconChartBar,
       },
       {
         href: "/settings/social-ai",

@@ -33,6 +33,10 @@ import {
   CrmLinkButton,
   SessionFacts,
 } from "@/components/custom/customer-header";
+import {
+  CreateTicketDialog,
+  type TicketCustomer,
+} from "@/components/custom/create-ticket-dialog";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { SearchInput } from "@/components/custom/search-input";
 import { CardTitle } from "@/components/ui/card";
@@ -49,8 +53,12 @@ import {
   type ThreadMessage,
   FetchOrders,
   UploadMessageAttachments,
-  SyncOrders,
 } from "@/redux/api-slice/thread-slice";
+import {
+  CreateSupportTicket,
+  FetchThreadTicketDraft,
+} from "@/redux/api-slice/support-ticket-slice";
+import { SyncCustomerOrders } from "@/redux/api-slice/order-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -62,6 +70,7 @@ import {
   IconPaperclip,
   IconRobot,
   IconSend,
+  IconTicket,
   IconX,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
@@ -562,8 +571,8 @@ export default function Support() {
   const { FetchUserMetadataData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchUserMetadataState,
   );
-  const { SyncOrdersIsLoading } = useAppSelector(
-    (state) => state.GetThreadReducer.SyncOrdersState,
+  const { SyncCustomerOrdersIsLoading } = useAppSelector(
+    (state) => state.GetOrderReducer.SyncCustomerOrdersState,
   );
 
   // Local, mutable copy of the thread list. Seeded from Redux (is_read
@@ -586,6 +595,7 @@ export default function Support() {
   // Attaching a real customer to a chat a guest started, offered from the
   // conversation header where the guest's name sits.
   const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
+  const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
@@ -1309,19 +1319,25 @@ export default function Support() {
     session?.user?.access_token,
   ]);
 
+  // Addressed by the customer, not the thread: syncing is a fact about a
+  // shopper's history, and the thread-scoped route resolved to this same
+  // customer before doing anything. A guest has none, so there is nothing
+  // to refresh — the button is disabled rather than failing on click.
+  const syncCustomerId = selectedThread?.customer?.id ?? null;
+
   const handleOrdersSync = async () => {
-    if (!activeThreadId) return;
+    if (!storeCode || !activeThreadId || !syncCustomerId) return;
     try {
-      await dispatch(SyncOrders({ threadID: activeThreadId })).unwrap();
+      await dispatch(
+        SyncCustomerOrders({ storeCode, customerId: syncCustomerId }),
+      ).unwrap();
 
       dispatch(FetchOrders(activeThreadId));
       toast.success("Order Sync", {
         description: "Orders synced successfully.",
       });
     } catch {
-      toast.error("Order Sync failed", {
-        description: "Could not sync orders. Try again.",
-      });
+      // The thunk has already said what went wrong.
     }
   };
 
@@ -1506,10 +1522,20 @@ export default function Support() {
                     </div>
                   </div>
 
-                  {/* Where they are browsing from, beside who they are —
-                      context for the person already on screen, and three
-                      rows the details pane gets back for orders. */}
-                  <SessionFacts userMetadata={FetchUserMetadataData} />
+                  <div className="flex shrink-0 items-center gap-3">
+                    {/* Where they are browsing from, beside who they are —
+                        context for the person already on screen, and three
+                        rows the details pane gets back for orders. */}
+                    <SessionFacts userMetadata={FetchUserMetadataData} />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsCreateTicketOpen(true)}
+                    >
+                      <IconTicket className="size-4" />
+                      Create Ticket
+                    </Button>
+                  </div>
                 </div>
               </header>
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -1570,12 +1596,11 @@ export default function Support() {
             </div>
 
             <CustomerDetailsPanel
-              description="Orders, cart, and profile for this conversation."
               customerData={selectedThread?.customer || null}
               orders={FetchOrderData}
               ordersLoading={FetchOrderDataIsLoading}
               onOrdersSync={handleOrdersSync}
-              orderSyncLoading={SyncOrdersIsLoading}
+              orderSyncLoading={SyncCustomerOrdersIsLoading}
               tickets={{
                 data: FetchFreshdeskTicketIdData ?? [],
                 loading: FetchFreshdeskTicketIdIsLoading,
@@ -1595,6 +1620,59 @@ export default function Support() {
           </div>
         )}
       </SidebarInset>
+      {storeCode ? (
+        <CreateTicketDialog
+          open={isCreateTicketOpen}
+          onOpenChange={setIsCreateTicketOpen}
+          storeCode={storeCode}
+          // Seeded from the conversation on screen: the shopper is already
+          // known here, and making the agent search for them again is the
+          // retyping this dialog exists to remove.
+          initialCustomer={
+            selectedThread?.customer?.id
+              ? ({
+                  kind: "record",
+                  id: selectedThread.customer.id,
+                  name: selectedThread.customer.name,
+                  email: selectedThread.customer.email,
+                } satisfies TicketCustomer)
+              : selectedThread?.customer?.email
+                ? ({
+                    kind: "email",
+                    email: selectedThread.customer.email,
+                  } satisfies TicketCustomer)
+                : null
+          }
+          onDraft={async () => {
+            if (!activeThreadId) return null;
+            const result = await dispatch(
+              FetchThreadTicketDraft({
+                storeCode,
+                threadId: activeThreadId,
+              }),
+            );
+            return FetchThreadTicketDraft.fulfilled.match(result)
+              ? result.payload
+              : null;
+          }}
+          // Addressed by the open thread, which the backend stores on the
+          // ticket — so the conversation that produced it stays reachable
+          // from the help desk.
+          onSubmit={async (payload) => {
+            if (!activeThreadId) return { ok: false };
+            const result = await dispatch(
+              CreateSupportTicket({
+                storeCode,
+                threadId: activeThreadId,
+                payload,
+              }),
+            );
+            return CreateSupportTicket.fulfilled.match(result)
+              ? { ok: true }
+              : { ok: false, payload: result.payload };
+          }}
+        />
+      ) : null}
       {storeCode ? (
         <LinkCustomerDialog
           open={isLinkCustomerOpen}

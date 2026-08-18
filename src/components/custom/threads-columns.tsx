@@ -2,19 +2,13 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 
+import {
+  HiddenTagsBadge,
+  TagBadge,
+} from "@/components/custom/helpdesk/tag-badge";
 import { Badge } from "@/components/ui/badge";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
+import type { SupportTicketTagData } from "@/redux/api-slice/support-ticket-slice";
 import type { Thread } from "@/redux/api-slice/thread-slice";
 import Markdown from "react-markdown";
 
@@ -44,60 +38,52 @@ function formatDuration(start: string, end: string | null | undefined): string {
 }
 
 /**
- * Renders thread tags as badges, showing at most `MAX_VISIBLE_TAGS`.
- * Remaining tags collapse into a "+N more" badge the user can click to expand.
+ * A thread's tags, as the two shapes the API actually sends.
  *
- * Kept ready for when the API starts returning `tags: string[]` on a thread.
- * Exported so it is "used" even while the Tags column below is commented out.
+ * The threads list returns full tag records; the thread detail endpoint
+ * returns bare names. Both reach this cell, and a record rendered as a
+ * React child is what crashed the Threads page.
  */
+export type ThreadTag = string | SupportTicketTagData;
+
+/** Bare names get the neutral chip; records keep the colour they were given. */
+function toTagRecord(tag: ThreadTag): SupportTicketTagData {
+  return typeof tag === "string"
+    ? { name: tag, color: "", description: "" }
+    : tag;
+}
+
 const MAX_VISIBLE_TAGS = 2;
 
-export function TagsCell({ tags }: { tags: string[] }) {
+/**
+ * A thread's tags, at most `MAX_VISIBLE_TAGS` of them, the rest behind a
+ * "+N" hover card.
+ *
+ * Draws them with the shared TagBadge rather than its own grey chip: a tag
+ * was already three different shapes across the app before that component
+ * existed, and this was quietly becoming a fourth.
+ */
+export function TagsCell({ tags }: { tags: ThreadTag[] }) {
   if (!tags || tags.length === 0) {
     return <span className="text-muted-foreground">—</span>;
   }
 
-  const visible = tags.slice(0, MAX_VISIBLE_TAGS);
-  const hidden = tags.slice(MAX_VISIBLE_TAGS);
+  const records = tags.map(toTagRecord);
+  const visible = records.slice(0, MAX_VISIBLE_TAGS);
+  const hidden = records.slice(MAX_VISIBLE_TAGS);
 
   return (
-    <TooltipProvider>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {visible.map((tag) => (
-          <Tooltip key={tag}>
-            <TooltipTrigger asChild>
-              <Badge variant="secondary" className="font-normal">
-                {tag}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>{tag}</TooltipContent>
-          </Tooltip>
-        ))}
+    <div className="flex flex-wrap items-center gap-1.5">
+      {visible.map((tag, index) => (
+        // Names are unique per thread, and are the only stable identity a
+        // bare-string tag has.
+        <TagBadge key={tag.id ?? `${tag.name}-${index}`} tag={tag} />
+      ))}
 
-        {hidden.length > 0 && (
-          <HoverCard>
-            <HoverCardTrigger asChild>
-              <Badge
-                variant="outline"
-                className="cursor-default font-normal hover:bg-accent"
-              >
-                +{hidden.length} more
-              </Badge>
-            </HoverCardTrigger>
-            <HoverCardContent
-              align="start"
-              className="flex w-auto max-w-xs flex-wrap gap-1.5"
-            >
-              {hidden.map((tag) => (
-                <Badge key={tag} variant="secondary" className="font-normal">
-                  {tag}
-                </Badge>
-              ))}
-            </HoverCardContent>
-          </HoverCard>
-        )}
-      </div>
-    </TooltipProvider>
+      {hidden.length > 0 ? (
+        <HiddenTagsBadge tags={hidden} label={`+${hidden.length}`} />
+      ) : null}
+    </div>
   );
 }
 

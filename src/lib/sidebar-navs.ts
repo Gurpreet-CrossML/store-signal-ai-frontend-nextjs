@@ -1,5 +1,4 @@
 import {
-  IconChartDots,
   IconMessage2,
   IconMessageUser,
   IconDashboard,
@@ -34,11 +33,20 @@ export type MainSidebarMenuItem = {
    * screen of the area — so it matches the area root instead.
    */
   activeBasePath?: string;
+  /** Only shown to company admins (is_staff). */
+  adminOnly?: boolean;
 };
 
 export type SideBarMenus = {
-  navMain: MainSidebarMenuItem[];
-  navAdmin: MainSidebarMenuItem[];
+  /**
+   * One ordered list rather than a main/admin pair.
+   *
+   * The two were concatenated, which forced every admin-only entry below
+   * every ordinary one — so Help Desk could not sit between Threads and
+   * Social AI where it belongs. Order is the order here; who sees an entry
+   * is `adminOnly`, which is a separate question.
+   */
+  nav: MainSidebarMenuItem[];
   navSecondary?: MainSidebarMenuItem[];
   navSubSidebar?: {
     [key: string]: SubSidebarMenuItem;
@@ -75,8 +83,8 @@ function queryMatches(currentSearch: string, entryQuery: string) {
  * when all of its params match. A bare-path entry is active for its path
  * and everything under it, but stands down when a sibling's query matches
  * — that sibling is the more specific answer. When several bare paths
- * match, the deepest one wins: on /helpdesk/tags both "All Inboxes"
- * (/helpdesk) and "Tags" (/helpdesk/tags) match, and Tags is the answer.
+ * match, the deepest one wins: on /settings/tags both "General"'s area
+ * root and "Help Desk Tags" (/settings/tags) match, and the latter wins.
  *
  * Returns the winning url so callers compare by identity rather than each
  * re-deriving the rule.
@@ -113,7 +121,7 @@ export function activeNavUrl(
 export function resolveSubSidebarKey(pathname: string | null): string | null {
   if (!pathname) return null;
 
-  const sections = [...sidebarMenus.navMain, ...sidebarMenus.navAdmin];
+  const sections = sidebarMenus.nav;
   const section = sections.find(
     (item) => item.subSidebarKey && isMenuItemActive(pathname, item.url),
   );
@@ -157,9 +165,7 @@ export function isMenuItemActive(pathname: string | null, url: string) {
 
 /** The top-level section a path belongs to, including nested routes. */
 export function findMenuSectionByPath(pathname: string | null) {
-  return [...sidebarMenus.navMain, ...sidebarMenus.navAdmin].find((item) =>
-    isMenuItemActive(pathname, item.url),
-  );
+  return sidebarMenus.nav.find((item) => isMenuItemActive(pathname, item.url));
 }
 
 /** Depth-first lookup for the menu item at `url`, searching nested `items` at any depth. */
@@ -187,13 +193,14 @@ export function findMenuItemByUrl(
  */
 function areaMenuItem(
   key: NavAreaKey,
-  url: string = NAV_AREAS[key].sections[0].href,
+  { adminOnly, url }: { adminOnly?: boolean; url?: string } = {},
 ): MainSidebarMenuItem {
   return {
     title: NAV_AREAS[key].title,
-    url,
+    url: url ?? NAV_AREAS[key].sections[0].href,
     icon: NAV_AREAS[key].icon,
     subSidebarKey: key,
+    ...(adminOnly ? { adminOnly: true } : {}),
     // The icon lands on the first screen, but stays lit for the whole
     // area — without this it would unlight on every sibling screen.
     activeBasePath: NAV_AREAS[key].href,
@@ -219,24 +226,28 @@ function areaSubSidebars(): Record<string, SubSidebarMenuItem> {
 }
 
 export const sidebarMenus: SideBarMenus = {
-  navMain: [
+  nav: [
     {
       title: "Dashboard",
       url: "/",
       icon: IconDashboard,
     },
     {
-      title: "Threads",
-      url: "/threads",
-      icon: IconMessage2,
-    },
-    {
       title: "Live Support",
       url: "/support",
       icon: IconMessageUser,
     },
-    areaMenuItem("crm"),
+    {
+      title: "Threads",
+      url: "/threads",
+      icon: IconMessage2,
+    },
+    areaMenuItem("helpdesk", { adminOnly: true }),
     areaMenuItem("socialAI"),
+    areaMenuItem("crm"),
+    areaMenuItem("brandVoice", { adminOnly: true }),
+    areaMenuItem("settings", { adminOnly: true }),
+    areaMenuItem("knowledge", { adminOnly: true }),
   ],
 
   navSubSidebar: {
@@ -244,19 +255,6 @@ export const sidebarMenus: SideBarMenus = {
     // filter there adds it to the sidebar with no change here.
     ...areaSubSidebars(),
   },
-
-  // Company-admin only (is_staff). Gated in AppSidebar by the session role.
-  navAdmin: [
-    areaMenuItem("helpdesk"),
-    areaMenuItem("brandVoice"),
-    areaMenuItem("settings"),
-    {
-      title: "AI Usage",
-      url: "/ai-usage",
-      icon: IconChartDots,
-    },
-    areaMenuItem("knowledge"),
-  ],
 
   // navSecondary: [
   //   {
