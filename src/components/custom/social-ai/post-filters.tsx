@@ -162,6 +162,9 @@ export function PostFiltersPopover({
             from={filters.from}
             to={filters.to}
             onRangeChange={(from, to) => onChange({ ...filters, from, to })}
+            // Nothing has been posted after today, so the only thing a
+            // future date can return is an empty feed.
+            disabled={{ after: new Date() }}
           />
         </div>
         <Separator />
