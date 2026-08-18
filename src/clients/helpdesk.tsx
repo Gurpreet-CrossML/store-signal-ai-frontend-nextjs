@@ -84,6 +84,7 @@ import {
 
 import { ConversationRow } from "@/components/custom/conversation-row";
 import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
+import { SyncCustomerOrders } from "@/redux/api-slice/order-slice";
 import {
   TicketPriorityBar,
   TICKET_PRIORITY_TONES,
@@ -117,7 +118,6 @@ import {
   SupportTicketMarkRead,
   SupportTicketAIMessageDraftGenerate,
   SupportTicketCustomerLink,
-  SupportTicketCustomerOrderSync,
   SupportTicketStatusUpdate,
   SupportTicketPriorityUpdate,
   SupportTicketMessagesTranslate,
@@ -1526,9 +1526,8 @@ export default function HelpDesk() {
     (state) =>
       state.GetSupportTicketsReducer.SupportTicketAIMessageDraftGenerateState,
   );
-  const { SupportTicketCustomerOrderSyncIsLoading } = useAppSelector(
-    (state) =>
-      state.GetSupportTicketsReducer.SupportTicketCustomerOrderSyncState,
+  const { SyncCustomerOrdersIsLoading } = useAppSelector(
+    (state) => state.GetOrderReducer.SyncCustomerOrdersState,
   );
   const { SupportTicketMessagesTranslateIsLoading } = useAppSelector(
     (state) =>
@@ -2668,15 +2667,15 @@ export default function HelpDesk() {
     }
   };
 
+  // Addressed by the customer rather than the ticket: the ticket-scoped
+  // route resolved to this same shopper before doing anything, and a ticket
+  // raised by a guest has nobody to refresh.
   const handleCustomerOrderSync = async () => {
-    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+    if (!storeCode || !ticketCustomer?.id) return;
 
     try {
       const syncedOrders = await dispatch(
-        SupportTicketCustomerOrderSync({
-          storeCode,
-          ticketId: currentActiveSupportTicketIdRef.current,
-        }),
+        SyncCustomerOrders({ storeCode, customerId: ticketCustomer.id }),
       ).unwrap();
 
       if (syncedOrders) {
@@ -3039,7 +3038,7 @@ export default function HelpDesk() {
             orders={ticketCustomer?.orders}
             ordersLoading={FetchSupportTicketDetailsIsLoading}
             onOrdersSync={handleCustomerOrderSync}
-            orderSyncLoading={SupportTicketCustomerOrderSyncIsLoading}
+            orderSyncLoading={SyncCustomerOrdersIsLoading}
             ordersDisabled={
               activeSupportTicket.status === "closed" ||
               activeSupportTicket.status === "resolved"

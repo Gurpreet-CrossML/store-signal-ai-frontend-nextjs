@@ -39,7 +39,10 @@ import { Typography } from "@/components/ui/typography";
 import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import { formatDate, formatPrice } from "@/lib/helpers";
 import { SearchCustomers } from "@/redux/api-slice/customer-slice";
-import { FetchOrders } from "@/redux/api-slice/order-slice";
+import {
+  FetchCustomerOrders,
+  SyncCustomerOrders,
+} from "@/redux/api-slice/order-slice";
 import {
   FetchSupportTicketTags,
   type CreateSupportTicketPayload,
@@ -315,8 +318,10 @@ export function CreateTicketDialog({
     useAppSelector(
       (state) => state.GetSupportTicketsReducer.FetchSupportTicketTagsState,
     );
-  const { FetchOrdersData, FetchOrdersIsLoading } = useAppSelector(
-    (state) => state.GetOrderReducer.FetchOrdersState,
+  const { FetchCustomerOrdersData, FetchCustomerOrdersIsLoading } =
+    useAppSelector((state) => state.GetOrderReducer.FetchCustomerOrdersState);
+  const { SyncCustomerOrdersIsLoading } = useAppSelector(
+    (state) => state.GetOrderReducer.SyncCustomerOrdersState,
   );
 
   const customerId = customer?.kind === "record" ? customer.id : null;
@@ -389,19 +394,38 @@ export function CreateTicketDialog({
     dispatch(FetchSupportTicketTags({ storeCode, page: 1, limit: 100 }));
   }, [dispatch, open, storeCode]);
 
-  // Orders belong to the chosen shopper, so they are fetched when one is
-  // chosen and re-fetched when that changes — an agent switching customer
-  // must not be offered the previous shopper's orders.
+  // Refresh from the store first, then list what is held.
+  //
+  // A ticket is often raised about an order placed minutes ago, and the
+  // stored history is only as fresh as the last sync — offering a list
+  // that does not contain the order being complained about is worse than
+  // waiting a moment for it. The list runs whatever the sync did, so a
+  // platform that is down or slow costs freshness, not the dropdown.
+  //
+  // Re-runs when the chosen shopper changes: an agent who switches
+  // customer must not be offered the previous one's orders.
   useEffect(() => {
     if (!open || !storeCode || !customerId) return;
-    dispatch(
-      FetchOrders({
-        storeCode,
-        page: 1,
-        limit: 50,
-        filters: { customer: customerId, ordering: "-created_at" },
-      }),
-    );
+
+    let cancelled = false;
+    const loadOrders = async () => {
+      await dispatch(SyncCustomerOrders({ storeCode, customerId }));
+      if (cancelled) return;
+      dispatch(
+        FetchCustomerOrders({
+          storeCode,
+          customerId,
+          page: 1,
+          limit: 50,
+          filters: { ordering: "-created_at" },
+        }),
+      );
+    };
+    loadOrders();
+
+    return () => {
+      cancelled = true;
+    };
   }, [dispatch, open, storeCode, customerId]);
 
   const handleDraft = async () => {
@@ -440,7 +464,11 @@ export function CreateTicketDialog({
     ]),
   ].map((name) => ({ value: name, label: name }));
 
-  const orders = customerId ? (FetchOrdersData?.results ?? []) : [];
+  const orders = customerId ? (FetchCustomerOrdersData?.results ?? []) : [];
+  // One spinner for the pair: the agent asked for "this shopper's orders",
+  // not for two separate requests.
+  const ordersLoading =
+    SyncCustomerOrdersIsLoading || FetchCustomerOrdersIsLoading;
   const busy = CreateSupportTicketIsLoading;
 
   return (
@@ -557,13 +585,11 @@ export function CreateTicketDialog({
             <Select
               value={formik.values.orderId}
               onValueChange={(value) => formik.setFieldValue("orderId", value)}
-              disabled={!customerId || FetchOrdersIsLoading || busy}
+              disabled={!customerId || ordersLoading || busy}
             >
               <SelectTrigger id="ticket-order" className="w-full">
                 <SelectValue
-                  placeholder={
-                    FetchOrdersIsLoading ? "Loading orders…" : "No order"
-                  }
+                  placeholder={ordersLoading ? "Loading orders…" : "No order"}
                 />
               </SelectTrigger>
               <SelectContent>
