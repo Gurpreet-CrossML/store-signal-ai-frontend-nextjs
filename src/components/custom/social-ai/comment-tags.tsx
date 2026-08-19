@@ -14,8 +14,8 @@ export const INTENT_TONES: Record<string, BadgeTone> = {
   praise: "success",
   question: "info",
   purchase_intent: "accent",
-  feedback: "neutral",
-  other: "neutral",
+  feedback: "misc",
+  other: "misc",
 };
 
 const SENTIMENT_TONES: Record<string, BadgeTone> = {
@@ -70,11 +70,10 @@ export function CommentTags({
       )}
       {analysis.is_sarcastic && <ToneBadge tone="warning">Sarcastic</ToneBadge>}
       {analysis.is_critical && <ToneBadge tone="danger">Critical</ToneBadge>}
-      {analysis.is_spam && <ToneBadge tone="neutral">Spam</ToneBadge>}
-      {/* Topics carry the intent's colour so a comment reads as one tagged
-          unit rather than a colourful badge and some grey ones. */}
+      {analysis.is_spam && <ToneBadge tone="warning">Spam</ToneBadge>}
+      {/* Topics get their own hue so every tag reads as coded, not grey. */}
       {analysis.topic_labels.map((label) => (
-        <ToneBadge key={label} tone={intentTone}>
+        <ToneBadge key={label} tone="topic">
           {label}
         </ToneBadge>
       ))}
