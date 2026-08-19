@@ -9,6 +9,8 @@ export type BadgeTone =
   | "info"
   | "danger"
   | "accent"
+  | "misc"
+  | "topic"
   | "neutral";
 
 export const BADGE_TONE_STYLES: Record<BadgeTone, string> = {
@@ -20,6 +22,9 @@ export const BADGE_TONE_STYLES: Record<BadgeTone, string> = {
   danger:
     "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300",
   accent: "border-primary/20 bg-primary/10 text-primary",
+  misc: "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-300",
+  topic:
+    "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-300",
   neutral: "border-border bg-muted text-muted-foreground",
 };
 
@@ -35,6 +40,8 @@ export const BAR_TONE_STYLES: Record<BadgeTone, string> = {
   info: "bg-sky-500",
   danger: "bg-rose-500",
   accent: "bg-primary",
+  misc: "bg-indigo-500",
+  topic: "bg-violet-500",
   neutral: "bg-border",
 };
 
@@ -56,5 +63,8 @@ export const ACTION_TONE_STYLES: Record<BadgeTone, string> = {
   danger:
     "text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20",
   accent: "text-primary hover:bg-primary/10 hover:text-primary",
+  misc: "text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-950 dark:hover:text-indigo-300",
+  topic:
+    "text-violet-600 hover:bg-violet-50 hover:text-violet-700 dark:text-violet-400 dark:hover:bg-violet-950 dark:hover:text-violet-300",
   neutral: "text-muted-foreground hover:text-foreground",
 };
