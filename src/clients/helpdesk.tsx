@@ -12,6 +12,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
+import { buildAccess } from "@/lib/access-rules";
 import {
   IconAlarmSnoozeFilled,
   IconCalendarPlus,
@@ -646,9 +647,11 @@ function ConversationPanel({
   isTranslating,
   translatedLanguage,
   onLinkCustomer,
+  hasManage,
 }: {
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
+  hasManage: boolean;
   reply: string;
   isSending: boolean;
   onReplyChange: (value: string) => void;
@@ -1244,13 +1247,25 @@ function ConversationPanel({
       </ScrollArea>
 
       <div className="shrink-0 border-t p-4">
+        {ticket.claim_status === "assigned_to_someone_else" && ticket.assignee && (
+          <div className="mb-3 rounded-md bg-amber-50 p-3 text-sm text-amber-800 flex items-center gap-2 border border-amber-200">
+            <IconLock className="size-4" />
+            <span>This ticket is currently being handled by <strong>{ticket.assignee.name}</strong>.</span>
+          </div>
+        )}
+        {!hasManage && (
+          <div className="mb-3 rounded-md bg-muted p-3 text-sm text-muted-foreground flex items-center gap-2 border">
+            <IconLock className="size-4" />
+            <span>You have <strong>view-only</strong> access to this store. Replies are disabled.</span>
+          </div>
+        )}
         <CKEditorTextArea
           id="ticket-reply-editor"
           value={reply}
           onChange={onReplyChange}
           useMarkdown
-          disabled={isMessageImproving || isClosed || isTranslating}
-          placeholder="Write a reply, or use the AI draft…"
+          disabled={!hasManage || ticket.claim_status === "assigned_to_someone_else" || isMessageImproving || isClosed || isTranslating}
+          placeholder={hasManage && ticket.claim_status !== "assigned_to_someone_else" ? "Write a reply, or use the AI draft…" : "Replies are disabled"}
           minHeight="6rem"
         />
 
@@ -1268,6 +1283,7 @@ function ConversationPanel({
                   aiDraft?.message ? onAcceptDraft() : onAIDraftGenerate()
                 }
                 disabled={
+                  !hasManage || ticket.claim_status === "assigned_to_someone_else" ||
                   isAIDraftLoading ||
                   isMessageImproving ||
                   isClosed ||
@@ -1298,7 +1314,7 @@ function ConversationPanel({
                     variant="outline"
                     size="icon-sm"
                     aria-label="Improve the reply"
-                    disabled={isMessageImproving || isClosed || isTranslating}
+                    disabled={!hasManage || ticket.claim_status === "assigned_to_someone_else" || isMessageImproving || isClosed || isTranslating}
                   >
                     {isMessageImproving ? (
                       <Spinner className="size-4" />
@@ -1488,6 +1504,7 @@ function TicketInsightsPlaceholder({
 }
 
 export default function HelpDesk() {
+
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -1501,6 +1518,9 @@ export default function HelpDesk() {
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
+  const access = session?.user ? buildAccess(session.user) : null;
+  const hasManage = access ? !!(access.isStaff || (storeCode && access.levels[storeCode] === "manage")) : false;
+
   const { FetchSupportTicketsListData, FetchSupportTicketsLoading } =
     useAppSelector(
       (state) => state.GetSupportTicketsReducer.FetchSupportTicketsState,
@@ -2983,6 +3003,7 @@ export default function HelpDesk() {
             ticket={activeSupportTicket}
             messages={supportTikcetMessages}
             reply={reply}
+            hasManage={hasManage}
             isSending={SupportTicketMessageSendIsLoading}
             onReplyChange={setReply}
             onSend={handleSend}
