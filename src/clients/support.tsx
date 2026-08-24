@@ -614,8 +614,9 @@ export default function Support() {
 
   const { data: session } = useSession();
   const access = session?.user ? buildAccess(session.user) : null;
-  const hasManage = access ? !!(access.isStaff || (storeCode && access.levels[storeCode] === "manage")) : false;
-
+  const hasManage = access
+    ? !!(access.isStaff || (storeCode && access.levels[storeCode] === "manage"))
+    : false;
 
   const router = useRouter();
   const pathname = usePathname();

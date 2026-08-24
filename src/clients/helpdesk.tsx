@@ -1247,16 +1247,23 @@ function ConversationPanel({
       </ScrollArea>
 
       <div className="shrink-0 border-t p-4">
-        {ticket.claim_status === "assigned_to_someone_else" && ticket.assignee && (
-          <div className="mb-3 rounded-md bg-amber-50 p-3 text-sm text-amber-800 flex items-center gap-2 border border-amber-200">
-            <IconLock className="size-4" />
-            <span>This ticket is currently being handled by <strong>{ticket.assignee.name}</strong>.</span>
-          </div>
-        )}
+        {ticket.claim_status === "assigned_to_someone_else" &&
+          ticket.assignee && (
+            <div className="mb-3 rounded-md bg-amber-50 p-3 text-sm text-amber-800 flex items-center gap-2 border border-amber-200">
+              <IconLock className="size-4" />
+              <span>
+                This ticket is currently being handled by{" "}
+                <strong>{ticket.assignee.name}</strong>.
+              </span>
+            </div>
+          )}
         {!hasManage && (
           <div className="mb-3 rounded-md bg-muted p-3 text-sm text-muted-foreground flex items-center gap-2 border">
             <IconLock className="size-4" />
-            <span>You have <strong>view-only</strong> access to this store. Replies are disabled.</span>
+            <span>
+              You have <strong>view-only</strong> access to this store. Replies
+              are disabled.
+            </span>
           </div>
         )}
         <CKEditorTextArea
@@ -1264,8 +1271,18 @@ function ConversationPanel({
           value={reply}
           onChange={onReplyChange}
           useMarkdown
-          disabled={!hasManage || ticket.claim_status === "assigned_to_someone_else" || isMessageImproving || isClosed || isTranslating}
-          placeholder={hasManage && ticket.claim_status !== "assigned_to_someone_else" ? "Write a reply, or use the AI draft…" : "Replies are disabled"}
+          disabled={
+            !hasManage ||
+            ticket.claim_status === "assigned_to_someone_else" ||
+            isMessageImproving ||
+            isClosed ||
+            isTranslating
+          }
+          placeholder={
+            hasManage && ticket.claim_status !== "assigned_to_someone_else"
+              ? "Write a reply, or use the AI draft…"
+              : "Replies are disabled"
+          }
           minHeight="6rem"
         />
 
@@ -1283,7 +1300,8 @@ function ConversationPanel({
                   aiDraft?.message ? onAcceptDraft() : onAIDraftGenerate()
                 }
                 disabled={
-                  !hasManage || ticket.claim_status === "assigned_to_someone_else" ||
+                  !hasManage ||
+                  ticket.claim_status === "assigned_to_someone_else" ||
                   isAIDraftLoading ||
                   isMessageImproving ||
                   isClosed ||
@@ -1314,7 +1332,13 @@ function ConversationPanel({
                     variant="outline"
                     size="icon-sm"
                     aria-label="Improve the reply"
-                    disabled={!hasManage || ticket.claim_status === "assigned_to_someone_else" || isMessageImproving || isClosed || isTranslating}
+                    disabled={
+                      !hasManage ||
+                      ticket.claim_status === "assigned_to_someone_else" ||
+                      isMessageImproving ||
+                      isClosed ||
+                      isTranslating
+                    }
                   >
                     {isMessageImproving ? (
                       <Spinner className="size-4" />
@@ -1504,7 +1528,6 @@ function TicketInsightsPlaceholder({
 }
 
 export default function HelpDesk() {
-
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -1519,7 +1542,9 @@ export default function HelpDesk() {
     (state) => state.GetStoresReducer.selectedStore,
   );
   const access = session?.user ? buildAccess(session.user) : null;
-  const hasManage = access ? !!(access.isStaff || (storeCode && access.levels[storeCode] === "manage")) : false;
+  const hasManage = access
+    ? !!(access.isStaff || (storeCode && access.levels[storeCode] === "manage"))
+    : false;
 
   const { FetchSupportTicketsListData, FetchSupportTicketsLoading } =
     useAppSelector(
