@@ -44,6 +44,11 @@ export default function Customization() {
   const stores = useAppSelector(
     (state) => state.GetStoresReducer.GetStoresState.GetStoresListData,
   );
+  const widgetCustomization = useAppSelector(
+    (state) =>
+      state.GetCustomizationReducer.FetchWidgetCustomizationState
+        .FetchWidgetCustomizationData,
+  );
 
   const store = stores.find((item) => item.code === storeCode);
   const storeId = store ? Number(store.id) : null;
@@ -292,12 +297,13 @@ export default function Customization() {
       primary_color: themeColor,
       secondary_color: secondaryColor,
       tertiary_color: tertiaryColor,
-      logo: null,
       welcome_message: welcomeMessage,
       greeting_message: greetingMessage.trim(),
       quick_actions: quickActions,
       quick_links: quickLinksPayload,
     };
+    const shouldRemoveLogo =
+      logoUrl === null && Boolean(widgetCustomization?.logo?.trim());
 
     setSavingAll(true);
     // Cleared on every attempt: leaving the last rejection on screen while
@@ -312,7 +318,10 @@ export default function Customization() {
         );
       } else {
         result = await dispatch(
-          UpdateWidgetCustomization({ storeId, payload }),
+          UpdateWidgetCustomization({
+            storeId,
+            payload: shouldRemoveLogo ? { ...payload, logo: null } : payload,
+          }),
         );
       }
 
