@@ -44,11 +44,6 @@ export default function Customization() {
   const stores = useAppSelector(
     (state) => state.GetStoresReducer.GetStoresState.GetStoresListData,
   );
-  const widgetCustomization = useAppSelector(
-    (state) =>
-      state.GetCustomizationReducer.FetchWidgetCustomizationState
-        .FetchWidgetCustomizationData,
-  );
 
   const store = stores.find((item) => item.code === storeCode);
   const storeId = store ? Number(store.id) : null;
@@ -302,8 +297,6 @@ export default function Customization() {
       quick_actions: quickActions,
       quick_links: quickLinksPayload,
     };
-    const shouldRemoveLogo =
-      logoUrl === null && Boolean(widgetCustomization?.logo?.trim());
 
     setSavingAll(true);
     // Cleared on every attempt: leaving the last rejection on screen while
@@ -317,11 +310,11 @@ export default function Customization() {
           UpdateWidgetCustomizationWithImage({ storeId, payload, logoFile }),
         );
       } else {
+        if (!logoUrl) {
+          payload.logo = null;
+        }
         result = await dispatch(
-          UpdateWidgetCustomization({
-            storeId,
-            payload: shouldRemoveLogo ? { ...payload, logo: null } : payload,
-          }),
+          UpdateWidgetCustomization({ storeId, payload }),
         );
       }
 
