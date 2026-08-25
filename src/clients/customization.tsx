@@ -292,6 +292,7 @@ export default function Customization() {
       primary_color: themeColor,
       secondary_color: secondaryColor,
       tertiary_color: tertiaryColor,
+      logo: null,
       welcome_message: welcomeMessage,
       greeting_message: greetingMessage.trim(),
       quick_actions: quickActions,

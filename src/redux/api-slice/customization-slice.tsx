@@ -23,6 +23,7 @@ export type UpdateWidgetCustomizationPayload = {
   primary_color?: string;
   secondary_color?: string;
   tertiary_color?: string;
+  logo: null,
   welcome_message?: string;
   greeting_message?: string;
   quick_actions?: WidgetQuickAction[];
