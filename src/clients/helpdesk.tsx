@@ -2662,7 +2662,7 @@ export default function HelpDesk() {
 
       // Auto-assign UI update
       if (
-        (sentMessage as any).claim_status === "claimed_by_you" &&
+        (sentMessage as { claim_status?: string }).claim_status === "claimed_by_you" &&
         !activeSupportTicket?.internal_assignee
       ) {
         const assignedStaff = {
