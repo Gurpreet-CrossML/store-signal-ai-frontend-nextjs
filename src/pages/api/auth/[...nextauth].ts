@@ -14,6 +14,7 @@ declare module "next-auth" {
     email?: string;
     username?: string;
     name?: string;
+    id?: number;
     // Tenancy/identity from the Django login `data` (see account/serializers.py).
     company_code?: string | null;
     is_staff?: boolean;
@@ -24,6 +25,7 @@ declare module "next-auth" {
       email?: string | null;
       username?: string;
       name?: string | null;
+      id?: number;
       access_token?: string;
       // Tenant routing + per-store access (read by withTenantRoute / resolveAccess).
       company_code?: string | null;
@@ -44,6 +46,7 @@ declare module "next-auth/jwt" {
     email?: string;
     username?: string;
     name?: string;
+    id?: number;
     company_code?: string | null;
     is_staff?: boolean;
     accessible_stores?: AccessibleStore[];
@@ -151,6 +154,7 @@ export const authOptions: AuthOptions = {
         ...session,
         error: token.error,
         user: {
+          id: token.id,
           email: token.email,
           username: token.username,
           name: token.name,
@@ -171,6 +175,7 @@ export const authOptions: AuthOptions = {
         token.refresh_token = user.refresh;
         token.accessTokenExpires = getTokenExpiry(user.token);
 
+        token.id = Number(user.id);
         token.email = user.email;
         token.username = user.username;
         token.name = user.name;

@@ -648,10 +648,16 @@ function ConversationPanel({
   translatedLanguage,
   onLinkCustomer,
   hasManage,
+  isAdmin,
+  currentUserEmail,
+  currentUserId,
 }: {
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
   hasManage: boolean;
+  isAdmin: boolean;
+  currentUserEmail: string | null;
+  currentUserId: number | null;
   reply: string;
   isSending: boolean;
   onReplyChange: (value: string) => void;
@@ -808,15 +814,22 @@ function ConversationPanel({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Combobox items={availableStaff}>
+          <Combobox>
             <ComboboxInput
               className="h-8 w-28 2xl:w-40"
               placeholder={
                 ticket?.internal_assignee?.id
-                  ? ticket?.internal_assignee?.name
-                  : "Assign to…"
+                  ? ticket.internal_assignee.id === -1 ||
+                    ticket.internal_assignee.email === currentUserEmail
+                    ? "Assigned to you"
+                    : ticket?.internal_assignee?.name
+                  : isAdmin
+                    ? "Assign to…"
+                    : hasManage
+                      ? "Assign yourself"
+                      : "Unassigned"
               }
-              disabled={isClosed}
+              disabled={!hasManage || isClosed}
             />
             <ComboboxContent>
               <ComboboxEmpty>No staff found.</ComboboxEmpty>
@@ -829,9 +842,17 @@ function ConversationPanel({
                     Unassign
                   </ComboboxItem>
                 )}
+                {!ticket?.internal_assignee?.id && !isAdmin && hasManage && (
+                  <ComboboxItem
+                    className="hover:bg-muted font-medium"
+                    onClick={() => onAssignStaff(currentUserId)}
+                  >
+                    Assign yourself
+                  </ComboboxItem>
+                )}
               </div>
               <ComboboxList>
-                {(staff) => (
+                {availableStaff.map((staff) => (
                   <ComboboxItem
                     key={staff.id}
                     value={`${staff.first_name} ${staff.last_name}`}
@@ -842,7 +863,7 @@ function ConversationPanel({
                   >
                     {staff.first_name} {staff.last_name}
                   </ComboboxItem>
-                )}
+                ))}
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
@@ -857,7 +878,7 @@ function ConversationPanel({
                 aria-label="Mark as resolved"
                 className={ACTION_TONE_STYLES.success}
                 onClick={() => onTicketStatusUpdate("resolved")}
-                disabled={isClosed}
+                disabled={!hasManage || isClosed}
               >
                 <IconCircleCheck className="size-4" />
               </Button>
@@ -873,7 +894,7 @@ function ConversationPanel({
                 aria-label="Close ticket"
                 className={ACTION_TONE_STYLES.danger}
                 onClick={() => onTicketStatusUpdate("closed")}
-                disabled={ticket.status === "closed"}
+                disabled={!hasManage || ticket.status === "closed"}
               >
                 <IconCircleX className="size-4" />
               </Button>
@@ -884,7 +905,7 @@ function ConversationPanel({
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild disabled={isClosed}>
+                <DropdownMenuTrigger asChild disabled={!hasManage || isClosed}>
                   {/* Icon only until it is snoozed — then the time it wakes
                       up is worth the width. */}
                   <Button
@@ -892,6 +913,7 @@ function ConversationPanel({
                     size={ticket?.is_snoozed ? "sm" : "icon-sm"}
                     aria-label="Snooze ticket"
                     className={ACTION_TONE_STYLES.warning}
+                    disabled={!hasManage || isClosed}
                   >
                     <IconAlarmSnoozeFilled className="size-4" />
                     {ticket?.is_snoozed ? snoozeLabel : null}
@@ -971,14 +993,15 @@ function ConversationPanel({
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Change status"
+                disabled={!hasManage}
                 className={cn(
                   badgeVariants({ variant: "outline" }),
-                  "cursor-pointer capitalize",
+                  "cursor-pointer capitalize disabled:cursor-default disabled:opacity-60",
                   BADGE_TONE_STYLES[STATUS_TONE[ticket.status]],
                 )}
               >
                 {capitalizeText(ticket.status)}
-                <IconChevronDown />
+                {!hasManage ? null : <IconChevronDown />}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuLabel>Status</DropdownMenuLabel>
@@ -1001,7 +1024,7 @@ function ConversationPanel({
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Change priority"
-                disabled={isClosed}
+                disabled={!hasManage || isClosed}
                 className={cn(
                   badgeVariants({ variant: "outline" }),
                   "cursor-pointer capitalize disabled:cursor-default disabled:opacity-60",
@@ -1009,7 +1032,7 @@ function ConversationPanel({
                 )}
               >
                 {capitalizeText(ticket.priority)}
-                {!isClosed ? <IconChevronDown /> : null}
+                {!hasManage || isClosed ? null : <IconChevronDown />}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuLabel>Priority</DropdownMenuLabel>
@@ -1248,12 +1271,12 @@ function ConversationPanel({
 
       <div className="shrink-0 border-t p-4">
         {ticket.claim_status === "assigned_to_someone_else" &&
-          ticket.assignee && (
-            <div className="mb-3 rounded-md bg-amber-50 p-3 text-sm text-amber-800 flex items-center gap-2 border border-amber-200">
+          ticket.internal_assignee && (
+            <div className="mb-3 flex items-center gap-2 rounded-md border bg-muted p-3 text-sm text-muted-foreground">
               <IconLock className="size-4" />
               <span>
-                This ticket is currently being handled by{" "}
-                <strong>{ticket.assignee.name}</strong>.
+                This ticket is currently assigned to{" "}
+                <strong>{ticket.internal_assignee.name}</strong>.
               </span>
             </div>
           )}
@@ -1427,7 +1450,12 @@ function ConversationPanel({
                   variant="outline"
                   size="sm"
                   onClick={onSaveDraft}
-                  disabled={isClosed || isTranslating}
+                  disabled={
+                    !hasManage ||
+                    ticket.claim_status === "assigned_to_someone_else" ||
+                    isClosed ||
+                    isTranslating
+                  }
                   aria-label="Save Draft"
                 >
                   <IconDeviceFloppy className="size-4" />
@@ -1443,7 +1471,12 @@ function ConversationPanel({
                   size="sm"
                   onClick={() => onSend("note")}
                   disabled={
-                    isSending || isMessageImproving || isClosed || isTranslating
+                    !hasManage ||
+                    ticket.claim_status === "assigned_to_someone_else" ||
+                    isSending ||
+                    isMessageImproving ||
+                    isClosed ||
+                    isTranslating
                   }
                   aria-label="Send as Internal Note"
                 >
@@ -1459,7 +1492,12 @@ function ConversationPanel({
               size="sm"
               onClick={() => onSend("reply")}
               disabled={
-                isSending || isMessageImproving || isClosed || isTranslating
+                !hasManage ||
+                ticket.claim_status === "assigned_to_someone_else" ||
+                isSending ||
+                isMessageImproving ||
+                isClosed ||
+                isTranslating
               }
             >
               {isSending ? (
@@ -2454,6 +2492,21 @@ export default function HelpDesk() {
   const handleStaffAssign = async (staffId: number | null) => {
     if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
 
+    let assignedStaff: StaffMember | undefined;
+
+    if (staffId === session?.user?.id) {
+      assignedStaff = {
+        id: session?.user?.id || -1,
+        first_name: session?.user?.name?.split(" ")[0] || "You",
+        last_name: session?.user?.name?.split(" ").slice(1).join(" ") || "",
+        email: session?.user?.email || "",
+        is_active: true,
+        is_staff: session?.user?.is_staff || false,
+      };
+    } else if (staffId !== null) {
+      assignedStaff = staff.find((member) => member.id === staffId);
+    }
+
     try {
       const payload = {
         internal_assignee: staffId,
@@ -2466,8 +2519,6 @@ export default function HelpDesk() {
           payload,
         }),
       ).unwrap();
-
-      const assignedStaff = staff.find((member) => member.id === staffId);
 
       setTicketRows((current) =>
         current.map((ticket) =>
@@ -2608,6 +2659,38 @@ export default function HelpDesk() {
           message.id === tempId ? sentMessage : message,
         ),
       );
+
+      // Auto-assign UI update
+      if (
+        (sentMessage as any).claim_status === "claimed_by_you" &&
+        !activeSupportTicket?.internal_assignee
+      ) {
+        const assignedStaff = {
+          id: -1,
+          name: session?.user?.name || "You",
+          email: session?.user?.email || "",
+        };
+
+        setTicketRows((current) =>
+          current.map((ticket) =>
+            ticket.id === currentActiveSupportTicketIdRef.current
+              ? {
+                  ...ticket,
+                  internal_assignee: assignedStaff,
+                }
+              : ticket,
+          ),
+        );
+
+        setActiveSupportTicket((current) =>
+          current
+            ? {
+                ...current,
+                internal_assignee: assignedStaff,
+              }
+            : current,
+        );
+      }
 
       toast.success(mode === "note" ? "Internal note added" : "Reply sent");
     } catch {
@@ -3029,6 +3112,9 @@ export default function HelpDesk() {
             messages={supportTikcetMessages}
             reply={reply}
             hasManage={hasManage}
+            isAdmin={session?.user?.is_staff || false}
+            currentUserEmail={session?.user?.email || null}
+            currentUserId={session?.user?.id || null}
             isSending={SupportTicketMessageSendIsLoading}
             onReplyChange={setReply}
             onSend={handleSend}
