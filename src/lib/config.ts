@@ -331,6 +331,62 @@ export const ENDPOINTS = {
   // from two separate conversations.
   metaSupportTicketDraft: (userId: number) =>
     `/social/meta/users/${userId}/support-ticket/draft/`,
+
+  fetchWhatsAppTemplates: ({ accountId }: { accountId: string }) =>
+    `/social/meta/whatsapp/accounts/${accountId}/templates/`,
+  // POST multipart — a HEADER sample (image/video/document) for a template
+  // being authored. Returns a header_handle to embed on submit.
+  uploadWhatsAppTemplateMedia: ({ accountId }: { accountId: string }) =>
+    `/social/meta/whatsapp/accounts/${accountId}/templates/media/`,
+  // POST — create a new message template and submit it to Meta for review.
+  submitWhatsAppTemplate: ({ accountId }: { accountId: string }) =>
+    `/social/meta/whatsapp/accounts/${accountId}/templates/submit/`,
+  // One template's local mirror — GET (prefill an edit form), PATCH (push
+  // an edit to Meta), DELETE (remove from Meta and locally).
+  whatsAppTemplateDetail: ({
+    accountId,
+    metaTemplateId,
+  }: {
+    accountId: string;
+    metaTemplateId: string;
+  }) =>
+    `/social/meta/whatsapp/accounts/${accountId}/templates/${metaTemplateId}/`,
+  // POST — save a new draft (local only, never reaches Meta).
+  whatsAppTemplateDraftCreate: ({ accountId }: { accountId: string }) =>
+    `/social/meta/whatsapp/accounts/${accountId}/templates/draft/`,
+  // One draft — GET (prefill an edit form), PATCH (overwrite), DELETE
+  // (discard). All local only.
+  whatsAppTemplateDraftDetail: ({
+    accountId,
+    draftId,
+  }: {
+    accountId: string;
+    draftId: number;
+  }) =>
+    `/social/meta/whatsapp/accounts/${accountId}/templates/draft/${draftId}/`,
+  // POST — promote a saved draft to a real Meta submission.
+  whatsAppTemplateDraftSubmit: ({
+    accountId,
+    draftId,
+  }: {
+    accountId: string;
+    draftId: number;
+  }) =>
+    `/social/meta/whatsapp/accounts/${accountId}/templates/draft/${draftId}/submit/`,
+  // GET — the platform's importable post-sale template catalog, each entry
+  // flagged with whether this account has already imported it.
+  whatsAppTemplateLibraryList: ({ accountId }: { accountId: string }) =>
+    `/social/meta/whatsapp/accounts/${accountId}/templates/library/`,
+  // POST — import one catalog template: submits it to Meta on this account
+  // and adds it to this account's own WhatsApp Templates.
+  whatsAppTemplateLibraryImport: ({
+    accountId,
+    libraryId,
+  }: {
+    accountId: string;
+    libraryId: number;
+  }) =>
+    `/social/meta/whatsapp/accounts/${accountId}/templates/library/${libraryId}/import/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

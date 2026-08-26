@@ -286,6 +286,7 @@ export const sidebarMenus: SideBarMenus = {
     },
     areaMenuItem("helpdesk", { adminOnly: true }),
     areaMenuItem("socialAI"),
+    areaMenuItem("campaign"),
     areaMenuItem("crm"),
     areaMenuItem("brandVoice", { adminOnly: true }),
     areaMenuItem("settings", { adminOnly: true }),

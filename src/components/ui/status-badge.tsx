@@ -78,6 +78,103 @@ const FULFILLMENT_STATUS: Record<
   restocked: { tone: "neutral", label: "Restocked" },
 };
 
+// Meta's WhatsApp template review states. Not exhaustive — Meta documents a
+// few more (IN_APPEAL, PENDING_DELETION, LIMIT_EXCEEDED, DELETED...) than a
+// store is likely to hit, so an unrecognized one still renders (neutral,
+// underscore-formatted) instead of disappearing.
+const WHATSAPP_TEMPLATE_STATUS: Record<string, { tone: Tone; label: string }> =
+  {
+    // Ours, not Meta's — a template saved locally that's never been
+    // submitted for review yet (see WhatsAppTemplate.status on the backend).
+    draft: { tone: "neutral", label: "Draft" },
+    approved: { tone: "success", label: "Approved" },
+    pending: { tone: "warning", label: "Pending" },
+    in_appeal: { tone: "warning", label: "In appeal" },
+    rejected: { tone: "danger", label: "Rejected" },
+    paused: { tone: "warning", label: "Paused" },
+    disabled: { tone: "danger", label: "Disabled" },
+    pending_deletion: { tone: "danger", label: "Pending deletion" },
+    limit_exceeded: { tone: "danger", label: "Limit exceeded" },
+  };
+
+/** Badge for a WhatsApp message template's Meta review `status`. */
+export function WhatsAppTemplateStatusBadge({ status }: { status: string }) {
+  const known = WHATSAPP_TEMPLATE_STATUS[statusKey(status)];
+  const tone = known?.tone ?? "neutral";
+  const label = known?.label ?? status.replace(/_/g, " ");
+
+  return (
+    <Badge
+      variant="outline"
+      className={`capitalize ${BADGE_TONE_STYLES[tone]}`}
+    >
+      {label}
+    </Badge>
+  );
+}
+
+const WHATSAPP_TEMPLATE_CATEGORY: Record<
+  string,
+  { tone: Tone; label: string }
+> = {
+  marketing: { tone: "misc", label: "Marketing" },
+  utility: { tone: "info", label: "Utility" },
+  authentication: { tone: "warning", label: "Authentication" },
+};
+
+/** Badge for a WhatsApp message template's top-level `category`. */
+export function WhatsAppTemplateCategoryBadge({
+  category,
+}: {
+  category: string;
+}) {
+  const known = WHATSAPP_TEMPLATE_CATEGORY[statusKey(category)];
+  const tone = known?.tone ?? "neutral";
+  const label = known?.label ?? category.replace(/_/g, " ");
+
+  return (
+    <Badge
+      variant="outline"
+      className={`capitalize ${BADGE_TONE_STYLES[tone]}`}
+    >
+      {label}
+    </Badge>
+  );
+}
+
+const WHATSAPP_QUALITY_SCORE: Record<string, { tone: Tone; label: string }> = {
+  green: { tone: "success", label: "Good" },
+  yellow: { tone: "warning", label: "Medium" },
+  red: { tone: "danger", label: "Poor" },
+  unknown: { tone: "neutral", label: "Unrated" },
+};
+
+/**
+ * Badge for a template's Meta `quality_score.score`. Meta only starts
+ * scoring a template once it has been sent enough times — most templates
+ * sit at "UNKNOWN" (rendered "Unrated") until then, which is expected, not
+ * an error state.
+ */
+export function WhatsAppTemplateQualityBadge({
+  score,
+}: {
+  score: string | null | undefined;
+}) {
+  if (!score) return null;
+  const known = WHATSAPP_QUALITY_SCORE[statusKey(score)];
+  const tone = known?.tone ?? "neutral";
+  const label = known?.label ?? score.replace(/_/g, " ");
+
+  return (
+    <Badge
+      variant="outline"
+      className={`capitalize ${BADGE_TONE_STYLES[tone]}`}
+    >
+      {label}
+    </Badge>
+  );
+}
+
 /**
  * Badge for `order.fulfillment_status`. `null` means "not fulfilled yet"
  * in Shopify's model (there's no explicit "unfulfilled" string), so this
