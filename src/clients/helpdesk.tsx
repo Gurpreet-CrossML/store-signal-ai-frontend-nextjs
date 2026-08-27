@@ -1452,9 +1452,7 @@ function ConversationPanel({
                     <IconSend className="size-4" />
                     Send
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onSend("customer_language")}
-                  >
+                  <DropdownMenuItem onClick={() => onSend("customer_language")}>
                     <IconLanguage className="size-4" />
                     Send in Customer Language
                   </DropdownMenuItem>
@@ -2601,9 +2599,7 @@ export default function HelpDesk() {
         ),
       );
 
-      toast.success(
-        mode === "note" ? "Internal note added" : "Reply sent",
-      );
+      toast.success(mode === "note" ? "Internal note added" : "Reply sent");
     } catch {
       setSupportTicketMessages((current) =>
         current.filter((message) => message.id !== tempId),
