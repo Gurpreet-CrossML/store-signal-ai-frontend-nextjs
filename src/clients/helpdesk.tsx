@@ -652,8 +652,8 @@ function ConversationPanel({
   reply: string;
   isSending: boolean;
   onReplyChange: (value: string) => void;
-  /** Reply is the default; an internal note is the deliberate other choice. */
-  onSend: (mode: "reply" | "note") => void;
+  /** Reply is the default; internal note and translated reply are deliberate choices. */
+  onSend: (mode: "reply" | "note" | "customer_language") => void;
   onAcceptDraft: () => void;
   onSaveDraft: () => void;
   availableTags: SupportTicketTagData[];
@@ -1415,20 +1415,52 @@ function ConversationPanel({
               </TooltipTrigger>
               <TooltipContent>Send as Internal Note</TooltipContent>
             </Tooltip>
-            <Button
-              size="sm"
-              onClick={() => onSend("reply")}
-              disabled={
-                isSending || isMessageImproving || isClosed || isTranslating
-              }
-            >
-              {isSending ? (
-                <Spinner className="size-4" />
-              ) : (
-                <IconSend className="size-4" />
-              )}
-              {isSending ? "Sending…" : "Send"}
-            </Button>
+            <div className="flex overflow-hidden rounded-md">
+              <Button
+                size="sm"
+                onClick={() => onSend("reply")}
+                disabled={
+                  isSending || isMessageImproving || isClosed || isTranslating
+                }
+                className="rounded-r-none"
+              >
+                {isSending ? (
+                  <Spinner className="size-4" />
+                ) : (
+                  <IconSend className="size-4" />
+                )}
+                {isSending ? "Sending…" : "Send"}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    disabled={
+                      isSending ||
+                      isMessageImproving ||
+                      isClosed ||
+                      isTranslating
+                    }
+                    className="rounded-l-none border-l border-primary-foreground/20 px-2"
+                    aria-label="Choose send option"
+                  >
+                    <IconChevronDown className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60">
+                  <DropdownMenuItem onClick={() => onSend("reply")}>
+                    <IconSend className="size-4" />
+                    Send
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onSend("customer_language")}
+                  >
+                    <IconLanguage className="size-4" />
+                    Send in Customer Language
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </div>
@@ -2507,7 +2539,9 @@ export default function HelpDesk() {
     }
   };
 
-  const handleSend = async (mode: "reply" | "note" = "reply") => {
+  const handleSend = async (
+    mode: "reply" | "note" | "customer_language" = "reply",
+  ) => {
     if (!storeCode) return;
 
     const trimmedReply = reply.trim();
@@ -2549,6 +2583,9 @@ export default function HelpDesk() {
       if (mode === "note") {
         formData.append("message_type", "internal");
       }
+      if (mode === "customer_language") {
+        formData.append("translate_message", "true");
+      }
 
       const sentMessage = await dispatch(
         SupportTicketMessageSend({
@@ -2564,7 +2601,9 @@ export default function HelpDesk() {
         ),
       );
 
-      toast.success(mode === "note" ? "Internal note added" : "Reply sent");
+      toast.success(
+        mode === "note" ? "Internal note added" : "Reply sent",
+      );
     } catch {
       setSupportTicketMessages((current) =>
         current.filter((message) => message.id !== tempId),
