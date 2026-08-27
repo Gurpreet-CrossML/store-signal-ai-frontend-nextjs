@@ -1455,7 +1455,9 @@ function ConversationPanel({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-60">
-                  <DropdownMenuItem onClick={() => setSelectedSendMode("reply")}>
+                  <DropdownMenuItem
+                    onClick={() => setSelectedSendMode("reply")}
+                  >
                     <IconSend className="size-4" />
                     Send
                   </DropdownMenuItem>
