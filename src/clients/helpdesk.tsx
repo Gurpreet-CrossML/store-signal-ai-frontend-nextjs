@@ -44,6 +44,7 @@ import ReactMarkdown from "react-markdown";
 import { useFormik } from "formik";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -683,7 +684,14 @@ function ConversationPanel({
   onLinkCustomer: () => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
+  const [selectedSendMode, setSelectedSendMode] = useState<
+    "reply" | "customer_language"
+  >("reply");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const selectedSendLabel =
+    selectedSendMode === "customer_language"
+      ? "Send in Customer Language"
+      : "Send";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
@@ -1415,21 +1423,20 @@ function ConversationPanel({
               </TooltipTrigger>
               <TooltipContent>Send as Internal Note</TooltipContent>
             </Tooltip>
-            <div className="flex overflow-hidden rounded-md">
+            <ButtonGroup>
               <Button
                 size="sm"
-                onClick={() => onSend("reply")}
+                onClick={() => onSend(selectedSendMode)}
                 disabled={
                   isSending || isMessageImproving || isClosed || isTranslating
                 }
-                className="rounded-r-none"
               >
                 {isSending ? (
                   <Spinner className="size-4" />
                 ) : (
                   <IconSend className="size-4" />
                 )}
-                {isSending ? "Sending…" : "Send"}
+                {isSending ? "Sending…" : selectedSendLabel}
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1441,24 +1448,26 @@ function ConversationPanel({
                       isClosed ||
                       isTranslating
                     }
-                    className="rounded-l-none border-l border-primary-foreground/20 px-2"
+                    className="px-2"
                     aria-label="Choose send option"
                   >
                     <IconChevronDown className="size-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-60">
-                  <DropdownMenuItem onClick={() => onSend("reply")}>
+                  <DropdownMenuItem onClick={() => setSelectedSendMode("reply")}>
                     <IconSend className="size-4" />
                     Send
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onSend("customer_language")}>
+                  <DropdownMenuItem
+                    onClick={() => setSelectedSendMode("customer_language")}
+                  >
                     <IconLanguage className="size-4" />
                     Send in Customer Language
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
+            </ButtonGroup>
           </div>
         </div>
       </div>
@@ -2582,7 +2591,7 @@ export default function HelpDesk() {
         formData.append("message_type", "internal");
       }
       if (mode === "customer_language") {
-        formData.append("translate_message", "true");
+        formData.append("send_in_customer_language", "true");
       }
 
       const sentMessage = await dispatch(
