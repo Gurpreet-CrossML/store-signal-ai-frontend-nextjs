@@ -60,6 +60,9 @@ export const ENDPOINTS = {
 
   // Company & staff management (Django /api/tenancy/). These are Django-owned;
   // GET calls must pass `useBackend: true` (writes auto-route to Django).
+  // Public self-serve sign-up (Django) — creates the company and its first
+  // admin; the password is generated server-side and emailed.
+  registerCompany: () => "/tenancy/register/",
   fetchCompanyProfile: () => "/tenancy/company/",
   updateCompanyProfile: () => "/tenancy/company/",
   fetchStaff: () => "/tenancy/staff/",
@@ -74,6 +77,16 @@ export const ENDPOINTS = {
 
   // Store Management
   fetchStoresList: () => "/store/list",
+  // Shopify connect (Django, OAuth). Start returns the consent URL to send
+  // the browser to; Shopify then redirects back to this app with
+  // code/shop/state/hmac/timestamp, which the callback GET forwards verbatim
+  // (the HMAC covers every param) — no auth header, tenant comes from `state`.
+  shopifyOauthStart: () => "/store/shopify/oauth/start/",
+  shopifyOauthCallback: () => "/store/shopify/oauth/callback/",
+  // Company onboarding (Django, company admin). GET (needs useBackend) is the
+  // step + connected stores with their widget keys; PATCH sets
+  // `onboarding_step` to "completed" or "skipped".
+  companyOnboarding: () => "/tenancy/company/onboarding/",
   // Per-store settings (Django) — currently the widget's allowed-IP list.
   // GET returns the settings, PATCH updates them.
   storeAllowedIPsSettings: () =>
@@ -334,6 +347,12 @@ export const ENDPOINTS = {
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
+// Chatbot widget embed. The script lives on a per-environment bucket; the
+// API base is the Django backend the widget talks to (same one this app uses).
+export const WIDGET_SCRIPT_SRC =
+  process.env.NEXT_PUBLIC_WIDGET_SCRIPT_URL || "";
+export const WIDGET_API_BASE = createAPIUrl(undefined, "django");
+
 export const DEFAULT_API_PAGE_SIZE = 15;
 
 // Chatbot feedback rating choices, mirroring the backend RATING_CHOICES.
@@ -520,6 +539,34 @@ export const REGIONAL_SPELLING_CHOICES: readonly DescribedOption[] = [
     description: "Matches each customer.",
   },
 ];
+
+// Mirrors `onboarding_step` on the session user (Django user_context), in
+// the order the user walks through them.
+export const ONBOARDING_STEPS = [
+  { value: "store_setup", label: "Connect the store" },
+  { value: "go_live", label: "Go live on store" },
+] as const;
+
+export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]["value"];
+
+export const STORE_PLATFORMS = [
+  {
+    value: "shopify",
+    label: "Shopify",
+    icon: "/shopify.svg",
+    description:
+      "Connect with your store alias. We'll send you to Shopify to authorize access.",
+  },
+  {
+    value: "magento",
+    label: "Magento",
+    icon: "/magento-2.svg",
+    description:
+      "Connect with your store URL. We'll send you to Magento to authorize access.",
+  },
+] as const;
+
+export type StorePlatform = (typeof STORE_PLATFORMS)[number]["value"];
 
 export const SocialAIPlatformOptions: {
   readonly [key: string]: { label: string; icon: Icon; color: string };
