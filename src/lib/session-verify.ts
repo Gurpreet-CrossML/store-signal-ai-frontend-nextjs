@@ -94,11 +94,14 @@ const identityInFlight = new Map<string, Promise<Identity | null>>();
 
 export async function refreshIdentity(
   accessToken: string | undefined,
+  // `fresh` skips the cache — used when the client knows something changed
+  // (e.g. onboarding advanced after a store connect) and calls session.update().
+  { fresh = false } = {},
 ): Promise<Identity | null> {
   if (!accessToken) return null;
 
   const cached = identityCache.get(accessToken);
-  if (cached && cached.expires > Date.now()) return cached.identity;
+  if (!fresh && cached && cached.expires > Date.now()) return cached.identity;
 
   const existing = identityInFlight.get(accessToken);
   if (existing) return existing;
@@ -127,6 +130,10 @@ async function fetchIdentity(accessToken: string): Promise<Identity | null> {
         ? d.accessible_stores
         : [],
     };
+    if (typeof d.onboarding_pending === "boolean") {
+      identity.onboarding_pending = d.onboarding_pending;
+      identity.onboarding_step = d.onboarding_step ?? null;
+    }
 
     if (identityCache.size >= MAX_CACHE_ENTRIES) identityCache.clear();
     identityCache.set(accessToken, {
