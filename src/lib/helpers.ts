@@ -1,6 +1,12 @@
 import type { NextApiResponse } from "next";
 
-import { APIResponse, ErrorResponse, PaginationResponse } from "@/lib/config";
+import {
+  APIResponse,
+  ErrorResponse,
+  PaginationResponse,
+  WIDGET_API_BASE,
+  WIDGET_SCRIPT_SRC,
+} from "@/lib/config";
 
 export const formatDateTime = (dateInput: string | null) => {
   if (!dateInput || dateInput === "-") return "-";
@@ -299,4 +305,16 @@ export function toPaginatedList<T>(payload: unknown): {
     previous: typeof record.previous === "string" ? record.previous : null,
     results,
   };
+}
+
+/** The embed tag a merchant pastes before </body>, for one store's widget key. */
+export function widgetSnippet(widgetKey: string): string {
+  return [
+    "<script",
+    `  src="${WIDGET_SCRIPT_SRC}"`,
+    `  data-widget-key="${widgetKey}"`,
+    `  data-api-base="${WIDGET_API_BASE}"`,
+    "  data-chatbot-init",
+    "></script>",
+  ].join("\n");
 }

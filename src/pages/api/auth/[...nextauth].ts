@@ -176,7 +176,7 @@ export const authOptions: AuthOptions = {
     },
 
     // Store all data in the JWT (internal only)
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       // On initial login
       if (user) {
         token.access_token = user.token;
@@ -207,11 +207,17 @@ export const authOptions: AuthOptions = {
       // Keep tenant/identity claims fresh — role, company and per-store grants
       // can change server-side after login. Cached (≤1 call/min/token) and
       // fails open to the existing claims on any error.
-      const identity = await refreshIdentity(token.access_token);
+      const identity = await refreshIdentity(token.access_token, {
+        fresh: trigger === "update",
+      });
       if (identity) {
         token.company_code = identity.company_code;
         token.is_staff = identity.is_staff;
         token.accessible_stores = identity.accessible_stores;
+        if (identity.onboarding_pending !== undefined) {
+          token.onboarding_pending = identity.onboarding_pending;
+          token.onboarding_step = identity.onboarding_step ?? null;
+        }
       }
 
       return token;
