@@ -18,6 +18,10 @@ declare module "next-auth" {
     company_code?: string | null;
     is_staff?: boolean;
     accessible_stores?: AccessibleStore[];
+    // Onboarding flow: if the user has not yet completed the initial setup, we
+    // redirect them to the onboarding flow instead of the dashboard.
+    onboarding_pending?: boolean;
+    onboarding_step?: string | null;
   }
   interface Session {
     user: {
@@ -29,6 +33,10 @@ declare module "next-auth" {
       company_code?: string | null;
       is_staff?: boolean;
       accessible_stores?: AccessibleStore[];
+      // Onboarding flow: if the user has not yet completed the initial setup, we
+      // redirect them to the onboarding flow instead of the dashboard.
+      onboarding_pending?: boolean;
+      onboarding_step?: string | null;
     };
     // Propagated from the JWT when a token refresh fails, so the client can
     // prompt re-authentication.
@@ -47,6 +55,8 @@ declare module "next-auth/jwt" {
     company_code?: string | null;
     is_staff?: boolean;
     accessible_stores?: AccessibleStore[];
+    onboarding_pending?: boolean;
+    onboarding_step?: string | null;
     // Set when a refresh attempt fails; the client treats it as a signal to
     // re-authenticate (the stale access token will start returning 401s).
     error?: string;
@@ -158,6 +168,8 @@ export const authOptions: AuthOptions = {
           company_code: token.company_code,
           is_staff: token.is_staff,
           accessible_stores: token.accessible_stores,
+          onboarding_pending: token.onboarding_pending,
+          onboarding_step: token.onboarding_step,
         },
       };
       return session;
@@ -180,6 +192,9 @@ export const authOptions: AuthOptions = {
         token.company_code = user.company_code ?? null;
         token.is_staff = user.is_staff ?? false;
         token.accessible_stores = user.accessible_stores ?? [];
+
+        token.onboarding_pending = user.onboarding_pending ?? false;
+        token.onboarding_step = user.onboarding_step ?? null;
 
         return token;
       }

@@ -62,7 +62,7 @@ export default function MainLayout({
     : null;
   const hasSubSidebar = subSidebarItems !== null;
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname === "/signup") {
     return <>{children}</>;
   }
 

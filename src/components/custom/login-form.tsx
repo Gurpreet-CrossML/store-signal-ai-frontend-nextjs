@@ -194,6 +194,15 @@ export function LoginForm({
             {!isLoading && <IconArrowRight className="absolute right-4" />}
           </Button>
         </Field>
+        <Typography variant="muted" className="text-center text-sm">
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/signup"
+            className="font-medium text-primary hover:underline"
+          >
+            Create one
+          </Link>
+        </Typography>
       </FieldGroup>
     </form>
   );

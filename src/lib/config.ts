@@ -60,6 +60,9 @@ export const ENDPOINTS = {
 
   // Company & staff management (Django /api/tenancy/). These are Django-owned;
   // GET calls must pass `useBackend: true` (writes auto-route to Django).
+  // Public self-serve sign-up (Django) — creates the company and its first
+  // admin; the password is generated server-side and emailed.
+  registerCompany: () => "/tenancy/register/",
   fetchCompanyProfile: () => "/tenancy/company/",
   updateCompanyProfile: () => "/tenancy/company/",
   fetchStaff: () => "/tenancy/staff/",
