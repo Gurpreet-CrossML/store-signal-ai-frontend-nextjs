@@ -2593,7 +2593,7 @@ export default function HelpDesk() {
         formData.append("message_type", "internal");
       }
       if (mode === "customer_language") {
-        formData.append("send_in_customer_language", "true");
+        formData.append("translate_message", "true");
       }
 
       const sentMessage = await dispatch(
