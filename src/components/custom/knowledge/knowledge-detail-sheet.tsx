@@ -1,12 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  IconExternalLink,
-  IconPencil,
-  IconRefresh,
-  IconTrash,
-} from "@tabler/icons-react";
+import { IconExternalLink, IconPencil, IconTrash } from "@tabler/icons-react";
 
 import {
   AlertDialog,
@@ -35,7 +30,6 @@ import { formatDateTime } from "@/lib/helpers";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   DeleteKnowledgeItem,
-  RetryKnowledgeItemProcessing,
   type KnowledgeItem,
 } from "@/redux/api-slice/knowledge-rag-slice";
 import {
@@ -106,9 +100,6 @@ export function KnowledgeDetailSheet({
   const dispatch = useAppDispatch();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { RetryKnowledgeItemProcessingIsLoading } = useAppSelector(
-    (state) => state.GetKnowledgeRagReducer.RetryKnowledgeItemProcessingState,
-  );
   const { DeleteKnowledgeItemIsLoading } = useAppSelector(
     (state) => state.GetKnowledgeRagReducer.DeleteKnowledgeItemState,
   );
@@ -118,10 +109,6 @@ export function KnowledgeDetailSheet({
 
   if (!item) return null;
   const meta = KNOWLEDGE_TYPE_META[item.type];
-
-  const handleRetry = async () => {
-    await dispatch(RetryKnowledgeItemProcessing({ id: item.id, storeCode }));
-  };
 
   const handleDelete = async () => {
     const result = await dispatch(
@@ -164,29 +151,7 @@ export function KnowledgeDetailSheet({
                   >
                     Processing failed
                   </Typography>
-                  {item.processingError && (
-                    <Typography
-                      variant="muted"
-                      className="text-xs text-destructive/90"
-                    >
-                      {item.processingError}
-                    </Typography>
-                  )}
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={handleRetry}
-                  disabled={RetryKnowledgeItemProcessingIsLoading}
-                >
-                  {RetryKnowledgeItemProcessingIsLoading ? (
-                    <Spinner data-icon="inline-start" />
-                  ) : (
-                    <IconRefresh data-icon="inline-start" />
-                  )}
-                  Retry Processing
-                </Button>
               </div>
             )}
 
@@ -275,21 +240,40 @@ export function KnowledgeDetailSheet({
               {item.source === "url" && (
                 <div className="flex items-center justify-between gap-4 border-b border-border py-2 text-sm last:border-b-0">
                   <span className="text-muted-foreground">Page URL</span>
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex max-w-56 items-center gap-1 truncate font-medium text-primary underline underline-offset-2"
-                  >
-                    <span className="truncate">{item.url}</span>
-                    <IconExternalLink className="size-3.5 shrink-0" />
-                  </a>
+                  {item.url ? (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex max-w-56 items-center gap-1 truncate font-medium text-primary underline underline-offset-2"
+                    >
+                      <span className="truncate">{item.url}</span>
+                      <IconExternalLink className="size-3.5 shrink-0" />
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
                 </div>
               )}
 
               {item.source === "file" && (
                 <>
-                  <MetaRow label="File name" value={item.fileName ?? "—"} />
+                  <div className="flex items-center justify-between gap-4 border-b border-border py-2 text-sm last:border-b-0">
+                    <span className="text-muted-foreground">File</span>
+                    {item.fileUrl ? (
+                      <a
+                        href={item.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex max-w-56 items-center gap-1 truncate font-medium text-primary underline underline-offset-2"
+                      >
+                        <span className="truncate">View file</span>
+                        <IconExternalLink className="size-3.5 shrink-0" />
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </div>
                   <MetaRow
                     label="File type"
                     value={(item.fileType ?? "—").toUpperCase()}

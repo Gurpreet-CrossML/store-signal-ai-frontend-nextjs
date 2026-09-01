@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   IconDeviceFloppy,
   IconExternalLink,
   IconPlus,
   IconShieldCheck,
-  IconTrash,
 } from "@tabler/icons-react";
 
 import { InfoIcon } from "@/components/custom/info-icon";
@@ -29,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Typography } from "@/components/ui/typography";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/custom/loading-state";
 import { Spinner } from "@/components/ui/spinner";
@@ -44,17 +44,10 @@ import {
   CreateKnowledgeItem,
   FetchKnowledgeItems,
   type AIScope,
-  type PolicyType,
 } from "@/redux/api-slice/knowledge-rag-slice";
 import { AIScopeField } from "@/components/custom/knowledge/ai-scope-field";
 import { KnowledgeStatusBadge } from "@/components/custom/knowledge/knowledge-badges";
 import { POLICY_TYPE_OPTIONS } from "@/components/custom/knowledge/knowledge-meta";
-
-type DraftPolicy = {
-  uid: string;
-  type: string;
-  url: string;
-};
 
 function isValidUrl(value: string): boolean {
   try {
@@ -79,82 +72,73 @@ export function PolicyManager() {
     (state) => state.GetKnowledgeRagReducer.CreateKnowledgeItemState,
   );
 
+  // The backend has no `policy_type` field, so the policy type is encoded as
+  // the item's title (its label from POLICY_TYPE_OPTIONS) and read back the
+  // same way.
   const policies = FetchKnowledgeItemsListData.results.filter(
-    (entry) => entry.type === "general" && Boolean(entry.policyType),
+    (entry) => entry.type === "general" && entry.source === "url",
   );
+  const policyTypeLabel = (title: string) =>
+    POLICY_TYPE_OPTIONS.find((option) => option.label === title)?.label ??
+    title;
 
-  const [drafts, setDrafts] = useState<DraftPolicy[]>([]);
+  const [isAdding, setIsAdding] = useState(false);
+  const [type, setType] = useState("");
+  const [url, setUrl] = useState("");
   const [aiScope, setAiScope] = useState<AIScope[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [aiScopeError, setAiScopeError] = useState<string | undefined>();
-  const draftCounter = useRef(0);
 
   const loadPolicies = () => {
     if (!storeCode) return;
     dispatch(FetchKnowledgeItems({ storeCode, pageSize: 100 }));
   };
 
-  const prevStoreRef = useRef(storeCode);
+  // Reset the form whenever the store changes — adjusted during render
+  // against a sentinel, the endorsed alternative to setting state from an
+  // effect (same pattern as the Threads screen's filter bar).
+  const [prevStoreCode, setPrevStoreCode] = useState(storeCode);
+  if (storeCode !== prevStoreCode) {
+    setPrevStoreCode(storeCode);
+    setIsAdding(false);
+  }
+
   useEffect(() => {
-    if (prevStoreRef.current !== storeCode) setDrafts([]);
-    prevStoreRef.current = storeCode;
     loadPolicies();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeCode]);
 
-  const usedTypes = (currentType: string) => {
-    const fromSaved = policies.map((p) => p.policyType ?? "");
-    const fromDrafts = drafts
-      .map((d) => d.type)
-      .filter((t) => t && t !== currentType);
-    return new Set([...fromSaved, ...fromDrafts]);
-  };
+  const usedTypes = new Set(
+    policies.map(
+      (p) =>
+        POLICY_TYPE_OPTIONS.find((option) => option.label === p.title)?.value ??
+        "",
+    ),
+  );
+  const availableTypes = POLICY_TYPE_OPTIONS.filter(
+    (option) => !usedTypes.has(option.value),
+  );
 
-  const availableTypes = (currentType: string) => {
-    const used = usedTypes(currentType);
-    return POLICY_TYPE_OPTIONS.filter((option) => !used.has(option.value));
-  };
-
-  const addDraft = () => {
-    draftCounter.current += 1;
-    setDrafts((prev) => [
-      ...prev,
-      { uid: `draft-${draftCounter.current}`, type: "", url: "" },
-    ]);
-  };
-
-  const updateDraft = (uid: string, field: "type" | "url", value: string) => {
+  const resetForm = () => {
+    setType("");
+    setUrl("");
+    setAiScope([]);
     setError(null);
-    setDrafts((prev) =>
-      prev.map((draft) =>
-        draft.uid === uid ? { ...draft, [field]: value } : draft,
-      ),
-    );
-  };
-
-  const removeDraft = (uid: string) => {
-    setDrafts((prev) => prev.filter((draft) => draft.uid !== uid));
+    setAiScopeError(undefined);
   };
 
   const handleSave = async () => {
-    if (drafts.length === 0) {
-      setError("Add a policy before saving.");
+    if (!type || !url.trim()) {
+      setError("Please choose a type and enter a URL.");
       return;
     }
-    if (drafts.some((d) => !d.type || !d.url.trim())) {
-      setError("Please choose a type and enter a URL for every policy.");
+    if (!isValidUrl(url)) {
+      setError("Enter a valid policy URL.");
       return;
     }
-    if (drafts.some((d) => !isValidUrl(d.url))) {
-      setError("One or more policy URLs are invalid.");
-      return;
-    }
-    const allUrls = [
-      ...policies.map((p) => p.url ?? ""),
-      ...drafts.map((d) => d.url.trim()),
-    ];
-    if (new Set(allUrls).size !== allUrls.length) {
-      setError("Duplicate policy URLs are not allowed.");
+    const existingUrls = policies.map((p) => p.url ?? "");
+    if (existingUrls.includes(url.trim())) {
+      setError("This policy URL has already been added.");
       return;
     }
     const scopeValid = aiScope.length > 0;
@@ -162,37 +146,32 @@ export function PolicyManager() {
     if (!scopeValid) return;
 
     setError(null);
-    const results = await Promise.all(
-      drafts.map((draft) =>
-        dispatch(
-          CreateKnowledgeItem({
-            storeCode,
-            type: "general",
-            source: "url",
-            aiScope,
-            url: draft.url.trim(),
-            policyType: draft.type as PolicyType,
-          }),
-        ).then((result) => ({
-          uid: draft.uid,
-          ok: CreateKnowledgeItem.fulfilled.match(result),
-        })),
-      ),
+    const result = await dispatch(
+      CreateKnowledgeItem({
+        storeCode,
+        type: "general",
+        source: "url",
+        aiScope,
+        url: url.trim(),
+        // `title` is required by the backend and doubles as the policy
+        // type here, since there's no `policy_type` field on the model.
+        title:
+          POLICY_TYPE_OPTIONS.find((option) => option.value === type)?.label ??
+          type,
+      }),
     );
 
-    const failed = new Set(results.filter((r) => !r.ok).map((r) => r.uid));
-    setDrafts((prev) => prev.filter((draft) => failed.has(draft.uid)));
+    if (!CreateKnowledgeItem.fulfilled.match(result)) {
+      setError("This policy couldn't be saved. Please try again.");
+      return;
+    }
+    resetForm();
+    setIsAdding(false);
     loadPolicies();
   };
 
   return (
     <div className="flex w-full flex-col gap-6">
-      {error && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
-          {error}
-        </div>
-      )}
-
       {FetchKnowledgeItemsIsLoading ? (
         <LoadingState label="Loading Policies…" />
       ) : (
@@ -225,21 +204,25 @@ export function PolicyManager() {
                     <TableRow key={policy.id}>
                       <TableCell>
                         <Typography variant="small" as="span">
-                          {POLICY_TYPE_OPTIONS.find(
-                            (option) => option.value === policy.policyType,
-                          )?.label ?? policy.policyType}
+                          {policyTypeLabel(policy.title)}
                         </Typography>
                       </TableCell>
                       <TableCell className="max-w-md">
-                        <a
-                          href={policy.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 truncate text-sm text-primary underline underline-offset-2"
-                        >
-                          <span className="truncate">{policy.url}</span>
-                          <IconExternalLink className="size-3.5 shrink-0" />
-                        </a>
+                        {policy.url ? (
+                          <a
+                            href={policy.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 truncate text-sm text-primary underline underline-offset-2"
+                          >
+                            <span className="truncate">{policy.url}</span>
+                            <IconExternalLink className="size-3.5 shrink-0" />
+                          </a>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            —
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <KnowledgeStatusBadge status={policy.status} />
@@ -249,74 +232,45 @@ export function PolicyManager() {
                 </TableBody>
               </Table>
             ) : (
-              drafts.length === 0 && (
+              !isAdding && (
                 <div className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-center text-sm text-muted-foreground">
                   No policies linked yet. Add one so the AI can reference it.
                 </div>
               )
             )}
 
-            {drafts.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <div className="grid grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto] items-center gap-2">
-                  <Typography
-                    variant="muted"
-                    as="span"
-                    className="text-xs font-medium"
-                  >
+            {isAdding && (
+              <FieldGroup className="rounded-xl border border-border/60 p-3">
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                <Field>
+                  <FieldLabel htmlFor="policy-manager-type">
                     Policy Type
-                  </Typography>
-                  <Typography
-                    variant="muted"
-                    as="span"
-                    className="text-xs font-medium"
-                  >
+                  </FieldLabel>
+                  <Select value={type} onValueChange={setType}>
+                    <SelectTrigger id="policy-manager-type" className="w-full">
+                      <SelectValue placeholder="Select policy type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTypes.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="policy-manager-url">
                     Policy URL
-                  </Typography>
-                  <span aria-hidden className="w-8" />
-                </div>
-                {drafts.map((draft) => (
-                  <div
-                    key={draft.uid}
-                    className="grid grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto] items-center gap-2"
-                  >
-                    <Select
-                      value={draft.type}
-                      onValueChange={(value) =>
-                        updateDraft(draft.uid, "type", value)
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select policy type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableTypes(draft.type).map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      value={draft.url}
-                      onChange={(event) =>
-                        updateDraft(draft.uid, "url", event.target.value)
-                      }
-                      placeholder="https://company.com/policy"
-                      autoComplete="off"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => removeDraft(draft.uid)}
-                      aria-label="Remove policy"
-                    >
-                      <IconTrash className="size-4" />
-                    </Button>
-                  </div>
-                ))}
+                  </FieldLabel>
+                  <Input
+                    id="policy-manager-url"
+                    value={url}
+                    onChange={(event) => setUrl(event.target.value)}
+                    placeholder="https://company.com/policy"
+                    autoComplete="off"
+                  />
+                </Field>
 
                 <AIScopeField
                   value={aiScope}
@@ -326,40 +280,53 @@ export function PolicyManager() {
                   }}
                   error={aiScopeError}
                 />
-              </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      resetForm();
+                      setIsAdding(false);
+                    }}
+                    disabled={CreateKnowledgeItemIsLoading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={CreateKnowledgeItemIsLoading}
+                  >
+                    {CreateKnowledgeItemIsLoading ? (
+                      <Spinner data-icon="inline-start" />
+                    ) : (
+                      <IconDeviceFloppy data-icon="inline-start" />
+                    )}
+                    {CreateKnowledgeItemIsLoading ? "Saving…" : "Save Policy"}
+                  </Button>
+                </div>
+              </FieldGroup>
             )}
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-fit"
-              onClick={addDraft}
-              disabled={!storeCode}
-            >
-              <IconPlus className="size-4" />
-              Add Policy
-            </Button>
+            {!isAdding && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() => setIsAdding(true)}
+                disabled={!storeCode}
+              >
+                <IconPlus className="size-4" />
+                Add Policy
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
-
-      <div className="flex justify-start border-t border-border py-3">
-        <Button
-          size="lg"
-          onClick={handleSave}
-          disabled={
-            CreateKnowledgeItemIsLoading || drafts.length === 0 || !storeCode
-          }
-        >
-          {CreateKnowledgeItemIsLoading ? (
-            <Spinner data-icon="inline-start" />
-          ) : (
-            <IconDeviceFloppy data-icon="inline-start" />
-          )}
-          {CreateKnowledgeItemIsLoading ? "Saving..." : "Save Policies"}
-        </Button>
-      </div>
     </div>
   );
 }
