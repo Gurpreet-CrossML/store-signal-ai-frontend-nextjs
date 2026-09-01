@@ -39,12 +39,10 @@ export type KnowledgeSource =
   | "faq"
   | "offer";
 
-export type KnowledgeStatus =
-  | "active"
-  | "pending"
-  | "processing"
-  | "failed"
-  | "disabled";
+// Mirrors the backend's KnowledgeStatus choices exactly (knowledge/models.py).
+// There is no "active"/"disabled" status on the backend — "completed" is the
+// terminal success state, and status is read-only (not settable via the API).
+export type KnowledgeStatus = "completed" | "pending" | "processing" | "failed";
 
 export type AIScope = "sales" | "support" | "social" | "internal";
 
@@ -81,6 +79,7 @@ export type KnowledgeItem = {
 
   // General knowledge
   content?: string;
+  category?: string;
 
   // Product knowledge
   productId?: string;
@@ -103,6 +102,8 @@ export type KnowledgeItem = {
 
   // Uploaded document / Google Drive
   fileName?: string;
+  /** The stored file's URL — its original filename isn't exposed by the API. */
+  fileUrl?: string;
   fileType?: string;
   fileSize?: number;
   processingError?: string | null;
@@ -186,6 +187,12 @@ export type TestConsoleResult = {
 // wire shape and the camelCase `KnowledgeItem` domain type used everywhere
 // else in this feature.
 
+// Matches KnowledgeItemSerializer.Meta.fields exactly (knowledge/serializers.py).
+// Note: `file_name` is on the model and accepted on create (source=file), but
+// the read serializer doesn't return it, so a file item's original filename
+// can't be read back — only `file` (the stored file's URL), `file_type`, and
+// `file_size` are. `product` is the product's name string (or null), not its
+// id — the id isn't exposed on read either.
 type ApiKnowledgeItem = {
   id: number;
   type: KnowledgeType;
@@ -194,18 +201,15 @@ type ApiKnowledgeItem = {
   status: KnowledgeStatus;
   ai_scope: AIScope[];
   tags: string[];
+  category: string;
   content: string;
-  product_id: string;
-  product_name: string;
   question: string;
   answer: string;
+  product_name: string | null;
   url: string;
-  policy_type: PolicyType | null;
   file: string | null;
-  file_name: string;
   file_type: string;
   file_size: number | null;
-  processing_error: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -222,16 +226,14 @@ function mapApiKnowledgeItem(api: ApiKnowledgeItem): KnowledgeItem {
     createdAt: api.created_at,
     updatedAt: api.updated_at,
     content: api.content || undefined,
-    productId: api.product_id || undefined,
+    category: api.category || undefined,
     productName: api.product_name || undefined,
     question: api.question || undefined,
     answer: api.answer || undefined,
     url: api.url || undefined,
-    policyType: api.policy_type || undefined,
-    fileName: api.file_name || undefined,
+    fileUrl: api.file || undefined,
     fileType: api.file_type || undefined,
     fileSize: api.file_size ?? undefined,
-    processingError: api.processing_error || undefined,
   };
 }
 
@@ -240,31 +242,40 @@ type KnowledgeItemWritableInput = {
   source: KnowledgeSource;
   title?: string;
   aiScope: AIScope[];
-  tags?: string[];
   content?: string;
+  /** Product id (a UUID string, per `ProductOption`) — sent as the `product` FK. */
   productId?: string;
   productName?: string;
   question?: string;
   answer?: string;
   url?: string;
-  policyType?: PolicyType;
   /** The raw file being uploaded — only present for `source: "file"`. */
   file?: File;
 };
 
-/** Builds a multipart body when a file is attached, otherwise a plain JSON body. */
+/** Builds a multipart body when a file is attached, otherwise a plain JSON body.
+ *
+ * Only sends fields the backend's per-source serializers actually accept
+ * (knowledge/serializers.py): product/type/source/title/ai_scope always,
+ * plus url|file|content|question+answer depending on `source`. `tags` isn't
+ * writable on any of them, so it's never sent.
+ */
 function buildKnowledgeItemPayload(
   input: KnowledgeItemWritableInput,
 ): FormData | Record<string, unknown> {
+  // Product.id is a UUID (products/models.py) — keep it as the string it
+  // already is; Number()'ing it here previously turned every product
+  // knowledge create into `product: NaN` (serialized as null), which is
+  // why the product was silently missing from the request.
+  const product = input.productId || undefined;
+
   if (input.file) {
     const formData = new FormData();
     formData.append("type", input.type);
     formData.append("source", input.source);
     if (input.title) formData.append("title", input.title);
     input.aiScope.forEach((scope) => formData.append("ai_scope", scope));
-    (input.tags ?? []).forEach((tag) => formData.append("tags", tag));
-    if (input.productId) formData.append("product_id", input.productId);
-    if (input.productName) formData.append("product_name", input.productName);
+    if (product) formData.append("product", product);
     formData.append("file", input.file);
     return formData;
   }
@@ -274,14 +285,11 @@ function buildKnowledgeItemPayload(
     source: input.source,
     title: input.title,
     ai_scope: input.aiScope,
-    tags: input.tags,
+    product,
     content: input.content,
-    product_id: input.productId,
-    product_name: input.productName,
     question: input.question,
     answer: input.answer,
     url: input.url,
-    policy_type: input.policyType,
   };
 }
 
@@ -442,94 +450,14 @@ export const DeleteKnowledgeItem = createAsyncThunk(
   },
 );
 
-export const ToggleKnowledgeItemStatus = createAsyncThunk(
-  "ToggleKnowledgeItemStatus",
-  async (
-    {
-      id,
-      storeCode,
-      status,
-    }: { id: string; storeCode: string; status: KnowledgeStatus },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.patch(
-        `${ENDPOINTS.knowledgeItemDetail(Number(id))}?store_code=${storeCode}`,
-        { status },
-      );
-      const data: ApiKnowledgeItem = response.data.data;
-      toast.success(
-        status === "disabled" ? "Knowledge disabled." : "Knowledge enabled.",
-      );
-      return mapApiKnowledgeItem(data);
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to update status, please try again.",
-      });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
+// Product.id is a UUID (products/models.py), not an integer — do not
+// Number() it when building the write payload below.
+type ApiProductOption = { id: string; name: string };
 
-export const RetryKnowledgeItemProcessing = createAsyncThunk(
-  "RetryKnowledgeItemProcessing",
-  async ({ id, storeCode }: { id: string; storeCode: string }, thunkAPI) => {
-    try {
-      const response = await axiosInstance.post(
-        `${ENDPOINTS.knowledgeItemRetry(Number(id))}?store_code=${storeCode}`,
-      );
-      const data: ApiKnowledgeItem = response.data.data;
-      toast.success(response?.data?.message || "Reprocessing complete.");
-      return mapApiKnowledgeItem(data);
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to reprocess this item, please try again.",
-      });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
-
-export const UpdateKnowledgeItemAIScope = createAsyncThunk(
-  "UpdateKnowledgeItemAIScope",
-  async (
-    {
-      id,
-      storeCode,
-      aiScope,
-    }: { id: string; storeCode: string; aiScope: AIScope[] },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.patch(
-        `${ENDPOINTS.knowledgeItemDetail(Number(id))}?store_code=${storeCode}`,
-        { ai_scope: aiScope },
-      );
-      const data: ApiKnowledgeItem = response.data.data;
-      toast.success(
-        response?.data?.message || "AI scope updated successfully!",
-      );
-      return mapApiKnowledgeItem(data);
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to update AI scope, please try again.",
-      });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
-
-/** Type-ahead product picker for Product Knowledge — defaults to a handful
- * of products, narrowed by `search` as the user types. */
+/** Type-ahead product picker for Product Knowledge. `search` is optional on
+ * the backend — omitted or blank, it returns any `PRODUCT_SEARCH_RESULT_LIMIT`
+ * (5) products for the store, so this is called on mount too, not just once
+ * the user types. */
 export const FetchProductOptions = createAsyncThunk(
   "FetchProductOptions",
   async (
@@ -537,12 +465,18 @@ export const FetchProductOptions = createAsyncThunk(
     thunkAPI,
   ) => {
     try {
+      const params = new URLSearchParams({ store_code: storeCode });
+      if (search.trim()) params.set("search", search.trim());
+
       const response = await axiosInstance.get(
-        `${ENDPOINTS.searchProducts()}?store_code=${storeCode}&search=${encodeURIComponent(search)}`,
+        `${ENDPOINTS.searchProducts()}?${params.toString()}`,
         { useBackend: true },
       );
-      const data: ProductOption[] = response.data?.data ?? [];
-      return data;
+      const data: ApiProductOption[] = response.data?.data ?? [];
+      return data.map((product) => ({
+        id: String(product.id),
+        name: product.name,
+      }));
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
@@ -626,21 +560,6 @@ const KnowledgeRagSlice = createSlice({
       DeleteKnowledgeItemIsLoading: false,
       DeleteKnowledgeItemIsSuccess: false,
       DeleteKnowledgeItemIsError: null as null | string | object,
-    },
-    ToggleKnowledgeItemStatusState: {
-      ToggleKnowledgeItemStatusIsLoading: false,
-      ToggleKnowledgeItemStatusIsSuccess: false,
-      ToggleKnowledgeItemStatusIsError: null as null | string | object,
-    },
-    RetryKnowledgeItemProcessingState: {
-      RetryKnowledgeItemProcessingIsLoading: false,
-      RetryKnowledgeItemProcessingIsSuccess: false,
-      RetryKnowledgeItemProcessingIsError: null as null | string | object,
-    },
-    UpdateKnowledgeItemAIScopeState: {
-      UpdateKnowledgeItemAIScopeIsLoading: false,
-      UpdateKnowledgeItemAIScopeIsSuccess: false,
-      UpdateKnowledgeItemAIScopeIsError: null as null | string | object,
     },
     FetchProductOptionsState: {
       FetchProductOptionsIsLoading: false,
@@ -744,57 +663,6 @@ const KnowledgeRagSlice = createSlice({
         state.DeleteKnowledgeItemState.DeleteKnowledgeItemIsLoading = false;
         state.DeleteKnowledgeItemState.DeleteKnowledgeItemIsSuccess = false;
         state.DeleteKnowledgeItemState.DeleteKnowledgeItemIsError =
-          "Something went wrong";
-      })
-      // ToggleKnowledgeItemStatus
-      .addCase(ToggleKnowledgeItemStatus.pending, (state) => {
-        state.ToggleKnowledgeItemStatusState.ToggleKnowledgeItemStatusIsLoading = true;
-        state.ToggleKnowledgeItemStatusState.ToggleKnowledgeItemStatusIsSuccess = false;
-        state.ToggleKnowledgeItemStatusState.ToggleKnowledgeItemStatusIsError =
-          null;
-      })
-      .addCase(ToggleKnowledgeItemStatus.fulfilled, (state) => {
-        state.ToggleKnowledgeItemStatusState.ToggleKnowledgeItemStatusIsLoading = false;
-        state.ToggleKnowledgeItemStatusState.ToggleKnowledgeItemStatusIsSuccess = true;
-      })
-      .addCase(ToggleKnowledgeItemStatus.rejected, (state) => {
-        state.ToggleKnowledgeItemStatusState.ToggleKnowledgeItemStatusIsLoading = false;
-        state.ToggleKnowledgeItemStatusState.ToggleKnowledgeItemStatusIsSuccess = false;
-        state.ToggleKnowledgeItemStatusState.ToggleKnowledgeItemStatusIsError =
-          "Something went wrong";
-      })
-      // RetryKnowledgeItemProcessing
-      .addCase(RetryKnowledgeItemProcessing.pending, (state) => {
-        state.RetryKnowledgeItemProcessingState.RetryKnowledgeItemProcessingIsLoading = true;
-        state.RetryKnowledgeItemProcessingState.RetryKnowledgeItemProcessingIsSuccess = false;
-        state.RetryKnowledgeItemProcessingState.RetryKnowledgeItemProcessingIsError =
-          null;
-      })
-      .addCase(RetryKnowledgeItemProcessing.fulfilled, (state) => {
-        state.RetryKnowledgeItemProcessingState.RetryKnowledgeItemProcessingIsLoading = false;
-        state.RetryKnowledgeItemProcessingState.RetryKnowledgeItemProcessingIsSuccess = true;
-      })
-      .addCase(RetryKnowledgeItemProcessing.rejected, (state) => {
-        state.RetryKnowledgeItemProcessingState.RetryKnowledgeItemProcessingIsLoading = false;
-        state.RetryKnowledgeItemProcessingState.RetryKnowledgeItemProcessingIsSuccess = false;
-        state.RetryKnowledgeItemProcessingState.RetryKnowledgeItemProcessingIsError =
-          "Something went wrong";
-      })
-      // UpdateKnowledgeItemAIScope
-      .addCase(UpdateKnowledgeItemAIScope.pending, (state) => {
-        state.UpdateKnowledgeItemAIScopeState.UpdateKnowledgeItemAIScopeIsLoading = true;
-        state.UpdateKnowledgeItemAIScopeState.UpdateKnowledgeItemAIScopeIsSuccess = false;
-        state.UpdateKnowledgeItemAIScopeState.UpdateKnowledgeItemAIScopeIsError =
-          null;
-      })
-      .addCase(UpdateKnowledgeItemAIScope.fulfilled, (state) => {
-        state.UpdateKnowledgeItemAIScopeState.UpdateKnowledgeItemAIScopeIsLoading = false;
-        state.UpdateKnowledgeItemAIScopeState.UpdateKnowledgeItemAIScopeIsSuccess = true;
-      })
-      .addCase(UpdateKnowledgeItemAIScope.rejected, (state) => {
-        state.UpdateKnowledgeItemAIScopeState.UpdateKnowledgeItemAIScopeIsLoading = false;
-        state.UpdateKnowledgeItemAIScopeState.UpdateKnowledgeItemAIScopeIsSuccess = false;
-        state.UpdateKnowledgeItemAIScopeState.UpdateKnowledgeItemAIScopeIsError =
           "Something went wrong";
       })
       // FetchProductOptions

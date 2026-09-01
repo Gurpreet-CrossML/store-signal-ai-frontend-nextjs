@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconPlus, IconSearch, IconX } from "@tabler/icons-react";
+import { IconPlus, IconSearch, IconX, IconRefresh } from "@tabler/icons-react";
 
 import {
   AlertDialog,
@@ -21,8 +21,6 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   DeleteKnowledgeItem,
   FetchKnowledgeItems,
-  RetryKnowledgeItemProcessing,
-  ToggleKnowledgeItemStatus,
   type KnowledgeItem,
 } from "@/redux/api-slice/knowledge-rag-slice";
 import {
@@ -71,6 +69,11 @@ export default function KnowledgeLibraryTabContent() {
   const totalCount = FetchKnowledgeItemsListData.count;
   const activeFilterCount = countActiveKnowledgeFilters(filters);
   const hasFilters = activeFilterCount > 0 || debouncedSearch !== "";
+  // No knowledge exists yet (not just filtered down to nothing) — show only
+  // the centered "Add Knowledge" button from the empty state below, not the
+  // search/filter toolbar.
+  const isEmptyLibrary =
+    !FetchKnowledgeItemsIsLoading && !hasFilters && totalCount === 0;
 
   // Debounce so a request isn't fired per keystroke.
   useEffect(() => {
@@ -136,22 +139,6 @@ export default function KnowledgeLibraryTabContent() {
     setEditOpen(true);
   };
 
-  const handleToggleStatus = async (item: KnowledgeItem) => {
-    await dispatch(
-      ToggleKnowledgeItemStatus({
-        id: item.id,
-        storeCode,
-        status: item.status === "disabled" ? "active" : "disabled",
-      }),
-    );
-    loadItems();
-  };
-
-  const handleRetry = async (item: KnowledgeItem) => {
-    await dispatch(RetryKnowledgeItemProcessing({ id: item.id, storeCode }));
-    loadItems();
-  };
-
   const handleConfirmDelete = async () => {
     if (!itemToDelete) return;
     const result = await dispatch(
@@ -165,56 +152,72 @@ export default function KnowledgeLibraryTabContent() {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative w-full sm:w-72">
-          <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by title…"
-            className="pl-8"
-            aria-label="Search knowledge"
+      {!isEmptyLibrary && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-full sm:w-72">
+            <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search by title…"
+              className="pl-8"
+              aria-label="Search knowledge"
+            />
+          </div>
+
+          <KnowledgeTypeSourceStatusFilters
+            filters={filters}
+            onFiltersChange={setFilters}
           />
-        </div>
 
-        <KnowledgeTypeSourceStatusFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-        />
+          {hasFilters && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+              onClick={() => {
+                setSearchInput("");
+                setFilters(EMPTY_KNOWLEDGE_FILTERS);
+              }}
+            >
+              <IconX />
+              Clear
+            </Button>
+          )}
 
-        {hasFilters && (
+          <Badge variant="secondary">
+            {items.length} of {totalCount}
+          </Badge>
+
           <Button
-            type="button"
-            variant="ghost"
             size="sm"
-            className="text-muted-foreground"
-            onClick={() => {
-              setSearchInput("");
-              setFilters(EMPTY_KNOWLEDGE_FILTERS);
-            }}
+            variant="ghost"
+            className="ml-auto mr-2"
+            onClick={loadItems}
+            disabled={FetchKnowledgeItemsIsLoading}
+            aria-label="Refresh knowledge list"
+            title="Refresh"
           >
-            <IconX />
-            Clear
+            {FetchKnowledgeItemsIsLoading ? (
+              <Spinner className="size-4" />
+            ) : (
+              <IconRefresh className="size-4" />
+            )}
           </Button>
-        )}
 
-        <Badge variant="secondary">
-          {items.length} of {totalCount}
-        </Badge>
-
-        <Button size="sm" className="ml-auto" onClick={() => setAddOpen(true)}>
-          <IconPlus className="size-4" />
-          Add Knowledge
-        </Button>
-      </div>
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <IconPlus className="size-4" />
+            Add Knowledge
+          </Button>
+        </div>
+      )}
 
       <KnowledgeList
         items={items}
         isLoading={FetchKnowledgeItemsIsLoading}
         onOpenItem={handleOpenItem}
         onEditItem={handleEditItem}
-        onToggleStatus={handleToggleStatus}
-        onRetry={handleRetry}
         onDelete={(item) => setItemToDelete(item)}
         onAddKnowledge={() => setAddOpen(true)}
         hasFilters={hasFilters}

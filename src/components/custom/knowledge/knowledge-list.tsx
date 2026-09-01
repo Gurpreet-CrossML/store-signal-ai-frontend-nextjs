@@ -5,8 +5,6 @@ import {
   IconDotsVertical,
   IconPencil,
   IconPlus,
-  IconPower,
-  IconRefresh,
   IconTrash,
 } from "@tabler/icons-react";
 
@@ -65,8 +63,6 @@ export function KnowledgeList({
   isLoading,
   onOpenItem,
   onEditItem,
-  onToggleStatus,
-  onRetry,
   onDelete,
   onAddKnowledge,
   hasFilters,
@@ -75,8 +71,6 @@ export function KnowledgeList({
   isLoading: boolean;
   onOpenItem: (item: KnowledgeItem) => void;
   onEditItem: (item: KnowledgeItem) => void;
-  onToggleStatus: (item: KnowledgeItem) => void;
-  onRetry: (item: KnowledgeItem) => void;
   onDelete: (item: KnowledgeItem) => void;
   onAddKnowledge: () => void;
   hasFilters: boolean;
@@ -194,18 +188,6 @@ export function KnowledgeList({
                   <IconPencil />
                   Edit
                 </DropdownMenuItem>
-                {(item.status === "active" || item.status === "disabled") && (
-                  <DropdownMenuItem onClick={() => onToggleStatus(item)}>
-                    <IconPower />
-                    {item.status === "disabled" ? "Enable" : "Disable"}
-                  </DropdownMenuItem>
-                )}
-                {item.status === "failed" && (
-                  <DropdownMenuItem onClick={() => onRetry(item)}>
-                    <IconRefresh />
-                    Retry Processing
-                  </DropdownMenuItem>
-                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"

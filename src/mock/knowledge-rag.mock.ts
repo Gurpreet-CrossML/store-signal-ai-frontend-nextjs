@@ -44,7 +44,7 @@ export const MOCK_KNOWLEDGE_ITEMS: KnowledgeItem[] = [
     type: "general",
     source: "text",
     title: "Store Hours & Contact Information",
-    status: "active",
+    status: "completed",
     aiScope: ["sales", "support", "social", "internal"],
     tags: ["store-info"],
     content:
@@ -57,7 +57,7 @@ export const MOCK_KNOWLEDGE_ITEMS: KnowledgeItem[] = [
     type: "general",
     source: "text",
     title: "About Our Brand",
-    status: "active",
+    status: "completed",
     aiScope: ["sales", "social"],
     tags: ["brand"],
     content:
@@ -86,7 +86,7 @@ export const MOCK_KNOWLEDGE_ITEMS: KnowledgeItem[] = [
     type: "product",
     source: "text",
     title: "Wireless Headphones — Pairing Instructions",
-    status: "active",
+    status: "completed",
     aiScope: ["sales", "support"],
     tags: ["setup"],
     productId: "p4",
@@ -101,7 +101,7 @@ export const MOCK_KNOWLEDGE_ITEMS: KnowledgeItem[] = [
     type: "product",
     source: "text",
     title: "Merino Wool Socks — Warranty Information",
-    status: "active",
+    status: "completed",
     aiScope: ["support"],
     tags: ["warranty"],
     productId: "p7",
@@ -380,7 +380,10 @@ export function setKnowledgeItemStatus(
 }
 
 export function retryKnowledgeItemProcessing(id: string): KnowledgeItem {
-  return updateKnowledgeItem(id, { status: "active", processingError: null });
+  return updateKnowledgeItem(id, {
+    status: "completed",
+    processingError: null,
+  });
 }
 
 // --- Retrieval, grounding & AI knowledge scope settings -------------

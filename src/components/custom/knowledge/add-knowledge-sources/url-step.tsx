@@ -9,7 +9,6 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { AIScopeField } from "@/components/custom/knowledge/ai-scope-field";
-import { FileUploadDropzone } from "@/components/custom/knowledge/file-upload-dropzone";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   CreateKnowledgeItem,
@@ -17,10 +16,21 @@ import {
 } from "@/redux/api-slice/knowledge-rag-slice";
 import type { SourceStepProps } from "@/components/custom/knowledge/add-knowledge-sources/types";
 
-const MAX_FILE_SIZE_MB = 20;
-const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
+function isValidUrl(value: string): boolean {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
-export function UploadFileStep({
+/**
+ * A plain title + URL knowledge source — unlike PolicyStep (general
+ * knowledge only, title derived from a fixed policy type), this is for
+ * product knowledge: any link, with its own title.
+ */
+export function UrlStep({
   knowledgeType,
   product,
   onBack,
@@ -35,40 +45,33 @@ export function UploadFileStep({
   );
 
   const [title, setTitle] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [url, setUrl] = useState("");
   const [aiScope, setAiScope] = useState<AIScope[]>([]);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const handleFileSelected = (selected: File) => {
-    if (selected.size > MAX_FILE_SIZE) {
-      setErrors((prev) => ({
-        ...prev,
-        file: `File exceeds the ${MAX_FILE_SIZE_MB}MB size limit.`,
-      }));
-      return;
-    }
-    setErrors((prev) => ({ ...prev, file: "" }));
-    setFile(selected);
-  };
+  const [errors, setErrors] = useState<{ title?: string; url?: string }>({});
+  const [aiScopeError, setAiScopeError] = useState<string | undefined>();
 
   const handleSave = async () => {
-    const nextErrors: Record<string, string> = {};
+    const nextErrors: { title?: string; url?: string } = {};
     if (!title.trim()) nextErrors.title = "Title is required";
-    if (!file) nextErrors.file = "Upload a file";
-    if (aiScope.length === 0) nextErrors.aiScope = "Select at least one AI";
+    if (!url.trim()) nextErrors.url = "URL is required";
+    else if (!isValidUrl(url)) nextErrors.url = "Enter a valid URL";
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0 || !file) return;
+
+    const scopeValid = aiScope.length > 0;
+    setAiScopeError(scopeValid ? undefined : "Select at least one AI");
+
+    if (Object.keys(nextErrors).length > 0 || !scopeValid) return;
 
     const result = await dispatch(
       CreateKnowledgeItem({
         storeCode,
         type: knowledgeType,
-        source: "file",
+        source: "url",
         aiScope,
         title: title.trim(),
+        url: url.trim(),
         productId: product?.id,
         productName: product?.name,
-        file,
       }),
     );
 
@@ -79,16 +82,16 @@ export function UploadFileStep({
     <div className="flex flex-1 flex-col">
       <FieldGroup className="flex-1 overflow-y-auto px-1">
         <Field>
-          <FieldLabel htmlFor="file-title">Title</FieldLabel>
+          <FieldLabel htmlFor="url-title">Title</FieldLabel>
           <Input
-            id="file-title"
-            placeholder="Return Policy Document"
+            id="url-title"
+            placeholder="Sizing Guide"
             autoComplete="off"
             value={title}
             onChange={(event) => {
               setTitle(event.target.value);
               if (event.target.value.trim()) {
-                setErrors((prev) => ({ ...prev, title: "" }));
+                setErrors((prev) => ({ ...prev, title: undefined }));
               }
             }}
             aria-invalid={Boolean(errors.title)}
@@ -99,21 +102,32 @@ export function UploadFileStep({
         </Field>
 
         <Field>
-          <FieldLabel>Document</FieldLabel>
-          <FileUploadDropzone
-            file={file}
-            onFileSelected={handleFileSelected}
-            onClear={() => setFile(null)}
+          <FieldLabel htmlFor="url-link">URL</FieldLabel>
+          <Input
+            id="url-link"
+            placeholder="https://company.com/products/example"
+            autoComplete="off"
+            value={url}
+            onChange={(event) => {
+              setUrl(event.target.value);
+              if (event.target.value.trim()) {
+                setErrors((prev) => ({ ...prev, url: undefined }));
+              }
+            }}
+            aria-invalid={Boolean(errors.url)}
           />
-          {errors.file && (
-            <p className="text-xs text-destructive">{errors.file}</p>
+          {errors.url && (
+            <p className="text-xs text-destructive">{errors.url}</p>
           )}
         </Field>
 
         <AIScopeField
           value={aiScope}
-          onChange={setAiScope}
-          error={errors.aiScope}
+          onChange={(next) => {
+            setAiScope(next);
+            if (next.length > 0) setAiScopeError(undefined);
+          }}
+          error={aiScopeError}
         />
       </FieldGroup>
 

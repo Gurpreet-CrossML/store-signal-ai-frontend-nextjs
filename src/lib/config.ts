@@ -173,10 +173,11 @@ export const ENDPOINTS = {
   fetchKnowledgeItems: () => `/knowledge/knowledge-items/`,
   createKnowledgeItem: () => `/knowledge/knowledge-items/`,
   knowledgeItemDetail: (id: number) => `/knowledge/knowledge-items/${id}/`,
-  knowledgeItemRetry: (id: number) => `/knowledge/knowledge-items/${id}/retry/`,
   // Product picker for Product Knowledge (Django; GET needs useBackend).
-  // Returns a default page of products, narrowed by the `search` query param.
-  searchProducts: () => `/knowledge/products/search/`,
+  // Case-insensitive partial match on name via `?search=`, optional — when
+  // omitted/blank, returns any 5 products for the store. Results are
+  // capped server-side either way.
+  searchProducts: () => `/products/search/`,
 
   // Integrations
   fetchIntegrations: () => `/integrations`,

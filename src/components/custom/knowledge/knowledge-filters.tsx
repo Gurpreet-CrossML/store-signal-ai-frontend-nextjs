@@ -38,9 +38,15 @@ export function countActiveKnowledgeFilters(filters: KnowledgeFilterSelection) {
   );
 }
 
-const SOURCE_OPTIONS = Object.entries(KNOWLEDGE_SOURCE_LABEL).map(
-  ([value, label]) => ({ value: value as KnowledgeSource, label }),
-);
+// The only sources the Add Knowledge wizard can actually create today —
+// text/google_drive/product/category/offer have no creation flow, so they'd
+// only ever filter to an empty list.
+const FILTERABLE_SOURCES: KnowledgeSource[] = ["file", "url", "faq"];
+
+const SOURCE_OPTIONS = FILTERABLE_SOURCES.map((value) => ({
+  value,
+  label: KNOWLEDGE_SOURCE_LABEL[value],
+}));
 
 const STATUS_OPTIONS = Object.entries(KNOWLEDGE_STATUS_META).map(
   ([value, meta]) => ({ value: value as KnowledgeStatus, label: meta.label }),
