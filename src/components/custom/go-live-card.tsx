@@ -9,6 +9,7 @@ import { IconCheck, IconCopy } from "@tabler/icons-react";
 import { STORE_PLATFORMS } from "@/lib/config";
 import { widgetSnippet } from "@/lib/helpers";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { GetStores } from "@/redux/api-slice/stores-slice";
 import {
   FetchOnboardingStatus,
   UpdateOnboardingStep,
@@ -54,9 +55,15 @@ export function GoLiveCard() {
   const finish = async (chosen: OnboardingOutcome) => {
     setOutcome(chosen);
     const result = await dispatch(UpdateOnboardingStep(chosen));
-    // The proxy pins onboarding users to "/" from the JWT, so the session has
-    // to be re-read from the backend before the drawer can go away.
-    if (UpdateOnboardingStep.fulfilled.match(result)) await update();
+    if (UpdateOnboardingStep.fulfilled.match(result)) {
+      // The proxy pins onboarding users to "/" from the JWT, so the session
+      // has to be re-read from the backend before the drawer can go away.
+      await update();
+      // The store list was fetched (empty) before any store existed and is
+      // only requested once; refilling it hydrates `selectedStore`, and every
+      // screen refetches on that change — no page reload needed.
+      dispatch(GetStores({}));
+    }
     setOutcome(null);
   };
 
