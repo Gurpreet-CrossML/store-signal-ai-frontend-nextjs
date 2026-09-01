@@ -29,15 +29,24 @@ import {
 import { OptionCard } from "@/components/custom/knowledge/option-card";
 import { KnowledgeEntriesPanel } from "@/components/custom/knowledge/knowledge-entries-panel";
 import { UploadFileStep } from "@/components/custom/knowledge/add-knowledge-sources/upload-file-step";
+import { FaqStep } from "@/components/custom/knowledge/add-knowledge-sources/faq-step";
+import { UrlStep } from "@/components/custom/knowledge/add-knowledge-sources/url-step";
 
 export function ProductKnowledgeStep({
   item,
   onBack,
   onDone,
+  portalContainer,
 }: {
   item?: KnowledgeItem | null;
   onBack?: () => void;
   onDone: () => void;
+  /**
+   * Where to portal the product combobox's dropdown. Needed inside a modal
+   * dialog, whose scroll lock blocks pointer/wheel events outside its own
+   * content — see ComboboxContent.
+   */
+  portalContainer?: HTMLElement | null;
 }) {
   const dispatch = useAppDispatch();
   const isManaging = Boolean(item?.id);
@@ -110,7 +119,7 @@ export function ProductKnowledgeStep({
               placeholder="Search products…"
               disabled={isManaging}
             />
-            <ComboboxContent>
+            <ComboboxContent container={portalContainer}>
               <ComboboxEmpty>
                 {FetchProductOptionsIsLoading
                   ? "Loading products…"
@@ -165,6 +174,22 @@ export function ProductKnowledgeStep({
 
       {!isManaging && selectedProduct && sourceType === "file" && (
         <UploadFileStep
+          knowledgeType="product"
+          product={selectedProduct}
+          onBack={() => setSourceType(null)}
+          onDone={onDone}
+        />
+      )}
+      {!isManaging && selectedProduct && sourceType === "faq" && (
+        <FaqStep
+          knowledgeType="product"
+          product={selectedProduct}
+          onBack={() => setSourceType(null)}
+          onDone={onDone}
+        />
+      )}
+      {!isManaging && selectedProduct && sourceType === "url" && (
+        <UrlStep
           knowledgeType="product"
           product={selectedProduct}
           onBack={() => setSourceType(null)}

@@ -33,6 +33,10 @@ export function AddKnowledgeDialog({
   const [knowledgeType, setKnowledgeType] = useState<KnowledgeType | null>(
     null,
   );
+  // Dialogs block pointer/wheel events outside their own content, so any
+  // combobox popup inside must portal into this element rather than
+  // document.body — see ComboboxContent's docstring.
+  const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -53,7 +57,10 @@ export function AddKnowledgeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-2xl">
+      <DialogContent
+        ref={setContentEl}
+        className="flex max-h-[85vh] flex-col gap-4 sm:max-w-2xl"
+      >
         <DialogHeader>
           <DialogTitle>
             {step === "type"
@@ -86,6 +93,7 @@ export function AddKnowledgeDialog({
           <ProductKnowledgeStep
             onBack={() => setStep("type")}
             onDone={handleDone}
+            portalContainer={contentEl}
           />
         )}
 

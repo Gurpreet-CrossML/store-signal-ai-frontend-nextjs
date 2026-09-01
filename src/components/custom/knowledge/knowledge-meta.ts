@@ -41,42 +41,6 @@ export const KNOWLEDGE_TYPE_META: Record<
     icon: IconShoppingBag,
     tone: "info",
   },
-  // category: {
-  //   label: "Category Knowledge",
-  //   description: "Buying guides and FAQs for a product category.",
-  //   icon: IconCategory2,
-  //   tone: "info",
-  // },
-  // faq: {
-  //   label: "FAQ",
-  //   description: "A question-and-answer pair the AI can respond with.",
-  //   icon: IconMessageQuestion,
-  //   tone: "success",
-  // },
-  // policy: {
-  //   label: "Policy / URL",
-  //   description: "A store policy page the AI can reference and re-sync.",
-  //   icon: IconShieldCheck,
-  //   tone: "warning",
-  // },
-  // document: {
-  //   label: "Upload Document",
-  //   description: "A PDF, DOCX, or TXT file uploaded directly.",
-  //   icon: IconFileText,
-  //   tone: "neutral",
-  // },
-  // google_drive: {
-  //   label: "Google Drive",
-  //   description: "A document linked from a Google Drive file URL.",
-  //   icon: IconBrandGoogleDrive,
-  //   tone: "neutral",
-  // },
-  // offer: {
-  //   label: "Offer / Coupon",
-  //   description: "Promotions, discount rules, and offer terms.",
-  //   icon: IconDiscount,
-  //   tone: "danger",
-  // },
 };
 
 export const KNOWLEDGE_SOURCE_LABEL: Record<KnowledgeSource, string> = {
@@ -108,11 +72,10 @@ export const KNOWLEDGE_STATUS_META: Record<
     variant: "default" | "secondary" | "outline" | "destructive";
   }
 > = {
-  active: { label: "Active", variant: "default" },
+  completed: { label: "Completed", variant: "default" },
   pending: { label: "Pending", variant: "secondary" },
   processing: { label: "Processing", variant: "secondary" },
   failed: { label: "Failed", variant: "destructive" },
-  disabled: { label: "Disabled", variant: "outline" },
 };
 
 export const AI_SCOPE_META: Record<
@@ -170,10 +133,11 @@ export const POLICY_TYPE_OPTIONS: { value: PolicyType; label: string }[] = [
 
 /**
  * "How do you want to add this knowledge?" step in the Add Knowledge wizard.
- * "policy" isn't a KnowledgeSource — picking it embeds the existing Company
- * Policies widget instead of creating a mock KnowledgeItem.
+ * "policy" picks a fixed policy type (privacy, shipping, etc.) and derives
+ * its title from that type. "url" is the product-scoped equivalent: a plain
+ * link with its own title, not tied to a policy type.
  */
-export type AddKnowledgeSource = "file" | "faq" | "policy";
+export type AddKnowledgeSource = "file" | "faq" | "policy" | "url";
 
 const ADD_KNOWLEDGE_SOURCE_META: Record<
   AddKnowledgeSource,
@@ -197,6 +161,12 @@ const ADD_KNOWLEDGE_SOURCE_META: Record<
     icon: IconShieldCheck,
     tone: "warning",
   },
+  url: {
+    label: "Link / URL",
+    description: "Add a page URL as this product's knowledge source.",
+    icon: IconLink,
+    tone: "info",
+  },
 };
 
 function sourceOption(value: AddKnowledgeSource) {
@@ -207,4 +177,6 @@ export const GENERAL_SOURCE_OPTIONS = (["file", "faq", "policy"] as const).map(
   sourceOption,
 );
 
-export const PRODUCT_SOURCE_OPTIONS = (["file"] as const).map(sourceOption);
+export const PRODUCT_SOURCE_OPTIONS = (["file", "faq", "url"] as const).map(
+  sourceOption,
+);

@@ -19,28 +19,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   UpdateKnowledgeItem,
-  UpdateKnowledgeItemAIScope,
   type AIScope,
   type KnowledgeItem,
 } from "@/redux/api-slice/knowledge-rag-slice";
 import { KNOWLEDGE_TYPE_META } from "@/components/custom/knowledge/knowledge-meta";
 import { AIScopeField } from "@/components/custom/knowledge/ai-scope-field";
 
-/** Same members regardless of order — the AI scope picker doesn't preserve it. */
-function sameAiScope(a: AIScope[], b: AIScope[]) {
-  if (a.length !== b.length) return false;
-  const setB = new Set(b);
-  return a.every((scope) => setB.has(scope));
-}
-
 /**
  * Edit is AI-scope-only, with one exception: an FAQ item's question and
  * answer are also editable here. Every other field (title, source data,
  * etc.) isn't editable — that data only comes from the Add flow.
  *
- * Each save only sends the fields that actually changed — an untouched
- * question/answer, or an untouched AI scope, stays off the wire entirely
- * rather than being resent as-is.
+ * Every save sends the item's complete current data (not just the fields
+ * touched in this dialog) in a single PATCH, so the backend always sees a
+ * full, consistent record rather than a partial diff.
  */
 export function EditKnowledgeDialog({
   open,
@@ -56,9 +48,6 @@ export function EditKnowledgeDialog({
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
-  );
-  const { UpdateKnowledgeItemAIScopeIsLoading } = useAppSelector(
-    (state) => state.GetKnowledgeRagReducer.UpdateKnowledgeItemAIScopeState,
   );
   const { UpdateKnowledgeItemIsLoading } = useAppSelector(
     (state) => state.GetKnowledgeRagReducer.UpdateKnowledgeItemState,
@@ -88,8 +77,7 @@ export function EditKnowledgeDialog({
 
   const meta = KNOWLEDGE_TYPE_META[item.type];
   const isFaq = item.source === "faq";
-  const isSaving =
-    UpdateKnowledgeItemAIScopeIsLoading || UpdateKnowledgeItemIsLoading;
+  const isSaving = UpdateKnowledgeItemIsLoading;
 
   const handleSave = async () => {
     if (aiScope.length === 0) {
@@ -104,27 +92,27 @@ export function EditKnowledgeDialog({
       if (Object.keys(nextFaqErrors).length > 0) return;
     }
 
-    if (!sameAiScope(aiScope, item.aiScope)) {
-      const scopeResult = await dispatch(
-        UpdateKnowledgeItemAIScope({ id: item.id, storeCode, aiScope }),
-      );
-      if (!UpdateKnowledgeItemAIScope.fulfilled.match(scopeResult)) return;
-    }
-
-    if (isFaq) {
-      const faqPatch: { question?: string; answer?: string } = {};
-      if (question.trim() !== (item.question ?? ""))
-        faqPatch.question = question.trim();
-      if (answer.trim() !== (item.answer ?? ""))
-        faqPatch.answer = answer.trim();
-
-      if (Object.keys(faqPatch).length > 0) {
-        const faqResult = await dispatch(
-          UpdateKnowledgeItem({ id: item.id, storeCode, patch: faqPatch }),
-        );
-        if (!UpdateKnowledgeItem.fulfilled.match(faqResult)) return;
-      }
-    }
+    // Always send the item's complete current data, not just the fields
+    // touched in this dialog.
+    const result = await dispatch(
+      UpdateKnowledgeItem({
+        id: item.id,
+        storeCode,
+        patch: {
+          type: item.type,
+          source: item.source,
+          title: item.title,
+          aiScope,
+          content: item.content,
+          productId: item.productId,
+          productName: item.productName,
+          question: isFaq ? question.trim() : item.question,
+          answer: isFaq ? answer.trim() : item.answer,
+          url: item.url,
+        },
+      }),
+    );
+    if (!UpdateKnowledgeItem.fulfilled.match(result)) return;
 
     onOpenChange(false);
     onSaved();

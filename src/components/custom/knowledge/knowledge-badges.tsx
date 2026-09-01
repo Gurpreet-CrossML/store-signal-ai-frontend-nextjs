@@ -1,6 +1,5 @@
 import {
   IconAlertCircle,
-  IconBan,
   IconClock,
   IconCircleCheck,
   IconShieldCheck,
@@ -26,11 +25,10 @@ import {
 } from "@/components/custom/knowledge/knowledge-meta";
 
 const STATUS_ICON: Record<KnowledgeStatus, React.ReactNode> = {
-  active: <IconCircleCheck className="size-3.5" />,
+  completed: <IconCircleCheck className="size-3.5" />,
   pending: <IconClock className="size-3.5" />,
   processing: <Spinner className="size-3.5" />,
   failed: <IconAlertCircle className="size-3.5" />,
-  disabled: <IconBan className="size-3.5" />,
 };
 
 export function KnowledgeStatusBadge({ status }: { status: KnowledgeStatus }) {
