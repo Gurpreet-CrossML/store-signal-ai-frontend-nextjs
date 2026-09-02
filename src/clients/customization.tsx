@@ -310,6 +310,9 @@ export default function Customization() {
           UpdateWidgetCustomizationWithImage({ storeId, payload, logoFile }),
         );
       } else {
+        if (!logoUrl) {
+          payload.logo = null;
+        }
         result = await dispatch(
           UpdateWidgetCustomization({ storeId, payload }),
         );
