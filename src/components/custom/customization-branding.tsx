@@ -194,6 +194,7 @@ export default function CustomizationBranding({
             value={greetingMessage}
             useMarkdown
             onChange={onGreetingChange}
+            maxLength={GREETING_LIMIT}
           />
           <div className="flex items-baseline justify-between gap-3">
             {/* Over the limit reads as an error before the server says so

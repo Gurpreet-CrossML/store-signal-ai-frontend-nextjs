@@ -12,6 +12,7 @@ export function normalizeUrl(value: string): string {
 export function isValidUrl(value: string): boolean {
   const normalized = normalizeUrl(value);
   if (!normalized) return false;
+
   try {
     const url = new URL(normalized);
     return url.protocol === "http:" || url.protocol === "https:";

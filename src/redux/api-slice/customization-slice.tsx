@@ -4,6 +4,23 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 
+function getValidationMessage(
+  value: unknown,
+  field?: string,
+): string | undefined {
+  if (typeof value === "string") {
+    return field ? `${field}: ${value}` : value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => getValidationMessage(item, field)).find(Boolean);
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value)
+      .map(([key, item]) => getValidationMessage(item, key))
+      .find(Boolean);
+  }
+}
+
 export type WidgetQuickAction = {
   id?: number;
   name: string;
@@ -107,8 +124,9 @@ export const UpdateWidgetCustomization = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
+          getValidationMessage(data?.data) ||
           data?.message ||
-          "Unable to update widget customization, please try again later.",
+          "",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -174,6 +192,7 @@ export const UpdateWidgetCustomizationWithImage = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
+          getValidationMessage(data?.data) ||
           data?.message ||
           "Unable to update widget customization, please try again later.",
       });
