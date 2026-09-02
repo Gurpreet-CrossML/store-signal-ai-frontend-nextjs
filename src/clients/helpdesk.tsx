@@ -400,7 +400,7 @@ function TicketListPanel({
   };
 
   return (
-    <section className="hidden min-h-0 w-72 shrink-0 flex-col self-stretch border-r md:flex 2xl:w-84">
+    <section className="hidden h-full min-h-0 w-72 shrink-0 flex-col border-r md:flex 2xl:w-84">
       {/* One header, not two: the queue switcher is the inbox's title, so a
           separate "Your inbox" line above it said nothing extra. */}
       <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
@@ -2922,7 +2922,7 @@ export default function HelpDesk() {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-y">
+    <div className="flex h-svh min-h-0 flex-col overflow-hidden border-y">
       <div className="flex min-h-0 flex-1">
         <TicketListPanel
           rows={ticketRows}

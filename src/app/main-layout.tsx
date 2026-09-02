@@ -110,13 +110,13 @@ export default function MainLayout({
         <Suspense fallback={null}>
           <OnboardingDrawer />
         </Suspense>
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="@container/main flex min-h-0 flex-1 flex-col gap-2">
+        <div className="flex flex-1 flex-col">
+          <div className="@container/main flex flex-1 flex-col gap-2">
             {/* No vertical padding here: each page owns its spacing with a
                 uniform p-4 container, and the full-bleed screens (help desk,
                 live support, social inbox/feed) fill the viewport edge to
                 edge. Padding added here would double up on every page. */}
-            <div className={cn("flex min-h-0 flex-1 flex-col")}>
+            <div className={cn("flex flex-1 flex-col")}>
               {GetStoresIsLoading ? <StoreLoading /> : children}
             </div>
           </div>
