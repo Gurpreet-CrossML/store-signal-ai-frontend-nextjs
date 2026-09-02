@@ -116,7 +116,7 @@ export default function MainLayout({
                 uniform p-4 container, and the full-bleed screens (help desk,
                 live support, social inbox/feed) fill the viewport edge to
                 edge. Padding added here would double up on every page. */}
-            <div className={cn("flex flex-1 flex-col")}>
+            <div className={cn("flex min-h-0 flex-1 flex-col")}>
               {GetStoresIsLoading ? <StoreLoading /> : children}
             </div>
           </div>
