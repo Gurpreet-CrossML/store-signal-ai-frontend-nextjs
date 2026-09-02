@@ -400,7 +400,7 @@ function TicketListPanel({
   };
 
   return (
-    <section className="hidden h-full min-h-0 w-72 shrink-0 flex-col border-r md:flex 2xl:w-84">
+    <section className="hidden min-h-0 w-72 shrink-0 flex-col self-stretch border-r md:flex 2xl:w-84">
       {/* One header, not two: the queue switcher is the inbox's title, so a
           separate "Your inbox" line above it said nothing extra. */}
       <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
@@ -2630,23 +2630,38 @@ export default function HelpDesk() {
       ).unwrap();
 
       if (ticketSnoozed) {
-        setTicketRows((current) =>
-          current.map((ticket) =>
-            ticket.id === currentActiveSupportTicketIdRef.current
-              ? { ...ticket, is_snoozed: !!ticketSnoozed?.snoozed_until }
-              : ticket,
-          ),
-        );
+        const isUnsnoozed = !ticketSnoozed?.snoozed_until;
 
-        setActiveSupportTicket((current) =>
-          current
-            ? {
-                ...current,
-                is_snoozed: !!ticketSnoozed?.snoozed_until,
-                snoozed_until: ticketSnoozed?.snoozed_until,
-              }
-            : current,
-        );
+        // When removing a snooze while the "Snoozed" filter is active, the
+        // ticket no longer belongs in this view — pull it out of the list and
+        // clear the active ticket so the panel resets to "No ticket selected".
+        if (isUnsnoozed && activeFilter === "snoozed") {
+          setTicketRows((current) =>
+            current.filter(
+              (ticket) => ticket.id !== currentActiveSupportTicketIdRef.current,
+            ),
+          );
+          setActiveSupportTicket(null);
+          setActiveTicketId(null);
+        } else {
+          setTicketRows((current) =>
+            current.map((ticket) =>
+              ticket.id === currentActiveSupportTicketIdRef.current
+                ? { ...ticket, is_snoozed: isUnsnoozed ? false : true }
+                : ticket,
+            ),
+          );
+
+          setActiveSupportTicket((current) =>
+            current
+              ? {
+                  ...current,
+                  is_snoozed: !isUnsnoozed,
+                  snoozed_until: ticketSnoozed?.snoozed_until,
+                }
+              : current,
+          );
+        }
 
         toast.success(
           snoozeTime === null ? "Snooze removed" : "Ticket snoozed",
@@ -2907,7 +2922,7 @@ export default function HelpDesk() {
   };
 
   return (
-    <div className="flex h-svh min-h-0 flex-col overflow-hidden border-y">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-y">
       <div className="flex min-h-0 flex-1">
         <TicketListPanel
           rows={ticketRows}
