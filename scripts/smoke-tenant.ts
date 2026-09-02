@@ -23,7 +23,11 @@ let passed = 0;
 let failed = 0;
 function check(name: string, ok: boolean, detail = "") {
   console.log(`${ok ? "✓" : "✗"} ${name}${detail ? ` — ${detail}` : ""}`);
-  ok ? passed++ : failed++;
+  if (ok) {
+    passed++;
+  } else {
+    failed++;
+  }
 }
 
 async function count(client: PoolClient, table: string): Promise<number> {

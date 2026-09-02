@@ -174,6 +174,9 @@ export type SupportTicket = {
 
   is_snoozed: boolean;
   snoozed_until: string;
+
+  claim_status?: "claimed_by_you" | "assigned_to_someone_else" | "unassigned";
+  assignee?: { id: number; name: string } | null;
 };
 
 export type SupportTicketStatusCounts = {
