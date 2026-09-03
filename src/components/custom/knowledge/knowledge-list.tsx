@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   IconBooks,
   IconDotsVertical,
@@ -43,16 +44,7 @@ import {
 function itemSubtitle(item: KnowledgeItem): string | null {
   switch (item.type) {
     case "product":
-      return item.productName ?? null;
-    // case "category":
-    //   return item.categoryNames?.join(", ") ?? null;
-    // case "policy":
-    //   return item.url ?? null;
-    // case "document":
-    // case "google_drive":
-    //   return item.fileName ?? null;
-    // case "offer":
-    //   return item.couponCode ? `Code: ${item.couponCode}` : null;
+      return item.products?.map((product) => product.name).join(", ") || null;
     default:
       return null;
   }
@@ -64,7 +56,6 @@ export function KnowledgeList({
   onOpenItem,
   onEditItem,
   onDelete,
-  onAddKnowledge,
   hasFilters,
 }: {
   items: KnowledgeItem[];
@@ -72,7 +63,6 @@ export function KnowledgeList({
   onOpenItem: (item: KnowledgeItem) => void;
   onEditItem: (item: KnowledgeItem) => void;
   onDelete: (item: KnowledgeItem) => void;
-  onAddKnowledge: () => void;
   hasFilters: boolean;
 }) {
   if (isLoading) {
@@ -99,9 +89,11 @@ export function KnowledgeList({
         </EmptyHeader>
         {!hasFilters && (
           <EmptyContent>
-            <Button size="sm" onClick={onAddKnowledge}>
-              <IconPlus className="size-4" />
-              Add Knowledge
+            <Button size="sm" asChild>
+              <Link href="/knowledge/library/new">
+                <IconPlus className="size-4" />
+                Add Knowledge
+              </Link>
             </Button>
           </EmptyContent>
         )}
@@ -189,13 +181,25 @@ export function KnowledgeList({
                   Edit
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => onDelete(item)}
-                >
-                  <IconTrash />
-                  Delete
-                </DropdownMenuItem>
+                {item.status === "processing" ? (
+                  <DropdownMenuItem
+                    variant="destructive"
+                    className="opacity-50 cursor-not-allowed"
+                    onClick={(e) => e.preventDefault()}
+                    title="Item is in progress and cannot be deleted"
+                  >
+                    <IconTrash />
+                    Delete
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => onDelete(item)}
+                  >
+                    <IconTrash />
+                    Delete
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

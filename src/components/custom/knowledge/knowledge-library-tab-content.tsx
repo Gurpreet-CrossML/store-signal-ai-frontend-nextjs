@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { IconPlus, IconSearch, IconX, IconRefresh } from "@tabler/icons-react";
 
 import {
@@ -30,7 +31,6 @@ import {
   type KnowledgeFilterSelection,
 } from "@/components/custom/knowledge/knowledge-filters";
 import { KnowledgeList } from "@/components/custom/knowledge/knowledge-list";
-import { AddKnowledgeDialog } from "@/components/custom/knowledge/add-knowledge-dialog";
 import { EditKnowledgeDialog } from "@/components/custom/knowledge/edit-knowledge-dialog";
 import { KnowledgeDetailSheet } from "@/components/custom/knowledge/knowledge-detail-sheet";
 import { KnowledgeDataTablePagination } from "@/components/custom/knowledge/knowledge-data-table-pagination";
@@ -58,7 +58,6 @@ export default function KnowledgeLibraryTabContent() {
   const [filters, setFilters] = useState<KnowledgeFilterSelection>(
     EMPTY_KNOWLEDGE_FILTERS,
   );
-  const [addOpen, setAddOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<KnowledgeItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editItem, setEditItem] = useState<KnowledgeItem | null>(null);
@@ -206,9 +205,11 @@ export default function KnowledgeLibraryTabContent() {
             )}
           </Button>
 
-          <Button size="sm" onClick={() => setAddOpen(true)}>
-            <IconPlus className="size-4" />
-            Add Knowledge
+          <Button size="sm" asChild>
+            <Link href="/knowledge/library/new">
+              <IconPlus className="size-4" />
+              Add Knowledge
+            </Link>
           </Button>
         </div>
       )}
@@ -219,7 +220,6 @@ export default function KnowledgeLibraryTabContent() {
         onOpenItem={handleOpenItem}
         onEditItem={handleEditItem}
         onDelete={(item) => setItemToDelete(item)}
-        onAddKnowledge={() => setAddOpen(true)}
         hasFilters={hasFilters}
       />
 
@@ -232,12 +232,6 @@ export default function KnowledgeLibraryTabContent() {
           setPage(next.page);
           setPageSize(next.pageSize);
         }}
-      />
-
-      <AddKnowledgeDialog
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        onSaved={loadItems}
       />
 
       <EditKnowledgeDialog
