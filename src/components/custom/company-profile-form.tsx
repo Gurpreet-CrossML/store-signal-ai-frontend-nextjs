@@ -20,7 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Typography } from "@/components/ui/typography";
@@ -34,7 +34,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { applyServerFieldErrors } from "@/lib/form-errors";
+import z from "zod";
+import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import {
   FetchCompanyProfile,
   UpdateCompanyProfile,
@@ -48,6 +49,39 @@ const EDITABLE_FIELDS = [
   { name: "state", label: "State", type: "text" },
   { name: "country", label: "Country", type: "text" },
 ] as const;
+
+const validationSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Company email is required.")
+    .email("Enter a valid email address."),
+  phone: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || /^[+\d()[\]\s\-]+$/.test(val),
+      "Phone may only contain digits, spaces, +, -, (, ).",
+    )
+    .refine(
+      (val) => {
+        if (!val) return true;
+
+        const digitCount = val.replace(/\D/g, "").length;
+        return digitCount >= 7 && digitCount <= 15;
+      },
+      "Enter a valid phone number.",
+    ),
+  city: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || /^\p{L}+$/u.test(val),
+      "City must contain only alphabets.",
+    ),
+  street: z.string().optional(),
+  state: z.string().optional(),
+  country: z.string().optional(),
+});
 
 export default function CompanyProfileForm({
   className,
@@ -112,6 +146,11 @@ export default function CompanyProfileForm({
       city: companyProfile?.city ?? "",
       state: companyProfile?.state ?? "",
       country: companyProfile?.country ?? "",
+    },
+    validate: (values) => {
+      const result = validationSchema.safeParse(values);
+      if (result.success) return {};
+      return formikErrorsFromZod(result.error.issues);
     },
     onSubmit: async (values) => {
       const result = await dispatch(
@@ -276,6 +315,9 @@ export default function CompanyProfileForm({
                     onBlur={formik.handleBlur}
                     value={formik.values[f.name]}
                   />
+                  {formik.touched[f.name] && formik.errors[f.name] && (
+                    <FieldError>{formik.errors[f.name]}</FieldError>
+                  )}
                 </Field>
               ))}
             </div>
