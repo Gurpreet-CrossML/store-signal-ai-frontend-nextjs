@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/select";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
-  CreateKnowledgeItem,
+  CreateKnowledgeItemsBulk,
   FetchKnowledgeItems,
   type AIScope,
 } from "@/redux/api-slice/knowledge-rag-slice";
@@ -68,8 +68,8 @@ export function PolicyManager() {
     useAppSelector(
       (state) => state.GetKnowledgeRagReducer.FetchKnowledgeItemsState,
     );
-  const { CreateKnowledgeItemIsLoading } = useAppSelector(
-    (state) => state.GetKnowledgeRagReducer.CreateKnowledgeItemState,
+  const { CreateKnowledgeItemsBulkIsLoading } = useAppSelector(
+    (state) => state.GetKnowledgeRagReducer.CreateKnowledgeItemsBulkState,
   );
 
   // The backend has no `policy_type` field, so the policy type is encoded as
@@ -147,21 +147,25 @@ export function PolicyManager() {
 
     setError(null);
     const result = await dispatch(
-      CreateKnowledgeItem({
+      CreateKnowledgeItemsBulk({
         storeCode,
         type: "general",
         source: "url",
         aiScope,
-        url: url.trim(),
-        // `title` is required by the backend and doubles as the policy
-        // type here, since there's no `policy_type` field on the model.
-        title:
-          POLICY_TYPE_OPTIONS.find((option) => option.value === type)?.label ??
-          type,
+        items: [
+          {
+            url: url.trim(),
+            // `title` is required by the backend and doubles as the policy
+            // type here, since there's no `policy_type` field on the model.
+            title:
+              POLICY_TYPE_OPTIONS.find((option) => option.value === type)
+                ?.label ?? type,
+          },
+        ],
       }),
     );
 
-    if (!CreateKnowledgeItem.fulfilled.match(result)) {
+    if (!CreateKnowledgeItemsBulk.fulfilled.match(result)) {
       setError("This policy couldn't be saved. Please try again.");
       return;
     }
@@ -290,7 +294,7 @@ export function PolicyManager() {
                       resetForm();
                       setIsAdding(false);
                     }}
-                    disabled={CreateKnowledgeItemIsLoading}
+                    disabled={CreateKnowledgeItemsBulkIsLoading}
                   >
                     Cancel
                   </Button>
@@ -298,14 +302,16 @@ export function PolicyManager() {
                     type="button"
                     size="sm"
                     onClick={handleSave}
-                    disabled={CreateKnowledgeItemIsLoading}
+                    disabled={CreateKnowledgeItemsBulkIsLoading}
                   >
-                    {CreateKnowledgeItemIsLoading ? (
+                    {CreateKnowledgeItemsBulkIsLoading ? (
                       <Spinner data-icon="inline-start" />
                     ) : (
                       <IconDeviceFloppy data-icon="inline-start" />
                     )}
-                    {CreateKnowledgeItemIsLoading ? "Saving…" : "Save Policy"}
+                    {CreateKnowledgeItemsBulkIsLoading
+                      ? "Saving…"
+                      : "Save Policy"}
                   </Button>
                 </div>
               </FieldGroup>

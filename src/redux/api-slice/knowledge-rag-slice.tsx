@@ -81,9 +81,12 @@ export type KnowledgeItem = {
   content?: string;
   category?: string;
 
-  // Product knowledge
-  productId?: string;
-  productName?: string;
+  // Product/category/collection associations (many-to-many; an item can
+  // hold any number of each, independent of the legacy `productId` shape
+  // this replaced).
+  products?: ProductOption[];
+  categories?: ProductOption[];
+  collections?: ProductOption[];
 
   // Category knowledge
   categoryIds?: string[];
@@ -205,7 +208,9 @@ type ApiKnowledgeItem = {
   content: string;
   question: string;
   answer: string;
-  product_name: string | null;
+  products: ProductOption[];
+  categories: ProductOption[];
+  collections: ProductOption[];
   url: string;
   file: string | null;
   file_type: string;
@@ -227,7 +232,9 @@ function mapApiKnowledgeItem(api: ApiKnowledgeItem): KnowledgeItem {
     updatedAt: api.updated_at,
     content: api.content || undefined,
     category: api.category || undefined,
-    productName: api.product_name || undefined,
+    products: api.products ?? [],
+    categories: api.categories ?? [],
+    collections: api.collections ?? [],
     question: api.question || undefined,
     answer: api.answer || undefined,
     url: api.url || undefined,
@@ -243,9 +250,6 @@ type KnowledgeItemWritableInput = {
   title?: string;
   aiScope: AIScope[];
   content?: string;
-  /** Product id (a UUID string, per `ProductOption`) — sent as the `product` FK. */
-  productId?: string;
-  productName?: string;
   question?: string;
   answer?: string;
   url?: string;
@@ -256,26 +260,22 @@ type KnowledgeItemWritableInput = {
 /** Builds a multipart body when a file is attached, otherwise a plain JSON body.
  *
  * Only sends fields the backend's per-source serializers actually accept
- * (knowledge/serializers.py): product/type/source/title/ai_scope always,
- * plus url|file|content|question+answer depending on `source`. `tags` isn't
- * writable on any of them, so it's never sent.
+ * (knowledge/serializers.py): type/source/title/ai_scope always, plus
+ * url|file|content|question+answer depending on `source`. `tags` isn't
+ * writable on any of them, so it's never sent. Used only by
+ * `UpdateKnowledgeItem` (the AI-scope/FAQ-only Edit flow) — product/
+ * category/collection associations aren't editable there, so this never
+ * needs to send them.
  */
 function buildKnowledgeItemPayload(
   input: KnowledgeItemWritableInput,
 ): FormData | Record<string, unknown> {
-  // Product.id is a UUID (products/models.py) — keep it as the string it
-  // already is; Number()'ing it here previously turned every product
-  // knowledge create into `product: NaN` (serialized as null), which is
-  // why the product was silently missing from the request.
-  const product = input.productId || undefined;
-
   if (input.file) {
     const formData = new FormData();
     formData.append("type", input.type);
     formData.append("source", input.source);
     if (input.title) formData.append("title", input.title);
     input.aiScope.forEach((scope) => formData.append("ai_scope", scope));
-    if (product) formData.append("product", product);
     formData.append("file", input.file);
     return formData;
   }
@@ -285,7 +285,6 @@ function buildKnowledgeItemPayload(
     source: input.source,
     title: input.title,
     ai_scope: input.aiScope,
-    product,
     content: input.content,
     question: input.question,
     answer: input.answer,
@@ -354,25 +353,94 @@ export const FetchKnowledgeItems = createAsyncThunk(
   },
 );
 
-export const CreateKnowledgeItem = createAsyncThunk(
-  "CreateKnowledgeItem",
+/** One element of a bulk request's `items` array — pure content only.
+ * `type`/`source`/`ai_scope`/`products`/`categories`/`collections` are
+ * shared across the whole request (see `CreateKnowledgeItemsBulk`), not
+ * repeated per item. */
+export type BulkKnowledgeItemContent = {
+  question?: string;
+  answer?: string;
+  url?: string;
+  title?: string;
+};
+
+/** Bulk-create knowledge items of one `source` in one request
+ * (`knowledge/views.py` `KnowledgeItemAPIView.post`). Shared fields
+ * (`type`/`ai_scope`/`products`/`categories`/`collections`) are sent once;
+ * `items` carries each item's own content only. The batch is atomic on
+ * the backend — every item is created together, or (on validation
+ * failure) none are, and the rejected payload's `data` is either an
+ * array of per-index field-error objects (one entry per submitted item,
+ * `{}` for items that were individually fine) or a plain object for a
+ * whole-request error (e.g. the shared fields themselves were invalid).
+ *
+ * `source: "file"` is always multipart, with the files themselves as
+ * repeated `files` fields and no `items` at all (file items carry no
+ * content field of their own once title is dropped from this form).
+ * Every other source is a plain JSON body with a real `items` array. */
+export const CreateKnowledgeItemsBulk = createAsyncThunk(
+  "CreateKnowledgeItemsBulk",
   async (
-    input: KnowledgeItemWritableInput & { storeCode: string },
+    input: {
+      storeCode: string;
+      type: KnowledgeType;
+      source: KnowledgeSource;
+      aiScope: AIScope[];
+      productIds?: string[];
+      categoryIds?: string[];
+      collectionIds?: string[];
+      items?: BulkKnowledgeItemContent[];
+      files?: File[];
+    },
     thunkAPI,
   ) => {
     try {
-      const { storeCode, ...rest } = input;
-      const payload = buildKnowledgeItemPayload(rest);
+      const {
+        storeCode,
+        type,
+        source,
+        aiScope,
+        productIds,
+        categoryIds,
+        collectionIds,
+      } = input;
+
+      let payload: FormData | Record<string, unknown>;
+      let requestConfig: { headers: { "Content-Type": string } } | undefined;
+
+      if (source === "file") {
+        const formData = new FormData();
+        formData.append("type", type);
+        formData.append("source", source);
+        aiScope.forEach((scope) => formData.append("ai_scope", scope));
+        (productIds ?? []).forEach((id) => formData.append("products", id));
+        (categoryIds ?? []).forEach((id) => formData.append("categories", id));
+        (collectionIds ?? []).forEach((id) =>
+          formData.append("collections", id),
+        );
+        (input.files ?? []).forEach((file) => formData.append("files", file));
+        payload = formData;
+        requestConfig = { headers: { "Content-Type": "multipart/form-data" } };
+      } else {
+        payload = {
+          type,
+          source,
+          ai_scope: aiScope,
+          products: productIds ?? [],
+          categories: categoryIds ?? [],
+          collections: collectionIds ?? [],
+          items: input.items ?? [],
+        };
+      }
+
       const response = await axiosInstance.post(
         `${ENDPOINTS.createKnowledgeItem()}?store_code=${storeCode}`,
         payload,
-        payload instanceof FormData
-          ? { headers: { "Content-Type": "multipart/form-data" } }
-          : undefined,
+        requestConfig,
       );
-      const data: ApiKnowledgeItem = response.data.data;
-      toast.success(response?.data?.message || "Knowledge added successfully!");
-      return mapApiKnowledgeItem(data);
+      const data: ApiKnowledgeItem[] = response.data?.data ?? [];
+      toast.success(response?.data?.message || "Knowledge items created.");
+      return data.map(mapApiKnowledgeItem);
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
@@ -484,6 +552,64 @@ export const FetchProductOptions = createAsyncThunk(
   },
 );
 
+/** Type-ahead category picker. Same shape/behavior as `FetchProductOptions`
+ * against `/products/categories/search/` (`CATEGORY_SEARCH_RESULT_LIMIT`,
+ * 5, results). */
+export const FetchCategoryOptions = createAsyncThunk(
+  "FetchCategoryOptions",
+  async (
+    { storeCode, search = "" }: { storeCode: string; search?: string },
+    thunkAPI,
+  ) => {
+    try {
+      const params = new URLSearchParams({ store_code: storeCode });
+      if (search.trim()) params.set("search", search.trim());
+
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.searchCategories()}?${params.toString()}`,
+        { useBackend: true },
+      );
+      const data: ApiProductOption[] = response.data?.data ?? [];
+      return data.map((category) => ({
+        id: String(category.id),
+        name: category.name,
+      }));
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+    }
+  },
+);
+
+/** Type-ahead collection picker. Same shape/behavior as
+ * `FetchProductOptions` against `/products/collections/search/`
+ * (`COLLECTION_SEARCH_RESULT_LIMIT`, 5, results). */
+export const FetchCollectionOptions = createAsyncThunk(
+  "FetchCollectionOptions",
+  async (
+    { storeCode, search = "" }: { storeCode: string; search?: string },
+    thunkAPI,
+  ) => {
+    try {
+      const params = new URLSearchParams({ store_code: storeCode });
+      if (search.trim()) params.set("search", search.trim());
+
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.searchCollections()}?${params.toString()}`,
+        { useBackend: true },
+      );
+      const data: ApiProductOption[] = response.data?.data ?? [];
+      return data.map((collection) => ({
+        id: String(collection.id),
+        name: collection.name,
+      }));
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+    }
+  },
+);
+
 export const FetchRetrievalSettings = createAsyncThunk(
   "FetchRetrievalSettings",
   async () => {
@@ -546,10 +672,10 @@ const KnowledgeRagSlice = createSlice({
         results: [],
       } as KnowledgeItemListResponse,
     },
-    CreateKnowledgeItemState: {
-      CreateKnowledgeItemIsLoading: false,
-      CreateKnowledgeItemIsSuccess: false,
-      CreateKnowledgeItemIsError: null as null | string | object,
+    CreateKnowledgeItemsBulkState: {
+      CreateKnowledgeItemsBulkIsLoading: false,
+      CreateKnowledgeItemsBulkIsSuccess: false,
+      CreateKnowledgeItemsBulkIsError: null as null | string | object,
     },
     UpdateKnowledgeItemState: {
       UpdateKnowledgeItemIsLoading: false,
@@ -566,6 +692,18 @@ const KnowledgeRagSlice = createSlice({
       FetchProductOptionsIsSuccess: false,
       FetchProductOptionsIsError: null as null | string | object,
       FetchProductOptionsListData: [] as ProductOption[],
+    },
+    FetchCategoryOptionsState: {
+      FetchCategoryOptionsIsLoading: false,
+      FetchCategoryOptionsIsSuccess: false,
+      FetchCategoryOptionsIsError: null as null | string | object,
+      FetchCategoryOptionsListData: [] as ProductOption[],
+    },
+    FetchCollectionOptionsState: {
+      FetchCollectionOptionsIsLoading: false,
+      FetchCollectionOptionsIsSuccess: false,
+      FetchCollectionOptionsIsError: null as null | string | object,
+      FetchCollectionOptionsListData: [] as ProductOption[],
     },
     FetchRetrievalSettingsState: {
       FetchRetrievalSettingsIsLoading: false,
@@ -617,20 +755,21 @@ const KnowledgeRagSlice = createSlice({
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsError =
           "Something went wrong";
       })
-      // CreateKnowledgeItem
-      .addCase(CreateKnowledgeItem.pending, (state) => {
-        state.CreateKnowledgeItemState.CreateKnowledgeItemIsLoading = true;
-        state.CreateKnowledgeItemState.CreateKnowledgeItemIsSuccess = false;
-        state.CreateKnowledgeItemState.CreateKnowledgeItemIsError = null;
+      // CreateKnowledgeItemsBulk
+      .addCase(CreateKnowledgeItemsBulk.pending, (state) => {
+        state.CreateKnowledgeItemsBulkState.CreateKnowledgeItemsBulkIsLoading = true;
+        state.CreateKnowledgeItemsBulkState.CreateKnowledgeItemsBulkIsSuccess = false;
+        state.CreateKnowledgeItemsBulkState.CreateKnowledgeItemsBulkIsError =
+          null;
       })
-      .addCase(CreateKnowledgeItem.fulfilled, (state) => {
-        state.CreateKnowledgeItemState.CreateKnowledgeItemIsLoading = false;
-        state.CreateKnowledgeItemState.CreateKnowledgeItemIsSuccess = true;
+      .addCase(CreateKnowledgeItemsBulk.fulfilled, (state) => {
+        state.CreateKnowledgeItemsBulkState.CreateKnowledgeItemsBulkIsLoading = false;
+        state.CreateKnowledgeItemsBulkState.CreateKnowledgeItemsBulkIsSuccess = true;
       })
-      .addCase(CreateKnowledgeItem.rejected, (state) => {
-        state.CreateKnowledgeItemState.CreateKnowledgeItemIsLoading = false;
-        state.CreateKnowledgeItemState.CreateKnowledgeItemIsSuccess = false;
-        state.CreateKnowledgeItemState.CreateKnowledgeItemIsError =
+      .addCase(CreateKnowledgeItemsBulk.rejected, (state) => {
+        state.CreateKnowledgeItemsBulkState.CreateKnowledgeItemsBulkIsLoading = false;
+        state.CreateKnowledgeItemsBulkState.CreateKnowledgeItemsBulkIsSuccess = false;
+        state.CreateKnowledgeItemsBulkState.CreateKnowledgeItemsBulkIsError =
           "Something went wrong";
       })
       // UpdateKnowledgeItem
@@ -679,6 +818,38 @@ const KnowledgeRagSlice = createSlice({
       .addCase(FetchProductOptions.rejected, (state) => {
         state.FetchProductOptionsState.FetchProductOptionsIsLoading = false;
         state.FetchProductOptionsState.FetchProductOptionsIsError =
+          "Something went wrong";
+      })
+      // FetchCategoryOptions
+      .addCase(FetchCategoryOptions.pending, (state) => {
+        state.FetchCategoryOptionsState.FetchCategoryOptionsIsLoading = true;
+        state.FetchCategoryOptionsState.FetchCategoryOptionsIsError = null;
+      })
+      .addCase(FetchCategoryOptions.fulfilled, (state, action) => {
+        state.FetchCategoryOptionsState.FetchCategoryOptionsIsLoading = false;
+        state.FetchCategoryOptionsState.FetchCategoryOptionsIsSuccess = true;
+        state.FetchCategoryOptionsState.FetchCategoryOptionsListData =
+          action.payload;
+      })
+      .addCase(FetchCategoryOptions.rejected, (state) => {
+        state.FetchCategoryOptionsState.FetchCategoryOptionsIsLoading = false;
+        state.FetchCategoryOptionsState.FetchCategoryOptionsIsError =
+          "Something went wrong";
+      })
+      // FetchCollectionOptions
+      .addCase(FetchCollectionOptions.pending, (state) => {
+        state.FetchCollectionOptionsState.FetchCollectionOptionsIsLoading = true;
+        state.FetchCollectionOptionsState.FetchCollectionOptionsIsError = null;
+      })
+      .addCase(FetchCollectionOptions.fulfilled, (state, action) => {
+        state.FetchCollectionOptionsState.FetchCollectionOptionsIsLoading = false;
+        state.FetchCollectionOptionsState.FetchCollectionOptionsIsSuccess = true;
+        state.FetchCollectionOptionsState.FetchCollectionOptionsListData =
+          action.payload;
+      })
+      .addCase(FetchCollectionOptions.rejected, (state) => {
+        state.FetchCollectionOptionsState.FetchCollectionOptionsIsLoading = false;
+        state.FetchCollectionOptionsState.FetchCollectionOptionsIsError =
           "Something went wrong";
       })
       // FetchRetrievalSettings

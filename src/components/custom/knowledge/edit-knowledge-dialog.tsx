@@ -104,8 +104,6 @@ export function EditKnowledgeDialog({
           title: item.title,
           aiScope,
           content: item.content,
-          productId: item.productId,
-          productName: item.productName,
           question: isFaq ? question.trim() : item.question,
           answer: isFaq ? answer.trim() : item.answer,
           url: item.url,

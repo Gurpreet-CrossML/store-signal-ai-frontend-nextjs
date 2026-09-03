@@ -58,7 +58,7 @@ function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-border py-2 text-sm last:border-b-0">
       <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium">{value}</span>
+      <span className="text-right font-medium truncate">{value}</span>
     </div>
   );
 }
@@ -121,6 +121,8 @@ export function KnowledgeDetailSheet({
     }
   };
 
+  const isInProgress = item.status === "processing";
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -131,7 +133,7 @@ export function KnowledgeDetailSheet({
                 type={item.type}
                 className="size-11 rounded-xl"
               />
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 mr-5">
                 <SheetTitle className="truncate">{item.title}</SheetTitle>
                 <SheetDescription>
                   {meta.label} · {KNOWLEDGE_SOURCE_LABEL[item.source]}
@@ -140,7 +142,7 @@ export function KnowledgeDetailSheet({
             </div>
           </SheetHeader>
 
-          <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden px-4 py-4">
             {item.status === "failed" && (
               <div className="flex items-start justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5">
                 <div className="min-w-0">
@@ -172,8 +174,13 @@ export function KnowledgeDetailSheet({
             <Separator />
 
             <Section title="Associations">
-              {item.productName && (
-                <MetaRow label="Product" value={item.productName} />
+              {item.products && item.products.length > 0 && (
+                <MetaRow
+                  label="Products"
+                  value={item.products
+                    .map((product) => product.name)
+                    .join(", ")}
+                />
               )}
               {item.policyType && (
                 <MetaRow
@@ -181,10 +188,20 @@ export function KnowledgeDetailSheet({
                   value={<PolicyTypeBadge policyType={item.policyType} />}
                 />
               )}
-              {item.categoryNames && item.categoryNames.length > 0 && (
+              {item.categories && item.categories.length > 0 && (
                 <MetaRow
                   label="Categories"
-                  value={item.categoryNames.join(", ")}
+                  value={item.categories
+                    .map((category) => category.name)
+                    .join(", ")}
+                />
+              )}
+              {item.collections && item.collections.length > 0 && (
+                <MetaRow
+                  label="Collections"
+                  value={item.collections
+                    .map((collection) => collection.name)
+                    .join(", ")}
                 />
               )}
               <div className="flex items-center justify-between gap-4 border-b border-border py-2 text-sm last:border-b-0">
@@ -215,20 +232,20 @@ export function KnowledgeDetailSheet({
 
             <Section title="Source information">
               {item.source === "text" && item.content && (
-                <p className="whitespace-pre-wrap py-2 text-sm text-foreground">
+                <p className="min-w-0 whitespace-pre-wrap break-words py-2 text-sm text-foreground">
                   {item.content}
                 </p>
               )}
 
               {item.source === "faq" && (
                 <>
-                  <div className="py-2">
+                  <div className="min-w-0 whitespace-pre-wrap break-words py-2 text-sm">
                     <Typography variant="muted" className="text-xs">
                       Question
                     </Typography>
                     <p className="text-sm font-medium">{item.question}</p>
                   </div>
-                  <div className="py-2">
+                  <div className="min-w-0 whitespace-pre-wrap break-words py-2 text-sm">
                     <Typography variant="muted" className="text-xs">
                       Answer
                     </Typography>
@@ -299,7 +316,15 @@ export function KnowledgeDetailSheet({
             <Button
               variant="outline"
               className="flex-1 text-destructive hover:text-destructive"
-              onClick={() => setConfirmDelete(true)}
+              onClick={() => {
+                if (!isInProgress) setConfirmDelete(true);
+              }}
+              disabled={isInProgress}
+              title={
+                isInProgress
+                  ? "Item is in progress and cannot be deleted"
+                  : "Delete"
+              }
             >
               <IconTrash />
               Delete
@@ -308,39 +333,41 @@ export function KnowledgeDetailSheet({
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this knowledge?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove &quot;{item.title}&quot;. This action
-              cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={DeleteKnowledgeItemIsLoading}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
-              disabled={DeleteKnowledgeItemIsLoading}
-              onClick={(event) => {
-                event.preventDefault();
-                handleDelete();
-              }}
-            >
-              {DeleteKnowledgeItemIsLoading ? (
-                <>
-                  <Spinner data-icon="inline-start" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {!isInProgress && (
+        <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this knowledge?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently remove &quot;{item.title}&quot;. This
+                action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={DeleteKnowledgeItemIsLoading}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-white hover:bg-destructive/90"
+                disabled={DeleteKnowledgeItemIsLoading}
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleDelete();
+                }}
+              >
+                {DeleteKnowledgeItemIsLoading ? (
+                  <>
+                    <Spinner data-icon="inline-start" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   );
 }
