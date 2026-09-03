@@ -77,6 +77,16 @@ export const ENDPOINTS = {
 
   // Store Management
   fetchStoresList: () => "/store/list",
+  // Same list straight from Django — the full store records, for the
+  // Settings → Stores screen (GET needs useBackend). The local route above
+  // is the ported read the store switcher uses.
+  fetchStoresDirectory: () => "/store/list/",
+  // The store's widget key, for showing its embed script after onboarding.
+  storeWidgetInit: () => "/store/widget-init/",
+  // Detail route for one store; PATCH { is_active: false } deactivates it.
+  // NOTE: endpoint is still being finalised by the backend dev; adjust the
+  // path here once it's confirmed.
+  storeDetail: (code: string) => `/store/${code}/`,
   // Shopify connect (Django, OAuth). Start returns the consent URL to send
   // the browser to; Shopify then redirects back to this app with
   // code/shop/state/hmac/timestamp, which the callback GET forwards verbatim
@@ -548,6 +558,32 @@ export const ONBOARDING_STEPS = [
 ] as const;
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]["value"];
+
+// The stages the connect-progress dialog walks through while the backend
+// finishes a Shopify OAuth callback. Cosmetic pacing — the backend does it
+// in one request — so the last entry is only shown once it responds.
+// Where the widget embed code goes, per platform, shown as numbered steps
+// beside the snippet.
+export const WIDGET_INSTALL_STEPS = {
+  shopify: [
+    "In your Shopify admin, open Online Store → Themes.",
+    "On your live theme, choose Edit code.",
+    "Open layout/theme.liquid.",
+    "Paste the snippet at the very end of the file, just before </body>, and save.",
+  ],
+  default: [
+    "Open the storefront's theme or template editor.",
+    "Paste the snippet before </body> on every page, and publish.",
+  ],
+} as const;
+
+export const SHOPIFY_CONNECT_STEPS = [
+  "Checking permissions",
+  "Fetching connected store details",
+  "Subscribing to store updates",
+  "Setting things up",
+  "Done",
+] as const;
 
 export const STORE_PLATFORMS = [
   {
