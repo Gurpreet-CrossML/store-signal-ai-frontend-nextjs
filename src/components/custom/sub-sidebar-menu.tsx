@@ -64,7 +64,7 @@ export function CollapsibleMenuItem({
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <SidebarMenuSub className="group-data-[collapsible=icon]:flex">
+          <SidebarMenuSub className="mr-0 pr-0 group-data-[collapsible=icon]:flex">
             {items?.map((subItem) => (
               <SidebarMenuSubItem key={subItem.title}>
                 <SidebarMenuSubButton

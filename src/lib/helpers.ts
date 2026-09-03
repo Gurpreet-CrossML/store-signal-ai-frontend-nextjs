@@ -318,3 +318,16 @@ export function widgetSnippet(widgetKey: string): string {
     "></script>",
   ].join("\n");
 }
+
+/**
+ * Add a value to a list, or drop it if it is already there.
+ *
+ * The shape every multi-select on a settings screen needs — a checklist of
+ * fixed options where ticking and unticking are the same gesture. Returns a
+ * new array; the one passed in is never mutated.
+ */
+export function toggleInList<T>(list: T[], value: T): T[] {
+  return list.includes(value)
+    ? list.filter((item) => item !== value)
+    : [...list, value];
+}

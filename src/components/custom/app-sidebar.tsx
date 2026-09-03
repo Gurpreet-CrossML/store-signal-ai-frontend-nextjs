@@ -108,7 +108,7 @@ export function AppSidebar({
           )}
         </Button>
       )}
-      <Sidebar collapsible="none" className="w-14.25! border-r">
+      <Sidebar collapsible="none" className="w-14.25! shrink-0 border-r">
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -149,7 +149,7 @@ export function AppSidebar({
       {/* This is the second sidebar */}
       {/* We disable collapsible and let it fill remaining space */}
       {subSidebarItems && !subSidebarHidden && (
-        <Sidebar collapsible="none" className="flex-1">
+        <Sidebar collapsible="none" className="min-w-0 flex-1">
           {/* h-16, matching every panel header to its right, so the rules
               across the top of the app are one continuous line. */}
           <SidebarHeader className="h-16 shrink-0 justify-center border-b px-4 py-0">
