@@ -178,6 +178,10 @@ export const ENDPOINTS = {
   // omitted/blank, returns any 5 products for the store. Results are
   // capped server-side either way.
   searchProducts: () => `/products/search/`,
+  // Category/Collection pickers for Knowledge item creation (Django; GET
+  // needs useBackend). Same shape/behavior as `searchProducts` above.
+  searchCategories: () => `/products/categories/search/`,
+  searchCollections: () => `/products/collections/search/`,
 
   // Integrations
   fetchIntegrations: () => `/integrations`,
