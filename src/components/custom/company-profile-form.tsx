@@ -20,7 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Typography } from "@/components/ui/typography";
@@ -112,6 +112,25 @@ export default function CompanyProfileForm({
       city: companyProfile?.city ?? "",
       state: companyProfile?.state ?? "",
       country: companyProfile?.country ?? "",
+    },
+    validate: (values) => {
+      const errors: Record<string, string> = {};
+      if (!values.email) {
+        errors.email = "Company email is required.";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+        errors.email = "Enter a valid email address.";
+      }
+      if (values.phone) {
+        if (!/^[+\d()[\]\s\-]+$/.test(values.phone)) {
+          errors.phone = "Phone may only contain digits, spaces, +, -, (, ).";
+        } else if (values.phone.replace(/\D/g, "").length < 7) {
+          errors.phone = "Phone number is too short.";
+        }
+      }
+      if (values.city && /^\d+$/.test(values.city.trim())) {
+        errors.city = "City must not be numeric.";
+      }
+      return errors;
     },
     onSubmit: async (values) => {
       const result = await dispatch(
@@ -276,6 +295,9 @@ export default function CompanyProfileForm({
                     onBlur={formik.handleBlur}
                     value={formik.values[f.name]}
                   />
+                  {formik.touched[f.name] && formik.errors[f.name] && (
+                    <FieldError>{formik.errors[f.name]}</FieldError>
+                  )}
                 </Field>
               ))}
             </div>

@@ -345,9 +345,9 @@ export async function list_threads(
 
   const results: ThreadListItem[] = rows.map((row) => {
     const hasCustomer =
-      row.customer_email !== null || row.customer_first_name !== null;
+      row.customer_email !== null || row.customer_first_name !== null || row.customer_last_name !== null;
     const customerName = hasCustomer
-      ? `${row.customer_first_name ?? ""} ${row.customer_last_name ?? ""}`.trim()
+      ? `${row.customer_first_name ?? ""} ${row.customer_last_name ?? ""}`.trim() || null
       : null;
     return {
       id: row.id,
@@ -545,9 +545,9 @@ export async function get_thread_details(
     : null;
 
   const hasCustomer =
-    t.customer_email !== null || t.customer_first_name !== null;
+    t.customer_email !== null || t.customer_first_name !== null || t.customer_last_name !== null;
   const customer_name = hasCustomer
-    ? `${t.customer_first_name ?? ""} ${t.customer_last_name ?? ""}`.trim()
+    ? `${t.customer_first_name ?? ""} ${t.customer_last_name ?? ""}`.trim() || null
     : null;
 
   return {
