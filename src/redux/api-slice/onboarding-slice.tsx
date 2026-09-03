@@ -79,10 +79,23 @@ export const UpdateOnboardingStep = createAsyncThunk(
 
 export const StartShopifyOauth = createAsyncThunk(
   "StartShopifyOauth",
-  async (storeAlias: string, thunkAPI) => {
+  async (
+    {
+      storeAlias,
+      redirectToSetting = false,
+    }: {
+      storeAlias: string;
+      /** True only from Settings → Stores: Shopify then sends the user back
+       * to /settings/store, and a never-finished onboarding is marked
+       * completed instead of advancing to go-live. */
+      redirectToSetting?: boolean;
+    },
+    thunkAPI,
+  ) => {
     try {
       const response = await axiosInstance.post(ENDPOINTS.shopifyOauthStart(), {
         store_alias: storeAlias,
+        ...(redirectToSetting && { redirect_to_setting: true }),
       });
       return response.data.data as { authorize_url: string };
     } catch (error) {
