@@ -307,9 +307,34 @@ export function toPaginatedList<T>(payload: unknown): {
   };
 }
 
-/** The embed tag a merchant pastes before </body>, for one store's widget key. */
-export function widgetSnippet(widgetKey: string): string {
-  return [
+// Tells the widget who is browsing: Shopify's Liquid exposes the logged-in
+// customer, and the widget reads window.currentCustomer / window.isLoggedIn.
+const SHOPIFY_CUSTOMER_BLOCK = `{% if customer %}
+  <script>
+    window.currentCustomer = {
+      id: "{{ customer.id }}",
+      email: "{{ customer.email }}",
+      firstName: "{{ customer.first_name }}",
+      lastName: "{{ customer.last_name }}",
+      fullName: "{{ customer.name }}",
+    };
+    window.isLoggedIn = true;
+  </script>
+{% else %}
+  <script>
+    window.currentCustomer = null;
+    window.isLoggedIn = false;
+  </script>
+{% endif %}`;
+
+/**
+ * The embed code a merchant pastes before </body>, for one store's widget
+ * key. On Shopify it is Liquid — the customer block above plus the script
+ * tag, destined for the end of layout/theme.liquid; on any other platform
+ * it is the bare script tag.
+ */
+export function widgetSnippet(widgetKey: string, platform?: string): string {
+  const tag = [
     "<script",
     `  src="${WIDGET_SCRIPT_SRC}"`,
     `  data-widget-key="${widgetKey}"`,
@@ -317,4 +342,5 @@ export function widgetSnippet(widgetKey: string): string {
     "  data-chatbot-init",
     "></script>",
   ].join("\n");
+  return platform === "shopify" ? `${SHOPIFY_CUSTOMER_BLOCK}\n${tag}` : tag;
 }

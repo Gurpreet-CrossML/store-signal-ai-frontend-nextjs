@@ -22,7 +22,7 @@ import {
   IconSend,
   IconSettings,
   IconShield,
-  IconShieldLock,
+  IconBuildingStore,
   IconTags,
   IconUserHexagon,
   IconUsers,
@@ -171,10 +171,11 @@ export const NAV_AREAS = {
       },
       {
         href: "/settings/store",
-        title: "Store Settings",
-        description: "Restrict which visitors can see the chat widget.",
-        pageDescription: "Controls that apply to the store you have selected.",
-        icon: IconShieldLock,
+        title: "Stores",
+        description: "The stores connected to your company.",
+        pageDescription:
+          "Every store connected to your company. Switch which one the dashboard works on, limit its widget to specific IPs, or deactivate it.",
+        icon: IconBuildingStore,
       },
       {
         href: "/settings/tags",
