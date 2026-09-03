@@ -34,7 +34,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { applyServerFieldErrors } from "@/lib/form-errors";
+import z from "zod";
+import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import {
   FetchCompanyProfile,
   UpdateCompanyProfile,
@@ -48,6 +49,34 @@ const EDITABLE_FIELDS = [
   { name: "state", label: "State", type: "text" },
   { name: "country", label: "Country", type: "text" },
 ] as const;
+
+const validationSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Company email is required.")
+    .email("Enter a valid email address."),
+  phone: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || /^[+\d()[\]\s\-]+$/.test(val),
+      "Phone may only contain digits, spaces, +, -, (, )."
+    )
+    .refine(
+      (val) => !val || val.replace(/\D/g, "").length >= 7,
+      "Phone number is too short."
+    ),
+  city: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || !/^\d+$/.test(val.trim()),
+      "City must not be numeric."
+    ),
+  street: z.string().optional(),
+  state: z.string().optional(),
+  country: z.string().optional(),
+});
 
 export default function CompanyProfileForm({
   className,
@@ -114,23 +143,9 @@ export default function CompanyProfileForm({
       country: companyProfile?.country ?? "",
     },
     validate: (values) => {
-      const errors: Record<string, string> = {};
-      if (!values.email) {
-        errors.email = "Company email is required.";
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
-        errors.email = "Enter a valid email address.";
-      }
-      if (values.phone) {
-        if (!/^[+\d()[\]\s\-]+$/.test(values.phone)) {
-          errors.phone = "Phone may only contain digits, spaces, +, -, (, ).";
-        } else if (values.phone.replace(/\D/g, "").length < 7) {
-          errors.phone = "Phone number is too short.";
-        }
-      }
-      if (values.city && /^\d+$/.test(values.city.trim())) {
-        errors.city = "City must not be numeric.";
-      }
-      return errors;
+      const result = validationSchema.safeParse(values);
+      if (result.success) return {};
+      return formikErrorsFromZod(result.error.issues);
     },
     onSubmit: async (values) => {
       const result = await dispatch(
