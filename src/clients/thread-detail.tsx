@@ -459,7 +459,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   // answer. Each section then falls back to its own request's flag.
   const detailsLoading = !isThisThread;
   const isResolved = details?.verdict?.verdict === "resolved";
-  const customerName = details?.customer_name || details?.customer_email || "Guest";
+  const customerName =
+    details?.customer_name || details?.customer_email || "Guest";
   const feedback = FetchFeedbackSequenceData?.feedback;
   const feedbackLabel = feedback
     ? (FEEDBACK_RATINGS.find((rating) => rating.value === feedback.rating)

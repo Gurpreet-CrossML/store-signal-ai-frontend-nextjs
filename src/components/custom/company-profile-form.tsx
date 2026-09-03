@@ -60,18 +60,18 @@ const validationSchema = z.object({
     .optional()
     .refine(
       (val) => !val || /^[+\d()[\]\s\-]+$/.test(val),
-      "Phone may only contain digits, spaces, +, -, (, )."
+      "Phone may only contain digits, spaces, +, -, (, ).",
     )
     .refine(
       (val) => !val || val.replace(/\D/g, "").length >= 7,
-      "Phone number is too short."
+      "Phone number is too short.",
     ),
   city: z
     .string()
     .optional()
     .refine(
       (val) => !val || !/^\d+$/.test(val.trim()),
-      "City must not be numeric."
+      "City must not be numeric.",
     ),
   street: z.string().optional(),
   state: z.string().optional(),
