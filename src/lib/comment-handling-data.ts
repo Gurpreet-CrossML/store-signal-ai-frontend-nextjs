@@ -23,16 +23,12 @@ import {
 import type { BadgeTone } from "@/lib/badge-tones";
 
 /**
- * The comment-handling vocabulary: what a comment can be tagged as, what
- * the AI may do about it, and how far it goes on its own.
+ * Client-side display copy for the comment-handling screen.
  *
- * Kept apart from the screen the way workflow-data.ts is — the screen
- * renders this, it does not own it. When the social-AI settings endpoints
- * land, the constants below become the response and only this file changes.
- *
- * ponytail: static defaults, held in memory. ceiling: nothing persists —
- * a refresh restores what is written here.
- * upgrade: fetch these instead of exporting them.
+ * The comment-settings API is the source of truth for the rules themselves
+ * (labels, actions, autonomy, topics — per connected account). What stays
+ * here is what only the UI knows: icons, taglines, ⓘ copy, hints, grouping
+ * and badge tones, keyed by the same intent/action ids the API uses.
  */
 /* -------------------------------------------------------------------- */
 /* What the AI may do                                                    */
@@ -86,13 +82,6 @@ export const ACTIONS: {
 
 export type Autonomy = "manual" | "draft" | "auto";
 
-/** Least to most autonomous. The order is what the picker lists. */
-export const AUTONOMY: { value: Autonomy; label: string }[] = [
-  { value: "manual", label: "Manual" },
-  { value: "draft", label: "Draft Automatically" },
-  { value: "auto", label: "Auto" },
-];
-
 export const SECTION_INFO =
   "Every comment is tagged as one of these as it arrives, and its card decides what the AI may do about it. " +
   "How far it goes is the dropdown: Manual — the AI takes none of the actions and the comment waits for a teammate. " +
@@ -132,19 +121,13 @@ export type IntentRule = {
   /** Which heading it sits under. Must be one of INTENT_GROUPS. */
   group: (typeof INTENT_GROUPS)[number];
   icon: Icon;
-  actions: ActionId[];
-  autonomy: Autonomy;
 };
 
-// Every entry here is an intent: the tagger picks exactly one per comment.
-//
-// Six of them are what it emits today — Question, Purchase Intent,
-// Complaint, Feedback, Praise and Other (social_comment_analysis.intent).
-// The rest are commissioned backend work, including Spam, Trolling, Abuse &
-// Threat and Sarcastic, which move from the booleans they are today
-// (is_spam / is_sarcastic) to intent values of their own. Until the
-// classifier emits them, those cards configure an intent nothing is tagged
-// with yet.
+// Every entry here is an intent: the tagger picks exactly one per comment,
+// from the same 18-value vocabulary (spam / trolling / abuse / sarcastic
+// are intents of their own now, in sync with the is_spam / is_sarcastic
+// booleans). Ids match the API's intents[] 1:1; `label` is a fallback for
+// before the config loads.
 export const DEFAULT_INTENTS: IntentRule[] = [
   {
     id: "question",
@@ -153,8 +136,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "Someone wants information before they commit — “Is this BPA-free?”, “what sizes do you have?”",
     hint: "Answered from your knowledge base — read the drafts for a week before going Auto.",
     icon: IconHelpCircle,
-    actions: ["reply", "offer_dm"],
-    autonomy: "draft",
     group: "Before They Buy",
   },
   {
@@ -164,10 +145,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "Names a rival and asks you to justify the difference — “Is this better than Nike?”, “how does it compare?”",
     hint: "Bottom-of-funnel, and the easiest reply on this screen to get wrong in public — worth reading each one before it goes out.",
     icon: IconScale,
-    // Answer briefly in public, then take the detail private rather than
-    // arguing with a rival brand underneath your own post.
-    actions: ["reply", "offer_dm"],
-    autonomy: "draft",
     group: "Before They Buy",
   },
   {
@@ -177,8 +154,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "A clear buying signal — “How do I buy this?”, “I want to order this”, “does it ship to me?”",
     hint: "A buying signal — the sooner it moves to DM, the more of them convert.",
     icon: IconShoppingCartPlus,
-    actions: ["reply", "move_dm"],
-    autonomy: "draft",
     group: "Before They Buy",
   },
   {
@@ -188,8 +163,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "Asking you to resolve something, with no dissatisfaction yet — “Can someone help me with my order?”",
     hint: "Moving it to DM early is what stops it turning into a complaint.",
     icon: IconLifebuoy,
-    actions: ["reply", "move_dm"],
-    autonomy: "draft",
     group: "Orders & Problems",
   },
   {
@@ -199,8 +172,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "Cancelling an order, stopping a subscription, or undoing something — “I want to cancel my order.”",
     hint: "Time-critical, and it hands over to the Order Cancellation workflow — the order is confirmed in DM rather than from a public comment.",
     icon: IconCircleX,
-    actions: ["move_dm"],
-    autonomy: "draft",
     group: "Orders & Problems",
   },
   {
@@ -210,8 +181,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "Dissatisfaction stated where everyone can see it — a defect, a delay, or a bad experience.",
     hint: "Public and reputational — worth a teammate reading every reply.",
     icon: IconMoodAngry,
-    actions: ["reply", "move_dm"],
-    autonomy: "draft",
     group: "Orders & Problems",
   },
   {
@@ -221,8 +190,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "Reporting a fake account, counterfeit goods or a scam — “This account is pretending to be you.”",
     hint: "Rare, and the customer is doing you a favour — acknowledging in public reassures everyone else reading.",
     icon: IconShieldExclamation,
-    actions: ["reply", "move_dm"],
-    autonomy: "draft",
     group: "Orders & Problems",
   },
   {
@@ -232,8 +199,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "B2B interest rather than a single purchase — “Do you offer bulk pricing?”, distributor and reseller asks.",
     hint: "Low volume, high value — worth a person rather than a template.",
     icon: IconBriefcase,
-    actions: ["move_dm"],
-    autonomy: "draft",
     group: "Business & People",
   },
   {
@@ -243,8 +208,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "An influencer, affiliate or brand proposing a partnership — “Can we collaborate?”",
     hint: "Marketing's call rather than support's, and plenty of stores leave these unanswered on purpose.",
     icon: IconHeartHandshake,
-    actions: [],
-    autonomy: "manual",
     group: "Business & People",
   },
   {
@@ -254,8 +217,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "Hiring and recruitment questions — “Are you hiring?”, “how do I apply?”",
     hint: "Low volume and not time-sensitive — one link to your careers page clears it.",
     icon: IconUserSearch,
-    actions: ["reply"],
-    autonomy: "draft",
     group: "Business & People",
   },
   {
@@ -265,8 +226,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "Compliments, love and enthusiasm — “Love your products!”, “best purchase this year”.",
     hint: "Amplifies your brand publicly — safe to fully automate.",
     icon: IconMoodSmile,
-    actions: ["reply", "like"],
-    autonomy: "auto",
     group: "Reactions & Everything Else",
   },
   {
@@ -276,8 +235,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "A view on the product or brand, or an idea for improving it — “Please add more colours.”",
     hint: "Rarely urgent, but a reply is what makes people leave more of it.",
     icon: IconBulb,
-    actions: ["like"],
-    autonomy: "draft",
     group: "Reactions & Everything Else",
   },
   {
@@ -287,8 +244,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "A reaction with no question in it — “🔥🔥”, “First!”, “Haha 😂”",
     hint: "The highest-volume bucket on Instagram. Liking and moving on keeps it out of the queue.",
     icon: IconFlame,
-    actions: ["like"],
-    autonomy: "auto",
     group: "Reactions & Everything Else",
   },
   {
@@ -298,8 +253,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "Anything the tagger could not confidently place in an intent above.",
     hint: "Unknown by definition — leaving this Manual is the safe default.",
     icon: IconDotsCircleHorizontal,
-    actions: [],
-    autonomy: "manual",
     group: "Reactions & Everything Else",
   },
   {
@@ -309,8 +262,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "Unwanted, repetitive or promotional content — “Earn $5000 from home, DM me.”",
     hint: "Nothing here is a real customer — hiding it costs you nothing.",
     icon: IconBan,
-    actions: ["hide"],
-    autonomy: "auto",
     group: "Unwanted",
   },
   {
@@ -320,8 +271,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "Deliberately provocative or in bad faith — “Your brand is a complete joke 😂”",
     hint: "A reply is the point of the exercise for them — hiding quietly beats engaging.",
     icon: IconMessageReport,
-    actions: ["hide"],
-    autonomy: "draft",
     group: "Unwanted",
   },
   {
@@ -331,8 +280,6 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "Threats, harassment, hate speech and anything unsafe.",
     hint: "A platform-policy matter rather than a support one — hidden on sight, then a person looks at it.",
     icon: IconAlertOctagon,
-    actions: ["hide"],
-    autonomy: "auto",
     group: "Unwanted",
   },
   {
@@ -342,43 +289,7 @@ export const DEFAULT_INTENTS: IntentRule[] = [
     info: "Communicating indirectly through irony — “Great job delivering 10 days late 🙄”",
     hint: "The case a reply is most likely to misread — a teammate should take it.",
     icon: IconMoodConfuzed,
-    actions: [],
-    autonomy: "manual",
     group: "Unwanted",
-  },
-];
-
-/* -------------------------------------------------------------------- */
-/* Topics                                                                */
-/* -------------------------------------------------------------------- */
-
-// The tagger attaches topics per comment; a settings screen has no comment
-// to read them from, so the vocabulary is listed here for now.
-export const TOPICS: { value: string; label: string }[] = [
-  { value: "shipping", label: "Shipping & delivery" },
-  { value: "sizing", label: "Sizing & fit" },
-  { value: "price", label: "Price & offers" },
-  { value: "stock", label: "Stock & availability" },
-  { value: "quality", label: "Product quality" },
-  { value: "ingredients", label: "Ingredients & materials" },
-  { value: "returns", label: "Returns & refunds" },
-  { value: "wholesale", label: "Wholesale & bulk" },
-  { value: "collab", label: "Collabs & influencers" },
-];
-
-export type TopicRule = {
-  id: string;
-  topic: string;
-  actions: ActionId[];
-  autonomy: Autonomy;
-};
-
-export const DEFAULT_TOPIC_RULES: TopicRule[] = [
-  {
-    id: "topic-returns",
-    topic: "returns",
-    actions: ["move_dm"],
-    autonomy: "draft",
   },
 ];
 
