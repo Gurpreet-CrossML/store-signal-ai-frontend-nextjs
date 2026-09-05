@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { IconCheck, IconCopy } from "@tabler/icons-react";
 
-import { STORE_PLATFORMS } from "@/lib/config";
+import { STORE_PLATFORMS, WIDGET_INSTALL_STEPS } from "@/lib/config";
 import { widgetSnippet } from "@/lib/helpers";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { GetStores } from "@/redux/api-slice/stores-slice";
@@ -112,10 +112,13 @@ export function GoLiveCard() {
   );
 }
 
-function StoreSnippet({ store }: { store: OnboardingStore }) {
+/** One store's embed tag with a copy button — shared with Settings → Stores'
+    "Get widget script" dialog. */
+export function StoreSnippet({ store }: { store: OnboardingStore }) {
   const [copied, setCopied] = useState(false);
   const platform = STORE_PLATFORMS.find((p) => p.value === store.platform);
-  const snippet = widgetSnippet(store.widget_key);
+  const isShopify = store.platform === "shopify";
+  const snippet = widgetSnippet(store.widget_key, store.platform);
 
   const copy = async () => {
     try {
@@ -130,7 +133,10 @@ function StoreSnippet({ store }: { store: OnboardingStore }) {
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    // min-w-0: as a grid/flex child its minimum is otherwise the snippet's
+    // full width, which blows the dialog open instead of letting the <pre>
+    // scroll.
+    <div className="flex min-w-0 flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           {platform && (
@@ -151,6 +157,24 @@ function StoreSnippet({ store }: { store: OnboardingStore }) {
           <IconCopy data-icon="inline-start" />
           {copied ? "Copied" : "Copy snippet"}
         </Button>
+      </div>
+      <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/50 p-3">
+        <Typography variant="small">How to install</Typography>
+        <ol className="flex flex-col gap-1.5">
+          {(isShopify
+            ? WIDGET_INSTALL_STEPS.shopify
+            : WIDGET_INSTALL_STEPS.default
+          ).map((step, index) => (
+            <li key={step} className="flex items-start gap-2">
+              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+                {index + 1}
+              </span>
+              <Typography variant="muted" className="text-sm">
+                {step}
+              </Typography>
+            </li>
+          ))}
+        </ol>
       </div>
       <pre
         className="overflow-x-auto rounded-md bg-neutral-950 p-4 font-mono text-xs leading-relaxed text-neutral-50"

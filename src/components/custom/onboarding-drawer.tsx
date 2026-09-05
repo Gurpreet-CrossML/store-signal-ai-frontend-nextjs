@@ -1,14 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { IconCheck } from "@tabler/icons-react";
 
 import { ONBOARDING_STEPS } from "@/lib/config";
 import { cn } from "@/lib/utils";
-import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { CompleteShopifyOauth } from "@/redux/api-slice/onboarding-slice";
+import { useAppSelector } from "@/redux/hooks";
 import { GoLiveCard } from "@/components/custom/go-live-card";
 import { StoreSetupForm } from "@/components/custom/store-setup-form";
 import {
@@ -46,13 +43,9 @@ import { Typography } from "@/components/ui/typography";
  * session so `onboarding_step` advances without a re-login.
  */
 export function OnboardingDrawer() {
-  const { data: session, update } = useSession();
+  const { data: session } = useSession();
   const user = session?.user;
 
-  const dispatch = useAppDispatch();
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const {
     CompleteShopifyOauthIsLoading,
     CompleteShopifyOauthIsSuccess,
@@ -60,24 +53,6 @@ export function OnboardingDrawer() {
   } = useAppSelector(
     (state) => state.GetOnboardingReducer.CompleteShopifyOauthState,
   );
-
-  // Shopify's return carries all four; anything else in the query is ours.
-  const search = searchParams?.toString() ?? "";
-  const isShopifyReturn = ["code", "shop", "state", "hmac"].every((key) =>
-    searchParams?.has(key),
-  );
-  // The `state` is single-use server-side, so the callback must fire once —
-  // not again on a re-render, and not on a refresh (hence the URL rewrite).
-  const handled = useRef(false);
-  useEffect(() => {
-    if (!isShopifyReturn || handled.current || !user?.onboarding_pending)
-      return;
-    handled.current = true;
-    router.replace(pathname ?? "/");
-    dispatch(CompleteShopifyOauth(search)).then((result) => {
-      if (CompleteShopifyOauth.fulfilled.match(result)) update();
-    });
-  }, [isShopifyReturn, user?.onboarding_pending, search, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!user?.onboarding_pending) return null;
 
@@ -91,7 +66,9 @@ export function OnboardingDrawer() {
     ? Math.max(sessionIndex, 1)
     : sessionIndex;
   const current = ONBOARDING_STEPS[currentIndex].value;
-  const finishing = isShopifyReturn || CompleteShopifyOauthIsLoading;
+  // The OAuth return itself is handled by ShopifyOauthReturn in the layout;
+  // this only renders the in-flight state it produces.
+  const finishing = CompleteShopifyOauthIsLoading;
 
   return (
     <Drawer open dismissible={false}>

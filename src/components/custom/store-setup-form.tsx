@@ -59,7 +59,13 @@ const validationSchema = z
 
 type StoreSetupValues = z.infer<typeof validationSchema>;
 
-export function StoreSetupForm() {
+export function StoreSetupForm({
+  redirectToSetting = false,
+}: {
+  /** Pass true when the form is opened from Settings → Stores, so Shopify
+   * returns the user there instead of the onboarding page. */
+  redirectToSetting?: boolean;
+}) {
   const dispatch = useAppDispatch();
   const { StartShopifyOauthIsLoading } = useAppSelector(
     (state) => state.GetOnboardingReducer.StartShopifyOauthState,
@@ -79,7 +85,10 @@ export function StoreSetupForm() {
         return;
       }
       const result = await dispatch(
-        StartShopifyOauth(values.store_alias.trim().toLowerCase()),
+        StartShopifyOauth({
+          storeAlias: values.store_alias.trim().toLowerCase(),
+          redirectToSetting,
+        }),
       );
       if (StartShopifyOauth.fulfilled.match(result)) {
         // Full-page hop to Shopify's consent screen; it sends the browser
