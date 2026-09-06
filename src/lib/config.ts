@@ -374,6 +374,13 @@ export const ENDPOINTS = {
   // The draft review queue. PATCH the detail route edits a pending draft;
   // approve/ sends it (public reply / like / DM / hide), discard/ closes it.
   fetchCommentDrafts: () => `/social/comment-drafts/`,
+  // In-context draft reads: one contact's pending comment draft(s) on a
+  // post, or their pending drafted DM on a page. Both default to
+  // status=pending and return the standard paginated envelope.
+  userCommentDraft: ({ postId, userId }: { postId: string; userId: number }) =>
+    `/social/meta/posts/${postId}/users/${userId}/comment-draft/`,
+  userMessageDraft: ({ pageId, userId }: { pageId: string; userId: number }) =>
+    `/social/meta/pages/${pageId}/users/${userId}/message-draft/`,
   commentDraft: ({ draftId }: { draftId: number }) =>
     `/social/comment-drafts/${draftId}/`,
   approveCommentDraft: ({ draftId }: { draftId: number }) =>
