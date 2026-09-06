@@ -1037,8 +1037,8 @@ export default function DmsInbox({
   // The open contact's pending AI-drafted DM, pinned above the composer.
   const activeDraftPending = Boolean(
     activeConversation?.has_pending_dm_draft &&
-      activeConversationId !== null &&
-      !resolvedDraftUserIds.includes(activeConversationId),
+    activeConversationId !== null &&
+    !resolvedDraftUserIds.includes(activeConversationId),
   );
   // A contact who has never written has no messenger id on Meta's side, so
   // nothing free-form can be sent to them — approving a drafted DM (Meta's

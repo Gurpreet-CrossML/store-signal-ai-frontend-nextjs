@@ -158,9 +158,7 @@ export function DraftBubble({
           variant="caption"
           as="p"
           className={
-            privateReplyLate
-              ? "text-amber-600 dark:text-amber-400"
-              : undefined
+            privateReplyLate ? "text-amber-600 dark:text-amber-400" : undefined
           }
         >
           {privateReplyLate
