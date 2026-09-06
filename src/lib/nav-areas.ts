@@ -12,11 +12,15 @@ import {
   IconAddressBook,
   IconBrandMeta,
   IconBuildingSkyscraper,
+  IconChecklist,
   IconCreditCardOff,
   IconImageGeneration,
   IconHeadset,
   IconInbox,
+  IconMessageCircle,
   IconMessageQuestion,
+  IconMessages,
+  IconSocial,
   IconPackageOff,
   IconPlugConnected,
   IconSend,
@@ -203,10 +207,37 @@ export const NAV_AREAS = {
         href: "/settings/social-ai",
         title: "Social AI",
         description:
-          "Facebook and Instagram accounts connected to Store Signal AI.",
+          "Connected accounts, and how the AI answers comments and DMs.",
         pageDescription:
-          "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
+          "The Facebook and Instagram accounts connected to Store Signal AI, and the rules the AI follows when it answers on them.",
         icon: IconBrandMeta,
+        items: [
+          {
+            href: "/settings/social-ai/accounts",
+            title: "Connected Accounts",
+            description:
+              "Facebook and Instagram accounts connected to Store Signal AI.",
+            pageDescription:
+              "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
+            icon: IconSocial,
+          },
+          {
+            href: "/settings/social-ai/comment-handling",
+            title: "Comment Handling",
+            description: "How the AI reads, classifies and acts on comments.",
+            pageDescription:
+              "How the AI reads, classifies and acts on every comment on your posts and ads. Each comment is tagged by intent, then handled by the rule you set for that intent.",
+            icon: IconMessageCircle,
+          },
+          {
+            href: "/settings/social-ai/dm-automation",
+            title: "DM Automation",
+            description: "How the AI handles direct messages.",
+            pageDescription:
+              "How the AI handles direct messages — the private, higher-trust channel where orders, support and conversions happen. Meta's messaging rules are applied on top of everything set here.",
+            icon: IconMessages,
+          },
+        ],
       },
       {
         href: "/settings/workflows",
@@ -363,6 +394,14 @@ export const NAV_AREAS = {
         title: "Instagram Messages",
         description: "AI conversations in your Instagram direct messages.",
         icon: IconSend,
+      },
+      {
+        href: "/social-ai/comment-drafts",
+        title: "Draft Review",
+        description: "Review AI-drafted comment replies before they go out.",
+        pageDescription:
+          "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
+        icon: IconChecklist,
       },
     ],
   },

@@ -354,6 +354,32 @@ export const ENDPOINTS = {
   // from two separate conversations.
   metaSupportTicketDraft: (userId: number) =>
     `/social/meta/users/${userId}/support-ticket/draft/`,
+  // Comment automation rules, per connected account — GET returns the whole
+  // settings config (vocabularies + this account's effective rules).
+  fetchCommentSettings: ({ accountId }: { accountId: string }) =>
+    `/social/subscriptions/connected-accounts/${accountId}/comment-settings/`,
+  // PUT — save one intent card ({ actions, autonomy }).
+  saveIntentRule: ({
+    accountId,
+    intent,
+  }: {
+    accountId: string;
+    intent: string;
+  }) =>
+    `/social/subscriptions/connected-accounts/${accountId}/comment-settings/intents/${intent}/`,
+  // PUT saves a topic override; DELETE removes it (the comment falls back
+  // to its intent card).
+  topicRule: ({ accountId, topic }: { accountId: string; topic: string }) =>
+    `/social/subscriptions/connected-accounts/${accountId}/comment-settings/topics/${topic}/`,
+  // The draft review queue. PATCH the detail route edits a pending draft;
+  // approve/ sends it (public reply / like / DM / hide), discard/ closes it.
+  fetchCommentDrafts: () => `/social/comment-drafts/`,
+  commentDraft: ({ draftId }: { draftId: number }) =>
+    `/social/comment-drafts/${draftId}/`,
+  approveCommentDraft: ({ draftId }: { draftId: number }) =>
+    `/social/comment-drafts/${draftId}/approve/`,
+  discardCommentDraft: ({ draftId }: { draftId: number }) =>
+    `/social/comment-drafts/${draftId}/discard/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
