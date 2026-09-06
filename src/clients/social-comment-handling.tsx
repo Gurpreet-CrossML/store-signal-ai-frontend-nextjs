@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 
 import { InfoIcon } from "@/components/custom/info-icon";
+import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,7 +43,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
@@ -436,11 +436,7 @@ export default function SocialCommentHandling() {
       )}
 
       {!config || settingsLoading ? (
-        <div className="flex flex-col gap-3">
-          {Array.from({ length: 4 }, (_, index) => (
-            <Skeleton key={index} className="h-28 w-full" />
-          ))}
-        </div>
+        <LoadingState label="Loading Comment Handling…" />
       ) : (
         <>
           <div className="flex flex-col gap-6">
