@@ -157,6 +157,9 @@ export type SocialComment = {
   // Null until the AI tagging pipeline has processed this comment.
   analysis: SocialCommentAnalysis | null;
   ai_response: SocialCommentAiResponse | null;
+  // A pending AI draft exists for this comment — the in-context bubble
+  // fetches its content lazily. Absent on websocket payloads.
+  has_pending_draft?: boolean;
   external_created_at: string;
 };
 
@@ -182,6 +185,11 @@ export type SocialConversationUser = {
   profile_picture_url: string;
   last_message: string | null;
   last_message_at: string | null;
+  // A pending AI-drafted DM exists for this contact. A contact can appear
+  // with no thread at all yet — then last_message is the drafted text and
+  // approving the draft is the only send path (Meta has no messenger id
+  // for them until they write).
+  has_pending_dm_draft?: boolean;
 };
 
 export type SocialUsersResponse = {
@@ -1127,6 +1135,64 @@ export const fetchCommentDrafts = createAsyncThunk(
         description:
           data?.message ||
           "Unable to load the draft queue, please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+// The in-context draft reads. Both are addressed by the contact (post/page
+// external Graph id + SocialUser id), default to status=pending server-side,
+// and return the same paginated envelope as the queue. Consumed with
+// .unwrap() into component state — nothing in the store depends on them.
+export const fetchUserCommentDraft = createAsyncThunk(
+  "fetchUserCommentDraft",
+  async (
+    {
+      storeCode,
+      postId,
+      userId,
+    }: { storeCode: string; postId: string; userId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.userCommentDraft({ postId, userId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as CommentDraftsResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to load the AI draft.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const fetchUserMessageDraft = createAsyncThunk(
+  "fetchUserMessageDraft",
+  async (
+    {
+      storeCode,
+      pageId,
+      userId,
+    }: { storeCode: string; pageId: string; userId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.userMessageDraft({ pageId, userId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as CommentDraftsResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to load the AI draft.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
