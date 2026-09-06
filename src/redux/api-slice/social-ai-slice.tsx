@@ -302,10 +302,9 @@ export type CommentDraft = {
   /** What would be DM'd. Empty when no DM action is set. */
   dm_text: string;
   rule_source: string;
+  // Always "pending" on anything the API returns — a handled draft leaves
+  // every response; the field only guards races around approval.
   status: CommentDraftStatus;
-  reviewed_by: number | null;
-  reviewed_by_name: string;
-  reviewed_at: string | null;
   created_at: string;
 };
 
@@ -1101,13 +1100,11 @@ export const fetchCommentDrafts = createAsyncThunk(
   async (
     {
       storeCode,
-      status = "pending",
       accountId,
       page = 1,
       pageSize = SOCIAL_PAGE_SIZE,
     }: {
       storeCode: string;
-      status?: CommentDraftStatus | "all";
       accountId?: string;
       page?: number;
       pageSize?: number;
@@ -1115,9 +1112,10 @@ export const fetchCommentDrafts = createAsyncThunk(
     thunkAPI,
   ) => {
     try {
+      // Only pending drafts exist to list — a handled draft leaves the API.
       const params = new URLSearchParams({
         store_code: storeCode,
-        status,
+        status: "pending",
         page: String(page),
         page_size: String(pageSize),
       });
@@ -1752,21 +1750,27 @@ const SocialAISlice = createSlice({
         state.FetchCommentDraftsState.FetchCommentDraftsIsError =
           action.payload as string | object;
       })
-      // Edit, approve and discard all return the full draft — swap the row
-      // so the queue reflects its new status without a refetch.
+      // A saved edit returns the updated draft — swap the row in place.
+      .addCase(updateCommentDraft.fulfilled, (state, action) => {
+        const drafts = state.FetchCommentDraftsState.FetchCommentDraftsData;
+        if (!drafts?.results) return;
+        const index = drafts.results.findIndex(
+          (row) => row.id === action.payload.id,
+        );
+        if (index !== -1) drafts.results[index] = action.payload;
+      })
+      // A handled draft is gone for good — the API never returns approved
+      // or discarded drafts, so drop the row rather than restyle it.
       .addMatcher(
-        isAnyOf(
-          updateCommentDraft.fulfilled,
-          approveCommentDraft.fulfilled,
-          discardCommentDraft.fulfilled,
-        ),
+        isAnyOf(approveCommentDraft.fulfilled, discardCommentDraft.fulfilled),
         (state, action) => {
           const drafts = state.FetchCommentDraftsState.FetchCommentDraftsData;
           if (!drafts?.results) return;
-          const index = drafts.results.findIndex(
-            (row) => row.id === action.payload.id,
+          const before = drafts.results.length;
+          drafts.results = drafts.results.filter(
+            (row) => row.id !== action.meta.arg.draftId,
           );
-          if (index !== -1) drafts.results[index] = action.payload;
+          if (drafts.results.length < before && drafts.count) drafts.count -= 1;
         },
       );
   },
