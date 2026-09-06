@@ -17,6 +17,7 @@ import { SearchInput } from "@/components/custom/search-input";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { CreateTicketDialog } from "@/components/custom/create-ticket-dialog";
 import { LoadingState } from "@/components/custom/loading-state";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import {
@@ -47,6 +48,7 @@ import {
   IconPaperclip,
   IconPlus,
   IconSearch,
+  IconSparkles,
   IconX,
 } from "@tabler/icons-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
@@ -85,6 +87,7 @@ import {
   ReplyPreviewBody,
   type AttachmentKind,
 } from "./dm-attachments";
+import { MessageDraftSlot } from "./draft-bubble";
 import { formatPostedAt } from "./format";
 import {
   createPendingSend,
@@ -498,6 +501,12 @@ export default function DmsInbox({
   // open one — the whole point of subscribing from the moment the inbox
   // loads rather than when a chat is opened.
   const [unreadConversationIds, setUnreadConversationIds] = useState<number[]>(
+    [],
+  );
+  // Contacts whose pending DM draft was handled here — has_pending_dm_draft
+  // is a snapshot from the list fetch, so hide the badge and pinned draft
+  // locally instead of refetching the whole list.
+  const [resolvedDraftUserIds, setResolvedDraftUserIds] = useState<number[]>(
     [],
   );
   const [socketStatus, setSocketStatus] =
@@ -1025,6 +1034,20 @@ export default function DmsInbox({
     );
   };
 
+  // The open contact's pending AI-drafted DM, pinned above the composer.
+  const activeDraftPending = Boolean(
+    activeConversation?.has_pending_dm_draft &&
+      activeConversationId !== null &&
+      !resolvedDraftUserIds.includes(activeConversationId),
+  );
+  // A contact who has never written has no messenger id on Meta's side, so
+  // nothing free-form can be sent to them — approving a drafted DM (Meta's
+  // once-per-comment private reply) is the only send path until they reply.
+  const noThread =
+    activeConversationId !== null &&
+    !FetchSocialDmsIsLoading &&
+    messages.length === 0;
+
   const handleSelectConversation = (userId: number) => {
     setSelectedConversation(userId);
     setReplyingToMessage(null);
@@ -1130,6 +1153,17 @@ export default function DmsInbox({
                           indicator={
                             isUnread ? (
                               <span className="size-2 shrink-0 rounded-full bg-primary" />
+                            ) : conversation.has_pending_dm_draft &&
+                              !resolvedDraftUserIds.includes(
+                                conversation.id,
+                              ) ? (
+                              <Badge
+                                variant="outline"
+                                className="shrink-0 gap-1"
+                              >
+                                <IconSparkles className="size-3" />
+                                Draft
+                              </Badge>
                             ) : null
                           }
                           preview={
@@ -1303,6 +1337,49 @@ export default function DmsInbox({
                 </div>
 
                 <div className="shrink-0 border-t bg-background p-4">
+                  {/* Pinned at the bottom of the thread, where the message
+                      would land: the AI's drafted DM, reviewable in place. */}
+                  {activeDraftPending && accountExternalId && (
+                    <div className="mb-2">
+                      <MessageDraftSlot
+                        storeCode={storeCode}
+                        pageId={accountExternalId}
+                        userId={activeConversation.id}
+                        onResolved={(outcome) => {
+                          setResolvedDraftUserIds((prev) => [
+                            ...prev,
+                            activeConversation.id,
+                          ]);
+                          if (outcome === "approved") {
+                            // The sent DM also arrives as a dm_created
+                            // broadcast — these refetches are the fallback,
+                            // and what refreshes the row's preview.
+                            refetchMessages();
+                            refetchConversations();
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                  {noThread && (
+                    <div className="mb-2 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+                      <IconClock className="mt-0.5 size-5 shrink-0" />
+                      <div className="min-w-0">
+                        <Typography
+                          variant="small"
+                          as="p"
+                          className="leading-normal"
+                        >
+                          Waiting for {activeContactName} to write first
+                        </Typography>
+                        <Typography variant="muted" className="text-inherit">
+                          {activeDraftPending
+                            ? "Meta doesn't allow free-form messages to someone who hasn't messaged you — approving the AI draft above is the only way to reach them for now."
+                            : "Meta doesn't allow free-form messages to someone who hasn't messaged you yet."}
+                        </Typography>
+                      </div>
+                    </div>
+                  )}
                   {replyingToMessage && (
                     <div className="mb-2 flex items-start justify-between gap-2 rounded-xl border bg-muted/30 p-3">
                       <div className="min-w-0">
@@ -1355,11 +1432,13 @@ export default function DmsInbox({
                     onSubmit={handleReply}
                     textareaId={DM_REPLY_TEXTAREA_ID}
                     placeholder={
-                      messagingWindowOpen
-                        ? "Type your reply…"
-                        : "Messaging window closed"
+                      noThread
+                        ? "Waiting for their first message"
+                        : messagingWindowOpen
+                          ? "Type your reply…"
+                          : "Messaging window closed"
                     }
-                    disabled={!messagingWindowOpen}
+                    disabled={!messagingWindowOpen || noThread}
                   />
                 </div>
               </div>

@@ -38,6 +38,7 @@ import {
   type CommentFilters,
 } from "./comment-filters";
 import { CommentTags } from "./comment-tags";
+import { CommentDraftSlot } from "./draft-bubble";
 import { ExpandableText } from "./expandable-text";
 import { formatPostedAt, formatRelativeTime } from "./format";
 import {
@@ -168,6 +169,9 @@ function CommentItem({
   // Replies submitted but not yet confirmed — rendered under the thread so
   // the text never disappears while the request is in flight.
   const [pendingReplies, setPendingReplies] = useState<PendingSend[]>([]);
+  // The pending-draft flag is a snapshot from the list fetch; once the
+  // draft is handled here, this hides the chip and bubble without a refetch.
+  const [draftResolved, setDraftResolved] = useState(false);
   // Null means "no local change yet" — fall back to the server's value.
   // A plain boolean can't express that, and the like now toggles both ways.
   const [likeOverride, setLikeOverride] = useState<boolean | null>(null);
@@ -368,6 +372,12 @@ function CommentItem({
                 Deleted
               </Badge>
             )}
+            {comment.has_pending_draft && !draftResolved && (
+              <Badge variant="outline" className="gap-1">
+                <IconSparkles className="size-3" />
+                Draft awaiting approval
+              </Badge>
+            )}
             <CommentTags analysis={comment.analysis} />
           </p>
           <ExpandableText
@@ -453,6 +463,23 @@ function CommentItem({
             </DropdownMenu>
           )}
         </div>
+        {/* The AI's pending draft for this comment, reviewable in place.
+            Fetched lazily, only for comments the backend flags; a deleted
+            comment can't be replied to, so its draft isn't offered. */}
+        {comment.has_pending_draft &&
+          !draftResolved &&
+          !comment.is_deleted &&
+          author && (
+            <div className="mt-2">
+              <CommentDraftSlot
+                storeCode={storeCode}
+                postId={postId}
+                commentId={comment.id}
+                userId={author.id}
+                onResolved={() => setDraftResolved(true)}
+              />
+            </div>
+          )}
         {/* Opens to its own height so the comments below slide down
             rather than jumping, and closes the same way in reverse. */}
         <AnimatePresence initial={false}>
