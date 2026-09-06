@@ -17,7 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -52,15 +51,7 @@ import {
   fetchSocialAccountsSubscriptions,
   updateCommentDraft,
   type CommentDraft,
-  type CommentDraftStatus,
 } from "@/redux/api-slice/social-ai-slice";
-
-const STATUS_FILTERS: { value: CommentDraftStatus | "all"; label: string }[] = [
-  { value: "pending", label: "Pending" },
-  { value: "approved", label: "Approved" },
-  { value: "discarded", label: "Discarded" },
-  { value: "all", label: "All" },
-];
 
 /* -------------------------------------------------------------------- */
 /* One draft                                                             */
@@ -86,7 +77,6 @@ function DraftCard({
     draft.message.social_user?.name ||
     draft.message.social_user?.username ||
     "Unknown commenter";
-  const isPending = draft.status === "pending";
 
   const run = async (
     kind: "approve" | "discard" | "save",
@@ -111,18 +101,6 @@ function DraftCard({
         <CardDescription>
           Drafted {formatRelativeTime(draft.created_at)} · {draft.rule_source}
         </CardDescription>
-        <CardAction>
-          {draft.status === "approved" && (
-            <Badge variant="outline" className={BADGE_TONE_STYLES.success}>
-              Approved
-            </Badge>
-          )}
-          {draft.status === "discarded" && (
-            <Badge variant="outline" className={BADGE_TONE_STYLES.neutral}>
-              Discarded
-            </Badge>
-          )}
-        </CardAction>
       </CardHeader>
       <CardContent>
         <blockquote className="flex flex-col gap-2 border-l-2 border-border pl-3">
@@ -194,106 +172,95 @@ function DraftCard({
           </>
         )}
 
-        {isPending ? (
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {isEditing ? (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={busy !== null}
-                  onClick={() => {
-                    setResponseText(draft.response_text);
-                    setDmText(draft.dm_text);
-                    setIsEditing(false);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={busy !== null}
-                  onClick={() =>
-                    run("save", () =>
-                      dispatch(
-                        updateCommentDraft({
-                          storeCode,
-                          draftId: draft.id,
-                          patch: {
-                            response_text: responseText,
-                            dm_text: dmText,
-                          },
-                        }),
-                      ).unwrap(),
-                    )
-                  }
-                >
-                  {busy === "save" && <Spinner data-icon="inline-start" />}
-                  Save Edits
-                </Button>
-              </>
-            ) : (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {isEditing ? (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={busy !== null}
+                onClick={() => {
+                  setResponseText(draft.response_text);
+                  setDmText(draft.dm_text);
+                  setIsEditing(false);
+                }}
+              >
+                Cancel
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
                 disabled={busy !== null}
-                onClick={() => setIsEditing(true)}
+                onClick={() =>
+                  run("save", () =>
+                    dispatch(
+                      updateCommentDraft({
+                        storeCode,
+                        draftId: draft.id,
+                        patch: {
+                          response_text: responseText,
+                          dm_text: dmText,
+                        },
+                      }),
+                    ).unwrap(),
+                  )
+                }
               >
-                <IconPencil data-icon="inline-start" />
-                Edit
+                {busy === "save" && <Spinner data-icon="inline-start" />}
+                Save Edits
               </Button>
-            )}
+            </>
+          ) : (
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="text-destructive hover:text-destructive"
               disabled={busy !== null}
-              onClick={() =>
-                run("discard", () =>
-                  dispatch(
-                    discardCommentDraft({ storeCode, draftId: draft.id }),
-                  ).unwrap(),
-                )
-              }
+              onClick={() => setIsEditing(true)}
             >
-              {busy === "discard" ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <IconTrash data-icon="inline-start" />
-              )}
-              Discard
+              <IconPencil data-icon="inline-start" />
+              Edit
             </Button>
-            {/* Approving calls Meta synchronously — expect a second or three. */}
-            <Button
-              size="sm"
-              disabled={busy !== null || isEditing}
-              onClick={() =>
-                run("approve", () =>
-                  dispatch(
-                    approveCommentDraft({ storeCode, draftId: draft.id }),
-                  ).unwrap(),
-                )
-              }
-            >
-              {busy === "approve" ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <IconSend data-icon="inline-start" />
-              )}
-              Approve & Send
-            </Button>
-          </div>
-        ) : (
-          draft.reviewed_by_name && (
-            <Typography variant="caption" as="p">
-              {draft.status === "approved" ? "Approved" : "Discarded"} by{" "}
-              {draft.reviewed_by_name}
-              {draft.reviewed_at &&
-                ` · ${formatRelativeTime(draft.reviewed_at)}`}
-            </Typography>
-          )
-        )}
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive"
+            disabled={busy !== null}
+            onClick={() =>
+              run("discard", () =>
+                dispatch(
+                  discardCommentDraft({ storeCode, draftId: draft.id }),
+                ).unwrap(),
+              )
+            }
+          >
+            {busy === "discard" ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <IconTrash data-icon="inline-start" />
+            )}
+            Discard
+          </Button>
+          {/* Approving calls Meta synchronously — expect a second or three. */}
+          <Button
+            size="sm"
+            disabled={busy !== null || isEditing}
+            onClick={() =>
+              run("approve", () =>
+                dispatch(
+                  approveCommentDraft({ storeCode, draftId: draft.id }),
+                ).unwrap(),
+              )
+            }
+          >
+            {busy === "approve" ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <IconSend data-icon="inline-start" />
+            )}
+            Approve & Send
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -326,7 +293,6 @@ export default function SocialCommentDrafts() {
     (state) => state.GetSocialAIReducer.FetchCommentDraftsState,
   );
 
-  const [status, setStatus] = useState<CommentDraftStatus | "all">("pending");
   const [accountId, setAccountId] = useState("all");
   const pageRef = useRef(1);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -341,11 +307,10 @@ export default function SocialCommentDrafts() {
     dispatch(
       fetchCommentDrafts({
         storeCode,
-        status,
         accountId: accountId === "all" ? undefined : accountId,
       }),
     );
-  }, [dispatch, storeCode, status, accountId]);
+  }, [dispatch, storeCode, accountId]);
 
   useEffect(() => {
     loadPageOne();
@@ -382,7 +347,6 @@ export default function SocialCommentDrafts() {
     dispatch(
       fetchCommentDrafts({
         storeCode,
-        status,
         accountId: accountId === "all" ? undefined : accountId,
         page: pageRef.current,
       }),
@@ -397,23 +361,6 @@ export default function SocialCommentDrafts() {
             `${draftsData.count} draft${draftsData.count === 1 ? "" : "s"}`}
         </Typography>
         <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={status}
-            onValueChange={(next) =>
-              setStatus(next as CommentDraftStatus | "all")
-            }
-          >
-            <SelectTrigger size="sm" className="w-36" aria-label="Status">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_FILTERS.map((filter) => (
-                <SelectItem key={filter.value} value={filter.value}>
-                  {filter.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <Select value={accountId} onValueChange={setAccountId}>
             <SelectTrigger size="sm" className="w-52" aria-label="Account">
               <SelectValue />
@@ -442,13 +389,10 @@ export default function SocialCommentDrafts() {
             <EmptyMedia>
               <IconChecklist />
             </EmptyMedia>
-            <EmptyTitle>
-              {status === "pending" ? "Queue Clear" : "No Drafts"}
-            </EmptyTitle>
+            <EmptyTitle>Queue Clear</EmptyTitle>
             <EmptyDescription>
-              {status === "pending"
-                ? "Nothing is waiting for review. New drafts appear here as comments arrive under a Draft Automatically rule."
-                : "Nothing matches these filters."}
+              Nothing is waiting for review. New drafts appear here as comments
+              arrive under a Draft Automatically rule.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
