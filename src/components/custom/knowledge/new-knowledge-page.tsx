@@ -458,8 +458,8 @@ export function NewKnowledgePage() {
           <CardHeader>
             <CardTitle>Knowledge item details</CardTitle>
             <CardDescription>
-              Choose a content type, set where it applies, then add your
-              items — all in one place.
+              Choose a content type, set where it applies, then add your items —
+              all in one place.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
@@ -598,10 +598,7 @@ export function NewKnowledgePage() {
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between gap-2">
                 <FieldLabel className="text-sm">
-                  {
-                    SOURCE_OPTIONS.find((o) => o.value === values.source)
-                      ?.label
-                  }{" "}
+                  {SOURCE_OPTIONS.find((o) => o.value === values.source)?.label}{" "}
                   items
                 </FieldLabel>
                 <span className="shrink-0 text-xs text-muted-foreground">
@@ -610,253 +607,261 @@ export function NewKnowledgePage() {
               </div>
 
               {values.source === "faq" &&
-              values.faqRows.map((row, index) => (
-                <div
-                  key={row.localId}
-                  className="flex flex-col gap-3 rounded-lg border border-border/60 p-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      Item {index + 1}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => removeFaqRow(index)}
-                      aria-label="Remove item"
-                    >
-                      <IconTrash className="size-4" />
-                    </Button>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel>Question</FieldLabel>
-                      <Input
-                        placeholder="Do you offer free shipping?"
-                        autoComplete="off"
-                        value={row.question}
-                        onChange={(event) =>
-                          updateFaqRow(index, { question: event.target.value })
-                        }
-                        aria-invalid={
-                          showErrors && Boolean(faqRowErrors[index]?.question)
-                        }
-                      />
-                      {showErrors && faqRowErrors[index]?.question && (
-                        <p className="text-xs text-destructive">
-                          {faqRowErrors[index]?.question}
-                        </p>
-                      )}
-                    </Field>
-                    <Field>
-                      <FieldLabel>Answer</FieldLabel>
-                      <Textarea
-                        rows={1}
-                        placeholder="Yes, orders above ₹999 qualify for free shipping."
-                        value={row.answer}
-                        onChange={(event) =>
-                          updateFaqRow(index, { answer: event.target.value })
-                        }
-                        aria-invalid={
-                          showErrors && Boolean(faqRowErrors[index]?.answer)
-                        }
-                      />
-                      {showErrors && faqRowErrors[index]?.answer && (
-                        <p className="text-xs text-destructive">
-                          {faqRowErrors[index]?.answer}
-                        </p>
-                      )}
-                    </Field>
-                  </div>
-                  {rowErrors?.[index] &&
-                    Object.keys(rowErrors[index]).length > 0 && (
-                      <p className="text-xs text-destructive">
-                        {firstErrorMessage(rowErrors[index])}
-                      </p>
-                    )}
-                </div>
-              ))}
-
-            {values.source === "faq" && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-fit"
-                disabled={values.faqRows.length >= FAQ_CAP}
-                onClick={() =>
-                  formik.setFieldValue("faqRows", [
-                    ...values.faqRows,
-                    emptyFaqRow(),
-                  ])
-                }
-              >
-                <IconPlus className="size-4" />
-                Add another
-              </Button>
-            )}
-
-            {values.source === "url" &&
-              values.urlRows.map((row, index) => (
-                <div
-                  key={row.localId}
-                  className="flex flex-col gap-3 rounded-lg border border-border/60 p-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      Item {index + 1}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => removeUrlRow(index)}
-                      aria-label="Remove item"
-                    >
-                      <IconTrash className="size-4" />
-                    </Button>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <Field className="sm:col-span-2">
-                      <FieldLabel>URL</FieldLabel>
-                      <Input
-                        placeholder="https://company.com/pages/shipping"
-                        autoComplete="off"
-                        value={row.url}
-                        onChange={(event) =>
-                          updateUrlRow(index, { url: event.target.value })
-                        }
-                        aria-invalid={
-                          showErrors && Boolean(urlRowErrors[index]?.url)
-                        }
-                      />
-                      {showErrors && urlRowErrors[index]?.url && (
-                        <p className="text-xs text-destructive">
-                          {urlRowErrors[index]?.url}
-                        </p>
-                      )}
-                    </Field>
-                    <Field>
-                      <FieldLabel>Type</FieldLabel>
-                      <Select
-                        value={row.urlType || undefined}
-                        onValueChange={(next) =>
-                          updateUrlRow(index, { urlType: next as LocalUrlType })
-                        }
+                values.faqRows.map((row, index) => (
+                  <div
+                    key={row.localId}
+                    className="flex flex-col gap-3 rounded-lg border border-border/60 p-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Item {index + 1}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => removeFaqRow(index)}
+                        aria-label="Remove item"
                       >
-                        <SelectTrigger
-                          className="w-full"
+                        <IconTrash className="size-4" />
+                      </Button>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field>
+                        <FieldLabel>Question</FieldLabel>
+                        <Input
+                          placeholder="Do you offer free shipping?"
+                          autoComplete="off"
+                          value={row.question}
+                          onChange={(event) =>
+                            updateFaqRow(index, {
+                              question: event.target.value,
+                            })
+                          }
                           aria-invalid={
-                            showErrors && Boolean(urlRowErrors[index]?.urlType)
+                            showErrors && Boolean(faqRowErrors[index]?.question)
+                          }
+                        />
+                        {showErrors && faqRowErrors[index]?.question && (
+                          <p className="text-xs text-destructive">
+                            {faqRowErrors[index]?.question}
+                          </p>
+                        )}
+                      </Field>
+                      <Field>
+                        <FieldLabel>Answer</FieldLabel>
+                        <Textarea
+                          rows={1}
+                          placeholder="Yes, orders above ₹999 qualify for free shipping."
+                          value={row.answer}
+                          onChange={(event) =>
+                            updateFaqRow(index, { answer: event.target.value })
+                          }
+                          aria-invalid={
+                            showErrors && Boolean(faqRowErrors[index]?.answer)
+                          }
+                        />
+                        {showErrors && faqRowErrors[index]?.answer && (
+                          <p className="text-xs text-destructive">
+                            {faqRowErrors[index]?.answer}
+                          </p>
+                        )}
+                      </Field>
+                    </div>
+                    {rowErrors?.[index] &&
+                      Object.keys(rowErrors[index]).length > 0 && (
+                        <p className="text-xs text-destructive">
+                          {firstErrorMessage(rowErrors[index])}
+                        </p>
+                      )}
+                  </div>
+                ))}
+
+              {values.source === "faq" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-fit"
+                  disabled={values.faqRows.length >= FAQ_CAP}
+                  onClick={() =>
+                    formik.setFieldValue("faqRows", [
+                      ...values.faqRows,
+                      emptyFaqRow(),
+                    ])
+                  }
+                >
+                  <IconPlus className="size-4" />
+                  Add another
+                </Button>
+              )}
+
+              {values.source === "url" &&
+                values.urlRows.map((row, index) => (
+                  <div
+                    key={row.localId}
+                    className="flex flex-col gap-3 rounded-lg border border-border/60 p-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Item {index + 1}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => removeUrlRow(index)}
+                        aria-label="Remove item"
+                      >
+                        <IconTrash className="size-4" />
+                      </Button>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <Field className="sm:col-span-2">
+                        <FieldLabel>URL</FieldLabel>
+                        <Input
+                          placeholder="https://company.com/pages/shipping"
+                          autoComplete="off"
+                          value={row.url}
+                          onChange={(event) =>
+                            updateUrlRow(index, { url: event.target.value })
+                          }
+                          aria-invalid={
+                            showErrors && Boolean(urlRowErrors[index]?.url)
+                          }
+                        />
+                        {showErrors && urlRowErrors[index]?.url && (
+                          <p className="text-xs text-destructive">
+                            {urlRowErrors[index]?.url}
+                          </p>
+                        )}
+                      </Field>
+                      <Field>
+                        <FieldLabel>Type</FieldLabel>
+                        <Select
+                          value={row.urlType || undefined}
+                          onValueChange={(next) =>
+                            updateUrlRow(index, {
+                              urlType: next as LocalUrlType,
+                            })
                           }
                         >
-                          <SelectValue placeholder="Select a type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {URL_TYPE_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {showErrors && urlRowErrors[index]?.urlType && (
-                        <p className="text-xs text-destructive">
-                          {urlRowErrors[index]?.urlType}
-                        </p>
-                      )}
-                    </Field>
-                  </div>
-                  {row.urlType === "other" && (
-                    <Field>
-                      <FieldLabel>Title</FieldLabel>
-                      <Input
-                        placeholder="Sizing Guide"
-                        autoComplete="off"
-                        value={row.title}
-                        onChange={(event) =>
-                          updateUrlRow(index, { title: event.target.value })
-                        }
-                        aria-invalid={
-                          showErrors && Boolean(urlRowErrors[index]?.title)
-                        }
-                      />
-                      {showErrors && urlRowErrors[index]?.title && (
-                        <p className="text-xs text-destructive">
-                          {urlRowErrors[index]?.title}
-                        </p>
-                      )}
-                    </Field>
-                  )}
-                  {rowErrors?.[index] &&
-                    Object.keys(rowErrors[index]).length > 0 && (
-                      <p className="text-xs text-destructive">
-                        {firstErrorMessage(rowErrors[index])}
-                      </p>
+                          <SelectTrigger
+                            className="w-full"
+                            aria-invalid={
+                              showErrors &&
+                              Boolean(urlRowErrors[index]?.urlType)
+                            }
+                          >
+                            <SelectValue placeholder="Select a type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {URL_TYPE_OPTIONS.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {showErrors && urlRowErrors[index]?.urlType && (
+                          <p className="text-xs text-destructive">
+                            {urlRowErrors[index]?.urlType}
+                          </p>
+                        )}
+                      </Field>
+                    </div>
+                    {row.urlType === "other" && (
+                      <Field>
+                        <FieldLabel>Title</FieldLabel>
+                        <Input
+                          placeholder="Sizing Guide"
+                          autoComplete="off"
+                          value={row.title}
+                          onChange={(event) =>
+                            updateUrlRow(index, { title: event.target.value })
+                          }
+                          aria-invalid={
+                            showErrors && Boolean(urlRowErrors[index]?.title)
+                          }
+                        />
+                        {showErrors && urlRowErrors[index]?.title && (
+                          <p className="text-xs text-destructive">
+                            {urlRowErrors[index]?.title}
+                          </p>
+                        )}
+                      </Field>
                     )}
-                </div>
-              ))}
+                    {rowErrors?.[index] &&
+                      Object.keys(rowErrors[index]).length > 0 && (
+                        <p className="text-xs text-destructive">
+                          {firstErrorMessage(rowErrors[index])}
+                        </p>
+                      )}
+                  </div>
+                ))}
 
-            {values.source === "url" && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-fit"
-                disabled={values.urlRows.length >= URL_CAP}
-                onClick={() =>
-                  formik.setFieldValue("urlRows", [
-                    ...values.urlRows,
-                    emptyUrlRow(),
-                  ])
-                }
-              >
-                <IconPlus className="size-4" />
-                Add another
-              </Button>
-            )}
-
-            {values.source === "file" && (
-              <MultiFileUploadDropzone
-                files={values.files}
-                onFilesSelected={(selected) =>
-                  formik.setFieldValue(
-                    "files",
-                    [...values.files, ...selected].slice(0, FILE_CAP),
-                  )
-                }
-                onRemoveFile={(index) =>
-                  formik.setFieldValue(
-                    "files",
-                    values.files.filter((_, i) => i !== index),
-                  )
-                }
-                errors={values.files.map(
-                  (_, index) =>
-                    (rowErrors?.[index] &&
-                      firstErrorMessage(rowErrors[index])) ||
-                    undefined,
-                )}
-                maxFiles={FILE_CAP}
-              />
-            )}
-
-            {showErrors &&
-              ((values.source === "faq" &&
-                formik.errors.faqRows === "string") ||
-                (values.source === "url" &&
-                  formik.errors.urlRows === "string") ||
-                (values.source === "file" &&
-                  typeof formik.errors.files === "string")) && (
-                <p className="text-xs text-destructive">
-                  {values.source === "faq"
-                    ? (formik.errors.faqRows as unknown as string)
-                    : values.source === "url"
-                      ? (formik.errors.urlRows as unknown as string)
-                      : (formik.errors.files as unknown as string)}
-                </p>
+              {values.source === "url" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-fit"
+                  disabled={values.urlRows.length >= URL_CAP}
+                  onClick={() =>
+                    formik.setFieldValue("urlRows", [
+                      ...values.urlRows,
+                      emptyUrlRow(),
+                    ])
+                  }
+                >
+                  <IconPlus className="size-4" />
+                  Add another
+                </Button>
               )}
+
+              {values.source === "file" && (
+                <MultiFileUploadDropzone
+                  files={values.files}
+                  onFilesSelected={(selected) =>
+                    formik.setFieldValue(
+                      "files",
+                      [...values.files, ...selected].slice(0, FILE_CAP),
+                    )
+                  }
+                  onRemoveFile={(index) =>
+                    formik.setFieldValue(
+                      "files",
+                      values.files.filter((_, i) => i !== index),
+                    )
+                  }
+                  errors={values.files.map(
+                    (_, index) =>
+                      (rowErrors?.[index] &&
+                        firstErrorMessage(rowErrors[index])) ||
+                      undefined,
+                  )}
+                  maxFiles={FILE_CAP}
+                />
+              )}
+
+              {showErrors &&
+                ((values.source === "faq" &&
+                  formik.errors.faqRows === "string") ||
+                  (values.source === "url" &&
+                    formik.errors.urlRows === "string") ||
+                  (values.source === "file" &&
+                    typeof formik.errors.files === "string")) && (
+                  <p className="text-xs text-destructive">
+                    {values.source === "faq"
+                      ? (formik.errors.faqRows as unknown as string)
+                      : values.source === "url"
+                        ? (formik.errors.urlRows as unknown as string)
+                        : (formik.errors.files as unknown as string)}
+                  </p>
+                )}
             </div>
           </CardContent>
         </Card>

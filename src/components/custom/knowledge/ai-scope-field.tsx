@@ -22,7 +22,9 @@ export function AIScopeField({
   return (
     <Field>
       <FieldLabel>AI Scope</FieldLabel>
-      <FieldDescription>Which AI systems can use this knowledge.</FieldDescription>
+      <FieldDescription>
+        Which AI systems can use this knowledge.
+      </FieldDescription>
 
       <MultiSelectCombobox
         items={items}

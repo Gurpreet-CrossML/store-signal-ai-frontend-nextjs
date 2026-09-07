@@ -292,10 +292,7 @@ export function KnowledgeDetailSheet({
                       <span className="text-muted-foreground">—</span>
                     )}
                   </div>
-                  <MetaRow
-                    label="File name"
-                    value={item.fileName ?? "-"}
-                  />
+                  <MetaRow label="File name" value={item.fileName ?? "-"} />
                   <MetaRow
                     label="File type"
                     value={(item.fileType ?? "—").toUpperCase()}
@@ -317,9 +314,7 @@ export function KnowledgeDetailSheet({
                 if (isEditable) onEdit(item);
               }}
               disabled={!isEditable}
-              title={
-                isEditable ? "Edit" : "Only completed items can be edited"
-              }
+              title={isEditable ? "Edit" : "Only completed items can be edited"}
             >
               <IconPencil />
               Edit
