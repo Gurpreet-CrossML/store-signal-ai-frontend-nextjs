@@ -213,6 +213,7 @@ type ApiKnowledgeItem = {
   collections: ProductOption[];
   url: string;
   file: string | null;
+  file_name: string;
   file_type: string;
   file_size: number | null;
   created_at: string;
@@ -239,6 +240,7 @@ function mapApiKnowledgeItem(api: ApiKnowledgeItem): KnowledgeItem {
     answer: api.answer || undefined,
     url: api.url || undefined,
     fileUrl: api.file || undefined,
+    fileName: api.file_name || undefined,
     fileType: api.file_type || undefined,
     fileSize: api.file_size ?? undefined,
   };

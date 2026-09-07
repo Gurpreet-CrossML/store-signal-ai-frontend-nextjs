@@ -176,10 +176,21 @@ export function KnowledgeList({
                 align="end"
                 onClick={(event) => event.stopPropagation()}
               >
-                <DropdownMenuItem onClick={() => onEditItem(item)}>
-                  <IconPencil />
-                  Edit
-                </DropdownMenuItem>
+                {item.status === "completed" ? (
+                  <DropdownMenuItem onClick={() => onEditItem(item)}>
+                    <IconPencil />
+                    Edit
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    className="opacity-50 cursor-not-allowed"
+                    onClick={(e) => e.preventDefault()}
+                    title="Only completed items can be edited"
+                  >
+                    <IconPencil />
+                    Edit
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 {item.status === "processing" ? (
                   <DropdownMenuItem

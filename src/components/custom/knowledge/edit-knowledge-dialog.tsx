@@ -12,7 +12,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,11 +29,18 @@ import {
 } from "@/redux/api-slice/knowledge-rag-slice";
 import { KNOWLEDGE_TYPE_META } from "@/components/custom/knowledge/knowledge-meta";
 import { AIScopeField } from "@/components/custom/knowledge/ai-scope-field";
+import {
+  formatBytes,
+  MultiFileUploadDropzone,
+} from "@/components/custom/knowledge/file-upload-dropzone";
+import { isValidUrl, normalizeUrl } from "@/lib/url";
 
 /**
- * Edit is AI-scope-only, with one exception: an FAQ item's question and
- * answer are also editable here. Every other field (title, source data,
- * etc.) isn't editable — that data only comes from the Add flow.
+ * Edit is content-only, scoped to what's safe to change without a full
+ * reprocess: AI scope always, plus source-specific content — FAQ
+ * question/answer, a URL item's URL, or a replacement file. Title and
+ * associations (product/category/collection) aren't editable here —
+ * that data only comes from the Add flow.
  *
  * Every save sends the item's complete current data (not just the fields
  * touched in this dialog) in a single PATCH, so the backend always sees a
@@ -54,6 +66,7 @@ export function EditKnowledgeDialog({
   );
 
   const [aiScope, setAiScope] = useState<AIScope[]>([]);
+  const [dialogContainer, setDialogContainer] = useState<HTMLElement | null>(null);
   const [error, setError] = useState<string | undefined>();
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
@@ -61,6 +74,9 @@ export function EditKnowledgeDialog({
     question?: string;
     answer?: string;
   }>({});
+  const [url, setUrl] = useState("");
+  const [urlError, setUrlError] = useState<string | undefined>();
+  const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (open && item) {
@@ -70,6 +86,9 @@ export function EditKnowledgeDialog({
       setAnswer(item.answer ?? "");
       setError(undefined);
       setFaqErrors({});
+      setUrl(item.url ?? "");
+      setUrlError(undefined);
+      setFile(null);
     }
   }, [open, item]);
 
@@ -77,6 +96,8 @@ export function EditKnowledgeDialog({
 
   const meta = KNOWLEDGE_TYPE_META[item.type];
   const isFaq = item.source === "faq";
+  const isUrl = item.source === "url";
+  const isFile = item.source === "file";
   const isSaving = UpdateKnowledgeItemIsLoading;
 
   const handleSave = async () => {
@@ -90,6 +111,16 @@ export function EditKnowledgeDialog({
       if (!answer.trim()) nextFaqErrors.answer = "Answer is required";
       setFaqErrors(nextFaqErrors);
       if (Object.keys(nextFaqErrors).length > 0) return;
+    }
+    if (isUrl) {
+      if (!url.trim()) {
+        setUrlError("URL is required");
+        return;
+      }
+      if (!isValidUrl(url)) {
+        setUrlError("Enter a valid URL");
+        return;
+      }
     }
 
     // Always send the item's complete current data, not just the fields
@@ -106,7 +137,8 @@ export function EditKnowledgeDialog({
           content: item.content,
           question: isFaq ? question.trim() : item.question,
           answer: isFaq ? answer.trim() : item.answer,
-          url: item.url,
+          url: isUrl ? normalizeUrl(url) : item.url,
+          file: isFile && file ? file : undefined,
         },
       }),
     );
@@ -118,7 +150,10 @@ export function EditKnowledgeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-lg">
+      <DialogContent
+        ref={setDialogContainer}
+        className="flex max-h-[85vh] flex-col gap-4 sm:max-w-lg"
+      >
         <DialogHeader>
           <DialogTitle>Edit {meta.label}</DialogTitle>
           <DialogDescription className="truncate">
@@ -179,6 +214,61 @@ export function EditKnowledgeDialog({
               </>
             )}
 
+            {isUrl && (
+              <Field>
+                <FieldLabel htmlFor="edit-url">URL</FieldLabel>
+                <Input
+                  id="edit-url"
+                  autoComplete="off"
+                  placeholder="https://company.com/pages/shipping"
+                  value={url}
+                  onChange={(event) => {
+                    setUrl(event.target.value);
+                    if (event.target.value.trim()) setUrlError(undefined);
+                  }}
+                  aria-invalid={Boolean(urlError)}
+                />
+                {urlError && (
+                  <p className="text-sm text-destructive">{urlError}</p>
+                )}
+              </Field>
+            )}
+
+            {isFile && (
+              <Field>
+                <FieldLabel>File</FieldLabel>
+                {!file && item.fileUrl && (
+                  <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <a
+                        href={item.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block truncate text-sm font-medium text-primary underline underline-offset-2"
+                      >
+                        {item.fileName ?? "Current file"}
+                      </a>
+                      <p className="text-xs text-muted-foreground">
+                        {(item.fileType ?? "").toUpperCase()}
+                        {item.fileSize ? ` · ${formatBytes(item.fileSize)}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <MultiFileUploadDropzone
+                  files={file ? [file] : []}
+                  onFilesSelected={(selected) => setFile(selected[0] ?? null)}
+                  onRemoveFile={() => setFile(null)}
+                  maxFiles={1}
+                />
+                <FieldDescription>
+                  {file
+                    ? "This file will replace the current one when you save."
+                    : "Upload a new file to replace the current one."}
+                </FieldDescription>
+              </Field>
+            )}
+
             <AIScopeField
               value={aiScope}
               onChange={(next) => {
@@ -186,6 +276,7 @@ export function EditKnowledgeDialog({
                 if (next.length > 0) setError(undefined);
               }}
               error={error}
+              container={dialogContainer}
             />
           </FieldGroup>
         </div>
