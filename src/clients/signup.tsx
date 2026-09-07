@@ -1,12 +1,12 @@
 "use client";
 
 import { AuthShell } from "@/components/custom/auth-shell";
-import { LoginForm } from "@/components/custom/login-form";
+import { SignupForm } from "@/components/custom/signup-form";
 
-export default function Login() {
+export default function Signup() {
   return (
     <AuthShell>
-      <LoginForm />
+      <SignupForm />
     </AuthShell>
   );
 }

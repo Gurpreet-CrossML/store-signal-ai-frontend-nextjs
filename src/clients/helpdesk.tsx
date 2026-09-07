@@ -2630,23 +2630,38 @@ export default function HelpDesk() {
       ).unwrap();
 
       if (ticketSnoozed) {
-        setTicketRows((current) =>
-          current.map((ticket) =>
-            ticket.id === currentActiveSupportTicketIdRef.current
-              ? { ...ticket, is_snoozed: !!ticketSnoozed?.snoozed_until }
-              : ticket,
-          ),
-        );
+        const isUnsnoozed = !ticketSnoozed?.snoozed_until;
 
-        setActiveSupportTicket((current) =>
-          current
-            ? {
-                ...current,
-                is_snoozed: !!ticketSnoozed?.snoozed_until,
-                snoozed_until: ticketSnoozed?.snoozed_until,
-              }
-            : current,
-        );
+        // When removing a snooze while the "Snoozed" filter is active, the
+        // ticket no longer belongs in this view — pull it out of the list and
+        // clear the active ticket so the panel resets to "No ticket selected".
+        if (isUnsnoozed && activeFilter === "snoozed") {
+          setTicketRows((current) =>
+            current.filter(
+              (ticket) => ticket.id !== currentActiveSupportTicketIdRef.current,
+            ),
+          );
+          setActiveSupportTicket(null);
+          setActiveTicketId(null);
+        } else {
+          setTicketRows((current) =>
+            current.map((ticket) =>
+              ticket.id === currentActiveSupportTicketIdRef.current
+                ? { ...ticket, is_snoozed: isUnsnoozed ? false : true }
+                : ticket,
+            ),
+          );
+
+          setActiveSupportTicket((current) =>
+            current
+              ? {
+                  ...current,
+                  is_snoozed: !isUnsnoozed,
+                  snoozed_until: ticketSnoozed?.snoozed_until,
+                }
+              : current,
+          );
+        }
 
         toast.success(
           snoozeTime === null ? "Snooze removed" : "Ticket snoozed",

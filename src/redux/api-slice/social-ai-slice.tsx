@@ -1,6 +1,7 @@
 import {
   createAsyncThunk,
   createSlice,
+  isAnyOf,
   type PayloadAction,
 } from "@reduxjs/toolkit";
 import { axiosInstance } from "../axios-config";
@@ -11,6 +12,7 @@ import type {
   CreateSupportTicketPayload,
   SupportTicketDraft,
 } from "@/redux/api-slice/support-ticket-slice";
+import type { ActionId, Autonomy } from "@/lib/comment-handling-data";
 
 /**
  * One page size for every social list. Filtering and searching are the
@@ -156,6 +158,9 @@ export type SocialComment = {
   // Null until the AI tagging pipeline has processed this comment.
   analysis: SocialCommentAnalysis | null;
   ai_response: SocialCommentAiResponse | null;
+  // A pending AI draft exists for this comment — the in-context bubble
+  // fetches its content lazily. Absent on websocket payloads.
+  has_pending_draft?: boolean;
   external_created_at: string;
 };
 
@@ -181,6 +186,11 @@ export type SocialConversationUser = {
   profile_picture_url: string;
   last_message: string | null;
   last_message_at: string | null;
+  // A pending AI-drafted DM exists for this contact. A contact can appear
+  // with no thread at all yet — then last_message is the drafted text and
+  // approving the draft is the only send path (Meta has no messenger id
+  // for them until they write).
+  has_pending_dm_draft?: boolean;
 };
 
 export type SocialUsersResponse = {
@@ -228,6 +238,79 @@ export type SocialDm = {
 
 export type SocialDmsResponse = {
   results: SocialDm[];
+  count: number;
+  next?: string | null;
+  previous?: string | null;
+};
+
+/* Comment automation settings — per connected account ------------------ */
+
+export type CommentSettingsAction = {
+  id: ActionId;
+  label: string;
+  /** Fixed execution order. Users pick a subset, they never reorder it. */
+  priority: number;
+};
+
+export type CommentIntentRule = {
+  id: string;
+  label: string;
+  actions: ActionId[];
+  autonomy: Autonomy;
+  /** True when this is a saved override rather than the factory default. */
+  is_customized: boolean;
+};
+
+export type CommentTopicRule = {
+  id: string;
+  topic: string;
+  label: string;
+  actions: ActionId[];
+  autonomy: Autonomy;
+};
+
+/** One GET renders the whole settings screen: vocabularies + one account's effective rules. */
+export type CommentSettingsConfig = {
+  account: {
+    id: number;
+    name: string;
+    channel_type: string;
+    allow_ai_auto_respond: boolean;
+  };
+  actions: CommentSettingsAction[];
+  autonomy_levels: { value: Autonomy; label: string }[];
+  topics: { value: string; label: string }[];
+  /** All 18 intents with this account's effective rule, in display order. */
+  intents: CommentIntentRule[];
+  /** Only this account's saved rules — exactly what is enforced. */
+  topic_rules: CommentTopicRule[];
+  /** Factory suggestions — inert until saved via PUT. */
+  suggested_topic_rules: CommentTopicRule[];
+};
+
+export type CommentDraftStatus = "pending" | "approved" | "discarded";
+
+/**
+ * One row of the draft review queue. One draft per comment, ever — a
+ * discarded draft never regenerates, so there is no "regenerate" affordance.
+ */
+export type CommentDraft = {
+  id: number;
+  message: SocialComment;
+  actions: ActionId[];
+  /** What would be posted publicly. Empty when the actions need no text. */
+  response_text: string;
+  /** What would be DM'd. Empty when no DM action is set. */
+  dm_text: string;
+  rule_source: string;
+  // Always "pending" on anything the API returns — a handled draft leaves
+  // every response; the field only guards races around approval.
+  status: CommentDraftStatus;
+  created_at: string;
+};
+
+export type CommentDraftsResponse = {
+  results: CommentDraft[];
   count: number;
   next?: string | null;
   previous?: string | null;
@@ -1416,6 +1499,339 @@ export const CreateSocialSupportTicket = createAsyncThunk(
   },
 );
 
+export const fetchCommentSettings = createAsyncThunk(
+  "fetchCommentSettings",
+  async (
+    { storeCode, accountId }: { storeCode: string; accountId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchCommentSettings({ accountId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as CommentSettingsConfig;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to load comment settings, please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+// The rule saves carry no success toast of their own: one press of Save can
+// PUT several rules, and the screen toasts once for the batch.
+export const saveIntentRule = createAsyncThunk(
+  "saveIntentRule",
+  async (
+    {
+      storeCode,
+      accountId,
+      intent,
+      actions,
+      autonomy,
+    }: {
+      storeCode: string;
+      accountId: string;
+      intent: string;
+      actions: ActionId[];
+      autonomy: Autonomy;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.saveIntentRule({ accountId, intent })}?store_code=${storeCode}`,
+        { actions, autonomy },
+        { useBackend: true },
+      );
+      return response.data.data as CommentIntentRule;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to save this intent rule.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const saveTopicRule = createAsyncThunk(
+  "saveTopicRule",
+  async (
+    {
+      storeCode,
+      accountId,
+      topic,
+      actions,
+      autonomy,
+    }: {
+      storeCode: string;
+      accountId: string;
+      topic: string;
+      actions: ActionId[];
+      autonomy: Autonomy;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.topicRule({ accountId, topic })}?store_code=${storeCode}`,
+        { actions, autonomy },
+        { useBackend: true },
+      );
+      return response.data.data as CommentTopicRule;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to save this topic rule.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const deleteTopicRule = createAsyncThunk(
+  "deleteTopicRule",
+  async (
+    {
+      storeCode,
+      accountId,
+      topic,
+    }: { storeCode: string; accountId: string; topic: string },
+    thunkAPI,
+  ) => {
+    try {
+      await axiosInstance.delete(
+        `${ENDPOINTS.topicRule({ accountId, topic })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return topic;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to remove this topic rule.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const fetchCommentDrafts = createAsyncThunk(
+  "fetchCommentDrafts",
+  async (
+    {
+      storeCode,
+      accountId,
+      page = 1,
+      pageSize = SOCIAL_PAGE_SIZE,
+    }: {
+      storeCode: string;
+      accountId?: string;
+      page?: number;
+      pageSize?: number;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      // Only pending drafts exist to list — a handled draft leaves the API.
+      const params = new URLSearchParams({
+        store_code: storeCode,
+        status: "pending",
+        page: String(page),
+        page_size: String(pageSize),
+      });
+      if (accountId) params.set("account_id", accountId);
+
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchCommentDrafts()}?${params.toString()}`,
+        { useBackend: true },
+      );
+      return response.data.data as CommentDraftsResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to load the draft queue, please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+// The in-context draft reads. Both are addressed by the contact (post/page
+// external Graph id + SocialUser id), default to status=pending server-side,
+// and return the same paginated envelope as the queue. Consumed with
+// .unwrap() into component state — nothing in the store depends on them.
+export const fetchUserCommentDraft = createAsyncThunk(
+  "fetchUserCommentDraft",
+  async (
+    {
+      storeCode,
+      postId,
+      userId,
+    }: { storeCode: string; postId: string; userId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.userCommentDraft({ postId, userId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as CommentDraftsResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to load the AI draft.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const fetchUserMessageDraft = createAsyncThunk(
+  "fetchUserMessageDraft",
+  async (
+    {
+      storeCode,
+      pageId,
+      userId,
+    }: { storeCode: string; pageId: string; userId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.userMessageDraft({ pageId, userId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as CommentDraftsResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to load the AI draft.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+// On the three draft mutations a 400 means the draft left pending state —
+// someone else already handled it. The screens treat rejection as "refresh
+// the queue", never as "retry".
+export const updateCommentDraft = createAsyncThunk(
+  "updateCommentDraft",
+  async (
+    {
+      storeCode,
+      draftId,
+      patch,
+    }: {
+      storeCode: string;
+      draftId: number;
+      patch: {
+        response_text?: string;
+        dm_text?: string;
+        actions?: ActionId[];
+      };
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.commentDraft({ draftId })}?store_code=${storeCode}`,
+        patch,
+        { useBackend: true },
+      );
+      toast.success("Draft updated", {
+        description: "Your edits are what gets sent on approval.",
+      });
+      return response.data.data as CommentDraft;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't update the draft", {
+        description:
+          response?.status === 400
+            ? "It is no longer pending — someone else may have handled it."
+            : data?.message || "Unable to save your edits, please try again.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const approveCommentDraft = createAsyncThunk(
+  "approveCommentDraft",
+  async (
+    { storeCode, draftId }: { storeCode: string; draftId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.approveCommentDraft({ draftId })}?store_code=${storeCode}`,
+        {},
+        { useBackend: true },
+      );
+      toast.success("Draft approved", {
+        description: "The actions were sent to the comment.",
+      });
+      return response.data.data as CommentDraft;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't approve the draft", {
+        description:
+          response?.status === 400
+            ? "It is no longer pending — someone else may have handled it."
+            : data?.message || "Nothing was sent, please try again.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const discardCommentDraft = createAsyncThunk(
+  "discardCommentDraft",
+  async (
+    { storeCode, draftId }: { storeCode: string; draftId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.discardCommentDraft({ draftId })}?store_code=${storeCode}`,
+        {},
+        { useBackend: true },
+      );
+      toast.success("Draft discarded", {
+        description: "Nothing will be sent for this comment.",
+      });
+      return response.data.data as CommentDraft;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't discard the draft", {
+        description:
+          response?.status === 400
+            ? "It is no longer pending — someone else may have handled it."
+            : data?.message || "Unable to discard, please try again.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 const SocialAISlice = createSlice({
   name: "SocialAI",
   initialState: {
@@ -1491,6 +1907,20 @@ const SocialAISlice = createSlice({
       FetchSocialDmsIsSuccess: false,
       FetchSocialDmsIsError: null as null | string | object,
       FetchSocialDmsData: {} as SocialDmsResponse,
+    },
+    FetchCommentSettingsState: {
+      FetchCommentSettingsIsLoading: false,
+      FetchCommentSettingsIsSuccess: false,
+      FetchCommentSettingsIsError: null as null | string | object,
+      // Null until loaded — the screen must not render one account's rules
+      // while another account's config is on the way.
+      FetchCommentSettingsData: null as CommentSettingsConfig | null,
+    },
+    FetchCommentDraftsState: {
+      FetchCommentDraftsIsLoading: false,
+      FetchCommentDraftsIsSuccess: false,
+      FetchCommentDraftsIsError: null as null | string | object,
+      FetchCommentDraftsData: {} as CommentDraftsResponse,
     },
     FetchWhatsAppTemplatesState: {
       FetchWhatsAppTemplatesIsLoading: false,
@@ -1821,7 +2251,104 @@ const SocialAISlice = createSlice({
         state.ReactToMetaMessageState.isError = action.payload as
           | string
           | object;
-      });
+      })
+      .addCase(fetchCommentSettings.pending, (state) => {
+        state.FetchCommentSettingsState.FetchCommentSettingsIsLoading = true;
+        state.FetchCommentSettingsState.FetchCommentSettingsIsSuccess = false;
+        state.FetchCommentSettingsState.FetchCommentSettingsIsError = null;
+        // Clear immediately so an account switch never shows the previous
+        // account's rules behind the loading state.
+        state.FetchCommentSettingsState.FetchCommentSettingsData = null;
+      })
+      .addCase(fetchCommentSettings.fulfilled, (state, action) => {
+        state.FetchCommentSettingsState.FetchCommentSettingsIsLoading = false;
+        state.FetchCommentSettingsState.FetchCommentSettingsIsSuccess = true;
+        state.FetchCommentSettingsState.FetchCommentSettingsData =
+          action.payload;
+      })
+      .addCase(fetchCommentSettings.rejected, (state, action) => {
+        state.FetchCommentSettingsState.FetchCommentSettingsIsLoading = false;
+        state.FetchCommentSettingsState.FetchCommentSettingsIsSuccess = false;
+        state.FetchCommentSettingsState.FetchCommentSettingsIsError =
+          action.payload as string | object;
+      })
+      // The three rule writes patch the loaded config in place, so leaving
+      // the screen and coming back shows the saved rules without a refetch.
+      // Guarded by account: a save can resolve after the picker moved on.
+      .addCase(saveIntentRule.fulfilled, (state, action) => {
+        const config = state.FetchCommentSettingsState.FetchCommentSettingsData;
+        if (!config || String(config.account.id) !== action.meta.arg.accountId)
+          return;
+        const index = config.intents.findIndex(
+          (rule) => rule.id === action.payload.id,
+        );
+        if (index !== -1) config.intents[index] = action.payload;
+      })
+      .addCase(saveTopicRule.fulfilled, (state, action) => {
+        const config = state.FetchCommentSettingsState.FetchCommentSettingsData;
+        if (!config || String(config.account.id) !== action.meta.arg.accountId)
+          return;
+        const index = config.topic_rules.findIndex(
+          (rule) => rule.topic === action.payload.topic,
+        );
+        if (index === -1) config.topic_rules.push(action.payload);
+        else config.topic_rules[index] = action.payload;
+        // A saved suggestion is no longer a suggestion.
+        config.suggested_topic_rules = config.suggested_topic_rules.filter(
+          (rule) => rule.topic !== action.payload.topic,
+        );
+      })
+      .addCase(deleteTopicRule.fulfilled, (state, action) => {
+        const config = state.FetchCommentSettingsState.FetchCommentSettingsData;
+        if (!config || String(config.account.id) !== action.meta.arg.accountId)
+          return;
+        config.topic_rules = config.topic_rules.filter(
+          (rule) => rule.topic !== action.meta.arg.topic,
+        );
+      })
+      .addCase(fetchCommentDrafts.pending, (state) => {
+        state.FetchCommentDraftsState.FetchCommentDraftsIsLoading = true;
+        state.FetchCommentDraftsState.FetchCommentDraftsIsSuccess = false;
+        state.FetchCommentDraftsState.FetchCommentDraftsIsError = null;
+      })
+      .addCase(fetchCommentDrafts.fulfilled, (state, action) => {
+        state.FetchCommentDraftsState.FetchCommentDraftsIsLoading = false;
+        state.FetchCommentDraftsState.FetchCommentDraftsIsSuccess = true;
+        state.FetchCommentDraftsState.FetchCommentDraftsData = mergePage(
+          state.FetchCommentDraftsState.FetchCommentDraftsData,
+          action.payload,
+          action.meta.arg.page ?? 1,
+        );
+      })
+      .addCase(fetchCommentDrafts.rejected, (state, action) => {
+        state.FetchCommentDraftsState.FetchCommentDraftsIsLoading = false;
+        state.FetchCommentDraftsState.FetchCommentDraftsIsSuccess = false;
+        state.FetchCommentDraftsState.FetchCommentDraftsIsError =
+          action.payload as string | object;
+      })
+      // A saved edit returns the updated draft — swap the row in place.
+      .addCase(updateCommentDraft.fulfilled, (state, action) => {
+        const drafts = state.FetchCommentDraftsState.FetchCommentDraftsData;
+        if (!drafts?.results) return;
+        const index = drafts.results.findIndex(
+          (row) => row.id === action.payload.id,
+        );
+        if (index !== -1) drafts.results[index] = action.payload;
+      })
+      // A handled draft is gone for good — the API never returns approved
+      // or discarded drafts, so drop the row rather than restyle it.
+      .addMatcher(
+        isAnyOf(approveCommentDraft.fulfilled, discardCommentDraft.fulfilled),
+        (state, action) => {
+          const drafts = state.FetchCommentDraftsState.FetchCommentDraftsData;
+          if (!drafts?.results) return;
+          const before = drafts.results.length;
+          drafts.results = drafts.results.filter(
+            (row) => row.id !== action.meta.arg.draftId,
+          );
+          if (drafts.results.length < before && drafts.count) drafts.count -= 1;
+        },
+      );
   },
 });
 

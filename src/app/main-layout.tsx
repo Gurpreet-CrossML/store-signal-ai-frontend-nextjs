@@ -1,6 +1,8 @@
 "use client";
 
 import { AppSidebar } from "@/components/custom/app-sidebar";
+import { OnboardingDrawer } from "@/components/custom/onboarding-drawer";
+import { ShopifyOauthReturn } from "@/components/custom/shopify-oauth-return";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import {
   resolveSubSidebarKey,
@@ -62,7 +64,7 @@ export default function MainLayout({
     : null;
   const hasSubSidebar = subSidebarItems !== null;
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname === "/signup") {
     return <>{children}</>;
   }
 
@@ -105,6 +107,11 @@ export default function MainLayout({
         />
       </Suspense>
       <SidebarInset>
+        {/* Reads Shopify's OAuth return params from the query string. */}
+        <Suspense fallback={null}>
+          <ShopifyOauthReturn />
+          <OnboardingDrawer />
+        </Suspense>
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             {/* No vertical padding here: each page owns its spacing with a

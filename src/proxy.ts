@@ -12,7 +12,7 @@ import { getToken } from "next-auth/jwt";
 // appropriate and its result can be cached.
 
 // List of routes for unauthenticated users (auth pages)
-const authRoutes = ["/login"];
+const authRoutes = ["/login", "/signup"];
 
 export async function proxy(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
@@ -44,6 +44,17 @@ export async function proxy(req: NextRequest) {
   const isProtected = !authRoutes.includes(pathname);
   if (!token && isProtected) {
     return NextResponse.redirect(new URL("/login", req.url));
+  }
+
+  // Onboarding not finished → the user is pinned to "/" where the onboarding
+  // drawer opens. Every other page (deep links, back button, typed URLs)
+  // bounces here, so nothing else is reachable until setup is done — and
+  // Shopify's OAuth return always lands on the page that finishes it. The
+  // query string is kept so those OAuth params survive the bounce.
+  if (token?.onboarding_pending && pathname !== "/") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/";
+    return NextResponse.redirect(url);
   }
 
   // Otherwise, allow the request to continue

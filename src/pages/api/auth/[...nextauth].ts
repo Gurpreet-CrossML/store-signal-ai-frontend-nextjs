@@ -18,6 +18,10 @@ declare module "next-auth" {
     company_code?: string | null;
     is_staff?: boolean;
     accessible_stores?: AccessibleStore[];
+    // Onboarding flow: if the user has not yet completed the initial setup, we
+    // redirect them to the onboarding flow instead of the dashboard.
+    onboarding_pending?: boolean;
+    onboarding_step?: string | null;
   }
   interface Session {
     user: {
@@ -29,6 +33,10 @@ declare module "next-auth" {
       company_code?: string | null;
       is_staff?: boolean;
       accessible_stores?: AccessibleStore[];
+      // Onboarding flow: if the user has not yet completed the initial setup, we
+      // redirect them to the onboarding flow instead of the dashboard.
+      onboarding_pending?: boolean;
+      onboarding_step?: string | null;
     };
     // Propagated from the JWT when a token refresh fails, so the client can
     // prompt re-authentication.
@@ -47,6 +55,8 @@ declare module "next-auth/jwt" {
     company_code?: string | null;
     is_staff?: boolean;
     accessible_stores?: AccessibleStore[];
+    onboarding_pending?: boolean;
+    onboarding_step?: string | null;
     // Set when a refresh attempt fails; the client treats it as a signal to
     // re-authenticate (the stale access token will start returning 401s).
     error?: string;
@@ -158,13 +168,15 @@ export const authOptions: AuthOptions = {
           company_code: token.company_code,
           is_staff: token.is_staff,
           accessible_stores: token.accessible_stores,
+          onboarding_pending: token.onboarding_pending,
+          onboarding_step: token.onboarding_step,
         },
       };
       return session;
     },
 
     // Store all data in the JWT (internal only)
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       // On initial login
       if (user) {
         token.access_token = user.token;
@@ -181,6 +193,9 @@ export const authOptions: AuthOptions = {
         token.is_staff = user.is_staff ?? false;
         token.accessible_stores = user.accessible_stores ?? [];
 
+        token.onboarding_pending = user.onboarding_pending ?? false;
+        token.onboarding_step = user.onboarding_step ?? null;
+
         return token;
       }
 
@@ -192,11 +207,17 @@ export const authOptions: AuthOptions = {
       // Keep tenant/identity claims fresh — role, company and per-store grants
       // can change server-side after login. Cached (≤1 call/min/token) and
       // fails open to the existing claims on any error.
-      const identity = await refreshIdentity(token.access_token);
+      const identity = await refreshIdentity(token.access_token, {
+        fresh: trigger === "update",
+      });
       if (identity) {
         token.company_code = identity.company_code;
         token.is_staff = identity.is_staff;
         token.accessible_stores = identity.accessible_stores;
+        if (identity.onboarding_pending !== undefined) {
+          token.onboarding_pending = identity.onboarding_pending;
+          token.onboarding_step = identity.onboarding_step ?? null;
+        }
       }
 
       return token;

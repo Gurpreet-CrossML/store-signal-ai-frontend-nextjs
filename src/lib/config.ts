@@ -60,6 +60,9 @@ export const ENDPOINTS = {
 
   // Company & staff management (Django /api/tenancy/). These are Django-owned;
   // GET calls must pass `useBackend: true` (writes auto-route to Django).
+  // Public self-serve sign-up (Django) — creates the company and its first
+  // admin; the password is generated server-side and emailed.
+  registerCompany: () => "/tenancy/register/",
   fetchCompanyProfile: () => "/tenancy/company/",
   updateCompanyProfile: () => "/tenancy/company/",
   fetchStaff: () => "/tenancy/staff/",
@@ -74,6 +77,26 @@ export const ENDPOINTS = {
 
   // Store Management
   fetchStoresList: () => "/store/list",
+  // Same list straight from Django — the full store records, for the
+  // Settings → Stores screen (GET needs useBackend). The local route above
+  // is the ported read the store switcher uses.
+  fetchStoresDirectory: () => "/store/list/",
+  // The store's widget key, for showing its embed script after onboarding.
+  storeWidgetInit: () => "/store/widget-init/",
+  // Detail route for one store; PATCH { is_active: false } deactivates it.
+  // NOTE: endpoint is still being finalised by the backend dev; adjust the
+  // path here once it's confirmed.
+  storeDetail: (code: string) => `/store/${code}/`,
+  // Shopify connect (Django, OAuth). Start returns the consent URL to send
+  // the browser to; Shopify then redirects back to this app with
+  // code/shop/state/hmac/timestamp, which the callback GET forwards verbatim
+  // (the HMAC covers every param) — no auth header, tenant comes from `state`.
+  shopifyOauthStart: () => "/store/shopify/oauth/start/",
+  shopifyOauthCallback: () => "/store/shopify/oauth/callback/",
+  // Company onboarding (Django, company admin). GET (needs useBackend) is the
+  // step + connected stores with their widget keys; PATCH sets
+  // `onboarding_step` to "completed" or "skipped".
+  companyOnboarding: () => "/tenancy/company/onboarding/",
   // Per-store settings (Django) — currently the widget's allowed-IP list.
   // GET returns the settings, PATCH updates them.
   storeAllowedIPsSettings: () =>
@@ -331,6 +354,39 @@ export const ENDPOINTS = {
   // from two separate conversations.
   metaSupportTicketDraft: (userId: number) =>
     `/social/meta/users/${userId}/support-ticket/draft/`,
+  // Comment automation rules, per connected account — GET returns the whole
+  // settings config (vocabularies + this account's effective rules).
+  fetchCommentSettings: ({ accountId }: { accountId: string }) =>
+    `/social/subscriptions/connected-accounts/${accountId}/comment-settings/`,
+  // PUT — save one intent card ({ actions, autonomy }).
+  saveIntentRule: ({
+    accountId,
+    intent,
+  }: {
+    accountId: string;
+    intent: string;
+  }) =>
+    `/social/subscriptions/connected-accounts/${accountId}/comment-settings/intents/${intent}/`,
+  // PUT saves a topic override; DELETE removes it (the comment falls back
+  // to its intent card).
+  topicRule: ({ accountId, topic }: { accountId: string; topic: string }) =>
+    `/social/subscriptions/connected-accounts/${accountId}/comment-settings/topics/${topic}/`,
+  // The draft review queue. PATCH the detail route edits a pending draft;
+  // approve/ sends it (public reply / like / DM / hide), discard/ closes it.
+  fetchCommentDrafts: () => `/social/comment-drafts/`,
+  // In-context draft reads: one contact's pending comment draft(s) on a
+  // post, or their pending drafted DM on a page. Both default to
+  // status=pending and return the standard paginated envelope.
+  userCommentDraft: ({ postId, userId }: { postId: string; userId: number }) =>
+    `/social/meta/posts/${postId}/users/${userId}/comment-draft/`,
+  userMessageDraft: ({ pageId, userId }: { pageId: string; userId: number }) =>
+    `/social/meta/pages/${pageId}/users/${userId}/message-draft/`,
+  commentDraft: ({ draftId }: { draftId: number }) =>
+    `/social/comment-drafts/${draftId}/`,
+  approveCommentDraft: ({ draftId }: { draftId: number }) =>
+    `/social/comment-drafts/${draftId}/approve/`,
+  discardCommentDraft: ({ draftId }: { draftId: number }) =>
+    `/social/comment-drafts/${draftId}/discard/`,
 
   fetchWhatsAppTemplates: ({ accountId }: { accountId: string }) =>
     `/social/meta/whatsapp/accounts/${accountId}/templates/`,
@@ -390,6 +446,12 @@ export const ENDPOINTS = {
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
+// Chatbot widget embed. The script lives on a per-environment bucket; the
+// API base is the Django backend the widget talks to (same one this app uses).
+export const WIDGET_SCRIPT_SRC =
+  process.env.NEXT_PUBLIC_WIDGET_SCRIPT_URL || "";
+export const WIDGET_API_BASE = createAPIUrl(undefined, "django");
+
 export const DEFAULT_API_PAGE_SIZE = 15;
 
 // Chatbot feedback rating choices, mirroring the backend RATING_CHOICES.
@@ -576,6 +638,60 @@ export const REGIONAL_SPELLING_CHOICES: readonly DescribedOption[] = [
     description: "Matches each customer.",
   },
 ];
+
+// Mirrors `onboarding_step` on the session user (Django user_context), in
+// the order the user walks through them.
+export const ONBOARDING_STEPS = [
+  { value: "store_setup", label: "Connect the store" },
+  { value: "go_live", label: "Go live on store" },
+] as const;
+
+export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]["value"];
+
+// The stages the connect-progress dialog walks through while the backend
+// finishes a Shopify OAuth callback. Cosmetic pacing — the backend does it
+// in one request — so the last entry is only shown once it responds.
+// Where the widget embed code goes, per platform, shown as numbered steps
+// beside the snippet.
+export const WIDGET_INSTALL_STEPS = {
+  shopify: [
+    "In your Shopify admin, open Online Store → Themes.",
+    "On your live theme, choose Edit code.",
+    "Open layout/theme.liquid.",
+    "Paste the snippet at the very end of the file, just before </body>, and save.",
+  ],
+  default: [
+    "Open the storefront's theme or template editor.",
+    "Paste the snippet before </body> on every page, and publish.",
+  ],
+} as const;
+
+export const SHOPIFY_CONNECT_STEPS = [
+  "Checking permissions",
+  "Fetching connected store details",
+  "Subscribing to store updates",
+  "Setting things up",
+  "Done",
+] as const;
+
+export const STORE_PLATFORMS = [
+  {
+    value: "shopify",
+    label: "Shopify",
+    icon: "/shopify.svg",
+    description:
+      "Connect with your store alias. We'll send you to Shopify to authorize access.",
+  },
+  {
+    value: "magento",
+    label: "Magento",
+    icon: "/magento-2.svg",
+    description:
+      "Connect with your store URL. We'll send you to Magento to authorize access.",
+  },
+] as const;
+
+export type StorePlatform = (typeof STORE_PLATFORMS)[number]["value"];
 
 export const SocialAIPlatformOptions: {
   readonly [key: string]: { label: string; icon: Icon; color: string };
