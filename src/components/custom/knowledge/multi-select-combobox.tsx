@@ -33,6 +33,7 @@ export function MultiSelectCombobox<T extends { id: string; name: string }>({
   placeholder = "Search…",
   emptyLabel = "No results found.",
   disabled = false,
+  container,
 }: {
   items: T[];
   value: T[];
@@ -42,6 +43,7 @@ export function MultiSelectCombobox<T extends { id: string; name: string }>({
   placeholder?: string;
   emptyLabel?: string;
   disabled?: boolean;
+  container?: HTMLElement | null;
 }) {
   const anchor = useComboboxAnchor();
   const [search, setSearch] = useState("");
@@ -75,7 +77,7 @@ export function MultiSelectCombobox<T extends { id: string; name: string }>({
           placeholder={value.length === 0 ? placeholder : undefined}
         />
       </ComboboxChips>
-      <ComboboxContent anchor={anchor}>
+      <ComboboxContent anchor={anchor} container={container}>
         <ComboboxEmpty>{isLoading ? "Loading…" : emptyLabel}</ComboboxEmpty>
         <ComboboxList>
           {(item: T) => (

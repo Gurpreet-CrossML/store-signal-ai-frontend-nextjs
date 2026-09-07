@@ -122,6 +122,7 @@ export function KnowledgeDetailSheet({
   };
 
   const isInProgress = item.status === "processing";
+  const isEditable = item.status === "completed";
 
   return (
     <>
@@ -292,6 +293,10 @@ export function KnowledgeDetailSheet({
                     )}
                   </div>
                   <MetaRow
+                    label="File name"
+                    value={item.fileName ?? "-"}
+                  />
+                  <MetaRow
                     label="File type"
                     value={(item.fileType ?? "—").toUpperCase()}
                   />
@@ -308,7 +313,13 @@ export function KnowledgeDetailSheet({
             <Button
               variant="outline"
               className="flex-1"
-              onClick={() => onEdit(item)}
+              onClick={() => {
+                if (isEditable) onEdit(item);
+              }}
+              disabled={!isEditable}
+              title={
+                isEditable ? "Edit" : "Only completed items can be edited"
+              }
             >
               <IconPencil />
               Edit

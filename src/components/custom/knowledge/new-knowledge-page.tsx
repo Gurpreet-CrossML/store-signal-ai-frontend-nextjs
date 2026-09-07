@@ -20,10 +20,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -34,7 +38,6 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Typography } from "@/components/ui/typography";
-import { cn } from "@/lib/utils";
 import { formikErrorsFromZod } from "@/lib/form-errors";
 
 import { AIScopeField } from "@/components/custom/knowledge/ai-scope-field";
@@ -217,6 +220,19 @@ const formSchema = z
             code: "custom",
             path: ["urlRows", index, "url"],
             message: "Enter a valid URL",
+          });
+        }
+        if (!row.urlType) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["urlRows", index, "urlType"],
+            message: "Type is required",
+          });
+        } else if (row.urlType === "other" && !row.title.trim()) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["urlRows", index, "title"],
+            message: "Title is required",
           });
         }
       });
@@ -440,76 +456,84 @@ export function NewKnowledgePage() {
       <form onSubmit={formik.handleSubmit} className="flex flex-col gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>What are you adding?</CardTitle>
+            <CardTitle>Knowledge item details</CardTitle>
             <CardDescription>
-              Pick one content type — you can add several of this type below.
+              Choose a content type, set where it applies, then add your
+              items — all in one place.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {SOURCE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handleSourceChange(option.value)}
-                  className={cn(
-                    "flex flex-col items-start gap-0.5 rounded-lg border p-3 text-left transition-colors",
-                    values.source === option.value
-                      ? "border-primary/40 bg-primary/5"
-                      : "border-border/60 hover:border-border hover:bg-muted/40",
-                  )}
-                >
-                  <span className="text-sm font-medium">{option.label}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {option.hint}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Where does this apply?</CardTitle>
-            <CardDescription>
-              These settings apply to every item you add below.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-6">
             <FieldGroup>
-              <Field>
-                <FieldLabel>Scope</FieldLabel>
-                <RadioGroup
-                  value={values.type}
-                  onValueChange={(next) =>
-                    handleTypeChange(next as KnowledgeType)
-                  }
-                  className="grid-cols-1 sm:grid-cols-2 lg:w-1/2"
-                >
-                  <Label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border/60 p-2.5 has-data-checked:border-primary/40 has-data-checked:bg-primary/5">
-                    <RadioGroupItem value="general" />
-                    <span className="flex flex-col gap-0.5">
-                      <span className="text-sm font-medium">General</span>
-                      <span className="text-xs text-muted-foreground">
-                        Store-wide — policies, FAQs, brand info.
-                      </span>
-                    </span>
-                  </Label>
-                  <Label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border/60 p-2.5 has-data-checked:border-primary/40 has-data-checked:bg-primary/5">
-                    <RadioGroupItem value="product" />
-                    <span className="flex flex-col gap-0.5">
-                      <span className="text-sm font-medium">Product</span>
-                      <span className="text-xs text-muted-foreground">
-                        Tied to specific products, categories, or collections.
-                      </span>
-                    </span>
-                  </Label>
-                </RadioGroup>
-              </Field>
+              <div>
+                <FieldLabel className="mb-1">What are you adding?</FieldLabel>
+                <p className="text-sm text-muted-foreground">
+                  Pick a content type and where it applies — these settings
+                  apply to every item you add below.
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel>Source</FieldLabel>
+                  <Select
+                    value={values.source}
+                    onValueChange={(next) =>
+                      handleSourceChange(next as AddableSource)
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SOURCE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>
+                    {
+                      SOURCE_OPTIONS.find((o) => o.value === values.source)
+                        ?.hint
+                    }
+                  </FieldDescription>
+                </Field>
+
+                <Field>
+                  <FieldLabel>Scope</FieldLabel>
+                  <Select
+                    value={values.type}
+                    onValueChange={(next) =>
+                      handleTypeChange(next as KnowledgeType)
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a scope" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="general">General</SelectItem>
+                      <SelectItem value="product">Product</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>
+                    {values.type === "general"
+                      ? "Store-wide — policies, FAQs, brand info."
+                      : "Tied to specific products, categories, or collections."}
+                  </FieldDescription>
+                </Field>
+              </div>
+
+              <AIScopeField
+                value={values.aiScope}
+                onChange={(next) => formik.setFieldValue("aiScope", next)}
+                error={
+                  showErrors ? (formik.errors.aiScope as string) : undefined
+                }
+              />
 
               {values.type === "product" && (
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   <Field>
                     <FieldLabel>Products</FieldLabel>
                     <MultiSelectCombobox
@@ -561,36 +585,31 @@ export function NewKnowledgePage() {
                     />
                   </Field>
                   {showErrors && formik.errors.products && (
-                    <p className="text-xs text-destructive sm:col-span-3">
+                    <p className="text-xs text-destructive col-span-full">
                       {formik.errors.products as string}
                     </p>
                   )}
                 </div>
               )}
-
-              <AIScopeField
-                value={values.aiScope}
-                onChange={(next) => formik.setFieldValue("aiScope", next)}
-                error={
-                  showErrors ? (formik.errors.aiScope as string) : undefined
-                }
-              />
             </FieldGroup>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {SOURCE_OPTIONS.find((o) => o.value === values.source)?.label}{" "}
-              items
-            </CardTitle>
-            <CardDescription>
-              {activeCount} / {activeCap} added
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            {values.source === "faq" &&
+            <FieldSeparator />
+
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-2">
+                <FieldLabel className="text-sm">
+                  {
+                    SOURCE_OPTIONS.find((o) => o.value === values.source)
+                      ?.label
+                  }{" "}
+                  items
+                </FieldLabel>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {activeCount} / {activeCap} added
+                </span>
+              </div>
+
+              {values.source === "faq" &&
               values.faqRows.map((row, index) => (
                 <div
                   key={row.localId}
@@ -610,7 +629,7 @@ export function NewKnowledgePage() {
                       <IconTrash className="size-4" />
                     </Button>
                   </div>
-                  <div className="grid gap-3 lg:grid-cols-2">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <Field>
                       <FieldLabel>Question</FieldLabel>
                       <Input
@@ -698,8 +717,8 @@ export function NewKnowledgePage() {
                       <IconTrash className="size-4" />
                     </Button>
                   </div>
-                  <div className="grid gap-3 lg:grid-cols-3">
-                    <Field className="lg:col-span-2">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <Field className="sm:col-span-2">
                       <FieldLabel>URL</FieldLabel>
                       <Input
                         placeholder="https://company.com/pages/shipping"
@@ -726,8 +745,13 @@ export function NewKnowledgePage() {
                           updateUrlRow(index, { urlType: next as LocalUrlType })
                         }
                       >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="None" />
+                        <SelectTrigger
+                          className="w-full"
+                          aria-invalid={
+                            showErrors && Boolean(urlRowErrors[index]?.urlType)
+                          }
+                        >
+                          <SelectValue placeholder="Select a type" />
                         </SelectTrigger>
                         <SelectContent>
                           {URL_TYPE_OPTIONS.map((option) => (
@@ -737,6 +761,11 @@ export function NewKnowledgePage() {
                           ))}
                         </SelectContent>
                       </Select>
+                      {showErrors && urlRowErrors[index]?.urlType && (
+                        <p className="text-xs text-destructive">
+                          {urlRowErrors[index]?.urlType}
+                        </p>
+                      )}
                     </Field>
                   </div>
                   {row.urlType === "other" && (
@@ -749,7 +778,15 @@ export function NewKnowledgePage() {
                         onChange={(event) =>
                           updateUrlRow(index, { title: event.target.value })
                         }
+                        aria-invalid={
+                          showErrors && Boolean(urlRowErrors[index]?.title)
+                        }
                       />
+                      {showErrors && urlRowErrors[index]?.title && (
+                        <p className="text-xs text-destructive">
+                          {urlRowErrors[index]?.title}
+                        </p>
+                      )}
                     </Field>
                   )}
                   {rowErrors?.[index] &&
@@ -820,6 +857,7 @@ export function NewKnowledgePage() {
                       : (formik.errors.files as unknown as string)}
                 </p>
               )}
+            </div>
           </CardContent>
         </Card>
 

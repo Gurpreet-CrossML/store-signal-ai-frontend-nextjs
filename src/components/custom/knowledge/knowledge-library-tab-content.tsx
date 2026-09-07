@@ -133,6 +133,7 @@ export default function KnowledgeLibraryTabContent() {
   };
 
   const handleEditItem = (item: KnowledgeItem) => {
+    if (item.status !== "completed") return;
     setDetailOpen(false);
     setEditItem(item);
     setEditOpen(true);
