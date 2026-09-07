@@ -66,7 +66,9 @@ export function EditKnowledgeDialog({
   );
 
   const [aiScope, setAiScope] = useState<AIScope[]>([]);
-  const [dialogContainer, setDialogContainer] = useState<HTMLElement | null>(null);
+  const [dialogContainer, setDialogContainer] = useState<HTMLElement | null>(
+    null,
+  );
   const [error, setError] = useState<string | undefined>();
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
@@ -250,7 +252,9 @@ export function EditKnowledgeDialog({
                       </a>
                       <p className="text-xs text-muted-foreground">
                         {(item.fileType ?? "").toUpperCase()}
-                        {item.fileSize ? ` · ${formatBytes(item.fileSize)}` : ""}
+                        {item.fileSize
+                          ? ` · ${formatBytes(item.fileSize)}`
+                          : ""}
                       </p>
                     </div>
                   </div>
