@@ -1,27 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  IconChecklist,
-  IconPencil,
-  IconSend,
-  IconTrash,
-} from "@tabler/icons-react";
+import Link from "next/link";
+import { IconChecklist, IconExternalLink } from "@tabler/icons-react";
 
+import { LoadingState } from "@/components/custom/loading-state";
 import { CommentTags } from "@/components/custom/social-ai/comment-tags";
+import { DraftBubble } from "@/components/custom/social-ai/draft-bubble";
+import { ExpandableText } from "@/components/custom/social-ai/expandable-text";
+import {
+  formatPostedAt,
+  formatRelativeTime,
+} from "@/components/custom/social-ai/format";
 import {
   useSocialSocket,
   type SocialSocketEvent,
 } from "@/components/custom/social-ai/use-social-socket";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -36,20 +33,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
 import { Typography } from "@/components/ui/typography";
-import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
-import { ACTIONS } from "@/lib/comment-handling-data";
-import { formatRelativeTime } from "@/lib/helpers";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
-  approveCommentDraft,
-  discardCommentDraft,
   fetchCommentDrafts,
   fetchSocialAccountsSubscriptions,
-  updateCommentDraft,
   type CommentDraft,
 } from "@/redux/api-slice/social-ai-slice";
 
@@ -57,6 +46,11 @@ import {
 /* One draft                                                             */
 /* -------------------------------------------------------------------- */
 
+/**
+ * The comment rendered the way the comments view renders it — avatar,
+ * bubble, tags, timestamp — with the AI's pending draft underneath in the
+ * same DraftBubble the in-context surfaces use. One draft UI everywhere.
+ */
 function DraftCard({
   draft,
   storeCode,
@@ -67,200 +61,72 @@ function DraftCard({
   /** A mutation was refused because the draft left pending state elsewhere. */
   onStale: () => void;
 }) {
-  const dispatch = useAppDispatch();
-  const [isEditing, setIsEditing] = useState(false);
-  const [responseText, setResponseText] = useState(draft.response_text);
-  const [dmText, setDmText] = useState(draft.dm_text);
-  const [busy, setBusy] = useState<"approve" | "discard" | "save" | null>(null);
-
   const commenter =
     draft.message.social_user?.name ||
     draft.message.social_user?.username ||
     "Unknown commenter";
+  const avatarUrl = draft.message.social_user?.profile_picture_url;
 
-  const run = async (
-    kind: "approve" | "discard" | "save",
-    action: () => Promise<unknown>,
-  ) => {
-    setBusy(kind);
-    try {
-      await action();
-      setIsEditing(false);
-    } catch {
-      // The thunk toasted; a refusal means someone else handled the draft.
-      onStale();
-    } finally {
-      setBusy(null);
-    }
-  };
+  // The feed opens a post from its ?post= param; the account's channel
+  // decides which feed. Without either, there is no link to offer.
+  const postExternalId = draft.message.post_external_id;
+  const channelType = draft.account?.channel_type;
+  const postHref =
+    postExternalId && channelType
+      ? `/social-ai/${
+          channelType === "instagram" ? "instagram-post" : "facebook-post"
+        }?post=${encodeURIComponent(postExternalId)}`
+      : null;
 
   return (
     <Card size="sm">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">{commenter}</CardTitle>
-        <CardDescription>
-          Drafted {formatRelativeTime(draft.created_at)} · {draft.rule_source}
-        </CardDescription>
-      </CardHeader>
       <CardContent>
-        <blockquote className="flex flex-col gap-2 border-l-2 border-border pl-3">
-          <Typography variant="small" as="p">
-            {draft.message.content}
-          </Typography>
-          <CommentTags analysis={draft.message.analysis} />
-        </blockquote>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Typography variant="caption">Will do:</Typography>
-          {/* ACTIONS is declared in execution-priority order, so filtering
-              it keeps the chips reading as the sequence the AI runs. */}
-          {ACTIONS.filter((action) => draft.actions.includes(action.id)).map(
-            (action) => (
-              <Badge
-                key={action.id}
-                variant="outline"
-                className={BADGE_TONE_STYLES[action.tone]}
-              >
-                {action.label}
-              </Badge>
-            ),
-          )}
-        </div>
-
-        {isEditing ? (
-          <>
-            <div className="flex flex-col gap-2">
-              <Typography variant="caption">Public reply</Typography>
-              <Textarea
-                value={responseText}
-                onChange={(event) => setResponseText(event.target.value)}
-                placeholder="What gets posted under the comment"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Typography variant="caption">Private DM</Typography>
-              <Textarea
-                value={dmText}
-                onChange={(event) => setDmText(event.target.value)}
-                placeholder="What gets sent as a DM"
-              />
-            </div>
-          </>
-        ) : (
-          <>
-            {draft.response_text && (
-              <div className="flex flex-col gap-1">
-                <Typography variant="caption">Public reply</Typography>
-                <Typography variant="small" as="p">
-                  {draft.response_text}
-                </Typography>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-start gap-2">
+            <Avatar>
+              {avatarUrl ? (
+                <AvatarImage src={avatarUrl} alt={commenter} />
+              ) : (
+                <AvatarFallback className="font-medium">
+                  {commenter.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              )}
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <div className="inline-block max-w-full rounded-lg bg-muted px-3 py-2">
+                <p className="flex flex-wrap items-center gap-1.5 text-sm leading-tight font-semibold">
+                  {commenter}
+                  <CommentTags analysis={draft.message.analysis} />
+                </p>
+                <ExpandableText text={draft.message.content} />
               </div>
-            )}
-            {draft.dm_text && (
-              <div className="flex flex-col gap-1">
-                <Typography variant="caption">Private DM</Typography>
-                <Typography variant="small" as="p">
-                  {draft.dm_text}
-                </Typography>
+              <div className="mt-1 flex items-center gap-3 px-3 text-xs text-muted-foreground">
+                <span title={formatPostedAt(draft.message.external_created_at)}>
+                  {formatRelativeTime(draft.message.external_created_at)}
+                </span>
+                {draft.account?.name && <span>{draft.account.name}</span>}
               </div>
-            )}
-            {!draft.response_text && !draft.dm_text && (
-              <Typography variant="caption" as="p">
-                No text to send — approving runs the actions above.
-              </Typography>
-            )}
-          </>
-        )}
-
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {isEditing ? (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={busy !== null}
-                onClick={() => {
-                  setResponseText(draft.response_text);
-                  setDmText(draft.dm_text);
-                  setIsEditing(false);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={busy !== null}
-                onClick={() =>
-                  run("save", () =>
-                    dispatch(
-                      updateCommentDraft({
-                        storeCode,
-                        draftId: draft.id,
-                        patch: {
-                          response_text: responseText,
-                          dm_text: dmText,
-                        },
-                      }),
-                    ).unwrap(),
-                  )
-                }
-              >
-                {busy === "save" && <Spinner data-icon="inline-start" />}
-                Save Edits
-              </Button>
-            </>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={busy !== null}
-              onClick={() => setIsEditing(true)}
-            >
-              <IconPencil data-icon="inline-start" />
-              Edit
+            </div>
+          </div>
+          {postHref && (
+            <Button variant="outline" size="sm" asChild className="shrink-0">
+              <Link href={postHref}>
+                <IconExternalLink data-icon="inline-start" />
+                View Post
+              </Link>
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-destructive hover:text-destructive"
-            disabled={busy !== null}
-            onClick={() =>
-              run("discard", () =>
-                dispatch(
-                  discardCommentDraft({ storeCode, draftId: draft.id }),
-                ).unwrap(),
-              )
-            }
-          >
-            {busy === "discard" ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <IconTrash data-icon="inline-start" />
-            )}
-            Discard
-          </Button>
-          {/* Approving calls Meta synchronously — expect a second or three. */}
-          <Button
-            size="sm"
-            disabled={busy !== null || isEditing}
-            onClick={() =>
-              run("approve", () =>
-                dispatch(
-                  approveCommentDraft({ storeCode, draftId: draft.id }),
-                ).unwrap(),
-              )
-            }
-          >
-            {busy === "approve" ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <IconSend data-icon="inline-start" />
-            )}
-            Approve & Send
-          </Button>
         </div>
+
+        <DraftBubble
+          draft={draft}
+          storeCode={storeCode}
+          onResolved={(outcome) => {
+            // Approve and discard already drop the row from the queue
+            // slice; stale means someone else handled it — refresh to agree.
+            if (outcome === "stale") onStale();
+          }}
+        />
       </CardContent>
     </Card>
   );
@@ -378,11 +244,7 @@ export default function SocialCommentDrafts() {
       </div>
 
       {isLoading && drafts.length === 0 ? (
-        <div className="flex flex-col gap-3">
-          {Array.from({ length: 3 }, (_, index) => (
-            <Skeleton key={index} className="h-40 w-full" />
-          ))}
-        </div>
+        <LoadingState label="Loading Drafts…" />
       ) : drafts.length === 0 ? (
         <Empty>
           <EmptyHeader>

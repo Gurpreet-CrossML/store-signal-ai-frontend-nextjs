@@ -15,7 +15,13 @@ import { ConversationRow } from "@/components/custom/conversation-row";
 import { MessageAppear } from "@/components/custom/message-appear";
 import { SearchInput } from "@/components/custom/search-input";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
-import { CreateTicketDialog } from "@/components/custom/create-ticket-dialog";
+import { CrmLinkButton } from "@/components/custom/customer-header";
+import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
+import {
+  CreateTicketDialog,
+  type TicketCustomer,
+} from "@/components/custom/create-ticket-dialog";
+import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,8 +59,15 @@ import {
 } from "@tabler/icons-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/helpers";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import {
+  FetchCustomerDetails,
+  type CustomerRecord,
+} from "@/redux/api-slice/customer-slice";
+import { FetchFreshdeskTicketId } from "@/redux/api-slice/thread-slice";
+import { SyncCustomerOrders } from "@/redux/api-slice/order-slice";
 import {
   ConnectedAccount,
   SocialConversationUser,
@@ -62,6 +75,7 @@ import {
   SocialDmAttachment,
   CreateSocialSupportTicket,
   FetchSocialTicketDraft,
+  SocialUserCustomerLink,
   fetchSocialAccountsSubscriptions,
   fetchSocialDms,
   fetchSocialUsers,
@@ -486,6 +500,8 @@ export default function DmsInbox({
     number | null
   >(null);
   const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
+  const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
+  const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
   const [replyingToMessage, setReplyingToMessage] = useState<SocialDm | null>(
     null,
   );
@@ -1048,6 +1064,99 @@ export default function DmsInbox({
     !FetchSocialDmsIsLoading &&
     messages.length === 0;
 
+  /* ---- Linked-customer panel — Live Support's right-hand pane -------- */
+
+  const linkedCustomer = activeConversation?.customer ?? null;
+  const linkedCustomerId = linkedCustomer?.id ?? null;
+
+  const { FetchCustomerDetailsData, FetchCustomerDetailsIsLoading } =
+    useAppSelector(
+      (state) => state.GetCustomerReducer.FetchCustomerDetailsState,
+    );
+  const { FetchFreshdeskTicketIdData, FetchFreshdeskTicketIdIsLoading } =
+    useAppSelector(
+      (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
+    );
+  const { SyncCustomerOrdersIsLoading } = useAppSelector(
+    (state) => state.GetOrderReducer.SyncCustomerOrdersState,
+  );
+
+  useEffect(() => {
+    if (!storeCode || !linkedCustomerId) return;
+    // Orders ride on the customer detail response.
+    dispatch(FetchCustomerDetails({ storeCode, customerId: linkedCustomerId }));
+    // threadId is ignored whenever a customerId is given, and a DM contact
+    // has no chat thread — the customer-scoped tickets route is the only one.
+    dispatch(
+      FetchFreshdeskTicketId({
+        threadId: "",
+        customerId: linkedCustomerId,
+        storeCode,
+      }),
+    );
+  }, [dispatch, storeCode, linkedCustomerId]);
+
+  // The details slot is shared with the Catalog screen — only trust it when
+  // it belongs to this conversation's customer.
+  const customerDetails =
+    linkedCustomerId && FetchCustomerDetailsData?.id === linkedCustomerId
+      ? FetchCustomerDetailsData
+      : null;
+  const panelCustomer = linkedCustomer
+    ? {
+        id: linkedCustomer.id,
+        name:
+          linkedCustomer.name ||
+          `${customerDetails?.first_name ?? ""} ${customerDetails?.last_name ?? ""}`.trim() ||
+          linkedCustomer.email,
+        email: linkedCustomer.email,
+      }
+    : null;
+
+  const handleOrdersSync = async () => {
+    if (!storeCode || !linkedCustomerId) return;
+    try {
+      await dispatch(
+        SyncCustomerOrders({ storeCode, customerId: linkedCustomerId }),
+      ).unwrap();
+      dispatch(
+        FetchCustomerDetails({ storeCode, customerId: linkedCustomerId }),
+      );
+      toast.success("Order Sync", {
+        description: "Orders synced successfully.",
+      });
+    } catch {
+      // The thunk has already said what went wrong.
+    }
+  };
+
+  // Mirrors Live Support's handleLinkCustomer: link, close the dialog, and
+  // let the fulfilled reducer patch the conversation row in place.
+  const handleLinkCustomer = async (customer: CustomerRecord) => {
+    if (!storeCode || !activeConversationId) return;
+    setIsLinkingCustomer(true);
+    try {
+      const result = await dispatch(
+        SocialUserCustomerLink({
+          storeCode,
+          userId: activeConversationId,
+          customer: {
+            id: customer.id,
+            name:
+              `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() ||
+              customer.email,
+            email: customer.email,
+          },
+        }),
+      );
+      if (SocialUserCustomerLink.fulfilled.match(result)) {
+        setIsLinkCustomerOpen(false);
+      }
+    } finally {
+      setIsLinkingCustomer(false);
+    }
+  };
+
   const handleSelectConversation = (userId: number) => {
     setSelectedConversation(userId);
     setReplyingToMessage(null);
@@ -1212,235 +1321,276 @@ export default function DmsInbox({
 
           <SidebarInset className="min-h-0 overflow-hidden">
             {activeConversation ? (
-              <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-                <header className="flex h-16 shrink-0 items-center border-b bg-background px-4">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <CustomerAvatar
-                      name={
-                        activeConversation.name || activeConversation.username
-                      }
-                    />
-                    <div className="min-w-0">
-                      <CardTitle className="truncate leading-tight">
-                        {activeContactName}
-                      </CardTitle>
-                      {activeConversation.username && (
-                        <Typography variant="muted" className="truncate">
-                          @{activeConversation.username}
-                        </Typography>
+              <div className="flex h-full min-h-0">
+                <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+                  <header className="flex h-16 shrink-0 items-center border-b bg-background px-4">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <CustomerAvatar
+                        name={
+                          activeConversation.name || activeConversation.username
+                        }
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1">
+                          <CardTitle className="truncate leading-tight">
+                            {activeContactName}
+                          </CardTitle>
+                          {/* Linked → opens the customer in Catalog; not yet
+                            → offers the link dialog. Same affordance as the
+                            Live Support header. */}
+                          <CrmLinkButton
+                            customerId={activeConversation.customer?.id}
+                            onLinkCustomer={() => setIsLinkCustomerOpen(true)}
+                          />
+                        </div>
+                        {(activeConversation.username ||
+                          activeConversation.customer?.email) && (
+                          <Typography variant="muted" className="truncate">
+                            {[
+                              activeConversation.username &&
+                                `@${activeConversation.username}`,
+                              activeConversation.customer?.email,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </Typography>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* The dialog opens with the linked customer pre-selected;
+                      an unlinked contact starts empty, since Meta gives no
+                      email to match a shopper on. */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="ml-auto shrink-0"
+                      onClick={() => setIsCreateTicketOpen(true)}
+                    >
+                      <IconTicket className="size-4" />
+                      Create Ticket
+                    </Button>
+                  </header>
+
+                  <div className="relative min-h-0 flex-1">
+                    <div
+                      ref={messagesContainerRef}
+                      onScroll={handleMessagesScroll}
+                      className="h-full space-y-3 overflow-y-auto p-4"
+                    >
+                      {FetchSocialDmsIsLoading && !messages.length ? (
+                        <div className="flex h-full items-center justify-center">
+                          <LoadingState label="Loading messages…" />
+                        </div>
+                      ) : messages.length || visiblePendingMessages.length ? (
+                        // Pending sends are counted in the total so an
+                        // optimistic bubble is the last item and springs
+                        // immediately, rather than inheriting a stagger.
+                        <AnimatePresence>
+                          {messages.map((msg, index) => (
+                            <MessageAppear
+                              key={msg.id}
+                              outgoing={msg.message_direction === "outgoing"}
+                              index={index}
+                              total={
+                                messages.length + visiblePendingMessages.length
+                              }
+                            >
+                              <DmMessageBubble
+                                msg={msg}
+                                storeCode={storeCode}
+                                userId={activeConversation.id}
+                                contactName={activeContactName}
+                                replyToAttachment={
+                                  msg.reply_to
+                                    ? (messagesById.get(msg.reply_to.id)
+                                        ?.attachments?.[0] ?? null)
+                                    : null
+                                }
+                                awaitingMedia={awaitingMediaIds.includes(
+                                  msg.id,
+                                )}
+                                windowOpen={messagingWindowOpen}
+                                onReacted={refetchMessages}
+                                onReply={setReplyingToMessage}
+                              />
+                              {index === lastConfirmedOutgoingIndex ? (
+                                <SentReceipt />
+                              ) : null}
+                            </MessageAppear>
+                          ))}
+                          {visiblePendingMessages.map((pending, index) => (
+                            <MessageAppear
+                              key={pending.tempId}
+                              outgoing
+                              index={messages.length + index}
+                              total={
+                                messages.length + visiblePendingMessages.length
+                              }
+                            >
+                              <PendingDmBubble
+                                pending={pending}
+                                onRetry={() =>
+                                  handleRetryPending(pending.tempId)
+                                }
+                              />
+                            </MessageAppear>
+                          ))}
+                        </AnimatePresence>
+                      ) : (
+                        <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
+                          <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />
+                          <Typography variant="small" as="p">
+                            Nothing here yet
+                          </Typography>
+                          <Typography variant="muted">
+                            Messages in this conversation will show up here.
+                          </Typography>
+                        </div>
                       )}
                     </div>
-                  </div>
-
-                  {/* No customer is seeded here: a Facebook or Instagram
-                      contact is a social profile, not a shopper record, and
-                      Meta gives no email to match one on. The agent picks
-                      or types one in the dialog. */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="ml-auto shrink-0"
-                    onClick={() => setIsCreateTicketOpen(true)}
-                  >
-                    <IconTicket className="size-4" />
-                    Create Ticket
-                  </Button>
-                </header>
-
-                <div className="relative min-h-0 flex-1">
-                  <div
-                    ref={messagesContainerRef}
-                    onScroll={handleMessagesScroll}
-                    className="h-full space-y-3 overflow-y-auto p-4"
-                  >
-                    {FetchSocialDmsIsLoading && !messages.length ? (
-                      <div className="flex h-full items-center justify-center">
-                        <LoadingState label="Loading messages…" />
-                      </div>
-                    ) : messages.length || visiblePendingMessages.length ? (
-                      // Pending sends are counted in the total so an
-                      // optimistic bubble is the last item and springs
-                      // immediately, rather than inheriting a stagger.
-                      <AnimatePresence>
-                        {messages.map((msg, index) => (
-                          <MessageAppear
-                            key={msg.id}
-                            outgoing={msg.message_direction === "outgoing"}
-                            index={index}
-                            total={
-                              messages.length + visiblePendingMessages.length
-                            }
-                          >
-                            <DmMessageBubble
-                              msg={msg}
-                              storeCode={storeCode}
-                              userId={activeConversation.id}
-                              contactName={activeContactName}
-                              replyToAttachment={
-                                msg.reply_to
-                                  ? (messagesById.get(msg.reply_to.id)
-                                      ?.attachments?.[0] ?? null)
-                                  : null
-                              }
-                              awaitingMedia={awaitingMediaIds.includes(msg.id)}
-                              windowOpen={messagingWindowOpen}
-                              onReacted={refetchMessages}
-                              onReply={setReplyingToMessage}
-                            />
-                            {index === lastConfirmedOutgoingIndex ? (
-                              <SentReceipt />
-                            ) : null}
-                          </MessageAppear>
-                        ))}
-                        {visiblePendingMessages.map((pending, index) => (
-                          <MessageAppear
-                            key={pending.tempId}
-                            outgoing
-                            index={messages.length + index}
-                            total={
-                              messages.length + visiblePendingMessages.length
-                            }
-                          >
-                            <PendingDmBubble
-                              pending={pending}
-                              onRetry={() => handleRetryPending(pending.tempId)}
-                            />
-                          </MessageAppear>
-                        ))}
-                      </AnimatePresence>
-                    ) : (
-                      <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
-                        <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />
-                        <Typography variant="small" as="p">
-                          Nothing here yet
-                        </Typography>
-                        <Typography variant="muted">
-                          Messages in this conversation will show up here.
-                        </Typography>
-                      </div>
-                    )}
-                  </div>
-                  {showScrollButton && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        scrollToBottom("smooth");
-                        setShowScrollButton(false);
-                        isNearBottomRef.current = true;
-                      }}
-                      aria-label="Scroll to latest messages"
-                      className="absolute bottom-3 left-1/2 flex size-9 -translate-x-1/2 items-center justify-center rounded-full border border-border/60 bg-background text-foreground shadow-md transition hover:bg-muted"
-                    >
-                      <IconArrowDown className="size-4" />
-                    </button>
-                  )}
-                </div>
-
-                <div className="shrink-0 border-t bg-background p-4">
-                  {/* Pinned at the bottom of the thread, where the message
-                      would land: the AI's drafted DM, reviewable in place. */}
-                  {activeDraftPending && accountExternalId && (
-                    <div className="mb-2">
-                      <MessageDraftSlot
-                        storeCode={storeCode}
-                        pageId={accountExternalId}
-                        userId={activeConversation.id}
-                        onResolved={(outcome) => {
-                          setResolvedDraftUserIds((prev) => [
-                            ...prev,
-                            activeConversation.id,
-                          ]);
-                          if (outcome === "approved") {
-                            // The sent DM also arrives as a dm_created
-                            // broadcast — these refetches are the fallback,
-                            // and what refreshes the row's preview.
-                            refetchMessages();
-                            refetchConversations();
-                          }
-                        }}
-                      />
-                    </div>
-                  )}
-                  {noThread && (
-                    <div className="mb-2 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
-                      <IconClock className="mt-0.5 size-5 shrink-0" />
-                      <div className="min-w-0">
-                        <Typography
-                          variant="small"
-                          as="p"
-                          className="leading-normal"
-                        >
-                          Waiting for {activeContactName} to write first
-                        </Typography>
-                        <Typography variant="muted" className="text-inherit">
-                          {activeDraftPending
-                            ? "Meta doesn't allow free-form messages to someone who hasn't messaged you — approving the AI draft above is the only way to reach them for now."
-                            : "Meta doesn't allow free-form messages to someone who hasn't messaged you yet."}
-                        </Typography>
-                      </div>
-                    </div>
-                  )}
-                  {replyingToMessage && (
-                    <div className="mb-2 flex items-start justify-between gap-2 rounded-xl border bg-muted/30 p-3">
-                      <div className="min-w-0">
-                        <Typography
-                          variant="small"
-                          as="p"
-                          className="leading-normal"
-                        >
-                          Replying to{" "}
-                          {replyingToMessage.message_direction === "outgoing"
-                            ? "yourself"
-                            : activeContactName}
-                        </Typography>
-                        <Typography variant="muted" className="truncate">
-                          {replyingToMessage.content || "[Attachment]"}
-                        </Typography>
-                      </div>
+                    {showScrollButton && (
                       <button
                         type="button"
-                        onClick={() => setReplyingToMessage(null)}
-                        aria-label="Cancel reply"
-                        className="shrink-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          scrollToBottom("smooth");
+                          setShowScrollButton(false);
+                          isNearBottomRef.current = true;
+                        }}
+                        aria-label="Scroll to latest messages"
+                        className="absolute bottom-3 left-1/2 flex size-9 -translate-x-1/2 items-center justify-center rounded-full border border-border/60 bg-background text-foreground shadow-md transition hover:bg-muted"
                       >
-                        <IconX className="size-4" />
+                        <IconArrowDown className="size-4" />
                       </button>
-                    </div>
-                  )}
-                  {!messagingWindowOpen && (
-                    <div className="mb-2 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
-                      <IconClock className="mt-0.5 size-5 shrink-0" />
-                      <div className="min-w-0">
-                        <Typography
-                          variant="small"
-                          as="p"
-                          className="leading-normal"
-                        >
-                          Replies are closed for now
-                        </Typography>
-                        <Typography variant="muted" className="text-inherit">
-                          Meta only allows replies within 24 hours of their last
-                          message, and it&apos;s been longer than that. You can
-                          reply again once {activeContactName} messages you.
-                        </Typography>
+                    )}
+                  </div>
+
+                  <div className="shrink-0 border-t bg-background p-4">
+                    {/* Pinned at the bottom of the thread, where the message
+                      would land: the AI's drafted DM, reviewable in place. */}
+                    {activeDraftPending && accountExternalId && (
+                      <div className="mb-2">
+                        <MessageDraftSlot
+                          storeCode={storeCode}
+                          pageId={accountExternalId}
+                          userId={activeConversation.id}
+                          onResolved={(outcome) => {
+                            setResolvedDraftUserIds((prev) => [
+                              ...prev,
+                              activeConversation.id,
+                            ]);
+                            if (outcome === "approved") {
+                              // The sent DM also arrives as a dm_created
+                              // broadcast — these refetches are the fallback,
+                              // and what refreshes the row's preview.
+                              refetchMessages();
+                              refetchConversations();
+                            }
+                          }}
+                        />
                       </div>
-                    </div>
-                  )}
-                  <ReplyBox
-                    replyingTo={activeContactName}
-                    allowAttachments
-                    onSubmit={handleReply}
-                    textareaId={DM_REPLY_TEXTAREA_ID}
-                    placeholder={
-                      noThread
-                        ? "Waiting for their first message"
-                        : messagingWindowOpen
-                          ? "Type your reply…"
-                          : "Messaging window closed"
-                    }
-                    disabled={!messagingWindowOpen || noThread}
-                  />
+                    )}
+                    {noThread && (
+                      <div className="mb-2 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+                        <IconClock className="mt-0.5 size-5 shrink-0" />
+                        <div className="min-w-0">
+                          <Typography
+                            variant="small"
+                            as="p"
+                            className="leading-normal"
+                          >
+                            Waiting for {activeContactName} to write first
+                          </Typography>
+                          <Typography variant="muted" className="text-inherit">
+                            {activeDraftPending
+                              ? "Meta doesn't allow free-form messages to someone who hasn't messaged you — approving the AI draft above is the only way to reach them for now."
+                              : "Meta doesn't allow free-form messages to someone who hasn't messaged you yet."}
+                          </Typography>
+                        </div>
+                      </div>
+                    )}
+                    {replyingToMessage && (
+                      <div className="mb-2 flex items-start justify-between gap-2 rounded-xl border bg-muted/30 p-3">
+                        <div className="min-w-0">
+                          <Typography
+                            variant="small"
+                            as="p"
+                            className="leading-normal"
+                          >
+                            Replying to{" "}
+                            {replyingToMessage.message_direction === "outgoing"
+                              ? "yourself"
+                              : activeContactName}
+                          </Typography>
+                          <Typography variant="muted" className="truncate">
+                            {replyingToMessage.content || "[Attachment]"}
+                          </Typography>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setReplyingToMessage(null)}
+                          aria-label="Cancel reply"
+                          className="shrink-0 text-muted-foreground hover:text-foreground"
+                        >
+                          <IconX className="size-4" />
+                        </button>
+                      </div>
+                    )}
+                    {!messagingWindowOpen && (
+                      <div className="mb-2 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+                        <IconClock className="mt-0.5 size-5 shrink-0" />
+                        <div className="min-w-0">
+                          <Typography
+                            variant="small"
+                            as="p"
+                            className="leading-normal"
+                          >
+                            Replies are closed for now
+                          </Typography>
+                          <Typography variant="muted" className="text-inherit">
+                            Meta only allows replies within 24 hours of their
+                            last message, and it&apos;s been longer than that.
+                            You can reply again once {activeContactName}{" "}
+                            messages you.
+                          </Typography>
+                        </div>
+                      </div>
+                    )}
+                    <ReplyBox
+                      replyingTo={activeContactName}
+                      allowAttachments
+                      onSubmit={handleReply}
+                      textareaId={DM_REPLY_TEXTAREA_ID}
+                      placeholder={
+                        noThread
+                          ? "Waiting for their first message"
+                          : messagingWindowOpen
+                            ? "Type your reply…"
+                            : "Messaging window closed"
+                      }
+                      disabled={!messagingWindowOpen || noThread}
+                    />
+                  </div>
                 </div>
+                {/* No cart section: a social contact has no live browsing
+                  session to report, unlike a widget chat. */}
+                <CustomerDetailsPanel
+                  customerData={panelCustomer}
+                  orders={customerDetails?.orders ?? null}
+                  ordersLoading={
+                    Boolean(linkedCustomerId) && FetchCustomerDetailsIsLoading
+                  }
+                  onOrdersSync={handleOrdersSync}
+                  orderSyncLoading={SyncCustomerOrdersIsLoading}
+                  tickets={{
+                    data: linkedCustomerId
+                      ? (FetchFreshdeskTicketIdData ?? [])
+                      : [],
+                    loading:
+                      Boolean(linkedCustomerId) &&
+                      FetchFreshdeskTicketIdIsLoading,
+                  }}
+                />
               </div>
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
@@ -1465,6 +1615,21 @@ export default function DmsInbox({
             open={isCreateTicketOpen}
             onOpenChange={setIsCreateTicketOpen}
             storeCode={storeCode}
+            // Seeded from the conversation on screen, like Live Support:
+            // when the contact is linked, the shopper is already known and
+            // searching for them again is the retyping the dialog exists
+            // to remove. An unlinked contact still starts empty — Meta
+            // gives no email to match one on.
+            initialCustomer={
+              linkedCustomer
+                ? ({
+                    kind: "record",
+                    id: linkedCustomer.id,
+                    name: linkedCustomer.name,
+                    email: linkedCustomer.email,
+                  } satisfies TicketCustomer)
+                : null
+            }
             initialSubject={
               activeContactName ? `DM from ${activeContactName}` : ""
             }
@@ -1497,6 +1662,15 @@ export default function DmsInbox({
                 ? { ok: true }
                 : { ok: false, payload: result.payload };
             }}
+          />
+        ) : null}
+        {storeCode ? (
+          <LinkCustomerDialog
+            open={isLinkCustomerOpen}
+            onOpenChange={setIsLinkCustomerOpen}
+            storeCode={storeCode}
+            linking={isLinkingCustomer}
+            onLink={handleLinkCustomer}
           />
         ) : null}
       </AccountContext.Provider>

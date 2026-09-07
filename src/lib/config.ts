@@ -354,6 +354,12 @@ export const ENDPOINTS = {
   // from two separate conversations.
   metaSupportTicketDraft: (userId: number) =>
     `/social/meta/users/${userId}/support-ticket/draft/`,
+  // POST — attach a customer to a DM contact ({ customer: <pk> }), the
+  // social counterpart of threadCustomerLink. Creating a ticket already
+  // links one server-side; this is the direct path when no ticket is
+  // wanted.
+  socialUserCustomerLink: (userId: number) =>
+    `/social/meta/users/${userId}/update/customer/`,
   // Comment automation rules, per connected account — GET returns the whole
   // settings config (vocabularies + this account's effective rules).
   fetchCommentSettings: ({ accountId }: { accountId: string }) =>
