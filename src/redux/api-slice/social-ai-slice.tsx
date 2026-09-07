@@ -175,6 +175,28 @@ export type CommentTopic = {
   label: string;
 };
 
+/**
+ * The shopper record a DM contact is linked to — set when a ticket is
+ * created from the conversation (the backend links the resolved customer
+ * back to the contact) or via the link-customer dialog. The users list
+ * sends it on every row: this dict when linked, null when not.
+ *
+ * The fields beyond id/name/email are optional because the fulfilled-link
+ * reducer patches the row from the dialog's pick, which doesn't carry them;
+ * they fill in on the next list fetch.
+ */
+export type SocialLinkedCustomer = {
+  id: number;
+  /** The shopper's id on the commerce platform. */
+  customer_id?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  orders_count?: number;
+  /** DecimalField — DRF serialises it as a string. */
+  total_spent?: string | number;
+};
+
 // A DM contact of one connected account — one row per conversation in the
 // inbox list (from the users-list API, most recent conversation first).
 export type SocialConversationUser = {
@@ -185,6 +207,7 @@ export type SocialConversationUser = {
   profile_picture_url: string;
   last_message: string | null;
   last_message_at: string | null;
+  customer?: SocialLinkedCustomer | null;
   // A pending AI-drafted DM exists for this contact. A contact can appear
   // with no thread at all yet — then last_message is the drafted text and
   // approving the draft is the only send path (Meta has no messenger id
@@ -295,7 +318,17 @@ export type CommentDraftStatus = "pending" | "approved" | "discarded";
  */
 export type CommentDraft = {
   id: number;
-  message: SocialComment;
+  /**
+   * The comment being answered. On the queue serializer it also carries
+   * the post's external Graph id, so the card can deep-link to the thread
+   * (?post= on the feed).
+   */
+  message: SocialComment & { post_external_id?: string | null };
+  /**
+   * The connected account the comment arrived on — its channel_type is
+   * what routes the View Post link to the Facebook or Instagram feed.
+   */
+  account?: { id: number; name: string; channel_type: string } | null;
   actions: ActionId[];
   /** What would be posted publicly. Empty when the actions need no text. */
   response_text: string;
@@ -963,6 +996,42 @@ export const CreateSocialSupportTicket = createAsyncThunk(
       const data = response?.data;
       toast.error("Couldn't create the ticket", {
         description: data?.message || "Please check the form and try again.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+/**
+ * Attach a customer record to a DM contact, mirroring ThreadCustomerLink.
+ * The full display shape rides along in the arg so the fulfilled reducer
+ * can patch the conversation row without refetching the paged list.
+ */
+export const SocialUserCustomerLink = createAsyncThunk(
+  "SocialUserCustomerLink",
+  async (
+    {
+      storeCode,
+      userId,
+      customer,
+    }: { storeCode: string; userId: number; customer: SocialLinkedCustomer },
+    thunkAPI,
+  ) => {
+    try {
+      await axiosInstance.post(
+        `${ENDPOINTS.socialUserCustomerLink(userId)}?store_code=${storeCode}`,
+        { customer: customer.id },
+        { useBackend: true },
+      );
+      toast.success("Customer linked.", {
+        description: "This conversation now shows their record.",
+      });
+      return customer;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't link the customer", {
+        description: data?.message || "Please try again.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1758,6 +1827,16 @@ const SocialAISlice = createSlice({
           (row) => row.id === action.payload.id,
         );
         if (index !== -1) drafts.results[index] = action.payload;
+      })
+      // The linked customer lives on the conversation row — patch it in
+      // place so the header updates without refetching (and resetting)
+      // the paged conversations list.
+      .addCase(SocialUserCustomerLink.fulfilled, (state, action) => {
+        const users = state.FetchSocialUsersState.FetchSocialUsersData;
+        const row = users?.results?.find(
+          (user) => user.id === action.meta.arg.userId,
+        );
+        if (row) row.customer = action.payload;
       })
       // A handled draft is gone for good — the API never returns approved
       // or discarded drafts, so drop the row rather than restyle it.
