@@ -1481,6 +1481,47 @@ const SocialAISlice = createSlice({
       if (account) account.allow_ai_auto_respond = action.payload.value;
     },
 
+    /** A comment_draft_created broadcast — the queue grows at the top. */
+    commentDraftReceived(state, action: PayloadAction<CommentDraft>) {
+      const drafts = state.FetchCommentDraftsState.FetchCommentDraftsData;
+      if (!drafts?.results) return;
+      if (drafts.results.some((row) => row.id === action.payload.id)) return;
+      drafts.results.unshift(action.payload);
+      drafts.count = (drafts.count ?? drafts.results.length - 1) + 1;
+    },
+
+    /**
+     * A comment_draft_updated broadcast: an edit keeps the row fresh, and
+     * a draft that left pending state was handled by someone else — it
+     * leaves the queue the way approve and discard do.
+     */
+    commentDraftChanged(state, action: PayloadAction<CommentDraft>) {
+      const drafts = state.FetchCommentDraftsState.FetchCommentDraftsData;
+      if (!drafts?.results) return;
+      const index = drafts.results.findIndex(
+        (row) => row.id === action.payload.id,
+      );
+      if (index === -1) return;
+      if (action.payload.status === "pending") {
+        drafts.results[index] = action.payload;
+        return;
+      }
+      drafts.results.splice(index, 1);
+      if (drafts.count) drafts.count -= 1;
+    },
+
+    /** Flip a DM contact's pending-draft flag from a draft broadcast. */
+    socialUserDmDraftFlagSet(
+      state,
+      action: PayloadAction<{ userId: number; value: boolean }>,
+    ) {
+      const users = state.FetchSocialUsersState.FetchSocialUsersData;
+      const row = users?.results?.find(
+        (user) => user.id === action.payload.userId,
+      );
+      if (row) row.has_pending_dm_draft = action.payload.value;
+    },
+
     socialDmReceived(state, action: PayloadAction<SocialDm>) {
       const dms = state.FetchSocialDmsState.FetchSocialDmsData;
       if (!dms?.results) return;
@@ -1857,6 +1898,9 @@ const SocialAISlice = createSlice({
 
 export const {
   accountAutoRespondSet,
+  commentDraftReceived,
+  commentDraftChanged,
+  socialUserDmDraftFlagSet,
   socialDmReceived,
   socialConversationTouched,
 } = SocialAISlice.actions;
