@@ -69,12 +69,12 @@ const validationSchema = z.object({
       return digitCount >= 7 && digitCount <= 15;
     }, "Enter a valid phone number."),
   city: z
-    .string()
-    .optional()
-    .refine(
-      (val) => !val || /^\p{L}+$/u.test(val),
-      "City must contain only alphabets.",
-    ),
+  .string()
+  .optional()
+  .refine(
+    (val) => !val || /^[\p{L}\s'-]+$/u.test(val.trim()),
+    "City must contain only alphabets.",
+  ),
   street: z.string().optional(),
   state: z.string().optional(),
   country: z.string().optional(),
