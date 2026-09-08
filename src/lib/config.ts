@@ -297,6 +297,10 @@ export const ENDPOINTS = {
     `/social/subscriptions/connected-accounts/${accountId}/`,
   fetchSocialPosts: ({ accountId }: { accountId: string }) =>
     `/social/meta/pages/${accountId}/posts/`,
+  // One post by its external Graph id — deep links (?post=) resolve
+  // directly instead of walking the paginated list.
+  fetchSocialPost: ({ postId }: { postId: string }) =>
+    `/social/meta/posts/${postId}/`,
   fetchPostComments: ({ postId }: { postId: string }) =>
     `/social/meta/posts/${postId}/comments/`,
   fetchCommentTopics: ({ postId }: { postId: string }) =>
