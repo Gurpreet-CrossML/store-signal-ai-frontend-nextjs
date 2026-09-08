@@ -13,6 +13,7 @@ import type {
   SupportTicketDraft,
 } from "@/redux/api-slice/support-ticket-slice";
 import type { ActionId, Autonomy } from "@/lib/comment-handling-data";
+import { toPaginatedList } from "@/lib/helpers";
 
 /**
  * One page size for every social list. Filtering and searching are the
@@ -160,6 +161,10 @@ export type SocialComment = {
   // A pending AI draft exists for this comment — the in-context bubble
   // fetches its content lazily. Absent on websocket payloads.
   has_pending_draft?: boolean;
+  // Client-side only: the full draft delivered by a comment_draft_created
+  // broadcast, stashed on the row so the in-context bubble renders it
+  // without a fetch. Never present on API responses.
+  pending_draft?: CommentDraft | null;
   external_created_at: string;
 };
 
@@ -329,6 +334,12 @@ export type CommentDraft = {
    * what routes the View Post link to the Facebook or Instagram feed.
    */
   account?: { id: number; name: string; channel_type: string } | null;
+  /**
+   * Client-side enrichment: the account's external Graph id from a draft
+   * broadcast, kept so the View Post link can resolve the channel when the
+   * API row carries no account.
+   */
+  account_external_id?: string | null;
   actions: ActionId[];
   /** What would be posted publicly. Empty when the actions need no text. */
   response_text: string;
@@ -494,6 +505,36 @@ export const fetchSocialPosts = createAsyncThunk(
           data?.message || "Unable to fetch posts, please try again later.",
       });
 
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+/**
+ * One post by its external Graph id, in the posts-list row shape. Used to
+ * resolve a ?post= deep link that may live beyond the loaded pages; the
+ * backend renews expired media links before answering. Consumed with
+ * .unwrap() into feed state — nothing in the store depends on it.
+ */
+export const fetchSocialPost = createAsyncThunk(
+  "fetchSocialPost",
+  async (
+    { storeCode, postId }: { storeCode: string; postId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchSocialPost({ postId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as SocialPost;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't open the post", {
+        description:
+          data?.message || "It may belong to a different store, or be gone.",
+      });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
@@ -1208,10 +1249,32 @@ export const fetchCommentDrafts = createAsyncThunk(
   },
 );
 
+/**
+ * Normalise a per-user draft response. These routes haven't settled on one
+ * envelope (standard {status,message,data} wrapper or not; paginated, bare
+ * array, or a single object) — any drift used to render silently nothing,
+ * a badge with no bubble under it.
+ */
+function toDraftList(body: unknown): CommentDraftsResponse {
+  const record =
+    body && typeof body === "object" ? (body as Record<string, unknown>) : null;
+  const payload = record && "data" in record ? (record.data ?? body) : body;
+  const list = toPaginatedList<CommentDraft>(payload);
+  if (
+    !list.results.length &&
+    payload &&
+    typeof payload === "object" &&
+    "id" in (payload as Record<string, unknown>)
+  ) {
+    return { ...list, count: 1, results: [payload as CommentDraft] };
+  }
+  return list;
+}
+
 // The in-context draft reads. Both are addressed by the contact (post/page
-// external Graph id + SocialUser id), default to status=pending server-side,
-// and return the same paginated envelope as the queue. Consumed with
-// .unwrap() into component state — nothing in the store depends on them.
+// external Graph id + SocialUser id) and default to status=pending
+// server-side. Consumed with .unwrap() into component state — nothing in
+// the store depends on them.
 export const fetchUserCommentDraft = createAsyncThunk(
   "fetchUserCommentDraft",
   async (
@@ -1227,7 +1290,7 @@ export const fetchUserCommentDraft = createAsyncThunk(
         `${ENDPOINTS.userCommentDraft({ postId, userId })}?store_code=${storeCode}`,
         { useBackend: true },
       );
-      return response.data.data as CommentDraftsResponse;
+      return toDraftList(response.data);
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
@@ -1254,7 +1317,7 @@ export const fetchUserMessageDraft = createAsyncThunk(
         `${ENDPOINTS.userMessageDraft({ pageId, userId })}?store_code=${storeCode}`,
         { useBackend: true },
       );
-      return response.data.data as CommentDraftsResponse;
+      return toDraftList(response.data);
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
