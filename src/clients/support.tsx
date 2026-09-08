@@ -1078,7 +1078,9 @@ export default function Support() {
         const updatedThread: ThreadWithReadState = {
           ...existingThread,
           customer:
-            data.customer === undefined ? existingThread.customer : data.customer,
+            data.customer === undefined
+              ? existingThread.customer
+              : data.customer,
           last_message: data.message,
           is_active: data.is_active,
           total_messages: (existingThread.total_messages ?? 0) + 1,
@@ -1433,7 +1435,11 @@ export default function Support() {
                           online={thread.is_active}
                         />
                       }
-                      title={thread.customer?.name || thread.customer?.email || "Guest"}
+                      title={
+                        thread.customer?.name ||
+                        thread.customer?.email ||
+                        "Guest"
+                      }
                       timestamp={formatRelativeDateTime(thread.created_at)}
                       indicator={
                         isUnread ? (
@@ -1494,13 +1500,18 @@ export default function Support() {
                 <div className="flex w-full items-center justify-between gap-3">
                   <div className="flex min-w-0 flex-1 items-center gap-2.5">
                     <CustomerAvatar
-                      name={selectedThread?.customer?.name || selectedThread?.customer?.email}
+                      name={
+                        selectedThread?.customer?.name ||
+                        selectedThread?.customer?.email
+                      }
                       online={selectedThread?.is_active}
                     />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1">
                         <CardTitle className="truncate leading-tight">
-                          {selectedThread?.customer?.name || selectedThread?.customer?.email || "Guest"}
+                          {selectedThread?.customer?.name ||
+                            selectedThread?.customer?.email ||
+                            "Guest"}
                         </CardTitle>
                         <CrmLinkButton
                           customerId={selectedThread?.customer?.id}
@@ -1671,7 +1682,14 @@ export default function Support() {
               }),
             );
             const ok = CreateSupportTicket.fulfilled.match(result);
-            if (ok) dispatch(FetchFreshdeskTicketId({ threadId: activeThreadId, customerId: selectedThread?.customer?.id, storeCode }));
+            if (ok)
+              dispatch(
+                FetchFreshdeskTicketId({
+                  threadId: activeThreadId,
+                  customerId: selectedThread?.customer?.id,
+                  storeCode,
+                }),
+              );
             return ok ? { ok: true } : { ok: false, payload: result.payload };
           }}
         />
