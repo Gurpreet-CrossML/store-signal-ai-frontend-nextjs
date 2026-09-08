@@ -62,15 +62,12 @@ const validationSchema = z.object({
       (val) => !val || /^[+\d()[\]\s\-]+$/.test(val),
       "Phone may only contain digits, spaces, +, -, (, ).",
     )
-    .refine(
-      (val) => {
-        if (!val) return true;
+    .refine((val) => {
+      if (!val) return true;
 
-        const digitCount = val.replace(/\D/g, "").length;
-        return digitCount >= 7 && digitCount <= 15;
-      },
-      "Enter a valid phone number.",
-    ),
+      const digitCount = val.replace(/\D/g, "").length;
+      return digitCount >= 7 && digitCount <= 15;
+    }, "Enter a valid phone number."),
   city: z
     .string()
     .optional()
