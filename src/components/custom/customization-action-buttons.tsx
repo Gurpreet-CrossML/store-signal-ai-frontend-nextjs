@@ -46,6 +46,7 @@ function AddActionButtonForm({
     const trimmedName = name.trim();
     const trimmedMessage = message.trim();
     if (!trimmedName || !trimmedMessage) return;
+    if (!/^[a-zA-Z\s\-']+$/.test(trimmedName)) return;
     onAdd({ name: trimmedName, message: trimmedMessage });
     setName("");
     setMessage("");
@@ -79,7 +80,9 @@ export default function CustomizationActionButtons({
   const removeButton = (button: ActionButton) => {
     onChange(
       actionButtons.filter((current) =>
-        button.id != null ? current.id !== button.id : current !== button,
+        button.id != null
+          ? current.id !== button.id
+          : current.name !== button.name,
       ),
     );
   };
@@ -141,7 +144,14 @@ export default function CustomizationActionButtons({
             Add New Quick Action
           </Typography>
           <AddActionButtonForm
-            onAdd={(button) => onChange([...actionButtons, button])}
+            onAdd={(button) => {
+              const isDuplicate = actionButtons.some(
+                (existing) =>
+                  existing.name.trim().toLowerCase() ===
+                  button.name.trim().toLowerCase(),
+              );
+              if (!isDuplicate) onChange([...actionButtons, button]);
+            }}
           />
         </div>
         {/* Whatever the server rejected among this card's fields.

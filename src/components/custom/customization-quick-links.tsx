@@ -57,9 +57,11 @@ export default function CustomizationQuickLinks({
               <Label className="text-xs text-muted-foreground">Name</Label>
               <Input
                 value={link.label}
-                onChange={(event) =>
-                  onUpdate(index, { label: event.target.value })
-                }
+                onChange={(event) => {
+                  const val = event.target.value;
+                  if (val === "" || /^[a-zA-Z\s\-']+$/.test(val))
+                    onUpdate(index, { label: val });
+                }}
                 placeholder="e.g. Brands"
               />
             </div>
