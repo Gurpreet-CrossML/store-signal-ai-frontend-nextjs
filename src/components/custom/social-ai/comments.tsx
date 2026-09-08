@@ -640,6 +640,22 @@ function CommentsList({
   // Live comments and AI tags for this list.
   const handleCommentEvent = useCallback(
     (event: SocialSocketEvent) => {
+      if (event.action_type === "comment_draft_created") {
+        // Flag the source comment so its CommentDraftSlot mounts and shows
+        // the draft in place — no reload needed anymore.
+        if (event.data.post_external_id !== postId) return;
+        const draftCommentId = event.data.draft.message.id;
+        setComments((prev) =>
+          prev.some((comment) => comment.id === draftCommentId)
+            ? prev.map((comment) =>
+                comment.id === draftCommentId
+                  ? { ...comment, has_pending_draft: true }
+                  : comment,
+              )
+            : prev,
+        );
+        return;
+      }
       if (event.action_type === "comment_ai_response") {
         const { message_id, ai_response } = event.data;
         setComments((prev) =>

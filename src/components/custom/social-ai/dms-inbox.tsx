@@ -76,6 +76,7 @@ import {
   CreateSocialSupportTicket,
   FetchSocialTicketDraft,
   SocialUserCustomerLink,
+  socialUserDmDraftFlagSet,
   fetchSocialAccountsSubscriptions,
   fetchSocialDms,
   fetchSocialUsers,
@@ -861,6 +862,37 @@ export default function DmsInbox({
   // their results — and anything a customer sends — back to the screen.
   const handleSocialEvent = useCallback(
     (event: SocialSocketEvent) => {
+      if (event.action_type === "comment_draft_created") {
+        const { account_external_id, draft } = event.data;
+        if (accountExternalId && account_external_id !== accountExternalId) {
+          return;
+        }
+        // Only a draft that would send a DM pins in the inbox.
+        if (!draft.dm_text || draft.status !== "pending") return;
+        const draftUserId = draft.message.social_user?.id;
+        if (!draftUserId) return;
+        dispatch(
+          socialUserDmDraftFlagSet({ userId: draftUserId, value: true }),
+        );
+        // A fresh draft revives a contact whose earlier one was resolved here.
+        setResolvedDraftUserIds((prev) =>
+          prev.filter((id) => id !== draftUserId),
+        );
+        return;
+      }
+      if (event.action_type === "comment_draft_updated") {
+        const { draft } = event.data;
+        if (draft.status === "pending" || !draft.dm_text) return;
+        const draftUserId = draft.message.social_user?.id;
+        if (!draftUserId) return;
+        // ponytail: clears the row's Draft badge on any resolution — a
+        // contact holding a second pending draft loses the badge until the
+        // next list fetch. Track per-draft counts if that ever matters.
+        dispatch(
+          socialUserDmDraftFlagSet({ userId: draftUserId, value: false }),
+        );
+        return;
+      }
       if (event.action_type !== "dm_created") return;
 
       const dm = event.data;
