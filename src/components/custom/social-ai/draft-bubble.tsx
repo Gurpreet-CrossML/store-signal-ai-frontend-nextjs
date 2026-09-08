@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   IconPencil,
   IconSend,
@@ -26,6 +26,8 @@ import {
   type CommentDraft,
 } from "@/redux/api-slice/social-ai-slice";
 
+import { useSocialSocket, type SocialSocketEvent } from "./use-social-socket";
+
 /** How a reviewed draft left the screen — "stale" means someone else handled it. */
 export type DraftOutcome = "approved" | "discarded" | "stale";
 
@@ -33,34 +35,46 @@ export type DraftOutcome = "approved" | "discarded" | "stale";
 const PRIVATE_REPLY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
- * A pending AI draft reviewed in context — under its source comment, or
- * pinned at the bottom of a DM thread. One draft can hold a public reply
- * and a private DM at once ("Reply Publicly + Move to DM" rules); one
- * approval sends everything it holds, so both texts show when present.
+ * A pending AI draft reviewed in context — under its source comment, pinned
+ * at the bottom of a DM thread, or in the review queue. One draft can hold
+ * a public reply and a private DM at once ("Reply Publicly + Move to DM"
+ * rules); one approval sends everything it holds, so both texts show.
+ *
+ * Display is driven by the `draft` prop, so a comment_draft_updated
+ * broadcast the parent applies shows up immediately; the edit fields are
+ * seeded when editing starts, not at mount, for the same reason. A save
+ * reports the server's version through `onSaved` for parents that hold the
+ * draft themselves (the queue's redux row updates on its own).
  */
 export function DraftBubble({
   draft,
   storeCode,
+  onSaved,
   onResolved,
 }: {
   draft: CommentDraft;
   storeCode: string;
+  onSaved?: (draft: CommentDraft) => void;
   onResolved: (outcome: DraftOutcome) => void;
 }) {
   const dispatch = useAppDispatch();
-  // Saved edits replace this copy, so the read view shows what will send.
-  const [current, setCurrent] = useState(draft);
   const [isEditing, setIsEditing] = useState(false);
-  const [responseText, setResponseText] = useState(draft.response_text);
-  const [dmText, setDmText] = useState(draft.dm_text);
+  const [responseText, setResponseText] = useState("");
+  const [dmText, setDmText] = useState("");
   const [busy, setBusy] = useState<"approve" | "discard" | "save" | null>(null);
 
   // A snapshot, not a ticking clock — minute drift is noise on a 7-day rule.
   const [now] = useState(() => Date.now());
-  const commentAt = current.message.external_created_at;
+  const commentAt = draft.message.external_created_at;
   const privateReplyLate =
-    Boolean(current.dm_text && commentAt) &&
+    Boolean(draft.dm_text && commentAt) &&
     now - new Date(commentAt).getTime() > PRIVATE_REPLY_WINDOW_MS;
+
+  const startEditing = () => {
+    setResponseText(draft.response_text);
+    setDmText(draft.dm_text);
+    setIsEditing(true);
+  };
 
   const run = async (
     kind: "approve" | "discard" | "save",
@@ -86,14 +100,13 @@ export function DraftBubble({
         </Typography>
         <Badge variant="secondary">Awaiting approval</Badge>
         <Typography variant="caption" as="span" className="ml-auto">
-          Drafted {formatRelativeTime(current.created_at)} ·{" "}
-          {current.rule_source}
+          Drafted {formatRelativeTime(draft.created_at)} · {draft.rule_source}
         </Typography>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <Typography variant="caption">Will do:</Typography>
-        {ACTIONS.filter((action) => current.actions.includes(action.id)).map(
+        {ACTIONS.filter((action) => draft.actions.includes(action.id)).map(
           (action) => (
             <Badge
               key={action.id}
@@ -108,7 +121,7 @@ export function DraftBubble({
 
       {isEditing ? (
         <>
-          {current.response_text && (
+          {draft.response_text && (
             <div className="flex flex-col gap-1">
               <Typography variant="caption">Public reply</Typography>
               <Textarea
@@ -117,7 +130,7 @@ export function DraftBubble({
               />
             </div>
           )}
-          {current.dm_text && (
+          {draft.dm_text && (
             <div className="flex flex-col gap-1">
               <Typography variant="caption">Private DM</Typography>
               <Textarea
@@ -129,23 +142,23 @@ export function DraftBubble({
         </>
       ) : (
         <>
-          {current.response_text && (
+          {draft.response_text && (
             <div className="flex flex-col gap-1">
               <Typography variant="caption">Public reply</Typography>
               <Typography variant="small" as="p">
-                {current.response_text}
+                {draft.response_text}
               </Typography>
             </div>
           )}
-          {current.dm_text && (
+          {draft.dm_text && (
             <div className="flex flex-col gap-1">
               <Typography variant="caption">Private DM</Typography>
               <Typography variant="small" as="p">
-                {current.dm_text}
+                {draft.dm_text}
               </Typography>
             </div>
           )}
-          {!current.response_text && !current.dm_text && (
+          {!draft.response_text && !draft.dm_text && (
             <Typography variant="caption" as="p">
               No text to send — approving runs the actions above.
             </Typography>
@@ -153,7 +166,7 @@ export function DraftBubble({
         </>
       )}
 
-      {current.dm_text && commentAt && (
+      {draft.dm_text && commentAt && (
         <Typography
           variant="caption"
           as="p"
@@ -174,11 +187,7 @@ export function DraftBubble({
               variant="ghost"
               size="sm"
               disabled={busy !== null}
-              onClick={() => {
-                setResponseText(current.response_text);
-                setDmText(current.dm_text);
-                setIsEditing(false);
-              }}
+              onClick={() => setIsEditing(false)}
             >
               Cancel
             </Button>
@@ -191,11 +200,11 @@ export function DraftBubble({
                   const saved = await dispatch(
                     updateCommentDraft({
                       storeCode,
-                      draftId: current.id,
+                      draftId: draft.id,
                       patch: { response_text: responseText, dm_text: dmText },
                     }),
                   ).unwrap();
-                  setCurrent(saved);
+                  onSaved?.(saved);
                   setIsEditing(false);
                 })
               }
@@ -205,12 +214,12 @@ export function DraftBubble({
             </Button>
           </>
         ) : (
-          (current.response_text || current.dm_text) && (
+          (draft.response_text || draft.dm_text) && (
             <Button
               variant="outline"
               size="sm"
               disabled={busy !== null}
-              onClick={() => setIsEditing(true)}
+              onClick={startEditing}
             >
               <IconPencil data-icon="inline-start" />
               Edit
@@ -225,7 +234,7 @@ export function DraftBubble({
           onClick={() =>
             run("discard", async () => {
               await dispatch(
-                discardCommentDraft({ storeCode, draftId: current.id }),
+                discardCommentDraft({ storeCode, draftId: draft.id }),
               ).unwrap();
               onResolved("discarded");
             })
@@ -245,7 +254,7 @@ export function DraftBubble({
           onClick={() =>
             run("approve", async () => {
               await dispatch(
-                approveCommentDraft({ storeCode, draftId: current.id }),
+                approveCommentDraft({ storeCode, draftId: draft.id }),
               ).unwrap();
               onResolved("approved");
             })
@@ -264,9 +273,37 @@ export function DraftBubble({
 }
 
 /**
+ * Applies a draft broadcast to one slot's held draft: an update while
+ * pending refreshes it, one that left pending state clears it and reports
+ * the outcome (someone else handled it), and a created event fills an
+ * empty slot without a fetch.
+ */
+function applyDraftBroadcast(
+  event: Extract<
+    SocialSocketEvent,
+    { action_type: "comment_draft_created" | "comment_draft_updated" }
+  >,
+  setDraft: React.Dispatch<React.SetStateAction<CommentDraft | null>>,
+  onResolved: (outcome: DraftOutcome) => void,
+) {
+  const incoming = event.data.draft;
+  if (event.action_type === "comment_draft_created") {
+    setDraft((prev) => prev ?? incoming);
+    return;
+  }
+  if (incoming.status === "pending") {
+    setDraft(incoming);
+    return;
+  }
+  setDraft(null);
+  onResolved(incoming.status === "approved" ? "approved" : "discarded");
+}
+
+/**
  * Fetches a contact's pending comment draft on a post and shows it under
- * the source comment. The endpoint returns every pending draft the contact
- * has on the post, so the row is matched back by its source comment id.
+ * the source comment, then keeps it live off the draft broadcasts. The
+ * endpoint returns every pending draft the contact has on the post, so the
+ * row is matched back by its source comment id.
  */
 export function CommentDraftSlot({
   storeCode,
@@ -306,11 +343,26 @@ export function CommentDraftSlot({
     };
   }, [dispatch, storeCode, postId, userId, commentId]);
 
+  const handleDraftEvent = useCallback(
+    (event: SocialSocketEvent) => {
+      if (
+        event.action_type !== "comment_draft_created" &&
+        event.action_type !== "comment_draft_updated"
+      )
+        return;
+      if (event.data.draft.message.id !== commentId) return;
+      applyDraftBroadcast(event, setDraft, onResolved);
+    },
+    [commentId, onResolved],
+  );
+  useSocialSocket({ storeCode, onEvent: handleDraftEvent });
+
   if (!draft) return null;
   return (
     <DraftBubble
       draft={draft}
       storeCode={storeCode}
+      onSaved={setDraft}
       onResolved={(outcome) => {
         setDraft(null);
         onResolved(outcome);
@@ -354,11 +406,39 @@ export function MessageDraftSlot({
     };
   }, [dispatch, storeCode, pageId, userId]);
 
+  const handleDraftEvent = useCallback(
+    (event: SocialSocketEvent) => {
+      if (
+        event.action_type !== "comment_draft_created" &&
+        event.action_type !== "comment_draft_updated"
+      )
+        return;
+      const { account_external_id, draft: incoming } = event.data;
+      if (account_external_id && account_external_id !== pageId) return;
+      if (incoming.message.social_user?.id !== userId) return;
+      // Only a draft that would send a DM belongs in the thread.
+      if (event.action_type === "comment_draft_created" && !incoming.dm_text)
+        return;
+      // A contact can hold several drafts (one per comment) — an update to
+      // one that isn't pinned here must not clobber the one that is.
+      if (
+        event.action_type === "comment_draft_updated" &&
+        draft &&
+        draft.id !== incoming.id
+      )
+        return;
+      applyDraftBroadcast(event, setDraft, onResolved);
+    },
+    [pageId, userId, onResolved, draft],
+  );
+  useSocialSocket({ storeCode, onEvent: handleDraftEvent });
+
   if (!draft) return null;
   return (
     <DraftBubble
       draft={draft}
       storeCode={storeCode}
+      onSaved={setDraft}
       onResolved={(outcome) => {
         setDraft(null);
         onResolved(outcome);

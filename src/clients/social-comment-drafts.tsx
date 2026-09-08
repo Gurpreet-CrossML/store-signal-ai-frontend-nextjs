@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { IconChecklist, IconExternalLink } from "@tabler/icons-react";
 
@@ -37,6 +37,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
+  commentDraftChanged,
+  commentDraftReceived,
   fetchCommentDrafts,
   fetchSocialAccountsSubscriptions,
   type CommentDraft,
@@ -146,12 +148,12 @@ export default function SocialCommentDrafts() {
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const accounts =
-    useAppSelector(
-      (state) =>
-        state.GetSocialAIReducer.FetchSocialAccountSubscriptionsState
-          .FetchSocialAccountsSubscriptionsData,
-    )?.results ?? [];
+  const accountsData = useAppSelector(
+    (state) =>
+      state.GetSocialAIReducer.FetchSocialAccountSubscriptionsState
+        .FetchSocialAccountsSubscriptionsData,
+  );
+  const accounts = useMemo(() => accountsData?.results ?? [], [accountsData]);
   const {
     FetchCommentDraftsData: draftsData,
     FetchCommentDraftsIsLoading: isLoading,
@@ -161,7 +163,6 @@ export default function SocialCommentDrafts() {
 
   const [accountId, setAccountId] = useState("all");
   const pageRef = useRef(1);
-  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (storeCode) dispatch(fetchSocialAccountsSubscriptions(storeCode));
@@ -182,27 +183,33 @@ export default function SocialCommentDrafts() {
     loadPageOne();
   }, [loadPageOne]);
 
-  // A pending draft follows the comment_tagged broadcast within seconds, so
-  // refresh a beat after it — debounced, a busy post tags several at once.
+  // The queue is live off the draft broadcasts: created inserts at the top,
+  // updated refreshes the row — or removes it when the draft left pending
+  // state, meaning another teammate already handled it.
   const handleSocketEvent = useCallback(
     (event: SocialSocketEvent) => {
-      if (event.action_type !== "comment_tagged") return;
-      if (refreshTimer.current) clearTimeout(refreshTimer.current);
-      refreshTimer.current = setTimeout(loadPageOne, 3_000);
+      if (event.action_type === "comment_draft_created") {
+        // The stream carries every account on the store; respect the filter.
+        if (accountId !== "all") {
+          const account = accounts.find((row) => String(row.id) === accountId);
+          if (account && event.data.account_external_id !== account.external_id)
+            return;
+        }
+        dispatch(commentDraftReceived(event.data.draft));
+        return;
+      }
+      if (event.action_type === "comment_draft_updated") {
+        dispatch(commentDraftChanged(event.data.draft));
+      }
     },
-    [loadPageOne],
+    [accountId, accounts, dispatch],
   );
   useSocialSocket({
     storeCode,
     onEvent: handleSocketEvent,
+    // Nothing is buffered while disconnected, so a reconnect re-reads.
     onReconnect: loadPageOne,
   });
-  useEffect(
-    () => () => {
-      if (refreshTimer.current) clearTimeout(refreshTimer.current);
-    },
-    [],
-  );
 
   const drafts = draftsData?.results ?? [];
   const hasMore = Boolean(draftsData?.next);
