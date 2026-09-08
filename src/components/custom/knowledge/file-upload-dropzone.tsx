@@ -42,10 +42,9 @@ export function formatBytes(bytes: number): string {
 /** Multi-file variant — picks up any number
  * of files in one action (native `<input multiple>` + drag/drop of
  * several files at once), appending to `files` rather than replacing it,
- * with each selection individually removable. Only accepts the types the
- * backend's `KNOWLEDGE_ALLOWED_FILE_EXTENSIONS` allows (PDF/DOCX — no
- * TXT, unlike the single-file variant above, which predates that
- * constraint and is left as-is since nothing here depends on it). */
+ * with each selection individually removable. Accepts the same file types
+ * the backend allows (PDF, DOCX, DOC, JSON, CSV, XLS/XLSX, PPTX, ODT, ODS).
+ */
 export function MultiFileUploadDropzone({
   files,
   onFilesSelected,
@@ -176,13 +175,22 @@ export function MultiFileUploadDropzone({
             </span>
           </Typography>
           <Typography variant="muted" className="text-xs">
-            Supported formats: PDF, DOCX — select multiple at once
+            Supported formats: PDF, DOC, DOCX, JSON, CSV, XLS, XLSX, PPTX, ODT,
+            ODS
           </Typography>
           <input
             ref={inputRef}
             type="file"
             multiple
-            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            accept={
+              ".pdf,.doc,.docx,.json,.csv,.xlsx,.xls,.pptx,.odt,.ods," +
+              "application/pdf,application/json,text/csv," +
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document," +
+              "application/msword,application/vnd.oasis.opendocument.text," +
+              "application/vnd.oasis.opendocument.spreadsheet," +
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet," +
+              "application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            }
             className="hidden"
             onChange={(event) => {
               handleFileList(event.target.files);

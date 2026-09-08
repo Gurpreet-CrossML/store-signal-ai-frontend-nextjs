@@ -248,14 +248,9 @@ export function EditKnowledgeDialog({
                         rel="noopener noreferrer"
                         className="block truncate text-sm font-medium text-primary underline underline-offset-2"
                       >
-                        {item.fileName ?? "Current file"}
+                        {item.fileName ?? "Current file"} (
+                        {item.fileSize ? `${formatBytes(item.fileSize)}` : ""})
                       </a>
-                      <p className="text-xs text-muted-foreground">
-                        {(item.fileType ?? "").toUpperCase()}
-                        {item.fileSize
-                          ? ` · ${formatBytes(item.fileSize)}`
-                          : ""}
-                      </p>
                     </div>
                   </div>
                 )}
