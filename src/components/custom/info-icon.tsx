@@ -11,7 +11,8 @@ export const InfoIcon = ({
   text,
   className,
 }: {
-  text: string;
+  /** Plain string, or richer content (a short list) when prose won't scan. */
+  text: React.ReactNode;
   /** Overrides the muted default — e.g. `text-inherit` inside a tinted strip. */
   className?: string;
 }) => (
@@ -25,7 +26,7 @@ export const InfoIcon = ({
       />
     </TooltipTrigger>
     <TooltipContent>
-      <p>{text}</p>
+      {typeof text === "string" ? <p>{text}</p> : text}
     </TooltipContent>
   </Tooltip>
 );
