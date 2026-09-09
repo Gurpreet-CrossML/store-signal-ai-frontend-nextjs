@@ -671,6 +671,7 @@ const KnowledgeRagSlice = createSlice({
         previous: null,
         results: [],
       } as KnowledgeItemListResponse,
+      FetchKnowledgeItemsLatestRequestId: null as string | null,
     },
     CreateKnowledgeItemsBulkState: {
       CreateKnowledgeItemsBulkIsLoading: false,
@@ -738,22 +739,42 @@ const KnowledgeRagSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // FetchKnowledgeItems
-      .addCase(FetchKnowledgeItems.pending, (state) => {
+      .addCase(FetchKnowledgeItems.pending, (state, action) => {
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = true;
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsSuccess = false;
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsError = null;
+        state.FetchKnowledgeItemsState.FetchKnowledgeItemsLatestRequestId =
+          action.meta.requestId;
       })
       .addCase(FetchKnowledgeItems.fulfilled, (state, action) => {
+        if (
+          action.meta.requestId !==
+          state.FetchKnowledgeItemsState.FetchKnowledgeItemsLatestRequestId
+        ) {
+          return;
+        }
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = false;
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsSuccess = true;
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsListData =
           action.payload;
       })
-      .addCase(FetchKnowledgeItems.rejected, (state) => {
+      .addCase(FetchKnowledgeItems.rejected, (state, action) => {
+        if (
+          action.meta.requestId !==
+          state.FetchKnowledgeItemsState.FetchKnowledgeItemsLatestRequestId
+        ) {
+          return;
+        }
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = false;
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsSuccess = false;
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsError =
           "Something went wrong";
+        state.FetchKnowledgeItemsState.FetchKnowledgeItemsListData = {
+          count: 0,
+          next: null,
+          previous: null,
+          results: [],
+        };
       })
       // CreateKnowledgeItemsBulk
       .addCase(CreateKnowledgeItemsBulk.pending, (state) => {
