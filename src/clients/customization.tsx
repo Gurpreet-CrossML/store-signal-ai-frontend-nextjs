@@ -309,6 +309,10 @@ export default function Customization() {
         result = await dispatch(
           UpdateWidgetCustomizationWithImage({ storeId, payload, logoFile }),
         );
+      } else if (!logoUrl) {
+        result = await dispatch(
+          UpdateWidgetCustomizationWithImage({ storeId, payload, logoFile: new File([], "") }),
+        );
       } else {
         result = await dispatch(
           UpdateWidgetCustomization({ storeId, payload }),
@@ -375,7 +379,7 @@ export default function Customization() {
             type="button"
             size="lg"
             onClick={handleSaveAll}
-            disabled={savingAll}
+            disabled={savingAll || new Set(actionButtons.map((b) => b.name.trim().toLowerCase())).size !== actionButtons.length}
           >
             {savingAll ? (
               <Spinner data-icon="inline-start" />

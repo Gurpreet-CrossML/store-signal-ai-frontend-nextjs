@@ -132,7 +132,8 @@ export const UpdateWidgetCustomizationWithImage = createAsyncThunk(
   ) => {
     try {
       const formData = new FormData();
-      formData.append("logo", logoFile);
+      if (logoFile.name) formData.append("logo", logoFile);
+      else formData.append("logo", "");
 
       const scalarKeys = [
         "store",
