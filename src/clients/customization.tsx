@@ -69,6 +69,9 @@ export default function Customization() {
 
   const [actionButtons, setActionButtons] = useState<ActionButton[]>([]);
   const [quickLinks, setQuickLinks] = useState<QuickLinkItem[]>([]);
+  /** True while the "Add New Quick Action" form has an unresolved error
+   *  (e.g. a rejected duplicate name) — blocks Save Changes until cleared. */
+  const [hasQuickActionError, setHasQuickActionError] = useState(false);
 
   const applyColor = (which: ColorKey, value: string) => {
     const normalized = normalizeHex(value) ?? value;
@@ -254,6 +257,13 @@ export default function Customization() {
   const handleSaveAll = async () => {
     if (storeId == null) return;
 
+    if (hasQuickActionError) {
+      toast.error("Duplicate quick action", {
+        description:
+          "Resolve the quick action name error before saving changes.",
+      });
+      return;
+    }
     if (
       normalizedQuickLinks.some(
         (link) => link.url !== "" && !isValidUrl(link.url),
@@ -351,6 +361,7 @@ export default function Customization() {
           fieldErrors={fieldErrors}
           actionButtons={actionButtons}
           onChange={setActionButtons}
+          onPendingErrorChange={setHasQuickActionError}
         />
         <CustomizationBranding
           fieldErrors={fieldErrors}

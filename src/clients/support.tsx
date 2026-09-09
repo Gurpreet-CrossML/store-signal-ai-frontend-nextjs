@@ -1078,10 +1078,7 @@ export default function Support() {
         const existingThread = prev[existingIndex];
         const updatedThread: ThreadWithReadState = {
           ...existingThread,
-          customer:
-            data.customer === undefined
-              ? existingThread.customer
-              : data.customer,
+          customer: data.customer || existingThread.customer,
           last_message: data.message,
           is_active: data.is_active,
           total_messages: (existingThread.total_messages ?? 0) + 1,

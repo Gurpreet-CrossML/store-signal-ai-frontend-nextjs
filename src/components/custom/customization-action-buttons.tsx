@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FieldError } from "@/components/custom/field-error";
 import {
   IconChevronDown,
@@ -32,33 +32,60 @@ type CustomizationActionButtonsProps = {
   fieldErrors?: Record<string, string>;
   actionButtons: ActionButton[];
   onChange: (actionButtons: ActionButton[]) => void;
+  /** Called whenever the "Add New Quick Action" form has an unresolved
+   *  error (e.g. a rejected duplicate name), so the parent can block
+   *  "Save Changes" until it's cleared. */
+  onPendingErrorChange?: (hasError: boolean) => void;
 };
 
 function AddActionButtonForm({
   onAdd,
+  onErrorChange,
 }: {
-  onAdd: (button: ActionButton) => void;
+  onAdd: (button: ActionButton) => boolean;
+  onErrorChange?: (hasError: boolean) => void;
 }) {
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
+  const [nameError, setNameError] = useState("");
+
+  // Surface the unresolved-error state to the parent so it can refuse to
+  // save while a rejected duplicate is still sitting in this form.
+  useEffect(() => {
+    onErrorChange?.(Boolean(nameError));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nameError]);
 
   const handleAdd = () => {
     const trimmedName = name.trim();
     const trimmedMessage = message.trim();
     if (!trimmedName || !trimmedMessage) return;
     if (!/^[a-zA-Z\s\-'&]+$/.test(trimmedName)) return;
-    onAdd({ name: trimmedName, message: trimmedMessage });
+    const added = onAdd({ name: trimmedName, message: trimmedMessage });
+    if (!added) {
+      setNameError("This quick action already exists.");
+      return;
+    }
+    setNameError("");
     setName("");
     setMessage("");
   };
 
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_auto]">
-      <Input
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        placeholder='Name e.g. "Track Order"'
-      />
+      <div>
+        <Input
+          value={name}
+          onChange={(event) => {
+            setName(event.target.value);
+            setNameError("");
+          }}
+          placeholder='Name e.g. "Track Order"'
+        />
+        {nameError && (
+          <p className="mt-1 text-xs text-destructive">{nameError}</p>
+        )}
+      </div>
       <Input
         value={message}
         onChange={(event) => setMessage(event.target.value)}
@@ -76,6 +103,7 @@ export default function CustomizationActionButtons({
   fieldErrors,
   actionButtons,
   onChange,
+  onPendingErrorChange,
 }: CustomizationActionButtonsProps) {
   const removeButton = (button: ActionButton) => {
     onChange(
@@ -144,6 +172,7 @@ export default function CustomizationActionButtons({
             Add New Quick Action
           </Typography>
           <AddActionButtonForm
+            onErrorChange={onPendingErrorChange}
             onAdd={(button) => {
               const isDuplicate = actionButtons.some(
                 (existing) =>
@@ -151,6 +180,7 @@ export default function CustomizationActionButtons({
                   button.name.trim().toLowerCase(),
               );
               if (!isDuplicate) onChange([...actionButtons, button]);
+              return !isDuplicate;
             }}
           />
         </div>
