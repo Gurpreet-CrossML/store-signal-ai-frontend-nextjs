@@ -304,15 +304,34 @@ export function DraftBubble({
             </Tooltip>
           )
         )}
-        {/* Approving calls Meta synchronously — expect a second or three. */}
+        {/* Approving calls Meta synchronously — expect a second or three.
+            Mid-edit it saves first, so editing and sending is one click. */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               size="icon-sm"
-              aria-label="Approve & Send"
-              disabled={busy !== null || isEditing}
+              aria-label={isEditing ? "Save & Send" : "Approve & Send"}
+              disabled={busy !== null}
               onClick={() =>
                 run("approve", async () => {
+                  if (
+                    isEditing &&
+                    (responseText !== draft.response_text ||
+                      dmText !== draft.dm_text)
+                  ) {
+                    const saved = await dispatch(
+                      updateCommentDraft({
+                        storeCode,
+                        draftId: draft.id,
+                        patch: {
+                          response_text: responseText,
+                          dm_text: dmText,
+                        },
+                        silent: true,
+                      }),
+                    ).unwrap();
+                    onSaved?.(saved);
+                  }
                   await dispatch(
                     approveCommentDraft({ storeCode, draftId: draft.id }),
                   ).unwrap();
@@ -327,7 +346,9 @@ export function DraftBubble({
               )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Approve &amp; Send</TooltipContent>
+          <TooltipContent>
+            {isEditing ? "Save & Send" : "Approve & Send"}
+          </TooltipContent>
         </Tooltip>
       </div>
     </div>

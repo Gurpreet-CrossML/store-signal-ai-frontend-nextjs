@@ -5,10 +5,24 @@ import {
 } from "@/components/ui/tooltip";
 import { IconInfoCircle } from "@tabler/icons-react";
 
-export const InfoIcon = ({ text }: { text: string }) => (
+import { cn } from "@/lib/utils";
+
+export const InfoIcon = ({
+  text,
+  className,
+}: {
+  text: string;
+  /** Overrides the muted default — e.g. `text-inherit` inside a tinted strip. */
+  className?: string;
+}) => (
   <Tooltip>
     <TooltipTrigger asChild>
-      <IconInfoCircle className="w-4 h-4 text-muted-foreground cursor-pointer" />
+      <IconInfoCircle
+        className={cn(
+          "h-4 w-4 cursor-pointer text-muted-foreground",
+          className,
+        )}
+      />
     </TooltipTrigger>
     <TooltipContent>
       <p>{text}</p>
