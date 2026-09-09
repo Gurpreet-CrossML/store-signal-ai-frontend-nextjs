@@ -13,6 +13,7 @@ import {
   IconBrandMeta,
   IconBuildingSkyscraper,
   IconChecklist,
+  IconClockShield,
   IconCreditCardOff,
   IconImageGeneration,
   IconHeadset,
@@ -236,6 +237,24 @@ export const NAV_AREAS = {
             pageDescription:
               "How the AI handles direct messages — the private, higher-trust channel where orders, support and conversions happen. Meta's messaging rules are applied on top of everything set here.",
             icon: IconMessages,
+          },
+          {
+            href: "/settings/social-ai/guardrails",
+            title: "Guardrails & Limits",
+            description:
+              "Rate and pacing ceilings that keep every account safe.",
+            pageDescription:
+              "Rate and pacing ceilings, set per connected account, that keep automation well inside spam-safe territory.",
+            icon: IconClockShield,
+          },
+          {
+            href: "/settings/social-ai/meta-compliance",
+            title: "Meta Compliance",
+            description:
+              "The platform rails enforced on every connected account.",
+            pageDescription:
+              "The Meta rules enforced automatically on every connected account, so nothing you configure can put your accounts at risk.",
+            icon: IconShield,
           },
         ],
       },

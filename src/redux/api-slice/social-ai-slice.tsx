@@ -1339,6 +1339,7 @@ export const updateCommentDraft = createAsyncThunk(
       storeCode,
       draftId,
       patch,
+      silent,
     }: {
       storeCode: string;
       draftId: number;
@@ -1347,6 +1348,8 @@ export const updateCommentDraft = createAsyncThunk(
         dm_text?: string;
         actions?: ActionId[];
       };
+      /** Skip the success toast — for a save folded into an approve. */
+      silent?: boolean;
     },
     thunkAPI,
   ) => {
@@ -1356,9 +1359,11 @@ export const updateCommentDraft = createAsyncThunk(
         patch,
         { useBackend: true },
       );
-      toast.success("Draft updated", {
-        description: "Your edits are what gets sent on approval.",
-      });
+      if (!silent) {
+        toast.success("Draft updated", {
+          description: "Your edits are what gets sent on approval.",
+        });
+      }
       return response.data.data as CommentDraft;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
