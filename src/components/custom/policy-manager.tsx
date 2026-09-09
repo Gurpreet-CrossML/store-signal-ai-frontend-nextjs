@@ -48,15 +48,7 @@ import {
 import { AIScopeField } from "@/components/custom/knowledge/ai-scope-field";
 import { KnowledgeStatusBadge } from "@/components/custom/knowledge/knowledge-badges";
 import { POLICY_TYPE_OPTIONS } from "@/components/custom/knowledge/knowledge-meta";
-
-function isValidUrl(value: string): boolean {
-  try {
-    const url = new URL(value.trim());
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
+import { isValidUrl, normalizeUrl } from "@/lib/url";
 
 export function PolicyManager() {
   const dispatch = useAppDispatch();
@@ -132,15 +124,19 @@ export function PolicyManager() {
       setError("Please choose a type and enter a URL.");
       return;
     }
-    if (!isValidUrl(url)) {
+
+    const normalizedUrl = normalizeUrl(url);
+    if (!normalizedUrl || !isValidUrl(normalizedUrl)) {
       setError("Enter a valid policy URL.");
       return;
     }
-    const existingUrls = policies.map((p) => p.url ?? "");
-    if (existingUrls.includes(url.trim())) {
+
+    const existingUrls = policies.map((p) => normalizeUrl(p.url ?? ""));
+    if (existingUrls.includes(normalizedUrl)) {
       setError("This policy URL has already been added.");
       return;
     }
+
     const scopeValid = aiScope.length > 0;
     setAiScopeError(scopeValid ? undefined : "Select at least one AI");
     if (!scopeValid) return;
@@ -154,7 +150,7 @@ export function PolicyManager() {
         aiScope,
         items: [
           {
-            url: url.trim(),
+            url: normalizedUrl,
             // `title` is required by the backend and doubles as the policy
             // type here, since there's no `policy_type` field on the model.
             title:

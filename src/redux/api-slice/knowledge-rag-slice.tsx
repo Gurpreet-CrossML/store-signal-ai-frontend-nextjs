@@ -465,14 +465,12 @@ export const UpdateKnowledgeItem = createAsyncThunk(
     }: {
       id: string;
       storeCode: string;
-      patch: Partial<KnowledgeItemWritableInput>;
+      patch: KnowledgeItemWritableInput;
     },
     thunkAPI,
   ) => {
     try {
-      const payload = buildKnowledgeItemPayload(
-        patch as KnowledgeItemWritableInput,
-      );
+      const payload = buildKnowledgeItemPayload(patch);
       const response = await axiosInstance.patch(
         `${ENDPOINTS.knowledgeItemDetail(Number(id))}?store_code=${storeCode}`,
         payload,

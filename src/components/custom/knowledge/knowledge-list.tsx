@@ -113,7 +113,13 @@ export function KnowledgeList({
             tabIndex={0}
             onClick={() => onOpenItem(item)}
             onKeyDown={(event) => {
-              if (event.key === "Enter") onOpenItem(item);
+              if (
+                (event.key === "Enter" || event.key === " ") &&
+                !event.defaultPrevented
+              ) {
+                event.preventDefault();
+                onOpenItem(item);
+              }
             }}
             className="flex cursor-pointer items-center gap-3 rounded-xl border border-border/60 bg-card p-3 transition-colors hover:border-border hover:bg-muted/40"
           >
