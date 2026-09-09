@@ -17,6 +17,7 @@ import {
 } from "@/redux/api-slice/knowledge-rag-slice";
 import { RetrievalSettingsCard } from "@/components/custom/knowledge/retrieval-settings-card";
 import { GroundingSettingsCard } from "@/components/custom/knowledge/grounding-settings-card";
+import { AIKnowledgeScopeCard } from "@/components/custom/knowledge/ai-knowledge-scope-card";
 
 export default function RetrievalMatchingTabContent() {
   const dispatch = useAppDispatch();
@@ -78,6 +79,10 @@ export default function RetrievalMatchingTabContent() {
       <GroundingSettingsCard
         value={settings.grounding}
         onChange={(grounding) => setSettings({ ...settings, grounding })}
+      />
+      <AIKnowledgeScopeCard
+        value={scope}
+        onChange={(nextScope) => setScope(nextScope)}
       />
 
       <div className="flex justify-start border-t border-border py-3">

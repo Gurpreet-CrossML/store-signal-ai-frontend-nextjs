@@ -39,6 +39,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Typography } from "@/components/ui/typography";
 import { formikErrorsFromZod } from "@/lib/form-errors";
+import { isValidUrl as isValidSharedUrl, normalizeUrl } from "@/lib/url";
 
 import { AIScopeField } from "@/components/custom/knowledge/ai-scope-field";
 import { MultiFileUploadDropzone } from "@/components/custom/knowledge/file-upload-dropzone";
@@ -103,12 +104,7 @@ function emptyUrlRow(): UrlRow {
 }
 
 function isValidUrl(value: string): boolean {
-  try {
-    const url = new URL(value.trim());
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
+  return isValidSharedUrl(value);
 }
 
 type FormValues = {
@@ -849,17 +845,17 @@ export function NewKnowledgePage() {
 
               {showErrors &&
                 ((values.source === "faq" &&
-                  formik.errors.faqRows === "string") ||
+                  typeof formik.errors.faqRows === "string") ||
                   (values.source === "url" &&
-                    formik.errors.urlRows === "string") ||
+                    typeof formik.errors.urlRows === "string") ||
                   (values.source === "file" &&
                     typeof formik.errors.files === "string")) && (
                   <p className="text-xs text-destructive">
                     {values.source === "faq"
-                      ? (formik.errors.faqRows as unknown as string)
+                      ? (formik.errors.faqRows as string)
                       : values.source === "url"
-                        ? (formik.errors.urlRows as unknown as string)
-                        : (formik.errors.files as unknown as string)}
+                        ? (formik.errors.urlRows as string)
+                        : (formik.errors.files as string)}
                   </p>
                 )}
             </div>
@@ -902,6 +898,6 @@ function buildItems(values: FormValues): BulkKnowledgeItemContent[] {
         ? row.title.trim() || undefined
         : URL_TYPE_OPTIONS.find((option) => option.value === row.urlType)
             ?.label;
-    return { url: row.url.trim(), title };
+    return { url: normalizeUrl(row.url), title };
   });
 }
