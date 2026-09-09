@@ -108,9 +108,7 @@ export default function CustomizationActionButtons({
   const removeButton = (button: ActionButton) => {
     onChange(
       actionButtons.filter((current) =>
-        button.id != null
-          ? current.id !== button.id
-          : current.name !== button.name,
+        button.id != null ? current.id !== button.id : current !== button,
       ),
     );
   };
