@@ -53,6 +53,7 @@ import {
   type ThreadMessage,
   FetchOrders,
   UploadMessageAttachments,
+  Customer,
 } from "@/redux/api-slice/thread-slice";
 import {
   CreateSupportTicket,
@@ -511,7 +512,7 @@ type DashboardMessageEvent = {
   message: string;
   role: string;
   thread_id: string;
-  customer?: Thread["customer"];
+  customer?: Customer | null;
   is_active: boolean;
   created_at: string;
 };

@@ -46,7 +46,7 @@ function AddActionButtonForm({
     const trimmedName = name.trim();
     const trimmedMessage = message.trim();
     if (!trimmedName || !trimmedMessage) return;
-    if (!/^[a-zA-Z\s\-']+$/.test(trimmedName)) return;
+    if (!/^[a-zA-Z\s\-'&]+$/.test(trimmedName)) return;
     onAdd({ name: trimmedName, message: trimmedMessage });
     setName("");
     setMessage("");
