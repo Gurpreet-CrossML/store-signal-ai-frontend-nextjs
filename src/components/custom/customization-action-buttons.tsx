@@ -48,6 +48,7 @@ function AddActionButtonForm({
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [nameError, setNameError] = useState("");
+  const [nameValidationError, setNameValidationError] = useState("");
 
   // Surface the unresolved-error state to the parent so it can refuse to
   // save while a rejected duplicate is still sitting in this form.
@@ -60,13 +61,19 @@ function AddActionButtonForm({
     const trimmedName = name.trim();
     const trimmedMessage = message.trim();
     if (!trimmedName || !trimmedMessage) return;
-    if (!/^[a-zA-Z\s\-'&]+$/.test(trimmedName)) return;
+    if (!/^[a-zA-Z\s\-'&]+$/.test(trimmedName)) {
+      setNameValidationError(
+        "Use only letters, spaces, hyphens, apostrophes, and & in the name.",
+      );
+      return;
+    }
     const added = onAdd({ name: trimmedName, message: trimmedMessage });
     if (!added) {
       setNameError("This quick action already exists.");
       return;
     }
     setNameError("");
+    setNameValidationError("");
     setName("");
     setMessage("");
   };
@@ -79,11 +86,14 @@ function AddActionButtonForm({
           onChange={(event) => {
             setName(event.target.value);
             setNameError("");
+            setNameValidationError("");
           }}
           placeholder='Name e.g. "Track Order"'
         />
-        {nameError && (
-          <p className="mt-1 text-xs text-destructive">{nameError}</p>
+        {(nameError || nameValidationError) && (
+          <p className="mt-1 text-xs text-destructive">
+            {nameError || nameValidationError}
+          </p>
         )}
       </div>
       <Input
