@@ -6,6 +6,7 @@ import {
   IconFileTypeDocx,
   IconFileTypePdf,
   IconFileTypeTxt,
+  IconPhoto,
   IconX,
 } from "@tabler/icons-react";
 
@@ -24,6 +25,14 @@ function FileTypeIcon({
     return <IconFileTypePdf className={className} />;
   if (fileType?.includes("word") || fileType?.includes("docx")) {
     return <IconFileTypeDocx className={className} />;
+  }
+  if (
+    fileType?.includes("png") ||
+    fileType?.includes("jpg") ||
+    fileType?.includes("jpeg") ||
+    fileType?.includes("image/")
+  ) {
+    return <IconPhoto className={className} />;
   }
   return <IconFileTypeTxt className={className} />;
 }
@@ -175,16 +184,16 @@ export function MultiFileUploadDropzone({
             </span>
           </Typography>
           <Typography variant="muted" className="text-xs">
-            Supported formats: PDF, DOC, DOCX, JSON, CSV, XLS, XLSX, PPTX, ODT,
-            ODS
+            Supported formats: PDF, DOC, DOCX, JPG, JPEG, PNG, JSON, CSV, XLS,
+            XLSX, PPTX, ODT, ODS
           </Typography>
           <input
             ref={inputRef}
             type="file"
             multiple
             accept={
-              ".pdf,.doc,.docx,.json,.csv,.xlsx,.xls,.pptx,.odt,.ods," +
-              "application/pdf,application/json,text/csv," +
+              ".pdf,.doc,.docx,.jpg,.jpeg,.png,.json,.csv,.xlsx,.xls,.pptx,.odt,.ods," +
+              "application/pdf,application/json,text/csv,image/jpeg,image/png," +
               "application/vnd.openxmlformats-officedocument.wordprocessingml.document," +
               "application/msword,application/vnd.oasis.opendocument.text," +
               "application/vnd.oasis.opendocument.spreadsheet," +
