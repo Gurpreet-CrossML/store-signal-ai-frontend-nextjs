@@ -180,6 +180,9 @@ export type ThreadDetails = {
   messages: ThreadMessage[];
   verdict: ThreadVerdict;
   followup_level: number;
+
+  claim_status?: "claimed_by_you" | "assigned_to_someone_else" | "unassigned";
+  assignee?: { id: number; name: string } | null;
 };
 
 export type ThreadSummary = {

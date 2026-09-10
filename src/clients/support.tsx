@@ -75,6 +75,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
+import { buildAccess } from "@/lib/access-rules";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -140,6 +141,7 @@ function ThreadChatControls({
   className,
   connectedAgent,
   user,
+  hasManage,
   transitionState,
   agentMessage,
   setAgentMessage,
@@ -159,6 +161,7 @@ function ThreadChatControls({
   className?: string;
   connectedAgent: string | null;
   user: string | null;
+  hasManage?: boolean;
   transitionState: "idle" | "taking_over" | "returning_to_ai";
   agentMessage: string;
   setAgentMessage: (value: string) => void;
@@ -247,6 +250,7 @@ function ThreadChatControls({
                   type="button"
                   onClick={onTakeOver}
                   disabled={
+                    !hasManage ||
                     transitionState !== "idle" ||
                     !!(connectedAgent && connectedAgent !== user)
                   }
@@ -273,7 +277,7 @@ function ThreadChatControls({
             </div>
             <div className="min-w-0">
               <Typography variant="small" as="p" className="leading-normal">
-                Another agent is handling this conversation
+                <strong>{connectedAgent}</strong> is handling this conversation
               </Typography>
               <Typography variant="muted">
                 Only the connected agent can reply right now.
@@ -554,6 +558,7 @@ export default function Support() {
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
+
   const { FetchThreadsListData, FetchThreadsIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchThreadsState,
   );
@@ -610,6 +615,10 @@ export default function Support() {
   >(null);
 
   const { data: session } = useSession();
+  const access = session?.user ? buildAccess(session.user) : null;
+  const hasManage = access
+    ? !!(access.isStaff || (storeCode && access.levels[storeCode] === "manage"))
+    : false;
 
   const router = useRouter();
   const pathname = usePathname();
@@ -1543,6 +1552,7 @@ export default function Support() {
                       variant="outline"
                       size="sm"
                       onClick={() => setIsCreateTicketOpen(true)}
+                      disabled={!hasManage}
                     >
                       <IconTicket className="size-4" />
                       Create Ticket
@@ -1587,6 +1597,7 @@ export default function Support() {
                         className="border-t"
                         connectedAgent={connectedAgent}
                         user={session?.user?.email || null}
+                        hasManage={hasManage}
                         transitionState={transitionState}
                         agentMessage={agentMessage}
                         setAgentMessage={setAgentMessage}

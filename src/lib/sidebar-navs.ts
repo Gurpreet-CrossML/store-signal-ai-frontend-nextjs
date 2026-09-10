@@ -284,7 +284,7 @@ export const sidebarMenus: SideBarMenus = {
       url: "/threads",
       icon: IconMessage2,
     },
-    areaMenuItem("helpdesk", { adminOnly: true }),
+    areaMenuItem("helpdesk"),
     areaMenuItem("socialAI"),
     areaMenuItem("crm"),
     areaMenuItem("brandVoice", { adminOnly: true }),
