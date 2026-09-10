@@ -301,6 +301,7 @@ export default function Customization() {
     const linkErrors = quickLinks.map((link) => {
       const errors: Record<string, string> = {};
       const name = link.label.trim().toLowerCase();
+      if (!name && link.url.trim()) errors.name = "Name is required.";
       if (name && seenNames.has(name)) errors.name = "Duplicate name";
       if (name) seenNames.add(name);
       if (link.url && !isValidUrl(link.url)) errors.url = "Enter a valid URL";
