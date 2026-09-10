@@ -1498,6 +1498,12 @@ export default function HelpDesk() {
   const dispatch = useAppDispatch();
   const { data: session } = useSession();
 
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -1836,6 +1842,94 @@ export default function HelpDesk() {
           payload = JSON.parse(event.data) as SupportSocketPayload;
         } catch (error) {
           console.error("Failed to parse support socket message", error);
+          return;
+        }
+
+        if (
+          payload.type === "ticket_created" ||
+          payload.type === "live_support_message" ||
+          payload.type === "customer_message"
+        ) {
+          const agentData = payload.data;
+          if (!agentData) return;
+
+          const isNativeGranted =
+            typeof Notification !== "undefined" &&
+            Notification.permission === "granted";
+
+          if (payload.type === "ticket_created") {
+            const title = "New Support Ticket";
+            const body = agentData.subject || "";
+            const handleClick = () =>
+              setActiveTicketId(Number(agentData.ticket_id));
+
+            if (isNativeGranted) {
+              const notif = new Notification(title, {
+                body,
+                icon: "/favicon.ico",
+              });
+              notif.onclick = () => {
+                window.focus();
+                handleClick();
+                notif.close();
+              };
+            } else {
+              toast(title, {
+                description: body,
+              });
+            }
+          } else if (payload.type === "customer_message") {
+            // Displays a notification when a customer sends a new message on a ticket.
+            // The payload data is populated by support/signals.py which extracts the
+            // message text directly from the SupportTicketMessage instance.
+            const title = "Customer Reply on Ticket #" + agentData.ticket_id;
+            const body =
+              agentData.message ||
+              agentData.subject ||
+              "A customer replied to their ticket.";
+            const handleClick = () =>
+              setActiveTicketId(Number(agentData.ticket_id));
+
+            if (isNativeGranted) {
+              const notif = new Notification(title, {
+                body,
+                icon: "/favicon.ico",
+              });
+              notif.onclick = () => {
+                window.focus();
+                handleClick();
+                notif.close();
+              };
+            } else {
+              toast(title, {
+                description: body,
+              });
+            }
+          } else if (payload.type === "live_support_message") {
+            const title =
+              "Live Message from " + (agentData.customer_name || "Customer");
+            const body = agentData.message || "";
+            const handleClick = () =>
+              router.push(
+                `/support/${agentData.store_code}?chat=${agentData.conversation_id}`,
+              );
+
+            if (isNativeGranted) {
+              const notif = new Notification(title, {
+                body,
+                icon: "/favicon.ico",
+              });
+              notif.onclick = () => {
+                window.focus();
+                handleClick();
+                notif.close();
+              };
+            } else {
+              toast(title, {
+                description: body,
+              });
+            }
+          }
           return;
         }
 

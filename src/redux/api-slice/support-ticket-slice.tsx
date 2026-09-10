@@ -31,6 +31,16 @@ export type SupportSocketPayload = {
   event?: "ticket_created" | "customer_message";
   ticket?: SupportTicket;
   message?: SupportTicketMessage;
+  type?: string;
+  data?: {
+    ticket_id?: string;
+    store_code?: string;
+    subject?: string;
+    created_at?: string;
+    conversation_id?: string;
+    message?: string;
+    customer_name?: string;
+  };
 };
 
 export type SupportTicketFilters = {
