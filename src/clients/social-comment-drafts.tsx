@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { IconChecklist, IconExternalLink } from "@tabler/icons-react";
 
@@ -37,9 +37,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
+  commentDraftChanged,
+  commentDraftReceived,
   fetchCommentDrafts,
   fetchSocialAccountsSubscriptions,
   type CommentDraft,
+  type ConnectedAccount,
 } from "@/redux/api-slice/social-ai-slice";
 
 /* -------------------------------------------------------------------- */
@@ -54,10 +57,13 @@ import {
 function DraftCard({
   draft,
   storeCode,
+  accounts,
   onStale,
 }: {
   draft: CommentDraft;
   storeCode: string;
+  /** Connected accounts — resolve which channel's feed the post lives in. */
+  accounts: ConnectedAccount[];
   /** A mutation was refused because the draft left pending state elsewhere. */
   onStale: () => void;
 }) {
@@ -68,9 +74,20 @@ function DraftCard({
   const avatarUrl = draft.message.social_user?.profile_picture_url;
 
   // The feed opens a post from its ?post= param; the account's channel
-  // decides which feed. Without either, there is no link to offer.
+  // decides which feed. The serializer may not name the account, so fall
+  // back to the Graph id conventions: a Facebook post id is
+  // "<page id>_<post id>", and a store with one connected account leaves
+  // nothing to guess.
   const postExternalId = draft.message.post_external_id;
-  const channelType = draft.account?.channel_type;
+  const pagePrefix = postExternalId?.includes("_")
+    ? postExternalId.split("_")[0]
+    : undefined;
+  const matchedAccount =
+    accounts.find(
+      (row) => row.external_id === (draft.account_external_id ?? pagePrefix),
+    ) ?? (accounts.length === 1 ? accounts[0] : undefined);
+  const channelType =
+    draft.account?.channel_type ?? matchedAccount?.channel_type;
   const postHref =
     postExternalId && channelType
       ? `/social-ai/${
@@ -146,12 +163,12 @@ export default function SocialCommentDrafts() {
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const accounts =
-    useAppSelector(
-      (state) =>
-        state.GetSocialAIReducer.FetchSocialAccountSubscriptionsState
-          .FetchSocialAccountsSubscriptionsData,
-    )?.results ?? [];
+  const accountsData = useAppSelector(
+    (state) =>
+      state.GetSocialAIReducer.FetchSocialAccountSubscriptionsState
+        .FetchSocialAccountsSubscriptionsData,
+  );
+  const accounts = useMemo(() => accountsData?.results ?? [], [accountsData]);
   const {
     FetchCommentDraftsData: draftsData,
     FetchCommentDraftsIsLoading: isLoading,
@@ -161,7 +178,6 @@ export default function SocialCommentDrafts() {
 
   const [accountId, setAccountId] = useState("all");
   const pageRef = useRef(1);
-  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (storeCode) dispatch(fetchSocialAccountsSubscriptions(storeCode));
@@ -182,27 +198,47 @@ export default function SocialCommentDrafts() {
     loadPageOne();
   }, [loadPageOne]);
 
-  // A pending draft follows the comment_tagged broadcast within seconds, so
-  // refresh a beat after it — debounced, a busy post tags several at once.
+  // The queue is live off the draft broadcasts: created inserts at the top,
+  // updated refreshes the row — or removes it when the draft left pending
+  // state, meaning another teammate already handled it.
   const handleSocketEvent = useCallback(
     (event: SocialSocketEvent) => {
-      if (event.action_type !== "comment_tagged") return;
-      if (refreshTimer.current) clearTimeout(refreshTimer.current);
-      refreshTimer.current = setTimeout(loadPageOne, 3_000);
+      if (event.action_type === "comment_draft_created") {
+        // The stream carries every account on the store; respect the filter.
+        if (accountId !== "all") {
+          const account = accounts.find((row) => String(row.id) === accountId);
+          if (account && event.data.account_external_id !== account.external_id)
+            return;
+        }
+        // The event names the post and account even when the row doesn't —
+        // keep both so the View Post link can always be built.
+        const { draft, post_external_id, account_external_id } = event.data;
+        dispatch(
+          commentDraftReceived({
+            ...draft,
+            account_external_id:
+              draft.account_external_id ?? account_external_id,
+            message: {
+              ...draft.message,
+              post_external_id:
+                draft.message.post_external_id ?? post_external_id,
+            },
+          }),
+        );
+        return;
+      }
+      if (event.action_type === "comment_draft_updated") {
+        dispatch(commentDraftChanged(event.data.draft));
+      }
     },
-    [loadPageOne],
+    [accountId, accounts, dispatch],
   );
   useSocialSocket({
     storeCode,
     onEvent: handleSocketEvent,
+    // Nothing is buffered while disconnected, so a reconnect re-reads.
     onReconnect: loadPageOne,
   });
-  useEffect(
-    () => () => {
-      if (refreshTimer.current) clearTimeout(refreshTimer.current);
-    },
-    [],
-  );
 
   const drafts = draftsData?.results ?? [];
   const hasMore = Boolean(draftsData?.next);
@@ -265,6 +301,7 @@ export default function SocialCommentDrafts() {
               key={draft.id}
               draft={draft}
               storeCode={storeCode}
+              accounts={accounts}
               onStale={loadPageOne}
             />
           ))}

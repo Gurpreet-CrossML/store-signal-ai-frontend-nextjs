@@ -15,6 +15,7 @@ import { ConversationRow } from "@/components/custom/conversation-row";
 import { MessageAppear } from "@/components/custom/message-appear";
 import { SearchInput } from "@/components/custom/search-input";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { InfoIcon } from "@/components/custom/info-icon";
 import { CrmLinkButton } from "@/components/custom/customer-header";
 import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
 import {
@@ -76,6 +77,7 @@ import {
   CreateSocialSupportTicket,
   FetchSocialTicketDraft,
   SocialUserCustomerLink,
+  socialUserDmDraftFlagSet,
   fetchSocialAccountsSubscriptions,
   fetchSocialDms,
   fetchSocialUsers,
@@ -861,6 +863,37 @@ export default function DmsInbox({
   // their results — and anything a customer sends — back to the screen.
   const handleSocialEvent = useCallback(
     (event: SocialSocketEvent) => {
+      if (event.action_type === "comment_draft_created") {
+        const { account_external_id, draft } = event.data;
+        if (accountExternalId && account_external_id !== accountExternalId) {
+          return;
+        }
+        // Only a draft that would send a DM pins in the inbox.
+        if (!draft.dm_text || draft.status !== "pending") return;
+        const draftUserId = draft.message.social_user?.id;
+        if (!draftUserId) return;
+        dispatch(
+          socialUserDmDraftFlagSet({ userId: draftUserId, value: true }),
+        );
+        // A fresh draft revives a contact whose earlier one was resolved here.
+        setResolvedDraftUserIds((prev) =>
+          prev.filter((id) => id !== draftUserId),
+        );
+        return;
+      }
+      if (event.action_type === "comment_draft_updated") {
+        const { draft } = event.data;
+        if (draft.status === "pending" || !draft.dm_text) return;
+        const draftUserId = draft.message.social_user?.id;
+        if (!draftUserId) return;
+        // ponytail: clears the row's Draft badge on any resolution — a
+        // contact holding a second pending draft loses the badge until the
+        // next list fetch. Track per-draft counts if that ever matters.
+        dispatch(
+          socialUserDmDraftFlagSet({ userId: draftUserId, value: false }),
+        );
+        return;
+      }
       if (event.action_type !== "dm_created") return;
 
       const dm = event.data;
@@ -1537,23 +1570,22 @@ export default function DmsInbox({
                       </div>
                     )}
                     {!messagingWindowOpen && (
-                      <div className="mb-2 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
-                        <IconClock className="mt-0.5 size-5 shrink-0" />
-                        <div className="min-w-0">
-                          <Typography
-                            variant="small"
-                            as="p"
-                            className="leading-normal"
-                          >
-                            Replies are closed for now
-                          </Typography>
-                          <Typography variant="muted" className="text-inherit">
-                            Meta only allows replies within 24 hours of their
-                            last message, and it&apos;s been longer than that.
-                            You can reply again once {activeContactName}{" "}
-                            messages you.
-                          </Typography>
-                        </div>
+                      // A slim strip docked onto the composer, in place of
+                      // the banner that dwarfed it — the ⓘ carries the
+                      // full policy.
+                      <div className="-mb-1 flex items-center gap-2 rounded-t-xl border border-b-0 border-amber-200 bg-amber-50 px-3 pt-1.5 pb-2.5 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+                        <IconClock className="size-4 shrink-0" />
+                        <Typography
+                          variant="small"
+                          as="p"
+                          className="leading-normal"
+                        >
+                          Reply window closed — waiting for {activeContactName}
+                        </Typography>
+                        <InfoIcon
+                          className="text-inherit"
+                          text={`Meta lets a page reply only within 24 hours of the customer's last message, and that window has passed. The moment ${activeContactName} sends anything, replies reopen. If it's urgent, raise a ticket to reach them by email instead.`}
+                        />
                       </div>
                     )}
                     <ReplyBox

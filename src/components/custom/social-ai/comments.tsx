@@ -15,6 +15,7 @@ import { IconDotsVertical, IconSparkles } from "@tabler/icons-react";
 import {
   deleteMetaComment,
   fetchCommentTopics,
+  fetchCommentDrafts,
   fetchPostComments,
   SOCIAL_PAGE_SIZE,
   hideMetaComment,
@@ -172,6 +173,19 @@ function CommentItem({
   // The pending-draft flag is a snapshot from the list fetch; once the
   // draft is handled here, this hides the chip and bubble without a refetch.
   const [draftResolved, setDraftResolved] = useState(false);
+  // The drafts queue is the proven source of every pending draft (texts
+  // included) — read this comment's straight from its slot, so the bubble
+  // never depends on the per-contact draft route alone.
+  const queueDraft = useAppSelector(
+    (state) =>
+      state.GetSocialAIReducer.FetchCommentDraftsState.FetchCommentDraftsData?.results?.find(
+        (row) => row.message.id === comment.id && row.status === "pending",
+      ) ?? null,
+  );
+  const knownDraft = comment.pending_draft ?? queueDraft;
+  const showsDraft =
+    !draftResolved &&
+    (Boolean(knownDraft) || Boolean(comment.has_pending_draft));
   // Null means "no local change yet" — fall back to the server's value.
   // A plain boolean can't express that, and the like now toggles both ways.
   const [likeOverride, setLikeOverride] = useState<boolean | null>(null);
@@ -372,7 +386,7 @@ function CommentItem({
                 Deleted
               </Badge>
             )}
-            {comment.has_pending_draft && !draftResolved && (
+            {showsDraft && (
               <Badge variant="outline" className="gap-1">
                 <IconSparkles className="size-3" />
                 Draft awaiting approval
@@ -466,20 +480,18 @@ function CommentItem({
         {/* The AI's pending draft for this comment, reviewable in place.
             Fetched lazily, only for comments the backend flags; a deleted
             comment can't be replied to, so its draft isn't offered. */}
-        {comment.has_pending_draft &&
-          !draftResolved &&
-          !comment.is_deleted &&
-          author && (
-            <div className="mt-2">
-              <CommentDraftSlot
-                storeCode={storeCode}
-                postId={postId}
-                commentId={comment.id}
-                userId={author.id}
-                onResolved={() => setDraftResolved(true)}
-              />
-            </div>
-          )}
+        {showsDraft && !comment.is_deleted && author && (
+          <div className="mt-2">
+            <CommentDraftSlot
+              storeCode={storeCode}
+              postId={postId}
+              commentId={comment.id}
+              userId={author.id}
+              initialDraft={knownDraft}
+              onResolved={() => setDraftResolved(true)}
+            />
+          </div>
+        )}
         {/* Opens to its own height so the comments below slide down
             rather than jumping, and closes the same way in reverse. */}
         <AnimatePresence initial={false}>
@@ -631,6 +643,13 @@ function CommentsList({
     }
   }, [dispatch, storeCode, postId, parentId, filters]);
 
+  // One read of the pending-drafts queue serves every comment's bubble on
+  // this screen; the per-contact draft route stays only as a fallback.
+  // Top-level list only — reply lists share the same store slot.
+  useEffect(() => {
+    if (storeCode && !parentId) dispatch(fetchCommentDrafts({ storeCode }));
+  }, [dispatch, storeCode, parentId]);
+
   useEffect(() => {
     if (requestedRef.current) return;
     requestedRef.current = true;
@@ -640,6 +659,33 @@ function CommentsList({
   // Live comments and AI tags for this list.
   const handleCommentEvent = useCallback(
     (event: SocialSocketEvent) => {
+      if (
+        event.action_type === "comment_draft_created" ||
+        event.action_type === "comment_draft_updated"
+      ) {
+        // The broadcast carries the complete draft — stash it on the source
+        // comment so its bubble renders in place with nothing to fetch. A
+        // draft that left pending state was handled elsewhere; the badge
+        // and bubble go with it.
+        if (event.data.post_external_id !== postId) return;
+        const incoming = event.data.draft;
+        const draftCommentId = incoming.message.id;
+        const stillPending = incoming.status === "pending";
+        setComments((prev) =>
+          prev.some((comment) => comment.id === draftCommentId)
+            ? prev.map((comment) =>
+                comment.id === draftCommentId
+                  ? {
+                      ...comment,
+                      has_pending_draft: stillPending,
+                      pending_draft: stillPending ? incoming : null,
+                    }
+                  : comment,
+              )
+            : prev,
+        );
+        return;
+      }
       if (event.action_type === "comment_ai_response") {
         const { message_id, ai_response } = event.data;
         setComments((prev) =>

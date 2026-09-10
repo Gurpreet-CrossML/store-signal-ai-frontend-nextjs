@@ -33,9 +33,6 @@ type CustomizationActionButtonsProps = {
   onInputChange?: () => void;
   actionButtons: ActionButton[];
   onChange: (actionButtons: ActionButton[]) => void;
-  /** Called whenever the "Add New Quick Action" form has an unresolved
-   *  error (e.g. a rejected duplicate name), so the parent can block
-   *  "Save Changes" until it's cleared. */
   onPendingErrorChange?: (hasError: boolean) => void;
 };
 

@@ -74,8 +74,6 @@ export default function Customization() {
 
   const [actionButtons, setActionButtons] = useState<ActionButton[]>([]);
   const [quickLinks, setQuickLinks] = useState<QuickLinkItem[]>([]);
-  /** True while the "Add New Quick Action" form has an unresolved error
-   *  (e.g. a rejected duplicate name) — blocks Save Changes until cleared. */
   const [hasQuickActionError, setHasQuickActionError] = useState(false);
 
   const applyColor = (which: ColorKey, value: string) => {
@@ -355,6 +353,9 @@ export default function Customization() {
           UpdateWidgetCustomizationWithImage({ storeId, payload, logoFile }),
         );
       } else {
+        if (!logoUrl) {
+          payload.logo = null;
+        }
         result = await dispatch(
           UpdateWidgetCustomization({ storeId, payload }),
         );
