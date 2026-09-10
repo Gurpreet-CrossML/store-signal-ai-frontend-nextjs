@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FieldError } from "@/components/custom/field-error";
+import z from "zod";
 import {
   IconChevronDown,
   IconMessageCircle,
@@ -26,6 +27,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Typography } from "@/components/ui/typography";
 import type { ActionButton } from "@/components/custom/customization-types";
+
+const quickActionNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Name is required.")
+  .regex(
+    /^[a-zA-Z\s\-'&]+$/,
+    "Only letters, spaces, apostrophes, hyphens, and & are allowed.",
+  );
+
+const quickActionMessageSchema = z
+  .string()
+  .trim()
+  .min(1, "Message is required.");
 
 type CustomizationActionButtonsProps = {
   /** Field errors from the last rejected save, keyed as the API names them. */
@@ -66,13 +81,9 @@ function AddActionButtonForm({
     // returning silently (the previous behaviour for a blank field) gives
     // no indication of what to fix.
     let hasError = false;
-    if (!trimmedName) {
-      setNameError("Name is required.");
-      hasError = true;
-    } else if (!/^[a-zA-Z\s\-'&]+$/.test(trimmedName)) {
-      setNameError(
-        "Only letters, spaces, apostrophes, hyphens, and & are allowed.",
-      );
+    const nameValidation = quickActionNameSchema.safeParse(name);
+    if (!nameValidation.success) {
+      setNameError(nameValidation.error.issues[0]?.message ?? "");
       hasError = true;
     } else if (
       actionButtons.some(
@@ -87,8 +98,9 @@ function AddActionButtonForm({
       setMessageError("");
       return;
     }
-    if (!trimmedMessage) {
-      setMessageError("Message is required.");
+    const messageValidation = quickActionMessageSchema.safeParse(message);
+    if (!messageValidation.success) {
+      setMessageError(messageValidation.error.issues[0]?.message ?? "");
       hasError = true;
     }
     if (hasError) return;

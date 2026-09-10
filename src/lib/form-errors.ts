@@ -38,45 +38,6 @@ function firstMessage(value: unknown): string | null {
 }
 
 /**
- * Per-row errors for one nested list field (e.g. "quick_links").
- *
- * DRF's `ListSerializer` reports a validation failure as one object of
- * field errors per item — `serverFieldErrors` collapses that into a single
- * card-level string via `firstMessage`, which loses which row and which
- * field it was about. This keeps that shape instead, so the caller can put
- * each message under its own row's own input.
- */
-export function serverListFieldErrors(
-  payload: unknown,
-  key: string,
-): Record<string, string>[] {
-  if (!payload || typeof payload !== "object") return [];
-
-  const record = payload as Record<string, unknown>;
-  const body =
-    record.data &&
-    typeof record.data === "object" &&
-    !Array.isArray(record.data)
-      ? (record.data as Record<string, unknown>)
-      : record;
-
-  const list = body[key];
-  if (!Array.isArray(list)) return [];
-
-  return list.map((item) => {
-    if (!item || typeof item !== "object" || Array.isArray(item)) return {};
-    const row: Record<string, string> = {};
-    for (const [field, value] of Object.entries(
-      item as Record<string, unknown>,
-    )) {
-      const message = firstMessage(value);
-      if (message) row[field] = message;
-    }
-    return row;
-  });
-}
-
-/**
  * Field errors from a rejected payload, keyed the way Formik wants them.
  *
  * DRF answers a validation failure with `{"field": ["message"]}` — an
@@ -98,6 +59,17 @@ export function serverFieldErrors(payload: unknown): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const [key, value] of Object.entries(body)) {
     if (NON_FIELD_KEYS.has(key)) continue;
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) return;
+        for (const [field, fieldValue] of Object.entries(
+          item as Record<string, unknown>,
+        )) {
+          const fieldMessage = firstMessage(fieldValue);
+          if (fieldMessage) errors[`${key}.${index}.${field}`] = fieldMessage;
+        }
+      });
+    }
     const message = firstMessage(value);
     if (message) errors[key] = message;
   }

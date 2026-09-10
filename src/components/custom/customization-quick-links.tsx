@@ -41,7 +41,7 @@ export default function CustomizationQuickLinks({
   // case the card-bottom fallback below would just repeat the same message
   // a second time, detached from the row it's actually about.
   const hasRowErrors = (rowErrors ?? []).some(
-    (row) => Object.keys(row).length > 0,
+    (row) => row && Object.keys(row).length > 0,
   );
 
   return (

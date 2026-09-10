@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IconDeviceFloppy } from "@tabler/icons-react";
 import { toast } from "sonner";
+import z from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -18,7 +19,7 @@ import {
 } from "@/redux/api-slice/customization-slice";
 import { darken, getReadableText, mix, normalizeHex } from "@/lib/color";
 import { isValidUrl, normalizeUrl } from "@/lib/url";
-import { serverFieldErrors, serverListFieldErrors } from "@/lib/form-errors";
+import { serverFieldErrors } from "@/lib/form-errors";
 import CustomizationTheme from "@/components/custom/customization-theme";
 import CustomizationActionButtons from "@/components/custom/customization-action-buttons";
 import CustomizationBranding from "@/components/custom/customization-branding";
@@ -35,6 +36,18 @@ const DEFAULT_SECONDARY = "#f3f4f6";
 const DEFAULT_TERTIARY = "#dfe6e9";
 const DEFAULT_WELCOME = "What are you shopping for today?";
 const DEFAULT_GREETING = "Hi there! How can I help you today?";
+
+const customizationValidationSchema = z.object({
+  greeting_message: z
+    .string()
+    .trim()
+    .min(1, "Please enter a greeting message before saving."),
+});
+
+const quickLinkValidationSchema = z.object({
+  name: z.string(),
+  url: z.string(),
+});
 
 export default function Customization() {
   const dispatch = useAppDispatch();
@@ -63,7 +76,7 @@ export default function Customization() {
   /** Field errors from the last rejected save, keyed as the API names them. */
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   /** Per-row field errors for Quick Links from the last rejected save,
-   *  indexed the same way as `quickLinks` — see `serverListFieldErrors`. */
+   *  indexed the same way as `quickLinks`. */
   const [quickLinkRowErrors, setQuickLinkRowErrors] = useState<
     Record<string, string>[]
   >([]);
@@ -298,18 +311,26 @@ export default function Customization() {
     const seenNames = new Set<string>();
     const linkErrors = quickLinks.map((link) => {
       const errors: Record<string, string> = {};
-      const name = link.label.trim().toLowerCase();
-      if (!name && link.url.trim()) errors.name = "Name is required.";
+      const values = quickLinkValidationSchema.parse({
+        name: link.label,
+        url: link.url,
+      });
+      const name = values.name.trim().toLowerCase();
+      if (!name && values.url.trim()) errors.name = "Name is required.";
       if (name && seenNames.has(name)) errors.name = "Duplicate name";
       if (name) seenNames.add(name);
-      if (link.url && !isValidUrl(link.url)) errors.url = "Enter a valid URL";
+      if (values.url && !isValidUrl(values.url))
+        errors.url = "Enter a valid URL";
       return errors;
     });
     setQuickLinkRowErrors(linkErrors);
     if (linkErrors.some((errors) => Object.keys(errors).length > 0)) return;
-    if (!greetingMessage.trim()) {
+    const validation = customizationValidationSchema.safeParse({
+      greeting_message: greetingMessage,
+    });
+    if (!validation.success) {
       setFieldErrors({
-        greeting_message: "Please enter a greeting message before saving.",
+        greeting_message: validation.error.issues[0]?.message ?? "",
       });
       return;
     }
@@ -371,10 +392,17 @@ export default function Customization() {
         // The server owns rules the client cannot check — the greeting's
         // real length limit among them — so its verdict goes on the field
         // it named rather than into a toast that names none.
-        setFieldErrors(serverFieldErrors(result.payload));
-        setQuickLinkRowErrors(
-          serverListFieldErrors(result.payload, "quick_links"),
-        );
+        const errors = serverFieldErrors(result.payload);
+        const rowErrors: Record<string, string>[] = [];
+        for (const [key, message] of Object.entries(errors)) {
+          const match = /^quick_links\.(\d+)\.(.+)$/.exec(key);
+          if (!match) continue;
+          const index = Number(match[1]);
+          const field = match[2];
+          rowErrors[index] = { ...rowErrors[index], [field]: message };
+        }
+        setFieldErrors(errors);
+        setQuickLinkRowErrors(rowErrors);
       }
     } finally {
       setSavingAll(false);
