@@ -73,11 +73,14 @@ function AddActionButtonForm({
       setNameError("Name is required.");
       hasError = true;
     } else if (!/^[a-zA-Z\s\-'&]+$/.test(trimmedName)) {
-      setNameError("Only letters, spaces, apostrophes, hyphens, and & are allowed.");
+      setNameError(
+        "Only letters, spaces, apostrophes, hyphens, and & are allowed.",
+      );
       hasError = true;
     } else if (
       actionButtons.some(
-        (existing) => existing.name.trim().toLowerCase() === trimmedName.toLowerCase(),
+        (existing) =>
+          existing.name.trim().toLowerCase() === trimmedName.toLowerCase(),
       )
     ) {
       setNameError("This quick action already exists.");

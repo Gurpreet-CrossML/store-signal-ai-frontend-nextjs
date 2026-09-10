@@ -63,87 +63,87 @@ export default function CustomizationQuickLinks({
           const nameError = rowError?.name;
           const urlError = rowError?.url;
           return (
-          <div
-            key={link.id ?? index}
-            className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_88px_120px_auto] md:items-start"
-          >
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">Name</Label>
-              <Input
-                value={link.label}
-                onChange={(event) => {
-                  const val = event.target.value;
-                  if (val === "" || /^[a-zA-Z\s\-']+$/.test(val))
-                    onUpdate(index, { label: val });
-                }}
-                placeholder="e.g. Brands"
-                aria-invalid={Boolean(nameError)}
-              />
-              {nameError && (
-                <p className="text-xs text-destructive">{nameError}</p>
-              )}
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">Link</Label>
-              <Input
-                value={link.url}
-                onChange={(event) =>
-                  onUpdate(index, { url: event.target.value })
-                }
-                placeholder="https://example.com"
-                aria-invalid={Boolean(urlError)}
-              />
-              {urlError && (
-                <p className="text-xs text-destructive">{urlError}</p>
-              )}
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label
-                htmlFor={`quick-link-active-${index}`}
-                className="text-xs text-muted-foreground"
-              >
-                Active
-              </Label>
-              <div className="flex h-9 items-center">
-                <Checkbox
-                  id={`quick-link-active-${index}`}
-                  checked={link.active}
-                  onCheckedChange={(checked) =>
-                    onUpdate(index, { active: checked === true })
+            <div
+              key={link.id ?? index}
+              className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_88px_120px_auto] md:items-start"
+            >
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">Name</Label>
+                <Input
+                  value={link.label}
+                  onChange={(event) => {
+                    const val = event.target.value;
+                    if (val === "" || /^[a-zA-Z\s\-']+$/.test(val))
+                      onUpdate(index, { label: val });
+                  }}
+                  placeholder="e.g. Brands"
+                  aria-invalid={Boolean(nameError)}
+                />
+                {nameError && (
+                  <p className="text-xs text-destructive">{nameError}</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">Link</Label>
+                <Input
+                  value={link.url}
+                  onChange={(event) =>
+                    onUpdate(index, { url: event.target.value })
+                  }
+                  placeholder="https://example.com"
+                  aria-invalid={Boolean(urlError)}
+                />
+                {urlError && (
+                  <p className="text-xs text-destructive">{urlError}</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label
+                  htmlFor={`quick-link-active-${index}`}
+                  className="text-xs text-muted-foreground"
+                >
+                  Active
+                </Label>
+                <div className="flex h-9 items-center">
+                  <Checkbox
+                    id={`quick-link-active-${index}`}
+                    checked={link.active}
+                    onCheckedChange={(checked) =>
+                      onUpdate(index, { active: checked === true })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">
+                  Priority (1–9)
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={9}
+                  value={Number.isFinite(link.priority) ? link.priority : ""}
+                  onChange={(event) =>
+                    onUpdate(index, {
+                      priority:
+                        event.target.value === ""
+                          ? NaN
+                          : parseInt(event.target.value, 10),
+                    })
                   }
                 />
               </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="text-destructive hover:text-destructive md:mt-5.5"
+                onClick={() => onRemove(index)}
+                aria-label="Remove link"
+              >
+                <IconTrash />
+              </Button>
             </div>
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">
-                Priority (1–9)
-              </Label>
-              <Input
-                type="number"
-                min={1}
-                max={9}
-                value={Number.isFinite(link.priority) ? link.priority : ""}
-                onChange={(event) =>
-                  onUpdate(index, {
-                    priority:
-                      event.target.value === ""
-                        ? NaN
-                        : parseInt(event.target.value, 10),
-                  })
-                }
-              />
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="text-destructive hover:text-destructive md:mt-5.5"
-              onClick={() => onRemove(index)}
-              aria-label="Remove link"
-            >
-              <IconTrash />
-            </Button>
-          </div>
           );
         })}
 
@@ -169,7 +169,9 @@ export default function CustomizationQuickLinks({
         {/* Whatever the server rejected among this card's fields, when it
             couldn't be attributed to a specific row above.
             Renders nothing when it rejected none, or a row already has it. */}
-        {!hasRowErrors && <FieldError errors={fieldErrors} name="quick_links" />}
+        {!hasRowErrors && (
+          <FieldError errors={fieldErrors} name="quick_links" />
+        )}
       </CardContent>
     </Card>
   );

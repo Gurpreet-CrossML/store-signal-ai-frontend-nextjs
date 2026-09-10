@@ -217,7 +217,9 @@ export default function Customization() {
       const next = [...prev];
       next[index] = { ...prev[index] };
       for (const key of Object.keys(patch)) {
-        delete next[index][key === "label" ? "name" : key === "active" ? "is_active" : key];
+        delete next[index][
+          key === "label" ? "name" : key === "active" ? "is_active" : key
+        ];
       }
       return next;
     });
