@@ -50,10 +50,10 @@ import {
   ThreadCustomerLink,
   FetchUserMetadata,
   type Thread,
-  type Customer,
   type ThreadMessage,
   FetchOrders,
   UploadMessageAttachments,
+  type Customer,
 } from "@/redux/api-slice/thread-slice";
 import {
   CreateSupportTicket,
@@ -1078,8 +1078,8 @@ export default function Support() {
         const existingThread = prev[existingIndex];
         const updatedThread: ThreadWithReadState = {
           ...existingThread,
-          last_message: data.message,
           customer: data.customer || existingThread.customer,
+          last_message: data.message,
           is_active: data.is_active,
           total_messages: (existingThread.total_messages ?? 0) + 1,
           is_read: belongsToOpenThread,
