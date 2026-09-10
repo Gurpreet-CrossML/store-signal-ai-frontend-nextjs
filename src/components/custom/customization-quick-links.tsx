@@ -43,6 +43,10 @@ export default function CustomizationQuickLinks({
   const hasRowErrors = (rowErrors ?? []).some(
     (row) => row && Object.keys(row).length > 0,
   );
+  const cardErrors: Record<string, string> =
+    typeof fieldErrors?.quick_links === "string"
+      ? { quick_links: fieldErrors.quick_links }
+      : {};
 
   return (
     <Card>
@@ -169,9 +173,7 @@ export default function CustomizationQuickLinks({
         {/* Whatever the server rejected among this card's fields, when it
             couldn't be attributed to a specific row above.
             Renders nothing when it rejected none, or a row already has it. */}
-        {!hasRowErrors && (
-          <FieldError errors={fieldErrors} name="quick_links" />
-        )}
+        {!hasRowErrors && <FieldError errors={cardErrors} name="quick_links" />}
       </CardContent>
     </Card>
   );

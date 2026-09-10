@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { FieldError } from "@/components/custom/field-error";
-import z from "zod";
 import {
   IconChevronDown,
   IconMessageCircle,
@@ -28,26 +27,13 @@ import { Input } from "@/components/ui/input";
 import { Typography } from "@/components/ui/typography";
 import type { ActionButton } from "@/components/custom/customization-types";
 
-const quickActionNameSchema = z
-  .string()
-  .trim()
-  .min(1, "Name is required.")
-  .regex(
-    /^[a-zA-Z\s\-'&]+$/,
-    "Only letters, spaces, apostrophes, hyphens, and & are allowed.",
-  );
-
-const quickActionMessageSchema = z
-  .string()
-  .trim()
-  .min(1, "Message is required.");
-
 type CustomizationActionButtonsProps = {
   /** Field errors from the last rejected save, keyed as the API names them. */
   fieldErrors?: Record<string, string>;
   onInputChange?: () => void;
   actionButtons: ActionButton[];
   onChange: (actionButtons: ActionButton[]) => void;
+  validateActionButton: (button: ActionButton) => Partial<ActionButton>;
   onPendingErrorChange?: (hasError: boolean) => void;
 };
 
@@ -55,10 +41,12 @@ function AddActionButtonForm({
   actionButtons,
   onAdd,
   onErrorChange,
+  validateActionButton,
 }: {
   actionButtons: ActionButton[];
   onAdd: (button: ActionButton) => boolean;
   onErrorChange?: (hasError: boolean) => void;
+  validateActionButton: (button: ActionButton) => Partial<ActionButton>;
 }) {
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
@@ -81,9 +69,12 @@ function AddActionButtonForm({
     // returning silently (the previous behaviour for a blank field) gives
     // no indication of what to fix.
     let hasError = false;
-    const nameValidation = quickActionNameSchema.safeParse(name);
-    if (!nameValidation.success) {
-      setNameError(nameValidation.error.issues[0]?.message ?? "");
+    const validationErrors = validateActionButton({
+      name: trimmedName,
+      message: trimmedMessage,
+    });
+    if (validationErrors.name) {
+      setNameError(validationErrors.name);
       hasError = true;
     } else if (
       actionButtons.some(
@@ -98,9 +89,8 @@ function AddActionButtonForm({
       setMessageError("");
       return;
     }
-    const messageValidation = quickActionMessageSchema.safeParse(message);
-    if (!messageValidation.success) {
-      setMessageError(messageValidation.error.issues[0]?.message ?? "");
+    if (validationErrors.message) {
+      setMessageError(validationErrors.message);
       hasError = true;
     }
     if (hasError) return;
@@ -159,6 +149,7 @@ export default function CustomizationActionButtons({
   onInputChange,
   actionButtons,
   onChange,
+  validateActionButton,
   onPendingErrorChange,
 }: CustomizationActionButtonsProps) {
   const removeButton = (button: ActionButton) => {
@@ -228,6 +219,7 @@ export default function CustomizationActionButtons({
           <AddActionButtonForm
             actionButtons={actionButtons}
             onErrorChange={onPendingErrorChange}
+            validateActionButton={validateActionButton}
             onAdd={(button) => {
               const isDuplicate = actionButtons.some(
                 (existing) =>
