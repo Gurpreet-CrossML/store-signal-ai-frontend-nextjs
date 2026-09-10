@@ -168,14 +168,14 @@ export default function CustomizationBranding({
             maxLength={WELCOME_LIMIT}
           />
           <div className="flex items-baseline justify-between gap-3">
-            <Typography variant="caption">
-              {welcomeMessage.length}/{WELCOME_LIMIT} characters
-            </Typography>
             {fieldErrors?.welcome_message ? (
               <Typography variant="caption" className="text-destructive">
                 {fieldErrors.welcome_message}
               </Typography>
             ) : null}
+            <Typography variant="caption">
+              {welcomeMessage.length}/{WELCOME_LIMIT} characters
+            </Typography>
           </div>
         </Field>
 
@@ -196,6 +196,11 @@ export default function CustomizationBranding({
             onChange={onGreetingChange}
           />
           <div className="flex items-baseline justify-between gap-3">
+            {fieldErrors?.greeting_message ? (
+              <Typography variant="caption" className="text-destructive">
+                {fieldErrors.greeting_message}
+              </Typography>
+            ) : null}
             {/* Over the limit reads as an error before the server says so
                 — the count is the rule, so it should look like one. */}
             <Typography
@@ -206,11 +211,6 @@ export default function CustomizationBranding({
             >
               {greetingLength}/{GREETING_LIMIT} characters
             </Typography>
-            {fieldErrors?.greeting_message ? (
-              <Typography variant="caption" className="text-destructive">
-                {fieldErrors.greeting_message}
-              </Typography>
-            ) : null}
           </div>
         </Field>
       </CardContent>

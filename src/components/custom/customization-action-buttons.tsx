@@ -30,6 +30,7 @@ import type { ActionButton } from "@/components/custom/customization-types";
 type CustomizationActionButtonsProps = {
   /** Field errors from the last rejected save, keyed as the API names them. */
   fieldErrors?: Record<string, string>;
+  onInputChange?: () => void;
   actionButtons: ActionButton[];
   onChange: (actionButtons: ActionButton[]) => void;
   /** Called whenever the "Add New Quick Action" form has an unresolved
@@ -39,41 +40,66 @@ type CustomizationActionButtonsProps = {
 };
 
 function AddActionButtonForm({
+  actionButtons,
   onAdd,
   onErrorChange,
 }: {
+  actionButtons: ActionButton[];
   onAdd: (button: ActionButton) => boolean;
   onErrorChange?: (hasError: boolean) => void;
 }) {
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [nameError, setNameError] = useState("");
-  const [nameValidationError, setNameValidationError] = useState("");
+  const [messageError, setMessageError] = useState("");
 
   // Surface the unresolved-error state to the parent so it can refuse to
-  // save while a rejected duplicate is still sitting in this form.
+  // save while a rejected duplicate — or any other unresolved error in
+  // this form — is still showing.
   useEffect(() => {
-    onErrorChange?.(Boolean(nameError));
+    onErrorChange?.(Boolean(nameError) || Boolean(messageError));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nameError]);
+  }, [nameError, messageError]);
 
   const handleAdd = () => {
     const trimmedName = name.trim();
     const trimmedMessage = message.trim();
-    if (!trimmedName || !trimmedMessage) return;
-    if (!/^[a-zA-Z\s\-'&]+$/.test(trimmedName)) {
-      setNameValidationError(
-        "Use only letters, spaces, hyphens, apostrophes, and & in the name.",
-      );
+
+    // Every rejection reason gets its own message under its own field —
+    // returning silently (the previous behaviour for a blank field) gives
+    // no indication of what to fix.
+    let hasError = false;
+    if (!trimmedName) {
+      setNameError("Name is required.");
+      hasError = true;
+    } else if (!/^[a-zA-Z\s\-'&]+$/.test(trimmedName)) {
+      setNameError("Only letters, spaces, apostrophes, hyphens, and & are allowed.");
+      hasError = true;
+    } else if (
+      actionButtons.some(
+        (existing) => existing.name.trim().toLowerCase() === trimmedName.toLowerCase(),
+      )
+    ) {
+      setNameError("This quick action already exists.");
+      hasError = true;
+    }
+    if (hasError) {
+      setMessageError("");
       return;
     }
+    if (!trimmedMessage) {
+      setMessageError("Message is required.");
+      hasError = true;
+    }
+    if (hasError) return;
+
     const added = onAdd({ name: trimmedName, message: trimmedMessage });
     if (!added) {
       setNameError("This quick action already exists.");
       return;
     }
     setNameError("");
-    setNameValidationError("");
+    setMessageError("");
     setName("");
     setMessage("");
   };
@@ -86,21 +112,28 @@ function AddActionButtonForm({
           onChange={(event) => {
             setName(event.target.value);
             setNameError("");
-            setNameValidationError("");
           }}
           placeholder='Name e.g. "Track Order"'
+          aria-invalid={Boolean(nameError)}
         />
-        {(nameError || nameValidationError) && (
-          <p className="mt-1 text-xs text-destructive">
-            {nameError || nameValidationError}
-          </p>
+        {nameError && (
+          <p className="mt-1 text-xs text-destructive">{nameError}</p>
         )}
       </div>
-      <Input
-        value={message}
-        onChange={(event) => setMessage(event.target.value)}
-        placeholder='Message e.g. "I want to track my order"'
-      />
+      <div>
+        <Input
+          value={message}
+          onChange={(event) => {
+            setMessage(event.target.value);
+            setMessageError("");
+          }}
+          placeholder='Message e.g. "I want to track my order"'
+          aria-invalid={Boolean(messageError)}
+        />
+        {messageError && (
+          <p className="mt-1 text-xs text-destructive">{messageError}</p>
+        )}
+      </div>
       <Button type="button" variant="outline" size="sm" onClick={handleAdd}>
         <IconPlus />
         Add
@@ -111,6 +144,7 @@ function AddActionButtonForm({
 
 export default function CustomizationActionButtons({
   fieldErrors,
+  onInputChange,
   actionButtons,
   onChange,
   onPendingErrorChange,
@@ -124,7 +158,7 @@ export default function CustomizationActionButtons({
   };
 
   return (
-    <Card>
+    <Card onInput={onInputChange}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <IconMessageCircle className="size-4" />
@@ -180,6 +214,7 @@ export default function CustomizationActionButtons({
             Add New Quick Action
           </Typography>
           <AddActionButtonForm
+            actionButtons={actionButtons}
             onErrorChange={onPendingErrorChange}
             onAdd={(button) => {
               const isDuplicate = actionButtons.some(

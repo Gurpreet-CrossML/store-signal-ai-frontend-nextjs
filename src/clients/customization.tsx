@@ -18,7 +18,7 @@ import {
 } from "@/redux/api-slice/customization-slice";
 import { darken, getReadableText, mix, normalizeHex } from "@/lib/color";
 import { isValidUrl, normalizeUrl } from "@/lib/url";
-import { serverFieldErrors } from "@/lib/form-errors";
+import { serverFieldErrors, serverListFieldErrors } from "@/lib/form-errors";
 import CustomizationTheme from "@/components/custom/customization-theme";
 import CustomizationActionButtons from "@/components/custom/customization-action-buttons";
 import CustomizationBranding from "@/components/custom/customization-branding";
@@ -62,6 +62,11 @@ export default function Customization() {
   const [greetingMessage, setGreetingMessage] = useState(DEFAULT_GREETING);
   /** Field errors from the last rejected save, keyed as the API names them. */
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  /** Per-row field errors for Quick Links from the last rejected save,
+   *  indexed the same way as `quickLinks` — see `serverListFieldErrors`. */
+  const [quickLinkRowErrors, setQuickLinkRowErrors] = useState<
+    Record<string, string>[]
+  >([]);
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -180,10 +185,42 @@ export default function Customization() {
     } as React.CSSProperties;
   }, [themeColor, secondaryColor, tertiaryColor]);
 
+  /** Drops one key out of `fieldErrors` — used to clear a stale server/local
+   *  rejection the moment the user edits the field it was attached to. */
+  const clearFieldError = (key: string) => {
+    setFieldErrors((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const handleWelcomeChange = (value: string) => {
+    setWelcomeMessage(value);
+    clearFieldError("welcome_message");
+  };
+
+  const handleGreetingChange = (value: string) => {
+    setGreetingMessage(value);
+    clearFieldError("greeting_message");
+  };
+
   const updateQuickLink = (index: number, patch: Partial<QuickLinkItem>) => {
     setQuickLinks((prev) =>
       prev.map((link, i) => (i === index ? { ...link, ...patch } : link)),
     );
+    clearFieldError("quick_links");
+    // Clear only the edited fields, keeping other field and row errors visible.
+    setQuickLinkRowErrors((prev) => {
+      if (!prev[index] || Object.keys(prev[index]).length === 0) return prev;
+      const next = [...prev];
+      next[index] = { ...prev[index] };
+      for (const key of Object.keys(patch)) {
+        delete next[index][key === "label" ? "name" : key === "active" ? "is_active" : key];
+      }
+      return next;
+    });
   };
 
   const addQuickLink = () => {
@@ -195,6 +232,7 @@ export default function Customization() {
 
   const removeQuickLink = (index: number) => {
     setQuickLinks((prev) => prev.filter((_, i) => i !== index));
+    setQuickLinkRowErrors((prev) => prev.filter((_, i) => i !== index));
   };
 
   const normalizedQuickLinks = useMemo(
@@ -257,27 +295,20 @@ export default function Customization() {
   const handleSaveAll = async () => {
     if (storeId == null) return;
 
-    if (hasQuickActionError) {
-      toast.error("Duplicate quick action", {
-        description:
-          "Resolve the quick action name error before saving changes.",
-      });
-      return;
-    }
-    if (
-      normalizedQuickLinks.some(
-        (link) => link.url !== "" && !isValidUrl(link.url),
-      )
-    ) {
-      toast.error("Invalid links", {
-        description:
-          "Please fix any invalid URLs in Quick Links before saving.",
-      });
-      return;
-    }
+    const seenNames = new Set<string>();
+    const linkErrors = quickLinks.map((link) => {
+      const errors: Record<string, string> = {};
+      const name = link.label.trim().toLowerCase();
+      if (name && seenNames.has(name)) errors.name = "Duplicate name";
+      if (name) seenNames.add(name);
+      if (link.url && !isValidUrl(link.url)) errors.url = "Enter a valid URL";
+      return errors;
+    });
+    setQuickLinkRowErrors(linkErrors);
+    if (linkErrors.some((errors) => Object.keys(errors).length > 0)) return;
     if (!greetingMessage.trim()) {
-      toast.error("Greeting is empty", {
-        description: "Please enter a greeting message before saving.",
+      setFieldErrors({
+        greeting_message: "Please enter a greeting message before saving.",
       });
       return;
     }
@@ -313,6 +344,7 @@ export default function Customization() {
     // a new save is in flight tells the reader something that may no
     // longer be true.
     setFieldErrors({});
+    setQuickLinkRowErrors([]);
     try {
       let result;
       if (logoFile) {
@@ -336,6 +368,9 @@ export default function Customization() {
         // real length limit among them — so its verdict goes on the field
         // it named rather than into a toast that names none.
         setFieldErrors(serverFieldErrors(result.payload));
+        setQuickLinkRowErrors(
+          serverListFieldErrors(result.payload, "quick_links"),
+        );
       }
     } finally {
       setSavingAll(false);
@@ -362,14 +397,15 @@ export default function Customization() {
           actionButtons={actionButtons}
           onChange={setActionButtons}
           onPendingErrorChange={setHasQuickActionError}
+          onInputChange={() => clearFieldError("quick_actions")}
         />
         <CustomizationBranding
           fieldErrors={fieldErrors}
           logoUrl={logoUrl}
           welcomeMessage={welcomeMessage}
           greetingMessage={greetingMessage}
-          onWelcomeChange={setWelcomeMessage}
-          onGreetingChange={setGreetingMessage}
+          onWelcomeChange={handleWelcomeChange}
+          onGreetingChange={handleGreetingChange}
           onLogoUpload={handleLogoUpload}
           onRemoveLogo={removeLogo}
         />
@@ -379,6 +415,7 @@ export default function Customization() {
           onUpdate={updateQuickLink}
           onAdd={addQuickLink}
           onRemove={removeQuickLink}
+          rowErrors={quickLinkRowErrors}
         />
 
         <div className="flex justify-start border-t border-border py-3">
@@ -386,7 +423,7 @@ export default function Customization() {
             type="button"
             size="lg"
             onClick={handleSaveAll}
-            disabled={savingAll}
+            disabled={savingAll || hasQuickActionError}
           >
             {savingAll ? (
               <Spinner data-icon="inline-start" />
