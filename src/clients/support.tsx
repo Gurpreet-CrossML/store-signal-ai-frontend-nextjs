@@ -50,6 +50,7 @@ import {
   ThreadCustomerLink,
   FetchUserMetadata,
   type Thread,
+  type Customer,
   type ThreadMessage,
   FetchOrders,
   UploadMessageAttachments,
@@ -511,6 +512,7 @@ type DashboardMessageEvent = {
   message: string;
   role: string;
   thread_id: string;
+  customer?: Customer | null;
   is_active: boolean;
   created_at: string;
 };
@@ -1067,7 +1069,7 @@ export default function Support() {
             is_active: data.is_active,
             total_messages: 1,
             created_at: new Date().toISOString(),
-            customer: null,
+            customer: data.customer ?? null,
             is_read: belongsToOpenThread,
           } as ThreadWithReadState;
           return [newThread, ...prev];
@@ -1077,6 +1079,7 @@ export default function Support() {
         const updatedThread: ThreadWithReadState = {
           ...existingThread,
           last_message: data.message,
+          customer: data.customer || existingThread.customer,
           is_active: data.is_active,
           total_messages: (existingThread.total_messages ?? 0) + 1,
           is_read: belongsToOpenThread,
@@ -1676,9 +1679,17 @@ export default function Support() {
                 payload,
               }),
             );
-            return CreateSupportTicket.fulfilled.match(result)
-              ? { ok: true }
-              : { ok: false, payload: result.payload };
+            const ok = CreateSupportTicket.fulfilled.match(result);
+            if (ok) {
+              dispatch(
+                FetchFreshdeskTicketId({
+                  threadId: activeThreadId,
+                  customerId: selectedThread?.customer?.id,
+                  storeCode,
+                }),
+              );
+            }
+            return ok ? { ok: true } : { ok: false, payload: result.payload };
           }}
         />
       ) : null}
