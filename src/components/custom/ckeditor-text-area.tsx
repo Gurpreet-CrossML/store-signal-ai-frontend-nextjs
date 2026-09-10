@@ -30,6 +30,7 @@ type CKEditorTextAreaProps = {
   onChange?: (value: string) => void;
   useMarkdown?: boolean;
   disabled?: boolean;
+  maxLength?: number;
   /** Extra classes for the frame, e.g. to change its rounding. */
   className?: string;
   /** Typing room before the box grows. Any CSS length. */
@@ -43,6 +44,7 @@ const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
   onChange,
   useMarkdown,
   disabled,
+  maxLength,
   className,
   minHeight,
 }) => {
@@ -164,7 +166,14 @@ const CKEditorTextArea: React.FC<CKEditorTextAreaProps> = ({
                 data={value ?? ""}
                 disabled={disabled}
                 onChange={(_event, editor) => {
-                  onChange?.(editor.getData());
+                  const data = editor.getData();
+
+                  if (maxLength !== undefined && data.length > maxLength) {
+                    editor.setData(value || "");
+                    return;
+                  }
+
+                  onChange?.(data);
                 }}
               />
             )}

@@ -271,7 +271,6 @@ export default function Customization() {
       });
       return;
     }
-
     const quickActions: WidgetQuickAction[] = actionButtons.map((button) => ({
       ...(button.id != null ? { id: button.id } : {}),
       name: button.name,
