@@ -346,29 +346,51 @@ export type WhatsAppTemplateQualityScore = {
   date?: number;
 };
 
+// A WhatsApp template's message parts, as the backend stores them —
+// header/body/footer/button as fields, not Meta's `components` array.
+// Shared by a store's own templates and the platform catalogue rows.
+export type WhatsAppTemplateParts = {
+  parameter_format: "NAMED" | "POSITIONAL";
+  header_format: "NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT" | "LOCATION";
+  header_text: string;
+  header_text_example: string[];
+  body_text: string;
+  body_text_example: { param_name: string; example: string }[];
+  footer_text: string;
+  button_type: "" | "QUICK_REPLY" | "URL" | "PHONE_NUMBER" | "COPY_CODE";
+  button_text: string;
+  button_url: string;
+  button_url_example: string;
+  button_phone_number: string;
+  button_coupon_code: string;
+};
+
 export type WhatsAppTemplate = {
-  id: string;
+  // The template's LOCAL id — every route that acts on one is keyed by
+  // this rather than by Meta's id.
+  id: number;
+  meta_template_id: string | null;
   name: string;
   status: string;
   category: string;
   language: string;
-  components: WhatsAppTemplateComponent[];
-  quality_score: WhatsAppTemplateQualityScore | null;
-  // Present only for a DRAFT row merged into the list (see
-  // fetchWhatsAppTemplates) — the local id to use for draft-specific
-  // actions (edit/delete/promote). `id` on a draft row is a prefixed
-  // placeholder ("draft-<id>"), never a real Meta id.
-  draft_id?: number;
-};
+  // The stored header sample. Only `file_url` — a short-lived presigned
+  // link to our own S3 copy — can actually be rendered; the storage key
+  // and Meta's write-only handle are not exposed. Fetch it fresh with the
+  // template rather than caching it; it expires.
+  file_name: string;
+  file_type: string;
+  file_size: number | null;
+  file_url: string | null;
+  rejected_reason: string;
+  last_synced_at: string | null;
+  source_library_item: number | null;
+  created_at: string;
+  updated_at: string;
+} & WhatsAppTemplateParts;
 
-export type WhatsAppTemplatesResponse = {
-  templates: WhatsAppTemplate[];
-  paging?: { cursors?: { before?: string; after?: string } };
-};
-
-export type WhatsAppTemplateMediaUploadResponse = {
-  header_handle: string;
-};
+// The API returns templates as a bare array under `data`.
+export type WhatsAppTemplatesResponse = WhatsAppTemplate[];
 
 // What Meta hands back right after creation — `status` starts "PENDING";
 // poll fetchWhatsAppTemplates for the actual review outcome.
@@ -378,50 +400,18 @@ export type WhatsAppTemplateSubmitResponse = {
   category: string;
 };
 
-export type WhatsAppTemplateSubmitPayload = {
+// What a create/edit call sends: the template's parts as fields, plus the
+// raw header file for a media header. There is no draft state — a write
+// either reaches Meta or changes nothing — and the file rides along with
+// this same request, so an abandoned template uploads nothing anywhere.
+// An edit sends only what changed, which is why the whole type is Partial
+// at the call site.
+export type WhatsAppTemplateWritePayload = {
   name: string;
   category: string;
   language: string;
-  components: WhatsAppTemplateComponent[];
-  parameter_format?: "NAMED" | "POSITIONAL";
-};
-
-// The local mirror's raw, editable definition — one canonical shape shared
-// by whatsAppTemplateDetail (GET/PATCH) AND every draft endpoint, so the
-// create screen's prefill logic doesn't care which one it called.
-// `status`/`rejected_reason` are read-only for a submitted template: only
-// the message_template_status_update webhook ever moves them. For a draft,
-// `meta_template_id` is null (Meta has never heard of it) and `status` is
-// always "DRAFT" until it's promoted.
-export type WhatsAppTemplateLocalDetail = {
-  local_id: number;
-  meta_template_id: string | null;
-  name: string;
-  language: string;
-  category: string;
-  parameter_format: "NAMED" | "POSITIONAL";
-  components: WhatsAppTemplateComponent[];
-  status: string;
-  rejected_reason?: string;
-  last_synced_at?: string | null;
-};
-
-// Same shape for both saving a NEW draft and updating an existing one —
-// name/language stay editable either way, since a draft has no Meta-side
-// identity yet to make them immutable.
-export type WhatsAppTemplateDraftPayload = {
-  name: string;
-  category: string;
-  language: string;
-  components: WhatsAppTemplateComponent[];
-  parameter_format?: "NAMED" | "POSITIONAL";
-};
-
-export type WhatsAppTemplateEditPayload = {
-  category?: string;
-  components: WhatsAppTemplateComponent[];
-  parameter_format?: "NAMED" | "POSITIONAL";
-};
+  header_media?: File | null;
+} & WhatsAppTemplateParts;
 
 // One platform-provided catalog template (core.WhatsAppTemplateLibrary on
 // the backend) — read-only reference data, the same rows for every store.
@@ -431,22 +421,15 @@ export type WhatsAppTemplateEditPayload = {
 // never been imported (see list_library_templates's docstring).
 export type WhatsAppTemplateLibraryItem = {
   id: number;
-  key: string;
   name: string;
-  display_name: string;
   description: string;
   category: string;
   language: string;
-  components: WhatsAppTemplateComponent[];
   is_imported: boolean;
-  local_id: number | null;
-  meta_template_id: string | null;
-  status: string | null;
-};
+} & WhatsAppTemplateParts;
 
-export type WhatsAppTemplateLibraryResponse = {
-  templates: WhatsAppTemplateLibraryItem[];
-};
+// The API returns the catalogue as a bare array under `data`.
+export type WhatsAppTemplateLibraryResponse = WhatsAppTemplateLibraryItem[];
 
 export const fetchSocialAccountsSubscriptions = createAsyncThunk(
   "fetchSocialAccountsSubscriptions",
@@ -503,42 +486,42 @@ export const fetchWhatsAppTemplates = createAsyncThunk(
   },
 );
 
-// Media sample upload + template submit are both fire-and-forget from
-// Redux's perspective — same as updateAccountAutoRespond/
-// CreateSocialSupportTicket, the caller reads the result off `.unwrap()`
-// and drives its own local loading/error UI, so neither has a state slot.
-export const uploadWhatsAppTemplateMedia = createAsyncThunk(
-  "uploadWhatsAppTemplateMedia",
-  async (
-    {
-      storeCode,
-      accountId,
-      file,
-    }: { storeCode: string; accountId: string; file: File },
-    thunkAPI,
-  ) => {
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      const response = await axiosInstance.post(
-        `${ENDPOINTS.uploadWhatsAppTemplateMedia({ accountId })}?store_code=${storeCode}`,
-        form,
-        {
-          useBackend: true,
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      );
-      return response.data.data as WhatsAppTemplateMediaUploadResponse;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-      toast.error("Couldn't upload the file", {
-        description: data?.message || "Please try a different file.",
-      });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
+// Template submit/edit are fire-and-forget from Redux's perspective —
+// same as updateAccountAutoRespond/CreateSocialSupportTicket: the caller
+// reads the result off `.unwrap()` and drives its own loading/error UI, so
+// neither has a state slot.
+
+/**
+ * Pack a write payload for the wire, as multipart when it carries a file.
+ *
+ * A media header's file goes up with the same request that creates or
+ * edits the template, so nothing is uploaded for a template the user
+ * abandons. Multipart flattens everything to strings, so the parts that
+ * are really JSON are stringified and the backend parses them back.
+ */
+function buildTemplateRequest(payload: Partial<WhatsAppTemplateWritePayload>) {
+  const { header_media: file, ...fields } = payload;
+  if (!file) {
+    return { body: fields, config: { useBackend: true } as const };
+  }
+
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined || value === null) continue;
+    form.append(
+      key,
+      typeof value === "object" ? JSON.stringify(value) : String(value),
+    );
+  }
+  form.append("header_media", file);
+  return {
+    body: form,
+    config: {
+      useBackend: true,
+      headers: { "Content-Type": "multipart/form-data" },
+    } as const,
+  };
+}
 
 export const submitWhatsAppTemplate = createAsyncThunk(
   "submitWhatsAppTemplate",
@@ -550,15 +533,16 @@ export const submitWhatsAppTemplate = createAsyncThunk(
     }: {
       storeCode: string;
       accountId: string;
-      payload: WhatsAppTemplateSubmitPayload;
+      payload: WhatsAppTemplateWritePayload;
     },
     thunkAPI,
   ) => {
     try {
+      const { body, config } = buildTemplateRequest(payload);
       const response = await axiosInstance.post(
-        `${ENDPOINTS.submitWhatsAppTemplate({ accountId })}?store_code=${storeCode}`,
-        payload,
-        { useBackend: true },
+        `${ENDPOINTS.createWhatsAppTemplate({ accountId })}?store_code=${storeCode}`,
+        body,
+        config,
       );
       return response.data.data as WhatsAppTemplateSubmitResponse;
     } catch (error) {
@@ -573,23 +557,23 @@ export const submitWhatsAppTemplate = createAsyncThunk(
 );
 
 // Fetch/edit/delete on one template's local mirror — same fire-and-forget
-// shape as uploadWhatsAppTemplateMedia/submitWhatsAppTemplate above.
+// shape as submitWhatsAppTemplate above.
 export const fetchLocalWhatsAppTemplate = createAsyncThunk(
   "fetchLocalWhatsAppTemplate",
   async (
     {
       storeCode,
       accountId,
-      metaTemplateId,
-    }: { storeCode: string; accountId: string; metaTemplateId: string },
+      templateId,
+    }: { storeCode: string; accountId: string; templateId: number },
     thunkAPI,
   ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, metaTemplateId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId })}?store_code=${storeCode}`,
         { useBackend: true },
       );
-      return response.data.data as WhatsAppTemplateLocalDetail;
+      return response.data.data as WhatsAppTemplate;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
@@ -607,23 +591,24 @@ export const updateWhatsAppTemplate = createAsyncThunk(
     {
       storeCode,
       accountId,
-      metaTemplateId,
+      templateId,
       payload,
     }: {
       storeCode: string;
       accountId: string;
-      metaTemplateId: string;
-      payload: WhatsAppTemplateEditPayload;
+      templateId: number;
+      payload: Partial<WhatsAppTemplateWritePayload>;
     },
     thunkAPI,
   ) => {
     try {
+      const { body, config } = buildTemplateRequest(payload);
       const response = await axiosInstance.patch(
-        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, metaTemplateId })}?store_code=${storeCode}`,
-        payload,
-        { useBackend: true },
+        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId })}?store_code=${storeCode}`,
+        body,
+        config,
       );
-      return response.data.data as WhatsAppTemplateLocalDetail;
+      return response.data.data as WhatsAppTemplate;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
@@ -641,13 +626,13 @@ export const deleteWhatsAppTemplate = createAsyncThunk(
     {
       storeCode,
       accountId,
-      metaTemplateId,
-    }: { storeCode: string; accountId: string; metaTemplateId: string },
+      templateId,
+    }: { storeCode: string; accountId: string; templateId: number },
     thunkAPI,
   ) => {
     try {
       const response = await axiosInstance.delete(
-        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, metaTemplateId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId })}?store_code=${storeCode}`,
         { useBackend: true },
       );
       return response.data.data as { status: string };
@@ -662,42 +647,8 @@ export const deleteWhatsAppTemplate = createAsyncThunk(
   },
 );
 
-// Draft CRUD + promote — all fire-and-forget, same shape as the thunks
-// above. Create/update/delete never touch Meta at all (pure local saves);
-// submit delegates to the same Meta submission submitWhatsAppTemplate
-// uses, just sourced from the draft's saved fields.
-export const createWhatsAppTemplateDraft = createAsyncThunk(
-  "createWhatsAppTemplateDraft",
-  async (
-    {
-      storeCode,
-      accountId,
-      payload,
-    }: {
-      storeCode: string;
-      accountId: string;
-      payload: WhatsAppTemplateDraftPayload;
-    },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.post(
-        `${ENDPOINTS.whatsAppTemplateDraftCreate({ accountId })}?store_code=${storeCode}`,
-        payload,
-        { useBackend: true },
-      );
-      return response.data.data as WhatsAppTemplateLocalDetail;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-      toast.error("Couldn't save the draft", {
-        description: data?.message || "Please check the form and try again.",
-      });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
-
+// Read/replace/remove one template by its local id. Named for the
+// template, not the draft, since drafts no longer exist.
 export const fetchWhatsAppTemplateDraft = createAsyncThunk(
   "fetchWhatsAppTemplateDraft",
   async (
@@ -710,49 +661,15 @@ export const fetchWhatsAppTemplateDraft = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.whatsAppTemplateDraftDetail({ accountId, draftId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId: draftId })}?store_code=${storeCode}`,
         { useBackend: true },
       );
-      return response.data.data as WhatsAppTemplateLocalDetail;
+      return response.data.data as WhatsAppTemplate;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Couldn't load the draft", {
+      toast.error("Couldn't load the template", {
         description: data?.message || "Please try again later.",
-      });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
-
-export const updateWhatsAppTemplateDraft = createAsyncThunk(
-  "updateWhatsAppTemplateDraft",
-  async (
-    {
-      storeCode,
-      accountId,
-      draftId,
-      payload,
-    }: {
-      storeCode: string;
-      accountId: string;
-      draftId: number;
-      payload: WhatsAppTemplateDraftPayload;
-    },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.patch(
-        `${ENDPOINTS.whatsAppTemplateDraftDetail({ accountId, draftId })}?store_code=${storeCode}`,
-        payload,
-        { useBackend: true },
-      );
-      return response.data.data as WhatsAppTemplateLocalDetail;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-      toast.error("Couldn't save the draft", {
-        description: data?.message || "Please check the form and try again.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -771,14 +688,14 @@ export const deleteWhatsAppTemplateDraft = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.delete(
-        `${ENDPOINTS.whatsAppTemplateDraftDetail({ accountId, draftId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId: draftId })}?store_code=${storeCode}`,
         { useBackend: true },
       );
       return response.data.data as { status: string };
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Couldn't delete the draft", {
+      toast.error("Couldn't delete the template", {
         description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -844,6 +761,8 @@ export const importWhatsAppTemplateFromLibrary = createAsyncThunk(
   },
 );
 
+// Resubmit a template Meta has deleted — the one case the submit
+// endpoint still serves now that nothing is ever saved unsubmitted.
 export const submitWhatsAppTemplateDraft = createAsyncThunk(
   "submitWhatsAppTemplateDraft",
   async (
@@ -856,7 +775,7 @@ export const submitWhatsAppTemplateDraft = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.post(
-        `${ENDPOINTS.whatsAppTemplateDraftSubmit({ accountId, draftId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.whatsAppTemplateSubmit({ accountId, templateId: draftId })}?store_code=${storeCode}`,
         {},
         { useBackend: true },
       );
@@ -1926,13 +1845,13 @@ const SocialAISlice = createSlice({
       FetchWhatsAppTemplatesIsLoading: false,
       FetchWhatsAppTemplatesIsSuccess: false,
       FetchWhatsAppTemplatesIsError: null as null | string | object,
-      FetchWhatsAppTemplatesData: {} as WhatsAppTemplatesResponse,
+      FetchWhatsAppTemplatesData: [] as WhatsAppTemplatesResponse,
     },
     FetchWhatsAppTemplateLibraryState: {
       FetchWhatsAppTemplateLibraryIsLoading: false,
       FetchWhatsAppTemplateLibraryIsSuccess: false,
       FetchWhatsAppTemplateLibraryIsError: null as null | string | object,
-      FetchWhatsAppTemplateLibraryData: {} as WhatsAppTemplateLibraryResponse,
+      FetchWhatsAppTemplateLibraryData: [] as WhatsAppTemplateLibraryResponse,
     },
   },
   reducers: {

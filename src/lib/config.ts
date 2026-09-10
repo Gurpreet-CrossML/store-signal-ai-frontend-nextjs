@@ -388,53 +388,27 @@ export const ENDPOINTS = {
   discardCommentDraft: ({ draftId }: { draftId: number }) =>
     `/social/comment-drafts/${draftId}/discard/`,
 
+  // WhatsApp templates (Django via useBackend — keep trailing slash).
   fetchWhatsAppTemplates: ({ accountId }: { accountId: string }) =>
-    `/social/meta/whatsapp/accounts/${accountId}/templates/`,
-  // POST multipart — a HEADER sample (image/video/document) for a template
-  // being authored. Returns a header_handle to embed on submit.
-  uploadWhatsAppTemplateMedia: ({ accountId }: { accountId: string }) =>
-    `/social/meta/whatsapp/accounts/${accountId}/templates/media/`,
-  // POST — create a new message template and submit it to Meta for review.
-  submitWhatsAppTemplate: ({ accountId }: { accountId: string }) =>
-    `/social/meta/whatsapp/accounts/${accountId}/templates/submit/`,
-  // One template's local mirror — GET (prefill an edit form), PATCH (push
-  // an edit to Meta), DELETE (remove from Meta and locally).
+    `/campaign/accounts/${accountId}/templates/`,
+  createWhatsAppTemplate: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/`,
   whatsAppTemplateDetail: ({
     accountId,
-    metaTemplateId,
+    templateId,
   }: {
     accountId: string;
-    metaTemplateId: string;
-  }) =>
-    `/social/meta/whatsapp/accounts/${accountId}/templates/${metaTemplateId}/`,
-  // POST — save a new draft (local only, never reaches Meta).
-  whatsAppTemplateDraftCreate: ({ accountId }: { accountId: string }) =>
-    `/social/meta/whatsapp/accounts/${accountId}/templates/draft/`,
-  // One draft — GET (prefill an edit form), PATCH (overwrite), DELETE
-  // (discard). All local only.
-  whatsAppTemplateDraftDetail: ({
+    templateId: number;
+  }) => `/campaign/accounts/${accountId}/templates/${templateId}/`,
+  whatsAppTemplateSubmit: ({
     accountId,
-    draftId,
+    templateId,
   }: {
     accountId: string;
-    draftId: number;
-  }) =>
-    `/social/meta/whatsapp/accounts/${accountId}/templates/draft/${draftId}/`,
-  // POST — promote a saved draft to a real Meta submission.
-  whatsAppTemplateDraftSubmit: ({
-    accountId,
-    draftId,
-  }: {
-    accountId: string;
-    draftId: number;
-  }) =>
-    `/social/meta/whatsapp/accounts/${accountId}/templates/draft/${draftId}/submit/`,
-  // GET — the platform's importable post-sale template catalog, each entry
-  // flagged with whether this account has already imported it.
+    templateId: number;
+  }) => `/campaign/accounts/${accountId}/templates/${templateId}/submit/`,
   whatsAppTemplateLibraryList: ({ accountId }: { accountId: string }) =>
-    `/social/meta/whatsapp/accounts/${accountId}/templates/library/`,
-  // POST — import one catalog template: submits it to Meta on this account
-  // and adds it to this account's own WhatsApp Templates.
+    `/campaign/accounts/${accountId}/templates/library/`,
   whatsAppTemplateLibraryImport: ({
     accountId,
     libraryId,
@@ -442,7 +416,9 @@ export const ENDPOINTS = {
     accountId: string;
     libraryId: number;
   }) =>
-    `/social/meta/whatsapp/accounts/${accountId}/templates/library/${libraryId}/import/`,
+    `/campaign/accounts/${accountId}/templates/library/${libraryId}/import/`,
+  whatsAppTemplateLibraryImportAll: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/library/import-all/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

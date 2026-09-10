@@ -69,7 +69,7 @@ export default function CampaignPostSale() {
   const loading = accountLoading || templatesLoading;
 
   const templates = useMemo(
-    () => FetchWhatsAppTemplateLibraryData?.templates ?? [],
+    () => FetchWhatsAppTemplateLibraryData ?? [],
     [FetchWhatsAppTemplateLibraryData],
   );
 
@@ -97,7 +97,7 @@ export default function CampaignPostSale() {
         return false;
       if (importFilter === IMPORTED && !item.is_imported) return false;
       if (importFilter === NOT_IMPORTED && item.is_imported) return false;
-      if (query && !item.display_name.toLowerCase().includes(query))
+      if (query && !item.name.toLowerCase().includes(query))
         return false;
       return true;
     });

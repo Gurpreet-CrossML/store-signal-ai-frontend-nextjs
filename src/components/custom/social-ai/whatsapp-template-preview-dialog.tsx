@@ -13,6 +13,7 @@ import type {
   WhatsAppTemplate,
 } from "@/redux/api-slice/social-ai-slice";
 import { WhatsAppPhoneMockup } from "./whatsapp-phone-mockup";
+import { buildTemplateComponents } from "@/lib/whatsapp-template-components";
 
 /**
  * Read-only phone-mockup preview for one template, opened from the
@@ -51,7 +52,8 @@ export function WhatsAppTemplatePreviewDialog({
           <WhatsAppPhoneMockup
             accountName={account?.name || ""}
             isVerified={Boolean(account?.is_active)}
-            components={template.components}
+            components={buildTemplateComponents(template)}
+            headerMediaUrl={template.file_url}
             maxWidth={340}
           />
         )}

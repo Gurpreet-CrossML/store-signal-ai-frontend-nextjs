@@ -47,7 +47,6 @@ import { useWhatsAppAccount } from "@/components/custom/social-ai/use-whatsapp-a
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   deleteWhatsAppTemplate,
-  deleteWhatsAppTemplateDraft,
   fetchWhatsAppTemplates,
   type WhatsAppTemplate,
 } from "@/redux/api-slice/social-ai-slice";
@@ -88,7 +87,7 @@ export default function WhatsAppTemplates() {
   const loading = accountsLoading || templatesLoading;
 
   const templates = useMemo(
-    () => FetchWhatsAppTemplatesData?.templates ?? [],
+    () => FetchWhatsAppTemplatesData ?? [],
     [FetchWhatsAppTemplatesData],
   );
 
@@ -153,9 +152,7 @@ export default function WhatsAppTemplates() {
         (template) => setPreviewTemplate(template),
         (template) =>
           router.push(
-            template.status === "DRAFT"
-              ? `/campaign/whatsapp-templates/draft/${template.draft_id}/edit`
-              : `/campaign/whatsapp-templates/${template.id}/edit`,
+            `/campaign/whatsapp-templates/${template.id}/edit`,
           ),
         (template) => setTemplateToDelete(template),
       ),
@@ -166,29 +163,16 @@ export default function WhatsAppTemplates() {
     if (!storeCode || !account || !templateToDelete) return;
     setDeleting(true);
     try {
-      if (templateToDelete.status === "DRAFT" && templateToDelete.draft_id) {
-        await dispatch(
-          deleteWhatsAppTemplateDraft({
-            storeCode,
-            accountId: String(account.id),
-            draftId: templateToDelete.draft_id,
-          }),
-        ).unwrap();
-        toast.success("Draft deleted", {
-          description: `${templateToDelete.name} was removed.`,
-        });
-      } else {
-        await dispatch(
-          deleteWhatsAppTemplate({
-            storeCode,
-            accountId: String(account.id),
-            metaTemplateId: templateToDelete.id,
-          }),
-        ).unwrap();
-        toast.success("Template deleted", {
-          description: `${templateToDelete.name} was removed from Meta and this dashboard.`,
-        });
-      }
+      await dispatch(
+        deleteWhatsAppTemplate({
+          storeCode,
+          accountId: String(account.id),
+          templateId: Number(templateToDelete.id),
+        }),
+      ).unwrap();
+      toast.success("Template deleted", {
+        description: `${templateToDelete.name} was removed from Meta and this dashboard.`,
+      });
       setTemplateToDelete(null);
       dispatch(
         fetchWhatsAppTemplates({ storeCode, accountId: String(account.id) }),

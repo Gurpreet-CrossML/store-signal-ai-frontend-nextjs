@@ -58,11 +58,18 @@ export function WhatsAppPhoneMockup({
   accountName,
   isVerified,
   components,
+  headerMediaUrl,
   maxWidth = PHONE_WIDTH,
 }: {
   accountName: string;
   isVerified: boolean;
   components: WhatsAppTemplateComponent[];
+  // A renderable URL for the header sample — our stored S3 copy, presigned
+  // (template.header_media.file_url), or a local object URL while one is
+  // still being picked. Needed because a saved template's components only
+  // carry Meta's `header_handle`, which is an opaque token, NOT a URL: fed
+  // to an <img> it renders as a broken image every time.
+  headerMediaUrl?: string | null;
   // Overridable per caller — the create/edit page's sidebar column stays at
   // the default, the standalone preview dialog sizes up (more room to
   // spare than a 360px sidebar).
@@ -72,7 +79,14 @@ export function WhatsAppPhoneMockup({
   const body = getComponent(components, "BODY");
   const footer = getComponent(components, "FOOTER");
   const buttons = getComponent(components, "BUTTONS");
-  const headerImageUrl = header?.example?.header_handle?.[0];
+  // The create page passes a local object URL for a just-picked file; a
+  // saved template passes its stored copy. Only fall back to the handle for
+  // the create page's own in-progress preview, which stashes an object URL
+  // there before anything has been uploaded.
+  const handleValue = header?.example?.header_handle?.[0];
+  const headerImageUrl =
+    headerMediaUrl ||
+    (handleValue?.startsWith("blob:") ? handleValue : undefined);
   // Illustrative only — a template has no real send time until it's
   // actually sent. Showing "now" keeps the bubble honest rather than
   // inventing a fake sent timestamp.

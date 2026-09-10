@@ -425,33 +425,7 @@ export const NAV_AREAS = {
     sections: [
       {
         href: "/campaign/post-sale",
-        title: "Post Sale",
-        description:
-          "Import ready-made templates for order placed, shipped, delivered, and review requests.",
-        pageDescription:
-          "Import Meta-ready WhatsApp templates for your order lifecycle — placed, shipped, delivered, and review requests. Once imported, they go through the same review process as any other template and show up in WhatsApp Templates.",
-        icon: IconPackage,
-      },
-      {
-        href: "/campaign/whatsapp-templates",
-        title: "WhatsApp Templates",
-        description: "Message templates approved for sending on WhatsApp.",
-        pageDescription:
-          "Manage the message templates Meta has approved — or is reviewing — for your connected WhatsApp number.",
-        icon: IconBrandWhatsapp,
-      },
-    ],
-  },
-
-  campaign: {
-    href: "/campaign",
-    title: "Campaign",
-    description: "WhatsApp templates and campaigns for reaching customers.",
-    icon: IconSpeakerphone,
-    sections: [
-      {
-        href: "/campaign/post-sale",
-        title: "Post Sale",
+        title: "Post Sale Templates",
         description:
           "Import ready-made templates for order placed, shipped, delivered, and review requests.",
         pageDescription:

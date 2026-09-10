@@ -245,23 +245,31 @@ export function renderPreviewText(
 }
 
 /**
- * A practical subset of the ~70 locale codes Meta's template API accepts —
- * not exhaustive, just the common ones. `language` is a free-text field on
- * the backend (WhatsAppTemplateSubmitSerializer), so typing any other valid
- * Meta code still works even though it isn't listed here.
+ * The languages a template may be created in — the mirror of
+ * campaign.constants.TemplateLanguage. The backend enforces exactly this
+ * set (`language` is a ChoiceField), so anything not listed here is
+ * rejected on save; keep the two in step.
  */
 export const WHATSAPP_LANGUAGES: { code: string; label: string }[] = [
-  { code: "en", label: "English" },
   { code: "en_US", label: "English (US)" },
   { code: "en_GB", label: "English (UK)" },
-  { code: "hi", label: "Hindi" },
   { code: "es", label: "Spanish" },
   { code: "es_MX", label: "Spanish (Mexico)" },
+  { code: "es_ES", label: "Spanish (Spain)" },
   { code: "pt_BR", label: "Portuguese (Brazil)" },
+  { code: "pt_PT", label: "Portuguese (Portugal)" },
+  { code: "hi", label: "Hindi" },
+  { code: "ar", label: "Arabic" },
   { code: "fr", label: "French" },
   { code: "de", label: "German" },
-  { code: "it", label: "Italian" },
-  { code: "ar", label: "Arabic" },
   { code: "id", label: "Indonesian" },
-  { code: "zh_CN", label: "Chinese (Simplified)" },
+  { code: "it", label: "Italian" },
+  { code: "zh_CN", label: "Chinese (China)" },
+  { code: "zh_TW", label: "Chinese (Taiwan)" },
+  { code: "zh_HK", label: "Chinese (Hong Kong)" },
+  { code: "ta", label: "Tamil" },
+  { code: "te", label: "Telugu" },
+  { code: "bn", label: "Bengali" },
+  { code: "mr", label: "Marathi" },
+  { code: "gu", label: "Gujarati" },
 ];

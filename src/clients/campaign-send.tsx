@@ -54,6 +54,7 @@ import {
   sendWhatsAppTemplateToAllCustomers,
   type WhatsAppTemplateSendAllResponse,
 } from "@/redux/api-slice/social-ai-slice";
+import { buildTemplateComponents } from "@/lib/whatsapp-template-components";
 
 export default function CampaignSend() {
   const dispatch = useAppDispatch();
@@ -92,7 +93,7 @@ export default function CampaignSend() {
 
   const approvedTemplates = useMemo(
     () =>
-      (FetchWhatsAppTemplatesData?.templates ?? []).filter(
+      (FetchWhatsAppTemplatesData ?? []).filter(
         (t) => t.status === "APPROVED",
       ),
     [FetchWhatsAppTemplatesData],
@@ -105,10 +106,13 @@ export default function CampaignSend() {
     null,
   );
   const selectedTemplateId =
-    templateOverride ?? approvedTemplates[0]?.id ?? null;
+    templateOverride ??
+    (approvedTemplates[0] ? String(approvedTemplates[0].id) : null);
 
   const selectedTemplate = useMemo(
-    () => approvedTemplates.find((t) => t.id === selectedTemplateId) ?? null,
+    () =>
+      approvedTemplates.find((t) => String(t.id) === selectedTemplateId) ??
+      null,
     [approvedTemplates, selectedTemplateId],
   );
 
@@ -228,7 +232,7 @@ export default function CampaignSend() {
                   </SelectTrigger>
                   <SelectContent>
                     {approvedTemplates.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
+                      <SelectItem key={t.id} value={String(t.id)}>
                         {t.name}
                       </SelectItem>
                     ))}
@@ -368,7 +372,8 @@ export default function CampaignSend() {
               <WhatsAppPhoneMockup
                 accountName={account?.name || ""}
                 isVerified={Boolean(account?.is_active)}
-                components={selectedTemplate.components}
+                components={buildTemplateComponents(selectedTemplate)}
+                headerMediaUrl={selectedTemplate.file_url}
               />
             ) : (
               <Typography variant="muted">

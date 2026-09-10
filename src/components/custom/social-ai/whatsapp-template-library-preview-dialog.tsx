@@ -13,6 +13,7 @@ import type {
   WhatsAppTemplateLibraryItem,
 } from "@/redux/api-slice/social-ai-slice";
 import { WhatsAppPhoneMockup } from "./whatsapp-phone-mockup";
+import { buildTemplateComponents } from "@/lib/whatsapp-template-components";
 
 /**
  * Read-only phone-mockup preview for one catalog item, opened by hovering
@@ -35,7 +36,7 @@ export function WhatsAppTemplateLibraryPreviewDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2 pr-6">
-            <span className="truncate">{item?.display_name}</span>
+            <span className="truncate">{item?.name}</span>
             {item && (
               <WhatsAppTemplateCategoryBadge category={item.category} />
             )}
@@ -48,7 +49,7 @@ export function WhatsAppTemplateLibraryPreviewDialog({
           <WhatsAppPhoneMockup
             accountName={account?.name || ""}
             isVerified={Boolean(account?.is_active)}
-            components={item.components}
+            components={buildTemplateComponents(item)}
             maxWidth={340}
           />
         )}

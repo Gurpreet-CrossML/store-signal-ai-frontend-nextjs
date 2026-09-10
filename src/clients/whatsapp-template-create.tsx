@@ -69,14 +69,9 @@ import {
 } from "@/lib/whatsapp-template-fields";
 import { useAppDispatch } from "@/redux/hooks";
 import {
-  createWhatsAppTemplateDraft,
   fetchLocalWhatsAppTemplate,
-  fetchWhatsAppTemplateDraft,
   submitWhatsAppTemplate,
-  submitWhatsAppTemplateDraft,
   updateWhatsAppTemplate,
-  updateWhatsAppTemplateDraft,
-  uploadWhatsAppTemplateMedia,
   type WhatsAppTemplateComponent,
 } from "@/redux/api-slice/social-ai-slice";
 
@@ -96,6 +91,26 @@ const HEADER_FORMATS = [
 
 type HeaderFormat = (typeof HEADER_FORMATS)[number]["value"];
 
+/**
+ * What Meta accepts as a header sample, per media header format — the
+ * mirror of campaign.constants.HEADER_MEDIA_TYPES / HEADER_MEDIA_MAX_BYTES.
+ * Checked here so an oversized file is caught before it is uploaded at
+ * all, rather than after a round-trip; the server enforces the same limits
+ * regardless, since nothing client-side is a security boundary. Keep the
+ * two in step.
+ */
+const HEADER_MEDIA_RULES = {
+  IMAGE: { accept: "image/jpeg,image/png", maxMB: 5 },
+  VIDEO: { accept: "video/mp4,video/3gpp", maxMB: 16 },
+  DOCUMENT: { accept: "application/pdf", maxMB: 100 },
+} as const;
+
+type MediaHeaderFormat = keyof typeof HEADER_MEDIA_RULES;
+
+const isMediaHeaderFormat = (
+  format: HeaderFormat,
+): format is MediaHeaderFormat => format in HEADER_MEDIA_RULES;
+
 const BUTTON_TYPES = [
   { value: "QUICK_REPLY", label: "Quick Reply", icon: IconMessageCircle },
   { value: "URL", label: "Website URL", icon: IconLink },
@@ -112,7 +127,10 @@ type ButtonDraft = {
   phoneNumber: string;
 };
 
-const MAX_BUTTONS = 3;
+// One button per template: that's what the API stores (the button lives on
+// the template row itself, not a child table). Allowing more here would
+// silently drop everything past the first on save.
+const MAX_BUTTONS = 1;
 
 function newButtonDraft(): ButtonDraft {
   return {
@@ -130,19 +148,13 @@ function sanitizeName(raw: string) {
 
 export default function WhatsAppTemplateCreate({
   templateId,
-  draftId,
 }: {
   templateId?: string;
-  draftId?: string;
 } = {}) {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const { storeCode, account, loading: accountLoading } = useWhatsAppAccount();
   const isEditMode = Boolean(templateId);
-  // Stable, URL-driven — controls heading/copy only. Separate from
-  // savedDraftId below (which also updates after an in-session "Save
-  // Draft") so the page chrome doesn't shift under the user mid-edit.
-  const isDraftMode = Boolean(draftId);
 
   const [name, setName] = useState("");
   const [language, setLanguage] = useState("en_US");
@@ -151,8 +163,13 @@ export default function WhatsAppTemplateCreate({
   const [headerFormat, setHeaderFormat] = useState<HeaderFormat>("NONE");
   const [headerText, setHeaderText] = useState("");
   const [headerPreviewUrl, setHeaderPreviewUrl] = useState<string | null>(null);
-  const [headerHandle, setHeaderHandle] = useState<string | null>(null);
-  const [uploadingMedia, setUploadingMedia] = useState(false);
+  // The chosen file is held here and nowhere else until the template is
+  // submitted: it is uploaded to Meta and stored in our bucket by the same
+  // request that creates the template, so closing the tab costs nothing.
+  const [headerMediaFile, setHeaderMediaFile] = useState<File | null>(null);
+  // True when the template being edited already has a stored sample, so a
+  // media header is satisfied without picking a new file.
+  const [hasStoredMedia, setHasStoredMedia] = useState(false);
 
   const [body, setBody] = useState("");
   const [footer, setFooter] = useState("");
@@ -166,17 +183,8 @@ export default function WhatsAppTemplateCreate({
   >({});
 
   const [submitting, setSubmitting] = useState(false);
-  const [savingDraft, setSavingDraft] = useState(false);
-  const [loadingTemplate, setLoadingTemplate] = useState(
-    isEditMode || isDraftMode,
-  );
+  const [loadingTemplate, setLoadingTemplate] = useState(isEditMode);
   const [existingStatus, setExistingStatus] = useState<string | null>(null);
-  // The draft this session is saving to — seeded from the URL when resuming
-  // one, then set after the FIRST successful in-session "Save Draft" so a
-  // second click updates that same row instead of creating a duplicate.
-  const [savedDraftId, setSavedDraftId] = useState<number | null>(
-    draftId ? Number(draftId) : null,
-  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -185,32 +193,21 @@ export default function WhatsAppTemplateCreate({
     };
   }, [headerPreviewUrl]);
 
-  // Edit/draft mode: load the local mirror once the account resolves, and
-  // prefill every field from its raw components — the exact array
-  // originally submitted (or last saved), so this is a straight parse
-  // rather than a reconstruction. Both endpoints return the same shape
-  // (see WhatsAppTemplateLocalDetail), so one effect covers both.
+  // Edit mode: load the local mirror once the account resolves and
+  // prefill every field from it — the exact content last accepted by
+  // Meta, so this is a straight parse rather than a reconstruction.
   useEffect(() => {
-    if ((!templateId && !draftId) || !storeCode || !account) return;
+    if (!templateId || !storeCode || !account) return;
     let cancelled = false;
 
-    const fetchPromise = templateId
-      ? dispatch(
-          fetchLocalWhatsAppTemplate({
-            storeCode,
-            accountId: String(account.id),
-            metaTemplateId: templateId,
-          }),
-        ).unwrap()
-      : dispatch(
-          fetchWhatsAppTemplateDraft({
-            storeCode,
-            accountId: String(account.id),
-            draftId: Number(draftId),
-          }),
-        ).unwrap();
-
-    fetchPromise
+    dispatch(
+      fetchLocalWhatsAppTemplate({
+        storeCode,
+        accountId: String(account.id),
+        templateId: Number(templateId),
+      }),
+    )
+      .unwrap()
       .then((data) => {
         if (cancelled) return;
         setName(data.name);
@@ -218,45 +215,42 @@ export default function WhatsAppTemplateCreate({
         setCategory(data.category);
         setExistingStatus(data.status);
 
-        const header = data.components.find((c) => c.type === "HEADER");
-        if (header?.format === "TEXT") {
-          setHeaderFormat("TEXT");
-          setHeaderText(header.text ?? "");
-        } else if (
-          header?.format === "IMAGE" ||
-          header?.format === "VIDEO" ||
-          header?.format === "DOCUMENT"
-        ) {
-          setHeaderFormat(header.format);
-          setHeaderHandle(header.example?.header_handle?.[0] ?? null);
+        // LOCATION headers exist on Meta but this form doesn't offer them.
+        if (data.header_format !== "LOCATION") {
+          setHeaderFormat(data.header_format);
+        }
+        setHeaderText(data.header_text ?? "");
+        // The stored S3 copy is what can actually be rendered; Meta's
+        // handle is a write-only token and is never sent to the client.
+        if (data.file_url) {
+          setHeaderPreviewUrl(data.file_url);
+          setHasStoredMedia(true);
         }
 
-        const bodyComponent = data.components.find((c) => c.type === "BODY");
-        setBody(bodyComponent?.text ?? "");
-        setFooter(data.components.find((c) => c.type === "FOOTER")?.text ?? "");
+        setBody(data.body_text ?? "");
+        setFooter(data.footer_text ?? "");
 
-        const namedParams = bodyComponent?.example?.body_text_named_params;
-        if (namedParams?.length) {
+        if (data.body_text_example?.length) {
           setVariableSamples(
             Object.fromEntries(
-              namedParams.map((param) => [param.param_name, param.example]),
+              data.body_text_example.map((param) => [
+                param.param_name,
+                param.example,
+              ]),
             ),
           );
         }
 
-        const buttonsComponent = data.components.find(
-          (c) => c.type === "BUTTONS",
-        );
-        if (buttonsComponent?.buttons?.length) {
-          setButtons(
-            buttonsComponent.buttons.map((b) => ({
+        if (data.button_type) {
+          setButtons([
+            {
               key: crypto.randomUUID(),
-              type: (b.type as ButtonType) || "QUICK_REPLY",
-              text: b.text || "",
-              url: b.url || "",
-              phoneNumber: b.phone_number || "",
-            })),
-          );
+              type: data.button_type as ButtonType,
+              text: data.button_text || "",
+              url: data.button_url || "",
+              phoneNumber: data.button_phone_number || "",
+            },
+          ]);
         }
       })
       .catch(() => {
@@ -271,14 +265,15 @@ export default function WhatsAppTemplateCreate({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templateId, draftId, storeCode, account?.id]);
+  }, [templateId, storeCode, account?.id]);
 
   const handleHeaderFormatChange = (format: HeaderFormat) => {
     setHeaderFormat(format);
     if (format !== "IMAGE" && format !== "VIDEO" && format !== "DOCUMENT") {
       if (headerPreviewUrl) URL.revokeObjectURL(headerPreviewUrl);
       setHeaderPreviewUrl(null);
-      setHeaderHandle(null);
+      setHeaderMediaFile(null);
+      setHasStoredMedia(false);
     }
   };
 
@@ -288,32 +283,38 @@ export default function WhatsAppTemplateCreate({
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file || !storeCode || !account) return;
+    if (!isMediaHeaderFormat(headerFormat)) return;
 
+    // Refuse it here rather than spending an upload on a file the server
+    // will reject anyway — and never hold an oversized one in the tab.
+    const { accept, maxMB } = HEADER_MEDIA_RULES[headerFormat];
+    if (!accept.split(",").includes(file.type)) {
+      toast.error(
+        `${file.type || "That file type"} can't be used as a ${headerFormat} ` +
+          `header. Supported: ${accept.split(",").join(", ")}.`,
+      );
+      return;
+    }
+    if (file.size > maxMB * 1024 * 1024) {
+      toast.error(
+        `${headerFormat} header samples must be ${maxMB} MB or smaller; ` +
+          `this one is ${(file.size / (1024 * 1024)).toFixed(1)} MB.`,
+      );
+      return;
+    }
+
+    // Kept local. Nothing reaches Meta or the bucket until the template
+    // is submitted, so a template that is never finished costs nothing.
     if (headerPreviewUrl) URL.revokeObjectURL(headerPreviewUrl);
     setHeaderPreviewUrl(URL.createObjectURL(file));
-    setHeaderHandle(null);
-    setUploadingMedia(true);
-    try {
-      const result = await dispatch(
-        uploadWhatsAppTemplateMedia({
-          storeCode,
-          accountId: String(account.id),
-          file,
-        }),
-      ).unwrap();
-      setHeaderHandle(result.header_handle);
-    } catch {
-      // The thunk already surfaces the error toast.
-      setHeaderPreviewUrl(null);
-    } finally {
-      setUploadingMedia(false);
-    }
+    setHeaderMediaFile(file);
   };
 
   const handleRemoveMedia = () => {
     if (headerPreviewUrl) URL.revokeObjectURL(headerPreviewUrl);
     setHeaderPreviewUrl(null);
-    setHeaderHandle(null);
+    setHeaderMediaFile(null);
+    setHasStoredMedia(false);
   };
 
   const addButton = () =>
@@ -356,55 +357,46 @@ export default function WhatsAppTemplateCreate({
   const sampleFor = (token: string) =>
     variableSamples[token]?.trim() || WHATSAPP_VARIABLES_BY_TOKEN[token].sample;
 
-  const submitComponents = useMemo((): WhatsAppTemplateComponent[] => {
-    const components: WhatsAppTemplateComponent[] = [];
-    if (headerFormat === "TEXT" && headerText.trim()) {
-      components.push({
-        type: "HEADER",
-        format: "TEXT",
-        text: headerText.trim(),
-      });
-    } else if (headerFormat !== "NONE" && headerHandle) {
-      components.push({
-        type: "HEADER",
-        format: headerFormat,
-        example: { header_handle: [headerHandle] },
-      });
-    }
-
-    components.push({
-      type: "BODY",
-      text: body,
-      ...(bodyTokens.length
-        ? {
-            example: {
-              body_text_named_params: bodyTokens.map((token) => ({
-                param_name: token,
-                example: sampleFor(token),
-              })),
-            },
-          }
-        : {}),
-    });
-
-    if (footer.trim()) components.push({ type: "FOOTER", text: footer.trim() });
-
-    const buttonComponents = buildButtonComponents();
-    if (buttonComponents.length) {
-      components.push({ type: "BUTTONS", buttons: buttonComponents });
-    }
-    return components;
+  // The parts the API stores, built from the form. The live preview still
+  // assembles a components array below — that one never leaves the browser.
+  const templateParts = useMemo(() => {
+    const button = buttons[0];
+    return {
+      parameter_format: "NAMED" as const,
+      header_format: headerFormat,
+      header_text: headerFormat === "TEXT" ? headerText.trim() : "",
+      header_text_example: [] as string[],
+      body_text: body,
+      body_text_example: bodyTokens.map((token) => ({
+        param_name: token,
+        example: sampleFor(token),
+      })),
+      footer_text: footer.trim(),
+      button_type: button?.type ?? ("" as const),
+      button_text: button?.text?.trim() ?? "",
+      button_url: button?.type === "URL" ? button.url.trim() : "",
+      button_url_example: "",
+      button_phone_number:
+        button?.type === "PHONE_NUMBER" ? button.phoneNumber.trim() : "",
+      button_coupon_code: "",
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     headerFormat,
     headerText,
-    headerHandle,
     body,
     bodyTokens,
     variableSamples,
     footer,
     buttons,
   ]);
+
+  // The header file itself, sent with the create/edit request. Absent on
+  // an edit that leaves the existing sample alone.
+  const mediaFields = useMemo(
+    () => (headerMediaFile ? { header_media: headerMediaFile } : {}),
+    [headerMediaFile],
+  );
 
   // What the live preview shows — a local object URL stands in for the
   // media (the real handle isn't a renderable image), and named tokens are
@@ -453,13 +445,18 @@ export default function WhatsAppTemplateCreate({
   ]);
 
   const unknownVariables = useMemo(() => findUnknownVariables(body), [body]);
-  const mediaPending =
-    headerFormat !== "NONE" && headerFormat !== "TEXT" && !headerHandle;
+  // A media header is satisfied by a newly chosen file, or — when editing
+  // — by the sample the template already has stored.
+  const mediaMissing =
+    headerFormat !== "NONE" &&
+    headerFormat !== "TEXT" &&
+    !headerMediaFile &&
+    !hasStoredMedia;
 
-  // The bar every save clears, draft or real: a name to identify it by, a
-  // body to actually say something, and no variable this app doesn't know
-  // how to resolve.
-  const baseValidationError = !name.trim()
+  // The bar a submission clears: a name to identify it by, a body to
+  // actually say something, no variable this app can't resolve, and the
+  // header's file when its format needs one.
+  const validationError = !name.trim()
     ? "Template name is required."
     : !body.trim()
       ? "Body text is required."
@@ -467,66 +464,11 @@ export default function WhatsAppTemplateCreate({
         ? `Unsupported variable${unknownVariables.length > 1 ? "s" : ""}: ${unknownVariables
             .map((token) => `{{${token}}}`)
             .join(", ")}`
-        : null;
-
-  // Save Draft is deliberately looser than Submit — a draft is exactly the
-  // "come back and finish later" case, so it shouldn't demand the header
-  // media be uploaded yet.
-  const draftValidationError = baseValidationError;
-
-  const validationError =
-    baseValidationError ??
-    (mediaPending
-      ? uploadingMedia
-        ? "Waiting for the media sample to finish uploading…"
-        : "Upload a media sample for the header, or switch it to Text/None."
-      : !account
-        ? "No WhatsApp account connected for this store."
-        : null);
-
-  const handleSaveDraft = async () => {
-    if (!storeCode || !account) return;
-    if (draftValidationError) {
-      toast.error(draftValidationError);
-      return;
-    }
-    setSavingDraft(true);
-    try {
-      const payload = {
-        name: name.trim(),
-        category,
-        language,
-        components: submitComponents,
-        parameter_format: "NAMED" as const,
-      };
-      const result = savedDraftId
-        ? await dispatch(
-            updateWhatsAppTemplateDraft({
-              storeCode,
-              accountId: String(account.id),
-              draftId: savedDraftId,
-              payload,
-            }),
-          ).unwrap()
-        : await dispatch(
-            createWhatsAppTemplateDraft({
-              storeCode,
-              accountId: String(account.id),
-              payload,
-            }),
-          ).unwrap();
-      setSavedDraftId(result.local_id);
-      setExistingStatus(result.status);
-      toast.success("Draft saved", {
-        description:
-          "Find it later in the templates list — it won't be sent to Meta until you submit it.",
-      });
-    } catch {
-      // The thunk already surfaces the error toast.
-    } finally {
-      setSavingDraft(false);
-    }
-  };
+        : mediaMissing
+          ? "Choose a media file for the header, or switch it to Text/None."
+          : !account
+            ? "No WhatsApp account connected for this store."
+            : null;
 
   const handleSubmit = async () => {
     if (!storeCode || !account || validationError) {
@@ -540,30 +482,19 @@ export default function WhatsAppTemplateCreate({
           updateWhatsAppTemplate({
             storeCode,
             accountId: String(account.id),
-            metaTemplateId: templateId,
+            templateId: Number(templateId),
             payload: {
+              name: name.trim(),
               category,
-              components: submitComponents,
-              parameter_format: "NAMED",
+              language,
+              ...templateParts,
+              ...mediaFields,
             },
           }),
         ).unwrap();
         toast.success("Template updated", {
           description:
             "Your changes were sent to Meta. If the content changed, it'll be re-reviewed before going live.",
-        });
-      } else if (savedDraftId) {
-        // Promote whatever draft this session has been saving to — not a
-        // fresh submission, so nothing's left behind for a duplicate.
-        const result = await dispatch(
-          submitWhatsAppTemplateDraft({
-            storeCode,
-            accountId: String(account.id),
-            draftId: savedDraftId,
-          }),
-        ).unwrap();
-        toast.success("Template submitted for review", {
-          description: `Meta status: ${result.status}. It'll show up in the templates list once reviewed.`,
         });
       } else {
         const result = await dispatch(
@@ -574,8 +505,8 @@ export default function WhatsAppTemplateCreate({
               name: name.trim(),
               category,
               language,
-              components: submitComponents,
-              parameter_format: "NAMED",
+              ...templateParts,
+              ...mediaFields,
             },
           }),
         ).unwrap();
@@ -609,34 +540,16 @@ export default function WhatsAppTemplateCreate({
             <Typography variant="h4" as="h1">
               {isEditMode
                 ? "Edit WhatsApp Template"
-                : isDraftMode
-                  ? "Edit Draft"
-                  : "Create WhatsApp Template"}
+                : "Create WhatsApp Template"}
             </Typography>
             <Typography variant="muted">
               {isEditMode
                 ? "Update your template's content. Name and language can't be changed after creation."
-                : isDraftMode
-                  ? "Continue editing this draft. Nothing reaches Meta until you submit it for review."
-                  : "Design and personalize your template using variables to engage your customers."}
+                : "Design your template, then submit it to Meta for review. Nothing is saved until you submit."}
             </Typography>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {!isEditMode && (
-            <Button
-              variant="outline"
-              onClick={handleSaveDraft}
-              disabled={savingDraft || accountLoading || loadingTemplate}
-            >
-              {savingDraft ? (
-                <IconLoader2 className="size-4 animate-spin" />
-              ) : (
-                <IconDeviceFloppy className="size-4" />
-              )}
-              {savingDraft ? "Saving…" : "Save Draft"}
-            </Button>
-          )}
           <Button
             onClick={handleSubmit}
             disabled={submitting || accountLoading || loadingTemplate}
@@ -720,10 +633,11 @@ export default function WhatsAppTemplateCreate({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {/* WHATSAPP_LANGUAGES is a curated subset, not
-                          exhaustive — an edited template's stored code might
-                          not be in it, so it gets its own option rather than
-                          the Select showing blank. */}
+                        {/* A template stored before this list was fixed
+                          may hold a code no longer offered. Show it rather
+                          than a blank Select — but the backend will refuse
+                          it on save, so it has to be changed to a listed
+                          one. */}
                         {!WHATSAPP_LANGUAGES.some((l) => l.code === language) &&
                           language && (
                             <SelectItem value={language}>{language}</SelectItem>
@@ -818,16 +732,14 @@ export default function WhatsAppTemplateCreate({
                       ref={fileInputRef}
                       type="file"
                       accept={
-                        headerFormat === "IMAGE"
-                          ? "image/*"
-                          : headerFormat === "VIDEO"
-                            ? "video/*"
-                            : undefined
+                        isMediaHeaderFormat(headerFormat)
+                          ? HEADER_MEDIA_RULES[headerFormat].accept
+                          : undefined
                       }
                       className="hidden"
                       onChange={handleFileChange}
                     />
-                    {headerPreviewUrl || headerHandle ? (
+                    {headerPreviewUrl || hasStoredMedia ? (
                       <div className="flex items-center gap-2 rounded-md border px-3 py-2">
                         {headerFormat === "IMAGE" ? (
                           <IconPhoto className="size-4 text-muted-foreground" />
@@ -837,15 +749,10 @@ export default function WhatsAppTemplateCreate({
                           <IconFileText className="size-4 text-muted-foreground" />
                         )}
                         <Typography variant="small">
-                          {uploadingMedia
-                            ? "Uploading…"
-                            : headerPreviewUrl
-                              ? "Sample uploaded"
-                              : "Existing media attached"}
+                          {headerMediaFile
+                            ? headerMediaFile.name
+                            : "Existing media attached"}
                         </Typography>
-                        {uploadingMedia && (
-                          <IconLoader2 className="size-3.5 animate-spin text-muted-foreground" />
-                        )}
                         <Button
                           type="button"
                           variant="ghost"
@@ -1069,7 +976,7 @@ export default function WhatsAppTemplateCreate({
                 </Button>
                 {buttons.length >= MAX_BUTTONS && (
                   <Typography variant="caption">
-                    Up to {MAX_BUTTONS} buttons per template.
+                    One button per template.
                   </Typography>
                 )}
               </CardContent>
@@ -1098,6 +1005,7 @@ export default function WhatsAppTemplateCreate({
                   accountName={account?.name || ""}
                   isVerified={Boolean(account?.is_active)}
                   components={previewComponents}
+                  headerMediaUrl={headerPreviewUrl}
                 />
               </CardContent>
             </Card>

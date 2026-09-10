@@ -19,6 +19,7 @@ import {
   type WhatsAppTemplateLibraryItem,
 } from "@/redux/api-slice/social-ai-slice";
 import { renderTemplateIcon } from "./whatsapp-template-helpers";
+import { buildTemplateComponents } from "@/lib/whatsapp-template-components";
 
 /**
  * The per-row import switch. Self-contained like AutoRespondSwitch
@@ -51,7 +52,7 @@ function ImportToggle({
         }),
       ).unwrap();
       toast.success("Template imported", {
-        description: `${item.display_name} was submitted to Meta and added to your WhatsApp Templates.`,
+        description: `${item.name} was submitted to Meta and added to your WhatsApp Templates.`,
       });
       dispatch(fetchWhatsAppTemplateLibrary({ storeCode, accountId }));
     } catch {
@@ -68,8 +69,8 @@ function ImportToggle({
       onCheckedChange={handleChange}
       aria-label={
         item.is_imported
-          ? `${item.display_name} is already imported`
-          : `Import ${item.display_name}`
+          ? `${item.name} is already imported`
+          : `Import ${item.name}`
       }
     />
   );
@@ -88,17 +89,23 @@ export function getWhatsAppTemplateLibraryColumns(
 ): ColumnDef<WhatsAppTemplateLibraryItem>[] {
   return [
     {
-      accessorKey: "display_name",
+      accessorKey: "name",
       header: "Template Name",
       cell: ({ row }) => {
         const item = row.original;
         return (
           <div className="flex items-center gap-2.5 py-1 font-medium">
             <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              {renderTemplateIcon(item, "size-4")}
+              {renderTemplateIcon(
+                {
+                  category: item.category,
+                  components: buildTemplateComponents(item),
+                },
+                "size-4",
+              )}
             </div>
-            <span className="truncate" title={item.display_name}>
-              {item.display_name}
+            <span className="truncate" title={item.name}>
+              {item.name}
             </span>
           </div>
         );
@@ -128,8 +135,8 @@ export function getWhatsAppTemplateLibraryColumns(
       header: "Status",
       cell: ({ row }) => {
         const item = row.original;
-        return item.is_imported && item.status ? (
-          <WhatsAppTemplateStatusBadge status={item.status} />
+        return item.is_imported ? (
+          <WhatsAppTemplateStatusBadge status="Imported" />
         ) : (
           <Badge variant="outline" className="text-muted-foreground">
             Not Imported
@@ -147,7 +154,7 @@ export function getWhatsAppTemplateLibraryColumns(
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label={`Preview ${item.display_name}`}
+              aria-label={`Preview ${item.name}`}
               onClick={(event) => {
                 event.stopPropagation();
                 onPreview(item);

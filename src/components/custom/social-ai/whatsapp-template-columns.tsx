@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/status-badge";
 import type { WhatsAppTemplate } from "@/redux/api-slice/social-ai-slice";
 import { resolveTemplateIcon } from "./whatsapp-template-helpers";
+import { buildTemplateComponents } from "@/lib/whatsapp-template-components";
 
 function copyTemplateId(id: string) {
   navigator.clipboard
@@ -48,7 +49,10 @@ export function getWhatsAppTemplateColumns(
       header: "Template Name",
       cell: ({ row }) => {
         const template = row.original;
-        const Icon = resolveTemplateIcon(template);
+        const Icon = resolveTemplateIcon({
+          category: template.category,
+          components: buildTemplateComponents(template),
+        });
         return (
           <div className="flex items-center gap-2.5 py-1 font-medium">
             <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -92,7 +96,7 @@ export function getWhatsAppTemplateColumns(
       header: "Quality",
       cell: ({ row }) => (
         <WhatsAppTemplateQualityBadge
-          score={row.original.quality_score?.score}
+          score={undefined}
         />
       ),
     },
@@ -129,7 +133,7 @@ export function getWhatsAppTemplateColumns(
                 <DropdownMenuItem
                   onClick={(event) => {
                     event.stopPropagation();
-                    copyTemplateId(template.id);
+                    copyTemplateId(String(template.id));
                   }}
                 >
                   <IconCopy className="size-4" />
