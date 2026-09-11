@@ -5,6 +5,40 @@ import { toast } from "sonner";
 import { isAxiosError } from "axios";
 import { Store } from "@/redux/api-slice/stores-slice";
 
+function faqErrorMessage(data: unknown): string | undefined {
+  if (!data || typeof data !== "object") return undefined;
+
+  const details = (data as { data?: unknown }).data;
+  if (!details || typeof details !== "object") return undefined;
+
+  const question = (details as { question?: unknown }).question;
+  return typeof question === "string" && question.trim()
+    ? question
+    : undefined;
+}
+
+function libraryDocumentErrorMessage(data: unknown): string | undefined {
+  if (!data || typeof data !== "object") return undefined;
+
+  const details = (data as { data?: unknown }).data;
+  if (!details || typeof details !== "object") return undefined;
+
+  const documentError = (details as {
+    name?: unknown;
+    path?: unknown;
+  }).name ?? (details as { path?: unknown }).path;
+
+  if (typeof documentError === "string") return documentError.trim() || undefined;
+  if (Array.isArray(documentError)) {
+    const message = documentError.find(
+      (value): value is string => typeof value === "string" && Boolean(value.trim()),
+    );
+    return message?.trim();
+  }
+
+  return undefined;
+}
+
 type GetStoreFaqsArgs = {
   store_code?: string;
   page?: number;
@@ -112,11 +146,16 @@ export const CreateStoreFaq = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
+      const questionError = faqErrorMessage(data);
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to create the FAQ, please try again later.",
-      });
+      if (questionError) {
+        toast.error(questionError);
+      } else {
+        toast.error("Uh oh! Something went wrong.", {
+          description:
+            data?.message || "Unable to create the FAQ, please try again later.",
+        });
+      }
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -151,11 +190,16 @@ export const UpdateStoreFaq = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
+      const questionError = faqErrorMessage(data);
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to update the FAQ, please try again later.",
-      });
+      if (questionError) {
+        toast.error(questionError);
+      } else {
+        toast.error("Uh oh! Something went wrong.", {
+          description:
+            data?.message || "Unable to update the FAQ, please try again later.",
+        });
+      }
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -249,12 +293,17 @@ export const UploadLibraryDocument = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
+      const documentError = libraryDocumentErrorMessage(data);
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to upload the document, please try again later.",
-      });
+      if (documentError) {
+        toast.error(documentError);
+      } else {
+        toast.error("Uh oh! Something went wrong.", {
+          description:
+            data?.message ||
+            "Unable to upload the document, please try again later.",
+        });
+      }
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
