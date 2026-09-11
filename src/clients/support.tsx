@@ -53,7 +53,7 @@ import {
   type ThreadMessage,
   FetchOrders,
   UploadMessageAttachments,
-  Customer,
+  type Customer,
 } from "@/redux/api-slice/thread-slice";
 import {
   CreateSupportTicket,
@@ -1680,7 +1680,7 @@ export default function Support() {
               }),
             );
             const ok = CreateSupportTicket.fulfilled.match(result);
-            if (ok)
+            if (ok) {
               dispatch(
                 FetchFreshdeskTicketId({
                   threadId: activeThreadId,
@@ -1688,6 +1688,7 @@ export default function Support() {
                   storeCode,
                 }),
               );
+            }
             return ok ? { ok: true } : { ok: false, payload: result.payload };
           }}
         />

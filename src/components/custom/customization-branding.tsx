@@ -167,12 +167,15 @@ export default function CustomizationBranding({
             placeholder="What are you shopping for today?"
             maxLength={WELCOME_LIMIT}
           />
-          <div className="flex items-baseline justify-between gap-3">
-            <Typography variant="caption">
+          <div className="flex flex-col items-start gap-1">
+            <Typography variant="caption" className="order-2">
               {welcomeMessage.length}/{WELCOME_LIMIT} characters
             </Typography>
             {fieldErrors?.welcome_message ? (
-              <Typography variant="caption" className="text-destructive">
+              <Typography
+                variant="caption"
+                className="order-1 text-destructive"
+              >
                 {fieldErrors.welcome_message}
               </Typography>
             ) : null}
@@ -195,19 +198,23 @@ export default function CustomizationBranding({
             useMarkdown
             onChange={onGreetingChange}
           />
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex flex-col items-start gap-1">
             {/* Over the limit reads as an error before the server says so
                 — the count is the rule, so it should look like one. */}
             <Typography
               variant="caption"
               className={cn(
+                "order-2",
                 greetingLength > GREETING_LIMIT && "text-destructive",
               )}
             >
               {greetingLength}/{GREETING_LIMIT} characters
             </Typography>
             {fieldErrors?.greeting_message ? (
-              <Typography variant="caption" className="text-destructive">
+              <Typography
+                variant="caption"
+                className="order-1 text-destructive"
+              >
                 {fieldErrors.greeting_message}
               </Typography>
             ) : null}

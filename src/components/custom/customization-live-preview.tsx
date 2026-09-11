@@ -109,7 +109,7 @@ export default function CustomizationLivePreview({
                         <div className="space-y-2">
                           {actionButtons.map((button, index) => (
                             <button
-                              key={button.id ?? index}
+                              key={`${button.id ?? "new"}-${index}`}
                               type="button"
                               onClick={() => setPreviewTab("messages")}
                               className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium transition hover:bg-slate-50"

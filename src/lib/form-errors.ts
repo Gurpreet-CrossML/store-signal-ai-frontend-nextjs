@@ -59,6 +59,17 @@ export function serverFieldErrors(payload: unknown): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const [key, value] of Object.entries(body)) {
     if (NON_FIELD_KEYS.has(key)) continue;
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) return;
+        for (const [field, fieldValue] of Object.entries(
+          item as Record<string, unknown>,
+        )) {
+          const fieldMessage = firstMessage(fieldValue);
+          if (fieldMessage) errors[`${key}.${index}.${field}`] = fieldMessage;
+        }
+      });
+    }
     const message = firstMessage(value);
     if (message) errors[key] = message;
   }
