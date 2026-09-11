@@ -14,10 +14,7 @@ export function isValidUrl(value: string): boolean {
   if (!normalized) return false;
   try {
     const url = new URL(normalized);
-    return (
-      (url.protocol === "http:" || url.protocol === "https:") &&
-      url.hostname.includes(".")
-    );
+    return url.protocol === "http:" || url.protocol === "https:";
   } catch {
     return false;
   }
