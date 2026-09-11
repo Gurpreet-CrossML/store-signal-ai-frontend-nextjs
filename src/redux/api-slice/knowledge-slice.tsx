@@ -12,9 +12,7 @@ function faqErrorMessage(data: unknown): string | undefined {
   if (!details || typeof details !== "object") return undefined;
 
   const question = (details as { question?: unknown }).question;
-  return typeof question === "string" && question.trim()
-    ? question
-    : undefined;
+  return typeof question === "string" && question.trim() ? question : undefined;
 }
 
 function libraryDocumentErrorMessage(data: unknown): string | undefined {
@@ -23,15 +21,20 @@ function libraryDocumentErrorMessage(data: unknown): string | undefined {
   const details = (data as { data?: unknown }).data;
   if (!details || typeof details !== "object") return undefined;
 
-  const documentError = (details as {
-    name?: unknown;
-    path?: unknown;
-  }).name ?? (details as { path?: unknown }).path;
+  const documentError =
+    (
+      details as {
+        name?: unknown;
+        path?: unknown;
+      }
+    ).name ?? (details as { path?: unknown }).path;
 
-  if (typeof documentError === "string") return documentError.trim() || undefined;
+  if (typeof documentError === "string")
+    return documentError.trim() || undefined;
   if (Array.isArray(documentError)) {
     const message = documentError.find(
-      (value): value is string => typeof value === "string" && Boolean(value.trim()),
+      (value): value is string =>
+        typeof value === "string" && Boolean(value.trim()),
     );
     return message?.trim();
   }
@@ -153,7 +156,8 @@ export const CreateStoreFaq = createAsyncThunk(
       } else {
         toast.error("Uh oh! Something went wrong.", {
           description:
-            data?.message || "Unable to create the FAQ, please try again later.",
+            data?.message ||
+            "Unable to create the FAQ, please try again later.",
         });
       }
 
@@ -197,7 +201,8 @@ export const UpdateStoreFaq = createAsyncThunk(
       } else {
         toast.error("Uh oh! Something went wrong.", {
           description:
-            data?.message || "Unable to update the FAQ, please try again later.",
+            data?.message ||
+            "Unable to update the FAQ, please try again later.",
         });
       }
 
