@@ -44,6 +44,7 @@ import ReactMarkdown from "react-markdown";
 import { useFormik } from "formik";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -652,8 +653,8 @@ function ConversationPanel({
   reply: string;
   isSending: boolean;
   onReplyChange: (value: string) => void;
-  /** Reply is the default; an internal note is the deliberate other choice. */
-  onSend: (mode: "reply" | "note") => void;
+  /** Reply is the default; internal note and translated reply are deliberate choices. */
+  onSend: (mode: "reply" | "note" | "customer_language") => void;
   onAcceptDraft: () => void;
   onSaveDraft: () => void;
   availableTags: SupportTicketTagData[];
@@ -683,7 +684,14 @@ function ConversationPanel({
   onLinkCustomer: () => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
+  const [selectedSendMode, setSelectedSendMode] = useState<
+    "reply" | "customer_language"
+  >("reply");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const selectedSendLabel =
+    selectedSendMode === "customer_language"
+      ? "Send in Customer Language"
+      : "Send";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
@@ -1415,20 +1423,53 @@ function ConversationPanel({
               </TooltipTrigger>
               <TooltipContent>Send as Internal Note</TooltipContent>
             </Tooltip>
-            <Button
-              size="sm"
-              onClick={() => onSend("reply")}
-              disabled={
-                isSending || isMessageImproving || isClosed || isTranslating
-              }
-            >
-              {isSending ? (
-                <Spinner className="size-4" />
-              ) : (
-                <IconSend className="size-4" />
-              )}
-              {isSending ? "Sending…" : "Send"}
-            </Button>
+            <ButtonGroup>
+              <Button
+                size="sm"
+                onClick={() => onSend(selectedSendMode)}
+                disabled={
+                  isSending || isMessageImproving || isClosed || isTranslating
+                }
+              >
+                {isSending ? (
+                  <Spinner className="size-4" />
+                ) : (
+                  <IconSend className="size-4" />
+                )}
+                {isSending ? "Sending…" : selectedSendLabel}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    disabled={
+                      isSending ||
+                      isMessageImproving ||
+                      isClosed ||
+                      isTranslating
+                    }
+                    className="px-2"
+                    aria-label="Choose send option"
+                  >
+                    <IconChevronDown className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60">
+                  <DropdownMenuItem
+                    onClick={() => setSelectedSendMode("reply")}
+                  >
+                    <IconSend className="size-4" />
+                    Send
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setSelectedSendMode("customer_language")}
+                  >
+                    <IconLanguage className="size-4" />
+                    Send in Customer Language
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </ButtonGroup>
           </div>
         </div>
       </div>
@@ -2507,7 +2548,9 @@ export default function HelpDesk() {
     }
   };
 
-  const handleSend = async (mode: "reply" | "note" = "reply") => {
+  const handleSend = async (
+    mode: "reply" | "note" | "customer_language" = "reply",
+  ) => {
     if (!storeCode) return;
 
     const trimmedReply = reply.trim();
@@ -2548,6 +2591,9 @@ export default function HelpDesk() {
 
       if (mode === "note") {
         formData.append("message_type", "internal");
+      }
+      if (mode === "customer_language") {
+        formData.append("translate_message", "true");
       }
 
       const sentMessage = await dispatch(
