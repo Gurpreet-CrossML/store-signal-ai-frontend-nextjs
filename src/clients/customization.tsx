@@ -71,7 +71,7 @@ const customizationValidationSchema = z
           .min(1, "Name is required.")
           .regex(
             /^[a-zA-Z\s\-'&]+$/,
-            "Only letters, spaces, apostrophes, hyphens, and & are allowed.",
+            "Only letters, spaces, apostrophes, hyphens, and ampersand are allowed.",
           ),
         message: z.string().trim().min(1, "Message is required."),
       }),
