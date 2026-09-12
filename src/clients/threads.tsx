@@ -87,7 +87,9 @@ export default function Threads() {
       else params.delete(key);
     });
     params.delete("tag");
-    filters.tags.forEach((tag) => params.append("tag", tag));
+    filters.tags.forEach((tag) => {
+      params.append("tag", tag);
+    });
     const query = params.toString();
     if (query === queryString) return;
     router.replace(query ? `${basePath}?${query}` : basePath, {
