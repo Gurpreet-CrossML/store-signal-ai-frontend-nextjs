@@ -3015,7 +3015,7 @@ export default function HelpDesk() {
             onToggleTagPicker={handleToggleTagPicker}
             onAddTag={handleAddTag}
             onRemoveTag={handleRemoveTag}
-            availableStaff={staff.filter((s) => s.is_active)}
+            availableStaff={staff}
             onAssignStaff={handleStaffAssign}
             onMessageImprove={handleMessageImprove}
             isMessageImproving={SupportMessageImproveIsLoading}
