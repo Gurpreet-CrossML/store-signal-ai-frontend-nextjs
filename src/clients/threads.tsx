@@ -23,8 +23,6 @@ const THREAD_FILTER_KEYS = [
   "is_active",
   "user_type",
   "has_ticket",
-  "has_feedback",
-  "feedback_rating",
   "handled_by",
   "from",
   "to",
@@ -104,12 +102,10 @@ export default function Threads() {
       if (isActive) {
         router.push(`/support/?chat=${threadId}`);
       } else {
-        router.push(
-          `/threads/${threadId}${queryString ? `?${queryString}` : ""}`,
-        );
+        router.push(`/threads/${threadId}`);
       }
     },
-    [queryString, router],
+    [router],
   );
 
   // Debounce the free-text search so we don't refetch on every keystroke.
