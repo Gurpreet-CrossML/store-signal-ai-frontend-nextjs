@@ -115,7 +115,6 @@ export const CreateStoreFaq = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
-          Object.values(data?.data ?? {}).flat()[0] ||
           data?.message ||
           "Unable to create the FAQ, please try again later.",
       });
@@ -156,7 +155,6 @@ export const UpdateStoreFaq = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
-          Object.values(data?.data ?? {}).flat()[0] ||
           data?.message ||
           "Unable to update the FAQ, please try again later.",
       });
@@ -256,7 +254,7 @@ export const UploadLibraryDocument = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
-          Object.values(data?.data ?? {}).flat()[0] ||
+          data?.data?.name ||
           data?.message ||
           "Unable to upload the document, please try again later.",
       });
