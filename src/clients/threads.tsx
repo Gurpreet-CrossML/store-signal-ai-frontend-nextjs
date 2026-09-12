@@ -18,6 +18,18 @@ import ThreadFilteration, {
   type ThreadFilterState,
 } from "@/components/custom/thread-filteration";
 
+const THREAD_FILTER_KEYS = [
+  "search",
+  "is_active",
+  "user_type",
+  "has_ticket",
+  "has_feedback",
+  "feedback_rating",
+  "handled_by",
+  "from",
+  "to",
+] as const;
+
 export default function Threads() {
   const dispatch = useAppDispatch();
   const router = useRouter();
@@ -52,6 +64,14 @@ export default function Threads() {
     return { pageIndex, pageSize: 25 };
   });
 
+  const [filters, setFilters] = useState<ThreadFilterState>(() => ({
+    ...DEFAULT_THREAD_FILTERS,
+    ...(Object.fromEntries(
+      THREAD_FILTER_KEYS.map((key) => [key, searchParams?.get(key) ?? ""]),
+    ) as Pick<ThreadFilterState, (typeof THREAD_FILTER_KEYS)[number]>),
+    tags: searchParams?.getAll("tag") ?? [],
+  }));
+
   // Keep the `?page=` param in sync with the active page. Guarded so it only
   // writes when the value actually changes, which avoids a sync loop when other
   // params (e.g. `thread`) change.
@@ -59,14 +79,21 @@ export default function Threads() {
     const params = new URLSearchParams(queryString);
     const desired =
       pagination.pageIndex > 0 ? String(pagination.pageIndex + 1) : null;
-    if ((params.get("page") ?? null) === desired) return;
     if (desired) params.set("page", desired);
     else params.delete("page");
+    THREAD_FILTER_KEYS.forEach((key) => {
+      const value = filters[key];
+      if (value) params.set(key, value);
+      else params.delete(key);
+    });
+    params.delete("tag");
+    filters.tags.forEach((tag) => params.append("tag", tag));
     const query = params.toString();
+    if (query === queryString) return;
     router.replace(query ? `${basePath}?${query}` : basePath, {
       scroll: false,
     });
-  }, [pagination.pageIndex, queryString, basePath, router]);
+  }, [pagination.pageIndex, queryString, basePath, router, filters]);
 
   // Each thread opens as its own page; browser back returns to this list
   // (the `?page=` param keeps the list position).
@@ -75,14 +102,12 @@ export default function Threads() {
       if (isActive) {
         router.push(`/support/?chat=${threadId}`);
       } else {
-        router.push(`/threads/${threadId}`);
+        router.push(
+          `/threads/${threadId}${queryString ? `?${queryString}` : ""}`,
+        );
       }
     },
-    [router],
-  );
-
-  const [filters, setFilters] = useState<ThreadFilterState>(
-    DEFAULT_THREAD_FILTERS,
+    [queryString, router],
   );
 
   // Debounce the free-text search so we don't refetch on every keystroke.
@@ -105,9 +130,15 @@ export default function Threads() {
   ]);
   const [prevFilterSignature, setPrevFilterSignature] =
     useState(filterSignature);
+  const [hasHydratedStore, setHasHydratedStore] = useState(Boolean(storeCode));
+  const isInitialStoreHydration = !hasHydratedStore && Boolean(storeCode);
+  if (isInitialStoreHydration) setHasHydratedStore(true);
+
   if (filterSignature !== prevFilterSignature) {
     setPrevFilterSignature(filterSignature);
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    if (!isInitialStoreHydration) {
+      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    }
   }
 
   // Fetch whenever the store, page, page size or filters change.

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   IconAlertTriangle,
   IconArrowLeft,
@@ -346,6 +347,8 @@ function AIInsightsSection({
 
 export default function ThreadDetail({ threadId }: { threadId: string }) {
   const dispatch = useAppDispatch();
+  const searchParams = useSearchParams();
+  const queryString = searchParams?.toString() ?? "";
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -506,7 +509,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           asChild
           aria-label="Back to Threads"
         >
-          <Link href="/threads">
+          <Link href={queryString ? `/threads?${queryString}` : "/threads"}>
             <IconArrowLeft />
           </Link>
         </Button>
