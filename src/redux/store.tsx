@@ -4,7 +4,6 @@ import OnboardingSlice from "@/redux/api-slice/onboarding-slice";
 import StoresSlice from "@/redux/api-slice/stores-slice";
 import DashboardSlice from "@/redux/api-slice/dashboard-slice";
 import ThreadSlice from "@/redux/api-slice/thread-slice";
-import KnowledgeSlice from "@/redux/api-slice/knowledge-slice";
 import KnowledgeRagSlice from "@/redux/api-slice/knowledge-rag-slice";
 import CustomizationSlice from "@/redux/api-slice/customization-slice";
 import TenancySlice from "@/redux/api-slice/tenancy-slice";
@@ -27,7 +26,6 @@ const store = configureStore({
     GetOrderReducer: OrderSlice,
     GetDashboardReducer: DashboardSlice,
     GetThreadReducer: ThreadSlice,
-    GetKnowledgeReducer: KnowledgeSlice,
     GetKnowledgeRagReducer: KnowledgeRagSlice,
     GetCustomizationReducer: CustomizationSlice,
     GetTenancyReducer: TenancySlice,
