@@ -155,17 +155,21 @@ export const ENDPOINTS = {
   personaIdentity: () => "/chat/persona-identity/",
   neverSayRules: () => "/chat/never-say-rules/",
 
-  // Knowledge Base Management. Local GETs have no trailing slash; Django writes
-  // (upload/create/update/delete) keep theirs (DRF requires it).
-  fetchLibraryDocuments: () => `/knowledge/library-documents`,
-  uploadLibraryDocument: () => `/knowledge/library-documents/`,
-  fetchStoreFaqs: () => `/knowledge/store-faqs`,
-  createStoreFaq: () => `/knowledge/store-faqs/`,
-  updateStoreFaq: (id: number) => `/knowledge/store-faqs/${id}/`,
-  deleteStoreFaq: (id: number) => `/knowledge/store-faqs/${id}/`,
-  fetchScrapeLinkTypes: () => `/knowledge/scrape-links/types`,
-  createScrapeLink: () => `/knowledge/scrape-links/`,
-  fetchScrapeLink: () => `/knowledge/scrape-links`,
+  // Knowledge Library items (general/product knowledge entries). GET is
+  // routed to Django via `useBackend: true` (not ported to a local API
+  // route); writes go to Django by the axios-config default.
+  fetchKnowledgeItems: () => `/knowledge/knowledge-items/`,
+  createKnowledgeItem: () => `/knowledge/knowledge-items/`,
+  knowledgeItemDetail: (id: number) => `/knowledge/knowledge-items/${id}/`,
+  // Product picker for Product Knowledge (Django; GET needs useBackend).
+  // Case-insensitive partial match on name via `?search=`, optional — when
+  // omitted/blank, returns any 5 products for the store. Results are
+  // capped server-side either way.
+  searchProducts: () => `/products/search/`,
+  // Category/Collection pickers for Knowledge item creation (Django; GET
+  // needs useBackend). Same shape/behavior as `searchProducts` above.
+  searchCategories: () => `/products/categories/search/`,
+  searchCollections: () => `/products/collections/search/`,
 
   // Integrations
   fetchIntegrations: () => `/integrations`,
