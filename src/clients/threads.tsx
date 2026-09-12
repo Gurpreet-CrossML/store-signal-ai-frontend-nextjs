@@ -21,7 +21,6 @@ import ThreadFilteration, {
 const THREAD_FILTER_KEYS = [
   "search",
   "is_active",
-  "user_type",
   "has_ticket",
   "handled_by",
   "from",
@@ -117,7 +116,7 @@ export default function Threads() {
     storeCode,
     debouncedSearch,
     filters.is_active,
-    filters.user_type,
+
     filters.has_ticket,
     filters.has_feedback,
     filters.feedback_rating,
@@ -128,15 +127,10 @@ export default function Threads() {
   ]);
   const [prevFilterSignature, setPrevFilterSignature] =
     useState(filterSignature);
-  const [hasHydratedStore, setHasHydratedStore] = useState(Boolean(storeCode));
-  const isInitialStoreHydration = !hasHydratedStore && Boolean(storeCode);
-  if (isInitialStoreHydration) setHasHydratedStore(true);
 
   if (filterSignature !== prevFilterSignature) {
     setPrevFilterSignature(filterSignature);
-    if (!isInitialStoreHydration) {
-      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-    }
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }
 
   // Fetch whenever the store, page, page size or filters change.
