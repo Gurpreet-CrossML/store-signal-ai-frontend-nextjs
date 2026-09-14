@@ -184,6 +184,7 @@ export default function SettingsStore() {
       <StoreAllowedIpsDrawer
         store={ipsTarget}
         onOpenChange={(open) => !open && setIpsTarget(null)}
+        onSaved={() => dispatch(FetchStoresList(request))}
       />
 
       <StoreWidgetScriptDialog
