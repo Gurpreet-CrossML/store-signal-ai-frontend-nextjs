@@ -2427,31 +2427,18 @@ export default function HelpDesk() {
       const leavesUnassignedTab =
         activeFilter === "unassigned" && staffId !== null;
 
-      setTicketRows((current) =>
-        leavesUnassignedTab
-          ? current.filter((ticket) => ticket.id !== ticketId)
-          : current.map((ticket) =>
-              ticket.id === ticketId
-                ? {
-                    ...ticket,
-                    internal_assignee: assignedStaff
-                      ? {
-                          id: assignedStaff.id,
-                          name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
-                          email: assignedStaff.email,
-                        }
-                      : null,
-                  }
-                : ticket,
-            ),
-      );
+      setTicketRows((current) => {
+        if (leavesUnassignedTab) {
+          const index = current.findIndex((ticket) => ticket.id === ticketId);
+          const nextTicket = current[index + 1] ?? current[index - 1];
+          setActiveTicketId(nextTicket?.id ?? null);
+          return current.filter((ticket) => ticket.id !== ticketId);
+        }
 
-      setActiveSupportTicket((current) =>
-        leavesUnassignedTab
-          ? null
-          : current
+        return current.map((ticket) =>
+          ticket.id === ticketId
             ? {
-                ...current,
+                ...ticket,
                 internal_assignee: assignedStaff
                   ? {
                       id: assignedStaff.id,
@@ -2460,12 +2447,24 @@ export default function HelpDesk() {
                     }
                   : null,
               }
-            : current,
-      );
+            : ticket,
+        );
+      });
 
-      if (leavesUnassignedTab) {
-        setActiveTicketId(null);
-      }
+      setActiveSupportTicket((current) =>
+        current
+          ? {
+              ...current,
+              internal_assignee: assignedStaff
+                ? {
+                    id: assignedStaff.id,
+                    name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
+                    email: assignedStaff.email,
+                  }
+                : null,
+            }
+          : current,
+      );
 
       toast.success(
         staffId === null
