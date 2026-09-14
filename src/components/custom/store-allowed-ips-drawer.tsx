@@ -50,10 +50,12 @@ import type { StoreListItem } from "@/redux/api-slice/stores-slice";
 export function StoreAllowedIpsDrawer({
   store,
   onOpenChange,
+  onSaved,
 }: {
   /** The store being edited; null keeps the drawer closed. */
   store: StoreListItem | null;
   onOpenChange: (open: boolean) => void;
+  onSaved?: () => void;
 }) {
   const dispatch = useAppDispatch();
   const {
@@ -123,6 +125,7 @@ export function StoreAllowedIpsDrawer({
       }),
     );
     if (UpdateStoreAllowedIpsSettings.fulfilled.match(result)) {
+      onSaved?.();
       onOpenChange(false);
     }
   };
