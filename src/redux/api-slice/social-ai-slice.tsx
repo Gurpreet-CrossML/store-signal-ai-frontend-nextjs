@@ -745,7 +745,7 @@ export const importWhatsAppTemplateFromLibrary = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.post(
-        `${ENDPOINTS.whatsAppTemplateLibraryImport({ accountId, libraryId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.whatsAppTemplateLibraryImport({ accountId, catalogueId: libraryId })}?store_code=${storeCode}`,
         {},
         { useBackend: true },
       );
@@ -761,8 +761,9 @@ export const importWhatsAppTemplateFromLibrary = createAsyncThunk(
   },
 );
 
-// Resubmit a template Meta has deleted — the one case the submit
-// endpoint still serves now that nothing is ever saved unsubmitted.
+// Resubmit a template Meta has deleted. The detail endpoint is the one
+// save path: it creates the template on Meta when Meta holds no live copy,
+// so an empty PATCH resubmits without changing anything.
 export const submitWhatsAppTemplateDraft = createAsyncThunk(
   "submitWhatsAppTemplateDraft",
   async (
@@ -774,8 +775,8 @@ export const submitWhatsAppTemplateDraft = createAsyncThunk(
     thunkAPI,
   ) => {
     try {
-      const response = await axiosInstance.post(
-        `${ENDPOINTS.whatsAppTemplateSubmit({ accountId, templateId: draftId })}?store_code=${storeCode}`,
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId: draftId })}?store_code=${storeCode}`,
         {},
         { useBackend: true },
       );

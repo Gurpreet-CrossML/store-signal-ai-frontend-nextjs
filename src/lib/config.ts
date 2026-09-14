@@ -400,25 +400,18 @@ export const ENDPOINTS = {
     accountId: string;
     templateId: number;
   }) => `/campaign/accounts/${accountId}/templates/${templateId}/`,
-  whatsAppTemplateSubmit: ({
-    accountId,
-    templateId,
-  }: {
-    accountId: string;
-    templateId: number;
-  }) => `/campaign/accounts/${accountId}/templates/${templateId}/submit/`,
   whatsAppTemplateLibraryList: ({ accountId }: { accountId: string }) =>
-    `/campaign/accounts/${accountId}/templates/library/`,
+    `/campaign/accounts/${accountId}/templates/import/`,
   whatsAppTemplateLibraryImport: ({
     accountId,
-    libraryId,
+    catalogueId,
   }: {
     accountId: string;
-    libraryId: number;
+    catalogueId: number;
   }) =>
-    `/campaign/accounts/${accountId}/templates/library/${libraryId}/import/`,
+    `/campaign/accounts/${accountId}/templates/${catalogueId}/import/`,
   whatsAppTemplateLibraryImportAll: ({ accountId }: { accountId: string }) =>
-    `/campaign/accounts/${accountId}/templates/library/import-all/`,
+    `/campaign/accounts/${accountId}/templates/import-all/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
