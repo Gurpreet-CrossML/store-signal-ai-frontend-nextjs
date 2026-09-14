@@ -207,10 +207,7 @@ export function StoreAllowedIpsDrawer({
           </DrawerFooter>
         </div>
       </DrawerContent>
-      <AlertDialog
-        open={discardDialogOpen}
-        onOpenChange={setDiscardDialogOpen}
-      >
+      <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
