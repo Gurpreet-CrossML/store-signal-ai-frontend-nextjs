@@ -2407,7 +2407,8 @@ export default function HelpDesk() {
   };
 
   const handleStaffAssign = async (staffId: number | null) => {
-    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+    const ticketId = currentActiveSupportTicketIdRef.current;
+    if (!storeCode || !ticketId) return;
 
     try {
       const payload = {
@@ -2417,18 +2418,40 @@ export default function HelpDesk() {
       await dispatch(
         SupportTicketStaffAssign({
           storeCode,
-          ticketId: currentActiveSupportTicketIdRef.current,
+          ticketId,
           payload,
         }),
       ).unwrap();
 
       const assignedStaff = staff.find((member) => member.id === staffId);
+      const leavesUnassignedTab =
+        activeFilter === "unassigned" && staffId !== null;
 
       setTicketRows((current) =>
-        current.map((ticket) =>
-          ticket.id === currentActiveSupportTicketIdRef.current
+        leavesUnassignedTab
+          ? current.filter((ticket) => ticket.id !== ticketId)
+          : current.map((ticket) =>
+              ticket.id === ticketId
+                ? {
+                    ...ticket,
+                    internal_assignee: assignedStaff
+                      ? {
+                          id: assignedStaff.id,
+                          name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
+                          email: assignedStaff.email,
+                        }
+                      : null,
+                  }
+                : ticket,
+            ),
+      );
+
+      setActiveSupportTicket((current) =>
+        leavesUnassignedTab
+          ? null
+          : current
             ? {
-                ...ticket,
+                ...current,
                 internal_assignee: assignedStaff
                   ? {
                       id: assignedStaff.id,
@@ -2437,24 +2460,12 @@ export default function HelpDesk() {
                     }
                   : null,
               }
-            : ticket,
-        ),
+            : current,
       );
 
-      setActiveSupportTicket((current) =>
-        current
-          ? {
-              ...current,
-              internal_assignee: assignedStaff
-                ? {
-                    id: assignedStaff.id,
-                    name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
-                    email: assignedStaff.email,
-                  }
-                : null,
-            }
-          : current,
-      );
+      if (leavesUnassignedTab) {
+        setActiveTicketId(null);
+      }
 
       toast.success(
         staffId === null
