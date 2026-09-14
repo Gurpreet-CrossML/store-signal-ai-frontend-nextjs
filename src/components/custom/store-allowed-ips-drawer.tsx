@@ -10,6 +10,16 @@ import { ChipList } from "@/components/custom/chip-list";
 import { LoadingState } from "@/components/custom/loading-state";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Drawer,
   DrawerContent,
   DrawerDescription,
@@ -57,6 +67,7 @@ export function StoreAllowedIpsDrawer({
   );
 
   const [allowedIps, setAllowedIps] = useState<string[]>([]);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
 
   const platform = STORE_PLATFORMS.find((p) => p.value === store?.platform);
   const storeCode = store?.code ?? "";
@@ -84,6 +95,25 @@ export function StoreAllowedIpsDrawer({
     allowedIps.length !== savedIps.length ||
     allowedIps.some((ip, index) => ip !== savedIps[index]);
 
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = true;
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [isDirty]);
+
+  const requestClose = () => {
+    if (isDirty) {
+      setDiscardDialogOpen(true);
+      return;
+    }
+    onOpenChange(false);
+  };
+
   const handleSave = async () => {
     if (!storeCode) return;
     const result = await dispatch(
@@ -98,7 +128,12 @@ export function StoreAllowedIpsDrawer({
   };
 
   return (
-    <Drawer open={Boolean(store)} onOpenChange={onOpenChange}>
+    <Drawer
+      open={Boolean(store)}
+      onOpenChange={(open) => {
+        if (!open) requestClose();
+      }}
+    >
       <DrawerContent>
         <div className="mx-auto flex w-full max-w-lg flex-col overflow-y-auto">
           {/* Hand-rolled header: DrawerHeader centers itself in a bottom
@@ -149,7 +184,7 @@ export function StoreAllowedIpsDrawer({
             )}
           </div>
           <DrawerFooter className="flex-row justify-end">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={requestClose}>
               Cancel
             </Button>
             <Button
@@ -172,6 +207,31 @@ export function StoreAllowedIpsDrawer({
           </DrawerFooter>
         </div>
       </DrawerContent>
+      <AlertDialog
+        open={discardDialogOpen}
+        onOpenChange={setDiscardDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your changes to the allowed IPs have not been saved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                setDiscardDialogOpen(false);
+                onOpenChange(false);
+              }}
+            >
+              Discard changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Drawer>
   );
 }
