@@ -408,8 +408,7 @@ export const ENDPOINTS = {
   }: {
     accountId: string;
     catalogueId: number;
-  }) =>
-    `/campaign/accounts/${accountId}/templates/${catalogueId}/import/`,
+  }) => `/campaign/accounts/${accountId}/templates/${catalogueId}/import/`,
   whatsAppTemplateLibraryImportAll: ({ accountId }: { accountId: string }) =>
     `/campaign/accounts/${accountId}/templates/import-all/`,
 };

@@ -151,9 +151,7 @@ export default function WhatsAppTemplates() {
       getWhatsAppTemplateColumns(
         (template) => setPreviewTemplate(template),
         (template) =>
-          router.push(
-            `/campaign/whatsapp-templates/${template.id}/edit`,
-          ),
+          router.push(`/campaign/whatsapp-templates/${template.id}/edit`),
         (template) => setTemplateToDelete(template),
       ),
     [router],

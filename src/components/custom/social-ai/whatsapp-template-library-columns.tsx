@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   WhatsAppTemplateCategoryBadge,
   WhatsAppTemplateStatusBadge,
-} from "@/components/ui/status-badge";
+} from "@/lib/whatsapp-template-fields";
 import { useAppDispatch } from "@/redux/hooks";
 import {
   fetchWhatsAppTemplateLibrary,

@@ -2066,7 +2066,8 @@ const SocialAISlice = createSlice({
       .addCase(fetchWhatsAppTemplateLibrary.pending, (state) => {
         state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsLoading = true;
         state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsSuccess = false;
-        state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsError = null;
+        state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsError =
+          null;
       })
       .addCase(fetchWhatsAppTemplateLibrary.fulfilled, (state, action) => {
         state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsLoading = false;

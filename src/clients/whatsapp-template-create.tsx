@@ -52,10 +52,6 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
-import {
-  WhatsAppTemplateCategoryBadge,
-  WhatsAppTemplateStatusBadge,
-} from "@/components/ui/status-badge";
 import { InfoIcon } from "@/components/custom/info-icon";
 import { useWhatsAppAccount } from "@/components/custom/social-ai/use-whatsapp-account";
 import { WhatsAppPhoneMockup } from "@/components/custom/social-ai/whatsapp-phone-mockup";
@@ -66,6 +62,8 @@ import {
   renderPreviewText,
   WHATSAPP_LANGUAGES,
   WHATSAPP_VARIABLES_BY_TOKEN,
+  WhatsAppTemplateCategoryBadge,
+  WhatsAppTemplateStatusBadge,
 } from "@/lib/whatsapp-template-fields";
 import { useAppDispatch } from "@/redux/hooks";
 import {

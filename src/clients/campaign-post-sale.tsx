@@ -97,8 +97,7 @@ export default function CampaignPostSale() {
         return false;
       if (importFilter === IMPORTED && !item.is_imported) return false;
       if (importFilter === NOT_IMPORTED && item.is_imported) return false;
-      if (query && !item.name.toLowerCase().includes(query))
-        return false;
+      if (query && !item.name.toLowerCase().includes(query)) return false;
       return true;
     });
   }, [templates, search, categoryFilter, importFilter]);

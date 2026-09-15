@@ -11,10 +11,6 @@ databaseUrl.searchParams.delete("sslmode");
 databaseUrl.searchParams.delete("channel_binding");
 
 // SSL depends on how we reach Postgres:
-//  - localhost/127.0.0.1 (local dev Postgres) → no SSL; a stock local
-//    install doesn't have it enabled, and forcing it here makes the server
-//    reject the handshake outright ("The server does not support SSL
-//    connections").
 //  - Neon (managed, publicly-trusted cert; the host we connect to IS the DB
 //    host) → standard verification against the system CA store.
 //  - Amazon RDS via the nginx TCP passthrough presents RDS's own cert
@@ -23,20 +19,14 @@ databaseUrl.searchParams.delete("channel_binding");
 //    bundle (proves it's a genuine RDS cert, blocks MITM) but skip the hostname
 //    check, which can't pass through the proxy.
 function sslConfig(): PoolConfig["ssl"] {
-  if (
-    databaseUrl.hostname === "localhost" ||
-    databaseUrl.hostname === "127.0.0.1"
-  ) {
-    return undefined;
-  }
   if (databaseUrl.hostname.endsWith(".neon.tech")) {
-    return { rejectUnauthorized: false };
+    return { rejectUnauthorized: true };
   }
   return {
     ca: fs
       .readFileSync(path.join(process.cwd(), "global-bundle.pem"))
       .toString(),
-    rejectUnauthorized: false,
+    rejectUnauthorized: true,
     checkServerIdentity: () => undefined,
   };
 }

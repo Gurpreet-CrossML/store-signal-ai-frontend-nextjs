@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { WhatsAppTemplateCategoryBadge } from "@/components/ui/status-badge";
+import { WhatsAppTemplateCategoryBadge } from "@/lib/whatsapp-template-fields";
 import type {
   ConnectedAccount,
   WhatsAppTemplateLibraryItem,
@@ -37,9 +37,7 @@ export function WhatsAppTemplateLibraryPreviewDialog({
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2 pr-6">
             <span className="truncate">{item?.name}</span>
-            {item && (
-              <WhatsAppTemplateCategoryBadge category={item.category} />
-            )}
+            {item && <WhatsAppTemplateCategoryBadge category={item.category} />}
           </DialogTitle>
           <DialogDescription>
             How this template will appear once imported.

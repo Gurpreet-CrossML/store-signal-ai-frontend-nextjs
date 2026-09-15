@@ -21,7 +21,7 @@ import {
   WhatsAppTemplateCategoryBadge,
   WhatsAppTemplateQualityBadge,
   WhatsAppTemplateStatusBadge,
-} from "@/components/ui/status-badge";
+} from "@/lib/whatsapp-template-fields";
 import type { WhatsAppTemplate } from "@/redux/api-slice/social-ai-slice";
 import { resolveTemplateIcon } from "./whatsapp-template-helpers";
 import { buildTemplateComponents } from "@/lib/whatsapp-template-components";
@@ -94,11 +94,7 @@ export function getWhatsAppTemplateColumns(
       // this column instead of a date the API can't actually supply.
       id: "quality",
       header: "Quality",
-      cell: ({ row }) => (
-        <WhatsAppTemplateQualityBadge
-          score={undefined}
-        />
-      ),
+      cell: ({ row }) => <WhatsAppTemplateQualityBadge score={undefined} />,
     },
     {
       id: "actions",
