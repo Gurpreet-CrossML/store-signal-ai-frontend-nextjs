@@ -425,14 +425,6 @@ export const NAV_AREAS = {
           "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
         icon: IconChecklist,
       },
-      {
-        href: "/social-ai/comment-drafts",
-        title: "Draft Review",
-        description: "Review AI-drafted comment replies before they go out.",
-        pageDescription:
-          "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
-        icon: IconChecklist,
-      },
     ],
   },
 

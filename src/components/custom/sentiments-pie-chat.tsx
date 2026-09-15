@@ -59,7 +59,6 @@ export function SentimentsPieChart({
               cursor={false}
               content={<ChartTooltipContent hideLabel />}
             />
-
             <Pie
               data={data}
               dataKey="score"
@@ -67,7 +66,6 @@ export function SentimentsPieChart({
               innerRadius={60}
               strokeWidth={5}
             />
-
             <ChartLegend
               content={
                 <ChartLegendContent

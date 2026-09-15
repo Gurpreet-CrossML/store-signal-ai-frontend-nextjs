@@ -19,7 +19,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { SearchInput } from "@/components/custom/search-input";
-import { SocialAccountsDataTable } from "@/components/custom/settings/social-ai/social-accounts-data-table";
+import { DataTable } from "@/components/custom/data-table";
 import { getWhatsAppTemplateLibraryColumns } from "@/components/custom/social-ai/whatsapp-template-library-columns";
 import { WhatsAppTemplateLibraryPreviewDialog } from "@/components/custom/social-ai/whatsapp-template-library-preview-dialog";
 import { useWhatsAppAccount } from "@/components/custom/social-ai/use-whatsapp-account";
@@ -101,6 +101,18 @@ export default function CampaignPostSale() {
       return true;
     });
   }, [templates, search, categoryFilter, importFilter]);
+
+  // The shared DataTable uses manualPagination — it renders exactly the rows
+  // it's handed — so we slice the client-side-filtered list to the current
+  // page ourselves and report the full count for the pagination bar.
+  const pageRows = useMemo(
+    () =>
+      filtered.slice(
+        pagination.pageIndex * pagination.pageSize,
+        (pagination.pageIndex + 1) * pagination.pageSize,
+      ),
+    [filtered, pagination],
+  );
 
   const resetToFirstPage = () =>
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
@@ -184,15 +196,15 @@ export default function CampaignPostSale() {
         </div>
       </div>
 
-      <SocialAccountsDataTable
+      <DataTable
         columns={columns}
-        data={filtered}
+        data={pageRows}
         totalCount={filtered.length}
         pagination={pagination}
         onPaginationChange={setPagination}
         isLoading={loading}
         noun="template"
-        emptyMessage="No templates match your filters."
+        emptyTitle="No templates match your filters."
       />
 
       <WhatsAppTemplateLibraryPreviewDialog
