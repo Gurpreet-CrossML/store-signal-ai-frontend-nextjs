@@ -280,8 +280,8 @@ export const WHATSAPP_LANGUAGES: { code: string; label: string }[] = [
 /**
  * Fold a status/category/score string to the snake_case lowercase key the
  * lookup tables below are written in — so "Partially Paid", "PARTIALLY_PAID"
- * and "partially-paid" all resolve the same. Mirrors the same-named helper
- * behind the order badges in `@/components/ui/status-badge`.
+ * and "partially-paid" all resolve the same. Used by the WhatsApp template
+ * badges below to normalize their status/category/score before lookup.
  */
 function statusKey(value: string): string {
   return value
