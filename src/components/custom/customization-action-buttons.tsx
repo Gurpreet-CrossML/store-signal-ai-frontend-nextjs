@@ -30,7 +30,8 @@ type CustomizationActionButtonsProps = {
   onChange: (actionButtons: ActionButton[]) => void;
   validateActionButton: (button: ActionButton) => Partial<ActionButton>;
   onPendingErrorChange?: (hasError: boolean) => void;
-  saveSuccessVersion?: number;
+  hasQuickActionChanges?: boolean;
+  onQuickActionChange?: () => void;
 };
 
 function AddActionButtonForm({
@@ -147,13 +148,9 @@ export default function CustomizationActionButtons({
   onChange,
   validateActionButton,
   onPendingErrorChange,
-  saveSuccessVersion = 0,
+  hasQuickActionChanges = false,
+  onQuickActionChange,
 }: CustomizationActionButtonsProps) {
-  const [reminderSaveVersion, setReminderSaveVersion] = useState<number | null>(
-    null,
-  );
-  const showSaveReminder = reminderSaveVersion === saveSuccessVersion;
-
   const removeButton = (button: ActionButton) => {
     onChange(
       actionButtons.filter((current) =>
@@ -162,7 +159,7 @@ export default function CustomizationActionButtons({
           : current.name !== button.name,
       ),
     );
-    setReminderSaveVersion(saveSuccessVersion);
+    onQuickActionChange?.();
   };
 
   return (
@@ -179,7 +176,7 @@ export default function CustomizationActionButtons({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {showSaveReminder && (
+        {hasQuickActionChanges && (
           <div
             role="status"
             className="flex items-start gap-3 rounded-md border border-blue-300 bg-blue-50 p-4 text-blue-950 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-100"
@@ -192,14 +189,6 @@ export default function CustomizationActionButtons({
                 Changes button at the bottom of the page.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setReminderSaveVersion(null)}
-              className="rounded-sm text-blue-600 hover:text-blue-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 dark:text-blue-400 dark:hover:text-blue-100"
-              aria-label="Dismiss save reminder"
-            >
-              <IconX className="size-4" />
-            </button>
           </div>
         )}
         <div className="flex min-h-8 flex-wrap items-center gap-1.5 rounded-md border border-input bg-background p-1.5">
@@ -243,7 +232,7 @@ export default function CustomizationActionButtons({
               );
               if (!isDuplicate) {
                 onChange([...actionButtons, button]);
-                setReminderSaveVersion(saveSuccessVersion);
+                onQuickActionChange?.();
               }
               return !isDuplicate;
             }}
