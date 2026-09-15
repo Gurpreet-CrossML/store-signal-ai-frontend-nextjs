@@ -155,6 +155,7 @@ export default function Customization() {
   const [actionButtons, setActionButtons] = useState<ActionButton[]>([]);
   const [quickLinks, setQuickLinks] = useState<QuickLinkItem[]>([]);
   const [hasQuickActionError, setHasQuickActionError] = useState(false);
+  const [saveSuccessVersion, setSaveSuccessVersion] = useState(0);
   const formik = useFormik<CustomizationFormValues>({
     initialValues: {
       welcome_message: DEFAULT_WELCOME,
@@ -222,6 +223,7 @@ export default function Customization() {
         if (fulfilled) {
           formik.resetForm({ values });
           populate(result.payload as WidgetCustomizationDataResponse);
+          setSaveSuccessVersion((version) => version + 1);
         } else {
           const errors = serverFieldErrors(result.payload);
           const rowErrors: Record<string, string>[] = [];
@@ -519,6 +521,7 @@ export default function Customization() {
             return errors.quick_actions?.[0] ?? {};
           }}
           onPendingErrorChange={setHasQuickActionError}
+          saveSuccessVersion={saveSuccessVersion}
           onInputChange={() => clearFieldError("quick_actions")}
         />
         <CustomizationBranding

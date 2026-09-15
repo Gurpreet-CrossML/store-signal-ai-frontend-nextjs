@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { FieldError } from "@/components/custom/field-error";
-import { IconMessageCircle, IconPlus, IconX } from "@tabler/icons-react";
+import {
+  IconInfoCircle,
+  IconMessageCircle,
+  IconPlus,
+  IconX,
+} from "@tabler/icons-react";
 
 import { InfoIcon } from "@/components/custom/info-icon";
 import { Button } from "@/components/ui/button";
@@ -25,6 +30,7 @@ type CustomizationActionButtonsProps = {
   onChange: (actionButtons: ActionButton[]) => void;
   validateActionButton: (button: ActionButton) => Partial<ActionButton>;
   onPendingErrorChange?: (hasError: boolean) => void;
+  saveSuccessVersion?: number;
 };
 
 function AddActionButtonForm({
@@ -43,16 +49,11 @@ function AddActionButtonForm({
   const [nameError, setNameError] = useState("");
   const [messageError, setMessageError] = useState("");
 
-  // Surface unfinished work to the parent so Save Changes cannot discard a
-  // quick action that has been typed but not added yet. Validation errors
-  // remain pending for the same reason.
+  // Surface the unresolved-error state to the parent so it can refuse to
+  // save while a rejected duplicate — or any other unresolved error in
+  // this form — is still showing.
   useEffect(() => {
-    onErrorChange?.(
-      Boolean(name.trim()) ||
-        Boolean(message.trim()) ||
-        Boolean(nameError) ||
-        Boolean(messageError),
-    );
+    onErrorChange?.(Boolean(nameError) || Boolean(messageError));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, message, nameError, messageError]);
 
@@ -146,7 +147,13 @@ export default function CustomizationActionButtons({
   onChange,
   validateActionButton,
   onPendingErrorChange,
+  saveSuccessVersion = 0,
 }: CustomizationActionButtonsProps) {
+  const [reminderSaveVersion, setReminderSaveVersion] = useState<number | null>(
+    null,
+  );
+  const showSaveReminder = reminderSaveVersion === saveSuccessVersion;
+
   const removeButton = (button: ActionButton) => {
     onChange(
       actionButtons.filter((current) =>
@@ -155,6 +162,7 @@ export default function CustomizationActionButtons({
           : current.name !== button.name,
       ),
     );
+    setReminderSaveVersion(saveSuccessVersion);
   };
 
   return (
@@ -171,6 +179,29 @@ export default function CustomizationActionButtons({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        {showSaveReminder && (
+          <div
+            role="status"
+            className="flex items-start gap-3 rounded-md border border-blue-300 bg-blue-50 p-4 text-blue-950 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-100"
+          >
+            <IconInfoCircle className="mt-0.5 size-5 shrink-0 text-blue-600 dark:text-blue-400" />
+            <div className="flex-1 text-sm">
+              <p className="font-semibold">Don&apos;t forget to save!</p>
+              <p className="mt-1 text-xs text-blue-800 dark:text-blue-200">
+                Your changes will only be applied after you click the Save
+                Changes button at the bottom of the page.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReminderSaveVersion(null)}
+              className="rounded-sm text-blue-600 hover:text-blue-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 dark:text-blue-400 dark:hover:text-blue-100"
+              aria-label="Dismiss save reminder"
+            >
+              <IconX className="size-4" />
+            </button>
+          </div>
+        )}
         <div className="flex min-h-8 flex-wrap items-center gap-1.5 rounded-md border border-input bg-background p-1.5">
           {actionButtons.length === 0 ? (
             <span className="px-1 text-xs text-muted-foreground">
@@ -210,7 +241,10 @@ export default function CustomizationActionButtons({
                   existing.name.trim().toLowerCase() ===
                   button.name.trim().toLowerCase(),
               );
-              if (!isDuplicate) onChange([...actionButtons, button]);
+              if (!isDuplicate) {
+                onChange([...actionButtons, button]);
+                setReminderSaveVersion(saveSuccessVersion);
+              }
               return !isDuplicate;
             }}
           />
