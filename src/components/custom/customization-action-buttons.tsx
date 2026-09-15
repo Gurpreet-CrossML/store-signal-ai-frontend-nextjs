@@ -56,7 +56,7 @@ function AddActionButtonForm({
   useEffect(() => {
     onErrorChange?.(Boolean(nameError) || Boolean(messageError));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, message, nameError, messageError]);
+  }, [nameError, messageError]);
 
   const handleAdd = () => {
     const trimmedName = name.trim();
