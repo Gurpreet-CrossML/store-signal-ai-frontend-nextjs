@@ -13,6 +13,7 @@ import type {
   SupportTicketDraft,
 } from "@/redux/api-slice/support-ticket-slice";
 import type { ActionId, Autonomy } from "@/lib/comment-handling-data";
+import { toPaginatedList } from "@/lib/helpers";
 
 /**
  * One page size for every social list. Filtering and searching are the
@@ -161,6 +162,10 @@ export type SocialComment = {
   // A pending AI draft exists for this comment — the in-context bubble
   // fetches its content lazily. Absent on websocket payloads.
   has_pending_draft?: boolean;
+  // Client-side only: the full draft delivered by a comment_draft_created
+  // broadcast, stashed on the row so the in-context bubble renders it
+  // without a fetch. Never present on API responses.
+  pending_draft?: CommentDraft | null;
   external_created_at: string;
 };
 
@@ -176,6 +181,28 @@ export type CommentTopic = {
   label: string;
 };
 
+/**
+ * The shopper record a DM contact is linked to — set when a ticket is
+ * created from the conversation (the backend links the resolved customer
+ * back to the contact) or via the link-customer dialog. The users list
+ * sends it on every row: this dict when linked, null when not.
+ *
+ * The fields beyond id/name/email are optional because the fulfilled-link
+ * reducer patches the row from the dialog's pick, which doesn't carry them;
+ * they fill in on the next list fetch.
+ */
+export type SocialLinkedCustomer = {
+  id: number;
+  /** The shopper's id on the commerce platform. */
+  customer_id?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  orders_count?: number;
+  /** DecimalField — DRF serialises it as a string. */
+  total_spent?: string | number;
+};
+
 // A DM contact of one connected account — one row per conversation in the
 // inbox list (from the users-list API, most recent conversation first).
 export type SocialConversationUser = {
@@ -186,6 +213,7 @@ export type SocialConversationUser = {
   profile_picture_url: string;
   last_message: string | null;
   last_message_at: string | null;
+  customer?: SocialLinkedCustomer | null;
   // A pending AI-drafted DM exists for this contact. A contact can appear
   // with no thread at all yet — then last_message is the drafted text and
   // approving the draft is the only send path (Meta has no messenger id
@@ -296,7 +324,23 @@ export type CommentDraftStatus = "pending" | "approved" | "discarded";
  */
 export type CommentDraft = {
   id: number;
-  message: SocialComment;
+  /**
+   * The comment being answered. On the queue serializer it also carries
+   * the post's external Graph id, so the card can deep-link to the thread
+   * (?post= on the feed).
+   */
+  message: SocialComment & { post_external_id?: string | null };
+  /**
+   * The connected account the comment arrived on — its channel_type is
+   * what routes the View Post link to the Facebook or Instagram feed.
+   */
+  account?: { id: number; name: string; channel_type: string } | null;
+  /**
+   * Client-side enrichment: the account's external Graph id from a draft
+   * broadcast, kept so the View Post link can resolve the channel when the
+   * API row carries no account.
+   */
+  account_external_id?: string | null;
   actions: ActionId[];
   /** What would be posted publicly. Empty when the actions need no text. */
   response_text: string;
@@ -916,6 +960,36 @@ export const fetchSocialPosts = createAsyncThunk(
   },
 );
 
+/**
+ * One post by its external Graph id, in the posts-list row shape. Used to
+ * resolve a ?post= deep link that may live beyond the loaded pages; the
+ * backend renews expired media links before answering. Consumed with
+ * .unwrap() into feed state — nothing in the store depends on it.
+ */
+export const fetchSocialPost = createAsyncThunk(
+  "fetchSocialPost",
+  async (
+    { storeCode, postId }: { storeCode: string; postId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchSocialPost({ postId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as SocialPost;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't open the post", {
+        description:
+          data?.message || "It may belong to a different store, or be gone.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 export const fetchPostComments = createAsyncThunk(
   "fetchPostComments",
   async (
@@ -1419,6 +1493,42 @@ export const CreateSocialSupportTicket = createAsyncThunk(
   },
 );
 
+/**
+ * Attach a customer record to a DM contact, mirroring ThreadCustomerLink.
+ * The full display shape rides along in the arg so the fulfilled reducer
+ * can patch the conversation row without refetching the paged list.
+ */
+export const SocialUserCustomerLink = createAsyncThunk(
+  "SocialUserCustomerLink",
+  async (
+    {
+      storeCode,
+      userId,
+      customer,
+    }: { storeCode: string; userId: number; customer: SocialLinkedCustomer },
+    thunkAPI,
+  ) => {
+    try {
+      await axiosInstance.post(
+        `${ENDPOINTS.socialUserCustomerLink(userId)}?store_code=${storeCode}`,
+        { customer: customer.id },
+        { useBackend: true },
+      );
+      toast.success("Customer linked.", {
+        description: "This conversation now shows their record.",
+      });
+      return customer;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't link the customer", {
+        description: data?.message || "Please try again.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 export const fetchCommentSettings = createAsyncThunk(
   "fetchCommentSettings",
   async (
@@ -1589,10 +1699,32 @@ export const fetchCommentDrafts = createAsyncThunk(
   },
 );
 
+/**
+ * Normalise a per-user draft response. These routes haven't settled on one
+ * envelope (standard {status,message,data} wrapper or not; paginated, bare
+ * array, or a single object) — any drift used to render silently nothing,
+ * a badge with no bubble under it.
+ */
+function toDraftList(body: unknown): CommentDraftsResponse {
+  const record =
+    body && typeof body === "object" ? (body as Record<string, unknown>) : null;
+  const payload = record && "data" in record ? (record.data ?? body) : body;
+  const list = toPaginatedList<CommentDraft>(payload);
+  if (
+    !list.results.length &&
+    payload &&
+    typeof payload === "object" &&
+    "id" in (payload as Record<string, unknown>)
+  ) {
+    return { ...list, count: 1, results: [payload as CommentDraft] };
+  }
+  return list;
+}
+
 // The in-context draft reads. Both are addressed by the contact (post/page
-// external Graph id + SocialUser id), default to status=pending server-side,
-// and return the same paginated envelope as the queue. Consumed with
-// .unwrap() into component state — nothing in the store depends on them.
+// external Graph id + SocialUser id) and default to status=pending
+// server-side. Consumed with .unwrap() into component state — nothing in
+// the store depends on them.
 export const fetchUserCommentDraft = createAsyncThunk(
   "fetchUserCommentDraft",
   async (
@@ -1608,7 +1740,7 @@ export const fetchUserCommentDraft = createAsyncThunk(
         `${ENDPOINTS.userCommentDraft({ postId, userId })}?store_code=${storeCode}`,
         { useBackend: true },
       );
-      return response.data.data as CommentDraftsResponse;
+      return toDraftList(response.data);
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
@@ -1635,7 +1767,7 @@ export const fetchUserMessageDraft = createAsyncThunk(
         `${ENDPOINTS.userMessageDraft({ pageId, userId })}?store_code=${storeCode}`,
         { useBackend: true },
       );
-      return response.data.data as CommentDraftsResponse;
+      return toDraftList(response.data);
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
@@ -1657,6 +1789,7 @@ export const updateCommentDraft = createAsyncThunk(
       storeCode,
       draftId,
       patch,
+      silent,
     }: {
       storeCode: string;
       draftId: number;
@@ -1665,6 +1798,8 @@ export const updateCommentDraft = createAsyncThunk(
         dm_text?: string;
         actions?: ActionId[];
       };
+      /** Skip the success toast — for a save folded into an approve. */
+      silent?: boolean;
     },
     thunkAPI,
   ) => {
@@ -1674,9 +1809,11 @@ export const updateCommentDraft = createAsyncThunk(
         patch,
         { useBackend: true },
       );
-      toast.success("Draft updated", {
-        description: "Your edits are what gets sent on approval.",
-      });
+      if (!silent) {
+        toast.success("Draft updated", {
+          description: "Your edits are what gets sent on approval.",
+        });
+      }
       return response.data.data as CommentDraft;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -1872,6 +2009,47 @@ const SocialAISlice = createSlice({
           (item) => String(item.id) === action.payload.accountId,
         );
       if (account) account.allow_ai_auto_respond = action.payload.value;
+    },
+
+    /** A comment_draft_created broadcast — the queue grows at the top. */
+    commentDraftReceived(state, action: PayloadAction<CommentDraft>) {
+      const drafts = state.FetchCommentDraftsState.FetchCommentDraftsData;
+      if (!drafts?.results) return;
+      if (drafts.results.some((row) => row.id === action.payload.id)) return;
+      drafts.results.unshift(action.payload);
+      drafts.count = (drafts.count ?? drafts.results.length - 1) + 1;
+    },
+
+    /**
+     * A comment_draft_updated broadcast: an edit keeps the row fresh, and
+     * a draft that left pending state was handled by someone else — it
+     * leaves the queue the way approve and discard do.
+     */
+    commentDraftChanged(state, action: PayloadAction<CommentDraft>) {
+      const drafts = state.FetchCommentDraftsState.FetchCommentDraftsData;
+      if (!drafts?.results) return;
+      const index = drafts.results.findIndex(
+        (row) => row.id === action.payload.id,
+      );
+      if (index === -1) return;
+      if (action.payload.status === "pending") {
+        drafts.results[index] = action.payload;
+        return;
+      }
+      drafts.results.splice(index, 1);
+      if (drafts.count) drafts.count -= 1;
+    },
+
+    /** Flip a DM contact's pending-draft flag from a draft broadcast. */
+    socialUserDmDraftFlagSet(
+      state,
+      action: PayloadAction<{ userId: number; value: boolean }>,
+    ) {
+      const users = state.FetchSocialUsersState.FetchSocialUsersData;
+      const row = users?.results?.find(
+        (user) => user.id === action.payload.userId,
+      );
+      if (row) row.has_pending_dm_draft = action.payload.value;
     },
 
     socialDmReceived(state, action: PayloadAction<SocialDm>) {
@@ -2256,6 +2434,16 @@ const SocialAISlice = createSlice({
         );
         if (index !== -1) drafts.results[index] = action.payload;
       })
+      // The linked customer lives on the conversation row — patch it in
+      // place so the header updates without refetching (and resetting)
+      // the paged conversations list.
+      .addCase(SocialUserCustomerLink.fulfilled, (state, action) => {
+        const users = state.FetchSocialUsersState.FetchSocialUsersData;
+        const row = users?.results?.find(
+          (user) => user.id === action.meta.arg.userId,
+        );
+        if (row) row.customer = action.payload;
+      })
       // A handled draft is gone for good — the API never returns approved
       // or discarded drafts, so drop the row rather than restyle it.
       .addMatcher(
@@ -2275,6 +2463,9 @@ const SocialAISlice = createSlice({
 
 export const {
   accountAutoRespondSet,
+  commentDraftReceived,
+  commentDraftChanged,
+  socialUserDmDraftFlagSet,
   socialDmReceived,
   socialConversationTouched,
 } = SocialAISlice.actions;

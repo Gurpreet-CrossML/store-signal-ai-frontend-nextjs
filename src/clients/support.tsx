@@ -53,6 +53,7 @@ import {
   type ThreadMessage,
   FetchOrders,
   UploadMessageAttachments,
+  type Customer,
 } from "@/redux/api-slice/thread-slice";
 import {
   CreateSupportTicket,
@@ -511,6 +512,7 @@ type DashboardMessageEvent = {
   message: string;
   role: string;
   thread_id: string;
+  customer?: Customer | null;
   is_active: boolean;
   created_at: string;
 };
@@ -1067,7 +1069,7 @@ export default function Support() {
             is_active: data.is_active,
             total_messages: 1,
             created_at: new Date().toISOString(),
-            customer: null,
+            customer: data.customer ?? null,
             is_read: belongsToOpenThread,
           } as ThreadWithReadState;
           return [newThread, ...prev];
@@ -1076,6 +1078,7 @@ export default function Support() {
         const existingThread = prev[existingIndex];
         const updatedThread: ThreadWithReadState = {
           ...existingThread,
+          customer: data.customer || existingThread.customer,
           last_message: data.message,
           is_active: data.is_active,
           total_messages: (existingThread.total_messages ?? 0) + 1,
@@ -1426,11 +1429,15 @@ export default function Support() {
                       unread={isUnread}
                       avatar={
                         <CustomerAvatar
-                          name={thread.customer?.name}
+                          name={thread.customer?.name || thread.customer?.email}
                           online={thread.is_active}
                         />
                       }
-                      title={thread.customer?.name || "Guest"}
+                      title={
+                        thread.customer?.name ||
+                        thread.customer?.email ||
+                        "Guest"
+                      }
                       timestamp={formatRelativeDateTime(thread.created_at)}
                       indicator={
                         isUnread ? (
@@ -1491,13 +1498,18 @@ export default function Support() {
                 <div className="flex w-full items-center justify-between gap-3">
                   <div className="flex min-w-0 flex-1 items-center gap-2.5">
                     <CustomerAvatar
-                      name={selectedThread?.customer?.name}
+                      name={
+                        selectedThread?.customer?.name ||
+                        selectedThread?.customer?.email
+                      }
                       online={selectedThread?.is_active}
                     />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1">
                         <CardTitle className="truncate leading-tight">
-                          {selectedThread?.customer?.name || "Guest"}
+                          {selectedThread?.customer?.name ||
+                            selectedThread?.customer?.email ||
+                            "Guest"}
                         </CardTitle>
                         <CrmLinkButton
                           customerId={selectedThread?.customer?.id}
@@ -1667,9 +1679,17 @@ export default function Support() {
                 payload,
               }),
             );
-            return CreateSupportTicket.fulfilled.match(result)
-              ? { ok: true }
-              : { ok: false, payload: result.payload };
+            const ok = CreateSupportTicket.fulfilled.match(result);
+            if (ok) {
+              dispatch(
+                FetchFreshdeskTicketId({
+                  threadId: activeThreadId,
+                  customerId: selectedThread?.customer?.id,
+                  storeCode,
+                }),
+              );
+            }
+            return ok ? { ok: true } : { ok: false, payload: result.payload };
           }}
         />
       ) : null}

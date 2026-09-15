@@ -2407,7 +2407,8 @@ export default function HelpDesk() {
   };
 
   const handleStaffAssign = async (staffId: number | null) => {
-    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+    const ticketId = currentActiveSupportTicketIdRef.current;
+    if (!storeCode || !ticketId) return;
 
     try {
       const payload = {
@@ -2417,16 +2418,25 @@ export default function HelpDesk() {
       await dispatch(
         SupportTicketStaffAssign({
           storeCode,
-          ticketId: currentActiveSupportTicketIdRef.current,
+          ticketId,
           payload,
         }),
       ).unwrap();
 
       const assignedStaff = staff.find((member) => member.id === staffId);
+      const leavesUnassignedTab =
+        activeFilter === "unassigned" && staffId !== null;
 
-      setTicketRows((current) =>
-        current.map((ticket) =>
-          ticket.id === currentActiveSupportTicketIdRef.current
+      setTicketRows((current) => {
+        if (leavesUnassignedTab) {
+          const index = current.findIndex((ticket) => ticket.id === ticketId);
+          const nextTicket = current[index + 1] ?? current[index - 1];
+          setActiveTicketId(nextTicket?.id ?? null);
+          return current.filter((ticket) => ticket.id !== ticketId);
+        }
+
+        return current.map((ticket) =>
+          ticket.id === ticketId
             ? {
                 ...ticket,
                 internal_assignee: assignedStaff
@@ -2438,8 +2448,8 @@ export default function HelpDesk() {
                   : null,
               }
             : ticket,
-        ),
-      );
+        );
+      });
 
       setActiveSupportTicket((current) =>
         current
