@@ -11,7 +11,7 @@ export function buildTemplateComponents(
   if (parts.header_format && parts.header_format !== "NONE") {
     const header: WhatsAppTemplateComponent = {
       type: "HEADER",
-      format: parts.header_format,  
+      format: parts.header_format,
     };
     if (parts.header_format === "TEXT") {
       header.text = parts.header_text;
