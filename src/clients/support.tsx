@@ -611,9 +611,9 @@ export default function Support() {
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
   const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
-  const [readFilter, setReadFilter] = useState<"all" | "unread" | "read" | "active" | "visitors">(
-    "all",
-  );
+  const [readFilter, setReadFilter] = useState<
+    "all" | "unread" | "read" | "active" | "visitors" | "cart"
+  >("all");
   const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
     string | number | null
   >(null);
@@ -740,7 +740,7 @@ export default function Support() {
   );
 
   const filteredThreads = useMemo(() => {
-    return visibleThreads.filter((thread: ThreadWithReadState) => {
+    const filtered = visibleThreads.filter((thread: ThreadWithReadState) => {
       if (readFilter === "unread" && thread.is_read !== false) {
         return false;
       }
@@ -755,9 +755,20 @@ export default function Support() {
           thread.total_messages === 0 || !isThreadWithinActiveWindow(thread)
         );
       }
+      if (readFilter === "cart") {
+        return Number(thread.cart_total ?? 0) > 0;
+      }
 
       return true;
     });
+
+    if (readFilter === "cart") {
+      return [...filtered].sort(
+        (a, b) => Number(b.cart_total ?? 0) - Number(a.cart_total ?? 0),
+      );
+    }
+
+    return filtered;
   }, [visibleThreads, readFilter]);
 
   useEffect(() => {
@@ -1084,6 +1095,7 @@ export default function Support() {
             id: data.thread_id,
             last_message: data.message,
             last_message_at: data.created_at,
+            cart_total: 0,
             is_active: data.is_active,
             total_messages: 1,
             created_at: new Date().toISOString(),
@@ -1402,6 +1414,7 @@ export default function Support() {
                   { key: "read", label: "Read" },
                   { key: "active", label: "Active" },
                   { key: "visitors", label: "Visitors" },
+                  { key: "cart", label: "Cart" },
                 ] as const
               ).map((option) => (
                 <button
@@ -1494,7 +1507,9 @@ export default function Support() {
                           ? "No active conversations"
                           : readFilter === "visitors"
                             ? "No visitors"
-                            : "No matches"}
+                            : readFilter === "cart"
+                              ? "No carts found"
+                              : "No matches"}
                   </Typography>
                   <Typography variant="muted">
                     {threadSearch
