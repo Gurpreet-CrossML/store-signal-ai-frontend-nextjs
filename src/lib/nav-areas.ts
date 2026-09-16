@@ -32,17 +32,17 @@ import {
   IconSpeakerphone,
   IconTags,
   IconUserHexagon,
-  IconUsers,
+  // IconUsers,
   IconUser,
   IconUsersGroup,
   IconShoppingBag,
   IconVolume,
   type Icon,
   IconChartBar,
-  IconAutomaticGearbox,
+  // IconAutomaticGearbox,
+  // IconPackageImport,
+  // IconShoppingBagEdit,
   IconPackage,
-  IconPackageImport,
-  IconShoppingBagEdit,
 } from "@tabler/icons-react";
 
 /**
@@ -169,14 +169,14 @@ export const NAV_AREAS = {
           "Your company's contact details, logo, and address. The name and code are managed by the platform operator.",
         icon: IconBuildingSkyscraper,
       },
-      {
-        href: "/settings/staff-management",
-        title: "Staff Management",
-        description: "Invite teammates and control who has access.",
-        pageDescription:
-          "Manage your company's users. New staff receive an emailed temporary password.",
-        icon: IconUsers,
-      },
+      // {
+      //   href: "/settings/staff-management",
+      //   title: "Staff Management",
+      //   description: "Invite teammates and control who has access.",
+      //   pageDescription:
+      //     "Manage your company's users. New staff receive an emailed temporary password.",
+      //   icon: IconUsers,
+      // },
       {
         href: "/settings/store",
         title: "Stores",
@@ -261,44 +261,44 @@ export const NAV_AREAS = {
           },
         ],
       },
-      {
-        href: "/settings/workflows",
-        title: "Workflows",
-        description:
-          "The rules the AI follows for order cancellation, modification, and returns.",
-        pageDescription:
-          "The rules and guardrails the AI follows when it cancels, modifies, or refunds an order on your behalf.",
-        icon: IconAutomaticGearbox,
-        items: [
-          {
-            href: "/settings/workflows/order-cancellation",
-            title: "Order Cancellation",
-            description:
-              "The rules the AI follows when it cancels an order on your behalf.",
-            pageDescription:
-              "The rules and guardrails the AI follows when it cancels an order on your behalf.",
-            icon: IconPackageOff,
-          },
-          {
-            href: "/settings/workflows/order-modification",
-            title: "Order Modification",
-            description:
-              "The rules the AI follows when it modifies an order on your behalf.",
-            pageDescription:
-              "The rules and guardrails the AI follows when it modifies an order on your behalf.",
-            icon: IconShoppingBagEdit,
-          },
-          {
-            href: "/settings/workflows/order-returns",
-            title: "Order Returns",
-            description:
-              "The rules the AI follows when it processes a return on your behalf.",
-            pageDescription:
-              "The rules and guardrails the AI follows when it processes a return on your behalf.",
-            icon: IconPackageImport,
-          },
-        ],
-      },
+      // {
+      //   href: "/settings/workflows",
+      //   title: "Workflows",
+      //   description:
+      //     "The rules the AI follows for order cancellation, modification, and returns.",
+      //   pageDescription:
+      //     "The rules and guardrails the AI follows when it cancels, modifies, or refunds an order on your behalf.",
+      //   icon: IconAutomaticGearbox,
+      //   items: [
+      //     {
+      //       href: "/settings/workflows/order-cancellation",
+      //       title: "Order Cancellation",
+      //       description:
+      //         "The rules the AI follows when it cancels an order on your behalf.",
+      //       pageDescription:
+      //         "The rules and guardrails the AI follows when it cancels an order on your behalf.",
+      //       icon: IconPackageOff,
+      //     },
+      //     {
+      //       href: "/settings/workflows/order-modification",
+      //       title: "Order Modification",
+      //       description:
+      //         "The rules the AI follows when it modifies an order on your behalf.",
+      //       pageDescription:
+      //         "The rules and guardrails the AI follows when it modifies an order on your behalf.",
+      //       icon: IconShoppingBagEdit,
+      //     },
+      //     {
+      //       href: "/settings/workflows/order-returns",
+      //       title: "Order Returns",
+      //       description:
+      //         "The rules the AI follows when it processes a return on your behalf.",
+      //       pageDescription:
+      //         "The rules and guardrails the AI follows when it processes a return on your behalf.",
+      //       icon: IconPackageImport,
+      //     },
+      //   ],
+      // },
     ],
   },
 
