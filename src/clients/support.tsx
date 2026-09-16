@@ -87,6 +87,8 @@ import { formatRelativeDateTime } from "@/lib/helpers";
 // but until then we track it client-side, defaulting to true on load.
 type ThreadWithReadState = Thread & { is_read?: boolean };
 
+const ACTIVE_THREAD_WINDOW_MS = 30 * 60 * 1000;
+
 // Message teasers render through react-markdown so formatting like **bold**
 // shows properly, but flattened to inline spans: block elements would break
 // the two-line clamp, and links/images don't belong inside a list row.
@@ -115,6 +117,13 @@ function normalizeThreads(threads: Thread[] | undefined) {
     ...thread,
     is_read: (thread as ThreadWithReadState).is_read ?? true,
   }));
+}
+
+function isThreadWithinActiveWindow(thread: Thread) {
+  if (!thread.last_message_at) return false;
+  const timestamp = new Date(thread.last_message_at).getTime();
+  if (!Number.isFinite(timestamp)) return false;
+  return Date.now() - timestamp <= ACTIVE_THREAD_WINDOW_MS;
 }
 
 type AttachmentStatus = "uploading" | "uploaded" | "error";
@@ -602,9 +611,9 @@ export default function Support() {
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
   const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
-  const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
-    "all",
-  );
+  const [readFilter, setReadFilter] = useState<
+    "all" | "unread" | "read" | "active" | "visitors" | "cart"
+  >("all");
   const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
     string | number | null
   >(null);
@@ -731,16 +740,35 @@ export default function Support() {
   );
 
   const filteredThreads = useMemo(() => {
-    return visibleThreads.filter((thread: ThreadWithReadState) => {
+    const filtered = visibleThreads.filter((thread: ThreadWithReadState) => {
       if (readFilter === "unread" && thread.is_read !== false) {
         return false;
       }
       if (readFilter === "read" && thread.is_read === false) {
         return false;
       }
+      if (readFilter === "active") {
+        return thread.total_messages > 0 && isThreadWithinActiveWindow(thread);
+      }
+      if (readFilter === "visitors") {
+        return (
+          thread.total_messages === 0 || !isThreadWithinActiveWindow(thread)
+        );
+      }
+      if (readFilter === "cart") {
+        return Number(thread.cart_total ?? 0) > 0;
+      }
 
       return true;
     });
+
+    if (readFilter === "cart") {
+      return [...filtered].sort(
+        (a, b) => Number(b.cart_total ?? 0) - Number(a.cart_total ?? 0),
+      );
+    }
+
+    return filtered;
   }, [visibleThreads, readFilter]);
 
   useEffect(() => {
@@ -1066,6 +1094,8 @@ export default function Support() {
           const newThread: ThreadWithReadState = {
             id: data.thread_id,
             last_message: data.message,
+            last_message_at: data.created_at,
+            cart_total: 0,
             is_active: data.is_active,
             total_messages: 1,
             created_at: new Date().toISOString(),
@@ -1080,6 +1110,7 @@ export default function Support() {
           ...existingThread,
           customer: data.customer || existingThread.customer,
           last_message: data.message,
+          last_message_at: data.created_at,
           is_active: data.is_active,
           total_messages: (existingThread.total_messages ?? 0) + 1,
           is_read: belongsToOpenThread,
@@ -1375,12 +1406,15 @@ export default function Support() {
               placeholder="Search name, email or order ID…"
               label="Search conversations"
             />
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               {(
                 [
                   { key: "all", label: "All" },
                   { key: "unread", label: "Unread" },
                   { key: "read", label: "Read" },
+                  { key: "active", label: "Active" },
+                  { key: "visitors", label: "Visitors" },
+                  { key: "cart", label: "Cart Activity" },
                 ] as const
               ).map((option) => (
                 <button
@@ -1469,7 +1503,13 @@ export default function Support() {
                       ? "No unread conversations"
                       : readFilter === "read"
                         ? "No read conversations"
-                        : "No matches"}
+                        : readFilter === "active"
+                          ? "No active conversations"
+                          : readFilter === "visitors"
+                            ? "No visitors"
+                            : readFilter === "cart"
+                              ? "No carts found"
+                              : "No matches"}
                   </Typography>
                   <Typography variant="muted">
                     {threadSearch
