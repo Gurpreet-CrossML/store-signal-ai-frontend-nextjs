@@ -87,6 +87,8 @@ import { formatRelativeDateTime } from "@/lib/helpers";
 // but until then we track it client-side, defaulting to true on load.
 type ThreadWithReadState = Thread & { is_read?: boolean };
 
+const ACTIVE_THREAD_WINDOW_MS = 30 * 60 * 1000;
+
 // Message teasers render through react-markdown so formatting like **bold**
 // shows properly, but flattened to inline spans: block elements would break
 // the two-line clamp, and links/images don't belong inside a list row.
@@ -115,6 +117,13 @@ function normalizeThreads(threads: Thread[] | undefined) {
     ...thread,
     is_read: (thread as ThreadWithReadState).is_read ?? true,
   }));
+}
+
+function isThreadWithinActiveWindow(thread: Thread) {
+  if (!thread.last_message_at) return false;
+  const timestamp = new Date(thread.last_message_at).getTime();
+  if (!Number.isFinite(timestamp)) return false;
+  return Date.now() - timestamp <= ACTIVE_THREAD_WINDOW_MS;
 }
 
 type AttachmentStatus = "uploading" | "uploaded" | "error";
@@ -602,7 +611,7 @@ export default function Support() {
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
   const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
-  const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
+  const [readFilter, setReadFilter] = useState<"all" | "unread" | "read" | "active" | "visitors">(
     "all",
   );
   const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
@@ -737,6 +746,14 @@ export default function Support() {
       }
       if (readFilter === "read" && thread.is_read === false) {
         return false;
+      }
+      if (readFilter === "active") {
+        return thread.total_messages > 0 && isThreadWithinActiveWindow(thread);
+      }
+      if (readFilter === "visitors") {
+        return (
+          thread.total_messages === 0 || !isThreadWithinActiveWindow(thread)
+        );
       }
 
       return true;
@@ -1066,6 +1083,7 @@ export default function Support() {
           const newThread: ThreadWithReadState = {
             id: data.thread_id,
             last_message: data.message,
+            last_message_at: data.created_at,
             is_active: data.is_active,
             total_messages: 1,
             created_at: new Date().toISOString(),
@@ -1080,6 +1098,7 @@ export default function Support() {
           ...existingThread,
           customer: data.customer || existingThread.customer,
           last_message: data.message,
+          last_message_at: data.created_at,
           is_active: data.is_active,
           total_messages: (existingThread.total_messages ?? 0) + 1,
           is_read: belongsToOpenThread,
@@ -1381,6 +1400,8 @@ export default function Support() {
                   { key: "all", label: "All" },
                   { key: "unread", label: "Unread" },
                   { key: "read", label: "Read" },
+                  { key: "active", label: "Active" },
+                  { key: "visitors", label: "Visitors" },
                 ] as const
               ).map((option) => (
                 <button
@@ -1469,7 +1490,11 @@ export default function Support() {
                       ? "No unread conversations"
                       : readFilter === "read"
                         ? "No read conversations"
-                        : "No matches"}
+                        : readFilter === "active"
+                          ? "No active conversations"
+                          : readFilter === "visitors"
+                            ? "No visitors"
+                            : "No matches"}
                   </Typography>
                   <Typography variant="muted">
                     {threadSearch
