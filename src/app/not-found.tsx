@@ -12,10 +12,7 @@ export default function NotFound() {
         <p className="mt-6 text-3xl leading-tight text-foreground">
           Sorry, we couldn&apos;t find this page.
         </p>
-        <Button
-          asChild
-          className="mt-8 h-12 max-w-sm text-base font-semibold"
-        >
+        <Button asChild className="mt-8 h-12 max-w-sm text-base font-semibold">
           <Link href="/">Back to home</Link>
         </Button>
       </div>
