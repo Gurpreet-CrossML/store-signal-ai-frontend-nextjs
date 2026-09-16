@@ -1414,7 +1414,7 @@ export default function Support() {
                   { key: "read", label: "Read" },
                   { key: "active", label: "Active" },
                   { key: "visitors", label: "Visitors" },
-                  { key: "cart", label: "Cart" },
+                  { key: "cart", label: "Cart Activity" },
                 ] as const
               ).map((option) => (
                 <button
