@@ -11,7 +11,7 @@ import {
 } from "@/redux/api-slice/social-ai-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { IconBrandMeta, IconSearch } from "@tabler/icons-react";
-import { DataTable } from "@/components/custom/data-table";
+import { SocialAccountsDataTable } from "./social-accounts-data-table";
 import { SocialAccountsColumns } from "./social-accounts-columns";
 import { SocialAIPlatformOptions } from "@/lib/config";
 import { useSearchParams } from "next/navigation";
@@ -106,18 +106,6 @@ export default function SocialAITabContent({
     });
   }, [rows, activeTab, search]);
 
-  // The shared DataTable uses manualPagination — it renders exactly the rows
-  // it's handed — so we slice the client-side-filtered list to the current
-  // page ourselves and report the full count for the pagination bar.
-  const pageRows = useMemo(
-    () =>
-      filteredRows.slice(
-        pagination.pageIndex * pagination.pageSize,
-        (pagination.pageIndex + 1) * pagination.pageSize,
-      ),
-    [filteredRows, pagination],
-  );
-
   const resetToFirstPage = () =>
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
 
@@ -174,14 +162,13 @@ export default function SocialAITabContent({
           </div>
         </div>
 
-        <DataTable
+        <SocialAccountsDataTable
           columns={SocialAccountsColumns}
-          data={pageRows}
+          data={filteredRows}
           totalCount={filteredRows.length}
           pagination={pagination}
           onPaginationChange={setPagination}
           isLoading={FetchSocialAccountsSubscriptionsIsLoading}
-          noun="account"
         />
       </div>
     </div>

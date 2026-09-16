@@ -9,16 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
+  renderTemplateIcon,
   WhatsAppTemplateCategoryBadge,
   WhatsAppTemplateStatusBadge,
-} from "@/lib/whatsapp-template-fields";
+} from "@/lib/whatsapp-template-helper";
 import { useAppDispatch } from "@/redux/hooks";
 import {
   fetchWhatsAppTemplateLibrary,
   importWhatsAppTemplateFromLibrary,
   type WhatsAppTemplateLibraryItem,
 } from "@/redux/api-slice/social-ai-slice";
-import { renderTemplateIcon } from "./whatsapp-template-helpers";
 import { buildTemplateComponents } from "@/lib/whatsapp-template-components";
 
 /**

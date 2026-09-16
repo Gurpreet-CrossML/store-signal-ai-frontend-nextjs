@@ -15,16 +15,8 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import type { WhatsAppTemplateComponent } from "@/redux/api-slice/social-ai-slice";
-import { getComponent, previewBodyText } from "./whatsapp-template-helpers";
+import { getComponent, previewBodyText } from "@/lib/whatsapp-template-helper";
 
-// public/iPhone-outline.png is a full-height phone-frame overlay with a
-// genuinely transparent screen cutout — used whole, at its own aspect
-// ratio, with real content sitting behind it in that cutout. Bounds
-// measured off its alpha channel (1024x1536 canvas, screen cutout from
-// (164,148) to (859,1498)), as percentages so they hold at any render
-// width. A phone's screen doesn't grow to fit content, it scrolls — so the
-// content pane scrolls internally rather than the mockup stretching taller
-// for a long template.
 const PHONE_WIDTH = 280;
 const PHONE_ASPECT_RATIO = 1024 / 1536;
 const SCREEN_INSET = {
@@ -47,13 +39,6 @@ function buttonIcon(type: string) {
   }
 }
 
-/**
- * The WhatsApp phone-frame mockup: chat header + one message bubble
- * (header/body/footer/buttons) rendered from a template's own `components`.
- * Shared by the templates list's read-only preview and the create screen's
- * live preview — same rendering either way, only the `components` (and
- * whether they're Meta's real data or an in-progress draft) differ.
- */
 export function WhatsAppPhoneMockup({
   accountName,
   isVerified,
@@ -64,32 +49,17 @@ export function WhatsAppPhoneMockup({
   accountName: string;
   isVerified: boolean;
   components: WhatsAppTemplateComponent[];
-  // A renderable URL for the header sample — our stored S3 copy, presigned
-  // (template.header_media.file_url), or a local object URL while one is
-  // still being picked. Needed because a saved template's components only
-  // carry Meta's `header_handle`, which is an opaque token, NOT a URL: fed
-  // to an <img> it renders as a broken image every time.
   headerMediaUrl?: string | null;
-  // Overridable per caller — the create/edit page's sidebar column stays at
-  // the default, the standalone preview dialog sizes up (more room to
-  // spare than a 360px sidebar).
   maxWidth?: number;
 }) {
   const header = getComponent(components, "HEADER");
   const body = getComponent(components, "BODY");
   const footer = getComponent(components, "FOOTER");
   const buttons = getComponent(components, "BUTTONS");
-  // The create page passes a local object URL for a just-picked file; a
-  // saved template passes its stored copy. Only fall back to the handle for
-  // the create page's own in-progress preview, which stashes an object URL
-  // there before anything has been uploaded.
   const handleValue = header?.example?.header_handle?.[0];
   const headerImageUrl =
     headerMediaUrl ||
     (handleValue?.startsWith("blob:") ? handleValue : undefined);
-  // Illustrative only — a template has no real send time until it's
-  // actually sent. Showing "now" keeps the bubble honest rather than
-  // inventing a fake sent timestamp.
   const previewTime = new Date().toLocaleTimeString([], {
     hour: "numeric",
     minute: "2-digit",
@@ -102,17 +72,10 @@ export function WhatsAppPhoneMockup({
       className="relative mx-auto w-full overflow-hidden"
       style={{ maxWidth, aspectRatio: PHONE_ASPECT_RATIO }}
     >
-      {/* Screen content — sits behind the frame, inset to the cutout's
-          measured bounds, scrolling internally rather than growing the
-          mockup for a long template. */}
       <div
         className="absolute flex flex-col overflow-y-auto bg-background"
         style={SCREEN_INSET}
       >
-        {/* WhatsApp's own chat header for this contact. Sized well below
-            the app's normal type scale — at the mockup's actual rendered
-            width (~190px of screen), the smallest shared Typography step
-            still reads oversized for a phone UI. */}
         <div className="flex items-center gap-1.5 border-b px-2.5 py-1.5">
           <IconChevronLeft className="size-3.5 shrink-0 text-muted-foreground" />
           <Avatar size="sm">
@@ -239,11 +202,9 @@ export function WhatsAppPhoneMockup({
           </div>
         </div>
       </div>
-      {/* Frame overlay — pointer-events-none so clicks/scroll pass through
-          to the real content sitting behind it. */}
       <Image
         src="/iPhone-outline.png"
-        alt=""
+        alt="iPhone Outline Frame Image"
         fill
         className="pointer-events-none absolute inset-0 select-none"
       />

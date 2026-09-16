@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { WhatsAppTemplateCategoryBadge } from "@/lib/whatsapp-template-fields";
+import { WhatsAppTemplateCategoryBadge } from "@/lib/whatsapp-template-helper";
 import type {
   ConnectedAccount,
   WhatsAppTemplateLibraryItem,

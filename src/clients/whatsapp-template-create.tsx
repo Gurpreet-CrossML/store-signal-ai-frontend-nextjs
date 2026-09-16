@@ -14,12 +14,9 @@ import {
   IconLanguage,
   IconLayoutBottombar,
   IconLayoutNavbar,
-  IconLink,
   IconListDetails,
   IconLoader2,
   IconMessage2,
-  IconMessageCircle,
-  IconPhoneCall,
   IconPhoto,
   IconPlus,
   IconSend2,
@@ -31,6 +28,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,14 +55,21 @@ import { useWhatsAppAccount } from "@/components/custom/social-ai/use-whatsapp-a
 import { WhatsAppPhoneMockup } from "@/components/custom/social-ai/whatsapp-phone-mockup";
 import { WhatsAppVariablePicker } from "@/components/custom/social-ai/whatsapp-variable-picker";
 import {
+  BUTTON_TYPES,
+  CATEGORY_OPTIONS,
   extractVariableTokens,
   findUnknownVariables,
+  HEADER_FORMATS,
+  HEADER_MEDIA_RULES,
+  isMediaHeaderFormat,
   renderPreviewText,
   WHATSAPP_LANGUAGES,
   WHATSAPP_VARIABLES_BY_TOKEN,
   WhatsAppTemplateCategoryBadge,
   WhatsAppTemplateStatusBadge,
-} from "@/lib/whatsapp-template-fields";
+  type ButtonType,
+  type HeaderFormat,
+} from "@/lib/whatsapp-template-helper";
 import { useAppDispatch } from "@/redux/hooks";
 import {
   fetchLocalWhatsAppTemplate,
@@ -73,49 +78,45 @@ import {
   type WhatsAppTemplateComponent,
 } from "@/redux/api-slice/social-ai-slice";
 
-const CATEGORY_OPTIONS = [
-  { value: "MARKETING", label: "Marketing" },
-  { value: "UTILITY", label: "Utility" },
-  { value: "AUTHENTICATION", label: "Authentication" },
-];
-
-const HEADER_FORMATS = [
-  { value: "NONE", label: "None" },
-  { value: "TEXT", label: "Text" },
-  { value: "IMAGE", label: "Image" },
-  { value: "VIDEO", label: "Video" },
-  { value: "DOCUMENT", label: "Document" },
-] as const;
-
-type HeaderFormat = (typeof HEADER_FORMATS)[number]["value"];
-
 /**
- * What Meta accepts as a header sample, per media header format — the
- * mirror of campaign.constants.HEADER_MEDIA_TYPES / HEADER_MEDIA_MAX_BYTES.
- * Checked here so an oversized file is caught before it is uploaded at
- * all, rather than after a round-trip; the server enforces the same limits
- * regardless, since nothing client-side is a security boundary. Keep the
- * two in step.
+ * The rules a submission must clear before it can go to Meta — the
+ * client-side gate on top of the backend serializer, which stays
+ * authoritative. `hasMedia` folds a newly chosen file and (in edit mode) an
+ * already-stored sample into one flag. Issues surface in field order, so
+ * the first one matches the old inline ordering: name, body, then the
+ * refinements (unknown variables, missing media).
  */
-const HEADER_MEDIA_RULES = {
-  IMAGE: { accept: "image/jpeg,image/png", maxMB: 5 },
-  VIDEO: { accept: "video/mp4,video/3gpp", maxMB: 16 },
-  DOCUMENT: { accept: "application/pdf", maxMB: 100 },
-} as const;
-
-type MediaHeaderFormat = keyof typeof HEADER_MEDIA_RULES;
-
-const isMediaHeaderFormat = (
-  format: HeaderFormat,
-): format is MediaHeaderFormat => format in HEADER_MEDIA_RULES;
-
-const BUTTON_TYPES = [
-  { value: "QUICK_REPLY", label: "Quick Reply", icon: IconMessageCircle },
-  { value: "URL", label: "Website URL", icon: IconLink },
-  { value: "PHONE_NUMBER", label: "Phone Number", icon: IconPhoneCall },
-] as const;
-
-type ButtonType = (typeof BUTTON_TYPES)[number]["value"];
+const templateSchema = z
+  .object({
+    name: z.string().trim().min(1, "Template name is required."),
+    body: z.string().trim().min(1, "Body text is required."),
+    headerFormat: z.string(),
+    hasMedia: z.boolean(),
+  })
+  .superRefine((values, ctx) => {
+    const unknown = findUnknownVariables(values.body);
+    if (unknown.length) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["body"],
+        message: `Unsupported variable${unknown.length > 1 ? "s" : ""}: ${unknown
+          .map((token) => `{{${token}}}`)
+          .join(", ")}`,
+      });
+    }
+    if (
+      values.headerFormat !== "NONE" &&
+      values.headerFormat !== "TEXT" &&
+      !values.hasMedia
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["headerFormat"],
+        message:
+          "Choose a media file for the header, or switch it to Text/None.",
+      });
+    }
+  });
 
 type ButtonDraft = {
   key: string;
@@ -442,31 +443,20 @@ export default function WhatsAppTemplateCreate({
     buttons,
   ]);
 
-  const unknownVariables = useMemo(() => findUnknownVariables(body), [body]);
-  // A media header is satisfied by a newly chosen file, or — when editing
-  // — by the sample the template already has stored.
-  const mediaMissing =
-    headerFormat !== "NONE" &&
-    headerFormat !== "TEXT" &&
-    !headerMediaFile &&
-    !hasStoredMedia;
-
-  // The bar a submission clears: a name to identify it by, a body to
-  // actually say something, no variable this app can't resolve, and the
-  // header's file when its format needs one.
-  const validationError = !name.trim()
-    ? "Template name is required."
-    : !body.trim()
-      ? "Body text is required."
-      : unknownVariables.length
-        ? `Unsupported variable${unknownVariables.length > 1 ? "s" : ""}: ${unknownVariables
-            .map((token) => `{{${token}}}`)
-            .join(", ")}`
-        : mediaMissing
-          ? "Choose a media file for the header, or switch it to Text/None."
-          : !account
-            ? "No WhatsApp account connected for this store."
-            : null;
+  // The bar a submission clears, via the shared Zod schema. `!account` is a
+  // precondition rather than a form field, so it's checked after the schema
+  // — preserving the old ordering (name, body, variables, media, account).
+  const validationError = useMemo(() => {
+    const result = templateSchema.safeParse({
+      name,
+      body,
+      headerFormat,
+      hasMedia: Boolean(headerMediaFile || hasStoredMedia),
+    });
+    if (!result.success) return result.error.issues[0].message;
+    if (!account) return "No WhatsApp account connected for this store.";
+    return null;
+  }, [name, body, headerFormat, headerMediaFile, hasStoredMedia, account]);
 
   const handleSubmit = async () => {
     if (!storeCode || !account || validationError) {

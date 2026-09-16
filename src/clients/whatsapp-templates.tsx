@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PaginationState } from "@tanstack/react-table";
 import {
@@ -48,6 +48,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   deleteWhatsAppTemplate,
   fetchWhatsAppTemplates,
+  updateWhatsAppTemplate,
   type WhatsAppTemplate,
 } from "@/redux/api-slice/social-ai-slice";
 import { toast } from "sonner";
@@ -158,6 +159,40 @@ export default function WhatsAppTemplates() {
     [templates],
   );
 
+  // Resubmit a rejected template: Meta won't re-review one under the same
+  // name, so it goes back out under the next free "_vN" name. The backend
+  // recreates it on Meta (a rename can't be an in-place edit) and it returns
+  // to PENDING review.
+  const handleResubmit = useCallback(
+    async (template: WhatsAppTemplate) => {
+      if (!storeCode || !account) return;
+      const base = template.name.replace(/_v\d+$/i, "");
+      const taken = new Set(templates.map((t) => t.name));
+      let version = 2;
+      while (taken.has(`${base}_v${version}`)) version += 1;
+      const newName = `${base}_v${version}`;
+      try {
+        await dispatch(
+          updateWhatsAppTemplate({
+            storeCode,
+            accountId: String(account.id),
+            templateId: Number(template.id),
+            payload: { name: newName },
+          }),
+        ).unwrap();
+        toast.success("Template resubmitted", {
+          description: `${newName} was sent to Meta for review.`,
+        });
+        dispatch(
+          fetchWhatsAppTemplates({ storeCode, accountId: String(account.id) }),
+        );
+      } catch {
+        // The thunk already surfaces the error toast.
+      }
+    },
+    [storeCode, account, templates, dispatch],
+  );
+
   const columns = useMemo(
     () =>
       getWhatsAppTemplateColumns(
@@ -165,8 +200,9 @@ export default function WhatsAppTemplates() {
         (template) =>
           router.push(`/campaign/whatsapp-templates/${template.id}/edit`),
         (template) => setTemplateToDelete(template),
+        handleResubmit,
       ),
-    [router],
+    [router, handleResubmit],
   );
 
   const handleConfirmDelete = async () => {

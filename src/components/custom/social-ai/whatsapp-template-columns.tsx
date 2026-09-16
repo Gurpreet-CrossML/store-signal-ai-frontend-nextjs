@@ -2,13 +2,12 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import {
-  IconCopy,
   IconDotsVertical,
   IconEye,
   IconPencil,
+  IconRefresh,
   IconTrash,
 } from "@tabler/icons-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,20 +17,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  resolveTemplateIcon,
   WhatsAppTemplateCategoryBadge,
   WhatsAppTemplateQualityBadge,
   WhatsAppTemplateStatusBadge,
-} from "@/lib/whatsapp-template-fields";
+} from "@/lib/whatsapp-template-helper";
 import type { WhatsAppTemplate } from "@/redux/api-slice/social-ai-slice";
-import { resolveTemplateIcon } from "./whatsapp-template-helpers";
 import { buildTemplateComponents } from "@/lib/whatsapp-template-components";
-
-function copyTemplateId(id: string) {
-  navigator.clipboard
-    .writeText(id)
-    .then(() => toast.success("Template ID copied"))
-    .catch(() => toast.error("Couldn't copy the template ID"));
-}
 
 /**
  * A factory rather than a static array: unlike the read-only account
@@ -42,6 +34,7 @@ export function getWhatsAppTemplateColumns(
   onView: (template: WhatsAppTemplate) => void,
   onEdit: (template: WhatsAppTemplate) => void,
   onDelete: (template: WhatsAppTemplate) => void,
+  onResubmit: (template: WhatsAppTemplate) => void,
 ): ColumnDef<WhatsAppTemplate>[] {
   return [
     {
@@ -94,7 +87,7 @@ export function getWhatsAppTemplateColumns(
       // this column instead of a date the API can't actually supply.
       id: "quality",
       header: "Quality",
-      cell: ({ row }) => <WhatsAppTemplateQualityBadge score={undefined} />,
+      cell: () => <WhatsAppTemplateQualityBadge score={undefined} />,
     },
     {
       id: "actions",
@@ -126,15 +119,17 @@ export function getWhatsAppTemplateColumns(
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    copyTemplateId(String(template.id));
-                  }}
-                >
-                  <IconCopy className="size-4" />
-                  Copy Template ID
-                </DropdownMenuItem>
+                {template.status?.toUpperCase() === "REJECTED" && (
+                  <DropdownMenuItem
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onResubmit(template);
+                    }}
+                  >
+                    <IconRefresh className="size-4" />
+                    Resubmit to Meta
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={(event) => {
                     event.stopPropagation();
