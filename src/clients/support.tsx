@@ -1406,7 +1406,7 @@ export default function Support() {
               placeholder="Search name, email or order ID…"
               label="Search conversations"
             />
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               {(
                 [
                   { key: "all", label: "All" },
