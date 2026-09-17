@@ -119,18 +119,18 @@ export const NAV_AREAS = {
         description: "Every ticket for this store.",
         icon: IconInbox,
       },
-      {
-        href: "/helpdesk?filter=unassigned",
-        title: "Unassigned",
-        description: "Tickets nobody has picked up yet.",
-        icon: IconUser,
-      },
-      {
-        href: "/helpdesk?filter=snoozed",
-        title: "Snoozed",
-        description: "Tickets set aside until a chosen time.",
-        icon: IconAlarmSnoozeFilled,
-      },
+      // {
+      //   href: "/helpdesk?filter=unassigned",
+      //   title: "Unassigned",
+      //   description: "Tickets nobody has picked up yet.",
+      //   icon: IconUser,
+      // },
+      // {
+      //   href: "/helpdesk?filter=snoozed",
+      //   title: "Snoozed",
+      //   description: "Tickets set aside until a chosen time.",
+      //   icon: IconAlarmSnoozeFilled,
+      // },
       {
         href: "/helpdesk?filter=Order_Return",
         title: "Order Return",
