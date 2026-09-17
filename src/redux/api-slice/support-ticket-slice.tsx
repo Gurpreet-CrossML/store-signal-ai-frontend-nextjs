@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
+import { errorMsg } from "@/lib/helpers";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 import { OrderData } from "@/redux/api-slice/thread-slice";
@@ -445,8 +446,11 @@ export const CreateSupportTicket = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("A ticket for this order is already open/pending.", {
-        description: data?.message || "Please check the form and try again.",
+      toast.error("Couldn't create ticket", {
+        description:
+          errorMsg(data) ||
+          data?.message ||
+          "Please check the form and try again.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
