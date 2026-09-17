@@ -6,7 +6,7 @@ import {
   IconBuildingStore,
   IconDotsVertical,
   IconCode,
-  IconPlugOff,
+  // IconPlugOff,
   IconShieldLock,
 } from "@tabler/icons-react";
 
@@ -30,7 +30,8 @@ export type StoreRowActions = {
   onEditAllowedIps: (store: StoreListItem) => void;
   onGetWidgetScript: (store: StoreListItem) => void;
   onSelect: (store: StoreListItem) => void;
-  onDeactivate: (store: StoreListItem) => void;
+  // Store deactivation is hidden until the product allows users to deactivate stores.
+  // onDeactivate: (store: StoreListItem) => void;
 };
 
 export function getStoreColumns({
@@ -38,7 +39,7 @@ export function getStoreColumns({
   onEditAllowedIps,
   onGetWidgetScript,
   onSelect,
-  onDeactivate,
+  // onDeactivate,
 }: StoreRowActions): ColumnDef<StoreListItem>[] {
   return [
     {
@@ -188,6 +189,8 @@ export function getStoreColumns({
                   <IconBuildingStore />
                   {isSelected ? "Currently selected" : "Work on this store"}
                 </DropdownMenuItem>
+                {/*
+                Store deactivation is hidden until the product allows users to deactivate stores.
                 <DropdownMenuItem
                   disabled={store.is_active === false}
                   className="text-destructive focus:text-destructive"
@@ -196,6 +199,7 @@ export function getStoreColumns({
                   <IconPlugOff />
                   Deactivate
                 </DropdownMenuItem>
+                */}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

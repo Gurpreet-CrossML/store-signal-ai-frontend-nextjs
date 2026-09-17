@@ -68,15 +68,15 @@ export function GoLiveCard() {
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="flex max-h-[calc(100svh-12rem)] flex-col overflow-hidden">
+      <CardHeader className="shrink-0">
         <CardTitle>Install the widget</CardTitle>
         <CardDescription>
           Paste each store&apos;s snippet before &lt;/body&gt; on every page of
           that storefront, then finish setup.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-6">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
         {FetchOnboardingStatusIsLoading || !status ? (
           <Skeleton className="h-36 w-full" />
         ) : stores.length === 0 ? (
@@ -87,7 +87,7 @@ export function GoLiveCard() {
           stores.map((store) => <StoreSnippet key={store.code} store={store} />)
         )}
       </CardContent>
-      <CardFooter className="flex flex-wrap items-center gap-2">
+      <CardFooter className="flex shrink-0 flex-wrap items-center gap-2 border-t bg-background">
         <Button
           disabled={stores.length === 0 || UpdateOnboardingStepIsLoading}
           onClick={() => finish("completed")}
@@ -177,7 +177,7 @@ export function StoreSnippet({ store }: { store: OnboardingStore }) {
         </ol>
       </div>
       <pre
-        className="overflow-x-auto rounded-md bg-neutral-950 p-4 font-mono text-xs leading-relaxed text-neutral-50"
+        className="max-h-100 overflow-auto rounded-md bg-neutral-950 p-4 font-mono text-xs leading-relaxed text-neutral-50"
         // The drawer's scroll lock reads shift+wheel as vertical (on Linux and
         // Windows it arrives as deltaY with no deltaX) and cancels it, so the
         // sideways scroll is done here by hand.
