@@ -358,7 +358,7 @@ export function toggleInList<T>(list: T[], value: T): T[] {
     : [...list, value];
 }
 
-export function errorMsg(
+export function nonFieldErrorMsg(
   data:
     | {
         data?: { non_field_errors?: string };
