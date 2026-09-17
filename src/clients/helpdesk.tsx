@@ -813,7 +813,7 @@ function ConversationPanel({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Combobox items={availableStaff}>
+          {/* <Combobox items={availableStaff}>
             <ComboboxInput
               className="h-8 w-28 2xl:w-40"
               placeholder={
@@ -850,7 +850,7 @@ function ConversationPanel({
                 )}
               </ComboboxList>
             </ComboboxContent>
-          </Combobox>
+          </Combobox> */}
 
           {/* The two endings a ticket actually has, one click away —
               they were buried in the status Select behind the ⋮ menu. */}
@@ -886,12 +886,10 @@ function ConversationPanel({
             <TooltipContent>Close ticket</TooltipContent>
           </Tooltip>
 
-          <DropdownMenu>
+          {/* <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
                 <DropdownMenuTrigger asChild disabled={isClosed}>
-                  {/* Icon only until it is snoozed — then the time it wakes
-                      up is worth the width. */}
                   <Button
                     variant="outline"
                     size={ticket?.is_snoozed ? "sm" : "icon-sm"}
@@ -929,7 +927,7 @@ function ConversationPanel({
                 </>
               )}
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
         </div>
       </header>
 
@@ -2448,7 +2446,8 @@ export default function HelpDesk() {
   };
 
   const handleStaffAssign = async (staffId: number | null) => {
-    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+    const ticketId = currentActiveSupportTicketIdRef.current;
+    if (!storeCode || !ticketId) return;
 
     try {
       const payload = {
@@ -2458,16 +2457,25 @@ export default function HelpDesk() {
       await dispatch(
         SupportTicketStaffAssign({
           storeCode,
-          ticketId: currentActiveSupportTicketIdRef.current,
+          ticketId,
           payload,
         }),
       ).unwrap();
 
       const assignedStaff = staff.find((member) => member.id === staffId);
+      const leavesUnassignedTab =
+        activeFilter === "unassigned" && staffId !== null;
 
-      setTicketRows((current) =>
-        current.map((ticket) =>
-          ticket.id === currentActiveSupportTicketIdRef.current
+      setTicketRows((current) => {
+        if (leavesUnassignedTab) {
+          const index = current.findIndex((ticket) => ticket.id === ticketId);
+          const nextTicket = current[index + 1] ?? current[index - 1];
+          setActiveTicketId(nextTicket?.id ?? null);
+          return current.filter((ticket) => ticket.id !== ticketId);
+        }
+
+        return current.map((ticket) =>
+          ticket.id === ticketId
             ? {
                 ...ticket,
                 internal_assignee: assignedStaff
@@ -2479,8 +2487,8 @@ export default function HelpDesk() {
                   : null,
               }
             : ticket,
-        ),
-      );
+        );
+      });
 
       setActiveSupportTicket((current) =>
         current
@@ -2676,23 +2684,38 @@ export default function HelpDesk() {
       ).unwrap();
 
       if (ticketSnoozed) {
-        setTicketRows((current) =>
-          current.map((ticket) =>
-            ticket.id === currentActiveSupportTicketIdRef.current
-              ? { ...ticket, is_snoozed: !!ticketSnoozed?.snoozed_until }
-              : ticket,
-          ),
-        );
+        const isUnsnoozed = !ticketSnoozed?.snoozed_until;
 
-        setActiveSupportTicket((current) =>
-          current
-            ? {
-                ...current,
-                is_snoozed: !!ticketSnoozed?.snoozed_until,
-                snoozed_until: ticketSnoozed?.snoozed_until,
-              }
-            : current,
-        );
+        // When removing a snooze while the "Snoozed" filter is active, the
+        // ticket no longer belongs in this view — pull it out of the list and
+        // clear the active ticket so the panel resets to "No ticket selected".
+        if (isUnsnoozed && activeFilter === "snoozed") {
+          setTicketRows((current) =>
+            current.filter(
+              (ticket) => ticket.id !== currentActiveSupportTicketIdRef.current,
+            ),
+          );
+          setActiveSupportTicket(null);
+          setActiveTicketId(null);
+        } else {
+          setTicketRows((current) =>
+            current.map((ticket) =>
+              ticket.id === currentActiveSupportTicketIdRef.current
+                ? { ...ticket, is_snoozed: isUnsnoozed ? false : true }
+                : ticket,
+            ),
+          );
+
+          setActiveSupportTicket((current) =>
+            current
+              ? {
+                  ...current,
+                  is_snoozed: !isUnsnoozed,
+                  snoozed_until: ticketSnoozed?.snoozed_until,
+                }
+              : current,
+          );
+        }
 
         toast.success(
           snoozeTime === null ? "Snooze removed" : "Ticket snoozed",

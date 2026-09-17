@@ -12,29 +12,34 @@ import {
   IconAddressBook,
   IconBrandMeta,
   IconBuildingSkyscraper,
+  IconChecklist,
+  IconClockShield,
   IconCreditCardOff,
   IconImageGeneration,
   IconHeadset,
   IconInbox,
+  IconMessageCircle,
   IconMessageQuestion,
+  IconMessages,
+  IconSocial,
   IconPackageOff,
   IconPlugConnected,
   IconSend,
   IconSettings,
   IconShield,
-  IconShieldLock,
+  IconBuildingStore,
   IconTags,
   IconUserHexagon,
-  IconUsers,
+  // IconUsers,
   IconUser,
   IconUsersGroup,
   IconShoppingBag,
   IconVolume,
   type Icon,
   IconChartBar,
-  IconAutomaticGearbox,
-  IconPackageImport,
-  IconShoppingBagEdit,
+  // IconAutomaticGearbox,
+  // IconPackageImport,
+  // IconShoppingBagEdit,
 } from "@tabler/icons-react";
 
 /**
@@ -161,20 +166,21 @@ export const NAV_AREAS = {
           "Your company's contact details, logo, and address. The name and code are managed by the platform operator.",
         icon: IconBuildingSkyscraper,
       },
-      {
-        href: "/settings/staff-management",
-        title: "Staff Management",
-        description: "Invite teammates and control who has access.",
-        pageDescription:
-          "Manage your company's users. New staff receive an emailed temporary password.",
-        icon: IconUsers,
-      },
+      // {
+      //   href: "/settings/staff-management",
+      //   title: "Staff Management",
+      //   description: "Invite teammates and control who has access.",
+      //   pageDescription:
+      //     "Manage your company's users. New staff receive an emailed temporary password.",
+      //   icon: IconUsers,
+      // },
       {
         href: "/settings/store",
-        title: "Store Settings",
-        description: "Restrict which visitors can see the chat widget.",
-        pageDescription: "Controls that apply to the store you have selected.",
-        icon: IconShieldLock,
+        title: "Stores",
+        description: "The stores connected to your company.",
+        pageDescription:
+          "Every store connected to your company. Switch which one the dashboard works on, limit its widget to specific IPs, or deactivate it.",
+        icon: IconBuildingStore,
       },
       {
         href: "/settings/tags",
@@ -202,49 +208,94 @@ export const NAV_AREAS = {
         href: "/settings/social-ai",
         title: "Social AI",
         description:
-          "Facebook and Instagram accounts connected to Store Signal AI.",
+          "Connected accounts, and how the AI answers comments and DMs.",
         pageDescription:
-          "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
+          "The Facebook and Instagram accounts connected to Store Signal AI, and the rules the AI follows when it answers on them.",
         icon: IconBrandMeta,
-      },
-      {
-        href: "/settings/workflows",
-        title: "Workflows",
-        description:
-          "The rules the AI follows for order cancellation, modification, and returns.",
-        pageDescription:
-          "The rules and guardrails the AI follows when it cancels, modifies, or refunds an order on your behalf.",
-        icon: IconAutomaticGearbox,
         items: [
           {
-            href: "/settings/workflows/order-cancellation",
-            title: "Order Cancellation",
+            href: "/settings/social-ai/accounts",
+            title: "Connected Accounts",
             description:
-              "The rules the AI follows when it cancels an order on your behalf.",
+              "Facebook and Instagram accounts connected to Store Signal AI.",
             pageDescription:
-              "The rules and guardrails the AI follows when it cancels an order on your behalf.",
-            icon: IconPackageOff,
+              "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
+            icon: IconSocial,
           },
           {
-            href: "/settings/workflows/order-modification",
-            title: "Order Modification",
-            description:
-              "The rules the AI follows when it modifies an order on your behalf.",
+            href: "/settings/social-ai/comment-handling",
+            title: "Comment Handling",
+            description: "How the AI reads, classifies and acts on comments.",
             pageDescription:
-              "The rules and guardrails the AI follows when it modifies an order on your behalf.",
-            icon: IconShoppingBagEdit,
+              "How the AI reads, classifies and acts on every comment on your posts and ads. Each comment is tagged by intent, then handled by the rule you set for that intent.",
+            icon: IconMessageCircle,
           },
           {
-            href: "/settings/workflows/order-returns",
-            title: "Order Returns",
-            description:
-              "The rules the AI follows when it processes a return on your behalf.",
+            href: "/settings/social-ai/dm-automation",
+            title: "DM Automation",
+            description: "How the AI handles direct messages.",
             pageDescription:
-              "The rules and guardrails the AI follows when it processes a return on your behalf.",
-            icon: IconPackageImport,
+              "How the AI handles direct messages — the private, higher-trust channel where orders, support and conversions happen. Meta's messaging rules are applied on top of everything set here.",
+            icon: IconMessages,
+          },
+          {
+            href: "/settings/social-ai/guardrails",
+            title: "Guardrails & Limits",
+            description:
+              "Rate and pacing ceilings that keep every account safe.",
+            pageDescription:
+              "Rate and pacing ceilings, set per connected account, that keep automation well inside spam-safe territory.",
+            icon: IconClockShield,
+          },
+          {
+            href: "/settings/social-ai/meta-compliance",
+            title: "Meta Compliance",
+            description:
+              "The platform rails enforced on every connected account.",
+            pageDescription:
+              "The Meta rules enforced automatically on every connected account, so nothing you configure can put your accounts at risk.",
+            icon: IconShield,
           },
         ],
       },
+      // {
+      //   href: "/settings/workflows",
+      //   title: "Workflows",
+      //   description:
+      //     "The rules the AI follows for order cancellation, modification, and returns.",
+      //   pageDescription:
+      //     "The rules and guardrails the AI follows when it cancels, modifies, or refunds an order on your behalf.",
+      //   icon: IconAutomaticGearbox,
+      //   items: [
+      //     {
+      //       href: "/settings/workflows/order-cancellation",
+      //       title: "Order Cancellation",
+      //       description:
+      //         "The rules the AI follows when it cancels an order on your behalf.",
+      //       pageDescription:
+      //         "The rules and guardrails the AI follows when it cancels an order on your behalf.",
+      //       icon: IconPackageOff,
+      //     },
+      //     {
+      //       href: "/settings/workflows/order-modification",
+      //       title: "Order Modification",
+      //       description:
+      //         "The rules the AI follows when it modifies an order on your behalf.",
+      //       pageDescription:
+      //         "The rules and guardrails the AI follows when it modifies an order on your behalf.",
+      //       icon: IconShoppingBagEdit,
+      //     },
+      //     {
+      //       href: "/settings/workflows/order-returns",
+      //       title: "Order Returns",
+      //       description:
+      //         "The rules the AI follows when it processes a return on your behalf.",
+      //       pageDescription:
+      //         "The rules and guardrails the AI follows when it processes a return on your behalf.",
+      //       icon: IconPackageImport,
+      //     },
+      //   ],
+      // },
     ],
   },
 
@@ -362,6 +413,14 @@ export const NAV_AREAS = {
         title: "Instagram Messages",
         description: "AI conversations in your Instagram direct messages.",
         icon: IconSend,
+      },
+      {
+        href: "/social-ai/comment-drafts",
+        title: "Draft Review",
+        description: "Review AI-drafted comment replies before they go out.",
+        pageDescription:
+          "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
+        icon: IconChecklist,
       },
     ],
   },

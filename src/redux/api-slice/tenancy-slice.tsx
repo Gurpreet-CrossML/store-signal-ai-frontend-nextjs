@@ -101,7 +101,8 @@ export const UpdateCompanyProfile = createAsyncThunk(
       toast.error("Uh oh! Something went wrong.", {
         description: errorMessage(error, "Unable to update company profile."),
       });
-      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+      const data = isAxiosError(error) ? error.response?.data : undefined;
+      return thunkAPI.rejectWithValue(data || errorMessage(error, "Failed"));
     }
   },
 );

@@ -1,6 +1,12 @@
 import type { NextApiResponse } from "next";
 
-import { APIResponse, ErrorResponse, PaginationResponse } from "@/lib/config";
+import {
+  APIResponse,
+  ErrorResponse,
+  PaginationResponse,
+  WIDGET_API_BASE,
+  WIDGET_SCRIPT_SRC,
+} from "@/lib/config";
 
 export const formatDateTime = (dateInput: string | null) => {
   if (!dateInput || dateInput === "-") return "-";
@@ -299,4 +305,55 @@ export function toPaginatedList<T>(payload: unknown): {
     previous: typeof record.previous === "string" ? record.previous : null,
     results,
   };
+}
+
+// Tells the widget who is browsing: Shopify's Liquid exposes the logged-in
+// customer, and the widget reads window.currentCustomer / window.isLoggedIn.
+const SHOPIFY_CUSTOMER_BLOCK = `{% if customer %}
+  <script>
+    window.currentCustomer = {
+      id: "{{ customer.id }}",
+      email: "{{ customer.email }}",
+      firstName: "{{ customer.first_name }}",
+      lastName: "{{ customer.last_name }}",
+      fullName: "{{ customer.name }}",
+    };
+    window.isLoggedIn = true;
+  </script>
+{% else %}
+  <script>
+    window.currentCustomer = null;
+    window.isLoggedIn = false;
+  </script>
+{% endif %}`;
+
+/**
+ * The embed code a merchant pastes before </body>, for one store's widget
+ * key. On Shopify it is Liquid — the customer block above plus the script
+ * tag, destined for the end of layout/theme.liquid; on any other platform
+ * it is the bare script tag.
+ */
+export function widgetSnippet(widgetKey: string, platform?: string): string {
+  const tag = [
+    "<script",
+    `  src="${WIDGET_SCRIPT_SRC}"`,
+    `  data-widget-key="${widgetKey}"`,
+    `  data-api-base="${WIDGET_API_BASE}"`,
+    "  data-chatbot-init",
+    "></script>",
+  ].join("\n");
+  return platform === "shopify" ? `${SHOPIFY_CUSTOMER_BLOCK}\n${tag}` : tag;
+}
+
+/**
+ * Add a value to a list, or drop it if it is already there.
+ *
+ * The shape every multi-select on a settings screen needs — a checklist of
+ * fixed options where ticking and unticking are the same gesture. Returns a
+ * new array; the one passed in is never mutated.
+ */
+export function toggleInList<T>(list: T[], value: T): T[] {
+  return list.includes(value)
+    ? list.filter((item) => item !== value)
+    : [...list, value];
 }

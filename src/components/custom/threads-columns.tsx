@@ -97,7 +97,7 @@ export const threadsColumns: ColumnDef<Thread>[] = [
       return (
         <div className="flex flex-col gap-0.5">
           <Typography variant="small" as="span">
-            {customer?.name || "Guest"}
+            {customer?.name || customer?.email || "Guest"}
           </Typography>
           {customer?.email && (
             <Typography variant="muted" as="span" className="text-xs">

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   IconAlertTriangle,
   IconArrowLeft,
@@ -346,6 +347,7 @@ function AIInsightsSection({
 
 export default function ThreadDetail({ threadId }: { threadId: string }) {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -459,7 +461,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   // answer. Each section then falls back to its own request's flag.
   const detailsLoading = !isThisThread;
   const isResolved = details?.verdict?.verdict === "resolved";
-  const customerName = details?.customer_name || "Guest";
+  const customerName =
+    details?.customer_name || details?.customer_email || "Guest";
   const feedback = FetchFeedbackSequenceData?.feedback;
   const feedbackLabel = feedback
     ? (FEEDBACK_RATINGS.find((rating) => rating.value === feedback.rating)
@@ -502,12 +505,10 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         <Button
           variant="ghost"
           size="icon-sm"
-          asChild
           aria-label="Back to Threads"
+          onClick={() => router.back()}
         >
-          <Link href="/threads">
-            <IconArrowLeft />
-          </Link>
+          <IconArrowLeft />
         </Button>
 
         <div className="flex min-w-0 items-center gap-2.5">

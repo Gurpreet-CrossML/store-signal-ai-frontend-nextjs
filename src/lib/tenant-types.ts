@@ -18,4 +18,7 @@ export type Identity = {
   is_staff: boolean;
   /** Stores + levels (empty/ignored for company admins, who get all). */
   accessible_stores: AccessibleStore[];
+  /** Present when the profile endpoint reports onboarding (login always does). */
+  onboarding_pending?: boolean;
+  onboarding_step?: string | null;
 };
