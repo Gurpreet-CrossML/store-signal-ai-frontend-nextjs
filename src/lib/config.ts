@@ -212,6 +212,9 @@ export const ENDPOINTS = {
 
   // Helpdesk(Support) apis
   fetchSupportTickets: () => createAPIUrl("/support/tickets", "django"),
+  // POST — raise a ticket with no conversation behind it: an agent logging
+  // a problem that reached them by phone, email or in person.
+  createSupportTicket: () => createAPIUrl("/support/tickets/", "django"),
   // POST — raise a ticket from a live-chat conversation. The counterpart
   // of metaCreateSupportTicket: same fields, same payload, addressed by
   // the thread behind it rather than a social contact.
