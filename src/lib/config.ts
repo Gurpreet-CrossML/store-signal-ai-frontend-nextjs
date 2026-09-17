@@ -397,6 +397,30 @@ export const ENDPOINTS = {
     `/social/comment-drafts/${draftId}/approve/`,
   discardCommentDraft: ({ draftId }: { draftId: number }) =>
     `/social/comment-drafts/${draftId}/discard/`,
+
+  // WhatsApp templates (Django via useBackend — keep trailing slash).
+  fetchWhatsAppTemplates: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/`,
+  createWhatsAppTemplate: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/`,
+  whatsAppTemplateDetail: ({
+    accountId,
+    templateId,
+  }: {
+    accountId: string;
+    templateId: number;
+  }) => `/campaign/accounts/${accountId}/templates/${templateId}/`,
+  whatsAppTemplateLibraryList: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/import/`,
+  whatsAppTemplateLibraryImport: ({
+    accountId,
+    catalogueId,
+  }: {
+    accountId: string;
+    catalogueId: number;
+  }) => `/campaign/accounts/${accountId}/templates/${catalogueId}/import/`,
+  whatsAppTemplateLibraryImportAll: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/import-all/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

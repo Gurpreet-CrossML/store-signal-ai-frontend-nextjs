@@ -9,6 +9,7 @@ import {
   IconBrandFacebook,
   IconBrandInstagram,
   IconBrandMessenger,
+  IconBrandWhatsapp,
   IconAddressBook,
   IconBrandMeta,
   IconBuildingSkyscraper,
@@ -28,6 +29,7 @@ import {
   IconSettings,
   IconShield,
   IconBuildingStore,
+  IconSpeakerphone,
   IconTags,
   IconUserHexagon,
   // IconUsers,
@@ -40,6 +42,7 @@ import {
   // IconAutomaticGearbox,
   // IconPackageImport,
   // IconShoppingBagEdit,
+  IconPackage,
 } from "@tabler/icons-react";
 
 /**
@@ -421,6 +424,32 @@ export const NAV_AREAS = {
         pageDescription:
           "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
         icon: IconChecklist,
+      },
+    ],
+  },
+
+  campaign: {
+    href: "/campaign",
+    title: "Campaign",
+    description: "WhatsApp templates and campaigns for reaching customers.",
+    icon: IconSpeakerphone,
+    sections: [
+      {
+        href: "/campaign/post-sale",
+        title: "Post Sale Templates",
+        description:
+          "Import ready-made templates for order placed, shipped, delivered, and review requests.",
+        pageDescription:
+          "Import Meta-ready WhatsApp templates for your order lifecycle — placed, shipped, delivered, and review requests. Once imported, they go through the same review process as any other template and show up in WhatsApp Templates.",
+        icon: IconPackage,
+      },
+      {
+        href: "/campaign/whatsapp-templates",
+        title: "WhatsApp Templates",
+        description: "Message templates approved for sending on WhatsApp.",
+        pageDescription:
+          "Manage the message templates Meta has approved — or is reviewing — for your connected WhatsApp number.",
+        icon: IconBrandWhatsapp,
       },
     ],
   },
