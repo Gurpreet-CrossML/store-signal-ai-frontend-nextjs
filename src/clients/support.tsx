@@ -597,9 +597,11 @@ export default function Support() {
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const { FetchThreadsListData, FetchThreadsIsLoading } = useAppSelector(
-    (state) => state.GetThreadReducer.FetchThreadsState,
-  );
+  const {
+    FetchThreadsListData,
+    FetchThreadsIsLoading,
+    FetchThreadsIsSuccess,
+  } = useAppSelector((state) => state.GetThreadReducer.FetchThreadsState);
   const { FetchThreadDetailsIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchThreadDetailsState,
   );
@@ -692,6 +694,7 @@ export default function Support() {
     () => getFilteredThreads(localThreads, readFilter),
     [localThreads, readFilter],
   );
+  const threadsReady = FetchThreadsIsSuccess && !FetchThreadsIsLoading;
 
   // If the URL points at a chat in the selected filter, open it. Otherwise,
   // fall back to the first filtered chat so a stale selection never stays open.
@@ -700,14 +703,14 @@ export default function Support() {
     filterScopedThreads.some((thread) => thread.id === chatParam);
   const fallbackThreadId = filterScopedThreads[0]?.id ?? null;
   const desiredThreadId =
-    !FetchThreadsIsLoading && (urlThreadExists || fallbackThreadId)
+    threadsReady && (urlThreadExists || fallbackThreadId)
       ? urlThreadExists
         ? chatParam
         : fallbackThreadId
       : null;
 
   if (
-    !FetchThreadsIsLoading &&
+    threadsReady &&
     (selectedThreadId !== desiredThreadId ||
       appliedChatParam !== (chatParam ?? null))
   ) {
@@ -768,6 +771,7 @@ export default function Support() {
     }
 
     if (!activeThreadId) {
+      if (!threadsReady) return;
       if (!chatParam && filterParamMatches) return;
       params.delete("chat");
       const query = params.toString();
@@ -784,7 +788,15 @@ export default function Support() {
     router.replace(query ? `${safePathname}?${query}` : safePathname, {
       scroll: false,
     });
-  }, [activeThreadId, chatParam, pathname, readFilter, router, searchParams]);
+  }, [
+    activeThreadId,
+    chatParam,
+    pathname,
+    readFilter,
+    router,
+    searchParams,
+    threadsReady,
+  ]);
 
   const playNotificationSound = useNotificationSound();
 
