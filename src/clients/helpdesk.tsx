@@ -805,7 +805,7 @@ function ConversationPanel({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Combobox items={availableStaff}>
+          {/* <Combobox items={availableStaff}>
             <ComboboxInput
               className="h-8 w-28 2xl:w-40"
               placeholder={
@@ -842,7 +842,7 @@ function ConversationPanel({
                 )}
               </ComboboxList>
             </ComboboxContent>
-          </Combobox>
+          </Combobox> */}
 
           {/* The two endings a ticket actually has, one click away —
               they were buried in the status Select behind the ⋮ menu. */}
@@ -878,12 +878,10 @@ function ConversationPanel({
             <TooltipContent>Close ticket</TooltipContent>
           </Tooltip>
 
-          <DropdownMenu>
+          {/* <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
                 <DropdownMenuTrigger asChild disabled={isClosed}>
-                  {/* Icon only until it is snoozed — then the time it wakes
-                      up is worth the width. */}
                   <Button
                     variant="outline"
                     size={ticket?.is_snoozed ? "sm" : "icon-sm"}
@@ -921,7 +919,7 @@ function ConversationPanel({
                 </>
               )}
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
         </div>
       </header>
 
