@@ -620,6 +620,13 @@ export default function Support() {
     (state) => state.GetOrderReducer.SyncCustomerOrdersState,
   );
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // The open chat lives in the URL (?chat=<id>) so conversations can be
+  // shared with teammates and deep-linked directly.
+  const chatParam = searchParams?.get("chat") ?? null;
+
   // Local, mutable copy of the thread list. Seeded from Redux (is_read
   // defaults to true), then patched in place by the dashboard socket (new
   // messages / thread_closed events) without waiting on a refetch.
@@ -645,19 +652,21 @@ export default function Support() {
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
   const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
-  const [readFilter, setReadFilter] = useState<ThreadFilter>("all");
+  const [readFilter, setReadFilter] = useState<ThreadFilter>(() => {
+    const filter = searchParams?.get("filter");
+    return filter === "unread" ||
+      filter === "read" ||
+      filter === "active" ||
+      filter === "visitors" ||
+      filter === "cart"
+      ? filter
+      : "all";
+  });
   const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
     string | number | null
   >(null);
 
   const { data: session } = useSession();
-
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  // The open chat lives in the URL (?chat=<id>) so conversations can be
-  // shared with teammates and deep-linked directly.
-  const chatParam = searchParams?.get("chat") ?? null;
 
   const wsRef = useRef<WebSocket | null>(null);
   const dashboardWsRef = useRef<WebSocket | null>(null);
@@ -748,9 +757,18 @@ export default function Support() {
   useEffect(() => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     const safePathname = pathname ?? "/";
+    const expectedFilterParam = readFilter === "all" ? null : readFilter;
+    const filterParamMatches =
+      (searchParams?.get("filter") ?? null) === expectedFilterParam;
+
+    if (expectedFilterParam) {
+      params.set("filter", expectedFilterParam);
+    } else {
+      params.delete("filter");
+    }
 
     if (!activeThreadId) {
-      if (!chatParam) return;
+      if (!chatParam && filterParamMatches) return;
       params.delete("chat");
       const query = params.toString();
       router.replace(query ? `${safePathname}?${query}` : safePathname, {
@@ -759,14 +777,14 @@ export default function Support() {
       return;
     }
 
-    if (chatParam === activeThreadId) return;
+    if (chatParam === activeThreadId && filterParamMatches) return;
 
     params.set("chat", activeThreadId);
     const query = params.toString();
     router.replace(query ? `${safePathname}?${query}` : safePathname, {
       scroll: false,
     });
-  }, [activeThreadId, chatParam, pathname, router, searchParams]);
+  }, [activeThreadId, chatParam, pathname, readFilter, router, searchParams]);
 
   const playNotificationSound = useNotificationSound();
 
@@ -1446,7 +1464,29 @@ export default function Support() {
                 <button
                   key={option.key}
                   type="button"
-                  onClick={() => setReadFilter(option.key)}
+                  onClick={() => {
+                    setReadFilter(option.key);
+
+                    const params = new URLSearchParams(
+                      searchParams?.toString() ?? "",
+                    );
+
+                    if (option.key === "all") {
+                      params.delete("filter");
+                    } else {
+                      params.set("filter", option.key);
+                    }
+
+                    params.delete("chat");
+
+                    const query = params.toString();
+
+                    const basePath = pathname ?? "";
+
+                    router.replace(query ? `${basePath}?${query}` : basePath, {
+                      scroll: false,
+                    });
+                  }}
                   className={cn(
                     "flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
                     readFilter === option.key
