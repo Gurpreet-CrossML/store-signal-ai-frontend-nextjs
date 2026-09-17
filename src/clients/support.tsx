@@ -86,6 +86,7 @@ import { formatRelativeDateTime } from "@/lib/helpers";
 // `is_read` becomes a real field on Thread (and maybe comes from the API),
 // but until then we track it client-side, defaulting to true on load.
 type ThreadWithReadState = Thread & { is_read?: boolean };
+type ThreadFilter = "all" | "unread" | "read" | "active" | "visitors" | "cart";
 
 const ACTIVE_THREAD_WINDOW_MS = 30 * 60 * 1000;
 
@@ -124,6 +125,39 @@ function isThreadWithinActiveWindow(thread: Thread) {
   const timestamp = new Date(thread.last_message_at).getTime();
   if (!Number.isFinite(timestamp)) return false;
   return Date.now() - timestamp <= ACTIVE_THREAD_WINDOW_MS;
+}
+
+function getFilteredThreads(
+  threads: ThreadWithReadState[],
+  readFilter: ThreadFilter,
+) {
+  const filtered = threads.filter((thread) => {
+    if (readFilter === "unread" && thread.is_read !== false) {
+      return false;
+    }
+    if (readFilter === "read" && thread.is_read === false) {
+      return false;
+    }
+    if (readFilter === "active") {
+      return thread.total_messages > 0 && isThreadWithinActiveWindow(thread);
+    }
+    if (readFilter === "visitors") {
+      return thread.total_messages === 0 || !isThreadWithinActiveWindow(thread);
+    }
+    if (readFilter === "cart") {
+      return Number(thread.cart_total ?? 0) > 0;
+    }
+
+    return true;
+  });
+
+  if (readFilter === "cart") {
+    return [...filtered].sort(
+      (a, b) => Number(b.cart_total ?? 0) - Number(a.cart_total ?? 0),
+    );
+  }
+
+  return filtered;
 }
 
 type AttachmentStatus = "uploading" | "uploaded" | "error";
@@ -563,9 +597,8 @@ export default function Support() {
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const { FetchThreadsListData, FetchThreadsIsLoading } = useAppSelector(
-    (state) => state.GetThreadReducer.FetchThreadsState,
-  );
+  const { FetchThreadsListData, FetchThreadsIsLoading, FetchThreadsIsSuccess } =
+    useAppSelector((state) => state.GetThreadReducer.FetchThreadsState);
   const { FetchThreadDetailsIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchThreadDetailsState,
   );
@@ -585,6 +618,13 @@ export default function Support() {
   const { SyncCustomerOrdersIsLoading } = useAppSelector(
     (state) => state.GetOrderReducer.SyncCustomerOrdersState,
   );
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // The open chat lives in the URL (?chat=<id>) so conversations can be
+  // shared with teammates and deep-linked directly.
+  const chatParam = searchParams?.get("chat") ?? null;
 
   // Local, mutable copy of the thread list. Seeded from Redux (is_read
   // defaults to true), then patched in place by the dashboard socket (new
@@ -611,21 +651,21 @@ export default function Support() {
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
   const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
-  const [readFilter, setReadFilter] = useState<
-    "all" | "unread" | "read" | "active" | "visitors" | "cart"
-  >("all");
+  const [readFilter, setReadFilter] = useState<ThreadFilter>(() => {
+    const filter = searchParams?.get("filter");
+    return filter === "unread" ||
+      filter === "read" ||
+      filter === "active" ||
+      filter === "visitors" ||
+      filter === "cart"
+      ? filter
+      : "all";
+  });
   const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
     string | number | null
   >(null);
 
   const { data: session } = useSession();
-
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  // The open chat lives in the URL (?chat=<id>) so conversations can be
-  // shared with teammates and deep-linked directly.
-  const chatParam = searchParams?.get("chat") ?? null;
 
   const wsRef = useRef<WebSocket | null>(null);
   const dashboardWsRef = useRef<WebSocket | null>(null);
@@ -647,20 +687,27 @@ export default function Support() {
     setLocalThreads(normalizeThreads(FetchThreadsListData?.results));
   }
 
-  // If the URL points at an active chat, open it. Otherwise, fall back to the
-  // first active chat so the support inbox always lands on a usable thread.
+  const filterScopedThreads = useMemo(
+    () => getFilteredThreads(localThreads, readFilter),
+    [localThreads, readFilter],
+  );
+  const threadsReady = FetchThreadsIsSuccess && !FetchThreadsIsLoading;
+
+  // If the URL points at a chat in the selected filter, open it. Otherwise,
+  // fall back to the first filtered chat so a stale selection never stays open.
   const urlThreadExists =
-    !!chatParam && localThreads.some((thread) => thread.id === chatParam);
-  const fallbackThreadId = localThreads[0]?.id ?? null;
+    !!chatParam &&
+    filterScopedThreads.some((thread) => thread.id === chatParam);
+  const fallbackThreadId = filterScopedThreads[0]?.id ?? null;
   const desiredThreadId =
-    !FetchThreadsIsLoading && (urlThreadExists || fallbackThreadId)
+    threadsReady && (urlThreadExists || fallbackThreadId)
       ? urlThreadExists
         ? chatParam
         : fallbackThreadId
       : null;
 
   if (
-    !FetchThreadsIsLoading &&
+    threadsReady &&
     (selectedThreadId !== desiredThreadId ||
       appliedChatParam !== (chatParam ?? null))
   ) {
@@ -671,7 +718,7 @@ export default function Support() {
 
   const selectedThreadStillExists =
     desiredThreadId !== null &&
-    localThreads.some((thread) => thread.id === desiredThreadId);
+    filterScopedThreads.some((thread) => thread.id === desiredThreadId);
   // chat_thread.id is a uuid column, so anything else — a stale ?chat=
   // value, a ticket number pasted into the URL — makes every thread-scoped
   // query fail in Postgres and come back as a 500. Refusing it here turns
@@ -708,12 +755,45 @@ export default function Support() {
   };
 
   useEffect(() => {
-    if (!activeThreadId || chatParam === activeThreadId) return;
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    const safePathname = pathname ?? "/";
+    const expectedFilterParam = readFilter === "all" ? null : readFilter;
+    const filterParamMatches =
+      (searchParams?.get("filter") ?? null) === expectedFilterParam;
 
-    router.replace(`${pathname}?chat=${encodeURIComponent(activeThreadId)}`, {
+    if (expectedFilterParam) {
+      params.set("filter", expectedFilterParam);
+    } else {
+      params.delete("filter");
+    }
+
+    if (!activeThreadId) {
+      if (!threadsReady) return;
+      if (!chatParam && filterParamMatches) return;
+      params.delete("chat");
+      const query = params.toString();
+      router.replace(query ? `${safePathname}?${query}` : safePathname, {
+        scroll: false,
+      });
+      return;
+    }
+
+    if (chatParam === activeThreadId && filterParamMatches) return;
+
+    params.set("chat", activeThreadId);
+    const query = params.toString();
+    router.replace(query ? `${safePathname}?${query}` : safePathname, {
       scroll: false,
     });
-  }, [activeThreadId, chatParam, pathname, router]);
+  }, [
+    activeThreadId,
+    chatParam,
+    pathname,
+    readFilter,
+    router,
+    searchParams,
+    threadsReady,
+  ]);
 
   const playNotificationSound = useNotificationSound();
 
@@ -739,37 +819,10 @@ export default function Support() {
     [visibleThreads],
   );
 
-  const filteredThreads = useMemo(() => {
-    const filtered = visibleThreads.filter((thread: ThreadWithReadState) => {
-      if (readFilter === "unread" && thread.is_read !== false) {
-        return false;
-      }
-      if (readFilter === "read" && thread.is_read === false) {
-        return false;
-      }
-      if (readFilter === "active") {
-        return thread.total_messages > 0 && isThreadWithinActiveWindow(thread);
-      }
-      if (readFilter === "visitors") {
-        return (
-          thread.total_messages === 0 || !isThreadWithinActiveWindow(thread)
-        );
-      }
-      if (readFilter === "cart") {
-        return Number(thread.cart_total ?? 0) > 0;
-      }
-
-      return true;
-    });
-
-    if (readFilter === "cart") {
-      return [...filtered].sort(
-        (a, b) => Number(b.cart_total ?? 0) - Number(a.cart_total ?? 0),
-      );
-    }
-
-    return filtered;
-  }, [visibleThreads, readFilter]);
+  const filteredThreads = useMemo(
+    () => getFilteredThreads(visibleThreads, readFilter),
+    [visibleThreads, readFilter],
+  );
 
   useEffect(() => {
     if (!storeCode) return;
@@ -1420,7 +1473,29 @@ export default function Support() {
                 <button
                   key={option.key}
                   type="button"
-                  onClick={() => setReadFilter(option.key)}
+                  onClick={() => {
+                    setReadFilter(option.key);
+
+                    const params = new URLSearchParams(
+                      searchParams?.toString() ?? "",
+                    );
+
+                    if (option.key === "all") {
+                      params.delete("filter");
+                    } else {
+                      params.set("filter", option.key);
+                    }
+
+                    params.delete("chat");
+
+                    const query = params.toString();
+
+                    const basePath = pathname ?? "";
+
+                    router.replace(query ? `${basePath}?${query}` : basePath, {
+                      scroll: false,
+                    });
+                  }}
                   className={cn(
                     "flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
                     readFilter === option.key

@@ -163,6 +163,7 @@ export function AppSidebar({
           <SidebarContent>
             <SidebarGroup>
               <SidebarGroupContent className="flex flex-col gap-2">
+                {subSidebarItems.action && <subSidebarItems.action />}
                 <SidebarMenu>
                   {subSidebarItems.items.map((item) => {
                     if (item.items && item.items?.length > 0) {

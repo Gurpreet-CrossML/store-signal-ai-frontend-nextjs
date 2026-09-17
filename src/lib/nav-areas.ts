@@ -1,3 +1,5 @@
+import type { ComponentType } from "react";
+
 import {
   IconAdjustmentsSpark,
   IconBan,
@@ -42,6 +44,8 @@ import {
   // IconShoppingBagEdit,
 } from "@tabler/icons-react";
 
+import { CreateTicketAction } from "@/components/custom/helpdesk/create-ticket-action";
+
 /**
  * One screen inside a multi-screen area.
  *
@@ -64,6 +68,8 @@ export type NavArea = {
   description: string;
   icon: Icon;
   sections: AreaSection[];
+  /** Rendered above the sub-sidebar's entries: an action the whole area shares. */
+  action?: ComponentType;
 };
 
 /**
@@ -112,6 +118,7 @@ export const NAV_AREAS = {
     title: "Help Desk",
     description: "Customer tickets, grouped by what needs doing next.",
     icon: IconHeadset,
+    action: CreateTicketAction,
     sections: [
       {
         href: "/helpdesk",
