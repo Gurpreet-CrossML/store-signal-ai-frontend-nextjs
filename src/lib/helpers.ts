@@ -358,14 +358,11 @@ export function toggleInList<T>(list: T[], value: T): T[] {
     : [...list, value];
 }
 
-export function nonFieldErrorMsg(
+export function getApiErrorMessage(
   data:
-    | {
-        data?: { non_field_errors?: string };
-        non_field_errors?: string;
-      }
+    | { message?: string; data?: { non_field_errors?: string } }
     | null
     | undefined,
 ) {
-  return data?.data?.non_field_errors ?? data?.non_field_errors;
+  return data?.data?.non_field_errors ?? data?.message ?? false;
 }

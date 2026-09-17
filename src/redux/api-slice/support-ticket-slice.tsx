@@ -1,7 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
-import { nonFieldErrorMsg } from "@/lib/helpers";
+import { getApiErrorMessage } from "@/lib/helpers";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 import { OrderData } from "@/redux/api-slice/thread-slice";
@@ -448,7 +448,7 @@ export const CreateSupportTicket = createAsyncThunk(
       const data = response?.data;
       toast.error("Couldn't create ticket", {
         description:
-          nonFieldErrorMsg(data) ||
+          getApiErrorMessage(data) ||
           data?.message ||
           "Please check the form and try again.",
       });
