@@ -132,12 +132,14 @@ export function LoginForm({
         >
           <div className="flex items-center justify-between">
             <FieldLabel htmlFor="password">Password</FieldLabel>
+            {/*
             <Link
               href="#"
               className="text-sm font-medium text-primary hover:underline"
             >
               Forgot password?
             </Link>
+            */}
           </div>
           <InputGroup>
             <InputGroupAddon>

@@ -131,8 +131,11 @@ export function SignupForm({
                 <span className="font-medium text-foreground">
                   {registered.admin_email}
                 </span>
+                {/*
                 . Use &ldquo;Forgot password?&rdquo; on the login page once your
                 workspace is ready, or contact support.
+                */}
+                . Please contact support once your workspace is ready.
               </>
             )}
           </EmptyDescription>
