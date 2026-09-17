@@ -427,14 +427,18 @@ export const CreateSupportTicket = createAsyncThunk(
       payload,
     }: {
       storeCode: string;
-      threadId: string;
+      /** The live chat it came from; omit for a ticket an agent raises cold. */
+      threadId?: string;
       payload: CreateSupportTicketPayload;
     },
     thunkAPI,
   ) => {
     try {
+      const url = threadId
+        ? ENDPOINTS.createThreadSupportTicket(threadId)
+        : ENDPOINTS.createSupportTicket();
       const response = await axiosInstance.post(
-        `${ENDPOINTS.createThreadSupportTicket(threadId)}?store_code=${storeCode}`,
+        `${url}?store_code=${storeCode}`,
         payload,
         { useBackend: true },
       );
