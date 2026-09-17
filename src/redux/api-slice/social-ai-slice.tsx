@@ -1035,7 +1035,7 @@ export const CreateSocialSupportTicket = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Couldn't create the ticket", {
+      toast.error("A ticket for this order is already open/pending.", {
         description: data?.message || "Please check the form and try again.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
