@@ -359,10 +359,7 @@ export function toggleInList<T>(list: T[], value: T): T[] {
 }
 
 export function getApiErrorMessage(
-  data:
-    | { message?: string; data?: { non_field_errors?: string } }
-    | null
-    | undefined,
+  data: { non_field_errors?: string } | null | undefined,
 ) {
-  return data?.data?.non_field_errors ?? data?.message ?? false;
+  return data?.non_field_errors;
 }

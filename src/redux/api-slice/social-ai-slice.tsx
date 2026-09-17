@@ -1037,7 +1037,7 @@ export const CreateSocialSupportTicket = createAsyncThunk(
       const data = response?.data;
       toast.error("Couldn't create ticket", {
         description:
-          getApiErrorMessage(data) ||
+          getApiErrorMessage(data?.data) ||
           data?.message ||
           "Please check the form and try again.",
       });
