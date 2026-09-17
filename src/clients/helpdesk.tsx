@@ -1034,11 +1034,11 @@ function ConversationPanel({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {!ticket.internal_assignee && ticket.status === "open" ? (
+            {/* {!ticket.internal_assignee && ticket.status === "open" ? (
               <Badge variant="outline" className={BADGE_TONE_STYLES.accent}>
                 Unassigned
               </Badge>
-            ) : null}
+            ) : null} */}
           </div>
 
           {/* Tags live in their own scrollable strip, so however many
