@@ -597,11 +597,8 @@ export default function Support() {
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const {
-    FetchThreadsListData,
-    FetchThreadsIsLoading,
-    FetchThreadsIsSuccess,
-  } = useAppSelector((state) => state.GetThreadReducer.FetchThreadsState);
+  const { FetchThreadsListData, FetchThreadsIsLoading, FetchThreadsIsSuccess } =
+    useAppSelector((state) => state.GetThreadReducer.FetchThreadsState);
   const { FetchThreadDetailsIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchThreadDetailsState,
   );
