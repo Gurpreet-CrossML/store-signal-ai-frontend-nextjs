@@ -144,6 +144,7 @@ export type SupportTicketDraftMessage = {
 
 export type SupportTicket = {
   id: number;
+  order_id?: string | null;
   customer: string | SupportTicketCustomer | null;
   internal_assignee: SupportTicketAssignee | null;
 
