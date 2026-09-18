@@ -130,9 +130,14 @@ function isThreadWithinActiveWindow(thread: Thread) {
 function getFilteredThreads(
   threads: ThreadWithReadState[],
   readFilter: ThreadFilter,
+  openedFromUnreadIds?: ReadonlySet<string>,
 ) {
   const filtered = threads.filter((thread) => {
-    if (readFilter === "unread" && thread.is_read !== false) {
+    if (
+      readFilter === "unread" &&
+      thread.is_read !== false &&
+      !openedFromUnreadIds?.has(thread.id)
+    ) {
       return false;
     }
     if (readFilter === "read" && thread.is_read === false) {
@@ -651,6 +656,9 @@ export default function Support() {
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
   const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
+  const [openedFromUnreadIds, setOpenedFromUnreadIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [readFilter, setReadFilter] = useState<ThreadFilter>(() => {
     const filter = searchParams?.get("filter");
     return filter === "unread" ||
@@ -688,8 +696,8 @@ export default function Support() {
   }
 
   const filterScopedThreads = useMemo(
-    () => getFilteredThreads(localThreads, readFilter),
-    [localThreads, readFilter],
+    () => getFilteredThreads(localThreads, readFilter, openedFromUnreadIds),
+    [localThreads, readFilter, openedFromUnreadIds],
   );
   const threadsReady = FetchThreadsIsSuccess && !FetchThreadsIsLoading;
 
@@ -797,17 +805,29 @@ export default function Support() {
 
   const playNotificationSound = useNotificationSound();
 
-  // The open conversation is read by definition. Keep that as derived state
-  // so defaulting or advancing to the first thread needs no effect.
-  const visibleThreads = useMemo(
-    () =>
-      localThreads.map((thread) =>
+  const visibleThreads = useMemo(() => localThreads, [localThreads]);
+
+  const activeThreadIsUnread =
+    activeThreadId !== null &&
+    localThreads.some(
+      (thread) => thread.id === activeThreadId && thread.is_read === false,
+    );
+  if (activeThreadIsUnread) {
+    if (readFilter === "unread" && !openedFromUnreadIds.has(activeThreadId)) {
+      setOpenedFromUnreadIds((current) => {
+        const next = new Set(current);
+        next.add(activeThreadId);
+        return next;
+      });
+    }
+    setLocalThreads((prev) =>
+      prev.map((thread) =>
         thread.id === activeThreadId && thread.is_read === false
           ? { ...thread, is_read: true }
           : thread,
       ),
-    [activeThreadId, localThreads],
-  );
+    );
+  }
 
   const selectedThread = useMemo(
     () => visibleThreads.find((thread) => thread.id === activeThreadId) ?? null,
@@ -826,8 +846,8 @@ export default function Support() {
   );
 
   const filteredThreads = useMemo(
-    () => getFilteredThreads(visibleThreads, readFilter),
-    [visibleThreads, readFilter],
+    () => getFilteredThreads(visibleThreads, readFilter, openedFromUnreadIds),
+    [visibleThreads, readFilter, openedFromUnreadIds],
   );
 
   useEffect(() => {
@@ -1121,13 +1141,6 @@ export default function Support() {
       // rather than waiting for the effect below to notice the id changed.
       wsRef.current?.close();
       wsRef.current = null;
-      setLocalThreads((prev) =>
-        prev.map((thread) =>
-          thread.id === threadId && thread.is_read === false
-            ? { ...thread, is_read: true }
-            : thread,
-        ),
-      );
       setSelectedThreadId(threadId);
       setAttachments([]);
       setAppliedChatParam(threadId);
@@ -1135,7 +1148,7 @@ export default function Support() {
         scroll: false,
       });
     },
-    [router, pathname],
+    [pathname, router],
   );
 
   // Insert or patch a thread in localThreads based on an incoming dashboard
@@ -1479,10 +1492,13 @@ export default function Support() {
                 <button
                   key={option.key}
                   type="button"
-                  onClick={() => {
-                    setReadFilter(option.key);
+	                  onClick={() => {
+	                    setReadFilter(option.key);
+	                    if (option.key !== "unread") {
+	                      setOpenedFromUnreadIds(new Set());
+	                    }
 
-                    const params = new URLSearchParams(
+	                    const params = new URLSearchParams(
                       searchParams?.toString() ?? "",
                     );
 
