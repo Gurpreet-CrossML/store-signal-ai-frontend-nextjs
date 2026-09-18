@@ -953,6 +953,11 @@ function ConversationPanel({
             <Typography variant="caption" className="shrink-0">
               {ticketRef(ticket.id)}
             </Typography>
+            {ticket.order_id ? (
+              <Typography variant="caption" className="shrink-0">
+                ORDER-#{ticket.order_id}
+              </Typography>
+            ) : null}
           </div>
 
           {/* Facts close the subject line, and say what each date is — two
