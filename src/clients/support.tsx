@@ -814,8 +814,14 @@ export default function Support() {
     [activeThreadId, visibleThreads],
   );
 
-  const unreadCount = useMemo(
-    () => visibleThreads.filter((thread) => thread.is_read === false).length,
+  const filterCounts = useMemo(
+    () => ({
+      unread: getFilteredThreads(visibleThreads, "unread").length,
+      read: getFilteredThreads(visibleThreads, "read").length,
+      active: getFilteredThreads(visibleThreads, "active").length,
+      visitors: getFilteredThreads(visibleThreads, "visitors").length,
+      cart: getFilteredThreads(visibleThreads, "cart").length,
+    }),
     [visibleThreads],
   );
 
@@ -1504,16 +1510,16 @@ export default function Support() {
                   )}
                 >
                   {option.label}
-                  {option.key === "unread" && unreadCount > 0 && (
+                  {option.key !== "all" && filterCounts[option.key] > 0 && (
                     <span
                       className={cn(
                         "rounded-md px-1.5 text-xs",
-                        readFilter === "unread"
+                        readFilter === option.key
                           ? "bg-primary-foreground/20"
                           : "bg-muted text-foreground/70",
                       )}
                     >
-                      {unreadCount}
+                      {filterCounts[option.key]}
                     </span>
                   )}
                 </button>
