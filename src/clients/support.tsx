@@ -1492,13 +1492,13 @@ export default function Support() {
                 <button
                   key={option.key}
                   type="button"
-	                  onClick={() => {
-	                    setReadFilter(option.key);
-	                    if (option.key !== "unread") {
-	                      setOpenedFromUnreadIds(new Set());
-	                    }
+                  onClick={() => {
+                    setReadFilter(option.key);
+                    if (option.key !== "unread") {
+                      setOpenedFromUnreadIds(new Set());
+                    }
 
-	                    const params = new URLSearchParams(
+                    const params = new URLSearchParams(
                       searchParams?.toString() ?? "",
                     );
 
