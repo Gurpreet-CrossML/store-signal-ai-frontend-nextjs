@@ -1148,7 +1148,7 @@ export default function Support() {
         scroll: false,
       });
     },
-    [pathname, router],
+    [router, pathname],
   );
 
   // Insert or patch a thread in localThreads based on an incoming dashboard
