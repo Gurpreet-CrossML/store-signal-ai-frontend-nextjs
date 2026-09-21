@@ -16,10 +16,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
 import {
   resolveTemplateIcon,
   WhatsAppTemplateCategoryBadge,
-  WhatsAppTemplateQualityBadge,
   WhatsAppTemplateStatusBadge,
 } from "@/lib/whatsapp-template-helper";
 import type { WhatsAppTemplate } from "@/redux/api-slice/social-ai-slice";
@@ -35,6 +35,7 @@ export function getWhatsAppTemplateColumns(
   onEdit: (template: WhatsAppTemplate) => void,
   onDelete: (template: WhatsAppTemplate) => void,
   onResubmit: (template: WhatsAppTemplate) => void,
+  onToggleActive: (template: WhatsAppTemplate, checked: boolean) => void,
 ): ColumnDef<WhatsAppTemplate>[] {
   return [
     {
@@ -82,12 +83,19 @@ export function getWhatsAppTemplateColumns(
       ),
     },
     {
-      // Meta exposes no created/updated timestamp on a template — quality is
-      // the one other signal Meta computes over its lifetime, so it fills
-      // this column instead of a date the API can't actually supply.
-      id: "quality",
-      header: "Quality",
-      cell: () => <WhatsAppTemplateQualityBadge score={undefined} />,
+      accessorKey: "is_active",
+      header: "Active",
+      cell: ({ row }) => {
+        const template = row.original;
+        return (
+          <Switch
+            checked={template.is_active}
+            onCheckedChange={(checked) => onToggleActive(template, checked)}
+            aria-label={`Toggle ${template.name} active`}
+            onClick={(event) => event.stopPropagation()}
+          />
+        );
+      },
     },
     {
       id: "actions",

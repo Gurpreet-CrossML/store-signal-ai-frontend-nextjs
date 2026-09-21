@@ -426,6 +426,7 @@ export type WhatsAppTemplate = {
   file_type: string;
   file_size: number | null;
   file_url: string | null;
+  is_active: boolean;
   rejected_reason: string;
   last_synced_at: string | null;
   source_library_item: number | null;
@@ -658,6 +659,40 @@ export const updateWhatsAppTemplate = createAsyncThunk(
       const data = response?.data;
       toast.error("Couldn't update the template", {
         description: data?.message || "Please check the form and try again.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const toggleWhatsAppTemplateActive = createAsyncThunk(
+  "toggleWhatsAppTemplateActive",
+  async (
+    {
+      storeCode,
+      accountId,
+      templateId,
+      isActive,
+    }: {
+      storeCode: string;
+      accountId: string;
+      templateId: number;
+      isActive: boolean;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId })}?store_code=${storeCode}`,
+        { is_active: isActive },
+        { useBackend: true } as never,
+      );
+      return response.data.data as WhatsAppTemplate;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't update template status", {
+        description: data?.message || "Please try again.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -2243,6 +2278,13 @@ const SocialAISlice = createSlice({
         state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsSuccess = false;
         state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsError =
           action.payload as string | object;
+      })
+      .addCase(toggleWhatsAppTemplateActive.fulfilled, (state, action) => {
+        const updated = action.payload;
+        state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesData =
+          state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesData.map((t) =>
+            t.id === updated.id ? updated : t,
+          );
       })
       .addCase(fetchWhatsAppTemplateLibrary.pending, (state) => {
         state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsLoading = true;

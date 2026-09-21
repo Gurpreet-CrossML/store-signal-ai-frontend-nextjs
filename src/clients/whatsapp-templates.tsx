@@ -48,6 +48,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   deleteWhatsAppTemplate,
   fetchWhatsAppTemplates,
+  toggleWhatsAppTemplateActive,
   updateWhatsAppTemplate,
   type WhatsAppTemplate,
 } from "@/redux/api-slice/social-ai-slice";
@@ -193,6 +194,28 @@ export default function WhatsAppTemplates() {
     [storeCode, account, templates, dispatch],
   );
 
+  const handleToggleActive = useCallback(
+    async (template: WhatsAppTemplate, checked: boolean) => {
+      if (!storeCode || !account) return;
+      try {
+        await dispatch(
+          toggleWhatsAppTemplateActive({
+            storeCode,
+            accountId: String(account.id),
+            templateId: Number(template.id),
+            isActive: checked,
+          }),
+        ).unwrap();
+        toast.success(
+          checked ? "Template activated" : "Template deactivated",
+        );
+      } catch {
+        // The thunk already surfaces the error toast.
+      }
+    },
+    [storeCode, account, dispatch],
+  );
+
   const columns = useMemo(
     () =>
       getWhatsAppTemplateColumns(
@@ -201,8 +224,9 @@ export default function WhatsAppTemplates() {
           router.push(`/campaign/whatsapp-templates/${template.id}/edit`),
         (template) => setTemplateToDelete(template),
         handleResubmit,
+        handleToggleActive,
       ),
-    [router, handleResubmit],
+    [router, handleResubmit, handleToggleActive],
   );
 
   const handleConfirmDelete = async () => {
