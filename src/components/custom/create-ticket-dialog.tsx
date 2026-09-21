@@ -477,8 +477,9 @@ export function CreateTicketDialog({
         <DialogHeader>
           <DialogTitle>Create Ticket</DialogTitle>
           <DialogDescription>
-            Raise a help desk ticket from this conversation. It lands in the
-            open queue.
+            {onDraft
+              ? "Raise a help desk ticket from this conversation. It lands in the open queue."
+              : "Raise a help desk ticket on a customer's behalf. It lands in the open queue."}
           </DialogDescription>
         </DialogHeader>
 

@@ -1,3 +1,5 @@
+import type { ComponentType } from "react";
+
 import {
   IconAdjustmentsSpark,
   IconBan,
@@ -6,36 +8,43 @@ import {
   IconBooks,
   IconAlarmSnoozeFilled,
   IconArrowsExchange,
-  IconBrandFacebook,
-  IconBrandInstagram,
-  IconBrandMessenger,
+  // IconBrandFacebook,
+  // IconBrandInstagram,
+  // IconBrandMessenger,
   IconAddressBook,
-  IconBrandMeta,
+  // IconBrandMeta,
   IconBuildingSkyscraper,
+  // IconChecklist,
+  // IconClockShield,
   IconCreditCardOff,
   IconImageGeneration,
   IconHeadset,
   IconInbox,
+  // IconMessageCircle,
   IconMessageQuestion,
+  // IconMessages,
+  // IconSocial,
   IconPackageOff,
   IconPlugConnected,
-  IconSend,
+  // IconSend,
   IconSettings,
   IconShield,
-  IconShieldLock,
+  IconBuildingStore,
   IconTags,
   IconUserHexagon,
-  IconUsers,
+  // IconUsers,
   IconUser,
   IconUsersGroup,
   IconShoppingBag,
   IconVolume,
   type Icon,
   IconChartBar,
-  IconAutomaticGearbox,
-  IconPackageImport,
-  IconShoppingBagEdit,
+  // IconAutomaticGearbox,
+  // IconPackageImport,
+  // IconShoppingBagEdit,
 } from "@tabler/icons-react";
+
+import { CreateTicketAction } from "@/components/custom/helpdesk/create-ticket-action";
 
 /**
  * One screen inside a multi-screen area.
@@ -59,6 +68,8 @@ export type NavArea = {
   description: string;
   icon: Icon;
   sections: AreaSection[];
+  /** Rendered above the sub-sidebar's entries: an action the whole area shares. */
+  action?: ComponentType;
 };
 
 /**
@@ -107,6 +118,7 @@ export const NAV_AREAS = {
     title: "Help Desk",
     description: "Customer tickets, grouped by what needs doing next.",
     icon: IconHeadset,
+    action: CreateTicketAction,
     sections: [
       {
         href: "/helpdesk",
@@ -114,18 +126,18 @@ export const NAV_AREAS = {
         description: "Every ticket for this store.",
         icon: IconInbox,
       },
-      {
-        href: "/helpdesk?filter=unassigned",
-        title: "Unassigned",
-        description: "Tickets nobody has picked up yet.",
-        icon: IconUser,
-      },
-      {
-        href: "/helpdesk?filter=snoozed",
-        title: "Snoozed",
-        description: "Tickets set aside until a chosen time.",
-        icon: IconAlarmSnoozeFilled,
-      },
+      // {
+      //   href: "/helpdesk?filter=unassigned",
+      //   title: "Unassigned",
+      //   description: "Tickets nobody has picked up yet.",
+      //   icon: IconUser,
+      // },
+      // {
+      //   href: "/helpdesk?filter=snoozed",
+      //   title: "Snoozed",
+      //   description: "Tickets set aside until a chosen time.",
+      //   icon: IconAlarmSnoozeFilled,
+      // },
       {
         href: "/helpdesk?filter=Order_Return",
         title: "Order Return",
@@ -161,20 +173,21 @@ export const NAV_AREAS = {
           "Your company's contact details, logo, and address. The name and code are managed by the platform operator.",
         icon: IconBuildingSkyscraper,
       },
-      {
-        href: "/settings/staff-management",
-        title: "Staff Management",
-        description: "Invite teammates and control who has access.",
-        pageDescription:
-          "Manage your company's users. New staff receive an emailed temporary password.",
-        icon: IconUsers,
-      },
+      // {
+      //   href: "/settings/staff-management",
+      //   title: "Staff Management",
+      //   description: "Invite teammates and control who has access.",
+      //   pageDescription:
+      //     "Manage your company's users. New staff receive an emailed temporary password.",
+      //   icon: IconUsers,
+      // },
       {
         href: "/settings/store",
-        title: "Store Settings",
-        description: "Restrict which visitors can see the chat widget.",
-        pageDescription: "Controls that apply to the store you have selected.",
-        icon: IconShieldLock,
+        title: "Stores",
+        description: "The stores connected to your company.",
+        pageDescription:
+          "Every store connected to your company. Switch which one the dashboard works on, limit its widget to specific IPs, or deactivate it.",
+        icon: IconBuildingStore,
       },
       {
         href: "/settings/tags",
@@ -184,12 +197,12 @@ export const NAV_AREAS = {
           "Label support tickets so they can be grouped, filtered and found quickly.",
         icon: IconTags,
       },
-      {
-        href: "/settings/integrations",
-        title: "Integrations",
-        description: "Connect your store and third-party platforms.",
-        icon: IconPlugConnected,
-      },
+      // {
+      //   href: "/settings/integrations",
+      //   title: "Integrations",
+      //   description: "Connect your store and third-party platforms.",
+      //   icon: IconPlugConnected,
+      // },
       {
         href: "/settings/ai-usage",
         title: "AI Usage",
@@ -198,53 +211,98 @@ export const NAV_AREAS = {
           "Token spend, workflow costs and response latency for this store's assistant.",
         icon: IconChartBar,
       },
-      {
-        href: "/settings/social-ai",
-        title: "Social AI",
-        description:
-          "Facebook and Instagram accounts connected to Store Signal AI.",
-        pageDescription:
-          "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
-        icon: IconBrandMeta,
-      },
-      {
-        href: "/settings/workflows",
-        title: "Workflows",
-        description:
-          "The rules the AI follows for order cancellation, modification, and returns.",
-        pageDescription:
-          "The rules and guardrails the AI follows when it cancels, modifies, or refunds an order on your behalf.",
-        icon: IconAutomaticGearbox,
-        items: [
-          {
-            href: "/settings/workflows/order-cancellation",
-            title: "Order Cancellation",
-            description:
-              "The rules the AI follows when it cancels an order on your behalf.",
-            pageDescription:
-              "The rules and guardrails the AI follows when it cancels an order on your behalf.",
-            icon: IconPackageOff,
-          },
-          {
-            href: "/settings/workflows/order-modification",
-            title: "Order Modification",
-            description:
-              "The rules the AI follows when it modifies an order on your behalf.",
-            pageDescription:
-              "The rules and guardrails the AI follows when it modifies an order on your behalf.",
-            icon: IconShoppingBagEdit,
-          },
-          {
-            href: "/settings/workflows/order-returns",
-            title: "Order Returns",
-            description:
-              "The rules the AI follows when it processes a return on your behalf.",
-            pageDescription:
-              "The rules and guardrails the AI follows when it processes a return on your behalf.",
-            icon: IconPackageImport,
-          },
-        ],
-      },
+      // {
+      //   href: "/settings/social-ai",
+      //   title: "Social AI",
+      //   description:
+      //     "Connected accounts, and how the AI answers comments and DMs.",
+      //   pageDescription:
+      //     "The Facebook and Instagram accounts connected to Store Signal AI, and the rules the AI follows when it answers on them.",
+      //   icon: IconBrandMeta,
+      //   items: [
+      //     {
+      //       href: "/settings/social-ai/accounts",
+      //       title: "Connected Accounts",
+      //       description:
+      //         "Facebook and Instagram accounts connected to Store Signal AI.",
+      //       pageDescription:
+      //         "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
+      //       icon: IconSocial,
+      //     },
+      //     {
+      //       href: "/settings/social-ai/comment-handling",
+      //       title: "Comment Handling",
+      //       description: "How the AI reads, classifies and acts on comments.",
+      //       pageDescription:
+      //         "How the AI reads, classifies and acts on every comment on your posts and ads. Each comment is tagged by intent, then handled by the rule you set for that intent.",
+      //       icon: IconMessageCircle,
+      //     },
+      //     {
+      //       href: "/settings/social-ai/dm-automation",
+      //       title: "DM Automation",
+      //       description: "How the AI handles direct messages.",
+      //       pageDescription:
+      //         "How the AI handles direct messages — the private, higher-trust channel where orders, support and conversions happen. Meta's messaging rules are applied on top of everything set here.",
+      //       icon: IconMessages,
+      //     },
+      //     {
+      //       href: "/settings/social-ai/guardrails",
+      //       title: "Guardrails & Limits",
+      //       description:
+      //         "Rate and pacing ceilings that keep every account safe.",
+      //       pageDescription:
+      //         "Rate and pacing ceilings, set per connected account, that keep automation well inside spam-safe territory.",
+      //       icon: IconClockShield,
+      //     },
+      //     {
+      //       href: "/settings/social-ai/meta-compliance",
+      //       title: "Meta Compliance",
+      //       description:
+      //         "The platform rails enforced on every connected account.",
+      //       pageDescription:
+      //         "The Meta rules enforced automatically on every connected account, so nothing you configure can put your accounts at risk.",
+      //       icon: IconShield,
+      //     },
+      //   ],
+      // },
+      // {
+      //   href: "/settings/workflows",
+      //   title: "Workflows",
+      //   description:
+      //     "The rules the AI follows for order cancellation, modification, and returns.",
+      //   pageDescription:
+      //     "The rules and guardrails the AI follows when it cancels, modifies, or refunds an order on your behalf.",
+      //   icon: IconAutomaticGearbox,
+      //   items: [
+      //     {
+      //       href: "/settings/workflows/order-cancellation",
+      //       title: "Order Cancellation",
+      //       description:
+      //         "The rules the AI follows when it cancels an order on your behalf.",
+      //       pageDescription:
+      //         "The rules and guardrails the AI follows when it cancels an order on your behalf.",
+      //       icon: IconPackageOff,
+      //     },
+      //     {
+      //       href: "/settings/workflows/order-modification",
+      //       title: "Order Modification",
+      //       description:
+      //         "The rules the AI follows when it modifies an order on your behalf.",
+      //       pageDescription:
+      //         "The rules and guardrails the AI follows when it modifies an order on your behalf.",
+      //       icon: IconShoppingBagEdit,
+      //     },
+      //     {
+      //       href: "/settings/workflows/order-returns",
+      //       title: "Order Returns",
+      //       description:
+      //         "The rules the AI follows when it processes a return on your behalf.",
+      //       pageDescription:
+      //         "The rules and guardrails the AI follows when it processes a return on your behalf.",
+      //       icon: IconPackageImport,
+      //     },
+      //   ],
+      // },
     ],
   },
 
@@ -271,24 +329,24 @@ export const NAV_AREAS = {
           "Define how your assistant communicates. Choose a preset and fine-tune the tone to match your brand and customers.",
         icon: IconAdjustmentsSpark,
       },
-      {
-        href: "/brand-voice/vocabulary",
-        title: "Vocabulary",
-        description:
-          "Preferred words, banned words, signature phrases, and word swaps.",
-        pageDescription:
-          "The specific words that make your brand sound like you — phrases to lean into, words to avoid, and swaps the AI applies.",
-        icon: IconBook2,
-      },
-      {
-        href: "/brand-voice/never-say-rules",
-        title: "Never-Say Rules",
-        description:
-          "Language guardrails — phrases, claims, and behaviors the AI avoids.",
-        pageDescription:
-          "Language guardrails — the phrases, claims, and behaviors the AI avoids in conversation.",
-        icon: IconBan,
-      },
+      // {
+      //   href: "/brand-voice/vocabulary",
+      //   title: "Vocabulary",
+      //   description:
+      //     "Preferred words, banned words, signature phrases, and word swaps.",
+      //   pageDescription:
+      //     "The specific words that make your brand sound like you — phrases to lean into, words to avoid, and swaps the AI applies.",
+      //   icon: IconBook2,
+      // },
+      // {
+      //   href: "/brand-voice/never-say-rules",
+      //   title: "Never-Say Rules",
+      //   description:
+      //     "Language guardrails — phrases, claims, and behaviors the AI avoids.",
+      //   pageDescription:
+      //     "Language guardrails — the phrases, claims, and behaviors the AI avoids in conversation.",
+      //   icon: IconBan,
+      // },
       {
         href: "/brand-voice/customisation",
         title: "Widget Customisation",
@@ -332,39 +390,47 @@ export const NAV_AREAS = {
     ],
   },
 
-  socialAI: {
-    href: "/social-ai",
-    title: "Social AI",
-    description:
-      "AI-handled comments and messages across your connected social accounts.",
-    icon: IconBrandMeta,
-    sections: [
-      {
-        href: "/social-ai/facebook-post",
-        title: "Facebook Posts",
-        description: "AI replies to comments on your Facebook posts.",
-        icon: IconBrandFacebook,
-      },
-      {
-        href: "/social-ai/facebook-messages",
-        title: "Facebook Messages",
-        description: "AI conversations in your Facebook page inbox.",
-        icon: IconBrandMessenger,
-      },
-      {
-        href: "/social-ai/instagram-post",
-        title: "Instagram Posts",
-        description: "AI replies to comments on your Instagram posts.",
-        icon: IconBrandInstagram,
-      },
-      {
-        href: "/social-ai/instagram-messages",
-        title: "Instagram Messages",
-        description: "AI conversations in your Instagram direct messages.",
-        icon: IconSend,
-      },
-    ],
-  },
+  // socialAI: {
+  //   href: "/social-ai",
+  //   title: "Social AI",
+  //   description:
+  //     "AI-handled comments and messages across your connected social accounts.",
+  //   icon: IconBrandMeta,
+  //   sections: [
+  //     {
+  //       href: "/social-ai/facebook-post",
+  //       title: "Facebook Posts",
+  //       description: "AI replies to comments on your Facebook posts.",
+  //       icon: IconBrandFacebook,
+  //     },
+  //     {
+  //       href: "/social-ai/facebook-messages",
+  //       title: "Facebook Messages",
+  //       description: "AI conversations in your Facebook page inbox.",
+  //       icon: IconBrandMessenger,
+  //     },
+  //     {
+  //       href: "/social-ai/instagram-post",
+  //       title: "Instagram Posts",
+  //       description: "AI replies to comments on your Instagram posts.",
+  //       icon: IconBrandInstagram,
+  //     },
+  //     {
+  //       href: "/social-ai/instagram-messages",
+  //       title: "Instagram Messages",
+  //       description: "AI conversations in your Instagram direct messages.",
+  //       icon: IconSend,
+  //     },
+  //     {
+  //       href: "/social-ai/comment-drafts",
+  //       title: "Draft Review",
+  //       description: "Review AI-drafted comment replies before they go out.",
+  //       pageDescription:
+  //         "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
+  //       icon: IconChecklist,
+  //     },
+  //   ],
+  // },
 } as const satisfies Record<string, NavArea>;
 
 export type NavAreaKey = keyof typeof NAV_AREAS;

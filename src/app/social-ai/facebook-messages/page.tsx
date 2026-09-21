@@ -1,6 +1,8 @@
-import { Suspense } from "react";
+import { notFound } from "next/navigation";
 
-import FacebookMessages from "@/clients/facebook-messages";
+// import { Suspense } from "react";
+//
+// import FacebookMessages from "@/clients/facebook-messages";
 
 /**
  * Rendered per request. What this screen shows is decided by the
@@ -8,16 +10,17 @@ import FacebookMessages from "@/clients/facebook-messages";
  * served from the client router cache for the path alone — so
  * changing only the query could leave the previous view on screen.
  */
-export const dynamic = "force-dynamic";
+// export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Facebook Messages",
-};
+// export const metadata = {
+//   title: "Facebook Messages",
+// };
 
 export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <FacebookMessages />
-    </Suspense>
-  );
+  notFound();
+  // return (
+  //   <Suspense fallback={null}>
+  //     <FacebookMessages />
+  //   </Suspense>
+  // );
 }

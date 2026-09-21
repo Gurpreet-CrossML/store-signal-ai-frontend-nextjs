@@ -44,6 +44,7 @@ import ReactMarkdown from "react-markdown";
 import { useFormik } from "formik";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -652,8 +653,8 @@ function ConversationPanel({
   reply: string;
   isSending: boolean;
   onReplyChange: (value: string) => void;
-  /** Reply is the default; an internal note is the deliberate other choice. */
-  onSend: (mode: "reply" | "note") => void;
+  /** Reply is the default; internal note and translated reply are deliberate choices. */
+  onSend: (mode: "reply" | "note" | "customer_language") => void;
   onAcceptDraft: () => void;
   onSaveDraft: () => void;
   availableTags: SupportTicketTagData[];
@@ -683,7 +684,14 @@ function ConversationPanel({
   onLinkCustomer: () => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
+  const [selectedSendMode, setSelectedSendMode] = useState<
+    "reply" | "customer_language"
+  >("reply");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const selectedSendLabel =
+    selectedSendMode === "customer_language"
+      ? "Send in Customer Language"
+      : "Send";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
@@ -805,7 +813,7 @@ function ConversationPanel({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Combobox items={availableStaff}>
+          {/* <Combobox items={availableStaff}>
             <ComboboxInput
               className="h-8 w-28 2xl:w-40"
               placeholder={
@@ -842,7 +850,7 @@ function ConversationPanel({
                 )}
               </ComboboxList>
             </ComboboxContent>
-          </Combobox>
+          </Combobox> */}
 
           {/* The two endings a ticket actually has, one click away —
               they were buried in the status Select behind the ⋮ menu. */}
@@ -878,12 +886,10 @@ function ConversationPanel({
             <TooltipContent>Close ticket</TooltipContent>
           </Tooltip>
 
-          <DropdownMenu>
+          {/* <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
                 <DropdownMenuTrigger asChild disabled={isClosed}>
-                  {/* Icon only until it is snoozed — then the time it wakes
-                      up is worth the width. */}
                   <Button
                     variant="outline"
                     size={ticket?.is_snoozed ? "sm" : "icon-sm"}
@@ -921,7 +927,7 @@ function ConversationPanel({
                 </>
               )}
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
         </div>
       </header>
 
@@ -947,6 +953,11 @@ function ConversationPanel({
             <Typography variant="caption" className="shrink-0">
               {ticketRef(ticket.id)}
             </Typography>
+            {ticket.order_id ? (
+              <Typography variant="caption" className="shrink-0">
+                ORDER-#{ticket.order_id}
+              </Typography>
+            ) : null}
           </div>
 
           {/* Facts close the subject line, and say what each date is — two
@@ -1028,11 +1039,11 @@ function ConversationPanel({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {!ticket.internal_assignee && ticket.status === "open" ? (
+            {/* {!ticket.internal_assignee && ticket.status === "open" ? (
               <Badge variant="outline" className={BADGE_TONE_STYLES.accent}>
                 Unassigned
               </Badge>
-            ) : null}
+            ) : null} */}
           </div>
 
           {/* Tags live in their own scrollable strip, so however many
@@ -1167,6 +1178,13 @@ function ConversationPanel({
             </div>
           ) : (
             messages.map((message) => {
+              // A "system" message (the ticket summary, or an issue the AI
+              // adds later) deliberately shares the customer bubble: it is
+              // anything that is not a note or an agent reply.
+              const SystemIcon =
+                ticket.channel === "web"
+                  ? IconSparkles
+                  : (CHANNEL_META[ticket.channel]?.icon ?? IconSparkles);
               const isNote = message.message_type === "internal";
               // Notes are written by staff, so they sit on the staff side.
               const isOutgoing = isNote || message.sender_type === "agent";
@@ -1192,6 +1210,12 @@ function ConversationPanel({
                         A
                       </AvatarFallback>
                     </Avatar>
+                  ) : message.sender_type === "system" ? (
+                    // Nobody wrote it, so no initials: the channel the
+                    // ticket came in on, sparkles for the web assistant.
+                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      <SystemIcon className="size-3.5" />
+                    </div>
                   ) : (
                     <CustomerAvatar name={customerName} size="size-7" />
                   )}
@@ -1415,20 +1439,53 @@ function ConversationPanel({
               </TooltipTrigger>
               <TooltipContent>Send as Internal Note</TooltipContent>
             </Tooltip>
-            <Button
-              size="sm"
-              onClick={() => onSend("reply")}
-              disabled={
-                isSending || isMessageImproving || isClosed || isTranslating
-              }
-            >
-              {isSending ? (
-                <Spinner className="size-4" />
-              ) : (
-                <IconSend className="size-4" />
-              )}
-              {isSending ? "Sending…" : "Send"}
-            </Button>
+            <ButtonGroup>
+              <Button
+                size="sm"
+                onClick={() => onSend(selectedSendMode)}
+                disabled={
+                  isSending || isMessageImproving || isClosed || isTranslating
+                }
+              >
+                {isSending ? (
+                  <Spinner className="size-4" />
+                ) : (
+                  <IconSend className="size-4" />
+                )}
+                {isSending ? "Sending…" : selectedSendLabel}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    disabled={
+                      isSending ||
+                      isMessageImproving ||
+                      isClosed ||
+                      isTranslating
+                    }
+                    className="px-2"
+                    aria-label="Choose send option"
+                  >
+                    <IconChevronDown className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60">
+                  <DropdownMenuItem
+                    onClick={() => setSelectedSendMode("reply")}
+                  >
+                    <IconSend className="size-4" />
+                    Send
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setSelectedSendMode("customer_language")}
+                  >
+                    <IconLanguage className="size-4" />
+                    Send in Customer Language
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </ButtonGroup>
           </div>
         </div>
       </div>
@@ -1846,7 +1903,13 @@ export default function HelpDesk() {
           return;
         }
 
-        if (payload.event === "customer_message") {
+        // "ticket_updated" is the AI adding an issue to an existing ticket:
+        // same payload as a customer message, and the same consequences —
+        // top of the list, unread, new preview, appended if open.
+        if (
+          payload.event === "customer_message" ||
+          payload.event === "ticket_updated"
+        ) {
           const incomingTicket = payload.ticket;
           const incomingMessage = payload.message;
 
@@ -2407,7 +2470,8 @@ export default function HelpDesk() {
   };
 
   const handleStaffAssign = async (staffId: number | null) => {
-    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+    const ticketId = currentActiveSupportTicketIdRef.current;
+    if (!storeCode || !ticketId) return;
 
     try {
       const payload = {
@@ -2417,16 +2481,25 @@ export default function HelpDesk() {
       await dispatch(
         SupportTicketStaffAssign({
           storeCode,
-          ticketId: currentActiveSupportTicketIdRef.current,
+          ticketId,
           payload,
         }),
       ).unwrap();
 
       const assignedStaff = staff.find((member) => member.id === staffId);
+      const leavesUnassignedTab =
+        activeFilter === "unassigned" && staffId !== null;
 
-      setTicketRows((current) =>
-        current.map((ticket) =>
-          ticket.id === currentActiveSupportTicketIdRef.current
+      setTicketRows((current) => {
+        if (leavesUnassignedTab) {
+          const index = current.findIndex((ticket) => ticket.id === ticketId);
+          const nextTicket = current[index + 1] ?? current[index - 1];
+          setActiveTicketId(nextTicket?.id ?? null);
+          return current.filter((ticket) => ticket.id !== ticketId);
+        }
+
+        return current.map((ticket) =>
+          ticket.id === ticketId
             ? {
                 ...ticket,
                 internal_assignee: assignedStaff
@@ -2438,8 +2511,8 @@ export default function HelpDesk() {
                   : null,
               }
             : ticket,
-        ),
-      );
+        );
+      });
 
       setActiveSupportTicket((current) =>
         current
@@ -2507,7 +2580,9 @@ export default function HelpDesk() {
     }
   };
 
-  const handleSend = async (mode: "reply" | "note" = "reply") => {
+  const handleSend = async (
+    mode: "reply" | "note" | "customer_language" = "reply",
+  ) => {
     if (!storeCode) return;
 
     const trimmedReply = reply.trim();
@@ -2548,6 +2623,9 @@ export default function HelpDesk() {
 
       if (mode === "note") {
         formData.append("message_type", "internal");
+      }
+      if (mode === "customer_language") {
+        formData.append("translate_message", "true");
       }
 
       const sentMessage = await dispatch(
@@ -2630,23 +2708,38 @@ export default function HelpDesk() {
       ).unwrap();
 
       if (ticketSnoozed) {
-        setTicketRows((current) =>
-          current.map((ticket) =>
-            ticket.id === currentActiveSupportTicketIdRef.current
-              ? { ...ticket, is_snoozed: !!ticketSnoozed?.snoozed_until }
-              : ticket,
-          ),
-        );
+        const isUnsnoozed = !ticketSnoozed?.snoozed_until;
 
-        setActiveSupportTicket((current) =>
-          current
-            ? {
-                ...current,
-                is_snoozed: !!ticketSnoozed?.snoozed_until,
-                snoozed_until: ticketSnoozed?.snoozed_until,
-              }
-            : current,
-        );
+        // When removing a snooze while the "Snoozed" filter is active, the
+        // ticket no longer belongs in this view — pull it out of the list and
+        // clear the active ticket so the panel resets to "No ticket selected".
+        if (isUnsnoozed && activeFilter === "snoozed") {
+          setTicketRows((current) =>
+            current.filter(
+              (ticket) => ticket.id !== currentActiveSupportTicketIdRef.current,
+            ),
+          );
+          setActiveSupportTicket(null);
+          setActiveTicketId(null);
+        } else {
+          setTicketRows((current) =>
+            current.map((ticket) =>
+              ticket.id === currentActiveSupportTicketIdRef.current
+                ? { ...ticket, is_snoozed: isUnsnoozed ? false : true }
+                : ticket,
+            ),
+          );
+
+          setActiveSupportTicket((current) =>
+            current
+              ? {
+                  ...current,
+                  is_snoozed: !isUnsnoozed,
+                  snoozed_until: ticketSnoozed?.snoozed_until,
+                }
+              : current,
+          );
+        }
 
         toast.success(
           snoozeTime === null ? "Snooze removed" : "Ticket snoozed",
