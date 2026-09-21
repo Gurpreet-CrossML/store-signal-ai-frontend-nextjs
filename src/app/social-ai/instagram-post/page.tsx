@@ -1,6 +1,8 @@
-import { Suspense } from "react";
+import { notFound } from "next/navigation";
 
-import InstagramPosts from "@/clients/instagram-post";
+// import { Suspense } from "react";
+//
+// import InstagramPosts from "@/clients/instagram-post";
 
 /**
  * Rendered per request. What this screen shows is decided by the
@@ -8,16 +10,17 @@ import InstagramPosts from "@/clients/instagram-post";
  * served from the client router cache for the path alone — so
  * changing only the query could leave the previous view on screen.
  */
-export const dynamic = "force-dynamic";
+// export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Instagram Posts",
-};
+// export const metadata = {
+//   title: "Instagram Posts",
+// };
 
 export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <InstagramPosts />
-    </Suspense>
-  );
+  notFound();
+  // return (
+  //   <Suspense fallback={null}>
+  //     <InstagramPosts />
+  //   </Suspense>
+  // );
 }
