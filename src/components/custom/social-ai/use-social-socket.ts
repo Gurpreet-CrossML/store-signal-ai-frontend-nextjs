@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 
 import { ENDPOINTS } from "@/lib/config";
 import type {
+  CommentDraft,
   SocialComment,
   SocialCommentAiResponse,
   SocialCommentAnalysis,
@@ -39,6 +40,18 @@ export type SocialCommentAiResponseEvent = {
   ai_response: SocialCommentAiResponse;
 };
 
+/**
+ * The AI prepared a pending comment draft, or an existing one changed
+ * (edited, approved or discarded — status says which). `draft` is the
+ * complete queue row, comment and tags nested, so no follow-up read is
+ * needed.
+ */
+export type SocialCommentDraftEvent = {
+  post_external_id: string | null;
+  account_external_id: string | null;
+  draft: CommentDraft;
+};
+
 export type SocialSocketEvent =
   | { action_type: "connection" }
   | { action_type: "dm_created"; data: SocialDmEvent }
@@ -47,7 +60,9 @@ export type SocialSocketEvent =
   | {
       action_type: "comment_ai_response";
       data: SocialCommentAiResponseEvent;
-    };
+    }
+  | { action_type: "comment_draft_created"; data: SocialCommentDraftEvent }
+  | { action_type: "comment_draft_updated"; data: SocialCommentDraftEvent };
 
 // Backoff between reconnect attempts, capped so a long outage doesn't turn
 // into a permanently dead socket.

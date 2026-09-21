@@ -86,6 +86,8 @@ type ThreadListRow = {
   is_active: boolean;
   total_messages: number;
   created_at: string;
+  last_message_at: string | null;
+  cart_total: string | number;
   ended_at: string | null;
   customer_id: number | null;
   customer_first_name: string | null;
@@ -101,6 +103,8 @@ export type ThreadListItem = {
   is_active: boolean;
   total_messages: number;
   created_at: string;
+  last_message_at: string | null;
+  cart_total: number;
   ended_at: string | null;
   tags: string[];
   last_message: string;
@@ -274,6 +278,10 @@ export async function list_threads(
       is_active: chatThread.isActive,
       total_messages: count(chatHistory.id),
       created_at: chatThread.createdAt,
+      last_message_at: max(chatHistory.createdAt),
+      cart_total: sql<
+        string | number
+      >`COALESCE((SELECT NULLIF(regexp_replace(${userMetadata.updatedCartData}->>'total', '[^0-9.]', '', 'g'), '')::numeric FROM ${userMetadata} WHERE ${userMetadata.threadId} = ${chatThread.id} LIMIT 1), 0)`,
       ended_at: chatThread.endedAt,
       customer_id: chatCustomer.id,
       customer_first_name: chatCustomer.firstName,
@@ -362,6 +370,8 @@ export async function list_threads(
       is_active: row.is_active,
       total_messages: Number(row.total_messages),
       created_at: row.created_at,
+      last_message_at: row.last_message_at,
+      cart_total: Number(row.cart_total ?? 0),
       ended_at: row.ended_at,
       tags: tagsByThread.get(row.id) ?? [],
       last_message: lastMessageByThread.get(row.id) ?? "",

@@ -29,6 +29,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   ConnectedAccount,
   fetchSocialAccountsSubscriptions,
+  fetchSocialPost,
   fetchSocialPosts,
   SocialPost,
 } from "@/redux/api-slice/social-ai-slice";
@@ -141,6 +142,10 @@ export default function SocialPostsFeed({
   // comments can be shared with teammates and deep-linked directly.
   const postParam = searchParams?.get("post") ?? null;
   const [appliedPostParam, setAppliedPostParam] = useState<string | null>(null);
+  // A deep-linked post may live beyond the loaded pages — the single-post
+  // read resolves it directly, so the link never depends on pagination.
+  const [resolvedPost, setResolvedPost] = useState<SocialPost | null>(null);
+  const [resolveFailedFor, setResolveFailedFor] = useState<string | null>(null);
 
   // The accounts/posts state slots are shared by both channel screens, so
   // the store may briefly hold the other channel's rows right after
@@ -165,6 +170,24 @@ export default function SocialPostsFeed({
   }, [storeCode, dispatch]);
 
   const accountExternalId = selectedAccount?.external_id ?? null;
+
+  useEffect(() => {
+    if (!storeCode || !postParam) return;
+    let cancelled = false;
+    dispatch(fetchSocialPost({ storeCode, postId: postParam }))
+      .unwrap()
+      .then((post) => {
+        if (!cancelled) setResolvedPost(post);
+      })
+      .catch(() => {
+        // The thunk toasted; remember the miss so "post not found" can
+        // say so instead of waiting forever.
+        if (!cancelled) setResolveFailedFor(postParam);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, storeCode, postParam]);
 
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(search), 300);
@@ -237,17 +260,35 @@ export default function SocialPostsFeed({
     loading: FetchSocialPostsIsLoading,
   });
 
+  // The list row wins when loaded (it highlights in the sidebar); the
+  // directly-resolved post covers a deep link beyond the loaded pages.
+  // Channel-checked: the shared slot could hand back the other screen's
+  // kind of post.
+  const findPost = (externalId: string | null) => {
+    if (!externalId) return undefined;
+    return (
+      posts.find((post) => post.external_id === externalId) ??
+      (resolvedPost?.external_id === externalId &&
+      resolvedPost.channel_type === channelType
+        ? resolvedPost
+        : undefined)
+    );
+  };
+
   // No auto-selection: a post opens via the ?post= URL param or a click, so
   // "no post selected" is a real state.
-  let activePost = posts.find((post) => post.external_id === selectedPostId);
+  let activePost = findPost(selectedPostId);
 
-  // Apply the ?post= param once the list is available — this is what makes
-  // shared post links open directly. Guarded render-time adjustment; clicks
-  // flow the other way (state → URL).
-  if (postParam && !postsLoading && appliedPostParam !== postParam) {
-    setAppliedPostParam(postParam);
-    const fromUrl = posts.find((post) => post.external_id === postParam);
+  // Apply the ?post= param once its post is known — this is what makes
+  // shared post links open directly. Marked applied only on a hit: on a
+  // fresh mount the loading flags are still false before the fetch has
+  // dispatched, so gating on "not loading" used to consume the param
+  // against an empty list and never retry once the posts arrived. Guarded
+  // render-time adjustment; clicks flow the other way (state → URL).
+  if (postParam && appliedPostParam !== postParam) {
+    const fromUrl = findPost(postParam);
     if (fromUrl) {
+      setAppliedPostParam(postParam);
       setSelectedPostId(fromUrl.external_id);
       activePost = fromUrl;
     }
@@ -257,7 +298,9 @@ export default function SocialPostsFeed({
     !activePost &&
     !!postParam &&
     !postsLoading &&
-    !posts.some((post) => post.external_id === postParam);
+    !posts.some((post) => post.external_id === postParam) &&
+    // The direct read is the authority — only its miss settles "not found".
+    resolveFailedFor === postParam;
 
   const account: AccountIdentity = selectedAccount
     ? {

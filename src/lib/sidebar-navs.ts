@@ -1,3 +1,4 @@
+import type { ComponentType } from "react";
 import {
   IconMessage2,
   IconMessageUser,
@@ -5,7 +6,12 @@ import {
   type Icon,
 } from "@tabler/icons-react";
 
-import { NAV_AREAS, type AreaSection, type NavAreaKey } from "@/lib/nav-areas";
+import {
+  NAV_AREAS,
+  type AreaSection,
+  type NavArea,
+  type NavAreaKey,
+} from "@/lib/nav-areas";
 
 export type SideBarMenuItem = {
   title: string;
@@ -18,6 +24,7 @@ export type SubSidebarMenuItem = {
   title: string;
   icon: Icon;
   items: SideBarMenuItem[];
+  action?: ComponentType;
 };
 
 export type MainSidebarMenuItem = {
@@ -256,12 +263,13 @@ function toMenuItem(section: AreaSection): SideBarMenuItem {
 /** Every area in NAV_AREAS as a sub-sidebar, keyed by its area key. */
 function areaSubSidebars(): Record<string, SubSidebarMenuItem> {
   return Object.fromEntries(
-    Object.entries(NAV_AREAS).map(([key, area]) => [
+    Object.entries<NavArea>(NAV_AREAS).map(([key, area]) => [
       key,
       {
         title: area.title,
         icon: area.icon,
         items: area.sections.map(toMenuItem),
+        ...(area.action ? { action: area.action } : {}),
       },
     ]),
   );
@@ -285,7 +293,7 @@ export const sidebarMenus: SideBarMenus = {
       icon: IconMessage2,
     },
     areaMenuItem("helpdesk", { adminOnly: true }),
-    areaMenuItem("socialAI"),
+    // areaMenuItem("socialAI"),
     areaMenuItem("crm"),
     areaMenuItem("brandVoice", { adminOnly: true }),
     areaMenuItem("settings", { adminOnly: true }),

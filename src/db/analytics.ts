@@ -1015,7 +1015,9 @@ export async function get_operational_efficiency(params: {
     .from(supportTicket)
     .where(sql`${supportTicket.threadId} IN ${threadSubquery}`);
   const escalatedCount = escalatedRows.length;
-  const escalatedThreadIds = escalatedRows.map((r) => r.threadId);
+  const escalatedThreadIds = escalatedRows
+    .map((r) => r.threadId)
+    .filter((id): id is string => id !== null);
 
   // Bot-resolved: SentimentAnalysis for in-range threads, excluding escalated,
   // resolved_queries > 0.
