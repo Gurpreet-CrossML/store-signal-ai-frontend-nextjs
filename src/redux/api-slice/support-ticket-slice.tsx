@@ -15,7 +15,9 @@ export type SupportTicketChannel =
   | "instagram"
   | "facebook";
 export type SupportTicketMessageType = "external" | "internal";
-export type SupportTicketMessageSenderType = "customer" | "agent";
+// "system" is written by neither side: the issue summary a ticket opens
+// with, or a further issue the AI adds to it later. Emailed to the customer.
+export type SupportTicketMessageSenderType = "customer" | "agent" | "system";
 export type SupportTicketMessageDirection = "incoming" | "outgoing";
 export type SupportTicketPlatfrom =
   | "internal"
@@ -29,7 +31,7 @@ export type SupportTicketMessageAttachment = "text/plain" | "multipart";
 export type SupportTicketDraftType = "manual" | "ai";
 
 export type SupportSocketPayload = {
-  event?: "ticket_created" | "customer_message";
+  event?: "ticket_created" | "customer_message" | "ticket_updated";
   ticket?: SupportTicket;
   message?: SupportTicketMessage;
 };

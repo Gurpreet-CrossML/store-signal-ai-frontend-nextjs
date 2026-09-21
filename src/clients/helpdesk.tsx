@@ -1178,6 +1178,13 @@ function ConversationPanel({
             </div>
           ) : (
             messages.map((message) => {
+              // A "system" message (the ticket summary, or an issue the AI
+              // adds later) deliberately shares the customer bubble: it is
+              // anything that is not a note or an agent reply.
+              const SystemIcon =
+                ticket.channel === "web"
+                  ? IconSparkles
+                  : (CHANNEL_META[ticket.channel]?.icon ?? IconSparkles);
               const isNote = message.message_type === "internal";
               // Notes are written by staff, so they sit on the staff side.
               const isOutgoing = isNote || message.sender_type === "agent";
@@ -1203,6 +1210,12 @@ function ConversationPanel({
                         A
                       </AvatarFallback>
                     </Avatar>
+                  ) : message.sender_type === "system" ? (
+                    // Nobody wrote it, so no initials: the channel the
+                    // ticket came in on, sparkles for the web assistant.
+                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      <SystemIcon className="size-3.5" />
+                    </div>
                   ) : (
                     <CustomerAvatar name={customerName} size="size-7" />
                   )}
@@ -1890,7 +1903,13 @@ export default function HelpDesk() {
           return;
         }
 
-        if (payload.event === "customer_message") {
+        // "ticket_updated" is the AI adding an issue to an existing ticket:
+        // same payload as a customer message, and the same consequences —
+        // top of the list, unread, new preview, appended if open.
+        if (
+          payload.event === "customer_message" ||
+          payload.event === "ticket_updated"
+        ) {
           const incomingTicket = payload.ticket;
           const incomingMessage = payload.message;
 
