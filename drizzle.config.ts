@@ -35,5 +35,10 @@ export default defineConfig({
   // django_tenants gives every schema its own `django_migrations`, so it exists
   // in both public and the tenant schema — a name collision drizzle-kit can't
   // resolve cleanly. We never query it, so exclude it from introspection.
-  tablesFilter: ["!django_migrations"],
+  //
+  // `checkpoint*` is the same collision from another owner: LangGraph's
+  // checkpointer creates its tables in both schemas too. They are the
+  // chatbot's internals — never read here — and their `bytea` columns come
+  // out as `unknown(...)`, which does not compile.
+  tablesFilter: ["!django_migrations", "!checkpoint*"],
 });

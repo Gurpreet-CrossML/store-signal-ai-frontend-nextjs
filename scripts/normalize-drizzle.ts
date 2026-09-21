@@ -97,7 +97,11 @@ function normalizeSchema(src: string): string {
   out = out.replace(new RegExp(`"${REF}\\."(\\w+)""`, "g"), '"$1"');
   out = out.replace(new RegExp(`"${REF}\\.(\\w+)"`, "g"), '"$1"');
   out = out.replace(/""(\w+)""/g, '"$1"');
-  // 5. Drop now-unused imports (everything is plain pgTable now).
+  // 5. drizzle-kit writes an empty-string default as `.default(')` — one
+  //    quote, which is a syntax error rather than a wrong value. Seen on the
+  //    LangGraph checkpoint tables (`checkpoint_ns`, `task_path`).
+  out = out.replace(/\.default\('\)/g, '.default("")');
+  // 6. Drop now-unused imports (everything is plain pgTable now).
   out = dropNamedImport(out, "pgSequence");
   out = dropNamedImport(out, "pgSchema");
   return out;
