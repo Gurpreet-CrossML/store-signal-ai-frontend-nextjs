@@ -1,21 +1,24 @@
-import { Suspense } from "react";
+import { notFound } from "next/navigation";
 
-import SettingsSocialAI from "@/clients/settings-social-ai";
-import { AreaSubPage } from "@/components/custom/area-sub-page";
-import { areaSectionMetadata } from "@/lib/nav-areas";
+// import { Suspense } from "react";
+//
+// import SettingsSocialAI from "@/clients/settings-social-ai";
+// import { AreaSubPage } from "@/components/custom/area-sub-page";
+// import { areaSectionMetadata } from "@/lib/nav-areas";
 
-const HREF = "/settings/social-ai/accounts";
+// const HREF = "/settings/social-ai/accounts";
 
-export const metadata = areaSectionMetadata(HREF);
+// export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
-  return (
-    <AreaSubPage href={HREF}>
-      {/* SettingsSocialAI reads useSearchParams (?page=); static prerender
-          requires a Suspense boundary around it. */}
-      <Suspense fallback={null}>
-        <SettingsSocialAI />
-      </Suspense>
-    </AreaSubPage>
-  );
+  notFound();
+  // return (
+  //   <AreaSubPage href={HREF}>
+  //     {/* SettingsSocialAI reads useSearchParams (?page=); static prerender
+  //         requires a Suspense boundary around it. */}
+  //     <Suspense fallback={null}>
+  //       <SettingsSocialAI />
+  //     </Suspense>
+  //   </AreaSubPage>
+  // );
 }
