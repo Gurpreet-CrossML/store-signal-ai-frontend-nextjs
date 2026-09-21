@@ -12,11 +12,11 @@ import { notFound } from "next/navigation";
 
 export default function Page() {
   notFound();
-//   return (
-//     <AreaSubPage href={HREF}>
-//       <Suspense fallback={null}>
-//         <BrandVoiceVocabularyEditor />
-//       </Suspense>
-//     </AreaSubPage>
-//   );
+  //   return (
+  //     <AreaSubPage href={HREF}>
+  //       <Suspense fallback={null}>
+  //         <BrandVoiceVocabularyEditor />
+  //       </Suspense>
+  //     </AreaSubPage>
+  //   );
 }
