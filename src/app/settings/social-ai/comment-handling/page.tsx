@@ -1,15 +1,18 @@
-import SocialCommentHandling from "@/clients/social-comment-handling";
-import { AreaSubPage } from "@/components/custom/area-sub-page";
-import { areaSectionMetadata } from "@/lib/nav-areas";
+import { notFound } from "next/navigation";
 
-const HREF = "/settings/social-ai/comment-handling";
+// import SocialCommentHandling from "@/clients/social-comment-handling";
+// import { AreaSubPage } from "@/components/custom/area-sub-page";
+// import { areaSectionMetadata } from "@/lib/nav-areas";
 
-export const metadata = areaSectionMetadata(HREF);
+// const HREF = "/settings/social-ai/comment-handling";
+//
+// export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
-  return (
-    <AreaSubPage href={HREF}>
-      <SocialCommentHandling />
-    </AreaSubPage>
-  );
+  notFound();
+  // return (
+  //   <AreaSubPage href={HREF}>
+  //     <SocialCommentHandling />
+  //   </AreaSubPage>
+  // );
 }

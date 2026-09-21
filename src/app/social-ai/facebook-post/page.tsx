@@ -1,6 +1,8 @@
-import { Suspense } from "react";
+import { notFound } from "next/navigation";
 
-import FacebookPosts from "@/clients/facebook-post";
+// import { Suspense } from "react";
+//
+// import FacebookPosts from "@/clients/facebook-post";
 
 /**
  * Rendered per request. What this screen shows is decided by the
@@ -8,16 +10,17 @@ import FacebookPosts from "@/clients/facebook-post";
  * served from the client router cache for the path alone — so
  * changing only the query could leave the previous view on screen.
  */
-export const dynamic = "force-dynamic";
+// export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Facebook Posts",
-};
+// export const metadata = {
+//   title: "Facebook Posts",
+// };
 
 export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <FacebookPosts />
-    </Suspense>
-  );
+  notFound();
+  // return (
+  //   <Suspense fallback={null}>
+  //     <FacebookPosts />
+  //   </Suspense>
+  // );
 }

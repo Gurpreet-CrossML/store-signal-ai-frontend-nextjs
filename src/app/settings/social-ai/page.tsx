@@ -1,4 +1,6 @@
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+
+// import { redirect } from "next/navigation";
 
 /**
  * Social AI has no screen of its own — it is a heading over three.
@@ -10,5 +12,6 @@ import { redirect } from "next/navigation";
  * a blank page.
  */
 export default function Page() {
-  redirect("/settings/social-ai/accounts");
+  notFound();
+  // redirect("/settings/social-ai/accounts");
 }
