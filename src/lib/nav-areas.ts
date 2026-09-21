@@ -197,12 +197,12 @@ export const NAV_AREAS = {
           "Label support tickets so they can be grouped, filtered and found quickly.",
         icon: IconTags,
       },
-      {
-        href: "/settings/integrations",
-        title: "Integrations",
-        description: "Connect your store and third-party platforms.",
-        icon: IconPlugConnected,
-      },
+      // {
+      //   href: "/settings/integrations",
+      //   title: "Integrations",
+      //   description: "Connect your store and third-party platforms.",
+      //   icon: IconPlugConnected,
+      // },
       {
         href: "/settings/ai-usage",
         title: "AI Usage",
@@ -329,24 +329,24 @@ export const NAV_AREAS = {
           "Define how your assistant communicates. Choose a preset and fine-tune the tone to match your brand and customers.",
         icon: IconAdjustmentsSpark,
       },
-      {
-        href: "/brand-voice/vocabulary",
-        title: "Vocabulary",
-        description:
-          "Preferred words, banned words, signature phrases, and word swaps.",
-        pageDescription:
-          "The specific words that make your brand sound like you — phrases to lean into, words to avoid, and swaps the AI applies.",
-        icon: IconBook2,
-      },
-      {
-        href: "/brand-voice/never-say-rules",
-        title: "Never-Say Rules",
-        description:
-          "Language guardrails — phrases, claims, and behaviors the AI avoids.",
-        pageDescription:
-          "Language guardrails — the phrases, claims, and behaviors the AI avoids in conversation.",
-        icon: IconBan,
-      },
+      // {
+      //   href: "/brand-voice/vocabulary",
+      //   title: "Vocabulary",
+      //   description:
+      //     "Preferred words, banned words, signature phrases, and word swaps.",
+      //   pageDescription:
+      //     "The specific words that make your brand sound like you — phrases to lean into, words to avoid, and swaps the AI applies.",
+      //   icon: IconBook2,
+      // },
+      // {
+      //   href: "/brand-voice/never-say-rules",
+      //   title: "Never-Say Rules",
+      //   description:
+      //     "Language guardrails — phrases, claims, and behaviors the AI avoids.",
+      //   pageDescription:
+      //     "Language guardrails — the phrases, claims, and behaviors the AI avoids in conversation.",
+      //   icon: IconBan,
+      // },
       {
         href: "/brand-voice/customisation",
         title: "Widget Customisation",
