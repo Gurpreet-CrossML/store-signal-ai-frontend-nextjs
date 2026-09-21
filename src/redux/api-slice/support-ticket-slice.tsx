@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
+import { getApiErrorMessage } from "@/lib/helpers";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 import { OrderData } from "@/redux/api-slice/thread-slice";
@@ -143,6 +144,7 @@ export type SupportTicketDraftMessage = {
 
 export type SupportTicket = {
   id: number;
+  order_id?: string | null;
   customer: string | SupportTicketCustomer | null;
   internal_assignee: SupportTicketAssignee | null;
 
@@ -427,14 +429,18 @@ export const CreateSupportTicket = createAsyncThunk(
       payload,
     }: {
       storeCode: string;
-      threadId: string;
+      /** The live chat it came from; omit for a ticket an agent raises cold. */
+      threadId?: string;
       payload: CreateSupportTicketPayload;
     },
     thunkAPI,
   ) => {
     try {
+      const url = threadId
+        ? ENDPOINTS.createThreadSupportTicket(threadId)
+        : ENDPOINTS.createSupportTicket();
       const response = await axiosInstance.post(
-        `${ENDPOINTS.createThreadSupportTicket(threadId)}?store_code=${storeCode}`,
+        `${url}?store_code=${storeCode}`,
         payload,
         { useBackend: true },
       );
@@ -445,8 +451,11 @@ export const CreateSupportTicket = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Couldn't create the ticket", {
-        description: data?.message || "Please check the form and try again.",
+      toast.error("Couldn't create ticket", {
+        description:
+          getApiErrorMessage(data?.data) ||
+          data?.message ||
+          "Please check the form and try again.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }

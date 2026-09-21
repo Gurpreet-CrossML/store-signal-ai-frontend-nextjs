@@ -13,7 +13,7 @@ import type {
   SupportTicketDraft,
 } from "@/redux/api-slice/support-ticket-slice";
 import type { ActionId, Autonomy } from "@/lib/comment-handling-data";
-import { toPaginatedList } from "@/lib/helpers";
+import { getApiErrorMessage, toPaginatedList } from "@/lib/helpers";
 
 /**
  * One page size for every social list. Filtering and searching are the
@@ -1485,8 +1485,11 @@ export const CreateSocialSupportTicket = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Couldn't create the ticket", {
-        description: data?.message || "Please check the form and try again.",
+      toast.error("Couldn't create ticket", {
+        description:
+          getApiErrorMessage(data?.data) ||
+          data?.message ||
+          "Please check the form and try again.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }

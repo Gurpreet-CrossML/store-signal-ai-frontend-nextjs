@@ -357,3 +357,9 @@ export function toggleInList<T>(list: T[], value: T): T[] {
     ? list.filter((item) => item !== value)
     : [...list, value];
 }
+
+export function getApiErrorMessage(
+  data: { non_field_errors?: string } | null | undefined,
+) {
+  return data?.non_field_errors;
+}

@@ -63,6 +63,8 @@ export type Thread = {
   is_active: boolean;
   total_messages: number;
   created_at: string;
+  last_message_at: string | null;
+  cart_total: number;
   ended_at: string | null;
   tags?: (string | ThreadTagData)[];
   last_message?: string | null;

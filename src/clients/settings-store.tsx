@@ -5,16 +5,16 @@ import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { IconPlus } from "@tabler/icons-react";
 
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog";
+// import {
+//   AlertDialog,
+//   AlertDialogCancel,
+//   AlertDialogContent,
+//   AlertDialogDescription,
+//   AlertDialogFooter,
+//   AlertDialogHeader,
+//   AlertDialogTitle,
+//   AlertDialogAction,
+// } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,9 +33,9 @@ import { StoreWidgetScriptDialog } from "@/components/custom/store-widget-script
 import { getStoreColumns } from "@/components/custom/stores-columns";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
-  DeactivateStore,
+  // DeactivateStore,
   FetchStoresList,
-  GetStores,
+  // GetStores,
   setSelectedStore,
   type StoreListItem,
 } from "@/redux/api-slice/stores-slice";
@@ -48,9 +48,10 @@ export default function SettingsStore() {
   const { FetchStoresListData, FetchStoresListIsLoading } = useAppSelector(
     (state) => state.GetStoresReducer.FetchStoresListState,
   );
-  const { DeactivateStoreIsLoading } = useAppSelector(
-    (state) => state.GetStoresReducer.DeactivateStoreState,
-  );
+  // Store deactivation is hidden until the product allows users to deactivate stores.
+  // const { DeactivateStoreIsLoading } = useAppSelector(
+  //   (state) => state.GetStoresReducer.DeactivateStoreState,
+  // );
 
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -62,8 +63,9 @@ export default function SettingsStore() {
   const [connectOpen, setConnectOpen] = useState(false);
   const [ipsTarget, setIpsTarget] = useState<StoreListItem | null>(null);
   const [scriptTarget, setScriptTarget] = useState<StoreListItem | null>(null);
-  const [deactivateTarget, setDeactivateTarget] =
-    useState<StoreListItem | null>(null);
+  // Store deactivation is hidden until the product allows users to deactivate stores.
+  // const [deactivateTarget, setDeactivateTarget] =
+  //   useState<StoreListItem | null>(null);
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -104,20 +106,21 @@ export default function SettingsStore() {
     });
   };
 
-  const confirmDeactivate = async () => {
-    if (!deactivateTarget) return;
-    const { code, name } = deactivateTarget;
-    const result = await dispatch(DeactivateStore({ code, name }));
-    if (DeactivateStore.fulfilled.match(result)) {
-      setDeactivateTarget(null);
-      // The deactivated store can't stay selected; clearing the selection
-      // lets the switcher's hydrate effect pick a valid one from the
-      // refreshed list.
-      if (code === selectedStore) dispatch(setSelectedStore(""));
-      dispatch(GetStores({}));
-      dispatch(FetchStoresList(request));
-    }
-  };
+  // Store deactivation is hidden until the product allows users to deactivate stores.
+  // const confirmDeactivate = async () => {
+  //   if (!deactivateTarget) return;
+  //   const { code, name } = deactivateTarget;
+  //   const result = await dispatch(DeactivateStore({ code, name }));
+  //   if (DeactivateStore.fulfilled.match(result)) {
+  //     setDeactivateTarget(null);
+  //     // The deactivated store can't stay selected; clearing the selection
+  //     // lets the switcher's hydrate effect pick a valid one from the
+  //     // refreshed list.
+  //     if (code === selectedStore) dispatch(setSelectedStore(""));
+  //     dispatch(GetStores({}));
+  //     dispatch(FetchStoresList(request));
+  //   }
+  // };
 
   const columns = useMemo(
     () =>
@@ -126,7 +129,8 @@ export default function SettingsStore() {
         onEditAllowedIps: setIpsTarget,
         onGetWidgetScript: setScriptTarget,
         onSelect: handleSelect,
-        onDeactivate: setDeactivateTarget,
+        // Store deactivation is hidden until the product allows users to deactivate stores.
+        // onDeactivate: setDeactivateTarget,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedStore],
@@ -192,6 +196,8 @@ export default function SettingsStore() {
         onOpenChange={(open) => !open && setScriptTarget(null)}
       />
 
+      {/*
+      Store deactivation is hidden until the product allows users to deactivate stores.
       <AlertDialog
         open={Boolean(deactivateTarget)}
         onOpenChange={(open) => !open && setDeactivateTarget(null)}
@@ -224,6 +230,7 @@ export default function SettingsStore() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      */}
     </div>
   );
 }
