@@ -1,19 +1,22 @@
-import { Suspense } from "react";
+import { notFound } from "next/navigation";
 
-import BrandVoiceVocabularyEditor from "@/clients/vocabulary";
-import { AreaSubPage } from "@/components/custom/area-sub-page";
-import { areaSectionMetadata } from "@/lib/nav-areas";
+// import { Suspense } from "react";
 
-const HREF = "/brand-voice/vocabulary";
+// import BrandVoiceVocabularyEditor from "@/clients/vocabulary";
+// import { AreaSubPage } from "@/components/custom/area-sub-page";
+// import { areaSectionMetadata } from "@/lib/nav-areas";
 
-export const metadata = areaSectionMetadata(HREF);
+// const HREF = "/brand-voice/vocabulary";
+
+// export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
-  return (
-    <AreaSubPage href={HREF}>
-      <Suspense fallback={null}>
-        <BrandVoiceVocabularyEditor />
-      </Suspense>
-    </AreaSubPage>
-  );
+  notFound();
+  //   return (
+  //     <AreaSubPage href={HREF}>
+  //       <Suspense fallback={null}>
+  //         <BrandVoiceVocabularyEditor />
+  //       </Suspense>
+  //     </AreaSubPage>
+  //   );
 }

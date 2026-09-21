@@ -1,6 +1,8 @@
-import { Suspense } from "react";
+import { notFound } from "next/navigation";
 
-import InstagramMessages from "@/clients/instagram-messages";
+// import { Suspense } from "react";
+//
+// import InstagramMessages from "@/clients/instagram-messages";
 
 /**
  * Rendered per request. What this screen shows is decided by the
@@ -8,16 +10,17 @@ import InstagramMessages from "@/clients/instagram-messages";
  * served from the client router cache for the path alone — so
  * changing only the query could leave the previous view on screen.
  */
-export const dynamic = "force-dynamic";
+// export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Instagram Messages",
-};
+// export const metadata = {
+//   title: "Instagram Messages",
+// };
 
 export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <InstagramMessages />
-    </Suspense>
-  );
+  notFound();
+  // return (
+  //   <Suspense fallback={null}>
+  //     <InstagramMessages />
+  //   </Suspense>
+  // );
 }

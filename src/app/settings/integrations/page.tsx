@@ -1,15 +1,18 @@
-import StoreIntegrationsTabContent from "@/components/custom/store-integrations-tab-content";
-import { AreaSubPage } from "@/components/custom/area-sub-page";
-import { areaSectionMetadata } from "@/lib/nav-areas";
+import { notFound } from "next/navigation";
 
-const HREF = "/settings/integrations";
+// import StoreIntegrationsTabContent from "@/components/custom/store-integrations-tab-content";
+// import { AreaSubPage } from "@/components/custom/area-sub-page";
+// import { areaSectionMetadata } from "@/lib/nav-areas";
 
-export const metadata = areaSectionMetadata(HREF);
+// const HREF = "/settings/integrations";
+
+// export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
-  return (
-    <AreaSubPage href={HREF}>
-      <StoreIntegrationsTabContent />
-    </AreaSubPage>
-  );
+  notFound();
+  // return (
+  //   <AreaSubPage href={HREF}>
+  //     <StoreIntegrationsTabContent />
+  //   </AreaSubPage>
+  // );
 }
