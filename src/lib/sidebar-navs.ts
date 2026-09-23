@@ -293,7 +293,7 @@ export const sidebarMenus: SideBarMenus = {
       icon: IconMessage2,
     },
     areaMenuItem("helpdesk", { adminOnly: true }),
-    // areaMenuItem("socialAI"),
+    areaMenuItem("socialAI"),
     areaMenuItem("crm"),
     areaMenuItem("brandVoice", { adminOnly: true }),
     areaMenuItem("settings", { adminOnly: true }),
