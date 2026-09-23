@@ -1,18 +1,15 @@
-import { notFound } from "next/navigation";
+import SocialDmAutomation from "@/clients/social-dm-automation";
+import { AreaSubPage } from "@/components/custom/area-sub-page";
+import { areaSectionMetadata } from "@/lib/nav-areas";
 
-// import SocialDmAutomation from "@/clients/social-dm-automation";
-// import { AreaSubPage } from "@/components/custom/area-sub-page";
-// import { areaSectionMetadata } from "@/lib/nav-areas";
+const HREF = "/settings/social-ai/dm-automation";
 
-// const HREF = "/settings/social-ai/dm-automation";
-//
-// export const metadata = areaSectionMetadata(HREF);
+export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
-  notFound();
-  // return (
-  //   <AreaSubPage href={HREF}>
-  //     <SocialDmAutomation />
-  //   </AreaSubPage>
-  // );
+  return (
+    <AreaSubPage href={HREF}>
+      <SocialDmAutomation />
+    </AreaSubPage>
+  );
 }
