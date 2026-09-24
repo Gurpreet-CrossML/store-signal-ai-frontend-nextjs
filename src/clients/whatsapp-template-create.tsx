@@ -229,17 +229,6 @@ export default function WhatsAppTemplateCreate({
         setBody(data.body_text ?? "");
         setFooter(data.footer_text ?? "");
 
-        if (data.body_text_example?.length) {
-          setVariableSamples(
-            Object.fromEntries(
-              data.body_text_example.map((param) => [
-                param.param_name,
-                param.example,
-              ]),
-            ),
-          );
-        }
-
         if (data.button_type) {
           setButtons([
             {
@@ -344,51 +333,31 @@ export default function WhatsAppTemplateCreate({
         return { type: "QUICK_REPLY", text: b.text.trim() };
       });
 
-  // What actually gets submitted to Meta — the real, opaque media handle
-  // from the resumable upload (not a URL; Meta resolves it server-side).
   // Every recognized {{token}} currently in the body — drives both the
-  // "Variable samples" section below and the two component builders.
+  // "Variable samples" preview section below and the live preview bubble.
   const bodyTokens = useMemo(() => extractVariableTokens(body), [body]);
-
-  // The sample that'll actually be used for a token: the user's own
-  // override if they've set one, else the registry default — same rule the
-  // "Variable samples" inputs display, so what's shown is what's sent.
-  const sampleFor = (token: string) =>
-    variableSamples[token]?.trim() || WHATSAPP_VARIABLES_BY_TOKEN[token].sample;
 
   // The parts the API stores, built from the form. The live preview still
   // assembles a components array below — that one never leaves the browser.
+  // No `*_example`/`button_coupon_code` fields: Meta's review-time samples
+  // are generated server-side from the token names actually used, so the
+  // "Variable samples" section below is a local preview aid only and is
+  // never sent.
   const templateParts = useMemo(() => {
     const button = buttons[0];
     return {
       parameter_format: "NAMED" as const,
       header_format: headerFormat,
       header_text: headerFormat === "TEXT" ? headerText.trim() : "",
-      header_text_example: [] as string[],
       body_text: body,
-      body_text_example: bodyTokens.map((token) => ({
-        param_name: token,
-        example: sampleFor(token),
-      })),
       footer_text: footer.trim(),
       button_type: button?.type ?? ("" as const),
       button_text: button?.text?.trim() ?? "",
       button_url: button?.type === "URL" ? button.url.trim() : "",
-      button_url_example: "",
       button_phone_number:
         button?.type === "PHONE_NUMBER" ? button.phoneNumber.trim() : "",
-      button_coupon_code: "",
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    headerFormat,
-    headerText,
-    body,
-    bodyTokens,
-    variableSamples,
-    footer,
-    buttons,
-  ]);
+  }, [headerFormat, headerText, body, footer, buttons]);
 
   // The header file itself, sent with the create/edit request. Absent on
   // an edit that leaves the existing sample alone.
@@ -773,7 +742,7 @@ export default function WhatsAppTemplateCreate({
                   <IconMessage2 className="size-4" />
                   Body
                   <span className="-ml-1 text-xs text-destructive">*</span>
-                  <InfoIcon text="The main message text. Insert variables like {{customer_name}} to personalize it — Meta requires a sample value for each one before it'll review the template." />
+                  <InfoIcon text="The main message text. Insert variables like {{customer_name}} to personalize it — Meta reviews the template using its own example value for each one." />
                 </CardTitle>
                 <CardDescription>
                   Enter the main message content.
@@ -797,13 +766,12 @@ export default function WhatsAppTemplateCreate({
                   <CardTitle className="flex items-center gap-2">
                     <IconVariable className="size-4" />
                     Variable Samples
-                    <InfoIcon text="Meta needs one example value per variable to review your template — these examples are never sent to real customers." />
+                    <InfoIcon text="Preview only — Meta reviews your template with its own example values, not these. Nothing here is sent to Meta or to your customers." />
                   </CardTitle>
                   <CardDescription>
-                    Add a sample for each variable so Meta can review your
-                    template. Samples are only used for review — they won&apos;t
-                    be sent to your customers. Don&apos;t include any real
-                    customer information.
+                    See how each variable looks filled in below, in the
+                    preview on the right. This doesn&apos;t change what Meta
+                    reviews or what customers receive.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="gap-3">

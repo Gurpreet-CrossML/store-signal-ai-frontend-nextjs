@@ -12,6 +12,7 @@ import {
   // IconBrandInstagram,
   // IconBrandMessenger,
   IconBrandWhatsapp,
+  IconMail,
   IconAddressBook,
   // IconBrandMeta,
   IconBuildingSkyscraper,
@@ -457,6 +458,15 @@ export const NAV_AREAS = {
         pageDescription:
           "Manage the message templates Meta has approved — or is reviewing — for your connected WhatsApp number.",
         icon: IconBrandWhatsapp,
+      },
+      {
+        href: "/campaign/email-templates",
+        title: "Email Templates",
+        description:
+          "Transactional email templates rendered through a shared HTML shell.",
+        pageDescription:
+          "Create and manage email templates for your store — offers, order updates and support notifications rendered through a branded HTML shell.",
+        icon: IconMail,
       },
     ],
   },

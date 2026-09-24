@@ -424,6 +424,14 @@ export const ENDPOINTS = {
   }) => `/campaign/accounts/${accountId}/templates/${catalogueId}/import/`,
   whatsAppTemplateLibraryImportAll: ({ accountId }: { accountId: string }) =>
     `/campaign/accounts/${accountId}/templates/import-all/`,
+
+  // Email templates (Django via useBackend — keep trailing slash).
+  fetchEmailTemplates: () => `/campaign/email-templates/`,
+  createEmailTemplate: () => `/campaign/email-templates/`,
+  emailTemplateDetail: ({ templateId }: { templateId: number }) =>
+    `/campaign/email-templates/${templateId}/`,
+  sendEmailTemplate: ({ templateId }: { templateId: number }) =>
+    `/campaign/email-templates/${templateId}/send/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

@@ -393,20 +393,21 @@ export type WhatsAppTemplateQualityScore = {
 // A WhatsApp template's message parts, as the backend stores them —
 // header/body/footer/button as fields, not Meta's `components` array.
 // Shared by a store's own templates and the platform catalogue rows.
+//
+// No `*_example`/`button_coupon_code` fields: Meta's review-time samples
+// are generated server-side (from campaign.constants.TEMPLATE_VARIABLE_SAMPLES
+// / DEFAULT_BUTTON_*) rather than being client-supplied, so the backend
+// neither accepts nor returns them anymore.
 export type WhatsAppTemplateParts = {
   parameter_format: "NAMED" | "POSITIONAL";
   header_format: "NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT" | "LOCATION";
   header_text: string;
-  header_text_example: string[];
   body_text: string;
-  body_text_example: { param_name: string; example: string }[];
   footer_text: string;
   button_type: "" | "QUICK_REPLY" | "URL" | "PHONE_NUMBER" | "COPY_CODE";
   button_text: string;
   button_url: string;
-  button_url_example: string;
   button_phone_number: string;
-  button_coupon_code: string;
 };
 
 export type WhatsAppTemplate = {
@@ -429,7 +430,6 @@ export type WhatsAppTemplate = {
   is_active: boolean;
   rejected_reason: string;
   last_synced_at: string | null;
-  source_library_item: number | null;
   created_at: string;
   updated_at: string;
 } & WhatsAppTemplateParts;
