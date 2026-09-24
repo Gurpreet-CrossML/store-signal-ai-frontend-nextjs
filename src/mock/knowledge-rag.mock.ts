@@ -28,9 +28,9 @@ function daysAgo(days: number): string {
   return hoursAgo(days * 24);
 }
 
-function daysFromNow(days: number): string {
-  return hoursAgo(-days * 24);
-}
+// function daysFromNow(days: number): string {
+//   return hoursAgo(-days * 24);
+// }
 
 let itemIdCounter = 100;
 function generateId(prefix: string): string {
