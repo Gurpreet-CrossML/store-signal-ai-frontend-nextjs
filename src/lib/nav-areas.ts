@@ -10,6 +10,8 @@ import {
   IconBrandFacebook,
   IconBrandInstagram,
   IconBrandMessenger,
+  IconBrandWhatsapp,
+  IconMail,
   IconAddressBook,
   IconBrandMeta,
   IconBuildingSkyscraper,
@@ -29,6 +31,7 @@ import {
   IconSettings,
   IconShield,
   IconBuildingStore,
+  IconSpeakerphone,
   IconTags,
   IconUserHexagon,
   // IconUsers,
@@ -41,6 +44,7 @@ import {
   // IconAutomaticGearbox,
   // IconPackageImport,
   // IconShoppingBagEdit,
+  IconPackage,
 } from "@tabler/icons-react";
 
 import { CreateTicketAction } from "@/components/custom/helpdesk/create-ticket-action";
@@ -414,6 +418,59 @@ export const NAV_AREAS = {
         pageDescription:
           "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
         icon: IconChecklist,
+      },
+    ],
+  },
+
+  campaign: {
+    href: "/campaign",
+    title: "Campaign",
+    description: "WhatsApp templates and campaigns for reaching customers.",
+    icon: IconSpeakerphone,
+    sections: [
+      {
+        href: "/campaign/post-sale",
+        title: "Post Sale Templates",
+        description:
+          "Import ready-made templates for order placed, shipped, delivered, and review requests.",
+        pageDescription:
+          "Import Meta-ready WhatsApp templates for your order lifecycle — placed, shipped, delivered, and review requests. Once imported, they go through the same review process as any other template and show up in WhatsApp Templates.",
+        icon: IconPackage,
+      },
+      {
+        href: "/campaign/whatsapp-templates",
+        title: "WhatsApp Templates",
+        description: "Message templates approved for sending on WhatsApp.",
+        pageDescription:
+          "Manage the message templates Meta has approved — or is reviewing — for your connected WhatsApp number.",
+        icon: IconBrandWhatsapp,
+      },
+      {
+        href: "/campaign/email-templates",
+        title: "Email Templates",
+        description:
+          "Transactional email templates rendered through a shared HTML shell.",
+        pageDescription:
+          "Create and manage email templates for your store — offers, order updates and support notifications rendered through a branded HTML shell.",
+        icon: IconMail,
+      },
+      {
+        href: "/campaign/segments",
+        title: "Segments",
+        description:
+          "Saved, reusable audiences a campaign can target.",
+        pageDescription:
+          "Saved, reusable audiences. Each segment narrows a platform-wide category (Abandoned Checkout, Total Spent, Last Order Date) with a time window and an optional cart-value floor.",
+        icon: IconUsersGroup,
+      },
+      {
+        href: "/campaign/campaigns",
+        title: "Campaigns",
+        description:
+          "Multi-step journeys — sends, waits and channel splits — targeting a segment.",
+        pageDescription:
+          "Multi-step outbound journeys targeting a saved segment. Each step sends one WhatsApp or email template, and the whole sequence must fit within a 24-hour span.",
+        icon: IconSpeakerphone,
       },
     ],
   },

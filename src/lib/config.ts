@@ -404,6 +404,53 @@ export const ENDPOINTS = {
     `/social/comment-drafts/${draftId}/approve/`,
   discardCommentDraft: ({ draftId }: { draftId: number }) =>
     `/social/comment-drafts/${draftId}/discard/`,
+
+  // WhatsApp templates (Django via useBackend — keep trailing slash).
+  fetchWhatsAppTemplates: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/`,
+  createWhatsAppTemplate: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/`,
+  whatsAppTemplateDetail: ({
+    accountId,
+    templateId,
+  }: {
+    accountId: string;
+    templateId: number;
+  }) => `/campaign/accounts/${accountId}/templates/${templateId}/`,
+  whatsAppTemplateLibraryList: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/import/`,
+  whatsAppTemplateLibraryImport: ({
+    accountId,
+    catalogueId,
+  }: {
+    accountId: string;
+    catalogueId: number;
+  }) => `/campaign/accounts/${accountId}/templates/${catalogueId}/import/`,
+  whatsAppTemplateLibraryImportAll: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/import-all/`,
+
+  // Email templates (Django via useBackend — keep trailing slash).
+  fetchEmailTemplates: () => `/campaign/email-templates/`,
+  createEmailTemplate: () => `/campaign/email-templates/`,
+  emailTemplateDetail: ({ templateId }: { templateId: number }) =>
+    `/campaign/email-templates/${templateId}/`,
+  sendEmailTemplate: ({ templateId }: { templateId: number }) =>
+    `/campaign/email-templates/${templateId}/send/`,
+
+  // Segments & campaigns (Django via useBackend — keep trailing slash).
+  // Segment categories are platform-wide (no store_code needed); segments
+  // and campaigns are store-scoped and take ?store_code=<code> on the URL.
+  // The list endpoints also accept ?search=<q> (case-insensitive contains
+  // on name), so the list screens can push filtering to the server.
+  fetchSegmentCategories: () => `/campaign/segment-categories/`,
+  fetchSegments: () => `/campaign/segments/`,
+  createSegment: () => `/campaign/segments/`,
+  segmentDetail: ({ segmentId }: { segmentId: number }) =>
+    `/campaign/segments/${segmentId}/`,
+  fetchCampaigns: () => `/campaign/campaigns/`,
+  createCampaign: () => `/campaign/campaigns/`,
+  campaignDetail: ({ campaignId }: { campaignId: number }) =>
+    `/campaign/campaigns/${campaignId}/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
