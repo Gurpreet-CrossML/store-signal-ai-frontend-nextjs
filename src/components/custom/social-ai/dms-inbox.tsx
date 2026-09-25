@@ -136,10 +136,18 @@ type PendingDm = PendingSend & {
   files: File[];
 };
 
-function countOutgoingWithContent(messages: SocialDm[], content: string) {
-  return messages.filter(
-    (msg) => msg.message_direction === "outgoing" && msg.content === content,
-  ).length;
+function countOutgoingWithContent(
+  messages: SocialDm[],
+  content: string,
+  hasMedia: boolean,
+) {
+  return messages.filter((msg) => {
+    if (msg.message_direction !== "outgoing") return false;
+    if (msg.content !== content) return false;
+    
+    const msgHasMedia = (msg.attachments && msg.attachments.length > 0);
+    return msgHasMedia === hasMedia;
+  }).length;
 }
 
 // Minute-resolution clock that's safe under the React Compiler's purity
@@ -819,12 +827,14 @@ export default function DmsInbox({
   // more than that shows up, which keeps repeated identical sends in order.
   const resolvedPendingIds = pendingMessages
     .filter(
-      (pending) =>
-        pending.conversationId === activeConversationId &&
-        // Media-only sends carry no text to match on, so they're resolved
-        // by the outgoing message count for empty content instead.
-        countOutgoingWithContent(messages, pending.content) >=
-          pending.expectedCount,
+      (pending) => {
+        const hasMedia = pending.files.length > 0;
+        return (
+          pending.conversationId === activeConversationId &&
+          countOutgoingWithContent(messages, pending.content, hasMedia) >=
+            pending.expectedCount
+        );
+      }
     )
     .map((pending) => pending.tempId);
 
@@ -1044,11 +1054,14 @@ export default function DmsInbox({
     // How many identical outgoing messages must exist before this one is
     // considered delivered: what's on screen now, plus any still in flight
     // with the same text, plus this one.
+    const hasMedia = files.length > 0;
     const expectedCount =
-      countOutgoingWithContent(messages, text) +
+      countOutgoingWithContent(messages, text, hasMedia) +
       pendingMessages.filter(
         (item) =>
-          item.content === text && item.conversationId === conversationId,
+          item.content === text &&
+          item.conversationId === conversationId &&
+          (item.files.length > 0) === hasMedia,
       ).length +
       1;
 
