@@ -454,6 +454,24 @@ export const NAV_AREAS = {
           "Create and manage email templates for your store — offers, order updates and support notifications rendered through a branded HTML shell.",
         icon: IconMail,
       },
+      {
+        href: "/campaign/segments",
+        title: "Segments",
+        description:
+          "Saved, reusable audiences a campaign can target.",
+        pageDescription:
+          "Saved, reusable audiences. Each segment narrows a platform-wide category (Abandoned Checkout, Total Spent, Last Order Date) with a time window and an optional cart-value floor.",
+        icon: IconUsersGroup,
+      },
+      {
+        href: "/campaign/campaigns",
+        title: "Campaigns",
+        description:
+          "Multi-step journeys — sends, waits and channel splits — targeting a segment.",
+        pageDescription:
+          "Multi-step outbound journeys targeting a saved segment. Each step sends one WhatsApp or email template, and the whole sequence must fit within a 24-hour span.",
+        icon: IconSpeakerphone,
+      },
     ],
   },
 } as const satisfies Record<string, NavArea>;

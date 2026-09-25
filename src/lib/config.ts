@@ -436,6 +436,21 @@ export const ENDPOINTS = {
     `/campaign/email-templates/${templateId}/`,
   sendEmailTemplate: ({ templateId }: { templateId: number }) =>
     `/campaign/email-templates/${templateId}/send/`,
+
+  // Segments & campaigns (Django via useBackend — keep trailing slash).
+  // Segment categories are platform-wide (no store_code needed); segments
+  // and campaigns are store-scoped and take ?store_code=<code> on the URL.
+  // The list endpoints also accept ?search=<q> (case-insensitive contains
+  // on name), so the list screens can push filtering to the server.
+  fetchSegmentCategories: () => `/campaign/segment-categories/`,
+  fetchSegments: () => `/campaign/segments/`,
+  createSegment: () => `/campaign/segments/`,
+  segmentDetail: ({ segmentId }: { segmentId: number }) =>
+    `/campaign/segments/${segmentId}/`,
+  fetchCampaigns: () => `/campaign/campaigns/`,
+  createCampaign: () => `/campaign/campaigns/`,
+  campaignDetail: ({ campaignId }: { campaignId: number }) =>
+    `/campaign/campaigns/${campaignId}/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
