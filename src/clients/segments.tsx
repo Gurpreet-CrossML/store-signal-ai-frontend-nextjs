@@ -1,17 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ColumnDef, PaginationState } from "@tanstack/react-table";
 import {
+  IconAlertTriangle,
   IconCircleCheck,
   IconCircleOff,
+  IconDotsVertical,
+  IconPencil,
   IconPlus,
+  IconTrash,
   IconUsersGroup,
+  IconX,
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -21,21 +38,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Typography } from "@/components/ui/typography";
@@ -44,60 +51,22 @@ import { SearchInput } from "@/components/custom/search-input";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
-  createSegment,
+  deleteSegment,
+  fetchCampaigns,
   fetchSegmentCategories,
   fetchSegments,
   updateSegmentStatus,
+  type Campaign,
   type Segment,
   type SegmentCategory,
-  type SegmentWritePayload,
 } from "@/redux/api-slice/campaign-slice";
-
-/**
- * Turn a DRF 400 response envelope into a { fieldName: firstMessage }
- * dict the form can render below each input. DRF puts either a per-field
- * error map or a plain string message on the ``data`` key; anything else
- * (e.g. non_field_errors) is bubbled up under ``__form__`` so the form
- * can show it in a general banner.
- */
-function parseFieldErrors(
-  rejected: unknown,
-): Record<string, string> {
-  const envelope = rejected as { data?: unknown; message?: string } | undefined;
-  const errors: Record<string, string> = {};
-  const data = envelope?.data;
-  if (data && typeof data === "object" && !Array.isArray(data)) {
-    for (const [field, value] of Object.entries(data)) {
-      if (Array.isArray(value) && value.length && typeof value[0] === "string") {
-        errors[field] = value[0];
-      } else if (typeof value === "string") {
-        errors[field] = value;
-      }
-    }
-  }
-  if (!Object.keys(errors).length && envelope?.message) {
-    errors.__form__ = envelope.message;
-  }
-  return errors;
-}
-
-/**
- * The "In the last N days" pattern in the HTML reference is the only
- * time-window shape the backend's Segment currently stores, so the form
- * keeps it simple and asks for the day count directly.
- */
-const DEFAULT_FORM = {
-  name: "",
-  category: "" as string,
-  time_period: "7",
-  min_price: "0",
-  is_active: true,
-};
 
 function getColumns(
   categoryById: Map<number, SegmentCategory>,
   onToggleActive: (segment: Segment, checked: boolean) => void,
   toggling: number | null,
+  onEdit: (segment: Segment) => void,
+  onDelete: (segment: Segment) => void,
 ): ColumnDef<Segment>[] {
   return [
     {
@@ -162,10 +131,44 @@ function getColumns(
         );
       },
     },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        const segment = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`More actions for ${segment.name}`}
+              >
+                <IconDotsVertical className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit(segment)}>
+                <IconPencil className="size-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => onDelete(segment)}
+              >
+                <IconTrash className="size-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
   ];
 }
 
 export default function Segments() {
+  const router = useRouter();
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -173,6 +176,7 @@ export default function Segments() {
 
   const [categories, setCategories] = useState<SegmentCategory[]>([]);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Categories are platform-wide and change rarely, so load once on mount.
@@ -184,6 +188,19 @@ export default function Segments() {
         // The thunk already surfaces the toast.
       });
   }, [dispatch]);
+
+  // Loaded once so the delete-confirm dialog can name which campaigns a
+  // segment's cascade delete would take down with it — the existing
+  // campaigns list endpoint, no extra API surface.
+  useEffect(() => {
+    if (!storeCode) return;
+    dispatch(fetchCampaigns({ storeCode }))
+      .unwrap()
+      .then(setCampaigns)
+      .catch(() => {
+        // The thunk already surfaces the toast.
+      });
+  }, [dispatch, storeCode]);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 400);
@@ -256,74 +273,57 @@ export default function Segments() {
     [dispatch, storeCode, loadSegments],
   );
 
+  // ------------------------------ delete
+  const [segmentToDelete, setSegmentToDelete] = useState<Segment | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Campaign.segment is on_delete=CASCADE, so deleting a segment that's
+  // still someone's audience takes those campaigns down with it — named
+  // here so the confirm dialog can warn specifically rather than vaguely.
+  const affectedCampaigns = useMemo(
+    () =>
+      segmentToDelete
+        ? campaigns.filter((c) => c.segment === segmentToDelete.id)
+        : [],
+    [campaigns, segmentToDelete],
+  );
+
+  const handleConfirmDelete = async () => {
+    if (!storeCode || !segmentToDelete) return;
+    setDeleting(true);
+    try {
+      await dispatch(
+        deleteSegment({ storeCode, segmentId: segmentToDelete.id }),
+      ).unwrap();
+      toast.success("Segment deleted", {
+        description: `${segmentToDelete.name} was removed.`,
+      });
+      setSegmentToDelete(null);
+      loadSegments();
+      dispatch(fetchCampaigns({ storeCode })).unwrap().then(setCampaigns);
+    } catch {
+      // The thunk already surfaces the error toast.
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const columns = useMemo(
-    () => getColumns(categoryById, handleToggleActive, togglingId),
-    [categoryById, handleToggleActive, togglingId],
+    () =>
+      getColumns(
+        categoryById,
+        handleToggleActive,
+        togglingId,
+        (segment) => router.push(`/campaign/segments/${segment.id}/edit`),
+        (segment) => setSegmentToDelete(segment),
+      ),
+    [categoryById, handleToggleActive, togglingId, router],
   );
 
   const activeCount = useMemo(
     () => segments.filter((s) => s.is_active).length,
     [segments],
   );
-
-  // ------------------------------ create dialog
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState(DEFAULT_FORM);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
-
-  const openCreate = () => {
-    setForm({
-      ...DEFAULT_FORM,
-      category: categories[0] ? String(categories[0].id) : "",
-    });
-    setFieldErrors({});
-    setDialogOpen(true);
-  };
-
-  const clearFieldError = (field: string) =>
-    setFieldErrors((prev) => {
-      if (!prev[field]) return prev;
-      const next = { ...prev };
-      delete next[field];
-      return next;
-    });
-
-  const handleSubmit = async () => {
-    if (!storeCode) return;
-
-    // Client-side "required" checks — the server enforces the same thing
-    // but users get faster feedback if the request never leaves the tab.
-    const clientErrors: Record<string, string> = {};
-    if (!form.name.trim()) clientErrors.name = "Give the segment a name.";
-    if (!form.category) clientErrors.category = "Pick a category.";
-    if (!form.time_period)
-      clientErrors.time_period = "Set the window in days.";
-    if (Object.keys(clientErrors).length) {
-      setFieldErrors(clientErrors);
-      return;
-    }
-
-    const payload: SegmentWritePayload = {
-      name: form.name.trim(),
-      category: Number(form.category),
-      time_period: Number(form.time_period),
-      min_price: form.min_price ? Number(form.min_price) : 0,
-      is_active: form.is_active,
-    };
-    setSubmitting(true);
-    setFieldErrors({});
-    try {
-      await dispatch(createSegment({ storeCode, payload })).unwrap();
-      toast.success("Segment created");
-      setDialogOpen(false);
-      loadSegments();
-    } catch (rejected) {
-      setFieldErrors(parseFieldErrors(rejected));
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const stats = [
     {
@@ -390,7 +390,10 @@ export default function Segments() {
           label="Search segments"
           className="w-full sm:w-64"
         />
-        <Button onClick={openCreate} disabled={!storeCode}>
+        <Button
+          onClick={() => router.push("/campaign/segments/create")}
+          disabled={!storeCode}
+        >
           <IconPlus className="size-4" />
           New Segment
         </Button>
@@ -411,139 +414,95 @@ export default function Segments() {
         }
       />
 
-      <Dialog
-        open={dialogOpen}
+      <AlertDialog
+        open={!!segmentToDelete}
         onOpenChange={(open) => {
-          if (!submitting) setDialogOpen(open);
+          if (!open) setSegmentToDelete(null);
         }}
       >
-        <DialogContent className="sm:max-w-[460px]">
-          <DialogHeader>
-            <DialogTitle>New Segment</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-4">
-            {fieldErrors.__form__ && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                {fieldErrors.__form__}
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="segment-name">Segment name</Label>
-              <Input
-                id="segment-name"
-                value={form.name}
-                onChange={(event) => {
-                  setForm({ ...form, name: event.target.value });
-                  clearFieldError("name");
-                }}
-                placeholder="e.g. Abandoned cart · last 7 days"
-                aria-invalid={!!fieldErrors.name}
-              />
-              {fieldErrors.name && (
-                <p className="text-xs text-destructive">{fieldErrors.name}</p>
-              )}
-            </div>
+        <AlertDialogContent>
+          <AlertDialogCancel
+            disabled={deleting}
+            variant="ghost"
+            size="icon-sm"
+            className="absolute top-4 right-4"
+            aria-label="Cancel"
+          >
+            <IconX className="size-4" />
+          </AlertDialogCancel>
 
-            <div className="space-y-2">
-              <Label htmlFor="segment-category">Category</Label>
-              <Select
-                value={form.category}
-                onValueChange={(value) => {
-                  setForm({ ...form, category: value });
-                  clearFieldError("category");
-                }}
-              >
-                <SelectTrigger
-                  id="segment-category"
-                  aria-invalid={!!fieldErrors.category}
-                >
-                  <SelectValue placeholder="Pick a segment type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {fieldErrors.category && (
-                <p className="text-xs text-destructive">
-                  {fieldErrors.category}
+          <AlertDialogHeader>
+            <AlertDialogMedia className="rounded-full bg-destructive/10 text-destructive">
+              <IconTrash />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Delete segment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete{" "}
+              <span className="font-semibold text-foreground">
+                {segmentToDelete?.name}.
+              </span>{" "}
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {affectedCampaigns.length > 0 && (
+            <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+              <IconAlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />
+              <div className="text-sm">
+                <p className="font-semibold text-destructive">
+                  This segment is used by {affectedCampaigns.length} campaign
+                  {affectedCampaigns.length === 1 ? "" : "s"}, which will also
+                  be deleted.
                 </p>
+                <p className="mt-1 text-destructive/80">
+                  Both the segment and the linked campaign
+                  {affectedCampaigns.length === 1 ? "" : "s"} (
+                  {affectedCampaigns.map((c) => c.name).join(", ")}) will be
+                  permanently removed.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2 text-sm">
+            <p className="font-medium">This action will permanently remove:</p>
+            <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+              <li>
+                The segment{" "}
+                <span className="font-medium text-foreground">
+                  “{segmentToDelete?.name}”
+                </span>
+              </li>
+              {affectedCampaigns.length > 0 && (
+                <li>
+                  <span className="font-medium text-foreground">
+                    {affectedCampaigns.length} campaign
+                    {affectedCampaigns.length === 1 ? "" : "s"}
+                  </span>{" "}
+                  linked to this segment
+                </li>
               )}
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="segment-window">In the last (days)</Label>
-                <Input
-                  id="segment-window"
-                  type="number"
-                  min={1}
-                  value={form.time_period}
-                  onChange={(event) => {
-                    setForm({ ...form, time_period: event.target.value });
-                    clearFieldError("time_period");
-                  }}
-                  aria-invalid={!!fieldErrors.time_period}
-                />
-                {fieldErrors.time_period && (
-                  <p className="text-xs text-destructive">
-                    {fieldErrors.time_period}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="segment-min-price">Min cart value (₹)</Label>
-                <Input
-                  id="segment-min-price"
-                  type="number"
-                  min={0}
-                  value={form.min_price}
-                  onChange={(event) => {
-                    setForm({ ...form, min_price: event.target.value });
-                    clearFieldError("min_price");
-                  }}
-                  aria-invalid={!!fieldErrors.min_price}
-                />
-                {fieldErrors.min_price && (
-                  <p className="text-xs text-destructive">
-                    {fieldErrors.min_price}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between rounded-md border bg-muted/40 p-3">
-              <div>
-                <div className="text-sm font-medium">Active</div>
-                <div className="text-xs text-muted-foreground">
-                  Only active segments can be picked by a new campaign.
-                </div>
-              </div>
-              <Switch
-                checked={form.is_active}
-                onCheckedChange={(checked) =>
-                  setForm({ ...form, is_active: checked })
-                }
-              />
-            </div>
+            </ul>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDialogOpen(false)}
-              disabled={submitting}
+
+          <div className="border-t" />
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                handleConfirmDelete();
+              }}
+              disabled={deleting}
+              className={buttonVariants({ variant: "destructive" })}
             >
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Creating…" : "Create Segment"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <IconTrash className="size-4" />
+              {deleting ? "Deleting…" : "Delete Segment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

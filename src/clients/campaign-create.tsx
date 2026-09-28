@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  IconAlertTriangle,
   IconArrowLeft,
   IconBrandWhatsapp,
   IconClock,
@@ -36,12 +37,18 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Typography } from "@/components/ui/typography";
+import { InfoIcon } from "@/components/custom/info-icon";
+import { EmailTemplatePreviewDialog } from "@/components/custom/social-ai/email-template-preview-dialog";
 import { useWhatsAppAccount } from "@/components/custom/social-ai/use-whatsapp-account";
+import { WhatsAppTemplatePreviewDialog } from "@/components/custom/social-ai/whatsapp-template-preview-dialog";
+import { TimePicker12h } from "@/components/custom/time-picker-12h";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   createCampaign,
+  fetchCampaignDetail,
   fetchEmailTemplates,
   fetchSegments,
+  updateCampaign,
   type CampaignWritePayload,
   type EmailTemplate,
   type Segment,
@@ -131,13 +138,18 @@ function parseFieldErrors(rejected: unknown): Record<string, string> {
   return errors;
 }
 
-export default function CampaignCreate() {
+export default function CampaignCreate({
+  campaignId,
+}: {
+  campaignId?: string;
+} = {}) {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
   const { account } = useWhatsAppAccount();
+  const isEditMode = Boolean(campaignId);
 
   const [name, setName] = useState("");
   const [segmentId, setSegmentId] = useState("");
@@ -147,12 +159,24 @@ export default function CampaignCreate() {
   const [steps, setSteps] = useState<StepForm[]>([
     { ...newStep("whatsapp"), delayValue: "0" },
   ]);
+  // Edit mode keeps the campaign's current publish state untouched —
+  // publish/pause already has its own dedicated control on the detail
+  // screen, so this form only ever edits content (name, segment, timing,
+  // sequence), never status.
+  const [existingStatus, setExistingStatus] = useState<
+    "draft" | "published"
+  >("draft");
+  const [existingIsActive, setExistingIsActive] = useState(false);
 
   const [segments, setSegments] = useState<Segment[]>([]);
   const [waTemplates, setWaTemplates] = useState<WhatsAppTemplate[]>([]);
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  // Preview state: only one of the two is set at a time — clicking the
+  // eye on a step opens whichever dialog matches the step's channel.
+  const [previewWa, setPreviewWa] = useState<WhatsAppTemplate | null>(null);
+  const [previewEmail, setPreviewEmail] = useState<EmailTemplate | null>(null);
 
   const load = useCallback(async () => {
     if (!storeCode) return;
@@ -175,10 +199,37 @@ export default function CampaignCreate() {
       }
     } catch {
       // Thunks already surface a toast.
-    } finally {
-      setLoading(false);
     }
-  }, [dispatch, storeCode, account]);
+
+    if (campaignId) {
+      try {
+        const c = await dispatch(
+          fetchCampaignDetail({ storeCode, campaignId: Number(campaignId) }),
+        ).unwrap();
+        setName(c.name);
+        setSegmentId(String(c.segment));
+        setStartTime(c.start_time.slice(0, 5));
+        setContinuousEntry(c.continuous_entry);
+        setExistingStatus(c.status);
+        setExistingIsActive(c.is_active);
+        setSteps(
+          [...c.sequence_steps]
+            .sort((a, b) => a.step_order - b.step_order)
+            .map((s) => ({
+              key: crypto.randomUUID(),
+              channel: s.whatsapp_template ? "whatsapp" : "email",
+              templateId: String(s.whatsapp_template ?? s.email_template ?? ""),
+              delayValue: String(s.delay_value ?? 0),
+            })),
+        );
+      } catch {
+        // The thunk already surfaced an error toast — nothing to edit.
+        router.push("/campaign/campaigns");
+        return;
+      }
+    }
+    setLoading(false);
+  }, [dispatch, storeCode, account, campaignId, router]);
 
   useEffect(() => {
     load();
@@ -270,8 +321,11 @@ export default function CampaignCreate() {
 
     const payload: CampaignWritePayload = {
       name: name.trim(),
-      status: publish ? "published" : "draft",
-      is_active: publish,
+      // Edit mode never touches publish state — that's the detail
+      // screen's job — so the current status/is_active pass straight
+      // through unchanged.
+      status: isEditMode ? existingStatus : publish ? "published" : "draft",
+      is_active: isEditMode ? existingIsActive : publish,
       start_time: paddedStartTime,
       segment: Number(segmentId),
       continuous_entry: continuousEntry,
@@ -292,11 +346,19 @@ export default function CampaignCreate() {
     setSubmitting(true);
     setFieldErrors({});
     try {
-      await dispatch(createCampaign({ storeCode, payload })).unwrap();
-      toast.success(
-        publish ? "Campaign published" : "Campaign saved as draft",
-      );
-      router.push("/campaign/campaigns");
+      if (isEditMode && campaignId) {
+        await dispatch(
+          updateCampaign({ storeCode, campaignId: Number(campaignId), payload }),
+        ).unwrap();
+        toast.success("Campaign updated");
+        router.push(`/campaign/campaigns/${campaignId}`);
+      } else {
+        await dispatch(createCampaign({ storeCode, payload })).unwrap();
+        toast.success(
+          publish ? "Campaign published" : "Campaign saved as draft",
+        );
+        router.push("/campaign/campaigns");
+      }
     } catch (rejected) {
       setFieldErrors(parseFieldErrors(rejected));
     } finally {
@@ -317,42 +379,74 @@ export default function CampaignCreate() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
           <Button variant="ghost" size="icon-sm" asChild>
-            <Link href="/campaign/campaigns" aria-label="Back to campaigns">
+            <Link
+              href={
+                isEditMode
+                  ? `/campaign/campaigns/${campaignId}`
+                  : "/campaign/campaigns"
+              }
+              aria-label="Back to campaigns"
+            >
               <IconArrowLeft />
             </Link>
           </Button>
           <div>
             <Typography variant="h4" as="h1">
-              New Campaign
+              {isEditMode ? "Edit Campaign" : "New Campaign"}
             </Typography>
             <Typography variant="muted">
-              Pick the segment, arrange the send sequence, then save as draft
-              or publish it.
+              {isEditMode
+                ? "Update the audience, timing or sequence — publish state is unchanged here."
+                : "Pick the segment, arrange the send sequence, then save as draft or publish it."}
             </Typography>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              setPublish(false);
-              handleSubmit();
-            }}
-            disabled={submitting}
-          >
-            Save draft
-          </Button>
-          <Button
-            onClick={() => {
-              setPublish(true);
-              handleSubmit();
-            }}
-            disabled={submitting}
-          >
-            {submitting ? "Publishing…" : "Publish"}
-          </Button>
+          {isEditMode ? (
+            <Button onClick={handleSubmit} disabled={submitting}>
+              {submitting ? "Saving…" : "Save Changes"}
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPublish(false);
+                  handleSubmit();
+                }}
+                disabled={submitting}
+              >
+                Save draft
+              </Button>
+              <Button
+                onClick={() => {
+                  setPublish(true);
+                  handleSubmit();
+                }}
+                disabled={submitting}
+              >
+                {submitting ? "Publishing…" : "Publish"}
+              </Button>
+            </>
+          )}
         </div>
       </div>
+
+      {isEditMode && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-300/60 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+          <IconAlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <div>
+            <p className="font-medium">
+              Changing the segment or sequence changes who receives this
+              campaign, and when.
+            </p>
+            <p className="mt-1 text-amber-800 dark:text-amber-300">
+              The audience size may go up or down as soon as you save —
+              review the segment and steps carefully before confirming.
+            </p>
+          </div>
+        </div>
+      )}
 
       <Card size="sm">
         <CardHeader>
@@ -372,7 +466,10 @@ export default function CampaignCreate() {
           )}
 
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="campaign-name">Name</Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="campaign-name">Name</Label>
+              <InfoIcon text="Internal label to identify this campaign later — customers never see it." />
+            </div>
             <Input
               id="campaign-name"
               value={name}
@@ -389,12 +486,15 @@ export default function CampaignCreate() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="campaign-segment">
-              <span className="inline-flex items-center gap-1.5">
-                <IconUsersGroup className="size-4" />
-                Segment
-              </span>
-            </Label>
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="campaign-segment">
+                <span className="inline-flex items-center gap-1.5">
+                  <IconUsersGroup className="size-4" />
+                  Segment
+                </span>
+              </Label>
+              <InfoIcon text="The saved audience this campaign sends to — only customers currently matching this segment's rules are eligible." />
+            </div>
             <Select
               value={segmentId}
               onValueChange={(value) => {
@@ -428,21 +528,22 @@ export default function CampaignCreate() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="campaign-start-time">
-              <span className="inline-flex items-center gap-1.5">
-                <IconClock className="size-4" />
-                Start time
-              </span>
-            </Label>
-            <Input
-              id="campaign-start-time"
-              type="time"
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="campaign-start-time-hour">
+                <span className="inline-flex items-center gap-1.5">
+                  <IconClock className="size-4" />
+                  Start time
+                </span>
+              </Label>
+              <InfoIcon text="Time of day, in your store's timezone, that new entrants begin this campaign's first step." />
+            </div>
+            <TimePicker12h
+              idPrefix="campaign-start-time"
               value={startTime}
-              onChange={(event) => {
-                setStartTime(event.target.value);
+              onChange={(value) => {
+                setStartTime(value);
                 clearFieldError("start_time");
               }}
-              aria-invalid={!!fieldErrors.start_time}
             />
             {fieldErrors.start_time && (
               <p className="text-xs text-destructive">
@@ -598,15 +699,41 @@ export default function CampaignCreate() {
                     )}
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => removeStep(step.key)}
-                  disabled={steps.length === 1}
-                  aria-label={`Remove step ${index + 1}`}
-                >
-                  <IconTrash className="size-4" />
-                </Button>
+                <div className="flex items-center gap-1 sm:flex-col">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    // The picked template's full record lives in the
+                    // channel-specific list we already fetched; look it
+                    // up by id and open the matching preview dialog.
+                    onClick={() => {
+                      const pickedId = Number(step.templateId);
+                      if (!pickedId) return;
+                      if (step.channel === "whatsapp") {
+                        const wa = waTemplates.find((t) => t.id === pickedId);
+                        if (wa) setPreviewWa(wa);
+                      } else {
+                        const em = emailTemplates.find(
+                          (t) => t.id === pickedId,
+                        );
+                        if (em) setPreviewEmail(em);
+                      }
+                    }}
+                    disabled={!step.templateId}
+                    aria-label={`Preview step ${index + 1} template`}
+                  >
+                    <IconEye className="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => removeStep(step.key)}
+                    disabled={steps.length === 1}
+                    aria-label={`Remove step ${index + 1}`}
+                  >
+                    <IconTrash className="size-4" />
+                  </Button>
+                </div>
               </div>
             );
           })}
@@ -623,6 +750,20 @@ export default function CampaignCreate() {
 
         </CardContent>
       </Card>
+
+      <WhatsAppTemplatePreviewDialog
+        template={previewWa}
+        account={account}
+        onOpenChange={(open) => {
+          if (!open) setPreviewWa(null);
+        }}
+      />
+      <EmailTemplatePreviewDialog
+        template={previewEmail}
+        onOpenChange={(open) => {
+          if (!open) setPreviewEmail(null);
+        }}
+      />
     </div>
   );
 }

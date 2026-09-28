@@ -7,14 +7,29 @@ import {
   IconChecklist,
   IconCircleCheck,
   IconCircleOff,
+  IconDotsVertical,
   IconEye,
+  IconPencil,
   IconPlus,
   IconSpeakerphone,
+  IconTrash,
+  IconX,
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -23,6 +38,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Typography } from "@/components/ui/typography";
@@ -31,6 +52,7 @@ import { SearchInput } from "@/components/custom/search-input";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
+  deleteCampaign,
   fetchCampaigns,
   fetchSegments,
   updateCampaignStatus,
@@ -43,6 +65,8 @@ function getColumns(
   onView: (campaign: Campaign) => void,
   onToggleActive: (campaign: Campaign, checked: boolean) => void,
   toggling: number | null,
+  onEdit: (campaign: Campaign) => void,
+  onDelete: (campaign: Campaign) => void,
 ): ColumnDef<Campaign>[] {
   return [
     {
@@ -134,16 +158,45 @@ function getColumns(
     {
       id: "actions",
       header: "Actions",
-      cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => onView(row.original)}
-          aria-label={`View ${row.original.name}`}
-        >
-          <IconEye className="size-4" />
-        </Button>
-      ),
+      cell: ({ row }) => {
+        const campaign = row.original;
+        return (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => onView(campaign)}
+              aria-label={`View ${campaign.name}`}
+            >
+              <IconEye className="size-4" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`More actions for ${campaign.name}`}
+                >
+                  <IconDotsVertical className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit(campaign)}>
+                  <IconPencil className="size-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => onDelete(campaign)}
+                >
+                  <IconTrash className="size-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
     },
   ];
 }
@@ -242,6 +295,31 @@ export default function Campaigns() {
     [dispatch, storeCode, loadCampaigns],
   );
 
+  // ------------------------------ delete
+  const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(
+    null,
+  );
+  const [deleting, setDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!storeCode || !campaignToDelete) return;
+    setDeleting(true);
+    try {
+      await dispatch(
+        deleteCampaign({ storeCode, campaignId: campaignToDelete.id }),
+      ).unwrap();
+      toast.success("Campaign deleted", {
+        description: `${campaignToDelete.name} was removed.`,
+      });
+      setCampaignToDelete(null);
+      loadCampaigns();
+    } catch {
+      // The thunk already surfaces the error toast.
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const columns = useMemo(
     () =>
       getColumns(
@@ -249,6 +327,8 @@ export default function Campaigns() {
         (campaign) => router.push(`/campaign/campaigns/${campaign.id}`),
         handleToggleActive,
         togglingId,
+        (campaign) => router.push(`/campaign/campaigns/${campaign.id}/edit`),
+        (campaign) => setCampaignToDelete(campaign),
       ),
     [segmentById, router, handleToggleActive, togglingId],
   );
@@ -354,6 +434,75 @@ export default function Campaigns() {
             : "No campaigns yet."
         }
       />
+
+      <AlertDialog
+        open={!!campaignToDelete}
+        onOpenChange={(open) => {
+          if (!open) setCampaignToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogCancel
+            disabled={deleting}
+            variant="ghost"
+            size="icon-sm"
+            className="absolute top-4 right-4"
+            aria-label="Cancel"
+          >
+            <IconX className="size-4" />
+          </AlertDialogCancel>
+
+          <AlertDialogHeader>
+            <AlertDialogMedia className="rounded-full bg-destructive/10 text-destructive">
+              <IconTrash />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Delete campaign?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete{" "}
+              <span className="font-semibold text-foreground">
+                {campaignToDelete?.name}.
+              </span>{" "}
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="flex flex-col gap-2 text-sm">
+            <p className="font-medium">This action will permanently remove:</p>
+            <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+              <li>
+                The campaign{" "}
+                <span className="font-medium text-foreground">
+                  “{campaignToDelete?.name}”
+                </span>
+              </li>
+              <li>
+                <span className="font-medium text-foreground">
+                  {campaignToDelete?.sequence_steps.length ?? 0} sequence
+                  step{campaignToDelete?.sequence_steps.length === 1 ? "" : "s"}
+                </span>{" "}
+                in its journey
+              </li>
+            </ul>
+          </div>
+
+          <div className="border-t" />
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                handleConfirmDelete();
+              }}
+              disabled={deleting}
+              className={buttonVariants({ variant: "destructive" })}
+            >
+              <IconTrash className="size-4" />
+              {deleting ? "Deleting…" : "Delete Campaign"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

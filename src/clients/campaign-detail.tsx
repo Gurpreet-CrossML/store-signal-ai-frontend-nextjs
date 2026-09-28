@@ -7,6 +7,7 @@ import {
   IconArrowLeft,
   IconBrandWhatsapp,
   IconClock,
+  IconEye,
   IconMail,
   IconRocket,
   IconSpeakerphone,
@@ -26,7 +27,9 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Typography } from "@/components/ui/typography";
+import { EmailTemplatePreviewDialog } from "@/components/custom/social-ai/email-template-preview-dialog";
 import { useWhatsAppAccount } from "@/components/custom/social-ai/use-whatsapp-account";
+import { WhatsAppTemplatePreviewDialog } from "@/components/custom/social-ai/whatsapp-template-preview-dialog";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   fetchCampaignDetail,
@@ -69,6 +72,8 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [waTemplates, setWaTemplates] = useState<WhatsAppTemplate[]>([]);
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
+  const [previewWa, setPreviewWa] = useState<WhatsAppTemplate | null>(null);
+  const [previewEmail, setPreviewEmail] = useState<EmailTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -329,11 +334,41 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
                       : formatDelay(step.delay_value)}
                   </div>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  // A stored campaign might reference a template that
+                  // has since been deleted; ``template`` is undefined
+                  // in that case and the button is disabled.
+                  disabled={!template}
+                  onClick={() => {
+                    if (!template) return;
+                    if (isWa) setPreviewWa(template as WhatsAppTemplate);
+                    else setPreviewEmail(template as EmailTemplate);
+                  }}
+                  aria-label={`Preview step ${index + 1} template`}
+                >
+                  <IconEye className="size-4" />
+                </Button>
               </div>
             );
           })}
         </CardContent>
       </Card>
+
+      <WhatsAppTemplatePreviewDialog
+        template={previewWa}
+        account={account}
+        onOpenChange={(open) => {
+          if (!open) setPreviewWa(null);
+        }}
+      />
+      <EmailTemplatePreviewDialog
+        template={previewEmail}
+        onOpenChange={(open) => {
+          if (!open) setPreviewEmail(null);
+        }}
+      />
     </div>
   );
 }

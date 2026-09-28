@@ -112,6 +112,32 @@ export function EmailTemplateMonitorPreview({
             </div>
           )}
 
+          {template.subject && (
+            <div style={{ padding: "0 4px 10px" }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#9ca3af",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  marginBottom: 2,
+                }}
+              >
+                Subject
+              </div>
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: "#111827",
+                  lineHeight: 1.4,
+                }}
+              >
+                {preview(template.subject)}
+              </div>
+            </div>
+          )}
+
           <div
             style={{
               background: "#ffffff",

@@ -232,6 +232,62 @@ export const fetchSegments = createAsyncThunk(
   },
 );
 
+// One row of SegmentPreviewAPIView's matching-customers table.
+// ``order_value`` is category-dependent — the customer's most recent
+// order total for last-order, their windowed spend for total-spent, and
+// null for abandoned-cart (no computable cart total — see
+// campaign.helpers.compile_abandoned_cart on the backend).
+export type SegmentPreviewCustomer = {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  order_value: string | null;
+};
+
+export type SegmentPreviewResult = {
+  count: number;
+  results: SegmentPreviewCustomer[];
+};
+
+export const previewSegmentCount = createAsyncThunk(
+  "previewSegmentCount",
+  async (
+    {
+      storeCode,
+      category,
+      time_period,
+      min_price,
+      page = 1,
+      page_size = 25,
+    }: {
+      storeCode: string;
+      category: number;
+      time_period: number;
+      min_price?: number | string;
+      page?: number;
+      page_size?: number;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.previewSegment()}?store_code=${storeCode}&page=${page}&page_size=${page_size}`,
+        { category, time_period, min_price },
+        { useBackend: true },
+      );
+      return response.data.data as SegmentPreviewResult;
+    } catch (error) {
+      // No toast here — this fires on every debounced keystroke while
+      // the user is still filling in the form (e.g. time_period
+      // momentarily empty mid-edit), so a validation 400 is routine
+      // rather than something worth interrupting them about.
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+    }
+  },
+);
+
 export const createSegment = createAsyncThunk(
   "createSegment",
   async (
@@ -272,6 +328,78 @@ function bestErrorMessage(envelope: unknown, fallback: string): string {
   }
   return data?.message || fallback;
 }
+
+export const fetchSegmentDetail = createAsyncThunk(
+  "fetchSegmentDetail",
+  async (
+    { storeCode, segmentId }: { storeCode: string; segmentId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.segmentDetail({ segmentId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as Segment;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't load the segment", {
+        description: data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const updateSegment = createAsyncThunk(
+  "updateSegment",
+  async (
+    {
+      storeCode,
+      segmentId,
+      payload,
+    }: { storeCode: string; segmentId: number; payload: SegmentWritePayload },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.segmentDetail({ segmentId })}?store_code=${storeCode}`,
+        payload,
+        { useBackend: true },
+      );
+      return response.data.data as Segment;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      // Reject with the whole envelope so the form can pull field errors
+      // out of ``err.data`` (DRF puts one on the 400 response).
+      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+    }
+  },
+);
+
+export const deleteSegment = createAsyncThunk(
+  "deleteSegment",
+  async (
+    { storeCode, segmentId }: { storeCode: string; segmentId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.delete(
+        `${ENDPOINTS.segmentDetail({ segmentId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as { status: string };
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't delete the segment", {
+        description: data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
 
 export const updateSegmentStatus = createAsyncThunk(
   "updateSegmentStatus",
@@ -445,6 +573,55 @@ export const updateCampaignStatus = createAsyncThunk(
       const data = response?.data;
       toast.error("Couldn't update the campaign", {
         description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const updateCampaign = createAsyncThunk(
+  "updateCampaign",
+  async (
+    {
+      storeCode,
+      campaignId,
+      payload,
+    }: { storeCode: string; campaignId: number; payload: CampaignWritePayload },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.campaignDetail({ campaignId })}?store_code=${storeCode}`,
+        payload,
+        { useBackend: true },
+      );
+      return response.data.data as Campaign;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      // Reject with the whole envelope so the form can pull field errors
+      // out of ``err.data`` (DRF puts one on the 400 response).
+      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+    }
+  },
+);
+
+export const deleteCampaign = createAsyncThunk(
+  "deleteCampaign",
+  async (
+    { storeCode, campaignId }: { storeCode: string; campaignId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.delete(
+        `${ENDPOINTS.campaignDetail({ campaignId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as { status: string };
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't delete the campaign", {
+        description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
