@@ -43,6 +43,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
@@ -169,18 +174,32 @@ function ActionPicker({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            {options.map((action) => (
-              <DropdownMenuCheckboxItem
-                key={action.id}
-                checked={actions.includes(action.id)}
-                // Radix closes on select by default; keep it open so
-                // several can be ticked in one go.
-                onSelect={(event) => event.preventDefault()}
-                onCheckedChange={() => onToggle(action.id)}
-              >
-                {action.priority} · {action.label}
-              </DropdownMenuCheckboxItem>
-            ))}
+            {options.map((action) => {
+              const item = (
+                <DropdownMenuCheckboxItem
+                  key={action.id}
+                  checked={actions.includes(action.id)}
+                  // Radix closes on select by default; keep it open so
+                  // several can be ticked in one go.
+                  onSelect={(event) => event.preventDefault()}
+                  onCheckedChange={() => onToggle(action.id)}
+                >
+                  {action.priority} · {action.label}
+                </DropdownMenuCheckboxItem>
+              );
+
+              if (action.id !== "like") return item;
+
+              return (
+                <Tooltip key={action.id}>
+                  <TooltipTrigger asChild>{item}</TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-72">
+                    This action runs automatically without creating a draft for
+                    review.
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
