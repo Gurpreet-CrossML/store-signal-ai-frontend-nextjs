@@ -300,12 +300,24 @@ type TenancyState = {
   companyProfile: CompanyProfile | null;
   companyLoading: boolean;
   companySaving: boolean;
-  countries: LocationOption[];
-  states: LocationOption[];
-  cities: LocationOption[];
-  countriesLoading: boolean;
-  statesLoading: boolean;
-  citiesLoading: boolean;
+  FetchCountriesState: {
+    FetchCountriesIsLoading: boolean;
+    FetchCountriesIsSuccess: boolean;
+    FetchCountriesIsError: null | string | object;
+    FetchCountriesData: LocationOption[];
+  };
+  FetchStatesState: {
+    FetchStatesIsLoading: boolean;
+    FetchStatesIsSuccess: boolean;
+    FetchStatesIsError: null | string | object;
+    FetchStatesData: LocationOption[];
+  };
+  FetchCitiesState: {
+    FetchCitiesIsLoading: boolean;
+    FetchCitiesIsSuccess: boolean;
+    FetchCitiesIsError: null | string | object;
+    FetchCitiesData: LocationOption[];
+  };
   staff: StaffMember[];
   staffLoading: boolean;
   staffSaving: boolean;
@@ -318,12 +330,24 @@ const initialState: TenancyState = {
   companyProfile: null,
   companyLoading: false,
   companySaving: false,
-  countries: [],
-  states: [],
-  cities: [],
-  countriesLoading: false,
-  statesLoading: false,
-  citiesLoading: false,
+  FetchCountriesState: {
+    FetchCountriesIsLoading: false,
+    FetchCountriesIsSuccess: false,
+    FetchCountriesIsError: null,
+    FetchCountriesData: [] as LocationOption[],
+  },
+  FetchStatesState: {
+    FetchStatesIsLoading: false,
+    FetchStatesIsSuccess: false,
+    FetchStatesIsError: null,
+    FetchStatesData: [] as LocationOption[],
+  },
+  FetchCitiesState: {
+    FetchCitiesIsLoading: false,
+    FetchCitiesIsSuccess: false,
+    FetchCitiesIsError: null,
+    FetchCitiesData: [] as LocationOption[],
+  },
   staff: [],
   staffLoading: false,
   staffSaving: false,
@@ -359,36 +383,54 @@ const TenancySlice = createSlice({
         state.companySaving = false;
       })
       .addCase(FetchCountries.pending, (state) => {
-        state.countriesLoading = true;
+        state.FetchCountriesState.FetchCountriesIsLoading = true;
+        state.FetchCountriesState.FetchCountriesIsSuccess = false;
+        state.FetchCountriesState.FetchCountriesIsError = null;
       })
       .addCase(FetchCountries.fulfilled, (state, action) => {
-        state.countriesLoading = false;
-        state.countries = action.payload;
+        state.FetchCountriesState.FetchCountriesIsLoading = false;
+        state.FetchCountriesState.FetchCountriesIsSuccess = true;
+        state.FetchCountriesState.FetchCountriesData = action.payload;
       })
-      .addCase(FetchCountries.rejected, (state) => {
-        state.countriesLoading = false;
+      .addCase(FetchCountries.rejected, (state, action) => {
+        state.FetchCountriesState.FetchCountriesIsLoading = false;
+        state.FetchCountriesState.FetchCountriesIsSuccess = false;
+        state.FetchCountriesState.FetchCountriesIsError =
+          action.payload ?? "Failed to fetch countries.";
       })
       .addCase(FetchStates.pending, (state) => {
-        state.statesLoading = true;
-        state.states = [];
+        state.FetchStatesState.FetchStatesIsLoading = true;
+        state.FetchStatesState.FetchStatesIsSuccess = false;
+        state.FetchStatesState.FetchStatesIsError = null;
+        state.FetchStatesState.FetchStatesData = [];
       })
       .addCase(FetchStates.fulfilled, (state, action) => {
-        state.statesLoading = false;
-        state.states = action.payload;
+        state.FetchStatesState.FetchStatesIsLoading = false;
+        state.FetchStatesState.FetchStatesIsSuccess = true;
+        state.FetchStatesState.FetchStatesData = action.payload;
       })
-      .addCase(FetchStates.rejected, (state) => {
-        state.statesLoading = false;
+      .addCase(FetchStates.rejected, (state, action) => {
+        state.FetchStatesState.FetchStatesIsLoading = false;
+        state.FetchStatesState.FetchStatesIsSuccess = false;
+        state.FetchStatesState.FetchStatesIsError =
+          action.payload ?? "Failed to fetch states.";
       })
       .addCase(FetchCities.pending, (state) => {
-        state.citiesLoading = true;
-        state.cities = [];
+        state.FetchCitiesState.FetchCitiesIsLoading = true;
+        state.FetchCitiesState.FetchCitiesIsSuccess = false;
+        state.FetchCitiesState.FetchCitiesIsError = null;
+        state.FetchCitiesState.FetchCitiesData = [];
       })
       .addCase(FetchCities.fulfilled, (state, action) => {
-        state.citiesLoading = false;
-        state.cities = action.payload;
+        state.FetchCitiesState.FetchCitiesIsLoading = false;
+        state.FetchCitiesState.FetchCitiesIsSuccess = true;
+        state.FetchCitiesState.FetchCitiesData = action.payload;
       })
-      .addCase(FetchCities.rejected, (state) => {
-        state.citiesLoading = false;
+      .addCase(FetchCities.rejected, (state, action) => {
+        state.FetchCitiesState.FetchCitiesIsLoading = false;
+        state.FetchCitiesState.FetchCitiesIsSuccess = false;
+        state.FetchCitiesState.FetchCitiesIsError =
+          action.payload ?? "Failed to fetch cities.";
       })
       .addCase(FetchStaff.pending, (state) => {
         state.staffLoading = true;

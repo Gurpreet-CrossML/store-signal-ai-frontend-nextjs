@@ -57,6 +57,11 @@ const EDITABLE_FIELDS = [
   { name: "street", label: "Street", type: "text" },
 ] as const;
 
+function getLocationId(value: string): number | null {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 const validationSchema = z.object({
   email: z
     .string()
@@ -91,16 +96,19 @@ export default function CompanyProfileForm({
     companyProfile,
     companyLoading,
     companySaving,
-    countries,
-    states,
-    cities,
-    countriesLoading,
-    statesLoading,
-    citiesLoading,
+    FetchCountriesState: {
+      FetchCountriesData: countries,
+      FetchCountriesIsLoading: countriesLoading,
+    },
+    FetchStatesState: {
+      FetchStatesData: states,
+      FetchStatesIsLoading: statesLoading,
+    },
+    FetchCitiesState: {
+      FetchCitiesData: cities,
+      FetchCitiesIsLoading: citiesLoading,
+    },
   } = useAppSelector((state) => state.GetTenancyReducer);
-  const india = countries.find(
-    (country) => country.name.toLowerCase() === "india",
-  );
 
   // Logo is staged and applied on Save: a new File to upload, or `removeLogo`
   // to clear the saved one.
@@ -155,8 +163,7 @@ export default function CompanyProfileForm({
       street: companyProfile?.street ?? "",
       city: companyProfile?.city?.toString() ?? "",
       state: companyProfile?.state?.toString() ?? "",
-      country:
-        companyProfile?.country?.toString() ?? india?.id.toString() ?? "",
+      country: companyProfile?.country?.toString() ?? "",
     },
     validate: (values) => {
       const result = validationSchema.safeParse(values);
@@ -183,18 +190,36 @@ export default function CompanyProfileForm({
     },
   });
 
+  const selectedCountryId = getLocationId(formik.values.country);
+  const selectedStateId = getLocationId(formik.values.state);
+
+  // A selected country determines the states that can be selected.
   useEffect(() => {
-    const countryId = Number(formik.values.country);
-    if (countryId) dispatch(FetchStates(countryId));
-  }, [dispatch, formik.values.country]);
+    if (!selectedCountryId) return;
+
+    dispatch(FetchStates(selectedCountryId));
+  }, [dispatch, selectedCountryId]);
+
+  // A selected state determines the cities that can be selected.
   useEffect(() => {
-    const stateId = Number(formik.values.state);
-    if (stateId) dispatch(FetchCities(stateId));
-  }, [dispatch, formik.values.state]);
-  const changeCountry = (country: string) =>
+    if (!selectedStateId) return;
+
+    dispatch(FetchCities(selectedStateId));
+  }, [dispatch, selectedStateId]);
+
+  const handleCountryChange = (country: string) => {
+    // A state or city from the previous country is no longer valid.
     formik.setValues({ ...formik.values, country, state: "", city: "" });
-  const changeState = (state: string) =>
+  };
+
+  const handleStateChange = (state: string) => {
+    // A city from the previous state is no longer valid.
     formik.setValues({ ...formik.values, state, city: "" });
+  };
+
+  const handleCityChange = (city: string) => {
+    formik.setFieldValue("city", city);
+  };
 
   if (companyLoading && !companyProfile) {
     return <LoadingState />;
@@ -351,7 +376,7 @@ export default function CompanyProfileForm({
                 <FieldLabel htmlFor="country">Country</FieldLabel>
                 <Select
                   value={formik.values.country}
-                  onValueChange={changeCountry}
+                  onValueChange={handleCountryChange}
                   disabled={countriesLoading || !countries.length}
                 >
                   <SelectTrigger id="country" className="w-full">
@@ -370,7 +395,7 @@ export default function CompanyProfileForm({
                 <FieldLabel htmlFor="state">State</FieldLabel>
                 <Select
                   value={formik.values.state}
-                  onValueChange={changeState}
+                  onValueChange={handleStateChange}
                   disabled={!formik.values.country || statesLoading}
                 >
                   <SelectTrigger id="state" className="w-full">
@@ -393,7 +418,7 @@ export default function CompanyProfileForm({
                 <FieldLabel htmlFor="city">City</FieldLabel>
                 <Select
                   value={formik.values.city}
-                  onValueChange={(city) => formik.setFieldValue("city", city)}
+                  onValueChange={handleCityChange}
                   disabled={!formik.values.state || citiesLoading}
                 >
                   <SelectTrigger id="city" className="w-full">
