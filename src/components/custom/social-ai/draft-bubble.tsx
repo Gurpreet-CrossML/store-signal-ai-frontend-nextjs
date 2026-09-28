@@ -79,6 +79,7 @@ export function DraftBubble({
   const privateReplyLate =
     Boolean(draft.dm_text && commentAt) &&
     now - new Date(commentAt).getTime() > PRIVATE_REPLY_WINDOW_MS;
+  const hasHideAction = draft.actions.includes("hide");
 
   const startEditing = () => {
     setResponseText(draft.response_text);
@@ -129,6 +130,14 @@ export function DraftBubble({
           >
             <IconSend className="size-3" />
             Private Reply
+          </Badge>
+        )}
+        {hasHideAction && (
+          <Badge
+            variant="outline"
+            className={cn("gap-1", BADGE_TONE_STYLES.danger)}
+          >
+            Hide Comment
           </Badge>
         )}
         <Typography variant="caption" as="span" className="ml-auto">
@@ -189,7 +198,9 @@ export function DraftBubble({
           )}
           {!draft.response_text && !draft.dm_text && (
             <Typography variant="caption" as="p">
-              No text to send — approving runs the drafted actions.
+              {hasHideAction
+                ? "Hide the comment — approving will hide this comment."
+                : "No text to send — approving runs the drafted actions."}
             </Typography>
           )}
         </>
@@ -492,6 +503,8 @@ export function MessageDraftSlot({
 }) {
   const dispatch = useAppDispatch();
   const [draft, setDraft] = useState<CommentDraft | null>(null);
+  // Approval can arrive over the socket while the initial draft request is still in flight.
+  const resolvedDraftIdsRef = useRef<Set<number>>(new Set());
   const onResolvedRef = useRef(onResolved);
   useEffect(() => {
     onResolvedRef.current = onResolved;
@@ -503,8 +516,13 @@ export function MessageDraftSlot({
       .unwrap()
       .then((data) => {
         if (cancelled) return;
+        // Ignore a stale pending response after the same draft was resolved.
         const match =
-          (data.results ?? []).find((row) => row.status === "pending") ?? null;
+          (data.results ?? []).find(
+            (row) =>
+              row.status === "pending" &&
+              !resolvedDraftIdsRef.current.has(row.id),
+          ) ?? null;
         setDraft(match);
         // Flagged pending, nothing found — clear the badge, don't lie.
         if (!match) onResolvedRef.current("stale");
@@ -538,6 +556,13 @@ export function MessageDraftSlot({
         draft.id !== incoming.id
       )
         return;
+      // Remember resolutions so an older fetch cannot resurrect this draft.
+      if (
+        event.action_type === "comment_draft_updated" &&
+        incoming.status !== "pending"
+      ) {
+        resolvedDraftIdsRef.current.add(incoming.id);
+      }
       applyDraftBroadcast(event, setDraft, onResolved);
     },
     [pageId, userId, onResolved, draft],
@@ -551,6 +576,7 @@ export function MessageDraftSlot({
       storeCode={storeCode}
       onSaved={setDraft}
       onResolved={(outcome) => {
+        if (draft) resolvedDraftIdsRef.current.add(draft.id);
         setDraft(null);
         onResolved(outcome);
       }}
