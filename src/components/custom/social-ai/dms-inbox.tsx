@@ -709,10 +709,12 @@ export default function DmsInbox({
   // newly selected one is still fetching: every DM row's social_user is
   // the conversation contact, so drop anything that isn't theirs.
   const messages: SocialDm[] = useMemo(
-    () =>
-      (FetchSocialDmsData?.results ?? []).filter(
+    () => {
+      const filtered = (FetchSocialDmsData?.results ?? []).filter(
         (msg) => msg.social_user?.id === activeConversationId,
-      ),
+      );
+      return [...filtered].reverse();
+    },
     [FetchSocialDmsData, activeConversationId],
   );
 
@@ -1051,33 +1053,56 @@ export default function DmsInbox({
     const targetMessageId = replyingToMessage?.id ?? lastMessage.id;
     const conversationId = activeConversation.id;
 
-    // How many identical outgoing messages must exist before this one is
-    // considered delivered: what's on screen now, plus any still in flight
-    // with the same text, plus this one.
-    const hasMedia = files.length > 0;
-    const expectedCount =
-      countOutgoingWithContent(messages, text, hasMedia) +
-      pendingMessages.filter(
-        (item) =>
-          item.content === text &&
-          item.conversationId === conversationId &&
-          (item.files.length > 0) === hasMedia,
-      ).length +
-      1;
+    const newPendings: PendingDm[] = [];
 
-    const pending: PendingDm = {
-      ...createPendingSend(text),
-      targetMessageId,
-      isExplicitReply,
-      conversationId,
-      expectedCount,
-      files,
-    };
+    if (text) {
+      const expectedCountText =
+        countOutgoingWithContent(messages, text, false) +
+        pendingMessages.filter(
+          (item) =>
+            item.content === text &&
+            item.conversationId === conversationId &&
+            item.files.length === 0,
+        ).length +
+        1;
 
-    setPendingMessages((prev) => [...prev, pending]);
+      newPendings.push({
+        ...createPendingSend(text),
+        targetMessageId,
+        isExplicitReply,
+        conversationId,
+        expectedCount: expectedCountText,
+        files: [],
+      });
+    }
+
+    if (files.length > 0) {
+      const expectedCountMedia =
+        countOutgoingWithContent(messages, "", true) +
+        pendingMessages.filter(
+          (item) =>
+            item.content === "" &&
+            item.conversationId === conversationId &&
+            item.files.length > 0,
+        ).length +
+        1;
+
+      newPendings.push({
+        ...createPendingSend(""),
+        targetMessageId,
+        isExplicitReply,
+        conversationId,
+        expectedCount: expectedCountMedia,
+        files,
+      });
+    }
+
+    setPendingMessages((prev) => [...prev, ...newPendings]);
     setReplyingToMessage(null);
 
-    void sendReply(pending, targetMessageId, isExplicitReply, conversationId);
+    newPendings.forEach((pending) => {
+      void sendReply(pending, targetMessageId, isExplicitReply, conversationId);
+    });
   };
 
   const handleRetryPending = (tempId: string) => {
