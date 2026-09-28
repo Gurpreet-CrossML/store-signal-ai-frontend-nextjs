@@ -144,8 +144,8 @@ function countOutgoingWithContent(
   return messages.filter((msg) => {
     if (msg.message_direction !== "outgoing") return false;
     if (msg.content !== content) return false;
-    
-    const msgHasMedia = (msg.attachments && msg.attachments.length > 0);
+
+    const msgHasMedia = msg.attachments && msg.attachments.length > 0;
     return msgHasMedia === hasMedia;
   }).length;
 }
@@ -708,15 +708,12 @@ export default function DmsInbox({
   // Guard against the previous conversation's rows flashing while the
   // newly selected one is still fetching: every DM row's social_user is
   // the conversation contact, so drop anything that isn't theirs.
-  const messages: SocialDm[] = useMemo(
-    () => {
-      const filtered = (FetchSocialDmsData?.results ?? []).filter(
-        (msg) => msg.social_user?.id === activeConversationId,
-      );
-      return [...filtered].reverse();
-    },
-    [FetchSocialDmsData, activeConversationId],
-  );
+  const messages: SocialDm[] = useMemo(() => {
+    const filtered = (FetchSocialDmsData?.results ?? []).filter(
+      (msg) => msg.social_user?.id === activeConversationId,
+    );
+    return [...filtered].reverse();
+  }, [FetchSocialDmsData, activeConversationId]);
 
   // reply_to gives only the parent's id, so map the loaded thread by id to
   // recover what that message actually contained.
@@ -828,16 +825,14 @@ export default function DmsInbox({
   // how many such messages existed when it was queued, and clears once one
   // more than that shows up, which keeps repeated identical sends in order.
   const resolvedPendingIds = pendingMessages
-    .filter(
-      (pending) => {
-        const hasMedia = pending.files.length > 0;
-        return (
-          pending.conversationId === activeConversationId &&
-          countOutgoingWithContent(messages, pending.content, hasMedia) >=
-            pending.expectedCount
-        );
-      }
-    )
+    .filter((pending) => {
+      const hasMedia = pending.files.length > 0;
+      return (
+        pending.conversationId === activeConversationId &&
+        countOutgoingWithContent(messages, pending.content, hasMedia) >=
+          pending.expectedCount
+      );
+    })
     .map((pending) => pending.tempId);
 
   if (resolvedPendingIds.length) {
