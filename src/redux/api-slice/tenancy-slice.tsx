@@ -17,9 +17,9 @@ export type CompanyProfile = {
   email: string | null;
   phone: string | null;
   street: string | null;
-  city: string | null;
-  state: string | null;
-  country: string | null;
+  city: number | null;
+  state: number | null;
+  country: number | null;
   is_active: boolean;
 };
 
@@ -37,10 +37,15 @@ export type CompanyProfileUpdate = {
   email?: string;
   phone?: string;
   street?: string;
-  city?: string;
-  state?: string;
-  country?: string;
+  city?: number | null;
+  state?: number | null;
+  country?: number | null;
   logo?: File | null;
+};
+
+export type LocationOption = {
+  id: number;
+  name: string;
 };
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -103,6 +108,48 @@ export const UpdateCompanyProfile = createAsyncThunk(
       });
       const data = isAxiosError(error) ? error.response?.data : undefined;
       return thunkAPI.rejectWithValue(data || errorMessage(error, "Failed"));
+    }
+  },
+);
+
+export const FetchCountries = createAsyncThunk(
+  "tenancy/FetchCountries",
+  async (_: void, thunkAPI) => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.fetchCountries(), {
+        useBackend: true,
+      });
+      return res.data.data as LocationOption[];
+    } catch (error) {
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
+export const FetchStates = createAsyncThunk(
+  "tenancy/FetchStates",
+  async (countryId: number, thunkAPI) => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.fetchStates(countryId), {
+        useBackend: true,
+      });
+      return res.data.data as LocationOption[];
+    } catch (error) {
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
+export const FetchCities = createAsyncThunk(
+  "tenancy/FetchCities",
+  async (stateId: number, thunkAPI) => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.fetchCities(stateId), {
+        useBackend: true,
+      });
+      return res.data.data as LocationOption[];
+    } catch (error) {
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
     }
   },
 );
@@ -253,6 +300,12 @@ type TenancyState = {
   companyProfile: CompanyProfile | null;
   companyLoading: boolean;
   companySaving: boolean;
+  countries: LocationOption[];
+  states: LocationOption[];
+  cities: LocationOption[];
+  countriesLoading: boolean;
+  statesLoading: boolean;
+  citiesLoading: boolean;
   staff: StaffMember[];
   staffLoading: boolean;
   staffSaving: boolean;
@@ -265,6 +318,12 @@ const initialState: TenancyState = {
   companyProfile: null,
   companyLoading: false,
   companySaving: false,
+  countries: [],
+  states: [],
+  cities: [],
+  countriesLoading: false,
+  statesLoading: false,
+  citiesLoading: false,
   staff: [],
   staffLoading: false,
   staffSaving: false,
@@ -298,6 +357,38 @@ const TenancySlice = createSlice({
       })
       .addCase(UpdateCompanyProfile.rejected, (state) => {
         state.companySaving = false;
+      })
+      .addCase(FetchCountries.pending, (state) => {
+        state.countriesLoading = true;
+      })
+      .addCase(FetchCountries.fulfilled, (state, action) => {
+        state.countriesLoading = false;
+        state.countries = action.payload;
+      })
+      .addCase(FetchCountries.rejected, (state) => {
+        state.countriesLoading = false;
+      })
+      .addCase(FetchStates.pending, (state) => {
+        state.statesLoading = true;
+        state.states = [];
+      })
+      .addCase(FetchStates.fulfilled, (state, action) => {
+        state.statesLoading = false;
+        state.states = action.payload;
+      })
+      .addCase(FetchStates.rejected, (state) => {
+        state.statesLoading = false;
+      })
+      .addCase(FetchCities.pending, (state) => {
+        state.citiesLoading = true;
+        state.cities = [];
+      })
+      .addCase(FetchCities.fulfilled, (state, action) => {
+        state.citiesLoading = false;
+        state.cities = action.payload;
+      })
+      .addCase(FetchCities.rejected, (state) => {
+        state.citiesLoading = false;
       })
       .addCase(FetchStaff.pending, (state) => {
         state.staffLoading = true;
