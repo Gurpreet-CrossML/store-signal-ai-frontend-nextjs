@@ -121,6 +121,13 @@ export const ENDPOINTS = {
   fetchAIUsageWorkflowCosts: () => "/chat/ai-usage/workflow-costs/",
   fetchAIUsageLatencyTrend: () => "/chat/ai-usage/latency-trend/",
 
+  // Geography (Django Cities Light). Countries is intentionally limited to
+  // India by the backend; states and cities are dependent lists.
+  fetchCountries: () => "/core/location/country/",
+  fetchStates: (countryId: number) =>
+    `/core/location/country/${countryId}/state/`,
+  fetchCities: (stateId: number) => `/core/location/state/${stateId}/city/`,
+
   // Thread-level Analytics (local GETs — no trailing slash).
   fetchThreads: () => "/analytics/threads",
   fetchThreadDetails: (threadId: string) => `/analytics/threads/${threadId}`,
