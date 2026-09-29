@@ -123,10 +123,10 @@ export const ENDPOINTS = {
 
   // Geography (Django Cities Light). Countries is intentionally limited to
   // India by the backend; states and cities are dependent lists.
-  fetchCountries: () => "/core/location/country/",
+  fetchCountries: () => "/core/location/countries/",
   fetchStates: (countryId: number) =>
-    `/core/location/country/${countryId}/state/`,
-  fetchCities: (stateId: number) => `/core/location/state/${stateId}/city/`,
+    `/core/location/countries/${countryId}/states/`,
+  fetchCities: (stateId: number) => `/core/location/states/${stateId}/cities/`,
 
   // Thread-level Analytics (local GETs — no trailing slash).
   fetchThreads: () => "/analytics/threads",

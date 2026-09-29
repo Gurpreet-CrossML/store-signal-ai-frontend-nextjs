@@ -57,11 +57,6 @@ const EDITABLE_FIELDS = [
   { name: "street", label: "Street", type: "text" },
 ] as const;
 
-function getLocationId(value: string): number | null {
-  const id = Number(value);
-  return Number.isInteger(id) && id > 0 ? id : null;
-}
-
 const validationSchema = z.object({
   email: z
     .string()
@@ -190,22 +185,27 @@ export default function CompanyProfileForm({
     },
   });
 
-  const selectedCountryId = getLocationId(formik.values.country);
-  const selectedStateId = getLocationId(formik.values.state);
+  // Resolve selections from the location records returned by the backend.
+  const selectedCountry = countries.find(
+    (country) => String(country.id) === formik.values.country,
+  );
+  const selectedState = states.find(
+    (state) => String(state.id) === formik.values.state,
+  );
 
   // A selected country determines the states that can be selected.
   useEffect(() => {
-    if (!selectedCountryId) return;
+    if (!selectedCountry) return;
 
-    dispatch(FetchStates(selectedCountryId));
-  }, [dispatch, selectedCountryId]);
+    dispatch(FetchStates(selectedCountry.id));
+  }, [dispatch, selectedCountry]);
 
   // A selected state determines the cities that can be selected.
   useEffect(() => {
-    if (!selectedStateId) return;
+    if (!selectedState) return;
 
-    dispatch(FetchCities(selectedStateId));
-  }, [dispatch, selectedStateId]);
+    dispatch(FetchCities(selectedState.id));
+  }, [dispatch, selectedState]);
 
   const handleCountryChange = (country: string) => {
     // A state or city from the previous country is no longer valid.
