@@ -109,7 +109,7 @@ export function CommentFiltersBar({
         <SelectTrigger size="sm" className="w-40">
           <SelectValue placeholder="Any intent" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent position="popper" className="max-h-72">
           <SelectItem value={ANY}>Any intent</SelectItem>
           {INTENT_GROUPS.map((group, index) => {
             const intentsInGroup = DEFAULT_INTENTS.filter(
