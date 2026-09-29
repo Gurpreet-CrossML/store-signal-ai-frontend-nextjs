@@ -79,7 +79,6 @@ export function DraftBubble({
   const privateReplyLate =
     Boolean(draft.dm_text && commentAt) &&
     now - new Date(commentAt).getTime() > PRIVATE_REPLY_WINDOW_MS;
-  const hasHideAction = draft.actions.includes("hide");
 
   const startEditing = () => {
     setResponseText(draft.response_text);
@@ -132,14 +131,7 @@ export function DraftBubble({
             Private Reply
           </Badge>
         )}
-        {hasHideAction && (
-          <Badge
-            variant="outline"
-            className={cn("gap-1", BADGE_TONE_STYLES.danger)}
-          >
-            Hide Comment
-          </Badge>
-        )}
+
         <Typography variant="caption" as="span" className="ml-auto">
           Drafted {formatRelativeTime(draft.created_at)}
         </Typography>
@@ -198,9 +190,7 @@ export function DraftBubble({
           )}
           {!draft.response_text && !draft.dm_text && (
             <Typography variant="caption" as="p">
-              {hasHideAction
-                ? "Hide the comment — approving will hide this comment."
-                : "No text to send — approving runs the drafted actions."}
+              No text to send — approving runs the drafted actions.
             </Typography>
           )}
         </>
