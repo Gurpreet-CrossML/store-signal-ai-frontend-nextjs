@@ -1662,9 +1662,9 @@ export default function DmsInbox({
                   } satisfies TicketCustomer)
                 : null
             }
-            // initialSubject={
-            //   activeContactName ? `DM from ${activeContactName}` : ""
-            // }
+            initialSubject={
+              activeContactName ? `DM from ${activeContactName}` : ""
+            }
             onDraft={async () => {
               if (!activeConversationId) return null;
               const result = await dispatch(
