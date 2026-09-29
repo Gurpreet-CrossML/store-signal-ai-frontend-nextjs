@@ -136,18 +136,10 @@ type PendingDm = PendingSend & {
   files: File[];
 };
 
-function countOutgoingWithContent(
-  messages: SocialDm[],
-  content: string,
-  hasMedia: boolean,
-) {
-  return messages.filter((msg) => {
-    if (msg.message_direction !== "outgoing") return false;
-    if (msg.content !== content) return false;
-
-    const msgHasMedia = msg.attachments && msg.attachments.length > 0;
-    return msgHasMedia === hasMedia;
-  }).length;
+function countOutgoingWithContent(messages: SocialDm[], content: string) {
+  return messages.filter(
+    (msg) => msg.message_direction === "outgoing" && msg.content === content,
+  ).length;
 }
 
 // Minute-resolution clock that's safe under the React Compiler's purity
@@ -712,7 +704,7 @@ export default function DmsInbox({
     const filtered = (FetchSocialDmsData?.results ?? []).filter(
       (msg) => msg.social_user?.id === activeConversationId,
     );
-    return [...filtered].reverse();
+    return [...filtered];
   }, [FetchSocialDmsData, activeConversationId]);
 
   // reply_to gives only the parent's id, so map the loaded thread by id to
@@ -825,14 +817,12 @@ export default function DmsInbox({
   // how many such messages existed when it was queued, and clears once one
   // more than that shows up, which keeps repeated identical sends in order.
   const resolvedPendingIds = pendingMessages
-    .filter((pending) => {
-      const hasMedia = pending.files.length > 0;
-      return (
+    .filter(
+      (pending) =>
         pending.conversationId === activeConversationId &&
-        countOutgoingWithContent(messages, pending.content, hasMedia) >=
-          pending.expectedCount
-      );
-    })
+        countOutgoingWithContent(messages, pending.content) >=
+          pending.expectedCount,
+    )
     .map((pending) => pending.tempId);
 
   if (resolvedPendingIds.length) {
@@ -1048,56 +1038,27 @@ export default function DmsInbox({
     const targetMessageId = replyingToMessage?.id ?? lastMessage.id;
     const conversationId = activeConversation.id;
 
-    const newPendings: PendingDm[] = [];
+    const expectedCount =
+      countOutgoingWithContent(messages, text) +
+      pendingMessages.filter(
+        (item) =>
+          item.content === text && item.conversationId === conversationId,
+      ).length +
+      1;
 
-    if (text) {
-      const expectedCountText =
-        countOutgoingWithContent(messages, text, false) +
-        pendingMessages.filter(
-          (item) =>
-            item.content === text &&
-            item.conversationId === conversationId &&
-            item.files.length === 0,
-        ).length +
-        1;
+    const pending: PendingDm = {
+      ...createPendingSend(text),
+      targetMessageId,
+      isExplicitReply,
+      conversationId,
+      expectedCount,
+      files,
+    };
 
-      newPendings.push({
-        ...createPendingSend(text),
-        targetMessageId,
-        isExplicitReply,
-        conversationId,
-        expectedCount: expectedCountText,
-        files: [],
-      });
-    }
-
-    if (files.length > 0) {
-      const expectedCountMedia =
-        countOutgoingWithContent(messages, "", true) +
-        pendingMessages.filter(
-          (item) =>
-            item.content === "" &&
-            item.conversationId === conversationId &&
-            item.files.length > 0,
-        ).length +
-        1;
-
-      newPendings.push({
-        ...createPendingSend(""),
-        targetMessageId,
-        isExplicitReply,
-        conversationId,
-        expectedCount: expectedCountMedia,
-        files,
-      });
-    }
-
-    setPendingMessages((prev) => [...prev, ...newPendings]);
+    setPendingMessages((prev) => [...prev, pending]);
     setReplyingToMessage(null);
 
-    newPendings.forEach((pending) => {
-      void sendReply(pending, targetMessageId, isExplicitReply, conversationId);
-    });
+    void sendReply(pending, targetMessageId, isExplicitReply, conversationId);
   };
 
   const handleRetryPending = (tempId: string) => {
