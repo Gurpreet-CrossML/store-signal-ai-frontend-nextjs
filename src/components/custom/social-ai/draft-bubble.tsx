@@ -131,7 +131,6 @@ export function DraftBubble({
             Private Reply
           </Badge>
         )}
-
         <Typography variant="caption" as="span" className="ml-auto">
           Drafted {formatRelativeTime(draft.created_at)}
         </Typography>
@@ -493,8 +492,6 @@ export function MessageDraftSlot({
 }) {
   const dispatch = useAppDispatch();
   const [draft, setDraft] = useState<CommentDraft | null>(null);
-  // Approval can arrive over the socket while the initial draft request is still in flight.
-  const resolvedDraftIdsRef = useRef<Set<number>>(new Set());
   const onResolvedRef = useRef(onResolved);
   useEffect(() => {
     onResolvedRef.current = onResolved;
@@ -506,13 +503,8 @@ export function MessageDraftSlot({
       .unwrap()
       .then((data) => {
         if (cancelled) return;
-        // Ignore a stale pending response after the same draft was resolved.
         const match =
-          (data.results ?? []).find(
-            (row) =>
-              row.status === "pending" &&
-              !resolvedDraftIdsRef.current.has(row.id),
-          ) ?? null;
+          (data.results ?? []).find((row) => row.status === "pending") ?? null;
         setDraft(match);
         // Flagged pending, nothing found — clear the badge, don't lie.
         if (!match) onResolvedRef.current("stale");
@@ -546,13 +538,6 @@ export function MessageDraftSlot({
         draft.id !== incoming.id
       )
         return;
-      // Remember resolutions so an older fetch cannot resurrect this draft.
-      if (
-        event.action_type === "comment_draft_updated" &&
-        incoming.status !== "pending"
-      ) {
-        resolvedDraftIdsRef.current.add(incoming.id);
-      }
       applyDraftBroadcast(event, setDraft, onResolved);
     },
     [pageId, userId, onResolved, draft],
@@ -566,7 +551,6 @@ export function MessageDraftSlot({
       storeCode={storeCode}
       onSaved={setDraft}
       onResolved={(outcome) => {
-        if (draft) resolvedDraftIdsRef.current.add(draft.id);
         setDraft(null);
         onResolved(outcome);
       }}
