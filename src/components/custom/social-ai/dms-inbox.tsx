@@ -1039,7 +1039,7 @@ export default function DmsInbox({
     const isExplicitReply = replyingToMessage !== null;
     const targetMessageId = replyingToMessage?.id ?? lastMessage.id;
     const conversationId = activeConversation.id;
-    
+
     // How many identical outgoing messages must exist before this one is
     // considered delivered: what's on screen now, plus any still in flight
     // with the same text, plus this one.
