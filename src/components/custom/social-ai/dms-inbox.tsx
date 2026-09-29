@@ -820,6 +820,8 @@ export default function DmsInbox({
     .filter(
       (pending) =>
         pending.conversationId === activeConversationId &&
+        // Media-only sends carry no text to match on, so they're resolved
+        // by the outgoing message count for empty content instead.
         countOutgoingWithContent(messages, pending.content) >=
           pending.expectedCount,
     )
@@ -1037,7 +1039,10 @@ export default function DmsInbox({
     const isExplicitReply = replyingToMessage !== null;
     const targetMessageId = replyingToMessage?.id ?? lastMessage.id;
     const conversationId = activeConversation.id;
-
+    
+    // How many identical outgoing messages must exist before this one is
+    // considered delivered: what's on screen now, plus any still in flight
+    // with the same text, plus this one.
     const expectedCount =
       countOutgoingWithContent(messages, text) +
       pendingMessages.filter(
