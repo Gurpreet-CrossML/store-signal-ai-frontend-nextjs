@@ -71,7 +71,7 @@ export default function BrandVoiceToneStyleEditor() {
   const formik = useFormik<ToneStylePayload>({
     enableReinitialize: true,
     initialValues: {
-      preset: FetchToneStyleData?.preset ?? FetchTonePresetsData[0]?.id ?? 0,
+      preset: FetchToneStyleData?.preset ?? FetchTonePresetsData[0]?.id ?? 1,
       warmth:
         FetchToneStyleData?.warmth ?? FetchTonePresetsData[0]?.warmth ?? 50,
       formality:
