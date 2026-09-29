@@ -203,15 +203,6 @@ function ActionPicker({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {actions.includes("like") && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
-          <IconAlertTriangle className="mt-0.5 size-4 shrink-0" />
-          <Typography variant="caption" as="p">
-            Like the comment runs automatically without creating a draft for
-            review.
-          </Typography>
-        </div>
-      )}
     </div>
   );
 }
@@ -476,6 +467,13 @@ export default function SocialCommentHandling() {
               Actions per Intent
               <InfoIcon text={SECTION_INFO} />
             </Typography>
+            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+              <IconAlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <Typography variant="caption" as="p">
+                Like the comment runs automatically without creating a draft for
+                review.
+              </Typography>
+            </div>
 
             {INTENT_GROUPS.map((group) => (
               <div key={group} className="flex flex-col gap-3">
