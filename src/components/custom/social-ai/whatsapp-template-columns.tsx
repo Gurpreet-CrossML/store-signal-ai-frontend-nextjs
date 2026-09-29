@@ -6,6 +6,7 @@ import {
   IconEye,
   IconPencil,
   IconRefresh,
+  IconRotateClockwise2,
   IconTrash,
 } from "@tabler/icons-react";
 
@@ -16,7 +17,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Switch } from "@/components/ui/switch";
 import {
   resolveTemplateIcon,
   WhatsAppTemplateCategoryBadge,
@@ -35,7 +35,7 @@ export function getWhatsAppTemplateColumns(
   onEdit: (template: WhatsAppTemplate) => void,
   onDelete: (template: WhatsAppTemplate) => void,
   onResubmit: (template: WhatsAppTemplate) => void,
-  onToggleActive: (template: WhatsAppTemplate, checked: boolean) => void,
+  onResubmitAsNew: (template: WhatsAppTemplate) => void,
 ): ColumnDef<WhatsAppTemplate>[] {
   return [
     {
@@ -83,21 +83,6 @@ export function getWhatsAppTemplateColumns(
       ),
     },
     {
-      accessorKey: "is_active",
-      header: "Active",
-      cell: ({ row }) => {
-        const template = row.original;
-        return (
-          <Switch
-            checked={template.is_active}
-            onCheckedChange={(checked) => onToggleActive(template, checked)}
-            aria-label={`Toggle ${template.name} active`}
-            onClick={(event) => event.stopPropagation()}
-          />
-        );
-      },
-    },
-    {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => {
@@ -136,6 +121,18 @@ export function getWhatsAppTemplateColumns(
                   >
                     <IconRefresh className="size-4" />
                     Resubmit to Meta
+                  </DropdownMenuItem>
+                )}
+                {(template.status?.toUpperCase() === "PENDING_DELETION" ||
+                  template.status?.toUpperCase() === "DELETED") && (
+                  <DropdownMenuItem
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onResubmitAsNew(template);
+                    }}
+                  >
+                    <IconRotateClockwise2 className="size-4" />
+                    Resubmit
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem

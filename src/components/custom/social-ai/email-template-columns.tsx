@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import type { EmailTemplate } from "@/redux/api-slice/campaign-slice";
+import { renderPreviewText } from "@/lib/whatsapp-template-helper";
 
 export function getEmailTemplateColumns(
   onView: (template: EmailTemplate) => void,
@@ -50,14 +51,17 @@ export function getEmailTemplateColumns(
     {
       accessorKey: "subject",
       header: "Subject",
-      cell: ({ row }) => (
-        <span
-          className="max-w-[240px] truncate text-sm text-muted-foreground"
-          title={row.original.subject}
-        >
-          {row.original.subject}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const resolved = renderPreviewText(row.original.subject);
+        return (
+          <span
+            className="block max-w-[320px] truncate text-sm text-muted-foreground"
+            title={resolved}
+          >
+            {resolved}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "accent_color",

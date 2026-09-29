@@ -316,9 +316,7 @@ export const createSegment = createAsyncThunk(
  * pause this segment: it is still the audience of live campaign X").
  */
 function bestErrorMessage(envelope: unknown, fallback: string): string {
-  const data = envelope as
-    | { data?: unknown; message?: string }
-    | undefined;
+  const data = envelope as { data?: unknown; message?: string } | undefined;
   const fieldData = data?.data;
   if (fieldData && typeof fieldData === "object" && !Array.isArray(fieldData)) {
     for (const value of Object.values(fieldData as Record<string, unknown>)) {
@@ -601,6 +599,60 @@ export const updateCampaign = createAsyncThunk(
       // Reject with the whole envelope so the form can pull field errors
       // out of ``err.data`` (DRF puts one on the 400 response).
       return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+    }
+  },
+);
+
+// One step's outcome from CampaignRunAPIView — ``would_send`` is only
+// present on a dry run, ``sent``/``failed`` only on a real one; ``error``
+// is set when the whole step failed before any recipient was attempted
+// (e.g. a WhatsApp template Meta would reject), not for a per-recipient
+// failure (that's just counted in ``failed``).
+export type CampaignRunStepResult = {
+  step_order: number;
+  channel: "whatsapp" | "email";
+  sent?: number;
+  failed?: number;
+  would_send?: number;
+  error?: string | null;
+};
+
+export type CampaignRunResult = {
+  campaign: string;
+  recipient_count: number;
+  dry_run: boolean;
+  steps: CampaignRunStepResult[];
+};
+
+export const runCampaign = createAsyncThunk(
+  "runCampaign",
+  async (
+    {
+      storeCode,
+      campaignId,
+      dryRun,
+    }: { storeCode: string; campaignId: number; dryRun: boolean },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.campaignRun({ campaignId })}?store_code=${storeCode}`,
+        { dry_run: dryRun },
+        { useBackend: true },
+      );
+      return response.data.data as CampaignRunResult;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      // A dry-run preview fires as soon as the confirmation dialog opens,
+      // before the user asked for anything to actually happen — a toast
+      // there would be noise. The real send still gets one.
+      if (!dryRun) {
+        toast.error("Couldn't run the campaign", {
+          description: bestErrorMessage(data, "Please try again later."),
+        });
+      }
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );

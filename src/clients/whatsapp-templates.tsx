@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PaginationState } from "@tanstack/react-table";
 import {
+  IconAlertTriangle,
   IconCategory,
   IconCircleCheck,
   IconClockHour4,
@@ -31,6 +32,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -48,7 +58,6 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   deleteWhatsAppTemplate,
   fetchWhatsAppTemplates,
-  toggleWhatsAppTemplateActive,
   updateWhatsAppTemplate,
   type WhatsAppTemplate,
 } from "@/redux/api-slice/social-ai-slice";
@@ -58,6 +67,12 @@ const ALL = "all";
 
 function titleCase(value: string) {
   return value.charAt(0) + value.slice(1).toLowerCase();
+}
+
+// Same rule Meta enforces on a template name: lowercase letters, numbers
+// and underscores only. Matches whatsapp-template-create.tsx's own helper.
+function sanitizeName(raw: string) {
+  return raw.toLowerCase().replace(/[^a-z0-9_]+/g, "_");
 }
 
 export default function WhatsAppTemplates() {
@@ -106,6 +121,11 @@ export default function WhatsAppTemplates() {
   const [templateToDelete, setTemplateToDelete] =
     useState<WhatsAppTemplate | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [templateToResubmit, setTemplateToResubmit] =
+    useState<WhatsAppTemplate | null>(null);
+  const [resubmitName, setResubmitName] = useState("");
+  const [resubmitting, setResubmitting] = useState(false);
 
   // Filter option lists come from what's actually in the data, so the menus
   // never offer a value that would just filter the table to nothing.
@@ -194,27 +214,63 @@ export default function WhatsAppTemplates() {
     [storeCode, account, templates, dispatch],
   );
 
-  const handleToggleActive = useCallback(
-    async (template: WhatsAppTemplate, checked: boolean) => {
-      if (!storeCode || !account) return;
-      try {
-        await dispatch(
-          toggleWhatsAppTemplateActive({
-            storeCode,
-            accountId: String(account.id),
-            templateId: Number(template.id),
-            isActive: checked,
-          }),
-        ).unwrap();
-        toast.success(
-          checked ? "Template activated" : "Template deactivated",
-        );
-      } catch {
-        // The thunk already surfaces the error toast.
-      }
+  // Meta reports a template gone (deleted from WhatsApp Manager, or from
+  // this dashboard) as PENDING_DELETION/DELETED, and refuses to reuse that
+  // exact name for 4 weeks — so unlike the REJECTED auto-resubmit above,
+  // this asks the user to pick the new name themselves rather than
+  // guessing one silently.
+  const nextFreeName = useCallback(
+    (template: WhatsAppTemplate) => {
+      const base = template.name.replace(/_v\d+$/i, "");
+      const taken = new Set(templates.map((t) => t.name));
+      let version = 2;
+      while (taken.has(`${base}_v${version}`)) version += 1;
+      return `${base}_v${version}`;
     },
-    [storeCode, account, dispatch],
+    [templates],
   );
+
+  const handleOpenResubmitAsNew = useCallback(
+    (template: WhatsAppTemplate) => {
+      setTemplateToResubmit(template);
+      setResubmitName(nextFreeName(template));
+    },
+    [nextFreeName],
+  );
+
+  const resubmitNameTaken =
+    !!templateToResubmit &&
+    templates.some(
+      (t) => t.id !== templateToResubmit.id && t.name === resubmitName,
+    );
+  const resubmitNameUnchanged =
+    !!templateToResubmit && resubmitName === templateToResubmit.name;
+
+  const handleConfirmResubmitAsNew = async () => {
+    if (!storeCode || !account || !templateToResubmit) return;
+    setResubmitting(true);
+    try {
+      await dispatch(
+        updateWhatsAppTemplate({
+          storeCode,
+          accountId: String(account.id),
+          templateId: Number(templateToResubmit.id),
+          payload: { name: resubmitName },
+        }),
+      ).unwrap();
+      toast.success("Template resubmitted", {
+        description: `${resubmitName} was sent to Meta for review.`,
+      });
+      setTemplateToResubmit(null);
+      dispatch(
+        fetchWhatsAppTemplates({ storeCode, accountId: String(account.id) }),
+      );
+    } catch {
+      // The thunk already surfaces the error toast.
+    } finally {
+      setResubmitting(false);
+    }
+  };
 
   const columns = useMemo(
     () =>
@@ -224,9 +280,9 @@ export default function WhatsAppTemplates() {
           router.push(`/campaign/whatsapp-templates/${template.id}/edit`),
         (template) => setTemplateToDelete(template),
         handleResubmit,
-        handleToggleActive,
+        handleOpenResubmitAsNew,
       ),
-    [router, handleResubmit, handleToggleActive],
+    [router, handleResubmit, handleOpenResubmitAsNew],
   );
 
   const handleConfirmDelete = async () => {
@@ -467,6 +523,79 @@ export default function WhatsAppTemplates() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={!!templateToResubmit}
+        onOpenChange={(open) => {
+          if (!open) setTemplateToResubmit(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>
+              Resubmit &ldquo;{templateToResubmit?.name}&rdquo;
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+            <IconAlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <span>
+              Meta doesn&apos;t allow reusing a template name within 4 weeks of
+              deletion. Choose a different name to resubmit this template&apos;s
+              content as a new review.
+            </span>
+          </div>
+
+          <Field className="gap-2">
+            <FieldLabel htmlFor="wa-resubmit-name">
+              New Template Name
+            </FieldLabel>
+            <FieldDescription>
+              Lowercase letters, numbers and underscores only.
+            </FieldDescription>
+            <Input
+              id="wa-resubmit-name"
+              value={resubmitName}
+              onChange={(event) =>
+                setResubmitName(sanitizeName(event.target.value))
+              }
+              maxLength={512}
+            />
+            {resubmitNameUnchanged && (
+              <p className="text-xs text-destructive">
+                Pick a name different from the current one.
+              </p>
+            )}
+            {resubmitNameTaken && (
+              <p className="text-xs text-destructive">
+                Another template already uses this name.
+              </p>
+            )}
+          </Field>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setTemplateToResubmit(null)}
+              disabled={resubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmResubmitAsNew}
+              disabled={
+                resubmitting ||
+                !resubmitName.trim() ||
+                resubmitNameUnchanged ||
+                resubmitNameTaken
+              }
+            >
+              {resubmitting ? "Resubmitting…" : "Resubmit to Meta"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
