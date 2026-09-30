@@ -72,7 +72,7 @@ export const KNOWLEDGE_STATUS_META: Record<
     variant: "default" | "secondary" | "outline" | "destructive";
   }
 > = {
-  completed: { label: "Completed", variant: "default" },
+  completed: { label: "Completed", variant: "outline" },
   pending: { label: "Pending", variant: "secondary" },
   processing: { label: "Processing", variant: "secondary" },
   failed: { label: "Failed", variant: "destructive" },

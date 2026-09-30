@@ -13,7 +13,6 @@ import type {
   KnowledgeType,
 } from "@/redux/api-slice/knowledge-rag-slice";
 import {
-  KNOWLEDGE_SOURCE_LABEL,
   KNOWLEDGE_STATUS_META,
   KNOWLEDGE_TYPE_OPTIONS,
 } from "@/components/custom/knowledge/knowledge-meta";
@@ -31,22 +30,8 @@ export const EMPTY_KNOWLEDGE_FILTERS: KnowledgeFilterSelection = {
 };
 
 export function countActiveKnowledgeFilters(filters: KnowledgeFilterSelection) {
-  return (
-    Number(filters.type !== "") +
-    Number(filters.source !== "") +
-    Number(filters.status !== "")
-  );
+  return Number(filters.type !== "") + Number(filters.status !== "");
 }
-
-// The only sources the Add Knowledge wizard can actually create today —
-// text/google_drive/product/category/offer have no creation flow, so they'd
-// only ever filter to an empty list.
-const FILTERABLE_SOURCES: KnowledgeSource[] = ["file", "url", "faq"];
-
-const SOURCE_OPTIONS = FILTERABLE_SOURCES.map((value) => ({
-  value,
-  label: KNOWLEDGE_SOURCE_LABEL[value],
-}));
 
 const STATUS_OPTIONS = Object.entries(KNOWLEDGE_STATUS_META).map(
   ([value, meta]) => ({ value: value as KnowledgeStatus, label: meta.label }),
@@ -87,7 +72,7 @@ function FilterSelect({
   );
 }
 
-/** Type / source / status filters — single-select dropdowns, one per field. */
+/** Type / status filters (source is chosen with the tabs above the list) — single-select dropdowns, one per field. */
 export function KnowledgeTypeSourceStatusFilters({
   filters,
   onFiltersChange,
@@ -107,18 +92,6 @@ export function KnowledgeTypeSourceStatusFilters({
           })
         }
         options={[{ value: "", label: "All Types" }, ...KNOWLEDGE_TYPE_OPTIONS]}
-      />
-
-      <FilterSelect
-        ariaLabel="Filter by source"
-        value={filters.source}
-        onChange={(source) =>
-          onFiltersChange({
-            ...filters,
-            source: source as KnowledgeFilterSelection["source"],
-          })
-        }
-        options={[{ value: "", label: "All Sources" }, ...SOURCE_OPTIONS]}
       />
 
       <FilterSelect

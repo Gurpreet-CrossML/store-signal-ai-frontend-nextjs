@@ -1,8 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { IconPlus, IconSearch, IconX, IconRefresh } from "@tabler/icons-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  IconCopy,
+  IconFileText,
+  IconLink,
+  IconMessageQuestion,
+  IconPlus,
+  IconSearch,
+  IconX,
+  IconRefresh,
+} from "@tabler/icons-react";
 
 import {
   AlertDialog,
@@ -17,6 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
@@ -25,7 +36,6 @@ import {
   type KnowledgeItem,
 } from "@/redux/api-slice/knowledge-rag-slice";
 import {
-  EMPTY_KNOWLEDGE_FILTERS,
   KnowledgeTypeSourceStatusFilters,
   countActiveKnowledgeFilters,
   type KnowledgeFilterSelection,
@@ -34,8 +44,30 @@ import { KnowledgeList } from "@/components/custom/knowledge/knowledge-list";
 import { EditKnowledgeDialog } from "@/components/custom/knowledge/edit-knowledge-dialog";
 import { KnowledgeDetailSheet } from "@/components/custom/knowledge/knowledge-detail-sheet";
 import { KnowledgeDataTablePagination } from "@/components/custom/knowledge/knowledge-data-table-pagination";
+import { PAGE_SIZE_OPTIONS } from "@/components/custom/threads-data-table-pagination";
+import {
+  KNOWLEDGE_STATUS_META,
+  KNOWLEDGE_TYPE_META,
+} from "@/components/custom/knowledge/knowledge-meta";
+import type {
+  KnowledgeSource,
+  KnowledgeStatus,
+  KnowledgeType,
+} from "@/redux/api-slice/knowledge-rag-slice";
 
 const DEFAULT_PAGE_SIZE = 25;
+
+// Source tabs above the list; each maps to the `source` API filter.
+const SOURCE_TABS: {
+  value: KnowledgeSource | "all";
+  label: string;
+  icon: typeof IconCopy;
+}[] = [
+  { value: "all", label: "All", icon: IconCopy },
+  { value: "file", label: "Documents", icon: IconFileText },
+  { value: "url", label: "URLs", icon: IconLink },
+  { value: "faq", label: "FAQs", icon: IconMessageQuestion },
+];
 
 export default function KnowledgeLibraryTabContent() {
   const dispatch = useAppDispatch();
@@ -51,13 +83,50 @@ export default function KnowledgeLibraryTabContent() {
     (state) => state.GetKnowledgeRagReducer.DeleteKnowledgeItemState,
   );
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [searchInput, setSearchInput] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [filters, setFilters] = useState<KnowledgeFilterSelection>(
-    EMPTY_KNOWLEDGE_FILTERS,
+  // All list filters live in the URL (?q=&type=&source=&status=&page=&pageSize=)
+  // so a reload, back/forward or a shared link restores the same view.
+  const router = useRouter();
+  const pathname = usePathname() ?? "/knowledge/library";
+  const searchParams = useSearchParams();
+
+  const pageParam = Number(searchParams?.get("page"));
+  const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
+  const pageSizeParam = Number(searchParams?.get("pageSize"));
+  const pageSize = PAGE_SIZE_OPTIONS.includes(pageSizeParam)
+    ? pageSizeParam
+    : DEFAULT_PAGE_SIZE;
+  const debouncedSearch = (searchParams?.get("q") ?? "").trim();
+  const typeParam = searchParams?.get("type") ?? "";
+  const sourceParam = searchParams?.get("source") ?? "";
+  const statusParam = searchParams?.get("status") ?? "";
+  const filters: KnowledgeFilterSelection = {
+    type: (typeParam in KNOWLEDGE_TYPE_META ? typeParam : "") as
+      | KnowledgeType
+      | "",
+    source: (["file", "url", "faq"].includes(sourceParam)
+      ? sourceParam
+      : "") as KnowledgeSource | "",
+    status: (statusParam in KNOWLEDGE_STATUS_META ? statusParam : "") as
+      | KnowledgeStatus
+      | "",
+  };
+
+  const updateParams = useCallback(
+    (changes: Record<string, string | number | null>) => {
+      const next = new URLSearchParams(searchParams?.toString() ?? "");
+      for (const [key, value] of Object.entries(changes)) {
+        if (value === null || value === "") next.delete(key);
+        else next.set(key, String(value));
+      }
+      const query = next.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, {
+        scroll: false,
+      });
+    },
+    [router, pathname, searchParams],
   );
+
+  const [searchInput, setSearchInput] = useState(debouncedSearch);
   const [detailItem, setDetailItem] = useState<KnowledgeItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editItem, setEditItem] = useState<KnowledgeItem | null>(null);
@@ -67,37 +136,23 @@ export default function KnowledgeLibraryTabContent() {
   const items = FetchKnowledgeItemsListData.results;
   const totalCount = FetchKnowledgeItemsListData.count;
   const activeFilterCount = countActiveKnowledgeFilters(filters);
-  const hasFilters = activeFilterCount > 0 || debouncedSearch !== "";
+  const hasFilters =
+    activeFilterCount > 0 || filters.source !== "" || debouncedSearch !== "";
+  const hasClearableFilters = activeFilterCount > 0 || debouncedSearch !== "";
   // No knowledge exists yet (not just filtered down to nothing) — show only
   // the centered "Add Knowledge" button from the empty state below, not the
   // search/filter toolbar.
   const isEmptyLibrary =
     !FetchKnowledgeItemsIsLoading && !hasFilters && totalCount === 0;
 
-  // Debounce so a request isn't fired per keystroke.
+  // Debounce so a request isn't fired per keystroke; the settled value is
+  // written to the URL, which is the source of truth for the fetch.
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
+    const next = searchInput.trim();
+    if (next === debouncedSearch) return;
+    const timer = setTimeout(() => updateParams({ q: next, page: null }), 350);
     return () => clearTimeout(timer);
-  }, [searchInput]);
-
-  // Reset to page 1 whenever the store, page size, or a server-side filter
-  // changes — the current page may not exist at a new size or filter set.
-  // Adjusted during render against a sentinel, the endorsed alternative to
-  // setting state from an effect (same pattern as the Threads screen).
-  const filterSignature = JSON.stringify([
-    storeCode,
-    pageSize,
-    debouncedSearch,
-    filters.type,
-    filters.source,
-    filters.status,
-  ]);
-  const [prevFilterSignature, setPrevFilterSignature] =
-    useState(filterSignature);
-  if (filterSignature !== prevFilterSignature) {
-    setPrevFilterSignature(filterSignature);
-    setPage(1);
-  }
+  }, [searchInput, debouncedSearch, updateParams]);
 
   const loadItems = () => {
     if (!storeCode) return;
@@ -153,6 +208,23 @@ export default function KnowledgeLibraryTabContent() {
   return (
     <div className="flex w-full flex-col gap-4">
       {!isEmptyLibrary && (
+        <Tabs
+          value={filters.source || "all"}
+          onValueChange={(value) =>
+            updateParams({ source: value === "all" ? null : value, page: null })
+          }
+        >
+          <TabsList variant="line" className="h-10 w-full justify-start">
+            {SOURCE_TABS.map(({ value, label, icon: TabIcon }) => (
+              <TabsTrigger key={value} value={value} className="flex-none px-3">
+                <TabIcon />
+                {label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      )}
+      {!isEmptyLibrary && (
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-full sm:w-72">
             <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -167,10 +239,16 @@ export default function KnowledgeLibraryTabContent() {
 
           <KnowledgeTypeSourceStatusFilters
             filters={filters}
-            onFiltersChange={setFilters}
+            onFiltersChange={(next) =>
+              updateParams({
+                type: next.type,
+                status: next.status,
+                page: null,
+              })
+            }
           />
 
-          {hasFilters && (
+          {hasClearableFilters && (
             <Button
               type="button"
               variant="ghost"
@@ -178,7 +256,12 @@ export default function KnowledgeLibraryTabContent() {
               className="text-muted-foreground"
               onClick={() => {
                 setSearchInput("");
-                setFilters(EMPTY_KNOWLEDGE_FILTERS);
+                updateParams({
+                  q: null,
+                  type: null,
+                  status: null,
+                  page: null,
+                });
               }}
             >
               <IconX />
@@ -230,8 +313,11 @@ export default function KnowledgeLibraryTabContent() {
         pageSize={pageSize}
         page={page}
         onPaginationChange={(next) => {
-          setPage(next.page);
-          setPageSize(next.pageSize);
+          updateParams({
+            page: next.page === 1 ? null : next.page,
+            pageSize:
+              next.pageSize === DEFAULT_PAGE_SIZE ? null : next.pageSize,
+          });
         }}
       />
 
