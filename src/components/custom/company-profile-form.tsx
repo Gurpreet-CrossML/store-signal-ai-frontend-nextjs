@@ -75,19 +75,10 @@ const validationSchema = z.object({
       const digitCount = val.replace(/\D/g, "").length;
       return digitCount >= 7 && digitCount <= 15;
     }, "Enter a valid phone number."),
-  city: z
-    .string()
-    .transform((value) => (value ? Number(value) : null))
-    .pipe(z.number().int().positive().nullable()),
+  city: z.number().int().positive().nullable(),
   street: z.string().optional(),
-  state: z
-    .string()
-    .transform((value) => (value ? Number(value) : null))
-    .pipe(z.number().int().positive().nullable()),
-  country: z
-    .string()
-    .transform((value) => (value ? Number(value) : null))
-    .pipe(z.number().int().positive().nullable()),
+  state: z.number().int().positive().nullable(),
+  country: z.number().int().positive().nullable(),
 });
 
 export default function CompanyProfileForm({
@@ -159,9 +150,9 @@ export default function CompanyProfileForm({
       email: companyProfile?.email ?? "",
       phone: companyProfile?.phone ?? "",
       street: companyProfile?.street ?? "",
-      city: companyProfile?.city?.id?.toString() ?? "",
-      state: companyProfile?.state?.id?.toString() ?? "",
-      country: companyProfile?.country?.id?.toString() ?? "",
+      city: companyProfile?.city?.id ?? null,
+      state: companyProfile?.state?.id ?? null,
+      country: companyProfile?.country?.id ?? null,
     },
     validate: (values) => {
       const result = validationSchema.safeParse(values);
@@ -188,30 +179,36 @@ export default function CompanyProfileForm({
 
   // A selected country determines the states that can be selected.
   useEffect(() => {
-    if (!formik.values.country) return;
+    if (formik.values.country === null) return;
 
-    dispatch(FetchStates(Number(formik.values.country)));
+    dispatch(FetchStates(formik.values.country));
   }, [dispatch, formik.values.country]);
 
   // A selected state determines the cities that can be selected.
   useEffect(() => {
-    if (!formik.values.state) return;
+    if (formik.values.state === null) return;
 
-    dispatch(FetchCities(Number(formik.values.state)));
+    dispatch(FetchCities(formik.values.state));
   }, [dispatch, formik.values.state]);
 
+  // Radix Select hands back strings, so convert to numbers once here.
   const handleCountryChange = (country: string) => {
     // A state or city from the previous country is no longer valid.
-    formik.setValues({ ...formik.values, country, state: "", city: "" });
+    formik.setValues({
+      ...formik.values,
+      country: Number(country),
+      state: null,
+      city: null,
+    });
   };
 
   const handleStateChange = (state: string) => {
     // A city from the previous state is no longer valid.
-    formik.setValues({ ...formik.values, state, city: "" });
+    formik.setValues({ ...formik.values, state: Number(state), city: null });
   };
 
   const handleCityChange = (city: string) => {
-    formik.setFieldValue("city", city);
+    formik.setFieldValue("city", Number(city));
   };
 
   if (companyLoading && !companyProfile) {
@@ -368,7 +365,7 @@ export default function CompanyProfileForm({
               <Field>
                 <FieldLabel htmlFor="country">Country</FieldLabel>
                 <Select
-                  value={formik.values.country}
+                  value={formik.values.country?.toString() ?? ""}
                   onValueChange={handleCountryChange}
                   disabled={countriesLoading || !countries.length}
                 >
@@ -387,7 +384,7 @@ export default function CompanyProfileForm({
               <Field>
                 <FieldLabel htmlFor="state">State</FieldLabel>
                 <Select
-                  value={formik.values.state}
+                  value={formik.values.state?.toString() ?? ""}
                   onValueChange={handleStateChange}
                   disabled={!formik.values.country || statesLoading}
                 >
@@ -410,7 +407,7 @@ export default function CompanyProfileForm({
               <Field>
                 <FieldLabel htmlFor="city">City</FieldLabel>
                 <Select
-                  value={formik.values.city}
+                  value={formik.values.city?.toString() ?? ""}
                   onValueChange={handleCityChange}
                   disabled={!formik.values.state || citiesLoading}
                 >
