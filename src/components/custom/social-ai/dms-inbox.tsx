@@ -415,21 +415,23 @@ function PendingDmBubble({
   // Local previews for the media being uploaded, so an image-only send
   // shows the image rather than an empty bubble. Created once and revoked
   // on unmount — object URLs leak otherwise.
-  const [previews] = useState(() =>
-    pending.files.map((file) => ({
+  const [previews, setPreviews] = useState<{name: string; isImage: boolean; url: string}[]>([]);
+
+  useEffect(() => {
+    const newPreviews = pending.files.map((file) => ({
       name: file.name,
       isImage: file.type.startsWith("image/"),
       url: file.type.startsWith("image/") ? URL.createObjectURL(file) : "",
-    })),
-  );
+    }));
+    
+    setPreviews(newPreviews);
 
-  useEffect(() => {
     return () => {
-      previews.forEach((preview) => {
+      newPreviews.forEach((preview) => {
         if (preview.url) URL.revokeObjectURL(preview.url);
       });
     };
-  }, [previews]);
+  }, [pending.files]);
 
   return (
     <div className="flex justify-end">
@@ -442,7 +444,9 @@ function PendingDmBubble({
               <img
                 src={preview.url}
                 alt={preview.name}
-                className="max-h-64 rounded-2xl border object-cover"
+                className={`max-h-64 rounded-2xl border object-cover transition-all duration-500 ${
+                  pending.status === "sending" ? "blur-[3px] opacity-70 grayscale-[20%]" : ""
+                }`}
               />
             ) : (
               <div className="flex items-center gap-2 rounded-2xl border bg-muted/40 px-3 py-2 text-sm">
@@ -994,7 +998,7 @@ export default function DmsInbox({
    * is what removes it.
    */
   const sendReply = async (
-    pending: PendingDm,
+    payload: { text: string; files: File[]; tempIds: string[] },
     targetMessageId: number,
     isExplicitReply: boolean,
     conversationId: number,
@@ -1006,9 +1010,9 @@ export default function DmsInbox({
           storeCode,
           userId: conversationId,
           messageId: targetMessageId,
-          message: pending.content,
+          message: payload.text,
           isExplicitReply,
-          attachments: pending.files,
+          attachments: payload.files,
         }),
       ).unwrap();
       refetchMessages();
@@ -1016,7 +1020,7 @@ export default function DmsInbox({
       // The thunk already surfaces the error toast.
       setPendingMessages((prev) =>
         prev.map((item) =>
-          item.tempId === pending.tempId
+          payload.tempIds.includes(item.tempId)
             ? { ...item, status: "failed" as const }
             : item,
         ),
@@ -1041,30 +1045,57 @@ export default function DmsInbox({
     const targetMessageId = replyingToMessage?.id ?? lastMessage.id;
     const conversationId = activeConversation.id;
 
+    const newPending: PendingDm[] = [];
+    const tempIds: string[] = [];
+    const timestamp = Date.now().toString();
+
     // How many identical outgoing messages must exist before this one is
     // considered delivered: what's on screen now, plus any still in flight
     // with the same text, plus this one.
-    const expectedCount =
-      countOutgoingWithContent(messages, text) +
-      pendingMessages.filter(
-        (item) =>
-          item.content === text && item.conversationId === conversationId,
-      ).length +
-      1;
+    if (text.trim()) {
+      const tempId = timestamp + "-text";
+      tempIds.push(tempId);
+      newPending.push({
+        ...createPendingSend(text),
+        tempId,
+        targetMessageId,
+        isExplicitReply,
+        conversationId,
+        expectedCount:
+          countOutgoingWithContent(messages, text) +
+          pendingMessages.filter(
+            (item) =>
+              item.content === text && item.conversationId === conversationId,
+          ).length +
+          1,
+        files: [],
+      });
+    }
 
-    const pending: PendingDm = {
-      ...createPendingSend(text),
-      targetMessageId,
-      isExplicitReply,
-      conversationId,
-      expectedCount,
-      files,
-    };
+    if (files.length > 0) {
+      const tempId = timestamp + "-files";
+      tempIds.push(tempId);
+      newPending.push({
+        ...createPendingSend(""),
+        tempId,
+        targetMessageId,
+        isExplicitReply,
+        conversationId,
+        expectedCount:
+          countOutgoingWithContent(messages, "") +
+          pendingMessages.filter(
+            (item) =>
+              item.content === "" && item.conversationId === conversationId,
+          ).length +
+          1,
+        files,
+      });
+    }
 
-    setPendingMessages((prev) => [...prev, pending]);
+    setPendingMessages((prev) => [...prev, ...newPending]);
     setReplyingToMessage(null);
 
-    void sendReply(pending, targetMessageId, isExplicitReply, conversationId);
+    void sendReply({ text, files, tempIds }, targetMessageId, isExplicitReply, conversationId);
   };
 
   const handleRetryPending = (tempId: string) => {
@@ -1076,7 +1107,7 @@ export default function DmsInbox({
       ),
     );
     void sendReply(
-      { ...pending, status: "sending" },
+      { text: pending.content, files: pending.files, tempIds: [pending.tempId] },
       pending.targetMessageId,
       pending.isExplicitReply,
       pending.conversationId,
