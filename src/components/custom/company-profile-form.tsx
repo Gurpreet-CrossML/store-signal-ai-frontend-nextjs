@@ -54,7 +54,6 @@ import {
 const EDITABLE_FIELDS = [
   { name: "email", label: "Company Email", type: "email" },
   { name: "phone", label: "Phone", type: "text" },
-  { name: "street", label: "Street", type: "text" },
 ] as const;
 
 const validationSchema = z.object({
@@ -343,10 +342,7 @@ export default function CompanyProfileForm({
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2">
               {EDITABLE_FIELDS.map((f) => (
-                <Field
-                  key={f.name}
-                  className={f.name === "street" ? "sm:col-span-2" : undefined}
-                >
+                <Field key={f.name}>
                   <FieldLabel htmlFor={f.name}>{f.label}</FieldLabel>
                   <Input
                     id={f.name}
@@ -426,6 +422,21 @@ export default function CompanyProfileForm({
                     ))}
                   </SelectContent>
                 </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="street">Street</FieldLabel>
+                <Input
+                  id="street"
+                  name="street"
+                  type="text"
+                  autoComplete="off"
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  value={formik.values.street}
+                />
+                {formik.touched.street && formik.errors.street && (
+                  <FieldError>{formik.errors.street}</FieldError>
+                )}
               </Field>
             </div>
           </CardContent>
