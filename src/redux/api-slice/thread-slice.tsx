@@ -337,10 +337,18 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
     thunkAPI,
   ) => {
     try {
+      // Values are URI-encoded (a tag like "Return & Refund" would otherwise
+      // split the query at the "&"); arrays repeat the key so a value that
+      // contains a comma survives too.
       const filteration =
         "&" +
         Object.entries(filters)
-          .map(([key, value]) => `${key}=${value}`)
+          .flatMap(([key, value]) =>
+            (Array.isArray(value) ? value : [value]).map(
+              (item) =>
+                `${encodeURIComponent(key)}=${encodeURIComponent(String(item))}`,
+            ),
+          )
           .join("&");
 
       const response = await axiosInstance.get(

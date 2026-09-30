@@ -9,7 +9,16 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +41,8 @@ import type { KnowledgeItem } from "@/redux/api-slice/knowledge-rag-slice";
 import {
   AIScopeBadges,
   KnowledgeStatusBadge,
-  KnowledgeTypeIcon,
+  KnowledgeItemIcon,
+  ProductTag,
   PolicyTypeBadge,
 } from "@/components/custom/knowledge/knowledge-badges";
 import {
@@ -102,126 +112,166 @@ export function KnowledgeList({
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      {items.map((item) => {
-        const meta = KNOWLEDGE_TYPE_META[item.type];
-        const subtitle = itemSubtitle(item);
-        return (
-          <div
-            key={item.id}
-            role="button"
-            tabIndex={0}
-            onClick={() => onOpenItem(item)}
-            onKeyDown={(event) => {
-              if (
-                (event.key === "Enter" || event.key === " ") &&
-                !event.defaultPrevented
-              ) {
-                event.preventDefault();
-                onOpenItem(item);
-              }
-            }}
-            className="flex cursor-pointer items-center gap-3 rounded-xl border border-border/60 bg-card p-3 transition-colors hover:border-border hover:bg-muted/40"
-          >
-            <KnowledgeTypeIcon type={item.type} />
-
-            <div className="min-w-0 flex-1">
-              <Typography
-                variant="small"
-                as="p"
-                className="truncate font-medium"
+    <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
+      <Table>
+        <TableHeader className="bg-muted/40">
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="h-10 px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Name
+            </TableHead>
+            <TableHead className="hidden h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground md:table-cell">
+              Type
+            </TableHead>
+            <TableHead className="hidden h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground lg:table-cell">
+              Used by
+            </TableHead>
+            <TableHead className="h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Status
+            </TableHead>
+            <TableHead className="hidden h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:table-cell">
+              Updated
+            </TableHead>
+            <TableHead className="h-10 w-12 px-4">
+              <span className="sr-only">Actions</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map((item) => {
+            const meta = KNOWLEDGE_TYPE_META[item.type];
+            const subtitle = itemSubtitle(item);
+            return (
+              <TableRow
+                key={item.id}
+                tabIndex={0}
+                onClick={() => onOpenItem(item)}
+                onKeyDown={(event) => {
+                  if (
+                    (event.key === "Enter" || event.key === " ") &&
+                    event.target === event.currentTarget
+                  ) {
+                    event.preventDefault();
+                    onOpenItem(item);
+                  }
+                }}
+                className="cursor-pointer"
               >
-                {item.title}
-              </Typography>
-              <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
-                <span>{meta.label}</span>
-                <span aria-hidden>·</span>
-                <span>{KNOWLEDGE_SOURCE_LABEL[item.source]}</span>
-                {subtitle && (
-                  <>
-                    <span aria-hidden>·</span>
-                    <span className="truncate">{subtitle}</span>
-                  </>
-                )}
-                <span aria-hidden>·</span>
-                <span>Updated {formatRelativeTime(item.updatedAt)} ago</span>
-              </div>
-              {item.status === "failed" && item.processingError && (
-                <p className="mt-1 truncate text-xs text-destructive">
-                  {item.processingError}
-                </p>
-              )}
-            </div>
+                <TableCell className="w-full max-w-0 px-4 py-3 sm:w-[40%]">
+                  <div className="flex items-center gap-3">
+                    <KnowledgeItemIcon item={item} />
+                    <div className="min-w-0 flex-1">
+                      <Typography
+                        variant="small"
+                        as="p"
+                        className="truncate font-medium"
+                        title={item.title}
+                      >
+                        {item.title}
+                      </Typography>
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                        <Badge
+                          variant="secondary"
+                          className="h-4 rounded px-1.5 text-[10px] font-medium"
+                          title="Knowledge source"
+                        >
+                          {KNOWLEDGE_SOURCE_LABEL[item.source]}
+                        </Badge>
+                        {item.policyType && (
+                          <PolicyTypeBadge policyType={item.policyType} />
+                        )}
+                        {subtitle && <ProductTag name={subtitle} />}
+                        <span className="md:hidden">· {meta.label}</span>
+                      </div>
+                      {item.status === "failed" && item.processingError && (
+                        <p
+                          className="mt-1 truncate text-xs text-destructive"
+                          title={item.processingError}
+                        >
+                          {item.processingError}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
 
-            <div className="hidden shrink-0 md:block">
-              <AIScopeBadges scope={item.aiScope} />
-            </div>
+                <TableCell className="hidden text-muted-foreground md:table-cell">
+                  <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs">
+                    <meta.icon className="size-4" />
+                    {meta.label}
+                  </span>
+                </TableCell>
 
-            {item.policyType && (
-              <div className="hidden shrink-0 sm:block">
-                <PolicyTypeBadge policyType={item.policyType} />
-              </div>
-            )}
+                <TableCell className="hidden lg:table-cell">
+                  <AIScopeBadges scope={item.aiScope} />
+                </TableCell>
 
-            <div className="shrink-0">
-              <KnowledgeStatusBadge status={item.status} />
-            </div>
+                <TableCell>
+                  <KnowledgeStatusBadge status={item.status} />
+                </TableCell>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Knowledge actions"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <IconDotsVertical className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                onClick={(event) => event.stopPropagation()}
-              >
-                {item.status === "completed" ? (
-                  <DropdownMenuItem onClick={() => onEditItem(item)}>
-                    <IconPencil />
-                    Edit
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem
-                    className="opacity-50 cursor-not-allowed"
-                    onClick={(e) => e.preventDefault()}
-                    title="Only completed items can be edited"
-                  >
-                    <IconPencil />
-                    Edit
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                {item.status === "processing" ? (
-                  <DropdownMenuItem
-                    variant="destructive"
-                    className="opacity-50 cursor-not-allowed"
-                    onClick={(e) => e.preventDefault()}
-                    title="Item is in progress and cannot be deleted"
-                  >
-                    <IconTrash />
-                    Delete
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onClick={() => onDelete(item)}
-                  >
-                    <IconTrash />
-                    Delete
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        );
-      })}
+                <TableCell className="hidden whitespace-nowrap text-xs text-muted-foreground sm:table-cell">
+                  {formatRelativeTime(item.updatedAt)} ago
+                </TableCell>
+
+                <TableCell className="px-4 text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Knowledge actions"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <IconDotsVertical className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      {item.status === "completed" ? (
+                        <DropdownMenuItem onClick={() => onEditItem(item)}>
+                          <IconPencil />
+                          Edit
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem
+                          className="opacity-50 cursor-not-allowed"
+                          onClick={(e) => e.preventDefault()}
+                          title="Only completed items can be edited"
+                        >
+                          <IconPencil />
+                          Edit
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      {item.status === "processing" ? (
+                        <DropdownMenuItem
+                          variant="destructive"
+                          className="opacity-50 cursor-not-allowed"
+                          onClick={(e) => e.preventDefault()}
+                          title="Item is in progress and cannot be deleted"
+                        >
+                          <IconTrash />
+                          Delete
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => onDelete(item)}
+                        >
+                          <IconTrash />
+                          Delete
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }
