@@ -63,6 +63,28 @@ function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+/** A label with every linked name as a wrapping badge, so none are cut off. */
+function NameListRow({ label, names }: { label: string; names: string[] }) {
+  return (
+    <div className="flex flex-col gap-2 border-b border-border py-2 text-sm last:border-b-0">
+      <span className="text-muted-foreground">
+        {label} ({names.length})
+      </span>
+      <div className="flex flex-wrap gap-1">
+        {names.map((name, index) => (
+          <Badge
+            key={`${name}-${index}`}
+            variant="secondary"
+            className="h-auto max-w-full whitespace-normal break-words py-0.5 text-left font-normal"
+          >
+            {name}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Section({
   title,
   children,
@@ -176,11 +198,9 @@ export function KnowledgeDetailSheet({
 
             <Section title="Associations">
               {item.products && item.products.length > 0 && (
-                <MetaRow
+                <NameListRow
                   label="Products"
-                  value={item.products
-                    .map((product) => product.name)
-                    .join(", ")}
+                  names={item.products.map((product) => product.name)}
                 />
               )}
               {item.policyType && (
@@ -190,19 +210,15 @@ export function KnowledgeDetailSheet({
                 />
               )}
               {item.categories && item.categories.length > 0 && (
-                <MetaRow
+                <NameListRow
                   label="Categories"
-                  value={item.categories
-                    .map((category) => category.name)
-                    .join(", ")}
+                  names={item.categories.map((category) => category.name)}
                 />
               )}
               {item.collections && item.collections.length > 0 && (
-                <MetaRow
+                <NameListRow
                   label="Collections"
-                  value={item.collections
-                    .map((collection) => collection.name)
-                    .join(", ")}
+                  names={item.collections.map((collection) => collection.name)}
                 />
               )}
               <div className="flex items-center justify-between gap-4 border-b border-border py-2 text-sm last:border-b-0">
