@@ -415,7 +415,9 @@ function PendingDmBubble({
   // Local previews for the media being uploaded, so an image-only send
   // shows the image rather than an empty bubble. Created once and revoked
   // on unmount — object URLs leak otherwise.
-  const [previews, setPreviews] = useState<{name: string; isImage: boolean; url: string}[]>([]);
+  const [previews, setPreviews] = useState<
+    { name: string; isImage: boolean; url: string }[]
+  >([]);
 
   useEffect(() => {
     const newPreviews = pending.files.map((file) => ({
@@ -423,7 +425,7 @@ function PendingDmBubble({
       isImage: file.type.startsWith("image/"),
       url: file.type.startsWith("image/") ? URL.createObjectURL(file) : "",
     }));
-    
+
     // We cannot create object URLs during render because it is an impure
     // side effect that would leak memory if the render is discarded. It must
     // be done in an effect, so we suppress the cascading render warning.
@@ -449,7 +451,9 @@ function PendingDmBubble({
                 src={preview.url}
                 alt={preview.name}
                 className={`max-h-64 rounded-2xl border object-cover transition-all duration-500 ${
-                  pending.status === "sending" ? "blur-[3px] opacity-70 grayscale-[20%]" : ""
+                  pending.status === "sending"
+                    ? "blur-[3px] opacity-70 grayscale-[20%]"
+                    : ""
                 }`}
               />
             ) : (
@@ -1099,7 +1103,12 @@ export default function DmsInbox({
     setPendingMessages((prev) => [...prev, ...newPending]);
     setReplyingToMessage(null);
 
-    void sendReply({ text, files, tempIds }, targetMessageId, isExplicitReply, conversationId);
+    void sendReply(
+      { text, files, tempIds },
+      targetMessageId,
+      isExplicitReply,
+      conversationId,
+    );
   };
 
   const handleRetryPending = (tempId: string) => {
@@ -1111,7 +1120,11 @@ export default function DmsInbox({
       ),
     );
     void sendReply(
-      { text: pending.content, files: pending.files, tempIds: [pending.tempId] },
+      {
+        text: pending.content,
+        files: pending.files,
+        tempIds: [pending.tempId],
+      },
       pending.targetMessageId,
       pending.isExplicitReply,
       pending.conversationId,
