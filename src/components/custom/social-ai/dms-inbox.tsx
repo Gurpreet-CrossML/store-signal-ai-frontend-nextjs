@@ -424,6 +424,10 @@ function PendingDmBubble({
       url: file.type.startsWith("image/") ? URL.createObjectURL(file) : "",
     }));
     
+    // We cannot create object URLs during render because it is an impure
+    // side effect that would leak memory if the render is discarded. It must
+    // be done in an effect, so we suppress the cascading render warning.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPreviews(newPreviews);
 
     return () => {
