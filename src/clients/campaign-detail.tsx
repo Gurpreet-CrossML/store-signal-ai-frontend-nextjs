@@ -55,9 +55,7 @@ function formatDelay(minutes: number | null | undefined): string {
   if (minutes < 60) return `wait ${minutes} min`;
   const hours = Math.floor(minutes / 60);
   const rem = minutes % 60;
-  return rem === 0
-    ? `wait ${hours}h`
-    : `wait ${hours}h ${rem}m`;
+  return rem === 0 ? `wait ${hours}h` : `wait ${hours}h ${rem}m`;
 }
 
 export default function CampaignDetail({ campaignId }: { campaignId: number }) {
@@ -115,7 +113,7 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
   const segment = useMemo(
     () =>
       campaign
-        ? segments.find((s) => s.id === campaign.segment) ?? null
+        ? (segments.find((s) => s.id === campaign.segment) ?? null)
         : null,
     [segments, campaign],
   );
@@ -184,7 +182,10 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
         <Typography variant="muted">
           It may have been deleted, or belong to a different store.
         </Typography>
-        <Button variant="outline" onClick={() => router.push("/campaign/campaigns")}>
+        <Button
+          variant="outline"
+          onClick={() => router.push("/campaign/campaigns")}
+        >
           Back to campaigns
         </Button>
       </div>

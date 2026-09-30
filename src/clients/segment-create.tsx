@@ -57,7 +57,11 @@ function parseFieldErrors(rejected: unknown): Record<string, string> {
   const data = envelope?.data;
   if (data && typeof data === "object" && !Array.isArray(data)) {
     for (const [field, value] of Object.entries(data)) {
-      if (Array.isArray(value) && value.length && typeof value[0] === "string") {
+      if (
+        Array.isArray(value) &&
+        value.length &&
+        typeof value[0] === "string"
+      ) {
         errors[field] = value[0];
       } else if (typeof value === "string") {
         errors[field] = value;
@@ -78,7 +82,10 @@ const DEFAULT_FORM = {
   is_active: true,
 };
 
-function valueColumnLabel(categoryById: Map<number, SegmentCategory>, categoryId: string) {
+function valueColumnLabel(
+  categoryById: Map<number, SegmentCategory>,
+  categoryId: string,
+) {
   const category = categoryById.get(Number(categoryId));
   switch (category?.slug) {
     case "total-spent":
@@ -90,7 +97,9 @@ function valueColumnLabel(categoryById: Map<number, SegmentCategory>, categoryId
   }
 }
 
-function getPreviewColumns(valueLabel: string): ColumnDef<SegmentPreviewCustomer>[] {
+function getPreviewColumns(
+  valueLabel: string,
+): ColumnDef<SegmentPreviewCustomer>[] {
   return [
     {
       accessorKey: "first_name",
@@ -106,7 +115,9 @@ function getPreviewColumns(valueLabel: string): ColumnDef<SegmentPreviewCustomer
       accessorKey: "email",
       header: "Email",
       cell: ({ row }) => (
-        <span className="text-muted-foreground">{row.original.email || "—"}</span>
+        <span className="text-muted-foreground">
+          {row.original.email || "—"}
+        </span>
       ),
     },
     {
@@ -136,6 +147,10 @@ export default function SegmentCreate({
   );
   const isEditMode = Boolean(segmentId);
 
+  // Declared before the effects below — the categories-load effect's
+  // .then() callback references setForm to prefill a default category.
+  const [form, setForm] = useState(DEFAULT_FORM);
+
   const [categories, setCategories] = useState<SegmentCategory[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
 
@@ -148,7 +163,9 @@ export default function SegmentCreate({
         // below — picking a default here would only flash the wrong one.
         if (isEditMode) return;
         setForm((prev) =>
-          prev.category ? prev : { ...prev, category: cats[0] ? String(cats[0].id) : "" },
+          prev.category
+            ? prev
+            : { ...prev, category: cats[0] ? String(cats[0].id) : "" },
         );
       })
       .catch(() => {
@@ -195,7 +212,6 @@ export default function SegmentCreate({
     [categories],
   );
 
-  const [form, setForm] = useState(DEFAULT_FORM);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -209,7 +225,9 @@ export default function SegmentCreate({
 
   // ------------------------------ live "who matches" preview + table
   const [previewCount, setPreviewCount] = useState<number | null>(null);
-  const [previewResults, setPreviewResults] = useState<SegmentPreviewCustomer[]>([]);
+  const [previewResults, setPreviewResults] = useState<
+    SegmentPreviewCustomer[]
+  >([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -222,8 +240,9 @@ export default function SegmentCreate({
   // A filter change makes the current page stale — jump back to the
   // first page rather than showing page 3 of a now-different audience.
   useEffect(() => {
-    setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setPagination((prev) =>
+      prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 },
+    );
   }, [debouncedPreviewKey]);
 
   useEffect(() => {
@@ -270,7 +289,13 @@ export default function SegmentCreate({
     // the untracked form.* reads inside pick up the latest values via
     // closure, same pattern the segments list's debounced search uses.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedPreviewKey, pagination.pageIndex, pagination.pageSize, storeCode, dispatch]);
+  }, [
+    debouncedPreviewKey,
+    pagination.pageIndex,
+    pagination.pageSize,
+    storeCode,
+    dispatch,
+  ]);
 
   const previewColumns = useMemo(
     () => getPreviewColumns(valueColumnLabel(categoryById, form.category)),
@@ -359,7 +384,9 @@ export default function SegmentCreate({
         <div className="flex items-start gap-3 rounded-lg border border-amber-300/60 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
           <IconAlertTriangle className="mt-0.5 size-4 shrink-0" />
           <div>
-            <p className="font-medium">Changing this segment changes who it matches.</p>
+            <p className="font-medium">
+              Changing this segment changes who it matches.
+            </p>
             <p className="mt-1 text-amber-800 dark:text-amber-300">
               The number of customers below may go up or down the moment you
               save. Any campaign already using this segment picks up the new
@@ -378,8 +405,8 @@ export default function SegmentCreate({
             <InfoIcon text="A segment = one category + a time window, optionally floored by value. Only Last Order and Total Spent use the value floor — Abandoned Cart ignores it." />
           </CardTitle>
           <CardDescription>
-            Each segment narrows a platform-wide category with a time
-            window and an optional value floor.
+            Each segment narrows a platform-wide category with a time window and
+            an optional value floor.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -437,7 +464,9 @@ export default function SegmentCreate({
                 </SelectContent>
               </Select>
               {fieldErrors.category && (
-                <p className="text-xs text-destructive">{fieldErrors.category}</p>
+                <p className="text-xs text-destructive">
+                  {fieldErrors.category}
+                </p>
               )}
             </div>
 
@@ -480,7 +509,9 @@ export default function SegmentCreate({
                 aria-invalid={!!fieldErrors.min_price}
               />
               {fieldErrors.min_price && (
-                <p className="text-xs text-destructive">{fieldErrors.min_price}</p>
+                <p className="text-xs text-destructive">
+                  {fieldErrors.min_price}
+                </p>
               )}
             </div>
           </div>
@@ -514,7 +545,9 @@ export default function SegmentCreate({
             </div>
             <Switch
               checked={form.is_active}
-              onCheckedChange={(checked) => setForm({ ...form, is_active: checked })}
+              onCheckedChange={(checked) =>
+                setForm({ ...form, is_active: checked })
+              }
             />
           </div>
         </CardContent>

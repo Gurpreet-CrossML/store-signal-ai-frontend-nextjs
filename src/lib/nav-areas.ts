@@ -2,8 +2,8 @@ import type { ComponentType } from "react";
 
 import {
   IconAdjustmentsSpark,
-  IconBan,
-  IconBook2,
+  // IconBan,
+  // IconBook2,
   IconBooks,
   // IconAlarmSnoozeFilled,
   IconArrowsExchange,
@@ -26,7 +26,7 @@ import {
   IconMessages,
   IconSocial,
   IconPackageOff,
-  IconPlugConnected,
+  // IconPlugConnected,
   IconSend,
   IconSettings,
   IconShield,
@@ -35,7 +35,6 @@ import {
   IconTags,
   IconUserHexagon,
   // IconUsers,
-  IconUser,
   IconUsersGroup,
   IconShoppingBag,
   IconVolume,
