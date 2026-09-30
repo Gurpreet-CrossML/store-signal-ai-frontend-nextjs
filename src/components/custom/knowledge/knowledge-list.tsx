@@ -50,14 +50,16 @@ import {
   KNOWLEDGE_TYPE_META,
 } from "@/components/custom/knowledge/knowledge-meta";
 
-/** The short second line under an item's title, varying by knowledge type. */
-function itemSubtitle(item: KnowledgeItem): string | null {
-  switch (item.type) {
-    case "product":
-      return item.products?.map((product) => product.name).join(", ") || null;
-    default:
-      return null;
-  }
+/** Counts of linked products / categories / collections, e.g. "3 products". */
+function associationCounts(item: KnowledgeItem): string[] {
+  const entries: [number | undefined, string, string][] = [
+    [item.products?.length, "product", "products"],
+    [item.categories?.length, "category", "categories"],
+    [item.collections?.length, "collection", "collections"],
+  ];
+  return entries
+    .filter(([count]) => count)
+    .map(([count, one, many]) => `${count} ${count === 1 ? one : many}`);
 }
 
 export function KnowledgeList({
@@ -139,7 +141,7 @@ export function KnowledgeList({
         <TableBody>
           {items.map((item) => {
             const meta = KNOWLEDGE_TYPE_META[item.type];
-            const subtitle = itemSubtitle(item);
+            const counts = associationCounts(item);
             return (
               <TableRow
                 key={item.id}
@@ -168,7 +170,7 @@ export function KnowledgeList({
                       >
                         {item.title}
                       </Typography>
-                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground mt-1">
                         <Badge
                           variant="secondary"
                           className="h-4 rounded px-1.5 text-[10px] font-medium"
@@ -179,7 +181,9 @@ export function KnowledgeList({
                         {item.policyType && (
                           <PolicyTypeBadge policyType={item.policyType} />
                         )}
-                        {subtitle && <ProductTag name={subtitle} />}
+                        {counts.length > 0 && (
+                          <ProductTag name={counts.join(" · ")} />
+                        )}
                         <span className="md:hidden">· {meta.label}</span>
                       </div>
                       {item.status === "failed" && item.processingError && (
