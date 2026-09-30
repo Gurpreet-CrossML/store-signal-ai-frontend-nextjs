@@ -75,10 +75,19 @@ const validationSchema = z.object({
       const digitCount = val.replace(/\D/g, "").length;
       return digitCount >= 7 && digitCount <= 15;
     }, "Enter a valid phone number."),
-  city: z.string().optional(),
+  city: z
+    .string()
+    .transform((value) => (value ? Number(value) : null))
+    .pipe(z.number().int().positive().nullable()),
   street: z.string().optional(),
-  state: z.string().optional(),
-  country: z.string().optional(),
+  state: z
+    .string()
+    .transform((value) => (value ? Number(value) : null))
+    .pipe(z.number().int().positive().nullable()),
+  country: z
+    .string()
+    .transform((value) => (value ? Number(value) : null))
+    .pipe(z.number().int().positive().nullable()),
 });
 
 export default function CompanyProfileForm({
@@ -87,23 +96,17 @@ export default function CompanyProfileForm({
   className?: string;
 }) {
   const dispatch = useAppDispatch();
+  const { companyProfile, companyLoading, companySaving } = useAppSelector(
+    (state) => state.GetTenancyReducer,
+  );
   const {
-    companyProfile,
-    companyLoading,
-    companySaving,
-    FetchCountriesState: {
-      FetchCountriesData: countries,
-      FetchCountriesIsLoading: countriesLoading,
-    },
-    FetchStatesState: {
-      FetchStatesData: states,
-      FetchStatesIsLoading: statesLoading,
-    },
-    FetchCitiesState: {
-      FetchCitiesData: cities,
-      FetchCitiesIsLoading: citiesLoading,
-    },
-  } = useAppSelector((state) => state.GetTenancyReducer);
+    FetchCountriesData: countries,
+    FetchCountriesIsLoading: countriesLoading,
+  } = useAppSelector((state) => state.GetTenancyReducer.FetchCountriesState);
+  const { FetchStatesData: states, FetchStatesIsLoading: statesLoading } =
+    useAppSelector((state) => state.GetTenancyReducer.FetchStatesState);
+  const { FetchCitiesData: cities, FetchCitiesIsLoading: citiesLoading } =
+    useAppSelector((state) => state.GetTenancyReducer.FetchCitiesState);
 
   // Logo is staged and applied on Save: a new File to upload, or `removeLogo`
   // to clear the saved one.
@@ -156,9 +159,9 @@ export default function CompanyProfileForm({
       email: companyProfile?.email ?? "",
       phone: companyProfile?.phone ?? "",
       street: companyProfile?.street ?? "",
-      city: companyProfile?.city?.toString() ?? "",
-      state: companyProfile?.state?.toString() ?? "",
-      country: companyProfile?.country?.toString() ?? "",
+      city: companyProfile?.city?.id?.toString() ?? "",
+      state: companyProfile?.state?.id?.toString() ?? "",
+      country: companyProfile?.country?.id?.toString() ?? "",
     },
     validate: (values) => {
       const result = validationSchema.safeParse(values);
@@ -166,12 +169,10 @@ export default function CompanyProfileForm({
       return formikErrorsFromZod(result.error.issues);
     },
     onSubmit: async (values) => {
+      const parsedValues = validationSchema.parse(values);
       const result = await dispatch(
         UpdateCompanyProfile({
-          ...values,
-          city: values.city ? Number(values.city) : null,
-          state: values.state ? Number(values.state) : null,
-          country: values.country ? Number(values.country) : null,
+          ...parsedValues,
           logo: logoFile ?? (removeLogo ? null : undefined),
         }),
       );
@@ -185,27 +186,19 @@ export default function CompanyProfileForm({
     },
   });
 
-  // Resolve selections from the location records returned by the backend.
-  const selectedCountry = countries.find(
-    (country) => String(country.id) === formik.values.country,
-  );
-  const selectedState = states.find(
-    (state) => String(state.id) === formik.values.state,
-  );
-
   // A selected country determines the states that can be selected.
   useEffect(() => {
-    if (!selectedCountry) return;
+    if (!formik.values.country) return;
 
-    dispatch(FetchStates(selectedCountry.id));
-  }, [dispatch, selectedCountry]);
+    dispatch(FetchStates(Number(formik.values.country)));
+  }, [dispatch, formik.values.country]);
 
   // A selected state determines the cities that can be selected.
   useEffect(() => {
-    if (!selectedState) return;
+    if (!formik.values.state) return;
 
-    dispatch(FetchCities(selectedState.id));
-  }, [dispatch, selectedState]);
+    dispatch(FetchCities(Number(formik.values.state)));
+  }, [dispatch, formik.values.state]);
 
   const handleCountryChange = (country: string) => {
     // A state or city from the previous country is no longer valid.

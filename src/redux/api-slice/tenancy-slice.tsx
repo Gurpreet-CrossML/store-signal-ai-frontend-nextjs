@@ -17,9 +17,9 @@ export type CompanyProfile = {
   email: string | null;
   phone: string | null;
   street: string | null;
-  city: number | null;
-  state: number | null;
-  country: number | null;
+  city: { id: number; name: string } | null;
+  state: { id: number; name: string } | null;
+  country: { id: number; name: string } | null;
   is_active: boolean;
 };
 
