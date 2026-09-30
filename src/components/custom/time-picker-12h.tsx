@@ -42,7 +42,11 @@ export function TimePicker12h({
   const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
   const period: "AM" | "PM" = hour24 >= 12 ? "PM" : "AM";
 
-  const emit = (nextHour12: number, nextMinute: number, nextPeriod: "AM" | "PM") => {
+  const emit = (
+    nextHour12: number,
+    nextMinute: number,
+    nextPeriod: "AM" | "PM",
+  ) => {
     const nextHour24 = (nextHour12 % 12) + (nextPeriod === "PM" ? 12 : 0);
     onChange(`${pad(nextHour24)}:${pad(nextMinute)}`);
   };

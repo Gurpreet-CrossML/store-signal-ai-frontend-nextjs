@@ -93,9 +93,7 @@ const MIN_STEP_SPACING_MINUTES = 30;
  * per-step render below.
  */
 function parseFieldErrors(rejected: unknown): Record<string, string> {
-  const envelope = rejected as
-    | { data?: unknown; message?: string }
-    | undefined;
+  const envelope = rejected as { data?: unknown; message?: string } | undefined;
   const errors: Record<string, string> = {};
   const data = envelope?.data;
 
@@ -163,9 +161,9 @@ export default function CampaignCreate({
   // publish/pause already has its own dedicated control on the detail
   // screen, so this form only ever edits content (name, segment, timing,
   // sequence), never status.
-  const [existingStatus, setExistingStatus] = useState<
-    "draft" | "published"
-  >("draft");
+  const [existingStatus, setExistingStatus] = useState<"draft" | "published">(
+    "draft",
+  );
   const [existingIsActive, setExistingIsActive] = useState(false);
 
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -258,9 +256,7 @@ export default function CampaignCreate({
 
   const totalDelay = useMemo(
     () =>
-      steps
-        .slice(1)
-        .reduce((sum, s) => sum + (Number(s.delayValue) || 0), 0),
+      steps.slice(1).reduce((sum, s) => sum + (Number(s.delayValue) || 0), 0),
     [steps],
   );
 
@@ -301,8 +297,7 @@ export default function CampaignCreate({
     });
 
     if (totalDelay >= MAX_TOTAL_DELAY_MINUTES) {
-      errors.__form__ =
-        `Total sequence span must stay under 24 hours (${totalDelay} min right now).`;
+      errors.__form__ = `Total sequence span must stay under 24 hours (${totalDelay} min right now).`;
     }
     return errors;
   };
@@ -348,7 +343,11 @@ export default function CampaignCreate({
     try {
       if (isEditMode && campaignId) {
         await dispatch(
-          updateCampaign({ storeCode, campaignId: Number(campaignId), payload }),
+          updateCampaign({
+            storeCode,
+            campaignId: Number(campaignId),
+            payload,
+          }),
         ).unwrap();
         toast.success("Campaign updated");
         router.push(`/campaign/campaigns/${campaignId}`);
@@ -441,8 +440,8 @@ export default function CampaignCreate({
               campaign, and when.
             </p>
             <p className="mt-1 text-amber-800 dark:text-amber-300">
-              The audience size may go up or down as soon as you save —
-              review the segment and steps carefully before confirming.
+              The audience size may go up or down as soon as you save — review
+              the segment and steps carefully before confirming.
             </p>
           </div>
         </div>
@@ -556,9 +555,9 @@ export default function CampaignCreate({
             <div>
               <div className="text-sm font-medium">Continuous entry</div>
               <div className="text-xs text-muted-foreground">
-                Off: only customers who existed before this segment was
-                created enter. On: every customer currently matching the
-                segment enters, regardless of when their account was created.
+                Off: only customers who existed before this segment was created
+                enter. On: every customer currently matching the segment enters,
+                regardless of when their account was created.
               </div>
             </div>
             <Switch
@@ -576,9 +575,9 @@ export default function CampaignCreate({
             Sequence
           </CardTitle>
           <CardDescription>
-            Steps fire in order. Each step must wait at least 30 minutes
-            after the previous one, and the whole sequence must fit inside 24
-            hours. Total right now:{" "}
+            Steps fire in order. Each step must wait at least 30 minutes after
+            the previous one, and the whole sequence must fit inside 24 hours.
+            Total right now:{" "}
             <span className="font-medium text-foreground">
               {totalDelay} min
             </span>
@@ -651,7 +650,9 @@ export default function CampaignCreate({
                         clearFieldError(templateErrorKey);
                       }}
                     >
-                      <SelectTrigger aria-invalid={!!fieldErrors[templateErrorKey]}>
+                      <SelectTrigger
+                        aria-invalid={!!fieldErrors[templateErrorKey]}
+                      >
                         <SelectValue
                           placeholder={
                             templateOptions.length === 0
@@ -679,7 +680,9 @@ export default function CampaignCreate({
 
                   <div className="space-y-1.5">
                     <Label>
-                      {index === 0 ? "Fires at start" : "Wait after previous (min)"}
+                      {index === 0
+                        ? "Fires at start"
+                        : "Wait after previous (min)"}
                     </Label>
                     <Input
                       type="number"
@@ -687,7 +690,9 @@ export default function CampaignCreate({
                       value={index === 0 ? "0" : step.delayValue}
                       disabled={index === 0}
                       onChange={(event) => {
-                        updateStep(step.key, { delayValue: event.target.value });
+                        updateStep(step.key, {
+                          delayValue: event.target.value,
+                        });
                         clearFieldError(delayErrorKey);
                       }}
                       aria-invalid={!!fieldErrors[delayErrorKey]}
@@ -747,7 +752,6 @@ export default function CampaignCreate({
             <IconPlus className="size-4" />
             Add step
           </Button>
-
         </CardContent>
       </Card>
 

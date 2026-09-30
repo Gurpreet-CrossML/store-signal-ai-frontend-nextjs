@@ -2282,8 +2282,8 @@ const SocialAISlice = createSlice({
       .addCase(toggleWhatsAppTemplateActive.fulfilled, (state, action) => {
         const updated = action.payload;
         state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesData =
-          state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesData.map((t) =>
-            t.id === updated.id ? updated : t,
+          state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesData.map(
+            (t) => (t.id === updated.id ? updated : t),
           );
       })
       .addCase(fetchWhatsAppTemplateLibrary.pending, (state) => {

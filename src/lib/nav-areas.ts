@@ -456,8 +456,7 @@ export const NAV_AREAS = {
       {
         href: "/campaign/segments",
         title: "Segments",
-        description:
-          "Saved, reusable audiences a campaign can target.",
+        description: "Saved, reusable audiences a campaign can target.",
         pageDescription:
           "Saved, reusable audiences. Each segment narrows a platform-wide category (Abandoned Checkout, Total Spent, Last Order Date) with a time window and an optional cart-value floor.",
         icon: IconUsersGroup,

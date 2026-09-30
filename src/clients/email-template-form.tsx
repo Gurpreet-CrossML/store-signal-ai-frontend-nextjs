@@ -122,9 +122,7 @@ export default function EmailTemplateForm({
         ).unwrap();
         toast.success("Template updated");
       } else {
-        await dispatch(
-          createEmailTemplate({ storeCode, payload }),
-        ).unwrap();
+        await dispatch(createEmailTemplate({ storeCode, payload })).unwrap();
         toast.success("Template created");
       }
       router.push("/campaign/email-templates");

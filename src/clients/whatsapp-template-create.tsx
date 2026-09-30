@@ -769,9 +769,9 @@ export default function WhatsAppTemplateCreate({
                     <InfoIcon text="Preview only — Meta reviews your template with its own example values, not these. Nothing here is sent to Meta or to your customers." />
                   </CardTitle>
                   <CardDescription>
-                    See how each variable looks filled in below, in the
-                    preview on the right. This doesn&apos;t change what Meta
-                    reviews or what customers receive.
+                    See how each variable looks filled in below, in the preview
+                    on the right. This doesn&apos;t change what Meta reviews or
+                    what customers receive.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="gap-3">

@@ -77,8 +77,9 @@ export default function EmailTemplates() {
   );
 
   const [search, setSearch] = useState("");
-  const [previewTemplate, setPreviewTemplate] =
-    useState<EmailTemplate | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(
+    null,
+  );
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 25,
@@ -246,9 +247,7 @@ export default function EmailTemplates() {
           />
         </div>
 
-        <Button
-          onClick={() => router.push("/campaign/email-templates/create")}
-        >
+        <Button onClick={() => router.push("/campaign/email-templates/create")}>
           <IconPlus className="size-4" />
           Create Template
         </Button>
