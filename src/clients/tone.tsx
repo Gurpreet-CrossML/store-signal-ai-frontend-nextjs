@@ -17,7 +17,7 @@ import {
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { formikErrorsFromZod, applyServerFieldErrors } from "@/lib/form-errors";
-import { type ToneStylePayload } from "@/db/chat";
+import { type ToneStylePayload } from "@/redux/api-slice/brand-voice-slice";
 
 // Validation schema for the form using Zod
 const validationSchema = z.object({

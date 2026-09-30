@@ -1,12 +1,4 @@
-import type { NextApiResponse } from "next";
-
-import {
-  APIResponse,
-  ErrorResponse,
-  PaginationResponse,
-  WIDGET_API_BASE,
-  WIDGET_SCRIPT_SRC,
-} from "@/lib/config";
+import { WIDGET_API_BASE, WIDGET_SCRIPT_SRC } from "@/lib/config";
 
 export const formatDateTime = (dateInput: string | null) => {
   if (!dateInput || dateInput === "-") return "-";
@@ -52,55 +44,6 @@ export const getDuration = (start: string | null, end: string | null) => {
   const minutes = Math.floor(diff / 60000);
   const seconds = Math.floor((diff % 60000) / 1000);
   return `${minutes}m ${seconds}s`;
-};
-
-// Utility function to create paginated API responses
-export const createPaginatedResponse = (
-  url: string,
-  count: number,
-  currentPage: number,
-  pageSize: number,
-  results: object[],
-): PaginationResponse => {
-  const totalPages = Math.ceil(count / pageSize);
-  const next =
-    currentPage < totalPages ? `${url}?page=${currentPage + 1}` : null;
-  const previous = currentPage > 1 ? `${url}?page=${currentPage - 1}` : null;
-
-  return {
-    count,
-    next,
-    previous,
-    results,
-  };
-};
-
-// Utility function to create standardized API responses
-export const createAPIResponse = (
-  success: boolean,
-  message: string = "",
-  data: object | object[] | PaginationResponse | ErrorResponse | null = null,
-): APIResponse => {
-  return { success, message, data };
-};
-
-/**
- * Log an unexpected API error server-side and return a generic 500 to the
- * client. DB/driver errors (Drizzle/pg) embed the SQL text and bind params in
- * their message — that MUST NOT reach the client (information disclosure). The
- * full error is logged here; the client only ever sees "Internal server error".
- */
-export const handleApiError = (
-  res: NextApiResponse,
-  err: unknown,
-  context: string = "api",
-): void => {
-  console.error(`[${context}] request failed:`, err);
-  if (!res.headersSent) {
-    res
-      .status(500)
-      .json(createAPIResponse(false, "Internal server error", null));
-  }
 };
 
 /* Utility function to convert time values into a human-readable format. 
@@ -362,4 +305,14 @@ export function getApiErrorMessage(
   data: { non_field_errors?: string } | null | undefined,
 ) {
   return data?.non_field_errors;
+}
+
+/**
+ * The human sentence inside a failed-webhook reason. The backend forwards
+ * Shopify's raw error (`Shopify API call failed (webhooks.json): {"errors":
+ * "You do not have permission…"}`); merchants only need the quoted part.
+ */
+export function webhookFailureReason(reason: string): string {
+  const match = reason.match(/"errors":"((?:[^"\\]|\\.)*)"/);
+  return (match ? match[1] : reason).replace(/\\\//g, "/");
 }

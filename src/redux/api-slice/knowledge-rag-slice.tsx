@@ -296,10 +296,9 @@ function buildKnowledgeItemPayload(
 
 // --- Thunks -------------------------------------------------------------
 // Knowledge items are backed by the real Django `/api/knowledge/knowledge-items/`
-// endpoints. Reads go through `useBackend: true` (not ported to a local API
-// route); writes hit Django by axios-config's default routing. The other
-// thunks below (products/categories/retrieval/grounding/scope/test query)
-// stay on the in-memory mock layer — see the comment above each one.
+// endpoints. The other thunks below (products/categories/retrieval/grounding/
+// scope/test query) stay on the in-memory mock layer — see the comment above
+// each one.
 
 export const FetchKnowledgeItems = createAsyncThunk(
   "FetchKnowledgeItems",
@@ -336,7 +335,6 @@ export const FetchKnowledgeItems = createAsyncThunk(
 
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchKnowledgeItems()}?${params.toString()}`,
-        { useBackend: true },
       );
       const paginated = toPaginatedList<ApiKnowledgeItem>(response.data?.data);
       return {
@@ -538,7 +536,6 @@ export const FetchProductOptions = createAsyncThunk(
 
       const response = await axiosInstance.get(
         `${ENDPOINTS.searchProducts()}?${params.toString()}`,
-        { useBackend: true },
       );
       const data: ApiProductOption[] = response.data?.data ?? [];
       return data.map((product) => ({
@@ -567,7 +564,6 @@ export const FetchCategoryOptions = createAsyncThunk(
 
       const response = await axiosInstance.get(
         `${ENDPOINTS.searchCategories()}?${params.toString()}`,
-        { useBackend: true },
       );
       const data: ApiProductOption[] = response.data?.data ?? [];
       return data.map((category) => ({
@@ -596,7 +592,6 @@ export const FetchCollectionOptions = createAsyncThunk(
 
       const response = await axiosInstance.get(
         `${ENDPOINTS.searchCollections()}?${params.toString()}`,
-        { useBackend: true },
       );
       const data: ApiProductOption[] = response.data?.data ?? [];
       return data.map((collection) => ({

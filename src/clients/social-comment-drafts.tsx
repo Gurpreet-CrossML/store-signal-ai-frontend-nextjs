@@ -92,7 +92,7 @@ function DraftCard({
     postExternalId && channelType
       ? `/social-ai/${
           channelType === "instagram" ? "instagram-post" : "facebook-post"
-        }?post=${encodeURIComponent(postExternalId)}`
+        }/${encodeURIComponent(postExternalId)}`
       : null;
 
   return (

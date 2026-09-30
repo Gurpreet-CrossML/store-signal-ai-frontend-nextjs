@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/hooks";
 import { GoLiveCard } from "@/components/custom/go-live-card";
 import { StoreSetupForm } from "@/components/custom/store-setup-form";
+import { WebhookSubscriptionStatus } from "@/components/custom/webhook-subscription-status";
 import {
   Card,
   CardContent,
@@ -149,14 +150,7 @@ export function OnboardingDrawer() {
             <>
               {connected &&
                 Object.keys(connected.webhooks.failed).length > 0 && (
-                  <Typography variant="muted" className="text-sm">
-                    {connected.store_name} is connected, but some store updates
-                    couldn&apos;t be subscribed:{" "}
-                    {Object.entries(connected.webhooks.failed)
-                      .map(([topic, reason]) => `${topic} (${reason})`)
-                      .join(", ")}
-                    . Reconnecting the store retries them.
-                  </Typography>
+                  <WebhookSubscriptionStatus webhooks={connected.webhooks} />
                 )}
               <GoLiveCard />
             </>

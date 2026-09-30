@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconCheck, IconCircleCheck } from "@tabler/icons-react";
+import { IconCheck } from "@tabler/icons-react";
 
 import { SHOPIFY_CONNECT_STEPS } from "@/lib/config";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
+import { WebhookSubscriptionStatus } from "@/components/custom/webhook-subscription-status";
 
 /**
  * Progress dialog for a Shopify return on Settings → Stores. The layout's
@@ -72,7 +73,6 @@ export function ShopifyConnectProgress() {
   const currentStep = CompleteShopifyOauthIsSuccess
     ? SHOPIFY_CONNECT_STEPS.length - 1
     : step;
-  const failedTopics = Object.entries(connected?.webhooks?.failed ?? {});
   const errorMessage =
     typeof CompleteShopifyOauthIsError === "object" &&
     CompleteShopifyOauthIsError !== null &&
@@ -138,31 +138,9 @@ export function ShopifyConnectProgress() {
           </ol>
         )}
 
-        {CompleteShopifyOauthIsSuccess &&
-          (failedTopics.length === 0 ? (
-            <div className="flex items-center gap-2 rounded-md bg-emerald-500/10 p-3 text-emerald-700 dark:text-emerald-400">
-              <IconCircleCheck className="size-5 shrink-0" />
-              <Typography variant="small" as="span">
-                All store updates are subscribed. You&apos;re good to go.
-              </Typography>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1 rounded-md bg-amber-500/10 p-3">
-              <Typography
-                variant="small"
-                className="text-amber-700 dark:text-amber-400"
-              >
-                The store is connected, but some updates couldn&apos;t be
-                subscribed:
-              </Typography>
-              <Typography variant="muted" className="text-sm">
-                {failedTopics
-                  .map(([topic, reason]) => `${topic} (${reason})`)
-                  .join(", ")}
-                . Reconnecting the store retries them.
-              </Typography>
-            </div>
-          ))}
+        {CompleteShopifyOauthIsSuccess && connected && (
+          <WebhookSubscriptionStatus webhooks={connected.webhooks} />
+        )}
 
         {finished && (
           <DialogFooter>

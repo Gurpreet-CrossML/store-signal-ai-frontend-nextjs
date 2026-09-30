@@ -130,9 +130,6 @@ export const FetchStoreIntegrations = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.connectStoreIntegration()}?store_code=${store_code}`,
-        {
-          useBackend: true,
-        },
       );
       const data = response.data.data;
 

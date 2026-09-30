@@ -205,14 +205,19 @@ export default function Customization() {
         let result;
         if (logoFile) {
           result = await dispatch(
-            UpdateWidgetCustomizationWithImage({ storeId, payload, logoFile }),
+            UpdateWidgetCustomizationWithImage({
+              storeId,
+              storeCode,
+              payload,
+              logoFile,
+            }),
           );
         } else {
           if (!logoUrl) {
             payload.logo = null;
           }
           result = await dispatch(
-            UpdateWidgetCustomization({ storeId, payload }),
+            UpdateWidgetCustomization({ storeId, storeCode, payload }),
           );
         }
 
@@ -336,7 +341,9 @@ export default function Customization() {
     if (storeId == null) return;
     let active = true;
     (async () => {
-      const result = await dispatch(FetchWidgetCustomization(storeId));
+      const result = await dispatch(
+        FetchWidgetCustomization({ storeId, storeCode }),
+      );
       if (!active) return;
       if (FetchWidgetCustomization.fulfilled.match(result)) {
         populate(result.payload as WidgetCustomizationDataResponse | null);

@@ -19,7 +19,6 @@ export const FetchStoreAllowedIpsSettings = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.storeAllowedIPsSettings()}?store_code=${storeCode}`,
-        { useBackend: true },
       );
       return response.data.data as StoreSettings;
     } catch (error) {
@@ -43,7 +42,6 @@ export const UpdateStoreAllowedIpsSettings = createAsyncThunk(
       const response = await axiosInstance.patch(
         `${ENDPOINTS.storeAllowedIPsSettings()}?store_code=${storeCode}`,
         { allowed_ips: allowedIps },
-        { useBackend: true },
       );
       toast.success("Store settings saved.");
       return response.data.data as StoreSettings;

@@ -4,11 +4,7 @@ import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
 
-/**
- * Company & staff management (Django `/api/tenancy/`). These are Django-owned
- * auth/provisioning endpoints — not the Drizzle data plane — so GET calls force
- * the Django backend via `useBackend: true` (writes auto-route to Django).
- */
+/** Company & staff management (`/api/tenancy/`): auth and provisioning. */
 
 export type CompanyProfile = {
   name: string;
@@ -52,9 +48,7 @@ export const FetchCompanyProfile = createAsyncThunk(
   "tenancy/FetchCompanyProfile",
   async (_: void, thunkAPI) => {
     try {
-      const res = await axiosInstance.get(ENDPOINTS.fetchCompanyProfile(), {
-        useBackend: true,
-      });
+      const res = await axiosInstance.get(ENDPOINTS.fetchCompanyProfile());
       return res.data.data as CompanyProfile;
     } catch (error) {
       toast.error("Uh oh! Something went wrong.", {
@@ -111,9 +105,7 @@ export const FetchStaff = createAsyncThunk(
   "tenancy/FetchStaff",
   async (_: void, thunkAPI) => {
     try {
-      const res = await axiosInstance.get(ENDPOINTS.fetchStaff(), {
-        useBackend: true,
-      });
+      const res = await axiosInstance.get(ENDPOINTS.fetchStaff());
       return res.data.data as StaffMember[];
     } catch (error) {
       toast.error("Uh oh! Something went wrong.", {
@@ -215,9 +207,7 @@ export const FetchStoreAccess = createAsyncThunk(
   "tenancy/FetchStoreAccess",
   async (userId: number, thunkAPI) => {
     try {
-      const res = await axiosInstance.get(ENDPOINTS.fetchStoreAccess(userId), {
-        useBackend: true,
-      });
+      const res = await axiosInstance.get(ENDPOINTS.fetchStoreAccess(userId));
       return res.data.data as StoreAccessData;
     } catch (error) {
       toast.error("Uh oh! Something went wrong.", {

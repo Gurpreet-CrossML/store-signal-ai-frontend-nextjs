@@ -59,7 +59,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/helpers";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -471,8 +471,11 @@ function PendingDmBubble({
 // account's DM contacts (users) -> the selected contact's messages.
 export default function DmsInbox({
   channelType,
+  conversationId,
 }: {
   channelType: SocialChannel;
+  /** The conversation named in the path, if any. */
+  conversationId?: string;
 }) {
   const channel = CHANNELS[channelType];
   const ChannelIcon = CHANNEL_ICON[channelType];
@@ -540,11 +543,9 @@ export default function DmsInbox({
   >({});
 
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  // The open conversation lives in the URL (?chat=<id>) so a DM can be
-  // shared with teammates and deep-linked directly.
-  const chatParam = searchParams?.get("chat") ?? null;
+  // The open conversation lives in the path (/social-ai/<channel>-messages/<id>)
+  // so a DM can be shared with teammates and deep-linked directly.
+  const chatParam = conversationId ?? null;
   // Last ?chat= value already applied to local state — stops the render-time
   // sync below from re-applying a stale param right after a click updates
   // state but before the router has caught up.
@@ -1195,7 +1196,9 @@ export default function DmsInbox({
     setReplyingToMessage(null);
     setUnreadConversationIds((prev) => prev.filter((id) => id !== userId));
     setAppliedChatParam(String(userId));
-    router.replace(`${pathname}?chat=${userId}`, { scroll: false });
+    router.replace(`/social-ai/${channelType}-messages/${userId}`, {
+      scroll: false,
+    });
   };
 
   return (

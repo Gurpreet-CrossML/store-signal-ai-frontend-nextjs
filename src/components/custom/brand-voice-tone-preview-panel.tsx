@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { TonePresetRecord } from "@/db/chat";
+import type { TonePresetRecord } from "@/redux/api-slice/brand-voice-slice";
 import { cn } from "@/lib/utils";
 
 type ToneStylePreviewPanelProps = {

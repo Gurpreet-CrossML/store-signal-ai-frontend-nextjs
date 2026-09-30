@@ -399,15 +399,17 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     if (!storeCode || !threadId) return;
 
     const loadData = async () => {
-      const result = await dispatch(FetchThreadDetails(threadId)).unwrap();
+      const result = await dispatch(
+        FetchThreadDetails({ threadId, storeCode }),
+      ).unwrap();
       setThreadMessages(result.messages ?? []);
 
-      dispatch(FetchConversationSummary(threadId));
-      dispatch(FetchAIInsight(threadId));
-      dispatch(FetchCart(threadId));
-      dispatch(FetchUserMetadata(threadId));
-      dispatch(FetchFeedbackSequence(threadId));
-      dispatch(FetchOrders(threadId));
+      dispatch(FetchConversationSummary({ threadId, storeCode }));
+      dispatch(FetchAIInsight({ threadId, storeCode }));
+      dispatch(FetchCart({ threadId, storeCode }));
+      dispatch(FetchUserMetadata({ threadId, storeCode }));
+      dispatch(FetchFeedbackSequence({ threadId, storeCode }));
+      dispatch(FetchOrders({ threadId, storeCode }));
       dispatch(
         FetchFreshdeskTicketId({
           threadId,
@@ -415,7 +417,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           storeCode,
         }),
       );
-      dispatch(FetchTags(threadId));
+      dispatch(FetchTags({ threadId, storeCode }));
     };
 
     loadData();
@@ -432,9 +434,11 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         setIsLinkCustomerOpen(false);
         // Identity, order history and tickets all change with the link, so
         // refetch rather than patching a guess into three places.
-        const detail = await dispatch(FetchThreadDetails(threadId)).unwrap();
+        const detail = await dispatch(
+          FetchThreadDetails({ threadId, storeCode }),
+        ).unwrap();
         setThreadMessages(detail.messages ?? []);
-        dispatch(FetchOrders(threadId));
+        dispatch(FetchOrders({ threadId, storeCode }));
         dispatch(
           FetchFreshdeskTicketId({
             threadId,
@@ -719,7 +723,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           }}
           orders={FetchOrderData}
           ordersLoading={detailsLoading || FetchOrderDataIsLoading}
-          onOrdersSync={() => dispatch(FetchOrders(threadId))}
+          onOrdersSync={() => dispatch(FetchOrders({ threadId, storeCode }))}
           tickets={{
             data: FetchFreshdeskTicketIdData ?? [],
             loading: detailsLoading || FetchFreshdeskTicketIdIsLoading,

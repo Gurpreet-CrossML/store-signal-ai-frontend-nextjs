@@ -99,7 +99,7 @@ export default function Threads() {
   const handleSelectThread = useCallback(
     (threadId: string, isActive: boolean) => {
       if (isActive) {
-        router.push(`/support/?chat=${threadId}`);
+        router.push(`/support/${threadId}`);
       } else {
         router.push(`/threads/${threadId}`);
       }

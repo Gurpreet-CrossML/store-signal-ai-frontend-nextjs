@@ -398,7 +398,6 @@ export const FetchThreadTicketDraft = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.threadSupportTicketDraft(threadId)}?store_code=${storeCode}`,
-        { useBackend: true },
       );
       return response.data.data as SupportTicketDraft;
     } catch (error) {
@@ -444,7 +443,6 @@ export const CreateSupportTicket = createAsyncThunk(
       const response = await axiosInstance.post(
         `${url}?store_code=${storeCode}`,
         payload,
-        { useBackend: true },
       );
       toast.success("Ticket created.", {
         description: "It is now in the help desk queue.",
@@ -479,7 +477,6 @@ export const SupportTicketCustomerLink = createAsyncThunk(
       const response = await axiosInstance.patch(
         `${ENDPOINTS.supportTicketCustomerLink(ticketId)}?store_code=${storeCode}`,
         { customer: customerId },
-        { useBackend: true },
       );
       toast.success("Customer linked to this ticket.");
       return response.data.data as SupportTicket;

@@ -365,9 +365,6 @@ export const fetchSocialAccountsSubscriptions = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchSocialAccountsSubscriptions()}?store_code=${storeCode}`,
-        {
-          useBackend: true,
-        },
       );
       const data = response.data.data;
       return data;
@@ -400,7 +397,6 @@ export const updateAccountAutoRespond = createAsyncThunk(
       const response = await axiosInstance.patch(
         `${ENDPOINTS.updateConnectedAccount({ accountId })}?store_code=${storeCode}`,
         { allow_ai_auto_respond: allowAiAutoRespond },
-        { useBackend: true },
       );
       return response.data;
     } catch (error) {
@@ -420,9 +416,6 @@ export const createMetaOAuthUrl = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.createMetaOAuthUrl()}?store_code=${storeCode}`,
-        {
-          useBackend: true,
-        },
       );
       const data = response.data.data;
       return data;
@@ -490,9 +483,6 @@ export const fetchSocialPosts = createAsyncThunk(
 
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchSocialPosts({ accountId })}?${params.toString()}`,
-        {
-          useBackend: true,
-        },
       );
       const data = response.data.data;
       return data;
@@ -525,7 +515,6 @@ export const fetchSocialPost = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchSocialPost({ postId })}?store_code=${storeCode}`,
-        { useBackend: true },
       );
       return response.data.data as SocialPost;
     } catch (error) {
@@ -589,9 +578,6 @@ export const fetchPostComments = createAsyncThunk(
 
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchPostComments({ postId })}?${params.toString()}`,
-        {
-          useBackend: true,
-        },
       );
       const data = response.data.data;
       return data;
@@ -619,9 +605,6 @@ export const fetchCommentTopics = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchCommentTopics({ postId })}?store_code=${storeCode}`,
-        {
-          useBackend: true,
-        },
       );
       const data = response.data.data;
       return (data?.topics ?? []) as CommentTopic[];
@@ -662,9 +645,6 @@ export const fetchSocialUsers = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchSocialUsers({ accountId })}?store_code=${storeCode}&page=${page}&page_size=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ""}`,
-        {
-          useBackend: true,
-        },
       );
       const data = response.data.data;
       return data;
@@ -706,9 +686,6 @@ export const fetchSocialDms = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchSocialDms({ accountId, userId })}?store_code=${storeCode}&page=${page}&page_size=${pageSize}`,
-        {
-          useBackend: true,
-        },
       );
       const data = response.data.data;
       return data;
@@ -740,7 +717,6 @@ export const likeMetaComment = createAsyncThunk(
       const response = await axiosInstance.post(
         `${ENDPOINTS.likeComment({ postId, commentId })}?store_code=${storeCode}`,
         {},
-        { useBackend: true },
       );
       return response.data;
     } catch (error) {
@@ -768,7 +744,6 @@ export const unlikeMetaComment = createAsyncThunk(
       // DELETE on the like route — no body; the method carries the intent.
       const response = await axiosInstance.delete(
         `${ENDPOINTS.likeComment({ postId, commentId })}?store_code=${storeCode}`,
-        { useBackend: true },
       );
       return response.data;
     } catch (error) {
@@ -802,7 +777,6 @@ export const hideMetaComment = createAsyncThunk(
       const response = await axiosInstance.post(
         `${ENDPOINTS.hideComment({ postId, commentId })}?store_code=${storeCode}`,
         { is_hidden },
-        { useBackend: true },
       );
       return response.data;
     } catch (error) {
@@ -829,7 +803,6 @@ export const deleteMetaComment = createAsyncThunk(
     try {
       const response = await axiosInstance.delete(
         `${ENDPOINTS.deleteComment({ postId, commentId })}?store_code=${storeCode}`,
-        { useBackend: true },
       );
       return response.data;
     } catch (error) {
@@ -879,15 +852,13 @@ export const replyToMetaMessage = createAsyncThunk(
               return form;
             })(),
             {
-              useBackend: true,
               headers: { "Content-Type": "multipart/form-data" },
             },
           )
-        : await axiosInstance.post(
-            url,
-            { message, is_explicit_reply: isExplicitReply },
-            { useBackend: true },
-          );
+        : await axiosInstance.post(url, {
+            message,
+            is_explicit_reply: isExplicitReply,
+          });
       return response.data;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -920,7 +891,6 @@ export const reactToMetaMessage = createAsyncThunk(
       const response = await axiosInstance.post(
         `${ENDPOINTS.reactMessage({ userId, messageId })}?store_code=${storeCode}`,
         { reaction },
-        { useBackend: true },
       );
       return response.data;
     } catch (error) {
@@ -954,7 +924,6 @@ export const replyToMetaComment = createAsyncThunk(
       const response = await axiosInstance.post(
         `${ENDPOINTS.replyComment({ postId, commentId })}?store_code=${storeCode}`,
         { message },
-        { useBackend: true },
       );
       return response.data;
     } catch (error) {
@@ -983,7 +952,6 @@ export const FetchSocialTicketDraft = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.metaSupportTicketDraft(userId)}?store_code=${storeCode}`,
-        { useBackend: true },
       );
       return response.data.data as SupportTicketDraft;
     } catch (error) {
@@ -1026,7 +994,6 @@ export const CreateSocialSupportTicket = createAsyncThunk(
       const response = await axiosInstance.post(
         `${ENDPOINTS.metaCreateSupportTicket(userId)}?store_code=${storeCode}`,
         payload,
-        { useBackend: true },
       );
       toast.success("Ticket created.", {
         description: "It is now in the help desk queue.",
@@ -1065,7 +1032,6 @@ export const SocialUserCustomerLink = createAsyncThunk(
       await axiosInstance.post(
         `${ENDPOINTS.socialUserCustomerLink(userId)}?store_code=${storeCode}`,
         { customer: customer.id },
-        { useBackend: true },
       );
       toast.success("Customer linked.", {
         description: "This conversation now shows their record.",
@@ -1091,7 +1057,6 @@ export const fetchCommentSettings = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchCommentSettings({ accountId })}?store_code=${storeCode}`,
-        { useBackend: true },
       );
       return response.data.data as CommentSettingsConfig;
     } catch (error) {
@@ -1131,7 +1096,6 @@ export const saveIntentRule = createAsyncThunk(
       const response = await axiosInstance.put(
         `${ENDPOINTS.saveIntentRule({ accountId, intent })}?store_code=${storeCode}`,
         { actions, autonomy },
-        { useBackend: true },
       );
       return response.data.data as CommentIntentRule;
     } catch (error) {
@@ -1167,7 +1131,6 @@ export const saveTopicRule = createAsyncThunk(
       const response = await axiosInstance.put(
         `${ENDPOINTS.topicRule({ accountId, topic })}?store_code=${storeCode}`,
         { actions, autonomy },
-        { useBackend: true },
       );
       return response.data.data as CommentTopicRule;
     } catch (error) {
@@ -1194,7 +1157,6 @@ export const deleteTopicRule = createAsyncThunk(
     try {
       await axiosInstance.delete(
         `${ENDPOINTS.topicRule({ accountId, topic })}?store_code=${storeCode}`,
-        { useBackend: true },
       );
       return topic;
     } catch (error) {
@@ -1236,7 +1198,6 @@ export const fetchCommentDrafts = createAsyncThunk(
 
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchCommentDrafts()}?${params.toString()}`,
-        { useBackend: true },
       );
       return response.data.data as CommentDraftsResponse;
     } catch (error) {
@@ -1291,7 +1252,6 @@ export const fetchUserCommentDraft = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.userCommentDraft({ postId, userId })}?store_code=${storeCode}`,
-        { useBackend: true },
       );
       return toDraftList(response.data);
     } catch (error) {
@@ -1318,7 +1278,6 @@ export const fetchUserMessageDraft = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.userMessageDraft({ pageId, userId })}?store_code=${storeCode}`,
-        { useBackend: true },
       );
       return toDraftList(response.data);
     } catch (error) {
@@ -1360,7 +1319,6 @@ export const updateCommentDraft = createAsyncThunk(
       const response = await axiosInstance.patch(
         `${ENDPOINTS.commentDraft({ draftId })}?store_code=${storeCode}`,
         patch,
-        { useBackend: true },
       );
       if (!silent) {
         toast.success("Draft updated", {
@@ -1392,7 +1350,6 @@ export const approveCommentDraft = createAsyncThunk(
       const response = await axiosInstance.post(
         `${ENDPOINTS.approveCommentDraft({ draftId })}?store_code=${storeCode}`,
         {},
-        { useBackend: true },
       );
       toast.success("Draft approved", {
         description: "The actions were sent to the comment.",
@@ -1422,7 +1379,6 @@ export const discardCommentDraft = createAsyncThunk(
       const response = await axiosInstance.post(
         `${ENDPOINTS.discardCommentDraft({ draftId })}?store_code=${storeCode}`,
         {},
-        { useBackend: true },
       );
       toast.success("Draft discarded", {
         description: "Nothing will be sent for this comment.",

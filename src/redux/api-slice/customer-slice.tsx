@@ -141,7 +141,6 @@ export const FetchCustomers = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchCustomers()}?${toQueryParams(storeCode, page, limit, filters)}`,
-        { useBackend: true },
       );
       // Accepts the payload wrapped in `data` or returned bare, so a
       // change on the backend shows an empty table rather than crashing.
@@ -168,7 +167,6 @@ export const FetchCustomerDetails = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchCustomerDetails(customerId)}?store_code=${storeCode}`,
-        { useBackend: true },
       );
       return response.data.data as CustomerRecord;
     } catch (error) {
@@ -196,7 +194,6 @@ export const SearchCustomers = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchCustomers()}?store_code=${storeCode}&limit=10&search=${encodeURIComponent(search)}`,
-        { useBackend: true },
       );
       return toPaginatedList<CustomerRecord>(
         response.data?.data ?? response.data,
@@ -232,7 +229,6 @@ export const CreateCustomer = createAsyncThunk(
           first_name: firstName ?? "",
           last_name: lastName ?? "",
         },
-        { useBackend: true },
       );
       return (response.data?.data ?? response.data) as CustomerRecord;
     } catch (error) {

@@ -3,7 +3,7 @@
 import { Fragment } from "react";
 import { cn } from "@/lib/utils";
 import type { useFormik } from "formik";
-import { type ToneStylePayload } from "@/db/chat";
+import { type ToneStylePayload } from "@/redux/api-slice/brand-voice-slice";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,

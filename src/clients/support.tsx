@@ -76,6 +76,8 @@ import {
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+const SUPPORT_PATH = "/support";
 import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
@@ -592,7 +594,7 @@ const useNotificationSound = (soundUrl: string = "/notification_sound.mp3") => {
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export default function Support() {
+export default function Support({ threadId }: { threadId?: string }) {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -622,9 +624,9 @@ export default function Support() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  // The open chat lives in the URL (?chat=<id>) so conversations can be
-  // shared with teammates and deep-linked directly.
-  const chatParam = searchParams?.get("chat") ?? null;
+  // The open chat lives in the path (/support/<thread id>) so conversations
+  // can be shared with teammates and deep-linked directly.
+  const chatParam = threadId ?? null;
 
   // Local, mutable copy of the thread list. Seeded from Redux (is_read
   // defaults to true), then patched in place by the dashboard socket (new
@@ -770,9 +772,8 @@ export default function Support() {
     if (!activeThreadId) {
       if (!threadsReady) return;
       if (!chatParam && filterParamMatches) return;
-      params.delete("chat");
       const query = params.toString();
-      router.replace(query ? `${safePathname}?${query}` : safePathname, {
+      router.replace(query ? `${SUPPORT_PATH}?${query}` : SUPPORT_PATH, {
         scroll: false,
       });
       return;
@@ -780,11 +781,9 @@ export default function Support() {
 
     if (chatParam === activeThreadId && filterParamMatches) return;
 
-    params.set("chat", activeThreadId);
     const query = params.toString();
-    router.replace(query ? `${safePathname}?${query}` : safePathname, {
-      scroll: false,
-    });
+    const target = `${SUPPORT_PATH}/${activeThreadId}`;
+    router.replace(query ? `${target}?${query}` : target, { scroll: false });
   }, [
     activeThreadId,
     chatParam,
@@ -860,7 +859,7 @@ export default function Support() {
     // until it finishes.
     const loadThreadData = () => {
       setThreadMessages([]);
-      void dispatch(FetchThreadDetails(activeThreadId))
+      void dispatch(FetchThreadDetails({ threadId: activeThreadId, storeCode }))
         .unwrap()
         .then((result) => {
           // Ignore late responses after the user has switched threads.
@@ -875,8 +874,8 @@ export default function Support() {
       // fetched here. They belong to the Threads detail screen, which
       // renders them; this one never read the results, so opening a
       // conversation fired three requests whose responses were dropped.
-      dispatch(FetchCart(activeThreadId));
-      dispatch(FetchUserMetadata(activeThreadId));
+      dispatch(FetchCart({ threadId: activeThreadId, storeCode }));
+      dispatch(FetchUserMetadata({ threadId: activeThreadId, storeCode }));
       dispatch(
         FetchFreshdeskTicketId({
           threadId: activeThreadId,
@@ -884,7 +883,7 @@ export default function Support() {
           storeCode,
         }),
       );
-      dispatch(FetchOrders(activeThreadId));
+      dispatch(FetchOrders({ threadId: activeThreadId, storeCode }));
     };
 
     loadThreadData();
@@ -940,7 +939,7 @@ export default function Support() {
 
       try {
         const result = await dispatch(
-          UploadMessageAttachments({ formData }),
+          UploadMessageAttachments({ formData, storeCode }),
         ).unwrap();
 
         setAttachments((prev) =>
@@ -1125,11 +1124,11 @@ export default function Support() {
       setSelectedThreadId(threadId);
       setAttachments([]);
       setAppliedChatParam(threadId);
-      router.replace(`${pathname}?chat=${encodeURIComponent(threadId)}`, {
+      router.replace(`${SUPPORT_PATH}/${encodeURIComponent(threadId)}`, {
         scroll: false,
       });
     },
-    [router, pathname],
+    [router],
   );
 
   // Insert or patch a thread in localThreads based on an incoming dashboard
@@ -1419,7 +1418,7 @@ export default function Support() {
         SyncCustomerOrders({ storeCode, customerId: syncCustomerId }),
       ).unwrap();
 
-      dispatch(FetchOrders(activeThreadId));
+      dispatch(FetchOrders({ threadId: activeThreadId, storeCode }));
       toast.success("Order Sync", {
         description: "Orders synced successfully.",
       });
@@ -1486,15 +1485,14 @@ export default function Support() {
                       params.set("filter", option.key);
                     }
 
-                    params.delete("chat");
-
                     const query = params.toString();
 
-                    const basePath = pathname ?? "";
-
-                    router.replace(query ? `${basePath}?${query}` : basePath, {
-                      scroll: false,
-                    });
+                    router.replace(
+                      query ? `${SUPPORT_PATH}?${query}` : SUPPORT_PATH,
+                      {
+                        scroll: false,
+                      },
+                    );
                   }}
                   className={cn(
                     "flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",

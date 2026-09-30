@@ -2,14 +2,6 @@ import { createAPIUrl } from "@/lib/config";
 import axios from "axios";
 import { getSession, signOut } from "next-auth/react";
 
-// Let an individual request force the Django backend even for a GET — used by
-// reads that are NOT ported to the Next.js API (e.g. widget customization).
-declare module "axios" {
-  export interface AxiosRequestConfig {
-    useBackend?: boolean;
-  }
-}
-
 const axiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
@@ -19,12 +11,8 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
   async (config) => {
-    // Route writes (POST/PUT/PATCH/DELETE) to the Django backend and reads
-    // (GET) to this Next.js app's own /api routes. `useBackend: true` opts a
-    // specific read back into Django.
-    const isWrite = (config.method ?? "get").toLowerCase() !== "get";
-    const target = config.useBackend || isWrite ? "django" : "local";
-    config.baseURL = createAPIUrl(undefined, target);
+    // Every API is served by Django; this app has no data routes of its own.
+    config.baseURL = createAPIUrl();
 
     try {
       const session = await getSession();

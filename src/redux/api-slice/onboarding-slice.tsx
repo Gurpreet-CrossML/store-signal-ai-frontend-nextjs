@@ -37,9 +37,7 @@ export const FetchOnboardingStatus = createAsyncThunk(
   "FetchOnboardingStatus",
   async (_, thunkAPI) => {
     try {
-      const response = await axiosInstance.get(ENDPOINTS.companyOnboarding(), {
-        useBackend: true,
-      });
+      const response = await axiosInstance.get(ENDPOINTS.companyOnboarding());
       return response.data.data as OnboardingStatus;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -117,13 +115,12 @@ export const CompleteShopifyOauth = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.shopifyOauthCallback()}?${search}`,
-        { useBackend: true },
       );
       const data = response.data.data as ShopifyConnectedStore;
       const failed = Object.keys(data?.webhooks?.failed ?? {});
       if (failed.length) {
         toast.warning("Store connected, some webhooks failed", {
-          description: `Not subscribed: ${failed.join(", ")}.`,
+          description: `Not subscribed yet: ${failed.join(", ")}. StoreSignal retries these automatically.`,
         });
       } else {
         toast.success("Shopify store connected");

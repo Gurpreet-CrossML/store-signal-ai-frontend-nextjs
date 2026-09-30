@@ -163,7 +163,7 @@ export function SupportTicketCard({
                     {/* Opens in a new tab: the agent is mid-conversation
                       here, and this is somewhere else to work. */}
                     <a
-                      href={`/helpdesk?ticket=${ticket.id}`}
+                      href={`/helpdesk/${ticket.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label="Open in Help Desk"
@@ -227,7 +227,7 @@ export function SupportTicketCard({
             </Button>
             <Button asChild>
               <a
-                href={`/helpdesk?ticket=${ticket.id}`}
+                href={`/helpdesk/${ticket.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >

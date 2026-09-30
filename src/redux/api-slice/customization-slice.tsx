@@ -47,15 +47,13 @@ export type WidgetCustomizationDataResponse = {
 
 export const FetchWidgetCustomization = createAsyncThunk(
   "customization/fetchWidgetCustomization",
-  async (storeId: number, thunkAPI) => {
+  async (
+    { storeId, storeCode }: { storeId: number; storeCode: string },
+    thunkAPI,
+  ) => {
     try {
-      // Widget customization is not ported to the Next.js API — read it
-      // from the Django backend.
       const response = await axiosInstance.get(
-        `${ENDPOINTS.widgetCustomization(storeId)}`,
-        {
-          useBackend: true,
-        },
+        `${ENDPOINTS.widgetCustomization(storeId)}?store_code=${storeCode}`,
       );
       const data = response.data.data;
 
@@ -87,13 +85,18 @@ export const UpdateWidgetCustomization = createAsyncThunk(
   async (
     {
       storeId,
+      storeCode,
       payload,
-    }: { storeId: number; payload: UpdateWidgetCustomizationPayload },
+    }: {
+      storeId: number;
+      storeCode: string;
+      payload: UpdateWidgetCustomizationPayload;
+    },
     thunkAPI,
   ) => {
     try {
       const response = await axiosInstance.put(
-        `${ENDPOINTS.widgetCustomization(storeId)}`,
+        `${ENDPOINTS.widgetCustomization(storeId)}?store_code=${storeCode}`,
         payload,
       );
       const data = response.data.data;
@@ -122,10 +125,12 @@ export const UpdateWidgetCustomizationWithImage = createAsyncThunk(
   async (
     {
       storeId,
+      storeCode,
       payload,
       logoFile,
     }: {
       storeId: number;
+      storeCode: string;
       payload: UpdateWidgetCustomizationPayload;
       logoFile: File;
     },
@@ -159,7 +164,7 @@ export const UpdateWidgetCustomizationWithImage = createAsyncThunk(
       }
 
       const response = await axiosInstance.patch(
-        `${ENDPOINTS.widgetCustomization(storeId)}`,
+        `${ENDPOINTS.widgetCustomization(storeId)}?store_code=${storeCode}`,
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },
       );

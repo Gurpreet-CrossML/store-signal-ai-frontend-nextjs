@@ -22,7 +22,7 @@ import {
   IconPhotoVideo,
   IconVideo,
 } from "@tabler/icons-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
@@ -97,8 +97,11 @@ function PostRowThumbnail({ post }: { post: SocialPost }) {
  */
 export default function SocialPostsFeed({
   channelType,
+  postId,
 }: {
   channelType: SocialChannel;
+  /** The post named in the path, if any. */
+  postId?: string;
 }) {
   const channel = CHANNELS[channelType];
   const ChannelIcon = CHANNEL_ICON[channelType];
@@ -136,11 +139,9 @@ export default function SocialPostsFeed({
   const [filters, setFilters] = useState<PostFilters | null>(null);
 
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   // The open post lives in the URL (?post=<external id>) so a post and its
   // comments can be shared with teammates and deep-linked directly.
-  const postParam = searchParams?.get("post") ?? null;
+  const postParam = postId ?? null;
   const [appliedPostParam, setAppliedPostParam] = useState<string | null>(null);
   // A deep-linked post may live beyond the loaded pages — the single-post
   // read resolves it directly, so the link never depends on pagination.
@@ -313,9 +314,10 @@ export default function SocialPostsFeed({
   const handleSelectPost = (post: SocialPost) => {
     setSelectedPostId(post.external_id);
     setAppliedPostParam(post.external_id);
-    router.replace(`${pathname}?post=${encodeURIComponent(post.external_id)}`, {
-      scroll: false,
-    });
+    router.replace(
+      `/social-ai/${channelType}-post/${encodeURIComponent(post.external_id)}`,
+      { scroll: false },
+    );
   };
 
   return (

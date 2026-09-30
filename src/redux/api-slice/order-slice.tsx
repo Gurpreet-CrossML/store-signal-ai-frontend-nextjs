@@ -197,7 +197,6 @@ export const FetchOrders = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchOrders()}?${toQueryParams(storeCode, page, limit, filters)}`,
-        { useBackend: true },
       );
       // Accepts the payload wrapped in `data` or returned bare, so a
       // change on the backend shows an empty table rather than crashing.
@@ -243,7 +242,6 @@ export const FetchCustomerOrders = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchCustomerOrders(customerId)}?${toQueryParams(storeCode, page, limit, filters)}`,
-        { useBackend: true },
       );
       return toPaginatedList<OrderListRow>(
         response.data?.data ?? response.data,
@@ -275,7 +273,6 @@ export const SyncCustomerOrders = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.syncCustomerOrders(customerId)}?store_code=${storeCode}`,
-        { useBackend: true },
       );
       return (response.data?.data ?? []) as OrderData[];
     } catch (error) {
@@ -299,7 +296,6 @@ export const FetchOrderDetails = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchOrderDetails(orderId)}?store_code=${storeCode}`,
-        { useBackend: true },
       );
       return response.data.data as OrderRecord;
     } catch (error) {

@@ -9,6 +9,8 @@ import {
   startTransition,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+const HELPDESK_PATH = "/helpdesk";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
@@ -1544,13 +1546,14 @@ function TicketInsightsPlaceholder({
   );
 }
 
-export default function HelpDesk() {
+export default function HelpDesk({ ticketId }: { ticketId?: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const activeFilter = searchParams?.get("filter") ?? "";
   /** Deep link to one ticket, e.g. from the Live Support detail panel. */
-  const linkedTicketId = Number(searchParams?.get("ticket") ?? "");
+  // The route param is a string; tickets are addressed by their integer id.
+  const linkedTicketId = Number(ticketId ?? "");
 
   const dispatch = useAppDispatch();
   const { data: session } = useSession();
@@ -2151,18 +2154,13 @@ export default function HelpDesk() {
   useEffect(() => {
     if (!pathname) return;
 
-    const params = new URLSearchParams(searchParams?.toString() ?? "");
-    const current = params.get("ticket");
-    const next = activeTicketId ? String(activeTicketId) : null;
-    if (current === next) return;
+    const target = activeTicketId
+      ? `${HELPDESK_PATH}/${activeTicketId}`
+      : HELPDESK_PATH;
+    if (pathname === target) return;
 
-    if (next) params.set("ticket", next);
-    else params.delete("ticket");
-
-    const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, {
-      scroll: false,
-    });
+    const query = searchParams?.toString() ?? "";
+    router.replace(query ? `${target}?${query}` : target, { scroll: false });
   }, [activeTicketId, pathname, router, searchParams]);
 
   useEffect(() => {

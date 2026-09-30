@@ -366,10 +366,13 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
 
 export const FetchThreadDetails = createAsyncThunk(
   "ThreadDetails",
-  async (threadId: string, thunkAPI) => {
+  async (
+    { threadId, storeCode }: { threadId: string; storeCode: string },
+    thunkAPI,
+  ) => {
     try {
       const response = await axiosInstance.get(
-        ENDPOINTS.fetchThreadDetails(threadId),
+        `${ENDPOINTS.fetchThreadDetails(threadId)}?store_code=${storeCode}`,
       );
       const data = response.data.data;
 
@@ -391,10 +394,13 @@ export const FetchThreadDetails = createAsyncThunk(
 
 export const FetchUserMetadata = createAsyncThunk(
   "UserMetadata",
-  async (threadId: string, thunkAPI) => {
+  async (
+    { threadId, storeCode }: { threadId: string; storeCode: string },
+    thunkAPI,
+  ) => {
     try {
       const response = await axiosInstance.get(
-        ENDPOINTS.fetchUserMetadata(threadId),
+        `${ENDPOINTS.fetchUserMetadata(threadId)}?store_code=${storeCode}`,
       );
       const data = response.data.data;
 
@@ -416,10 +422,13 @@ export const FetchUserMetadata = createAsyncThunk(
 
 export const FetchConversationSummary = createAsyncThunk(
   "ConversationSummary",
-  async (threadId: string, thunkAPI) => {
+  async (
+    { threadId, storeCode }: { threadId: string; storeCode: string },
+    thunkAPI,
+  ) => {
     try {
       const response = await axiosInstance.get(
-        ENDPOINTS.fetchConversationSummary(threadId),
+        `${ENDPOINTS.fetchConversationSummary(threadId)}?store_code=${storeCode}`,
       );
       const data = response.data.data;
 
@@ -441,10 +450,13 @@ export const FetchConversationSummary = createAsyncThunk(
 
 export const FetchFeedbackSequence = createAsyncThunk(
   "FeedbackSequence",
-  async (threadId: string, thunkAPI) => {
+  async (
+    { threadId, storeCode }: { threadId: string; storeCode: string },
+    thunkAPI,
+  ) => {
     try {
       const response = await axiosInstance.get(
-        ENDPOINTS.fetchFeedbackSequence(threadId),
+        `${ENDPOINTS.fetchFeedbackSequence(threadId)}?store_code=${storeCode}`,
       );
       const data = response.data.data;
 
@@ -466,9 +478,14 @@ export const FetchFeedbackSequence = createAsyncThunk(
 
 export const FetchTags = createAsyncThunk(
   "Tags",
-  async (threadId: string, thunkAPI) => {
+  async (
+    { threadId, storeCode }: { threadId: string; storeCode: string },
+    thunkAPI,
+  ) => {
     try {
-      const response = await axiosInstance.get(ENDPOINTS.fetchTags(threadId));
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchTags(threadId)}?store_code=${storeCode}`,
+      );
       const data = response.data.data;
 
       return data;
@@ -513,10 +530,13 @@ export const FetchThreadTagOptions = createAsyncThunk(
 
 export const FetchAIInsight = createAsyncThunk(
   "AIInsight",
-  async (threadId: string, thunkAPI) => {
+  async (
+    { threadId, storeCode }: { threadId: string; storeCode: string },
+    thunkAPI,
+  ) => {
     try {
       const response = await axiosInstance.get(
-        ENDPOINTS.fetchAIInsight(threadId),
+        `${ENDPOINTS.fetchAIInsight(threadId)}?store_code=${storeCode}`,
       );
       const data = response.data.data;
 
@@ -538,10 +558,13 @@ export const FetchAIInsight = createAsyncThunk(
 
 export const FetchCart = createAsyncThunk(
   "CartData",
-  async (threadId: string, thunkAPI) => {
+  async (
+    { threadId, storeCode }: { threadId: string; storeCode: string },
+    thunkAPI,
+  ) => {
     try {
       const response = await axiosInstance.get(
-        ENDPOINTS.fetchCartData(threadId),
+        `${ENDPOINTS.fetchCartData(threadId)}?store_code=${storeCode}`,
       );
       const data = response.data.data;
 
@@ -576,10 +599,9 @@ export const ThreadCustomerLink = createAsyncThunk(
     thunkAPI,
   ) => {
     try {
-      const response = await axiosInstance.patch(
+      const response = await axiosInstance.post(
         `${ENDPOINTS.threadCustomerLink(threadId)}?store_code=${storeCode}`,
-        { customer: customerId },
-        { useBackend: true },
+        { customer_id: customerId },
       );
       toast.success("Customer linked to this conversation.");
       return response.data?.data ?? response.data;
@@ -613,7 +635,6 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
 
       const response = await axiosInstance.get(
         `${url}?store_code=${storeCode}`,
-        { useBackend: true },
       );
       // Paginated envelope — the card only renders the first page.
       return response.data.data?.results ?? [];
@@ -634,10 +655,13 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
 
 export const UploadMessageAttachments = createAsyncThunk(
   "UploadMessageAttachments",
-  async ({ formData }: { formData: FormData }, thunkAPI) => {
+  async (
+    { formData, storeCode }: { formData: FormData; storeCode: string },
+    thunkAPI,
+  ) => {
     try {
       const response = await axiosInstance.post(
-        ENDPOINTS.uploadAttachments(),
+        `${ENDPOINTS.uploadAttachments()}?store_code=${storeCode}`,
         formData,
         {
           headers: {
@@ -665,10 +689,13 @@ export const UploadMessageAttachments = createAsyncThunk(
 
 export const FetchOrders = createAsyncThunk(
   "OrderData",
-  async (threadId: string, thunkAPI) => {
+  async (
+    { threadId, storeCode }: { threadId: string; storeCode: string },
+    thunkAPI,
+  ) => {
     try {
       const response = await axiosInstance.get(
-        ENDPOINTS.fetchOrderData(threadId),
+        `${ENDPOINTS.fetchOrderData(threadId)}?store_code=${storeCode}`,
       );
       const data = response.data.data;
 

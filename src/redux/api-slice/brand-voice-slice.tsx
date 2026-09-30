@@ -4,18 +4,90 @@ import { toast } from "sonner";
 
 import { ENDPOINTS } from "@/lib/config";
 import { axiosInstance } from "@/redux/axios-config";
-import type {
-  TonePresetRecord,
-  ToneStylePayload,
-  ToneStyleRecord,
-  VocabularyPayload,
-  VocabularyRecord,
-  VocabularyPresetRecord,
-  NeverSayRulesPresetRecord,
-} from "@/db/chat";
-
 export type SelfReference = "i" | "we";
 export type RequiredLegalPhrase = { context: string; phrase: string };
+
+// Brand Voice payload shapes, mirroring the Django brand-voice serializers
+// (chat/serializers.py) and the shared preset catalogues (core/models.py).
+
+export type ToneStyleRecord = {
+  preset: number;
+  warmth: number;
+  formality: number;
+  energy: number;
+  playfulness: number;
+  directness: number;
+  answer_length: string;
+  regional_spelling: string;
+  use_bullet_points: boolean;
+  emoji_policy: string;
+  exclamation_marks_policy: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ToneStylePayload = Omit<
+  ToneStyleRecord,
+  "created_at" | "updated_at"
+>;
+
+export type TonePresetRecord = {
+  id: number;
+  name: string;
+  description: string;
+  icon: string | null;
+  warmth: number;
+  formality: number;
+  energy: number;
+  playfulness: number;
+  directness: number;
+  preview_question: string;
+  preview_message: string;
+};
+
+export type WordReplacementRecord = {
+  id: number;
+  say_word: string;
+  replace_word: string;
+};
+
+export type WordReplacementPayload = Omit<WordReplacementRecord, "id">;
+
+export type WordReplacementPair = {
+  say_word: string;
+  replace_word: string;
+};
+
+export type VocabularyRecord = {
+  preferred_phrases: string[];
+  banned_words: string[];
+  signature_phrases: string[];
+  word_replacements: WordReplacementRecord[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type VocabularyPayload = {
+  preferred_phrases: string[];
+  banned_words: string[];
+  signature_phrases: string[];
+  word_replacements: WordReplacementPayload[];
+};
+
+export type VocabularyPresetRecord = {
+  id: number;
+  preferred_phrases: string[];
+  banned_words: string[];
+  signature_phrases: string[];
+  word_replacement_pairs: WordReplacementPair[];
+};
+
+export type NeverSayRulesPresetRecord = {
+  id: number;
+  do_not_say_phrases: string[];
+  forbidden_claims: string[];
+  required_legal_phrases: RequiredLegalPhrase[];
+};
 
 export type PersonaIdentityData = {
   name: string;

@@ -106,7 +106,11 @@ export function activeNavUrl(
 
   const withQuery = items.find((item) => {
     const { path, query } = splitHref(item.url);
-    return query !== "" && pathname === path && queryMatches(search, query);
+    return (
+      query !== "" &&
+      (pathname === path || pathname.startsWith(`${path}/`)) &&
+      queryMatches(search, query)
+    );
   });
   if (withQuery) return withQuery.url;
 

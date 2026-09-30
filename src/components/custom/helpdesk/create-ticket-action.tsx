@@ -49,7 +49,7 @@ export function CreateTicketAction() {
           if (!CreateSupportTicket.fulfilled.match(result)) {
             return { ok: false, payload: result.payload };
           }
-          router.push(`/helpdesk?ticket=${result.payload.id}`);
+          router.push(`/helpdesk/${result.payload.id}`);
           return { ok: true };
         }}
       />

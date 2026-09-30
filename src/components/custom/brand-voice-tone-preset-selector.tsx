@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { IconMoodSmile } from "@tabler/icons-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import type { TonePresetRecord } from "@/db/chat";
+import type { TonePresetRecord } from "@/redux/api-slice/brand-voice-slice";
 import {
   Field,
   FieldContent,

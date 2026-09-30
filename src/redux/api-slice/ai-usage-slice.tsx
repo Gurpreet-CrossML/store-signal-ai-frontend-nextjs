@@ -88,7 +88,6 @@ export const fetchAIUsageSummary = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchAIUsageSummary()}?${paramsFor(filters).toString()}`,
-        { useBackend: true },
       );
       return response.data.data as AIUsageSummary;
     } catch (error) {
@@ -113,7 +112,6 @@ export const fetchAIUsageDaily = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchAIUsageDaily()}?${paramsFor(filters).toString()}`,
-        { useBackend: true },
       );
       return response.data.data as DailyUsagePoint[];
     } catch (error) {
@@ -138,7 +136,6 @@ export const fetchAIUsageTokenSplit = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchAIUsageTokenSplit()}?${paramsFor(filters).toString()}`,
-        { useBackend: true },
       );
       return response.data.data as TokenSplitData;
     } catch (error) {
@@ -163,7 +160,6 @@ export const fetchAIUsageWorkflowCosts = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchAIUsageWorkflowCosts()}?${paramsFor(filters).toString()}`,
-        { useBackend: true },
       );
       return response.data.data as WorkflowCostPoint[];
     } catch (error) {
@@ -188,7 +184,6 @@ export const fetchAIUsageLatencyTrend = createAsyncThunk(
     try {
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchAIUsageLatencyTrend()}?${paramsFor(filters).toString()}`,
-        { useBackend: true },
       );
       return response.data.data as LatencyPoint[];
     } catch (error) {

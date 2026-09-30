@@ -7,18 +7,12 @@ import {
 
 const DJANGO_BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000";
-const LOCAL_BASE_URL = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
 
-export type APITarget = "django" | "local";
-
-/**
- * Build an API URL against the requested backend.
- *  - target "django": the Django backend.
- *  - target "local" (default): this Next.js app's own /api routes.
- */
-export function createAPIUrl(path?: string, target: APITarget = "local") {
-  const rawBase = target === "django" ? DJANGO_BASE_URL : LOCAL_BASE_URL;
-  const baseUrl = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
+/** Build an API URL against the Django backend, which serves every endpoint. */
+export function createAPIUrl(path?: string) {
+  const baseUrl = DJANGO_BASE_URL.endsWith("/")
+    ? DJANGO_BASE_URL.slice(0, -1)
+    : DJANGO_BASE_URL;
   const formattedPath = path ? (path.startsWith("/") ? path : `/${path}`) : "";
   return `${baseUrl}/api${formattedPath}`;
 }
@@ -32,13 +26,13 @@ export function createWebSocketUrl(path?: string) {
 }
 
 export const ENDPOINTS = {
-  login: () => createAPIUrl("/auth/login/", "django"),
+  login: () => createAPIUrl("/auth/login/"),
 
   // Auth/session (Django) — token lifecycle + identity.
-  refreshToken: () => createAPIUrl("/auth/token/refresh/", "django"),
-  verifyToken: () => createAPIUrl("/auth/token/verify/", "django"),
-  logout: () => createAPIUrl("/auth/logout/", "django"),
-  profile: () => createAPIUrl("/auth/profile/", "django"),
+  refreshToken: () => createAPIUrl("/auth/token/refresh/"),
+  verifyToken: () => createAPIUrl("/auth/token/verify/"),
+  logout: () => createAPIUrl("/auth/logout/"),
+  profile: () => createAPIUrl("/auth/profile/"),
 
   // Chat Websocket (Django)
   chatSocket: (threadId: string, token: string) =>
@@ -55,12 +49,10 @@ export const ENDPOINTS = {
 
   // Image upload (Django) — POST multipart/form-data to this endpoint, then
   // use the returned URL in a message payload.
-  uploadAttachments: () =>
-    createAPIUrl("/support/attachments/upload/", "django"),
+  uploadAttachments: () => createAPIUrl("/support/attachments/upload/"),
 
-  // Company & staff management (Django /api/tenancy/). These are Django-owned;
-  // GET calls must pass `useBackend: true` (writes auto-route to Django).
-  // Public self-serve sign-up (Django) — creates the company and its first
+  // Company & staff management (/api/tenancy/).
+  // Public self-serve sign-up — creates the company and its first
   // admin; the password is generated server-side and emailed.
   registerCompany: () => "/tenancy/register/",
   fetchCompanyProfile: () => "/tenancy/company/",
@@ -69,110 +61,100 @@ export const ENDPOINTS = {
   createStaff: () => "/tenancy/staff/",
   updateStaff: (id: number) => `/tenancy/staff/${id}/`,
   resetStaffPassword: (id: number) => `/tenancy/staff/${id}/reset-password/`,
-  // Per-store access grants for a staff user (Django; GET needs useBackend).
+  // Per-store access grants for a staff user.
   fetchStoreAccess: (userId: number) =>
     `/tenancy/staff/${userId}/store-access/`,
   updateStoreAccess: (userId: number, storeCode: string) =>
     `/tenancy/staff/${userId}/store-access/${storeCode}/`,
 
   // Store Management
-  fetchStoresList: () => "/store/list",
-  // Same list straight from Django — the full store records, for the
-  // Settings → Stores screen (GET needs useBackend). The local route above
-  // is the ported read the store switcher uses.
-  fetchStoresDirectory: () => "/store/list/",
+  // The stores the signed-in user may work on: the store switcher reads it
+  // for the codes, Settings → Stores for the full records.
+  fetchStoresList: () => "/store/list/",
   // The store's widget key, for showing its embed script after onboarding.
   storeWidgetInit: () => "/store/widget-init/",
-  // Detail route for one store; PATCH { is_active: false } deactivates it.
-  // NOTE: endpoint is still being finalised by the backend dev; adjust the
-  // path here once it's confirmed.
-  storeDetail: (code: string) => `/store/${code}/`,
   // Shopify connect (Django, OAuth). Start returns the consent URL to send
   // the browser to; Shopify then redirects back to this app with
   // code/shop/state/hmac/timestamp, which the callback GET forwards verbatim
   // (the HMAC covers every param) — no auth header, tenant comes from `state`.
   shopifyOauthStart: () => "/store/shopify/oauth/start/",
   shopifyOauthCallback: () => "/store/shopify/oauth/callback/",
-  // Company onboarding (Django, company admin). GET (needs useBackend) is the
+  // Company onboarding (company admin). GET is the
   // step + connected stores with their widget keys; PATCH sets
   // `onboarding_step` to "completed" or "skipped".
   companyOnboarding: () => "/tenancy/company/onboarding/",
-  // Per-store settings (Django) — currently the widget's allowed-IP list.
+  // Per-store settings — currently the widget's allowed-IP list.
   // GET returns the settings, PATCH updates them.
-  storeAllowedIPsSettings: () =>
-    createAPIUrl("/store/settings/allowed-ips/", "django"),
+  storeAllowedIPsSettings: () => createAPIUrl("/store/settings/allowed-ips/"),
 
-  // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
-  // Next.js issues a 308 redirect (an extra round-trip) before each call.
-  // fetchDashboard consolidates the 5 summary calls into one request.
-  fetchDashboard: () => "/analytics/dashboard",
-  fetchFeedbackInsights: () => "/analytics/feedback-insights",
-  fetchConversationData: () => "/analytics/conversion",
-  fetchEngagementData: () => "/analytics/engagements",
-  fetchOperationalEfficiencyData: () => "/analytics/operational-efficiency",
-  fetchUserMatrix: () => "/analytics/user-matrix",
-  fetchConversaionRateData: () => "/analytics/conversion-rate",
-  fetchQueryCategoryInsights: () => "/analytics/query-category-insights",
-  fetchConversationHistory: () => "/analytics/chat-history",
-  // AI Usage analytics (Django; GET requests require useBackend: true).
-  fetchAIUsageSummary: () => "/chat/ai-usage/summary/",
-  fetchAIUsageDaily: () => "/chat/ai-usage/daily/",
+  // Dashboard Analytics. fetchDashboard consolidates the 5 summary calls
+  // into one request; the individual ones remain for screens that need
+  // a single widget.
+  fetchDashboard: () => "/analytics/dashboard/",
+  fetchFeedbackInsights: () => "/analytics/feedback-insights/",
+  fetchConversationData: () => "/analytics/conversion/",
+  fetchEngagementData: () => "/analytics/engagements/",
+  fetchOperationalEfficiencyData: () => "/analytics/operational-efficiency/",
+  fetchUserMatrix: () => "/analytics/user-matrix/",
+  fetchConversaionRateData: () => "/analytics/conversion-rate/",
+  fetchQueryCategoryInsights: () => "/analytics/query-category-insights/",
+  fetchConversationHistory: () => "/analytics/chat-history/",
+  // AI Usage analytics.
+  fetchAIUsageSummary: () => "/usage/ai-usage/summary/",
+  fetchAIUsageDaily: () => "/usage/ai-usage/daily/",
   fetchAIUsageTokenSplit: () => "/chat/ai-usage/token-split/",
   fetchAIUsageWorkflowCosts: () => "/chat/ai-usage/workflow-costs/",
-  fetchAIUsageLatencyTrend: () => "/chat/ai-usage/latency-trend/",
+  fetchAIUsageLatencyTrend: () => "/usage/ai-usage/latency-trend/",
 
-  // Thread-level Analytics (local GETs — no trailing slash).
-  fetchThreads: () => "/analytics/threads",
-  fetchThreadDetails: (threadId: string) => `/analytics/threads/${threadId}`,
+  // Thread-level Analytics.
+  fetchThreads: () => "/analytics/threads/",
+  fetchThreadDetails: (threadId: string) => `/analytics/threads/${threadId}/`,
   fetchUserMetadata: (threadId: string) =>
-    `/analytics/threads/${threadId}/user-metadata`,
+    `/analytics/threads/${threadId}/user-metadata/`,
   fetchConversationSummary: (threadId: string) =>
-    `/analytics/threads/${threadId}/summary`,
+    `/analytics/threads/${threadId}/summary/`,
   fetchFeedbackSequence: (threadId: string) =>
-    `/analytics/threads/${threadId}/feedback-sequence`,
-  fetchTags: (threadId: string) => `/analytics/threads/${threadId}/tags`,
-  fetchThreadTagOptions: () => "/analytics/threads/tags",
+    `/analytics/threads/${threadId}/feedback-sequence/`,
+  fetchTags: (threadId: string) => `/analytics/threads/${threadId}/tags/`,
+  fetchThreadTagOptions: () => "/analytics/threads/tags/",
   fetchAIInsight: (threadId: string) =>
-    `/analytics/threads/${threadId}/ai-insights`,
+    `/analytics/threads/${threadId}/ai-insights/`,
   fetchCartData: (threadId: string) =>
-    `/analytics/threads/${threadId}/cart-data`,
+    `/analytics/threads/${threadId}/cart-data/`,
   // Support tickets (Django). Same payload from both, so the caller only
   // picks the URL: customer-scoped for a logged-in customer (spans all
   // their conversations), thread-scoped for a guest.
   fetchCustomerTickets: (customerId: number) =>
-    createAPIUrl(`/support/customers/${customerId}/tickets/`, "django"),
+    createAPIUrl(`/support/customers/${customerId}/tickets/`),
   fetchThreadTickets: (threadId: string) =>
-    createAPIUrl(`/support/threads/${threadId}/tickets/`, "django"),
+    createAPIUrl(`/support/threads/${threadId}/tickets/`),
   fetchOrderData: (threadId: string) =>
-    `/analytics/threads/${threadId}/order-data`,
+    `/analytics/threads/${threadId}/order-data/`,
 
-  // Chatbot Customization (Django via useBackend — keep trailing slash).
+  // Chatbot Customization — keep the trailing slash.
   widgetCustomization: (storeId: number) =>
     `/store/widget-customization/${storeId}/`,
 
-  // Brand Voice. GET uses the local tenant-scoped API route; writes are routed
-  // to Django by axios-config so its serializer validation remains authoritative.
+  // Brand Voice. One route per section, GET to read and POST to upsert.
   personaIdentity: () => "/chat/persona-identity/",
   neverSayRules: () => "/chat/never-say-rules/",
 
-  // Knowledge Library items (general/product knowledge entries). GET is
-  // routed to Django via `useBackend: true` (not ported to a local API
-  // route); writes go to Django by the axios-config default.
+  // Knowledge Library items (general/product knowledge entries).
   fetchKnowledgeItems: () => `/knowledge/knowledge-items/`,
   createKnowledgeItem: () => `/knowledge/knowledge-items/`,
   knowledgeItemDetail: (id: number) => `/knowledge/knowledge-items/${id}/`,
-  // Product picker for Product Knowledge (Django; GET needs useBackend).
+  // Product picker for Product Knowledge.
   // Case-insensitive partial match on name via `?search=`, optional — when
   // omitted/blank, returns any 5 products for the store. Results are
   // capped server-side either way.
   searchProducts: () => `/products/search/`,
-  // Category/Collection pickers for Knowledge item creation (Django; GET
-  // needs useBackend). Same shape/behavior as `searchProducts` above.
+  // Category/Collection pickers for Knowledge item creation. Same
+  // shape/behavior as `searchProducts` above.
   searchCategories: () => `/products/categories/search/`,
   searchCollections: () => `/products/collections/search/`,
 
-  // Integrations
-  fetchIntegrations: () => `/integrations`,
+  // Integrations. The shared catalogue of what a store can connect to.
+  fetchIntegrations: () => `/integrations/`,
   // Write — connecting a store to an integration stays on the Django backend.
   // NOTE: endpoint is still being finalised by the backend dev; adjust the path
   // here once it's confirmed.
@@ -180,8 +162,7 @@ export const ENDPOINTS = {
   // Detail route — disconnect targets a StoreIntegration by its own object id.
   storeIntegrationDetail: (id: number) => `/store/integrations/${id}/`,
 
-  // Brand Voice reads use the local DB-backed chat routes; writes go straight to
-  // Django's upsert endpoints.
+  // Brand Voice preset catalogues — the same for every store.
   tonePresets: () => `/chat/tone-presets/`,
   vocabularyPresets: () => "/chat/vocabulary-presets/",
   neverSayRulesPresets: () => "/chat/never-say-rules-presets/",
@@ -194,104 +175,86 @@ export const ENDPOINTS = {
   //
   // NOTE: the backend confirmed the two list routes. The detail routes are
   // the DRF convention on top of them and are still to be verified.
-  fetchCustomers: () => createAPIUrl("/chat/customers/", "django"),
+  fetchCustomers: () => createAPIUrl("/chat/customers/"),
   fetchCustomerDetails: (customerId: number) =>
-    createAPIUrl(`/chat/customers/${customerId}/`, "django"),
+    createAPIUrl(`/chat/customers/${customerId}/`),
   // POST — create a shopper from just an email, so a guest ticket can be
   // attached to a real record and filled in later from Catalog.
   // NOTE: pending confirmation from the backend team.
-  createCustomer: () => createAPIUrl("/chat/customers/", "django"),
-  fetchOrders: () => createAPIUrl("/chat/orders/", "django"),
+  createCustomer: () => createAPIUrl("/chat/customers/"),
+  fetchOrders: () => createAPIUrl("/chat/orders/"),
   // One customer's stored orders. Read-only — it never calls the commerce
   // platform, so it is the cheap one to reach for.
   fetchCustomerOrders: (customerId: number) =>
-    createAPIUrl(`/chat/customers/${customerId}/orders/`, "django"),
+    createAPIUrl(`/chat/customers/${customerId}/orders/`),
   // GET, not POST: refreshing a customer's history from Shopify or Magento
   // and handing it back. The single sync route — the thread-scoped and
   // ticket-scoped ones it replaced both went through the customer anyway.
   syncCustomerOrders: (customerId: number) =>
-    createAPIUrl(`/chat/customers/${customerId}/orders/sync/`, "django"),
+    createAPIUrl(`/chat/customers/${customerId}/orders/sync/`),
   fetchOrderDetails: (orderId: number) =>
-    createAPIUrl(`/chat/orders/${orderId}/`, "django"),
+    createAPIUrl(`/chat/orders/${orderId}/`),
 
   // Helpdesk(Support) apis
-  fetchSupportTickets: () => createAPIUrl("/support/tickets", "django"),
+  fetchSupportTickets: () => createAPIUrl("/support/tickets"),
   // POST — raise a ticket with no conversation behind it: an agent logging
   // a problem that reached them by phone, email or in person.
-  createSupportTicket: () => createAPIUrl("/support/tickets/", "django"),
+  createSupportTicket: () => createAPIUrl("/support/tickets/"),
   // POST — raise a ticket from a live-chat conversation. The counterpart
   // of metaCreateSupportTicket: same fields, same payload, addressed by
   // the thread behind it rather than a social contact.
   createThreadSupportTicket: (threadId: string) =>
-    createAPIUrl(
-      `/support/threads/${threadId}/create-support-ticket/`,
-      "django",
-    ),
+    createAPIUrl(`/support/threads/${threadId}/create-support-ticket/`),
   // GET — an AI reading of the conversation, as a ticket an agent can edit.
   // Slow (it calls the model), so it is asked for on demand rather than on
   // opening the form.
   threadSupportTicketDraft: (threadId: string) =>
-    createAPIUrl(
-      `/support/threads/${threadId}/support-ticket/draft/`,
-      "django",
-    ),
+    createAPIUrl(`/support/threads/${threadId}/support-ticket/draft/`),
   fetchSupportTicketDeatils: (ticket_id: number) =>
-    createAPIUrl(`/support/tickets/${ticket_id}/`, "django"),
+    createAPIUrl(`/support/tickets/${ticket_id}/`),
   supportTicketMessageSend: (ticket_id: number) =>
-    createAPIUrl(`/support/tickets/${ticket_id}/messages/`, "django"),
-  fetchSupportTicketTags: () => createAPIUrl("/support/ticket-tags", "django"),
+    createAPIUrl(`/support/tickets/${ticket_id}/messages/`),
+  fetchSupportTicketTags: () => createAPIUrl("/support/ticket-tags"),
   // PATCH — attach an existing customer to a ticket raised by a guest.
-  // NOTE: pending confirmation from the backend team.
   supportTicketCustomerLink: (ticket_id: number) =>
-    createAPIUrl(`/support/tickets/${ticket_id}/customer/`, "django"),
-  // PATCH — the same for a live chat thread a guest started. A separate
-  // route because a thread is not a ticket; the two are different objects
-  // with different owners.
-  // NOTE: pending confirmation from the backend team.
+    createAPIUrl(`/support/tickets/${ticket_id}/customer/`),
+  // POST — the same for a live chat thread a guest started, via the
+  // thread's own customer route.
   threadCustomerLink: (threadId: string) =>
-    createAPIUrl(`/chat/threads/${threadId}/customer/`, "django"),
+    createAPIUrl(`/chat/threads/${threadId}/update/customer/`),
   supportTicketStaffAssign: (ticket_id: number) =>
-    createAPIUrl(`/support/tickets/${ticket_id}/assignee/`, "django"),
+    createAPIUrl(`/support/tickets/${ticket_id}/assignee/`),
   supportTicketAgentDraftSave: (ticket_id: number) =>
-    createAPIUrl(
-      `/support/tickets/${ticket_id}/draft-messages/agent/`,
-      "django",
-    ),
+    createAPIUrl(`/support/tickets/${ticket_id}/draft-messages/agent/`),
   supportTicketTagAssign: (ticket_id: number, tag_id: number) =>
-    createAPIUrl(
-      `/support/tickets/${ticket_id}/tags/${tag_id}/assign/`,
-      "django",
-    ),
+    createAPIUrl(`/support/tickets/${ticket_id}/tags/${tag_id}/assign/`),
   supportTicketTagRemove: (ticket_id: number, tag_id: number) =>
-    createAPIUrl(
-      `/support/tickets/${ticket_id}/tags/${tag_id}/remove/`,
-      "django",
-    ),
+    createAPIUrl(`/support/tickets/${ticket_id}/tags/${tag_id}/remove/`),
   supportMessageImprove: (ticket_id: number) =>
-    createAPIUrl(`/support/tickets/${ticket_id}/message/improve/`, "django"),
+    createAPIUrl(`/support/tickets/${ticket_id}/message/improve/`),
   supportTicketSnooze: (ticket_id: number) =>
-    createAPIUrl(`/support/tickets/${ticket_id}/snooze/`, "django"),
+    createAPIUrl(`/support/tickets/${ticket_id}/snooze/`),
   supportTicketMarkRead: (ticket_id: number) =>
-    createAPIUrl(`/support/tickets/${ticket_id}/mark/read/`, "django"),
-  ticketTagCreate: () => createAPIUrl("/support/ticket-tags/", "django"),
+    createAPIUrl(`/support/tickets/${ticket_id}/mark/read/`),
+  ticketTagCreate: () => createAPIUrl("/support/ticket-tags/"),
   ticketTagUpdate: (tag_id: number) =>
-    createAPIUrl(`/support/ticket-tags/${tag_id}/`, "django"),
+    createAPIUrl(`/support/ticket-tags/${tag_id}/`),
   ticketTagDelete: (tag_id: number) =>
-    createAPIUrl(`/support/ticket-tags/${tag_id}/delete/`, "django"),
+    createAPIUrl(`/support/ticket-tags/${tag_id}/delete/`),
   supportTicketAIMessageDraftGenerate: (ticket_id: number) =>
-    createAPIUrl(`/support/tickets/${ticket_id}/draft-messages/ai/`, "django"),
+    createAPIUrl(`/support/tickets/${ticket_id}/draft-messages/ai/`),
   supportTicketStatusUpdate: (ticket_id: number) =>
-    createAPIUrl(`/support/tickets/${ticket_id}/status/`, "django"),
+    createAPIUrl(`/support/tickets/${ticket_id}/status/`),
   supportTicketPriorityUpdate: (ticket_id: number) =>
-    createAPIUrl(`/support/tickets/${ticket_id}/priority/`, "django"),
+    createAPIUrl(`/support/tickets/${ticket_id}/priority/`),
   supportTicketMessagesTranslate: (ticket_id: number) =>
-    createAPIUrl(`/support/tickets/${ticket_id}/messages/translate/`, "django"),
+    createAPIUrl(`/support/tickets/${ticket_id}/messages/translate/`),
 
   // Helpdesk support ticket websocket (Django)
   supportSocket: (store_code: string, token: string) =>
     createWebSocketUrl(`/support/${store_code}/?token=${token}`),
 
-  // Social AI (Django via useBackend — keep trailing slash). Nested by
+  // Social AI — keep the trailing slash. Nested by
   // resource so a response can only carry the relevant scope's data:
   // pages/posts are addressed by their EXTERNAL Graph id; users, comments
   // and messages by their DB id (all come from the parent list responses).
@@ -411,7 +374,7 @@ export const ENDPOINTS = {
 // API base is the Django backend the widget talks to (same one this app uses).
 export const WIDGET_SCRIPT_SRC =
   process.env.NEXT_PUBLIC_WIDGET_SCRIPT_URL || "";
-export const WIDGET_API_BASE = createAPIUrl(undefined, "django");
+export const WIDGET_API_BASE = createAPIUrl(undefined);
 
 export const DEFAULT_API_PAGE_SIZE = 15;
 
@@ -428,25 +391,6 @@ export type FeedbackRatingValue = (typeof FEEDBACK_RATINGS)[number]["value"];
 
 export const FEEDBACK_RATING_VALUES: readonly FeedbackRatingValue[] =
   FEEDBACK_RATINGS.map((r) => r.value);
-
-// Define a type for paginated API responses
-export type PaginationResponse = {
-  count: number;
-  next?: string | null;
-  previous?: string | null;
-  results?: object[];
-};
-
-export type ErrorResponse = {
-  error: string;
-};
-
-// Define a common type for API responses
-export type APIResponse = {
-  success: boolean;
-  message?: string;
-  data?: object | object[] | PaginationResponse | ErrorResponse | null;
-};
 
 export const SELF_REFERENCE_OPTIONS = [
   {
