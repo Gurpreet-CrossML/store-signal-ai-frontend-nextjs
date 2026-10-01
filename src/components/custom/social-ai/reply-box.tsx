@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/typography";
-import { IconMoodSmile, IconPhotoVideo, IconSend } from "@tabler/icons-react";
+import { IconMoodSmile, IconPhoto, IconSend } from "@tabler/icons-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 
@@ -150,9 +150,9 @@ export function ReplyBox({
               disabled={disabled}
               className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => fileInputRef.current?.click()}
-              title="Attach photo, video or audio"
+              title="Attach photo"
             >
-              <IconPhotoVideo className="size-4" />
+              <IconPhoto className="size-4" />
             </button>
             <input
               ref={fileInputRef}

@@ -214,7 +214,7 @@ function DmMessageBubble({
   // nor media (an unsupported payload shape) so it isn't rendered as blank
   // — but not while media is still on its way.
   const showTextBubble =
-    Boolean(msg.content) || (!attachments.length && !awaitingMedia);
+    Boolean(msg.content) || (!attachments.length && !awaitingMedia && !isOutgoing);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showFullPicker, setShowFullPicker] = useState(false);
   // Shown immediately on click; the persisted value (owner_reaction, from
@@ -415,29 +415,21 @@ function PendingDmBubble({
   // Local previews for the media being uploaded, so an image-only send
   // shows the image rather than an empty bubble. Created once and revoked
   // on unmount — object URLs leak otherwise.
-  const [previews, setPreviews] = useState<
-    { name: string; isImage: boolean; url: string }[]
-  >([]);
-
-  useEffect(() => {
-    const newPreviews = pending.files.map((file) => ({
+  const [previews] = useState(() =>
+    pending.files.map((file) => ({
       name: file.name,
       isImage: file.type.startsWith("image/"),
       url: file.type.startsWith("image/") ? URL.createObjectURL(file) : "",
-    }));
+    })),
+  );
 
-    // We cannot create object URLs during render because it is an impure
-    // side effect that would leak memory if the render is discarded. It must
-    // be done in an effect, so we suppress the cascading render warning.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPreviews(newPreviews);
-
+  useEffect(() => {
     return () => {
-      newPreviews.forEach((preview) => {
+      previews.forEach((preview) => {
         if (preview.url) URL.revokeObjectURL(preview.url);
       });
     };
-  }, [pending.files]);
+  }, [previews]);
 
   return (
     <div className="flex justify-end">
@@ -450,11 +442,7 @@ function PendingDmBubble({
               <img
                 src={preview.url}
                 alt={preview.name}
-                className={`max-h-64 rounded-2xl border object-cover transition-all duration-500 ${
-                  pending.status === "sending"
-                    ? "blur-[3px] opacity-70 grayscale-[20%]"
-                    : ""
-                }`}
+                className="max-h-64 rounded-2xl border object-cover"
               />
             ) : (
               <div className="flex items-center gap-2 rounded-2xl border bg-muted/40 px-3 py-2 text-sm">
@@ -830,14 +818,13 @@ export default function DmsInbox({
   // how many such messages existed when it was queued, and clears once one
   // more than that shows up, which keeps repeated identical sends in order.
   const resolvedPendingIds = pendingMessages
-    .filter(
-      (pending) =>
-        pending.conversationId === activeConversationId &&
-        // Media-only sends carry no text to match on, so they're resolved
-        // by the outgoing message count for empty content instead.
-        countOutgoingWithContent(messages, pending.content) >=
-          pending.expectedCount,
-    )
+    .filter((pending) => {
+      if (pending.conversationId !== activeConversationId) return false;
+      if (pending.files.length > 0) {
+        return messages.filter((m) => m.message_direction === "outgoing" && (m.attachments ?? []).length > 0).length >= pending.expectedCount;
+      }
+      return countOutgoingWithContent(messages, pending.content) >= pending.expectedCount;
+    })
     .map((pending) => pending.tempId);
 
   if (resolvedPendingIds.length) {
@@ -934,11 +921,10 @@ export default function DmsInbox({
 
       if (contactId === activeConversationId) {
         dispatch(socialDmReceived(dm));
+        
         // The broadcast is fired by the message's own post_save, which runs
         // BEFORE its attachments are written — a media message therefore
-        // arrives with an empty list. Re-read it once the sync has landed,
-        // and mark it so the bubble shows a media placeholder meanwhile
-        // instead of a "[Attachment]" bubble that swaps out a moment later.
+        // arrives with an empty list. Re-read it once the sync has landed.
         if (!dm.content && !(dm.attachments ?? []).length) {
           const messageId = dm.id;
           setAwaitingMediaIds((prev) =>

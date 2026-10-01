@@ -13,7 +13,7 @@ const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg"];
 const ALLOWED_VIDEO_TYPES = ["video/mp4"];
 
 /** What the file picker offers, matching the validation below. */
-export const COMPOSER_ACCEPT = ".png,.jpg,.jpeg,.mp4,audio/*";
+export const COMPOSER_ACCEPT = ".png,.jpg,.jpeg,image/*";
 
 export type ComposerAttachment = {
   id: string;
@@ -27,8 +27,6 @@ let attachmentCounter = 0;
 
 function classify(file: File): ComposerAttachment["kind"] | null {
   if (ALLOWED_IMAGE_TYPES.includes(file.type)) return "image";
-  if (ALLOWED_VIDEO_TYPES.includes(file.type)) return "video";
-  if (file.type.startsWith("audio/")) return "audio";
   return null;
 }
 
@@ -49,7 +47,7 @@ export function pickComposerAttachments(
     const kind = classify(file);
     if (!kind) {
       toast.error("Unsupported file", {
-        description: `${file.name} isn't a PNG, JPG, MP4, or audio file.`,
+        description: `${file.name} isn't a PNG or JPG.`,
       });
       continue;
     }
