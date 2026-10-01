@@ -157,7 +157,6 @@ export function ReplyBox({
             <input
               ref={fileInputRef}
               type="file"
-              multiple
               accept={COMPOSER_ACCEPT}
               disabled={disabled}
               onChange={handleFilesPicked}
