@@ -111,6 +111,12 @@ export const SocialAccountsColumns: ColumnDef<ConnectedAccount>[] = [
                 @{row.original.username}
               </span>
             )}
+            {row.original.channel_type === "whatsapp" &&
+              row.original.phone_number && (
+                <span className="text-xs text-muted-foreground">
+                  {row.original.phone_number}
+                </span>
+              )}
           </div>
         </div>
       );
