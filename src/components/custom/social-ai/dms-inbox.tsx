@@ -133,6 +133,7 @@ type PendingDm = PendingSend & {
   isExplicitReply: boolean;
   conversationId: number;
   expectedCount: number;
+  expectedTextCount: number;
   files: File[];
 };
 
@@ -214,7 +215,8 @@ function DmMessageBubble({
   // nor media (an unsupported payload shape) so it isn't rendered as blank
   // — but not while media is still on its way.
   const showTextBubble =
-    Boolean(msg.content) || (!attachments.length && !awaitingMedia);
+    Boolean(msg.content) ||
+    (!attachments.length && !awaitingMedia && !isOutgoing);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showFullPicker, setShowFullPicker] = useState(false);
   // Shown immediately on click; the persisted value (owner_reaction, from
@@ -407,9 +409,11 @@ function DmMessageBubble({
  */
 function PendingDmBubble({
   pending,
+  hideText,
   onRetry,
 }: {
   pending: PendingDm;
+  hideText?: boolean;
   onRetry: () => void;
 }) {
   // Local previews for the media being uploaded, so an image-only send
@@ -452,7 +456,7 @@ function PendingDmBubble({
             )}
           </div>
         ))}
-        {pending.content && (
+        {pending.content && !hideText && (
           // Full strength, failed or not: the bubble is the message, and
           // what happened to it is said underneath.
           <div className="rounded-2xl bg-primary px-3 py-2 text-sm text-primary-foreground">
@@ -818,14 +822,22 @@ export default function DmsInbox({
   // how many such messages existed when it was queued, and clears once one
   // more than that shows up, which keeps repeated identical sends in order.
   const resolvedPendingIds = pendingMessages
-    .filter(
-      (pending) =>
-        pending.conversationId === activeConversationId &&
-        // Media-only sends carry no text to match on, so they're resolved
-        // by the outgoing message count for empty content instead.
+    .filter((pending) => {
+      if (pending.conversationId !== activeConversationId) return false;
+      if (pending.files.length > 0) {
+        return (
+          messages.filter(
+            (m) =>
+              m.message_direction === "outgoing" &&
+              (m.attachments ?? []).length > 0,
+          ).length >= pending.expectedCount
+        );
+      }
+      return (
         countOutgoingWithContent(messages, pending.content) >=
-          pending.expectedCount,
-    )
+        pending.expectedCount
+      );
+    })
     .map((pending) => pending.tempId);
 
   if (resolvedPendingIds.length) {
@@ -922,11 +934,10 @@ export default function DmsInbox({
 
       if (contactId === activeConversationId) {
         dispatch(socialDmReceived(dm));
+
         // The broadcast is fired by the message's own post_save, which runs
         // BEFORE its attachments are written — a media message therefore
-        // arrives with an empty list. Re-read it once the sync has landed,
-        // and mark it so the bubble shows a media placeholder meanwhile
-        // instead of a "[Attachment]" bubble that swaps out a moment later.
+        // arrives with an empty list. Re-read it once the sync has landed.
         if (!dm.content && !(dm.attachments ?? []).length) {
           const messageId = dm.id;
           setAwaitingMediaIds((prev) =>
@@ -1044,7 +1055,7 @@ export default function DmsInbox({
     // How many identical outgoing messages must exist before this one is
     // considered delivered: what's on screen now, plus any still in flight
     // with the same text, plus this one.
-    const expectedCount =
+    const expectedTextCount =
       countOutgoingWithContent(messages, text) +
       pendingMessages.filter(
         (item) =>
@@ -1052,12 +1063,27 @@ export default function DmsInbox({
       ).length +
       1;
 
+    const expectedCount =
+      files.length > 0
+        ? messages.filter(
+            (m) =>
+              m.message_direction === "outgoing" &&
+              (m.attachments ?? []).length > 0,
+          ).length +
+          pendingMessages.filter(
+            (item) =>
+              item.files.length > 0 && item.conversationId === conversationId,
+          ).length +
+          1
+        : expectedTextCount;
+
     const pending: PendingDm = {
       ...createPendingSend(text),
       targetMessageId,
       isExplicitReply,
       conversationId,
       expectedCount,
+      expectedTextCount,
       files,
     };
 
@@ -1076,7 +1102,7 @@ export default function DmsInbox({
       ),
     );
     void sendReply(
-      { ...pending, status: "sending" },
+      { ...pending, status: "sending" as const },
       pending.targetMessageId,
       pending.isExplicitReply,
       pending.conversationId,
@@ -1452,23 +1478,35 @@ export default function DmsInbox({
                               ) : null}
                             </MessageAppear>
                           ))}
-                          {visiblePendingMessages.map((pending, index) => (
-                            <MessageAppear
-                              key={pending.tempId}
-                              outgoing
-                              index={messages.length + index}
-                              total={
-                                messages.length + visiblePendingMessages.length
-                              }
-                            >
-                              <PendingDmBubble
-                                pending={pending}
-                                onRetry={() =>
-                                  handleRetryPending(pending.tempId)
+                          {visiblePendingMessages.map((pending, index) => {
+                            const textArrived =
+                              pending.files.length > 0 &&
+                              Boolean(pending.content) &&
+                              countOutgoingWithContent(
+                                messages,
+                                pending.content,
+                              ) >= pending.expectedTextCount;
+
+                            return (
+                              <MessageAppear
+                                key={pending.tempId}
+                                outgoing
+                                index={messages.length + index}
+                                total={
+                                  messages.length +
+                                  visiblePendingMessages.length
                                 }
-                              />
-                            </MessageAppear>
-                          ))}
+                              >
+                                <PendingDmBubble
+                                  pending={pending}
+                                  hideText={textArrived}
+                                  onRetry={() =>
+                                    handleRetryPending(pending.tempId)
+                                  }
+                                />
+                              </MessageAppear>
+                            );
+                          })}
                         </AnimatePresence>
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
