@@ -162,6 +162,19 @@ export const ENDPOINTS = {
   personaIdentity: () => "/chat/persona-identity/",
   neverSayRules: () => "/chat/never-say-rules/",
 
+  // Settings → Workflows (Django). The YAML prompts live in Django, so
+  // GETs need `useBackend: true`; writes go to Django by default.
+  workflows: () => "/chat/workflows/",
+  workflowTools: () => "/chat/workflows/tools/",
+  workflow: (workflowId: string) => `/chat/workflows/${workflowId}/`,
+  workflowDraft: (workflowId: string) => `/chat/workflows/${workflowId}/draft/`,
+  workflowPublish: (workflowId: string) =>
+    `/chat/workflows/${workflowId}/publish/`,
+  workflowEnabled: (workflowId: string) =>
+    `/chat/workflows/${workflowId}/enabled/`,
+  workflowRestore: (workflowId: string) =>
+    `/chat/workflows/${workflowId}/restore/`,
+
   // Knowledge Library items (general/product knowledge entries). GET is
   // routed to Django via `useBackend: true` (not ported to a local API
   // route); writes go to Django by the axios-config default.

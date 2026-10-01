@@ -25,6 +25,7 @@ import {
   IconSocial,
   IconPackageOff,
   IconPlugConnected,
+  IconRoute,
   IconSend,
   IconSettings,
   IconShield,
@@ -209,6 +210,14 @@ export const NAV_AREAS = {
         pageDescription:
           "Token spend, workflow costs and response latency for this store's assistant.",
         icon: IconChartBar,
+      },
+      {
+        href: "/settings/workflows",
+        title: "Workflows",
+        description: "What the AI does for each kind of request.",
+        pageDescription:
+          "Each workflow handles one kind of customer request. Open one to see and edit its prompt, or switch it off for this store — changes go live when you publish.",
+        icon: IconRoute,
       },
       {
         href: "/settings/social-ai",

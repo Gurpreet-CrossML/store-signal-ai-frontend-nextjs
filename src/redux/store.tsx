@@ -15,6 +15,7 @@ import AIUsageSlice from "@/redux/api-slice/ai-usage-slice";
 import StoreSettingsSlice from "@/redux/api-slice/store-settings-slice";
 import CustomerSlice from "@/redux/api-slice/customer-slice";
 import OrderSlice from "@/redux/api-slice/order-slice";
+import WorkflowsSlice from "@/redux/api-slice/workflows-slice";
 
 const store = configureStore({
   reducer: {
@@ -34,6 +35,7 @@ const store = configureStore({
     GetSupportTicketsReducer: SupportTicketsSlice,
     GetSocialAIReducer: SocialAISlice,
     GetAIUsageReducer: AIUsageSlice,
+    GetWorkflowsReducer: WorkflowsSlice,
   },
 });
 
