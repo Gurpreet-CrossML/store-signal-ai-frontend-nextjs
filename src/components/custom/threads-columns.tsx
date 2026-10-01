@@ -128,6 +128,22 @@ export const threadsColumns: ColumnDef<Thread>[] = [
       ),
   },
 
+  // Channel — derived from the thread source: WhatsApp, or Web for
+  // native/webhook threads.
+  {
+    accessorKey: "source",
+    header: "Channel",
+    cell: ({ row }) => {
+      const source = row.original.source;
+      if (!source) return <span className="text-muted-foreground">—</span>;
+      return (
+        <Badge variant="outline">
+          {source === "whatsapp" ? "WhatsApp" : "Web"}
+        </Badge>
+      );
+    },
+  },
+
   // Last Message — what the last message was in the thread.
   {
     accessorKey: "last_message",

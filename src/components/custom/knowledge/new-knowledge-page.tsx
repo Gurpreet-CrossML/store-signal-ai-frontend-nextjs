@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useFormik } from "formik";
@@ -305,6 +304,13 @@ function firstErrorMessage(value: unknown): string | undefined {
 export function NewKnowledgePage() {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  // The library keeps its filters in its URL, so stepping back in history
+  // (rather than pushing a fresh /knowledge/library) restores the same view.
+  // A direct visit has no library entry behind it, so fall back to the link.
+  const goToLibrary = () => {
+    if (window.history.length > 1) router.back();
+    else router.push("/knowledge/library");
+  };
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -376,7 +382,7 @@ export function NewKnowledgePage() {
       );
 
       if (CreateKnowledgeItemsBulk.fulfilled.match(result)) {
-        router.push("/knowledge/library");
+        goToLibrary();
         return;
       }
 
@@ -471,11 +477,14 @@ export function NewKnowledgePage() {
   return (
     <div className="flex w-full flex-col gap-6 p-4">
       <div className="flex flex-col gap-1">
-        <Button variant="ghost" size="sm" className="-ml-2 w-fit" asChild>
-          <Link href="/knowledge/library">
-            <IconArrowLeft className="size-4" />
-            Back to Library
-          </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2 w-fit"
+          onClick={goToLibrary}
+        >
+          <IconArrowLeft className="size-4" />
+          Back to Library
         </Button>
         <Typography variant="h4" as="h1">
           New Knowledge Item
