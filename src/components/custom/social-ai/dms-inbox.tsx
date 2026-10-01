@@ -214,7 +214,8 @@ function DmMessageBubble({
   // nor media (an unsupported payload shape) so it isn't rendered as blank
   // — but not while media is still on its way.
   const showTextBubble =
-    Boolean(msg.content) || (!attachments.length && !awaitingMedia && !isOutgoing);
+    Boolean(msg.content) ||
+    (!attachments.length && !awaitingMedia && !isOutgoing);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showFullPicker, setShowFullPicker] = useState(false);
   // Shown immediately on click; the persisted value (owner_reaction, from
@@ -821,9 +822,18 @@ export default function DmsInbox({
     .filter((pending) => {
       if (pending.conversationId !== activeConversationId) return false;
       if (pending.files.length > 0) {
-        return messages.filter((m) => m.message_direction === "outgoing" && (m.attachments ?? []).length > 0).length >= pending.expectedCount;
+        return (
+          messages.filter(
+            (m) =>
+              m.message_direction === "outgoing" &&
+              (m.attachments ?? []).length > 0,
+          ).length >= pending.expectedCount
+        );
       }
-      return countOutgoingWithContent(messages, pending.content) >= pending.expectedCount;
+      return (
+        countOutgoingWithContent(messages, pending.content) >=
+        pending.expectedCount
+      );
     })
     .map((pending) => pending.tempId);
 
@@ -921,7 +931,7 @@ export default function DmsInbox({
 
       if (contactId === activeConversationId) {
         dispatch(socialDmReceived(dm));
-        
+
         // The broadcast is fired by the message's own post_save, which runs
         // BEFORE its attachments are written — a media message therefore
         // arrives with an empty list. Re-read it once the sync has landed.
