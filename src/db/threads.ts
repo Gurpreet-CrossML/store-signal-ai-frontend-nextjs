@@ -82,6 +82,7 @@ function parseDateTimeFilter(
 type ThreadListRow = {
   id: string;
   name: string | null;
+  source: string | null;
   followup_level: number;
   is_active: boolean;
   total_messages: number;
@@ -98,6 +99,7 @@ type ThreadListRow = {
 export type ThreadListItem = {
   id: string;
   name: string | null;
+  source: string | null;
   customer: { id: number | null; name: string | null; email: string | null };
   followup_level: number;
   is_active: boolean;
@@ -274,6 +276,7 @@ export async function list_threads(
     .select({
       id: chatThread.id,
       name: chatThread.name,
+      source: chatThread.source,
       followup_level: chatThread.followupLevel,
       is_active: chatThread.isActive,
       total_messages: count(chatHistory.id),
@@ -360,6 +363,7 @@ export async function list_threads(
     return {
       id: row.id,
       name: row.name,
+      source: row.source,
       customer: {
         // Null for a guest — the UI keys its tickets lookup off this.
         id: row.customer_id ?? null,

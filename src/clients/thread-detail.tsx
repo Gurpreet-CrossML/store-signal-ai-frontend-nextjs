@@ -260,7 +260,7 @@ function AIInsightsSection({
         {/* Recap and score side by side: the two things read first, and
             the only two tinted, so the eye lands on them before the
             plainer lists below. */}
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="grid gap-4 lg:grid-cols-2">
           <div className="flex flex-col gap-2 rounded-xl border border-primary/20 bg-primary/5 p-4">
             <div className="flex items-center gap-2 text-primary">
               <IconSparkles className="size-4" />
@@ -293,9 +293,14 @@ function AIInsightsSection({
                   as="span"
                   className="text-primary tabular-nums"
                 >
-                  {rate}%
+                  {rate && rate > 0 ? `${rate}%` : "N/A"}
                 </Typography>
                 <Progress value={rate} />
+                {reasonForScore && (
+                  <Typography variant="muted" className="leading-relaxed">
+                    {reasonForScore}
+                  </Typography>
+                )}
               </>
             )}
           </div>
@@ -305,12 +310,6 @@ function AIInsightsSection({
           <LoadingState className="py-6" />
         ) : (
           <>
-            {reasonForScore && (
-              <Typography variant="muted" className="leading-relaxed">
-                {reasonForScore}
-              </Typography>
-            )}
-
             <InsightGroup
               icon={IconListCheck}
               title="Suggested Follow-ups"

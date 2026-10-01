@@ -60,6 +60,7 @@ export type Thread = {
   id: string;
   name: string | null;
   customer: Customer | null;
+  source?: "native" | "webhook" | "whatsapp" | null;
   is_active: boolean;
   total_messages: number;
   created_at: string;
