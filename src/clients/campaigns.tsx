@@ -4,17 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef, PaginationState } from "@tanstack/react-table";
 import {
-  IconAlertTriangle,
-  IconBrandWhatsapp,
   IconChecklist,
   IconCircleCheck,
   IconCircleOff,
   IconDotsVertical,
   IconEye,
-  IconMail,
   IconPencil,
   IconPlus,
-  IconSend,
   IconSpeakerphone,
   IconTrash,
   IconX,
@@ -60,10 +56,8 @@ import {
   deleteCampaign,
   fetchCampaigns,
   fetchSegments,
-  runCampaign,
   updateCampaignStatus,
   type Campaign,
-  type CampaignRunResult,
   type Segment,
 } from "@/redux/api-slice/campaign-slice";
 
@@ -74,7 +68,6 @@ function getColumns(
   toggling: number | null,
   onEdit: (campaign: Campaign) => void,
   onDelete: (campaign: Campaign) => void,
-  onRun: (campaign: Campaign) => void,
 ): ColumnDef<Campaign>[] {
   return [
     {
@@ -188,10 +181,6 @@ function getColumns(
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onRun(campaign)}>
-                  <IconSend className="size-4" />
-                  Run Campaign
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onEdit(campaign)}>
                   <IconPencil className="size-4" />
                   Edit
@@ -332,66 +321,6 @@ export default function Campaigns() {
     }
   };
 
-  // ------------------------------ run now
-  const [campaignToRun, setCampaignToRun] = useState<Campaign | null>(null);
-  const [runPreview, setRunPreview] = useState<CampaignRunResult | null>(null);
-  const [runPreviewLoading, setRunPreviewLoading] = useState(false);
-  const [running, setRunning] = useState(false);
-
-  // Opening the dialog immediately fires a dry run so the confirmation
-  // shows real, live counts (per-step ``would_send``, and any template
-  // that would be rejected outright) rather than asking the user to
-  // trust a blind "Run Campaign" click.
-  const handleOpenRun = useCallback(
-    async (campaign: Campaign) => {
-      setCampaignToRun(campaign);
-      if (!storeCode) return;
-      setRunPreviewLoading(true);
-      try {
-        const result = await dispatch(
-          runCampaign({ storeCode, campaignId: campaign.id, dryRun: true }),
-        ).unwrap();
-        setRunPreview(result);
-      } catch {
-        setRunPreview(null);
-      } finally {
-        setRunPreviewLoading(false);
-      }
-    },
-    [dispatch, storeCode],
-  );
-
-  const closeRunDialog = () => {
-    setCampaignToRun(null);
-    setRunPreview(null);
-  };
-
-  const handleConfirmRun = async () => {
-    if (!storeCode || !campaignToRun) return;
-    setRunning(true);
-    try {
-      const result = await dispatch(
-        runCampaign({ storeCode, campaignId: campaignToRun.id, dryRun: false }),
-      ).unwrap();
-      const totalSent = result.steps.reduce((sum, s) => sum + (s.sent ?? 0), 0);
-      const totalFailed = result.steps.reduce(
-        (sum, s) => sum + (s.failed ?? 0),
-        0,
-      );
-      toast.success("Campaign run completed", {
-        description:
-          totalFailed > 0
-            ? `Sent ${totalSent}, failed ${totalFailed}.`
-            : `Sent to ${totalSent} recipient${totalSent === 1 ? "" : "s"}.`,
-      });
-      closeRunDialog();
-    } catch {
-      // Thunk already surfaced the toast.
-    } finally {
-      setRunning(false);
-    }
-  };
-
   const columns = useMemo(
     () =>
       getColumns(
@@ -401,9 +330,8 @@ export default function Campaigns() {
         togglingId,
         (campaign) => router.push(`/campaign/campaigns/${campaign.id}/edit`),
         (campaign) => setCampaignToDelete(campaign),
-        handleOpenRun,
       ),
-    [segmentById, router, handleToggleActive, togglingId, handleOpenRun],
+    [segmentById, router, handleToggleActive, togglingId],
   );
 
   const liveCount = useMemo(
@@ -573,97 +501,6 @@ export default function Campaigns() {
             >
               <IconTrash className="size-4" />
               {deleting ? "Deleting…" : "Delete Campaign"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
-        open={!!campaignToRun}
-        onOpenChange={(open) => {
-          if (!open) closeRunDialog();
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogMedia className="bg-primary/10 text-primary">
-              <IconSend />
-            </AlertDialogMedia>
-            <AlertDialogTitle>
-              Run &ldquo;{campaignToRun?.name}&rdquo; now?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Every step below sends immediately to everyone the segment
-              currently matches. This can&apos;t be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          {runPreviewLoading ? (
-            <div className="flex items-center justify-center py-6">
-              <Spinner className="size-5" />
-            </div>
-          ) : runPreview ? (
-            <div className="flex flex-col gap-3">
-              <div className="rounded-md border p-3 text-sm">
-                <span className="font-medium">
-                  {runPreview.recipient_count} recipient
-                  {runPreview.recipient_count === 1 ? "" : "s"}
-                </span>{" "}
-                <span className="text-muted-foreground">
-                  currently match this segment.
-                </span>
-              </div>
-              <div className="flex flex-col gap-2">
-                {runPreview.steps.map((step) => (
-                  <div
-                    key={step.step_order}
-                    className="flex items-center justify-between rounded-md border p-2.5 text-sm"
-                  >
-                    <div className="flex items-center gap-2">
-                      {step.channel === "whatsapp" ? (
-                        <IconBrandWhatsapp className="size-4 text-emerald-600" />
-                      ) : (
-                        <IconMail className="size-4 text-blue-600" />
-                      )}
-                      <span>Step {step.step_order + 1}</span>
-                    </div>
-                    {step.error ? (
-                      <span className="flex items-center gap-1 text-xs text-destructive">
-                        <IconAlertTriangle className="size-3.5" />
-                        {step.error}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">
-                        would send to {step.would_send ?? 0}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              Couldn&apos;t load a preview. Try again, or check the segment and
-              templates.
-            </div>
-          )}
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={running}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(event) => {
-                event.preventDefault();
-                handleConfirmRun();
-              }}
-              disabled={
-                running ||
-                runPreviewLoading ||
-                !runPreview ||
-                runPreview.recipient_count === 0
-              }
-            >
-              <IconSend className="size-4" />
-              {running ? "Sending…" : "Send Now"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

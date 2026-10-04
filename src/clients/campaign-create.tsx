@@ -46,6 +46,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   createCampaign,
   fetchCampaignDetail,
+  fetchCampaignSequenceSteps,
   fetchEmailTemplates,
   fetchSegments,
   updateCampaign,
@@ -201,9 +202,17 @@ export default function CampaignCreate({
 
     if (campaignId) {
       try {
-        const c = await dispatch(
-          fetchCampaignDetail({ storeCode, campaignId: Number(campaignId) }),
-        ).unwrap();
+        const [c, stepsResponse] = await Promise.all([
+          dispatch(
+            fetchCampaignDetail({ storeCode, campaignId: Number(campaignId) }),
+          ).unwrap(),
+          dispatch(
+            fetchCampaignSequenceSteps({
+              storeCode,
+              campaignId: Number(campaignId),
+            }),
+          ).unwrap(),
+        ]);
         setName(c.name);
         setSegmentId(String(c.segment));
         setStartTime(c.start_time.slice(0, 5));
@@ -211,7 +220,7 @@ export default function CampaignCreate({
         setExistingStatus(c.status);
         setExistingIsActive(c.is_active);
         setSteps(
-          [...c.sequence_steps]
+          [...stepsResponse.sequence_steps]
             .sort((a, b) => a.step_order - b.step_order)
             .map((s) => ({
               key: crypto.randomUUID(),

@@ -33,10 +33,12 @@ import { WhatsAppTemplatePreviewDialog } from "@/components/custom/social-ai/wha
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   fetchCampaignDetail,
+  fetchCampaignSequenceSteps,
   fetchEmailTemplates,
   fetchSegments,
   updateCampaignStatus,
-  type Campaign,
+  type CampaignDetail as CampaignDetailData,
+  type CampaignSequenceStep,
   type EmailTemplate,
   type Segment,
 } from "@/redux/api-slice/campaign-slice";
@@ -66,7 +68,10 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
   );
   const { account } = useWhatsAppAccount();
 
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [campaign, setCampaign] = useState<CampaignDetailData | null>(null);
+  const [sequenceSteps, setSequenceSteps] = useState<CampaignSequenceStep[]>(
+    [],
+  );
   const [segments, setSegments] = useState<Segment[]>([]);
   const [waTemplates, setWaTemplates] = useState<WhatsAppTemplate[]>([]);
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
@@ -80,10 +85,14 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
     if (!storeCode) return;
     setLoading(true);
     try {
-      const c = await dispatch(
-        fetchCampaignDetail({ storeCode, campaignId }),
-      ).unwrap();
+      const [c, stepsResponse] = await Promise.all([
+        dispatch(fetchCampaignDetail({ storeCode, campaignId })).unwrap(),
+        dispatch(
+          fetchCampaignSequenceSteps({ storeCode, campaignId }),
+        ).unwrap(),
+      ]);
       setCampaign(c);
+      setSequenceSteps(stepsResponse.sequence_steps);
       const [segs, emails] = await Promise.all([
         dispatch(fetchSegments({ storeCode })).unwrap(),
         dispatch(fetchEmailTemplates(storeCode)).unwrap(),
@@ -137,7 +146,9 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
           isActive: checked,
         }),
       ).unwrap();
-      setCampaign(updated);
+      setCampaign((current) =>
+        current ? { ...current, ...updated } : current,
+      );
       toast.success(checked ? "Campaign resumed" : "Campaign paused");
     } catch {
       // Thunk already surfaced the toast.
@@ -158,7 +169,9 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
           isActive: true,
         }),
       ).unwrap();
-      setCampaign(updated);
+      setCampaign((current) =>
+        current ? { ...current, ...updated } : current,
+      );
       toast.success("Campaign published");
     } catch {
       // Thunk already surfaced the toast.
@@ -195,9 +208,7 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
   // Steps in ``step_order`` order — the array from the API is already
   // sorted, but sorting here means a future backend change can't
   // silently show them out of order.
-  const steps = [...campaign.sequence_steps].sort(
-    (a, b) => a.step_order - b.step_order,
-  );
+  const steps = [...sequenceSteps].sort((a, b) => a.step_order - b.step_order);
 
   return (
     <div className="flex flex-col gap-6 p-4">

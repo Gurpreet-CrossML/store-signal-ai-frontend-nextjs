@@ -456,6 +456,23 @@ export type Campaign = {
   updated_at: string;
 };
 
+// One campaign's own fields, as the detail endpoint returns them — the steps
+// come from their own endpoint (see CampaignSequenceSteps). ``job_id`` is the
+// next unfinished step run's id, or null when nothing is scheduled.
+export type CampaignDetail = Omit<Campaign, "sequence_steps"> & {
+  job_id: string | null;
+};
+
+// The steps endpoint's response: which campaign the steps belong to, plus
+// the steps in ``step_order``.
+export type CampaignSequenceSteps = {
+  campaign_id: number;
+  name: string;
+  status: "draft" | "published";
+  is_active: boolean;
+  sequence_steps: CampaignSequenceStep[];
+};
+
 export type CampaignWritePayload = {
   name: string;
   status?: "draft" | "published";
@@ -503,11 +520,34 @@ export const fetchCampaignDetail = createAsyncThunk(
         `${ENDPOINTS.campaignDetail({ campaignId })}?store_code=${storeCode}`,
         { useBackend: true },
       );
-      return response.data.data as Campaign;
+      return response.data.data as CampaignDetail;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't load the campaign", {
+        description: data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const fetchCampaignSequenceSteps = createAsyncThunk(
+  "fetchCampaignSequenceSteps",
+  async (
+    { storeCode, campaignId }: { storeCode: string; campaignId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.campaignSequenceSteps({ campaignId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as CampaignSequenceSteps;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't load the campaign's steps", {
         description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -599,60 +639,6 @@ export const updateCampaign = createAsyncThunk(
       // Reject with the whole envelope so the form can pull field errors
       // out of ``err.data`` (DRF puts one on the 400 response).
       return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
-    }
-  },
-);
-
-// One step's outcome from CampaignRunAPIView — ``would_send`` is only
-// present on a dry run, ``sent``/``failed`` only on a real one; ``error``
-// is set when the whole step failed before any recipient was attempted
-// (e.g. a WhatsApp template Meta would reject), not for a per-recipient
-// failure (that's just counted in ``failed``).
-export type CampaignRunStepResult = {
-  step_order: number;
-  channel: "whatsapp" | "email";
-  sent?: number;
-  failed?: number;
-  would_send?: number;
-  error?: string | null;
-};
-
-export type CampaignRunResult = {
-  campaign: string;
-  recipient_count: number;
-  dry_run: boolean;
-  steps: CampaignRunStepResult[];
-};
-
-export const runCampaign = createAsyncThunk(
-  "runCampaign",
-  async (
-    {
-      storeCode,
-      campaignId,
-      dryRun,
-    }: { storeCode: string; campaignId: number; dryRun: boolean },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.post(
-        `${ENDPOINTS.campaignRun({ campaignId })}?store_code=${storeCode}`,
-        { dry_run: dryRun },
-        { useBackend: true },
-      );
-      return response.data.data as CampaignRunResult;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-      // A dry-run preview fires as soon as the confirmation dialog opens,
-      // before the user asked for anything to actually happen — a toast
-      // there would be noise. The real send still gets one.
-      if (!dryRun) {
-        toast.error("Couldn't run the campaign", {
-          description: bestErrorMessage(data, "Please try again later."),
-        });
-      }
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );
