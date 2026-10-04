@@ -875,7 +875,7 @@ export const replyToMetaMessage = createAsyncThunk(
               const form = new FormData();
               form.append("message", message);
               form.append("is_explicit_reply", String(isExplicitReply));
-              attachments.forEach((file) => form.append("attachments", file));
+              form.append("attachments", attachments[0]);
               return form;
             })(),
             {

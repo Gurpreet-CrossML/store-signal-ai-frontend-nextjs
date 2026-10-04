@@ -133,7 +133,6 @@ type PendingDm = PendingSend & {
   isExplicitReply: boolean;
   conversationId: number;
   expectedCount: number;
-  expectedTextCount: number;
   files: File[];
 };
 
@@ -409,11 +408,9 @@ function DmMessageBubble({
  */
 function PendingDmBubble({
   pending,
-  hideText,
   onRetry,
 }: {
   pending: PendingDm;
-  hideText?: boolean;
   onRetry: () => void;
 }) {
   // Local previews for the media being uploaded, so an image-only send
@@ -456,7 +453,7 @@ function PendingDmBubble({
             )}
           </div>
         ))}
-        {pending.content && !hideText && (
+        {pending.content && (
           // Full strength, failed or not: the bubble is the message, and
           // what happened to it is said underneath.
           <div className="rounded-2xl bg-primary px-3 py-2 text-sm text-primary-foreground">
@@ -1052,17 +1049,6 @@ export default function DmsInbox({
     const targetMessageId = replyingToMessage?.id ?? lastMessage.id;
     const conversationId = activeConversation.id;
 
-    // How many identical outgoing messages must exist before this one is
-    // considered delivered: what's on screen now, plus any still in flight
-    // with the same text, plus this one.
-    const expectedTextCount =
-      countOutgoingWithContent(messages, text) +
-      pendingMessages.filter(
-        (item) =>
-          item.content === text && item.conversationId === conversationId,
-      ).length +
-      1;
-
     const expectedCount =
       files.length > 0
         ? messages.filter(
@@ -1075,7 +1061,12 @@ export default function DmsInbox({
               item.files.length > 0 && item.conversationId === conversationId,
           ).length +
           1
-        : expectedTextCount;
+        : countOutgoingWithContent(messages, text) +
+          pendingMessages.filter(
+            (item) =>
+              item.content === text && item.conversationId === conversationId,
+          ).length +
+          1;
 
     const pending: PendingDm = {
       ...createPendingSend(text),
@@ -1083,7 +1074,6 @@ export default function DmsInbox({
       isExplicitReply,
       conversationId,
       expectedCount,
-      expectedTextCount,
       files,
     };
 
@@ -1479,14 +1469,6 @@ export default function DmsInbox({
                             </MessageAppear>
                           ))}
                           {visiblePendingMessages.map((pending, index) => {
-                            const textArrived =
-                              pending.files.length > 0 &&
-                              Boolean(pending.content) &&
-                              countOutgoingWithContent(
-                                messages,
-                                pending.content,
-                              ) >= pending.expectedTextCount;
-
                             return (
                               <MessageAppear
                                 key={pending.tempId}
@@ -1499,7 +1481,6 @@ export default function DmsInbox({
                               >
                                 <PendingDmBubble
                                   pending={pending}
-                                  hideText={textArrived}
                                   onRetry={() =>
                                     handleRetryPending(pending.tempId)
                                   }

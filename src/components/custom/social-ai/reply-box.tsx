@@ -69,7 +69,10 @@ export function ReplyBox({
 
   const handleFilesPicked = (event: ChangeEvent<HTMLInputElement>) => {
     const picked = pickComposerAttachments(event.target.files);
-    if (picked.length) setAttachments((prev) => [...prev, ...picked]);
+    if (picked.length) {
+      releaseComposerAttachments(attachments);
+      setAttachments([picked[0]]);
+    }
     // Clearing lets the same file be chosen again after being removed.
     event.target.value = "";
   };
