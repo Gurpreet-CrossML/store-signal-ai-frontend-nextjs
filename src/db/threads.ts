@@ -49,6 +49,7 @@ export type ListThreadsFilters = {
   feedback_rating?: string; // very_bad | bad | neutral | good | excellent
   tags?: string[]; // matches threads tagged with ANY of the given tags
   handled_by?: string; // ai | human
+  channel?: string; // whatsapp | web (native/webhook)
 };
 
 const UUID_RE =
@@ -208,6 +209,15 @@ export async function list_threads(
 
   if (filters.handled_by === "ai" || filters.handled_by === "human") {
     conditions.push(eq(chatThread.chatHandler, filters.handled_by));
+  }
+
+  // Channel mirrors the UI's derivation: WhatsApp, or Web for everything else.
+  if (filters.channel === "whatsapp") {
+    conditions.push(eq(chatThread.source, "whatsapp"));
+  } else if (filters.channel === "web") {
+    conditions.push(
+      sql`(${chatThread.source} IS NULL OR ${chatThread.source} <> 'whatsapp')`,
+    );
   }
 
   // has_ticket / has_feedback are correlated EXISTS subqueries (Django uses

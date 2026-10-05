@@ -9,7 +9,7 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  *
  * Query params: store_code, page, page_size, from, to, search, is_active,
  * user_type, has_ticket, has_feedback, feedback_rating, tags (comma-separated
- * or repeated), handled_by (ai | human).
+ * or repeated), handled_by (ai | human), channel (whatsapp | web).
  *
  * Paginated (DRF PageNumberPagination, default page_size=15). When there are no
  * results, Django sets response_data=None which create_api_response renders as
@@ -49,6 +49,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
     feedback_rating: getStr(q.feedback_rating),
     tags: getList(q.tags),
     handled_by: getStr(q.handled_by),
+    channel: getStr(q.channel),
   };
 
   const pageParam = getStr(q.page);

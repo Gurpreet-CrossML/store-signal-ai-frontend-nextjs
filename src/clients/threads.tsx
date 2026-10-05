@@ -23,6 +23,7 @@ const THREAD_FILTER_KEYS = [
   "is_active",
   "has_ticket",
   "handled_by",
+  "channel",
   "from",
   "to",
 ] as const;
@@ -122,6 +123,7 @@ export default function Threads() {
     filters.feedback_rating,
     filters.tags,
     filters.handled_by,
+    filters.channel,
     filters.from,
     filters.to,
   ]);
@@ -152,6 +154,7 @@ export default function Threads() {
         : {}),
       ...(filters.tags.length ? { tags: filters.tags } : {}),
       ...(filters.handled_by ? { handled_by: filters.handled_by } : {}),
+      ...(filters.channel ? { channel: filters.channel } : {}),
       ...(filters.from ? { from: filters.from } : {}),
       ...(filters.to ? { to: filters.to } : {}),
     };
@@ -176,6 +179,7 @@ export default function Threads() {
     filters.feedback_rating,
     filters.tags,
     filters.handled_by,
+    filters.channel,
     filters.from,
     filters.to,
   ]);
