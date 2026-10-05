@@ -133,7 +133,7 @@ type PendingDm = PendingSend & {
   isExplicitReply: boolean;
   conversationId: number;
   expectedCount: number;
-  files: File[];
+  attachment: File | null;
 };
 
 function countOutgoingWithContent(messages: SocialDm[], content: string) {
@@ -416,13 +416,18 @@ function PendingDmBubble({
   // Local previews for the media being uploaded, so an image-only send
   // shows the image rather than an empty bubble. Created once and revoked
   // on unmount — object URLs leak otherwise.
-  const [previews] = useState(() =>
-    pending.files.map((file) => ({
-      name: file.name,
-      isImage: file.type.startsWith("image/"),
-      url: file.type.startsWith("image/") ? URL.createObjectURL(file) : "",
-    })),
-  );
+  const [previews] = useState(() => {
+    if (!pending.attachment) return [];
+    return [
+      {
+        name: pending.attachment.name,
+        isImage: pending.attachment.type.startsWith("image/"),
+        url: pending.attachment.type.startsWith("image/")
+          ? URL.createObjectURL(pending.attachment)
+          : "",
+      },
+    ];
+  });
 
   useEffect(() => {
     return () => {
@@ -821,7 +826,7 @@ export default function DmsInbox({
   const resolvedPendingIds = pendingMessages
     .filter((pending) => {
       if (pending.conversationId !== activeConversationId) return false;
-      if (pending.files.length > 0) {
+      if (pending.attachment !== null) {
         return (
           messages.filter(
             (m) =>
@@ -1016,7 +1021,7 @@ export default function DmsInbox({
           messageId: targetMessageId,
           message: pending.content,
           isExplicitReply,
-          attachments: pending.files,
+          attachment: pending.attachment,
         }),
       ).unwrap();
       refetchMessages();
@@ -1036,7 +1041,7 @@ export default function DmsInbox({
     }
   };
 
-  const handleReply = (text: string, files: File[] = []) => {
+  const handleReply = (text: string, attachment: File | null = null) => {
     if (
       !activeConversation ||
       !storeCode ||
@@ -1054,7 +1059,7 @@ export default function DmsInbox({
     const conversationId = activeConversation.id;
 
     const expectedCount =
-      files.length > 0
+      attachment
         ? messages.filter(
             (m) =>
               m.message_direction === "outgoing" &&
@@ -1062,7 +1067,7 @@ export default function DmsInbox({
           ).length +
           pendingMessages.filter(
             (item) =>
-              item.files.length > 0 && item.conversationId === conversationId,
+              item.attachment !== null && item.conversationId === conversationId,
           ).length +
           1
         : countOutgoingWithContent(messages, text) +
@@ -1078,7 +1083,7 @@ export default function DmsInbox({
       isExplicitReply,
       conversationId,
       expectedCount,
-      files,
+      attachment,
     };
 
     setPendingMessages((prev) => [...prev, pending]);

@@ -35,98 +35,91 @@ function formatMb(bytes: number) {
 }
 
 /**
- * Validate a picked FileList, keeping what's allowed and explaining what
- * isn't. Rejection is per file so one bad pick doesn't discard the rest.
+ * Validate a picked FileList, keeping the first allowed file and explaining what
+ * isn't.
  */
-export function pickComposerAttachments(
+export function pickComposerAttachment(
   files: FileList | null,
-): ComposerAttachment[] {
-  const accepted: ComposerAttachment[] = [];
+): ComposerAttachment | null {
+  const file = files?.[0];
+  if (!file) return null;
 
-  for (const file of Array.from(files ?? [])) {
-    const kind = classify(file);
-    if (!kind) {
-      toast.error("Unsupported file", {
-        description: `${file.name} isn't a PNG or JPG.`,
-      });
-      continue;
-    }
-    if (file.size > MAX_ATTACHMENT_BYTES) {
-      toast.error("File too large", {
-        description: `${file.name} is ${formatMb(file.size)} — the limit is 25 MB.`,
-      });
-      continue;
-    }
-
-    attachmentCounter += 1;
-    accepted.push({
-      id: `composer-attachment-${attachmentCounter}`,
-      file,
-      kind,
-      previewUrl: kind === "image" ? URL.createObjectURL(file) : "",
+  const kind = classify(file);
+  if (!kind) {
+    toast.error("Unsupported file", {
+      description: `${file.name} isn't a PNG or JPG.`,
     });
+    return null;
+  }
+  if (file.size > MAX_ATTACHMENT_BYTES) {
+    toast.error("File too large", {
+      description: `${file.name} is ${formatMb(file.size)} — the limit is 25 MB.`,
+    });
+    return null;
   }
 
-  return accepted;
+  attachmentCounter += 1;
+  return {
+    id: `composer-attachment-${attachmentCounter}`,
+    file,
+    kind,
+    previewUrl: kind === "image" ? URL.createObjectURL(file) : "",
+  };
 }
 
 /** Object URLs leak until revoked — call this whenever one is dropped. */
-export function releaseComposerAttachments(attachments: ComposerAttachment[]) {
-  attachments.forEach((attachment) => {
-    if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
-  });
+export function releaseComposerAttachment(attachment: ComposerAttachment | null) {
+  if (attachment?.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
 }
 
 /** Thumbnail strip above the composer input. */
-export function ComposerAttachments({
-  attachments,
+export function ComposerAttachmentPreview({
+  attachment,
   onRemove,
   disabled = false,
 }: {
-  attachments: ComposerAttachment[];
+  attachment: ComposerAttachment | null;
   onRemove: (id: string) => void;
   disabled?: boolean;
 }) {
-  if (!attachments.length) return null;
+  if (!attachment) return null;
 
   // Same chip anatomy as Live Support's composer: small thumbnail, name,
   // and a remove button that appears on hover.
   return (
     <div className="flex flex-wrap gap-2">
-      {attachments.map((attachment) => (
-        <div
-          key={attachment.id}
-          className="group relative flex items-center gap-2 rounded-xl border border-border/60 bg-muted/60 py-1.5 pr-2.5 pl-1.5 text-xs text-muted-foreground"
-        >
-          <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-background/70">
-            {attachment.kind === "image" ? (
-              // A local object URL — next/image would only add overhead.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={attachment.previewUrl}
-                alt={attachment.file.name}
-                className="size-full rounded-lg object-cover"
-              />
-            ) : attachment.kind === "video" ? (
-              <IconVideo className="size-4" />
-            ) : (
-              <IconVolume className="size-4" />
-            )}
-          </div>
-          <span className="max-w-35 truncate">{attachment.file.name}</span>
-          <span className="shrink-0">{formatMb(attachment.file.size)}</span>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onRemove(attachment.id)}
-            aria-label={`Remove ${attachment.file.name}`}
-            title="Remove attachment"
-            className="flex size-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-0"
-          >
-            <IconX className="size-3" />
-          </button>
+      <div
+        key={attachment.id}
+        className="group relative flex items-center gap-2 rounded-xl border border-border/60 bg-muted/60 py-1.5 pr-2.5 pl-1.5 text-xs text-muted-foreground"
+      >
+        <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-background/70">
+          {attachment.kind === "image" ? (
+            // A local object URL — next/image would only add overhead.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={attachment.previewUrl}
+              alt={attachment.file.name}
+              className="size-full rounded-lg object-cover"
+            />
+          ) : attachment.kind === "video" ? (
+            <IconVideo className="size-4" />
+          ) : (
+            <IconVolume className="size-4" />
+          )}
         </div>
-      ))}
+        <span className="max-w-35 truncate">{attachment.file.name}</span>
+        <span className="shrink-0">{formatMb(attachment.file.size)}</span>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onRemove(attachment.id)}
+          aria-label={`Remove ${attachment.file.name}`}
+          title="Remove attachment"
+          className="flex size-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-0"
+        >
+          <IconX className="size-3" />
+        </button>
+      </div>
     </div>
   );
 }
