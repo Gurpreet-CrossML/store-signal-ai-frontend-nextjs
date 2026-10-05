@@ -221,8 +221,8 @@ export default function WhatsAppTemplateCreate({
         setHeaderText(data.header_text ?? "");
         // The stored S3 copy is what can actually be rendered; Meta's
         // handle is a write-only token and is never sent to the client.
-        if (data.file_url) {
-          setHeaderPreviewUrl(data.file_url);
+        if (data.attachment?.file_url) {
+          setHeaderPreviewUrl(data.attachment.file_url);
           setHasStoredMedia(true);
         }
 

@@ -271,9 +271,17 @@ export const previewSegmentCount = createAsyncThunk(
     thunkAPI,
   ) => {
     try {
-      const response = await axiosInstance.post(
-        `${ENDPOINTS.previewSegment()}?store_code=${storeCode}&page=${page}&page_size=${page_size}`,
-        { category, time_period, min_price },
+      const params = new URLSearchParams({
+        store_code: storeCode,
+        time_period: String(time_period),
+        page: String(page),
+        page_size: String(page_size),
+      });
+      if (min_price !== undefined && min_price !== "") {
+        params.set("min_price", String(min_price));
+      }
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.previewSegment(category)}?${params.toString()}`,
         { useBackend: true },
       );
       return response.data.data as SegmentPreviewResult;

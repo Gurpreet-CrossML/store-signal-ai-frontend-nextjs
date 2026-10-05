@@ -419,20 +419,25 @@ export type WhatsAppTemplate = {
   status: string;
   category: string;
   language: string;
-  // The stored header sample. Only `file_url` — a short-lived presigned
-  // link to our own S3 copy — can actually be rendered; the storage key
-  // and Meta's write-only handle are not exposed. Fetch it fresh with the
-  // template rather than caching it; it expires.
-  file_name: string;
-  file_type: string;
-  file_size: number | null;
-  file_url: string | null;
+  // The stored header sample, or null when the template has none. Only
+  // `file_url` — a short-lived presigned link to our own S3 copy — can
+  // actually be rendered; the storage key and Meta's write-only handle
+  // are not exposed. Fetch it fresh with the template rather than
+  // caching it; it expires.
+  attachment: WhatsAppTemplateAttachment | null;
   is_active: boolean;
   rejected_reason: string;
   last_synced_at: string | null;
   created_at: string;
   updated_at: string;
 } & WhatsAppTemplateParts;
+
+export type WhatsAppTemplateAttachment = {
+  file_name: string;
+  file_type: string;
+  file_size: number | null;
+  file_url: string | null;
+};
 
 // The API returns templates as a bare array under `data`.
 export type WhatsAppTemplatesResponse = WhatsAppTemplate[];

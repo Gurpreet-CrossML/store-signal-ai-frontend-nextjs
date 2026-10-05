@@ -53,7 +53,7 @@ export function WhatsAppTemplatePreviewDialog({
             accountName={account?.name || ""}
             isVerified={Boolean(account?.is_active)}
             components={buildTemplateComponents(template)}
-            headerMediaUrl={template.file_url}
+            headerMediaUrl={template.attachment?.file_url}
             maxWidth={340}
           />
         )}

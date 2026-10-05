@@ -445,7 +445,8 @@ export const ENDPOINTS = {
   fetchSegmentCategories: () => `/campaign/segment-categories/`,
   fetchSegments: () => `/campaign/segments/`,
   createSegment: () => `/campaign/segments/`,
-  previewSegment: () => `/campaign/segments/preview/`,
+  previewSegment: (categoryId: number) =>
+    `/campaign/segments/preview/${categoryId}/`,
   segmentDetail: ({ segmentId }: { segmentId: number }) =>
     `/campaign/segments/${segmentId}/`,
   fetchCampaigns: () => `/campaign/campaigns/`,
