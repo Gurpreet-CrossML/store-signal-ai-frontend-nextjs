@@ -81,10 +81,16 @@ export const StartShopifyOauth = createAsyncThunk(
   "StartShopifyOauth",
   async (
     {
-      storeAlias,
+      storeUrl,
+      clientId,
+      clientSecret,
       redirectToSetting = false,
     }: {
-      storeAlias: string;
+      /** https://{alias}.myshopify.com */
+      storeUrl: string;
+      /** Client ID and secret of the store's own Shopify app. */
+      clientId: string;
+      clientSecret: string;
       /** True only from Settings → Stores: Shopify then sends the user back
        * to /settings/store, and a never-finished onboarding is marked
        * completed instead of advancing to go-live. */
@@ -94,7 +100,9 @@ export const StartShopifyOauth = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.post(ENDPOINTS.shopifyOauthStart(), {
-        store_alias: storeAlias,
+        store_url: storeUrl,
+        client_id: clientId,
+        client_secret: clientSecret,
         ...(redirectToSetting && { redirect_to_setting: true }),
       });
       return response.data.data as { authorize_url: string };
