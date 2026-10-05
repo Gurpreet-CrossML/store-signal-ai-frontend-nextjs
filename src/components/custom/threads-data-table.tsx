@@ -138,7 +138,9 @@ export function ThreadsDataTable<TData, TValue>({
                         )
                       }
                       className={`cursor-pointer hover:bg-accent/50 data-[state=selected]:bg-accent ${
-                        (row.original as Thread).is_active ? "bg-primary/[0.025]" : ""
+                        (row.original as Thread).is_active
+                          ? "bg-primary/[0.025]"
+                          : ""
                       }`}
                     >
                       {row.getVisibleCells().map((cell) => (
