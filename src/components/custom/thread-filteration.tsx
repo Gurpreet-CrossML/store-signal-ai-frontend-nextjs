@@ -37,6 +37,7 @@ export type ThreadFilterState = {
   feedback_rating: FeedbackRating;
   tags: string[];
   handled_by: "" | "ai" | "human";
+  channel: "" | "whatsapp" | "web";
   from: string;
   to: string;
 };
@@ -50,6 +51,7 @@ export const DEFAULT_THREAD_FILTERS: ThreadFilterState = {
   feedback_rating: "",
   tags: [],
   handled_by: "",
+  channel: "",
   from: "",
   to: "",
 };
@@ -182,6 +184,7 @@ export default function ThreadFilteration({
     filters.feedback_rating !== "" ||
     filters.tags.length > 0 ||
     filters.handled_by !== "" ||
+    filters.channel !== "" ||
     filters.from !== "" ||
     filters.to !== "";
 
@@ -251,6 +254,22 @@ export default function ThreadFilteration({
           { value: "", label: "All Handlers" },
           { value: "ai", label: "AI" },
           { value: "human", label: "Agent" },
+        ]}
+      />
+
+      <FilterSelect
+        ariaLabel="Filter by channel"
+        value={filters.channel}
+        onChange={(channel) =>
+          onChange({
+            ...filters,
+            channel: channel as ThreadFilterState["channel"],
+          })
+        }
+        options={[
+          { value: "", label: "All Channels" },
+          { value: "web", label: "Web" },
+          { value: "whatsapp", label: "WhatsApp" },
         ]}
       />
 
