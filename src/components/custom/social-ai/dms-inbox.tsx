@@ -416,21 +416,25 @@ function PendingDmBubble({
   // Local previews for the media being uploaded, so an image-only send
   // shows the image rather than an empty bubble. Created once and revoked
   // on unmount — object URLs leak otherwise.
-  const [previews] = useState(() =>
-    pending.files.map((file) => ({
+  const [previews, setPreviews] = useState<
+    { name: string; isImage: boolean; url: string }[]
+  >([]);
+
+  useEffect(() => {
+    const nextPreviews = pending.files.map((file) => ({
       name: file.name,
       isImage: file.type.startsWith("image/"),
       url: file.type.startsWith("image/") ? URL.createObjectURL(file) : "",
-    })),
-  );
+    }));
+    
+    setPreviews(nextPreviews);
 
-  useEffect(() => {
     return () => {
-      previews.forEach((preview) => {
+      nextPreviews.forEach((preview) => {
         if (preview.url) URL.revokeObjectURL(preview.url);
       });
     };
-  }, [previews]);
+  }, [pending.files]);
 
   return (
     <div className="flex justify-end">
@@ -1020,6 +1024,10 @@ export default function DmsInbox({
         }),
       ).unwrap();
       refetchMessages();
+      // Explicitly remove the pending message on success!
+      setPendingMessages((prev) =>
+        prev.filter((item) => item.tempId !== pending.tempId),
+      );
     } catch {
       // The thunk already surfaces the error toast.
       setPendingMessages((prev) =>
