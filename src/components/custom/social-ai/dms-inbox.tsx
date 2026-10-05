@@ -416,25 +416,21 @@ function PendingDmBubble({
   // Local previews for the media being uploaded, so an image-only send
   // shows the image rather than an empty bubble. Created once and revoked
   // on unmount — object URLs leak otherwise.
-  const [previews, setPreviews] = useState<
-    { name: string; isImage: boolean; url: string }[]
-  >([]);
-
-  useEffect(() => {
-    const nextPreviews = pending.files.map((file) => ({
+  const [previews] = useState(() =>
+    pending.files.map((file) => ({
       name: file.name,
       isImage: file.type.startsWith("image/"),
       url: file.type.startsWith("image/") ? URL.createObjectURL(file) : "",
-    }));
-    
-    setPreviews(nextPreviews);
+    })),
+  );
 
+  useEffect(() => {
     return () => {
-      nextPreviews.forEach((preview) => {
+      previews.forEach((preview) => {
         if (preview.url) URL.revokeObjectURL(preview.url);
       });
     };
-  }, [pending.files]);
+  }, [previews]);
 
   return (
     <div className="flex justify-end">
