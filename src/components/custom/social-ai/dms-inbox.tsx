@@ -1058,24 +1058,23 @@ export default function DmsInbox({
     const targetMessageId = replyingToMessage?.id ?? lastMessage.id;
     const conversationId = activeConversation.id;
 
-    const expectedCount =
-      attachment
-        ? messages.filter(
-            (m) =>
-              m.message_direction === "outgoing" &&
-              (m.attachments ?? []).length > 0,
-          ).length +
-          pendingMessages.filter(
-            (item) =>
-              item.attachment !== null && item.conversationId === conversationId,
-          ).length +
-          1
-        : countOutgoingWithContent(messages, text) +
-          pendingMessages.filter(
-            (item) =>
-              item.content === text && item.conversationId === conversationId,
-          ).length +
-          1;
+    const expectedCount = attachment
+      ? messages.filter(
+          (m) =>
+            m.message_direction === "outgoing" &&
+            (m.attachments ?? []).length > 0,
+        ).length +
+        pendingMessages.filter(
+          (item) =>
+            item.attachment !== null && item.conversationId === conversationId,
+        ).length +
+        1
+      : countOutgoingWithContent(messages, text) +
+        pendingMessages.filter(
+          (item) =>
+            item.content === text && item.conversationId === conversationId,
+        ).length +
+        1;
 
     const pending: PendingDm = {
       ...createPendingSend(text),

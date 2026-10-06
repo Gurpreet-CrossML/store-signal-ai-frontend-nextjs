@@ -309,6 +309,7 @@ export function DmAttachments({
       )}
     >
       {[...attachments]
+        .filter((a) => Boolean(a.url))
         .sort((a, b) => a.position - b.position)
         .map((attachment) => (
           <div key={attachment.id} className="max-w-full">

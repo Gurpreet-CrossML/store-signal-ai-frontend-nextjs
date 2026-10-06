@@ -68,7 +68,9 @@ export function pickComposerAttachment(
 }
 
 /** Object URLs leak until revoked — call this whenever one is dropped. */
-export function releaseComposerAttachment(attachment: ComposerAttachment | null) {
+export function releaseComposerAttachment(
+  attachment: ComposerAttachment | null,
+) {
   if (attachment?.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
 }
 
