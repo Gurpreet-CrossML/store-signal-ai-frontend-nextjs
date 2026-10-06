@@ -364,7 +364,9 @@ export default function CampaignCreate({
         if (existingStatus === "published" && existingIsActive) {
           await dispatch(
             scheduleCampaign({ storeCode, campaignId: Number(campaignId) }),
-          ).unwrap().catch(() => undefined);
+          )
+            .unwrap()
+            .catch(() => undefined);
         }
         toast.success("Campaign updated");
         router.push(`/campaign/campaigns/${campaignId}`);
@@ -375,7 +377,9 @@ export default function CampaignCreate({
         if (publish) {
           await dispatch(
             scheduleCampaign({ storeCode, campaignId: created.id }),
-          ).unwrap().catch(() => undefined);
+          )
+            .unwrap()
+            .catch(() => undefined);
         }
         toast.success(
           publish ? "Campaign published" : "Campaign saved as draft",

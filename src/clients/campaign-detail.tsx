@@ -152,9 +152,9 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
       );
       toast.success(checked ? "Campaign resumed" : "Campaign paused");
       if (checked) {
-        await dispatch(
-          scheduleCampaign({ storeCode, campaignId: campaign.id }),
-        ).unwrap().catch(() => undefined);
+        await dispatch(scheduleCampaign({ storeCode, campaignId: campaign.id }))
+          .unwrap()
+          .catch(() => undefined);
       }
     } catch {
       // Thunk already surfaced the toast.
@@ -179,9 +179,9 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
         current ? { ...current, ...updated } : current,
       );
       toast.success("Campaign published");
-      await dispatch(
-        scheduleCampaign({ storeCode, campaignId: campaign.id }),
-      ).unwrap().catch(() => undefined);
+      await dispatch(scheduleCampaign({ storeCode, campaignId: campaign.id }))
+        .unwrap()
+        .catch(() => undefined);
     } catch {
       // Thunk already surfaced the toast.
     } finally {
