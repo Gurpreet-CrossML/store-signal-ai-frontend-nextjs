@@ -43,4 +43,4 @@ export const pool = new Pool({
 // Base Drizzle handle over the pool. Used to open per-request tenant
 // transactions (tenant-context). Business queries must NOT use this directly —
 // it has no tenant search_path set, so it resolves only `public`. Use getDb().
-export const db = drizzle(pool)
+export const db = drizzle(pool);
