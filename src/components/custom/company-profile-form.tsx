@@ -22,6 +22,13 @@ import {
 } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
@@ -38,16 +45,15 @@ import z from "zod";
 import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import {
   FetchCompanyProfile,
+  FetchCities,
+  FetchCountries,
+  FetchStates,
   UpdateCompanyProfile,
 } from "@/redux/api-slice/tenancy-slice";
 
 const EDITABLE_FIELDS = [
   { name: "email", label: "Company Email", type: "email" },
   { name: "phone", label: "Phone", type: "text" },
-  { name: "street", label: "Street", type: "text" },
-  { name: "city", label: "City", type: "text" },
-  { name: "state", label: "State", type: "text" },
-  { name: "country", label: "Country", type: "text" },
 ] as const;
 
 const validationSchema = z.object({
@@ -68,16 +74,10 @@ const validationSchema = z.object({
       const digitCount = val.replace(/\D/g, "").length;
       return digitCount >= 7 && digitCount <= 15;
     }, "Enter a valid phone number."),
-  city: z
-    .string()
-    .optional()
-    .refine(
-      (val) => !val || /^[\p{L}\s'-]+$/u.test(val.trim()),
-      "City must contain only alphabets.",
-    ),
+  city: z.number().int().positive().nullable(),
   street: z.string().optional(),
-  state: z.string().optional(),
-  country: z.string().optional(),
+  state: z.number().int().positive().nullable(),
+  country: z.number().int().positive().nullable(),
 });
 
 export default function CompanyProfileForm({
@@ -89,6 +89,14 @@ export default function CompanyProfileForm({
   const { companyProfile, companyLoading, companySaving } = useAppSelector(
     (state) => state.GetTenancyReducer,
   );
+  const {
+    FetchCountriesData: countries,
+    FetchCountriesIsLoading: countriesLoading,
+  } = useAppSelector((state) => state.GetTenancyReducer.FetchCountriesState);
+  const { FetchStatesData: states, FetchStatesIsLoading: statesLoading } =
+    useAppSelector((state) => state.GetTenancyReducer.FetchStatesState);
+  const { FetchCitiesData: cities, FetchCitiesIsLoading: citiesLoading } =
+    useAppSelector((state) => state.GetTenancyReducer.FetchCitiesState);
 
   // Logo is staged and applied on Save: a new File to upload, or `removeLogo`
   // to clear the saved one.
@@ -98,6 +106,7 @@ export default function CompanyProfileForm({
 
   useEffect(() => {
     dispatch(FetchCompanyProfile());
+    dispatch(FetchCountries());
   }, [dispatch]);
 
   // Object-URL preview for a newly-picked file. Created in render and revoked in
@@ -140,9 +149,9 @@ export default function CompanyProfileForm({
       email: companyProfile?.email ?? "",
       phone: companyProfile?.phone ?? "",
       street: companyProfile?.street ?? "",
-      city: companyProfile?.city ?? "",
-      state: companyProfile?.state ?? "",
-      country: companyProfile?.country ?? "",
+      city: companyProfile?.city?.id ?? null,
+      state: companyProfile?.state?.id ?? null,
+      country: companyProfile?.country?.id ?? null,
     },
     validate: (values) => {
       const result = validationSchema.safeParse(values);
@@ -150,9 +159,10 @@ export default function CompanyProfileForm({
       return formikErrorsFromZod(result.error.issues);
     },
     onSubmit: async (values) => {
+      const parsedValues = validationSchema.parse(values);
       const result = await dispatch(
         UpdateCompanyProfile({
-          ...values,
+          ...parsedValues,
           logo: logoFile ?? (removeLogo ? null : undefined),
         }),
       );
@@ -165,6 +175,40 @@ export default function CompanyProfileForm({
       }
     },
   });
+
+  // A selected country determines the states that can be selected.
+  useEffect(() => {
+    if (formik.values.country === null) return;
+
+    dispatch(FetchStates(formik.values.country));
+  }, [dispatch, formik.values.country]);
+
+  // A selected state determines the cities that can be selected.
+  useEffect(() => {
+    if (formik.values.state === null) return;
+
+    dispatch(FetchCities(formik.values.state));
+  }, [dispatch, formik.values.state]);
+
+  // Radix Select hands back strings, so convert to numbers once here.
+  const handleCountryChange = (country: string) => {
+    // A state or city from the previous country is no longer valid.
+    formik.setValues({
+      ...formik.values,
+      country: Number(country),
+      state: null,
+      city: null,
+    });
+  };
+
+  const handleStateChange = (state: string) => {
+    // A city from the previous state is no longer valid.
+    formik.setValues({ ...formik.values, state: Number(state), city: null });
+  };
+
+  const handleCityChange = (city: string) => {
+    formik.setFieldValue("city", Number(city));
+  };
 
   if (companyLoading && !companyProfile) {
     return <LoadingState />;
@@ -298,10 +342,7 @@ export default function CompanyProfileForm({
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2">
               {EDITABLE_FIELDS.map((f) => (
-                <Field
-                  key={f.name}
-                  className={f.name === "street" ? "sm:col-span-2" : undefined}
-                >
+                <Field key={f.name}>
                   <FieldLabel htmlFor={f.name}>{f.label}</FieldLabel>
                   <Input
                     id={f.name}
@@ -317,6 +358,86 @@ export default function CompanyProfileForm({
                   )}
                 </Field>
               ))}
+              <Field>
+                <FieldLabel htmlFor="country">Country</FieldLabel>
+                <Select
+                  value={formik.values.country?.toString() ?? ""}
+                  onValueChange={handleCountryChange}
+                  disabled={countriesLoading || !countries.length}
+                >
+                  <SelectTrigger id="country" className="w-full">
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map((country) => (
+                      <SelectItem key={country.id} value={String(country.id)}>
+                        {country.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="state">State</FieldLabel>
+                <Select
+                  value={formik.values.state?.toString() ?? ""}
+                  onValueChange={handleStateChange}
+                  disabled={!formik.values.country || statesLoading}
+                >
+                  <SelectTrigger id="state" className="w-full">
+                    <SelectValue
+                      placeholder={
+                        statesLoading ? "Loading states..." : "Select state"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {states.map((state) => (
+                      <SelectItem key={state.id} value={String(state.id)}>
+                        {state.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="city">City</FieldLabel>
+                <Select
+                  value={formik.values.city?.toString() ?? ""}
+                  onValueChange={handleCityChange}
+                  disabled={!formik.values.state || citiesLoading}
+                >
+                  <SelectTrigger id="city" className="w-full">
+                    <SelectValue
+                      placeholder={
+                        citiesLoading ? "Loading cities..." : "Select city"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cities.map((city) => (
+                      <SelectItem key={city.id} value={String(city.id)}>
+                        {city.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="street">Street</FieldLabel>
+                <Input
+                  id="street"
+                  name="street"
+                  type="text"
+                  autoComplete="off"
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  value={formik.values.street}
+                />
+                {formik.touched.street && formik.errors.street && (
+                  <FieldError>{formik.errors.street}</FieldError>
+                )}
+              </Field>
             </div>
           </CardContent>
         </Card>

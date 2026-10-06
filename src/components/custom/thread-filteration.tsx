@@ -37,6 +37,7 @@ export type ThreadFilterState = {
   feedback_rating: FeedbackRating;
   tags: string[];
   handled_by: "" | "ai" | "human";
+  channel: "" | "whatsapp" | "web";
   from: string;
   to: string;
 };
@@ -50,6 +51,7 @@ export const DEFAULT_THREAD_FILTERS: ThreadFilterState = {
   feedback_rating: "",
   tags: [],
   handled_by: "",
+  channel: "",
   from: "",
   to: "",
 };
@@ -65,6 +67,7 @@ type ThreadFilterationProps = {
 // Radix Select forbids empty-string item values, so "All" uses a sentinel
 // that maps back to "" (filter off) in state.
 const ALL = "all";
+const ALL_TAGS = "__all_tags__";
 
 function FilterSelect({
   ariaLabel,
@@ -118,22 +121,30 @@ function MultiSelectFilter({
   isLoading?: boolean;
 }) {
   const anchor = useComboboxAnchor();
+  // An empty selection means "no tag filter", shown as a checked "All Tags"
+  // entry. Picking it clears the tags; picking a tag unchecks it.
+  const allChecked = value.length === 0;
 
   return (
     <Combobox
       multiple
       autoHighlight
-      items={options}
-      value={value}
-      onValueChange={onChange}
+      items={options.length ? [ALL_TAGS, ...options] : []}
+      value={allChecked ? [ALL_TAGS] : value}
+      onValueChange={(next: string[]) => {
+        if (next.includes(ALL_TAGS) && !allChecked) return onChange([]);
+        onChange(next.filter((item) => item !== ALL_TAGS));
+      }}
     >
       <ComboboxChips ref={anchor} className="w-56">
         <ComboboxValue>
           {(selected) => (
             <>
-              {(selected as string[]).map((item) => (
-                <ComboboxChip key={item}>{labelFor(item)}</ComboboxChip>
-              ))}
+              {(selected as string[])
+                .filter((item) => item !== ALL_TAGS)
+                .map((item) => (
+                  <ComboboxChip key={item}>{labelFor(item)}</ComboboxChip>
+                ))}
               <ComboboxChipsInput
                 placeholder={
                   value.length ? "" : isLoading ? "Loading…" : placeholder
@@ -148,7 +159,7 @@ function MultiSelectFilter({
         <ComboboxList>
           {(item) => (
             <ComboboxItem key={item} value={item}>
-              {labelFor(item)}
+              {item === ALL_TAGS ? "All Tags" : labelFor(item)}
             </ComboboxItem>
           )}
         </ComboboxList>
@@ -173,6 +184,7 @@ export default function ThreadFilteration({
     filters.feedback_rating !== "" ||
     filters.tags.length > 0 ||
     filters.handled_by !== "" ||
+    filters.channel !== "" ||
     filters.from !== "" ||
     filters.to !== "";
 
@@ -195,7 +207,6 @@ export default function ThreadFilteration({
         to={filters.to}
         onRangeChange={(from, to) => onChange({ ...filters, from, to })}
         disabled={{ after: new Date() }}
-        withTime
       />
 
       <FilterSelect
@@ -246,11 +257,27 @@ export default function ThreadFilteration({
         ]}
       />
 
+      <FilterSelect
+        ariaLabel="Filter by channel"
+        value={filters.channel}
+        onChange={(channel) =>
+          onChange({
+            ...filters,
+            channel: channel as ThreadFilterState["channel"],
+          })
+        }
+        options={[
+          { value: "", label: "All Channels" },
+          { value: "web", label: "Web" },
+          { value: "whatsapp", label: "WhatsApp" },
+        ]}
+      />
+
       <MultiSelectFilter
         options={tagOptions}
         value={filters.tags}
         onChange={(tags) => onChange({ ...filters, tags })}
-        placeholder="Filter by tags…"
+        placeholder="All Tags"
         emptyText="No tags found."
         isLoading={isLoadingTagOptions}
       />

@@ -15,6 +15,7 @@ type ThreadFilters = {
   feedback_rating?: string;
   tags?: (string | ThreadTagData)[];
   handled_by?: string;
+  channel?: string;
 };
 
 /**
@@ -60,6 +61,7 @@ export type Thread = {
   id: string;
   name: string | null;
   customer: Customer | null;
+  source?: "native" | "webhook" | "whatsapp" | null;
   is_active: boolean;
   total_messages: number;
   created_at: string;
@@ -337,10 +339,18 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
     thunkAPI,
   ) => {
     try {
+      // Values are URI-encoded (a tag like "Return & Refund" would otherwise
+      // split the query at the "&"); arrays repeat the key so a value that
+      // contains a comma survives too.
       const filteration =
         "&" +
         Object.entries(filters)
-          .map(([key, value]) => `${key}=${value}`)
+          .flatMap(([key, value]) =>
+            (Array.isArray(value) ? value : [value]).map(
+              (item) =>
+                `${encodeURIComponent(key)}=${encodeURIComponent(String(item))}`,
+            ),
+          )
           .join("&");
 
       const response = await axiosInstance.get(

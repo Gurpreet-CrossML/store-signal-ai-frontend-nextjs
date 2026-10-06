@@ -4,7 +4,12 @@ import Image from "next/image";
 import { useFormik } from "formik";
 import { toast } from "sonner";
 import z from "zod";
-import { IconArrowRight, IconLink, IconWorld } from "@tabler/icons-react";
+import {
+  IconArrowRight,
+  IconKey,
+  IconLock,
+  IconWorld,
+} from "@tabler/icons-react";
 
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { StartShopifyOauth } from "@/redux/api-slice/onboarding-slice";
@@ -24,7 +29,6 @@ import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-  InputGroupText,
 } from "@/components/ui/input-group";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Spinner } from "@/components/ui/spinner";
@@ -33,27 +37,24 @@ import { Typography } from "@/components/ui/typography";
 const validationSchema = z
   .object({
     platform: z.enum(["shopify", "magento"]),
-    store_alias: z.string().trim(),
     store_url: z.string().trim(),
+    client_id: z.string().trim(),
+    client_secret: z.string().trim(),
   })
   .superRefine((values, ctx) => {
-    if (values.platform === "shopify") {
-      if (
-        !/^[a-z0-9][a-z0-9-]*$/i.test(values.store_alias) ||
-        values.store_alias.length > 100
-      ) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["store_alias"],
-          message: "Enter the alias from https://{alias}.myshopify.com",
-        });
-      }
-    } else if (!/^https:\/\/[^\s/]+\.[^\s/]+/i.test(values.store_url)) {
+    if (!/^https:\/\/[^\s/]+\.[^\s/]+/i.test(values.store_url)) {
       ctx.addIssue({
         code: "custom",
         path: ["store_url"],
         message: "Enter the full store URL, starting with https://",
       });
+    }
+    if (values.platform === "shopify") {
+      for (const field of ["client_id", "client_secret"] as const) {
+        if (!values[field]) {
+          ctx.addIssue({ code: "custom", path: [field], message: "Required" });
+        }
+      }
     }
   });
 
@@ -72,7 +73,12 @@ export function StoreSetupForm({
   );
 
   const formik = useFormik<StoreSetupValues>({
-    initialValues: { platform: "shopify", store_alias: "", store_url: "" },
+    initialValues: {
+      platform: "shopify",
+      store_url: "",
+      client_id: "",
+      client_secret: "",
+    },
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
@@ -86,7 +92,9 @@ export function StoreSetupForm({
       }
       const result = await dispatch(
         StartShopifyOauth({
-          storeAlias: values.store_alias.trim().toLowerCase(),
+          storeUrl: values.store_url.trim(),
+          clientId: values.client_id.trim(),
+          clientSecret: values.client_secret.trim(),
           redirectToSetting,
         }),
       );
@@ -146,68 +154,84 @@ export function StoreSetupForm({
             ))}
           </RadioGroup>
         </Field>
-        {isShopify ? (
-          <Field data-invalid={invalid("store_alias")}>
-            <FieldLabel htmlFor="store_alias">Store alias</FieldLabel>
-            <InputGroup>
-              <InputGroupAddon>
-                <IconLink />
-                <InputGroupText>https://</InputGroupText>
-              </InputGroupAddon>
-              <InputGroupInput
-                id="store_alias"
-                name="store_alias"
-                placeholder="your-store"
-                autoComplete="off"
-                aria-invalid={invalid("store_alias")}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                value={formik.values.store_alias}
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupText>.myshopify.com</InputGroupText>
-              </InputGroupAddon>
-            </InputGroup>
-            {invalid("store_alias") ? (
-              <Typography variant="small" className="text-destructive">
-                {formik.errors.store_alias}
-              </Typography>
-            ) : (
-              <FieldDescription>
-                The part before .myshopify.com in your Shopify admin URL.
-              </FieldDescription>
-            )}
-          </Field>
-        ) : (
-          <Field data-invalid={invalid("store_url")}>
-            <FieldLabel htmlFor="store_url">Store URL</FieldLabel>
-            <InputGroup>
-              <InputGroupAddon>
-                <IconWorld />
-              </InputGroupAddon>
-              <InputGroupInput
-                id="store_url"
-                name="store_url"
-                type="url"
-                placeholder="https://www.your-store.com"
-                autoComplete="off"
-                aria-invalid={invalid("store_url")}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                value={formik.values.store_url}
-              />
-            </InputGroup>
-            {invalid("store_url") ? (
-              <Typography variant="small" className="text-destructive">
-                {formik.errors.store_url}
-              </Typography>
-            ) : (
-              <FieldDescription>
-                The full address of your Magento storefront, including https://.
-              </FieldDescription>
-            )}
-          </Field>
-        )}
+        <Field data-invalid={invalid("store_url")}>
+          <FieldLabel htmlFor="store_url">Store URL</FieldLabel>
+          <InputGroup>
+            <InputGroupAddon>
+              <IconWorld />
+            </InputGroupAddon>
+            <InputGroupInput
+              id="store_url"
+              name="store_url"
+              type="url"
+              placeholder="https://www.your-store.com"
+              autoComplete="off"
+              aria-invalid={invalid("store_url")}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              value={formik.values.store_url}
+            />
+          </InputGroup>
+          {invalid("store_url") ? (
+            <Typography variant="small" className="text-destructive">
+              {formik.errors.store_url}
+            </Typography>
+          ) : (
+            <FieldDescription>
+              {isShopify
+                ? "Your store's address, e.g. https://www.your-store.com, including https://."
+                : "The full address of your Magento storefront, including https://."}
+            </FieldDescription>
+          )}
+        </Field>
+        {isShopify &&
+          (
+            [
+              [
+                "client_id",
+                "Client ID",
+                IconKey,
+                "text",
+                "e.g. 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d",
+              ],
+              [
+                "client_secret",
+                "Client secret",
+                IconLock,
+                "password",
+                "e.g. shpss_xxxxxxxxxxxxxxxx",
+              ],
+            ] as const
+          ).map(([field, label, Icon, type, placeholder]) => (
+            <Field key={field} data-invalid={invalid(field)}>
+              <FieldLabel htmlFor={field}>{label}</FieldLabel>
+              <InputGroup>
+                <InputGroupAddon>
+                  <Icon />
+                </InputGroupAddon>
+                <InputGroupInput
+                  id={field}
+                  name={field}
+                  type={type}
+                  placeholder={placeholder}
+                  autoComplete="off"
+                  aria-invalid={invalid(field)}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  value={formik.values[field]}
+                />
+              </InputGroup>
+              {invalid(field) ? (
+                <Typography variant="small" className="text-destructive">
+                  {formik.errors[field]}
+                </Typography>
+              ) : (
+                <FieldDescription>
+                  From your StoreSignal Shopify app&apos;s settings.
+                </FieldDescription>
+              )}
+            </Field>
+          ))}
         <Field>
           <Button
             type="submit"

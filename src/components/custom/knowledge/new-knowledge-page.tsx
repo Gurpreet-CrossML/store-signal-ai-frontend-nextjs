@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useFormik } from "formik";
@@ -71,6 +70,44 @@ const SOURCE_OPTIONS: { value: AddableSource; label: string; hint: string }[] =
     { value: "file", label: "Document", hint: "PDF or DOCX" },
   ];
 
+/** The four scopes offered on this page — a narrower, more specific set
+ * than the API's `KnowledgeType` union (`"general" | "product"`). Only
+ * `"general"` maps straight across; the other three all map to the API's
+ * `"product"` and differ only in which single picker (products,
+ * categories, or collections) is shown and populated below. */
+type ScopeKind = "general" | "product" | "category" | "collection";
+
+const SCOPE_OPTIONS: {
+  value: ScopeKind;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "general",
+    label: "General",
+    hint: "Store-wide — policies, FAQs, brand info.",
+  },
+  {
+    value: "product",
+    label: "Product Specific",
+    hint: "Tied to specific products.",
+  },
+  {
+    value: "category",
+    label: "Product Category",
+    hint: "Tied to specific product categories.",
+  },
+  {
+    value: "collection",
+    label: "Product Collection",
+    hint: "Tied to specific product collections.",
+  },
+];
+
+function scopeKindToType(scope: ScopeKind): KnowledgeType {
+  return scope === "general" ? "general" : "product";
+}
+
 /** Local, page-scoped variant of the shared `POLICY_TYPE_OPTIONS` — drops
  * `generic_link` in favor of an "Other" option that reveals a manual
  * title input. Deliberately NOT merged into `knowledge-meta.ts`'s shared
@@ -109,7 +146,7 @@ function isValidUrl(value: string): boolean {
 
 type FormValues = {
   source: AddableSource;
-  type: KnowledgeType;
+  scopeKind: ScopeKind;
   aiScope: AIScope[];
   products: ProductOption[];
   categories: ProductOption[];
@@ -143,7 +180,7 @@ const urlRowSchema = z.object({
 const formSchema = z
   .object({
     source: z.enum(["faq", "url", "file"]),
-    type: z.enum(["general", "product"]),
+    scopeKind: z.enum(["general", "product", "category", "collection"]),
     aiScope: z
       .array(z.enum(["sales", "support", "social", "internal"]))
       .min(1, "Select at least one AI"),
@@ -158,7 +195,7 @@ const formSchema = z
   })
   .superRefine((values, ctx) => {
     if (
-      values.type === "product" &&
+      values.scopeKind !== "general" &&
       values.products.length === 0 &&
       values.categories.length === 0 &&
       values.collections.length === 0
@@ -166,7 +203,12 @@ const formSchema = z
       ctx.addIssue({
         code: "custom",
         path: ["products"],
-        message: "Select at least one product, category, or collection",
+        message:
+          values.scopeKind === "product"
+            ? "Select at least one product"
+            : values.scopeKind === "category"
+              ? "Select at least one category"
+              : "Select at least one collection",
       });
     }
 
@@ -262,6 +304,13 @@ function firstErrorMessage(value: unknown): string | undefined {
 export function NewKnowledgePage() {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  // The library keeps its filters in its URL, so stepping back in history
+  // (rather than pushing a fresh /knowledge/library) restores the same view.
+  // A direct visit has no library entry behind it, so fall back to the link.
+  const goToLibrary = () => {
+    if (window.history.length > 1) router.back();
+    else router.push("/knowledge/library");
+  };
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -294,7 +343,7 @@ export function NewKnowledgePage() {
   const formik = useFormik<FormValues>({
     initialValues: {
       source: "faq",
-      type: "general",
+      scopeKind: "general",
       aiScope: [],
       products: [],
       categories: [],
@@ -315,7 +364,7 @@ export function NewKnowledgePage() {
 
       const shared = {
         storeCode,
-        type: values.type,
+        type: scopeKindToType(values.scopeKind),
         source: values.source,
         aiScope: values.aiScope,
         productIds: values.products.map((product) => product.id),
@@ -333,7 +382,7 @@ export function NewKnowledgePage() {
       );
 
       if (CreateKnowledgeItemsBulk.fulfilled.match(result)) {
-        router.push("/knowledge/library");
+        goToLibrary();
         return;
       }
 
@@ -389,13 +438,13 @@ export function NewKnowledgePage() {
     });
   };
 
-  const handleTypeChange = (next: KnowledgeType) => {
+  const handleScopeChange = (next: ScopeKind) => {
     formik.setValues({
       ...values,
-      type: next,
-      products: next === "general" ? [] : values.products,
-      categories: next === "general" ? [] : values.categories,
-      collections: next === "general" ? [] : values.collections,
+      scopeKind: next,
+      products: next === "product" ? values.products : [],
+      categories: next === "category" ? values.categories : [],
+      collections: next === "collection" ? values.collections : [],
     });
   };
 
@@ -428,11 +477,14 @@ export function NewKnowledgePage() {
   return (
     <div className="flex w-full flex-col gap-6 p-4">
       <div className="flex flex-col gap-1">
-        <Button variant="ghost" size="sm" className="-ml-2 w-fit" asChild>
-          <Link href="/knowledge/library">
-            <IconArrowLeft className="size-4" />
-            Back to Library
-          </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2 w-fit"
+          onClick={goToLibrary}
+        >
+          <IconArrowLeft className="size-4" />
+          Back to Library
         </Button>
         <Typography variant="h4" as="h1">
           New Knowledge Item
@@ -499,26 +551,102 @@ export function NewKnowledgePage() {
                 <Field>
                   <FieldLabel>Scope</FieldLabel>
                   <Select
-                    value={values.type}
+                    value={values.scopeKind}
                     onValueChange={(next) =>
-                      handleTypeChange(next as KnowledgeType)
+                      handleScopeChange(next as ScopeKind)
                     }
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select a scope" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="general">General</SelectItem>
-                      <SelectItem value="product">Product</SelectItem>
+                      {SCOPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FieldDescription>
-                    {values.type === "general"
-                      ? "Store-wide — policies, FAQs, brand info."
-                      : "Tied to specific products, categories, or collections."}
+                    {
+                      SCOPE_OPTIONS.find((o) => o.value === values.scopeKind)
+                        ?.hint
+                    }
                   </FieldDescription>
                 </Field>
               </div>
+
+              {values.scopeKind === "product" && (
+                <Field>
+                  <FieldLabel>Products</FieldLabel>
+                  <MultiSelectCombobox
+                    items={FetchProductOptionsListData}
+                    value={values.products}
+                    onValueChange={(next) =>
+                      formik.setFieldValue("products", next)
+                    }
+                    onSearch={(search) => {
+                      if (storeCode)
+                        dispatch(FetchProductOptions({ storeCode, search }));
+                    }}
+                    isLoading={FetchProductOptionsIsLoading}
+                    placeholder="Search products…"
+                  />
+                  {showErrors && formik.errors.products && (
+                    <p className="text-xs text-destructive">
+                      {formik.errors.products as string}
+                    </p>
+                  )}
+                </Field>
+              )}
+
+              {values.scopeKind === "category" && (
+                <Field>
+                  <FieldLabel>Categories</FieldLabel>
+                  <MultiSelectCombobox
+                    items={FetchCategoryOptionsListData}
+                    value={values.categories}
+                    onValueChange={(next) =>
+                      formik.setFieldValue("categories", next)
+                    }
+                    onSearch={(search) => {
+                      if (storeCode)
+                        dispatch(FetchCategoryOptions({ storeCode, search }));
+                    }}
+                    isLoading={FetchCategoryOptionsIsLoading}
+                    placeholder="Search categories…"
+                  />
+                  {showErrors && formik.errors.products && (
+                    <p className="text-xs text-destructive">
+                      {formik.errors.products as string}
+                    </p>
+                  )}
+                </Field>
+              )}
+
+              {values.scopeKind === "collection" && (
+                <Field>
+                  <FieldLabel>Collections</FieldLabel>
+                  <MultiSelectCombobox
+                    items={FetchCollectionOptionsListData}
+                    value={values.collections}
+                    onValueChange={(next) =>
+                      formik.setFieldValue("collections", next)
+                    }
+                    onSearch={(search) => {
+                      if (storeCode)
+                        dispatch(FetchCollectionOptions({ storeCode, search }));
+                    }}
+                    isLoading={FetchCollectionOptionsIsLoading}
+                    placeholder="Search collections…"
+                  />
+                  {showErrors && formik.errors.products && (
+                    <p className="text-xs text-destructive">
+                      {formik.errors.products as string}
+                    </p>
+                  )}
+                </Field>
+              )}
 
               <AIScopeField
                 value={values.aiScope}
@@ -527,66 +655,6 @@ export function NewKnowledgePage() {
                   showErrors ? (formik.errors.aiScope as string) : undefined
                 }
               />
-
-              {values.type === "product" && (
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  <Field>
-                    <FieldLabel>Products</FieldLabel>
-                    <MultiSelectCombobox
-                      items={FetchProductOptionsListData}
-                      value={values.products}
-                      onValueChange={(next) =>
-                        formik.setFieldValue("products", next)
-                      }
-                      onSearch={(search) => {
-                        if (storeCode)
-                          dispatch(FetchProductOptions({ storeCode, search }));
-                      }}
-                      isLoading={FetchProductOptionsIsLoading}
-                      placeholder="Search products…"
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel>Categories</FieldLabel>
-                    <MultiSelectCombobox
-                      items={FetchCategoryOptionsListData}
-                      value={values.categories}
-                      onValueChange={(next) =>
-                        formik.setFieldValue("categories", next)
-                      }
-                      onSearch={(search) => {
-                        if (storeCode)
-                          dispatch(FetchCategoryOptions({ storeCode, search }));
-                      }}
-                      isLoading={FetchCategoryOptionsIsLoading}
-                      placeholder="Search categories…"
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel>Collections</FieldLabel>
-                    <MultiSelectCombobox
-                      items={FetchCollectionOptionsListData}
-                      value={values.collections}
-                      onValueChange={(next) =>
-                        formik.setFieldValue("collections", next)
-                      }
-                      onSearch={(search) => {
-                        if (storeCode)
-                          dispatch(
-                            FetchCollectionOptions({ storeCode, search }),
-                          );
-                      }}
-                      isLoading={FetchCollectionOptionsIsLoading}
-                      placeholder="Search collections…"
-                    />
-                  </Field>
-                  {showErrors && formik.errors.products && (
-                    <p className="text-xs text-destructive col-span-full">
-                      {formik.errors.products as string}
-                    </p>
-                  )}
-                </div>
-              )}
             </FieldGroup>
 
             <FieldSeparator />

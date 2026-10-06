@@ -60,7 +60,7 @@ const validationSchema = z.object({
     .min(1, "Role description is required")
     .max(160),
   self_reference: z.enum(["i", "we"]).default("i"),
-  email_signature: z.string().max(160).optional(),
+  email_signature: z.string().max(255).optional(),
   backstory: z.string().max(500).optional(),
 });
 
@@ -318,13 +318,15 @@ export default function PersonaIdentity() {
                       automatically.
                     </FieldDescription>
                   </div>
-                  <Input
+                  <textarea
                     id="email-signature"
                     name="email_signature"
                     value={formik.values.email_signature ?? ""}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
                     placeholder="Warmly, Ellie — Customer Care Team"
+                    rows={3}
+                    className="w-full min-w-0 resize-y rounded-md border border-input bg-transparent px-2.5 py-2 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
                   />
                   {formik.touched.email_signature &&
                     formik.errors.email_signature && (

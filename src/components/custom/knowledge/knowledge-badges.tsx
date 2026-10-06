@@ -1,6 +1,10 @@
 import {
   IconAlertCircle,
   IconClock,
+  IconFileText,
+  IconLink,
+  IconMessageQuestion,
+  IconTag,
   IconCircleCheck,
   IconShieldCheck,
 } from "@tabler/icons-react";
@@ -11,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import type {
   AIScope,
+  KnowledgeItem,
   KnowledgeSource,
   KnowledgeStatus,
   KnowledgeType,
@@ -35,7 +40,13 @@ export function KnowledgeStatusBadge({ status }: { status: KnowledgeStatus }) {
   const { label, variant } = KNOWLEDGE_STATUS_META[status];
 
   return (
-    <Badge variant={variant} className="gap-1 font-normal">
+    <Badge
+      variant={variant}
+      className={cn(
+        "gap-1 rounded-full font-normal",
+        status === "completed" && BADGE_TONE_STYLES.success,
+      )}
+    >
       {STATUS_ICON[status]}
       {label}
     </Badge>
@@ -116,5 +127,91 @@ export function KnowledgeTypeIcon({
     >
       <Icon className="size-4.5" />
     </div>
+  );
+}
+
+const EXTENSION_COLORS: Record<string, string> = {
+  pdf: "bg-red-600",
+  doc: "bg-blue-600",
+  docx: "bg-blue-600",
+  xls: "bg-green-600",
+  xlsx: "bg-green-600",
+  ods: "bg-green-600",
+  csv: "bg-emerald-600",
+  ppt: "bg-orange-600",
+  pptx: "bg-orange-600",
+  json: "bg-slate-600",
+  txt: "bg-slate-500",
+  png: "bg-violet-600",
+  jpg: "bg-violet-600",
+  jpeg: "bg-violet-600",
+};
+
+/** Uppercase-able file extension of an uploaded item, from its name, URL or MIME type. */
+function fileExtension(item: KnowledgeItem): string | null {
+  const fromName = (value?: string) => {
+    const path = value?.split(/[?#]/)[0] ?? "";
+    const match = /\.([a-z0-9]{1,5})$/i.exec(path);
+    return match ? match[1].toLowerCase() : null;
+  };
+  return (
+    fromName(item.fileName) ??
+    fromName(item.fileUrl) ??
+    fromName(item.title) ??
+    (item.fileType?.includes("/")
+      ? (item.fileType.split("/").pop()?.split(/[.+]/).pop() ?? null)
+      : (item.fileType?.toLowerCase() ?? null))
+  );
+}
+
+/**
+ * Icon for a knowledge item by its source: a document for uploads (with a
+ * coloured file-extension tag on the corner), a link for URLs, a question
+ * mark for FAQs.
+ */
+export function KnowledgeItemIcon({ item }: { item: KnowledgeItem }) {
+  const isFile = item.source === "file";
+  const extension = isFile ? fileExtension(item) : null;
+  const Icon =
+    item.source === "url"
+      ? IconLink
+      : item.source === "faq"
+        ? IconMessageQuestion
+        : IconFileText;
+  const tone =
+    item.source === "url"
+      ? "bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-300"
+      : item.source === "faq"
+        ? "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-300"
+        : "bg-muted text-muted-foreground";
+
+  return (
+    <div
+      className={cn(
+        "relative flex size-10 shrink-0 items-center justify-center rounded-xl",
+        tone,
+      )}
+    >
+      <Icon className="size-5" />
+      {extension && (
+        <span
+          className={cn(
+            "absolute -bottom-1.5 -right-1.5 rounded px-1 text-[9px] font-semibold uppercase leading-4 text-white",
+            EXTENSION_COLORS[extension] ?? "bg-slate-500",
+          )}
+        >
+          {extension}
+        </span>
+      )}
+    </div>
+  );
+}
+
+export function ProductTag({ name }: { name: string }) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+      <IconTag className="size-3 shrink-0" />
+      <span className="truncate">{name}</span>
+    </span>
   );
 }
