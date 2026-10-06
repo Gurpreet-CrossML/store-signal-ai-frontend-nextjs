@@ -20,8 +20,56 @@ import {
   type EmailTemplateWritePayload,
 } from "@/redux/api-slice/campaign-slice";
 import { toast } from "sonner";
+import { findUnknownVariables } from "@/lib/whatsapp-template-helper";
 
 const EMPTY_ROW: EmailTemplateDetailRow = { icon: "", label: "", value: "" };
+
+const ACCENT_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
+
+/** The first problem with an email template, as a sentence for the user, or null. */
+function validateEmailTemplate(values: {
+  name: string;
+  subject: string;
+  preheader: string;
+  accentColor: string;
+  heading: string;
+  intro: string;
+  footerNote: string;
+  ctaLabel: string;
+  ctaUrl: string;
+  detailRows: EmailTemplateDetailRow[];
+}): string | null {
+  if (
+    !values.name.trim() ||
+    !values.subject.trim() ||
+    !values.heading.trim() ||
+    !values.intro.trim()
+  ) {
+    return "Please fill in all required fields.";
+  }
+  if (!ACCENT_COLOR_PATTERN.test(values.accentColor)) {
+    return "Accent colour must be a hex colour like #2563EB.";
+  }
+  if (Boolean(values.ctaLabel.trim()) !== Boolean(values.ctaUrl.trim())) {
+    return "A button needs both a label and a URL, or leave both blank.";
+  }
+  const texts = [
+    values.subject,
+    values.preheader,
+    values.heading,
+    values.intro,
+    values.footerNote,
+    values.ctaUrl,
+    ...values.detailRows.map((row) => row.value),
+  ];
+  const unknown = Array.from(new Set(texts.flatMap(findUnknownVariables)));
+  if (unknown.length) {
+    return `Unknown placeholder(s): ${unknown
+      .map((token) => `{{${token}}}`)
+      .join(", ")}. Only the variables offered in the picker are allowed.`;
+  }
+  return null;
+}
 
 export default function EmailTemplateForm({
   templateId,
@@ -94,8 +142,20 @@ export default function EmailTemplateForm({
 
   const handleSubmit = useCallback(async () => {
     if (!storeCode) return;
-    if (!name.trim() || !subject.trim() || !heading.trim() || !intro.trim()) {
-      toast.error("Please fill in all required fields.");
+    const validationError = validateEmailTemplate({
+      name,
+      subject,
+      preheader,
+      accentColor,
+      heading,
+      intro,
+      footerNote,
+      ctaLabel,
+      ctaUrl: ctaUrlToken,
+      detailRows,
+    });
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
@@ -209,7 +269,7 @@ export default function EmailTemplateForm({
               value={subject}
               onChange={setSubject}
               maxLength={255}
-              placeholder="e.g. Your order {{order_id}} has been confirmed!"
+              placeholder="e.g. Your order {{order_number}} has been confirmed!"
             />
           </div>
 

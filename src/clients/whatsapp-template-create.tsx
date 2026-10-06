@@ -56,10 +56,15 @@ import { WhatsAppPhoneMockup } from "@/components/custom/social-ai/whatsapp-phon
 import { WhatsAppVariablePicker } from "@/components/custom/social-ai/whatsapp-variable-picker";
 import {
   BUTTON_TYPES,
+  BUTTON_TYPES_WITHOUT_TEXT,
   CATEGORY_OPTIONS,
   extractVariableTokens,
   findUnknownVariables,
+  HEADER_TEXT_MAX_VARIABLES,
+  WHATSAPP_BODY_TEXT_MAX_LENGTH,
+  WHATSAPP_FOOTER_TEXT_MAX_LENGTH,
   HEADER_FORMATS,
+  LOCATION_HEADER_FORMAT,
   HEADER_MEDIA_RULES,
   isMediaHeaderFormat,
   renderPreviewText,
@@ -91,30 +96,75 @@ const templateSchema = z
     name: z.string().trim().min(1, "Template name is required."),
     body: z.string().trim().min(1, "Body text is required."),
     headerFormat: z.string(),
+    headerText: z.string(),
+    footer: z.string(),
+    buttons: z.array(
+      z.object({ type: z.string(), text: z.string(), url: z.string() }),
+    ),
     hasMedia: z.boolean(),
   })
   .superRefine((values, ctx) => {
+    const fail = (path: string, message: string) =>
+      ctx.addIssue({ code: "custom", path: [path], message });
+    const headerFormat = values.headerFormat as HeaderFormat;
+
     const unknown = findUnknownVariables(values.body);
     if (unknown.length) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["body"],
-        message: `Unsupported variable${unknown.length > 1 ? "s" : ""}: ${unknown
+      fail(
+        "body",
+        `Unsupported variable${unknown.length > 1 ? "s" : ""}: ${unknown
           .map((token) => `{{${token}}}`)
           .join(", ")}`,
-      });
+      );
     }
-    if (
-      values.headerFormat !== "NONE" &&
-      values.headerFormat !== "TEXT" &&
-      !values.hasMedia
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["headerFormat"],
-        message:
-          "Choose a media file for the header, or switch it to Text/None.",
-      });
+    if (values.body.length > WHATSAPP_BODY_TEXT_MAX_LENGTH) {
+      fail(
+        "body",
+        `WhatsApp body text may not exceed ${WHATSAPP_BODY_TEXT_MAX_LENGTH} characters.`,
+      );
+    }
+
+    if (headerFormat === "TEXT") {
+      if (!values.headerText.trim()) {
+        fail("headerText", "A TEXT header needs its text.");
+      } else if (
+        extractVariableTokens(values.headerText).length >
+        HEADER_TEXT_MAX_VARIABLES
+      ) {
+        fail(
+          "headerText",
+          `A text header takes at most ${HEADER_TEXT_MAX_VARIABLES} variable.`,
+        );
+      }
+    }
+
+    if (extractVariableTokens(values.footer).length) {
+      fail("footer", "A footer is always static — it takes no variables.");
+    }
+    if (values.footer.length > WHATSAPP_FOOTER_TEXT_MAX_LENGTH) {
+      fail(
+        "footer",
+        `WhatsApp footer text may not exceed ${WHATSAPP_FOOTER_TEXT_MAX_LENGTH} characters.`,
+      );
+    }
+
+    for (const button of values.buttons) {
+      const labelless = BUTTON_TYPES_WITHOUT_TEXT.includes(
+        button.type as ButtonType,
+      );
+      if (!labelless && !button.text.trim()) {
+        fail("buttons", "A button needs its label.");
+      }
+      if (button.type === "URL" && !button.url.trim()) {
+        fail("buttons", "A URL button needs its URL.");
+      }
+    }
+
+    if (isMediaHeaderFormat(headerFormat) && !values.hasMedia) {
+      fail(
+        "headerFormat",
+        "Choose a media file for the header, or switch it to Text/None.",
+      );
     }
   });
 
@@ -214,10 +264,8 @@ export default function WhatsAppTemplateCreate({
         setCategory(data.category);
         setExistingStatus(data.status);
 
-        // LOCATION headers exist on Meta but this form doesn't offer them.
-        if (data.header_format !== "LOCATION") {
-          setHeaderFormat(data.header_format);
-        }
+        // A LOCATION header is kept as it is, so saving never turns it into NONE.
+        setHeaderFormat(data.header_format as HeaderFormat);
         setHeaderText(data.header_text ?? "");
         // The stored S3 copy is what can actually be rendered; Meta's
         // handle is a write-only token and is never sent to the client.
@@ -255,14 +303,23 @@ export default function WhatsAppTemplateCreate({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateId, storeCode, account?.id]);
 
+  // A LOCATION template keeps its header option in the list, so it can be
+  // seen; the other options stay available for switching away from it.
+  const headerFormatOptions =
+    headerFormat === LOCATION_HEADER_FORMAT.value
+      ? [...HEADER_FORMATS, LOCATION_HEADER_FORMAT]
+      : HEADER_FORMATS;
+
   const handleHeaderFormatChange = (format: HeaderFormat) => {
-    setHeaderFormat(format);
-    if (format !== "IMAGE" && format !== "VIDEO" && format !== "DOCUMENT") {
+    // A sample is only valid for the media type it was uploaded as, so any
+    // change of format drops it. The file check runs against the new format.
+    if (format !== headerFormat) {
       if (headerPreviewUrl) URL.revokeObjectURL(headerPreviewUrl);
       setHeaderPreviewUrl(null);
       setHeaderMediaFile(null);
       setHasStoredMedia(false);
     }
+    setHeaderFormat(format);
   };
 
   const handleFileChange = async (
@@ -420,12 +477,29 @@ export default function WhatsAppTemplateCreate({
       name,
       body,
       headerFormat,
+      headerText,
+      footer,
+      buttons: buttons.map((button) => ({
+        type: button.type,
+        text: button.text,
+        url: button.url,
+      })),
       hasMedia: Boolean(headerMediaFile || hasStoredMedia),
     });
     if (!result.success) return result.error.issues[0].message;
     if (!account) return "No WhatsApp account connected for this store.";
     return null;
-  }, [name, body, headerFormat, headerMediaFile, hasStoredMedia, account]);
+  }, [
+    name,
+    body,
+    headerFormat,
+    headerText,
+    footer,
+    buttons,
+    headerMediaFile,
+    hasStoredMedia,
+    account,
+  ]);
 
   const handleSubmit = async () => {
     if (!storeCode || !account || validationError) {
@@ -651,7 +725,7 @@ export default function WhatsAppTemplateCreate({
               </CardHeader>
               <CardContent className="gap-3">
                 <div className="flex flex-wrap gap-2">
-                  {HEADER_FORMATS.map((format) => (
+                  {headerFormatOptions.map((format) => (
                     <Button
                       key={format.value}
                       type="button"
@@ -847,7 +921,7 @@ export default function WhatsAppTemplateCreate({
                 <CardTitle className="flex items-center gap-2">
                   <IconClick className="size-4" />
                   Buttons (Optional)
-                  <InfoIcon text="Quick Reply buttons let customers respond with one tap; Website URL and Phone Number buttons open a link or start a call. Up to 3 per template." />
+                  <InfoIcon text="Quick Reply buttons let customers respond with one tap; Website URL and Phone Number buttons open a link or start a call. One button per template." />
                 </CardTitle>
                 <CardDescription>
                   Add quick-reply, link, or call buttons below the message.
@@ -876,15 +950,17 @@ export default function WhatsAppTemplateCreate({
                         ))}
                       </SelectContent>
                     </Select>
-                    <Input
-                      value={btn.text}
-                      onChange={(event) =>
-                        updateButton(btn.key, { text: event.target.value })
-                      }
-                      placeholder="Button text"
-                      maxLength={25}
-                      className="sm:flex-1"
-                    />
+                    {!BUTTON_TYPES_WITHOUT_TEXT.includes(btn.type) && (
+                      <Input
+                        value={btn.text}
+                        onChange={(event) =>
+                          updateButton(btn.key, { text: event.target.value })
+                        }
+                        placeholder="Button text"
+                        maxLength={25}
+                        className="sm:flex-1"
+                      />
+                    )}
                     {btn.type === "URL" && (
                       <Input
                         value={btn.url}

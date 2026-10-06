@@ -3,6 +3,7 @@ import { axiosInstance } from "../axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
+import { bestErrorMessage, errorEnvelope } from "@/lib/api-errors";
 
 export type EmailTemplateDetailRow = {
   icon: string;
@@ -166,6 +167,10 @@ export type SegmentCategory = {
   slug: string;
 };
 
+// The backend's slug for the abandoned-cart category. It has no cart value to
+// filter on, so it only accepts a min_price of 0 (see SEGMENT_VALUE_FIELD).
+export const SEGMENT_CATEGORY_ABANDONED_CART_SLUG = "abondened-cart";
+
 export type Segment = {
   id: number;
   store: number;
@@ -323,18 +328,6 @@ export const createSegment = createAsyncThunk(
  * 400 — the field message is what actually says *why* (e.g. "Can't
  * pause this segment: it is still the audience of live campaign X").
  */
-function bestErrorMessage(envelope: unknown, fallback: string): string {
-  const data = envelope as { data?: unknown; message?: string } | undefined;
-  const fieldData = data?.data;
-  if (fieldData && typeof fieldData === "object" && !Array.isArray(fieldData)) {
-    for (const value of Object.values(fieldData as Record<string, unknown>)) {
-      if (typeof value === "string" && value) return value;
-      if (Array.isArray(value) && typeof value[0] === "string") return value[0];
-    }
-  }
-  return data?.message || fallback;
-}
-
 export const fetchSegmentDetail = createAsyncThunk(
   "fetchSegmentDetail",
   async (
@@ -425,8 +418,7 @@ export const updateSegmentStatus = createAsyncThunk(
       );
       return response.data.data as Segment;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Couldn't update the segment", {
         description: bestErrorMessage(data, "Please try again later."),
       });
@@ -441,6 +433,10 @@ export const updateSegmentStatus = createAsyncThunk(
 // enforces sub-24h total delay and >=30min spacing between consecutive steps.
 // ---------------------------------------------------------------------------
 
+// The time zone every campaign's daily runs are scheduled in. Mirrors
+// settings.TIME_ZONE on the backend.
+export const CAMPAIGN_TIME_ZONE = "Asia/Kolkata";
+
 export type CampaignSequenceStep = {
   id?: number;
   whatsapp_template: number | null;
@@ -448,6 +444,8 @@ export type CampaignSequenceStep = {
   start_time: string;
   delay_value: number | null;
   step_order: number;
+  // True once the step has run; such a step can't be removed.
+  has_runs: boolean;
 };
 
 export type Campaign = {
@@ -498,7 +496,7 @@ export type CampaignWritePayload = {
   start_time: string;
   segment: number;
   continuous_entry?: boolean;
-  sequence_steps: Omit<CampaignSequenceStep, "id">[];
+  sequence_steps: Omit<CampaignSequenceStep, "id" | "has_runs">[];
 };
 
 export const fetchCampaigns = createAsyncThunk(
@@ -625,8 +623,7 @@ export const updateCampaignStatus = createAsyncThunk(
       );
       return response.data.data as Campaign;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Couldn't update the campaign", {
         description: bestErrorMessage(data, "Please try again later."),
       });
@@ -662,8 +659,10 @@ export const updateCampaign = createAsyncThunk(
 );
 
 // Puts the campaign's recurring daily schedules in place. Call after anything
-// that starts a live campaign: publishing, resuming, or editing one that is
-// running (the backend removes its schedules on edit).
+// that starts a live campaign: publishing, resuming, rescheduling, or editing
+// one that is running (the backend removes its schedules on edit). It fails
+// when any step could not be scheduled, so a caller never reports success
+// for a campaign that will not send. The error toast is shown here, once.
 export const scheduleCampaign = createAsyncThunk(
   "scheduleCampaign",
   async (
@@ -683,15 +682,50 @@ export const scheduleCampaign = createAsyncThunk(
             .map((entry) => `Step ${entry.step_order + 1}: ${entry.error}`)
             .join("\n"),
         });
+        return thunkAPI.rejectWithValue(result);
       }
       return result;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Couldn't schedule the campaign", {
         description: bestErrorMessage(data, "Please try again later."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+// Makes a campaign live (or publishes it and makes it live), then schedules
+// its daily runs. The two calls go together, since a live campaign with no
+// schedule looks active and never sends. If scheduling fails, the campaign
+// stays published and live, and the detail screen's Reschedule retries it.
+export const activateCampaign = createAsyncThunk(
+  "activateCampaign",
+  async (
+    {
+      storeCode,
+      campaignId,
+      publish = false,
+    }: { storeCode: string; campaignId: number; publish?: boolean },
+    thunkAPI,
+  ) => {
+    try {
+      const updated = await thunkAPI
+        .dispatch(
+          updateCampaignStatus({
+            storeCode,
+            campaignId,
+            ...(publish ? { status: "published" as const } : {}),
+            isActive: true,
+          }),
+        )
+        .unwrap();
+      await thunkAPI
+        .dispatch(scheduleCampaign({ storeCode, campaignId }))
+        .unwrap();
+      return updated;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error);
     }
   },
 );

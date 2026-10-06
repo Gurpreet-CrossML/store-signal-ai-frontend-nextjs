@@ -2,10 +2,7 @@ import type { ComponentType } from "react";
 
 import {
   IconAdjustmentsSpark,
-  // IconBan,
-  // IconBook2,
   IconBooks,
-  // IconAlarmSnoozeFilled,
   IconArrowsExchange,
   IconBrandFacebook,
   IconBrandInstagram,
@@ -26,7 +23,6 @@ import {
   IconMessages,
   IconSocial,
   IconPackageOff,
-  // IconPlugConnected,
   IconSend,
   IconSettings,
   IconShield,
@@ -34,15 +30,11 @@ import {
   IconSpeakerphone,
   IconTags,
   IconUserHexagon,
-  // IconUsers,
   IconUsersGroup,
   IconShoppingBag,
   IconVolume,
   type Icon,
   IconChartBar,
-  // IconAutomaticGearbox,
-  // IconPackageImport,
-  // IconShoppingBagEdit,
   IconPackage,
 } from "@tabler/icons-react";
 

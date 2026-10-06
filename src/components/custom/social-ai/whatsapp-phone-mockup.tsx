@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import type { WhatsAppTemplateComponent } from "@/redux/api-slice/social-ai-slice";
 import { getComponent, previewBodyText } from "@/lib/whatsapp-template-helper";
+import { isSafeHttpUrl } from "@/lib/url";
 
 const PHONE_WIDTH = 280;
 const PHONE_ASPECT_RATIO = 1024 / 1536;
@@ -162,7 +163,7 @@ export function WhatsAppPhoneMockup({
                       {btn.text || "Button"}
                     </>
                   );
-                  if (btn.type === "URL" && btn.url) {
+                  if (btn.type === "URL" && btn.url && isSafeHttpUrl(btn.url)) {
                     return (
                       <a
                         key={index}

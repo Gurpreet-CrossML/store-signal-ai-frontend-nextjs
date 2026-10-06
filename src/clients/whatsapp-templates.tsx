@@ -57,6 +57,7 @@ import { useWhatsAppAccount } from "@/components/custom/social-ai/use-whatsapp-a
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   deleteWhatsAppTemplate,
+  clearWhatsAppTemplates,
   fetchWhatsAppTemplates,
   updateWhatsAppTemplate,
   type WhatsAppTemplate,
@@ -89,7 +90,10 @@ export default function WhatsAppTemplates() {
     (state) => state.GetSocialAIReducer.FetchWhatsAppTemplatesState,
   );
 
+  // Clear first, so the previous store's templates never show while this
+  // store's load, or when this store has no WhatsApp account at all.
   useEffect(() => {
+    dispatch(clearWhatsAppTemplates());
     if (storeCode && account) {
       dispatch(
         fetchWhatsAppTemplates({ storeCode, accountId: String(account.id) }),

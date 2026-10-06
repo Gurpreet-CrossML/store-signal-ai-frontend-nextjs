@@ -56,6 +56,7 @@ import {
   deleteCampaign,
   fetchCampaigns,
   fetchSegments,
+  activateCampaign,
   updateCampaignStatus,
   type Campaign,
   type Segment,
@@ -279,14 +280,21 @@ export default function Campaigns() {
         ),
       );
       try {
-        await dispatch(
-          updateCampaignStatus({
-            storeCode,
-            campaignId: campaign.id,
-            isActive: checked,
-          }),
-        ).unwrap();
-        toast.success(checked ? "Campaign resumed" : "Campaign paused");
+        if (checked) {
+          await dispatch(
+            activateCampaign({ storeCode, campaignId: campaign.id }),
+          ).unwrap();
+          toast.success("Campaign resumed");
+        } else {
+          await dispatch(
+            updateCampaignStatus({
+              storeCode,
+              campaignId: campaign.id,
+              isActive: false,
+            }),
+          ).unwrap();
+          toast.success("Campaign paused");
+        }
       } catch {
         loadCampaigns();
       } finally {

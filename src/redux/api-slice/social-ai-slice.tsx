@@ -14,6 +14,7 @@ import type {
 } from "@/redux/api-slice/support-ticket-slice";
 import type { ActionId, Autonomy } from "@/lib/comment-handling-data";
 import { getApiErrorMessage, toPaginatedList } from "@/lib/helpers";
+import { bestErrorMessage, errorEnvelope } from "@/lib/api-errors";
 
 /**
  * One page size for every social list. Filtering and searching are the
@@ -596,10 +597,9 @@ export const submitWhatsAppTemplate = createAsyncThunk(
       );
       return response.data.data as WhatsAppTemplateSubmitResponse;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Couldn't submit the template", {
-        description: data?.message || "Please check the form and try again.",
+        description: bestErrorMessage(data, "Please check the form and try again."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -625,10 +625,9 @@ export const fetchLocalWhatsAppTemplate = createAsyncThunk(
       );
       return response.data.data as WhatsAppTemplate;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Couldn't load the template", {
-        description: data?.message || "Please try again later.",
+        description: bestErrorMessage(data, "Please try again later."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -660,49 +659,15 @@ export const updateWhatsAppTemplate = createAsyncThunk(
       );
       return response.data.data as WhatsAppTemplate;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Couldn't update the template", {
-        description: data?.message || "Please check the form and try again.",
+        description: bestErrorMessage(data, "Please check the form and try again."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );
 
-export const toggleWhatsAppTemplateActive = createAsyncThunk(
-  "toggleWhatsAppTemplateActive",
-  async (
-    {
-      storeCode,
-      accountId,
-      templateId,
-      isActive,
-    }: {
-      storeCode: string;
-      accountId: string;
-      templateId: number;
-      isActive: boolean;
-    },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.patch(
-        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId })}?store_code=${storeCode}`,
-        { is_active: isActive },
-        { useBackend: true } as never,
-      );
-      return response.data.data as WhatsAppTemplate;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-      toast.error("Couldn't update template status", {
-        description: data?.message || "Please try again.",
-      });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
 
 export const deleteWhatsAppTemplate = createAsyncThunk(
   "deleteWhatsAppTemplate",
@@ -721,71 +686,16 @@ export const deleteWhatsAppTemplate = createAsyncThunk(
       );
       return response.data.data as { status: string };
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Couldn't delete the template", {
-        description: data?.message || "Please try again later.",
+        description: bestErrorMessage(data, "Please try again later."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );
 
-// Read/replace/remove one template by its local id. Named for the
-// template, not the draft, since drafts no longer exist.
-export const fetchWhatsAppTemplateDraft = createAsyncThunk(
-  "fetchWhatsAppTemplateDraft",
-  async (
-    {
-      storeCode,
-      accountId,
-      draftId,
-    }: { storeCode: string; accountId: string; draftId: number },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.get(
-        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId: draftId })}?store_code=${storeCode}`,
-        { useBackend: true },
-      );
-      return response.data.data as WhatsAppTemplate;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-      toast.error("Couldn't load the template", {
-        description: data?.message || "Please try again later.",
-      });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
 
-export const deleteWhatsAppTemplateDraft = createAsyncThunk(
-  "deleteWhatsAppTemplateDraft",
-  async (
-    {
-      storeCode,
-      accountId,
-      draftId,
-    }: { storeCode: string; accountId: string; draftId: number },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.delete(
-        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId: draftId })}?store_code=${storeCode}`,
-        { useBackend: true },
-      );
-      return response.data.data as { status: string };
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-      toast.error("Couldn't delete the template", {
-        description: data?.message || "Please try again later.",
-      });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
 
 export const fetchWhatsAppTemplateLibrary = createAsyncThunk(
   "fetchWhatsAppTemplateLibrary",
@@ -835,46 +745,15 @@ export const importWhatsAppTemplateFromLibrary = createAsyncThunk(
       );
       return response.data.data as WhatsAppTemplateSubmitResponse;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Couldn't import the template", {
-        description: data?.message || "Please try again later.",
+        description: bestErrorMessage(data, "Please try again later."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );
 
-// Resubmit a template Meta has deleted. The detail endpoint is the one
-// save path: it creates the template on Meta when Meta holds no live copy,
-// so an empty PATCH resubmits without changing anything.
-export const submitWhatsAppTemplateDraft = createAsyncThunk(
-  "submitWhatsAppTemplateDraft",
-  async (
-    {
-      storeCode,
-      accountId,
-      draftId,
-    }: { storeCode: string; accountId: string; draftId: number },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.patch(
-        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId: draftId })}?store_code=${storeCode}`,
-        {},
-        { useBackend: true },
-      );
-      return response.data.data as WhatsAppTemplateSubmitResponse;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-      toast.error("Couldn't submit the template", {
-        description: data?.message || "Please check the form and try again.",
-      });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
 
 export const updateAccountAutoRespond = createAsyncThunk(
   "updateAccountAutoRespond",
@@ -894,10 +773,9 @@ export const updateAccountAutoRespond = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to update the AI auto-reply.",
+        description: bestErrorMessage(data, "Unable to update the AI auto-reply."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1234,10 +1112,9 @@ export const likeMetaComment = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to like item.",
+        description: bestErrorMessage(data, "Unable to like item."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1262,10 +1139,9 @@ export const unlikeMetaComment = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to remove the like.",
+        description: bestErrorMessage(data, "Unable to remove the like."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1296,10 +1172,9 @@ export const hideMetaComment = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to hide item.",
+        description: bestErrorMessage(data, "Unable to hide item."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1323,10 +1198,9 @@ export const deleteMetaComment = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to delete item.",
+        description: bestErrorMessage(data, "Unable to delete item."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1380,10 +1254,9 @@ export const replyToMetaMessage = createAsyncThunk(
           );
       return response.data;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to reply to message.",
+        description: bestErrorMessage(data, "Unable to reply to message."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1414,10 +1287,9 @@ export const reactToMetaMessage = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to react to message.",
+        description: bestErrorMessage(data, "Unable to react to message."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1448,10 +1320,9 @@ export const replyToMetaComment = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to reply to comment.",
+        description: bestErrorMessage(data, "Unable to reply to comment."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1562,10 +1433,9 @@ export const SocialUserCustomerLink = createAsyncThunk(
       });
       return customer;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Couldn't link the customer", {
-        description: data?.message || "Please try again.",
+        description: bestErrorMessage(data, "Please try again."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1625,10 +1495,9 @@ export const saveIntentRule = createAsyncThunk(
       );
       return response.data.data as CommentIntentRule;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to save this intent rule.",
+        description: bestErrorMessage(data, "Unable to save this intent rule."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1661,10 +1530,9 @@ export const saveTopicRule = createAsyncThunk(
       );
       return response.data.data as CommentTopicRule;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to save this topic rule.",
+        description: bestErrorMessage(data, "Unable to save this topic rule."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1688,10 +1556,9 @@ export const deleteTopicRule = createAsyncThunk(
       );
       return topic;
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to remove this topic rule.",
+        description: bestErrorMessage(data, "Unable to remove this topic rule."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1785,10 +1652,9 @@ export const fetchUserCommentDraft = createAsyncThunk(
       );
       return toDraftList(response.data);
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to load the AI draft.",
+        description: bestErrorMessage(data, "Unable to load the AI draft."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1812,10 +1678,9 @@ export const fetchUserMessageDraft = createAsyncThunk(
       );
       return toDraftList(response.data);
     } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
+      const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to load the AI draft.",
+        description: bestErrorMessage(data, "Unable to load the AI draft."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -2036,6 +1901,10 @@ const SocialAISlice = createSlice({
     },
   },
   reducers: {
+    clearWhatsAppTemplates: (state) => {
+      state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesData = [];
+      state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsSuccess = false;
+    },
     /**
      * A DM that arrived over the websocket, for the conversation currently
      * loaded. Deduped by id: the same row can arrive twice when a refetch
@@ -2284,13 +2153,6 @@ const SocialAISlice = createSlice({
         state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsError =
           action.payload as string | object;
       })
-      .addCase(toggleWhatsAppTemplateActive.fulfilled, (state, action) => {
-        const updated = action.payload;
-        state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesData =
-          state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesData.map(
-            (t) => (t.id === updated.id ? updated : t),
-          );
-      })
       .addCase(fetchWhatsAppTemplateLibrary.pending, (state) => {
         state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsLoading = true;
         state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsSuccess = false;
@@ -2513,6 +2375,7 @@ const SocialAISlice = createSlice({
 
 export const {
   accountAutoRespondSet,
+  clearWhatsAppTemplates,
   commentDraftReceived,
   commentDraftChanged,
   socialUserDmDraftFlagSet,

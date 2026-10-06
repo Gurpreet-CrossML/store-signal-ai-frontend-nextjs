@@ -32,6 +32,8 @@ import { useWhatsAppAccount } from "@/components/custom/social-ai/use-whatsapp-a
 import { WhatsAppTemplatePreviewDialog } from "@/components/custom/social-ai/whatsapp-template-preview-dialog";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
+  activateCampaign,
+  CAMPAIGN_TIME_ZONE,
   fetchCampaignDetail,
   fetchCampaignSequenceSteps,
   fetchEmailTemplates,
@@ -81,6 +83,7 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
 
   const load = useCallback(async () => {
     if (!storeCode) return;
@@ -136,28 +139,44 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
     [emailTemplates],
   );
 
+  // Reloads the campaign, so the page shows what the backend saved even when
+  // a later step (the schedule) failed.
+  const refreshCampaign = async () => {
+    if (!storeCode) return;
+    try {
+      setCampaign(
+        await dispatch(
+          fetchCampaignDetail({ storeCode, campaignId }),
+        ).unwrap(),
+      );
+    } catch {
+      // The thunk already surfaced the error.
+    }
+  };
+
   const handleToggleActive = async (checked: boolean) => {
     if (!storeCode || !campaign) return;
     setToggling(true);
     try {
-      const updated = await dispatch(
-        updateCampaignStatus({
-          storeCode,
-          campaignId: campaign.id,
-          isActive: checked,
-        }),
-      ).unwrap();
+      const updated = checked
+        ? await dispatch(
+            activateCampaign({ storeCode, campaignId: campaign.id }),
+          ).unwrap()
+        : await dispatch(
+            updateCampaignStatus({
+              storeCode,
+              campaignId: campaign.id,
+              isActive: false,
+            }),
+          ).unwrap();
       setCampaign((current) =>
         current ? { ...current, ...updated } : current,
       );
       toast.success(checked ? "Campaign resumed" : "Campaign paused");
-      if (checked) {
-        await dispatch(scheduleCampaign({ storeCode, campaignId: campaign.id }))
-          .unwrap()
-          .catch(() => undefined);
-      }
     } catch {
-      // Thunk already surfaced the toast.
+      // The thunks already surfaced the error. Reload, since a resume can
+      // change the campaign before its schedule fails.
+      await refreshCampaign();
     } finally {
       setToggling(false);
     }
@@ -168,24 +187,33 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
     setPublishing(true);
     try {
       const updated = await dispatch(
-        updateCampaignStatus({
-          storeCode,
-          campaignId: campaign.id,
-          status: "published",
-          isActive: true,
-        }),
+        activateCampaign({ storeCode, campaignId: campaign.id, publish: true }),
       ).unwrap();
       setCampaign((current) =>
         current ? { ...current, ...updated } : current,
       );
       toast.success("Campaign published");
-      await dispatch(scheduleCampaign({ storeCode, campaignId: campaign.id }))
-        .unwrap()
-        .catch(() => undefined);
     } catch {
-      // Thunk already surfaced the toast.
+      // The thunks already surfaced the error. A failed schedule still leaves
+      // the campaign published, so reload to show it.
+      await refreshCampaign();
     } finally {
       setPublishing(false);
+    }
+  };
+
+  const handleReschedule = async () => {
+    if (!storeCode || !campaign) return;
+    setScheduling(true);
+    try {
+      await dispatch(
+        scheduleCampaign({ storeCode, campaignId: campaign.id }),
+      ).unwrap();
+      toast.success("Campaign rescheduled");
+    } catch {
+      // The thunk already surfaced the error.
+    } finally {
+      setScheduling(false);
     }
   };
 
@@ -267,6 +295,16 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
                 onCheckedChange={handleToggleActive}
                 aria-label="Toggle campaign active"
               />
+              {campaign.is_active && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReschedule}
+                  disabled={scheduling}
+                >
+                  {scheduling ? "Scheduling…" : "Reschedule"}
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -280,6 +318,11 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
+          <p className="text-sm text-muted-foreground sm:col-span-2">
+            Runs every day from {campaign.start_time.slice(0, 5)} (
+            {CAMPAIGN_TIME_ZONE}) until it is paused or ended. Each step fires at
+            its own time, shown below.
+          </p>
           <div className="flex items-start gap-3 rounded-md border p-3">
             <IconUsersGroup className="mt-0.5 size-4 text-muted-foreground" />
             <div className="min-w-0">

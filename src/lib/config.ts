@@ -37,7 +37,6 @@ export const ENDPOINTS = {
   // Auth/session (Django) — token lifecycle + identity.
   refreshToken: () => createAPIUrl("/auth/token/refresh/", "django"),
   verifyToken: () => createAPIUrl("/auth/token/verify/", "django"),
-  logout: () => createAPIUrl("/auth/logout/", "django"),
   profile: () => createAPIUrl("/auth/profile/", "django"),
 
   // Chat Websocket (Django)
@@ -433,17 +432,11 @@ export const ENDPOINTS = {
     accountId: string;
     catalogueId: number;
   }) => `/campaign/accounts/${accountId}/templates/${catalogueId}/import/`,
-  whatsAppTemplateLibraryImportAll: ({ accountId }: { accountId: string }) =>
-    `/campaign/accounts/${accountId}/templates/import-all/`,
-
   // Email templates (Django via useBackend — keep trailing slash).
   fetchEmailTemplates: () => `/campaign/email-templates/`,
   createEmailTemplate: () => `/campaign/email-templates/`,
   emailTemplateDetail: ({ templateId }: { templateId: number }) =>
     `/campaign/email-templates/${templateId}/`,
-  sendEmailTemplate: ({ templateId }: { templateId: number }) =>
-    `/campaign/email-templates/${templateId}/send/`,
-
   // Segments & campaigns (Django via useBackend — keep trailing slash).
   // Segment categories are platform-wide (no store_code needed); segments
   // and campaigns are store-scoped and take ?store_code=<code> on the URL.

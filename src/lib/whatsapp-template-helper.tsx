@@ -1,5 +1,6 @@
 import {
   IconBuildingStore,
+  IconCopy,
   IconDiscount,
   IconFileText,
   IconLink,
@@ -24,14 +25,14 @@ import type { WhatsAppTemplateComponent } from "@/redux/api-slice/social-ai-slic
 
 /**
  * The WhatsApp template variable picker's entire vocabulary — mirrors
- * `VARIABLE_MAP` in `social/template_variables.py` on the backend
- * (store-signals-ai-backend) exactly. That module is the single source of
+ * `VARIABLE_MAP` in `campaign/constants.py` on the backend
+ * (store-signals-ai-backend) exactly. That map is the single source of
  * truth for which placeholders actually resolve to real data; nothing here
  * may add a token that isn't a key there, and a token removed there should
- * be removed here too. `sample` is only ever used locally (this create
- * screen's live preview, and as the Meta `example` value submitted
- * alongside a NAMED-format template) — Meta and the backend never see it
- * beyond that.
+ * be removed here too. `sample` is only used by this create screen's live
+ * preview. The backend builds Meta's example values itself
+ * (`campaign.helpers.sample_for_placeholder`), so Meta never receives a
+ * sample from this file.
  */
 export type WhatsAppTemplateVariable = {
   token: string;
@@ -53,16 +54,6 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
     icon: IconUser,
     variables: [
       { token: "customer_name", label: "Full name", sample: "Jhon Wick" },
-      {
-        token: "customer_email",
-        label: "Email address",
-        sample: "jhon.wick@example.com",
-      },
-      {
-        token: "customer_phone",
-        label: "Phone number",
-        sample: "919876543210",
-      },
     ],
   },
   {
@@ -71,19 +62,8 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
     icon: IconShoppingBag,
     variables: [
       { token: "order_number", label: "Order number", sample: "#1001" },
-      {
-        token: "order_status",
-        label: "Fulfillment status",
-        sample: "fulfilled",
-      },
       { token: "order_total", label: "Order total", sample: "₹2,499.00" },
       { token: "order_date", label: "Date placed", sample: "Aug 10, 2026" },
-      { token: "payment_status", label: "Payment status", sample: "paid" },
-      {
-        token: "shipping_method",
-        label: "Shipping method",
-        sample: "Standard",
-      },
       {
         token: "order_status_url",
         label: "Order status page link",
@@ -107,11 +87,6 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
         label: "Tracking link",
         sample: "https://example.com/track/1001",
       },
-      {
-        token: "shipment_status",
-        label: "Shipment status",
-        sample: "fulfilled",
-      },
     ],
   },
   {
@@ -124,21 +99,6 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
         label: "First item's name",
         sample: "Travel Backpack",
       },
-      {
-        token: "product_price",
-        label: "First item's price",
-        sample: "₹2,499.00",
-      },
-      {
-        token: "product_image",
-        label: "Most recently viewed product's image",
-        sample: "https://example.com/product.jpg",
-      },
-      {
-        token: "product_url",
-        label: "Most recently viewed product's link",
-        sample: "https://example.com/products/travel-backpack",
-      },
     ],
   },
   {
@@ -146,11 +106,6 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
     label: "Discount & Payment",
     icon: IconDiscount,
     variables: [
-      {
-        token: "discount_code",
-        label: "Discount code applied",
-        sample: "SAVE20",
-      },
       { token: "refund_status", label: "Refund status", sample: "No Refund" },
     ],
   },
@@ -164,13 +119,6 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
         token: "ticket_subject",
         label: "Ticket subject",
         sample: "Where is my order?",
-      },
-      { token: "ticket_status", label: "Ticket status", sample: "open" },
-      { token: "ticket_priority", label: "Ticket priority", sample: "high" },
-      {
-        token: "ticket_url",
-        label: "Link to the ticket",
-        sample: "https://example.com/tickets/482",
       },
     ],
   },
@@ -186,10 +134,10 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
         sample: "https://safarnest.example.com",
       },
       {
-        token: "business_address",
-        label: "Business address",
-        sample: "221B Baker Street, London",
-      },
+        token: "ticket_description",
+        label: "Ticket description",
+        sample: "I received the wrong item.",
+      }
     ],
   },
 ];
@@ -205,6 +153,15 @@ export const WHATSAPP_VARIABLES_BY_TOKEN: Record<
 );
 
 /** `{{token}}` in the exact form the picker inserts and the body stores. */
+/** The longest body WhatsApp accepts. Mirrors WHATSAPP_BODY_TEXT_MAX_LENGTH on the backend. */
+export const WHATSAPP_BODY_TEXT_MAX_LENGTH = 1024;
+
+/** The longest footer WhatsApp accepts. Mirrors WHATSAPP_FOOTER_TEXT_MAX_LENGTH on the backend. */
+export const WHATSAPP_FOOTER_TEXT_MAX_LENGTH = 60;
+
+/** Variables a TEXT header may use. Mirrors HEADER_TEXT_MAX_VARIABLES on the backend. */
+export const HEADER_TEXT_MAX_VARIABLES = 1;
+
 export function variablePlaceholder(token: string) {
   return `{{${token}}}`;
 }
@@ -306,7 +263,13 @@ export const HEADER_FORMATS = [
   { value: "DOCUMENT", label: "Document" },
 ] as const;
 
-export type HeaderFormat = (typeof HEADER_FORMATS)[number]["value"];
+// Meta's LOCATION header. It can't be authored here, but a template that has
+// one must keep it on save, so it is loaded and offered read-only.
+export const LOCATION_HEADER_FORMAT = { value: "LOCATION", label: "Location" } as const;
+
+export type HeaderFormat =
+  | (typeof HEADER_FORMATS)[number]["value"]
+  | typeof LOCATION_HEADER_FORMAT.value;
 
 /**
  * What Meta accepts as a header sample, per media header format — the
@@ -333,9 +296,13 @@ export const BUTTON_TYPES = [
   { value: "QUICK_REPLY", label: "Quick Reply", icon: IconMessageCircle },
   { value: "URL", label: "Website URL", icon: IconLink },
   { value: "PHONE_NUMBER", label: "Phone Number", icon: IconPhoneCall },
+  { value: "COPY_CODE", label: "Copy code", icon: IconCopy },
 ] as const;
 
 export type ButtonType = (typeof BUTTON_TYPES)[number]["value"];
+
+/** Button types whose label Meta fixes itself, so they carry none of ours. Mirrors BUTTON_TYPES_WITHOUT_TEXT on the backend. */
+export const BUTTON_TYPES_WITHOUT_TEXT: readonly ButtonType[] = ["COPY_CODE"];
 
 /**
  * Fold a status/category/score string to the snake_case lowercase key the
@@ -414,42 +381,6 @@ export function WhatsAppTemplateCategoryBadge({
   );
 }
 
-const WHATSAPP_QUALITY_SCORE: Record<string, { tone: Tone; label: string }> = {
-  green: { tone: "success", label: "Good" },
-  yellow: { tone: "warning", label: "Medium" },
-  red: { tone: "danger", label: "Poor" },
-  unknown: { tone: "neutral", label: "Unrated" },
-};
-
-/**
- * Badge for a template's Meta `quality_score.score`. Meta only starts
- * scoring a template once it has been sent enough times — most templates
- * sit at "UNKNOWN" (rendered "Unrated") until then, which is expected, not
- * an error state.
- */
-export function WhatsAppTemplateQualityBadge({
-  score,
-}: {
-  score: string | null | undefined;
-}) {
-  if (!score) return null;
-  const known = WHATSAPP_QUALITY_SCORE[statusKey(score)];
-  const tone = known?.tone ?? "neutral";
-  const label = known?.label ?? score.replace(/_/g, " ");
-
-  return (
-    <Badge
-      variant="outline"
-      className={`capitalize ${BADGE_TONE_STYLES[tone]}`}
-    >
-      {label}
-    </Badge>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Template component helpers — reading Meta's `components` array and deriving
-// a row/preview icon from what a template actually carries.
 // ---------------------------------------------------------------------------
 
 export function getComponent(

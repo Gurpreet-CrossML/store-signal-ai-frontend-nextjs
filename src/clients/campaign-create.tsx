@@ -44,6 +44,7 @@ import { WhatsAppTemplatePreviewDialog } from "@/components/custom/social-ai/wha
 import { TimePicker12h } from "@/components/custom/time-picker-12h";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
+  CAMPAIGN_TIME_ZONE,
   createCampaign,
   fetchCampaignDetail,
   fetchCampaignSequenceSteps,
@@ -67,6 +68,10 @@ type StepForm = {
   channel: Channel;
   templateId: string;
   delayValue: string;
+  // The step_order this step is stored under; new steps have none yet.
+  stepOrder?: number;
+  // True once the step has run, so it can't be removed.
+  hasRuns: boolean;
 };
 
 function newStep(channel: Channel = "whatsapp"): StepForm {
@@ -75,6 +80,7 @@ function newStep(channel: Channel = "whatsapp"): StepForm {
     channel,
     templateId: "",
     delayValue: "60",
+    hasRuns: false,
   };
 }
 
@@ -155,7 +161,6 @@ export default function CampaignCreate({
   const [segmentId, setSegmentId] = useState("");
   const [startTime, setStartTime] = useState("10:00");
   const [continuousEntry, setContinuousEntry] = useState(false);
-  const [publish, setPublish] = useState(false);
   const [steps, setSteps] = useState<StepForm[]>([
     { ...newStep("whatsapp"), delayValue: "0" },
   ]);
@@ -178,7 +183,7 @@ export default function CampaignCreate({
   const [previewWa, setPreviewWa] = useState<WhatsAppTemplate | null>(null);
   const [previewEmail, setPreviewEmail] = useState<EmailTemplate | null>(null);
 
-  const load = useCallback(async () => {
+  const loadCampaign = useCallback(async () => {
     if (!storeCode) return;
     setLoading(true);
     try {
@@ -186,17 +191,6 @@ export default function CampaignCreate({
       setSegments(segs);
       const emails = await dispatch(fetchEmailTemplates(storeCode)).unwrap();
       setEmailTemplates(emails);
-      if (account) {
-        const was = await dispatch(
-          fetchWhatsAppTemplates({
-            storeCode,
-            accountId: String(account.id),
-          }),
-        ).unwrap();
-        setWaTemplates(was);
-      } else {
-        setWaTemplates([]);
-      }
     } catch {
       // Thunks already surface a toast.
     }
@@ -228,6 +222,8 @@ export default function CampaignCreate({
               channel: s.whatsapp_template ? "whatsapp" : "email",
               templateId: String(s.whatsapp_template ?? s.email_template ?? ""),
               delayValue: String(s.delay_value ?? 0),
+              stepOrder: s.step_order,
+              hasRuns: s.has_runs,
             })),
         );
       } catch {
@@ -237,11 +233,36 @@ export default function CampaignCreate({
       }
     }
     setLoading(false);
-  }, [dispatch, storeCode, account, campaignId, router]);
+  }, [dispatch, storeCode, campaignId, router]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    loadCampaign();
+  }, [loadCampaign]);
+
+  // WhatsApp templates load on their own. Keeping them out of loadCampaign
+  // means a late-arriving account can't reload the form and wipe the edits.
+  const loadWaTemplates = useCallback(async () => {
+    if (!storeCode || !account) {
+      setWaTemplates([]);
+      return;
+    }
+    try {
+      setWaTemplates(
+        await dispatch(
+          fetchWhatsAppTemplates({
+            storeCode,
+            accountId: String(account.id),
+          }),
+        ).unwrap(),
+      );
+    } catch {
+      // The thunk already surfaces a toast.
+    }
+  }, [dispatch, storeCode, account]);
+
+  useEffect(() => {
+    loadWaTemplates();
+  }, [loadWaTemplates]);
 
   // WhatsApp templates only make sense as a send target once Meta has
   // approved them — a Draft/Pending row would fail the send at runtime.
@@ -257,7 +278,7 @@ export default function CampaignCreate({
   const addStep = () => setSteps((prev) => [...prev, newStep()]);
   const removeStep = (key: string) =>
     setSteps((prev) =>
-      prev.length > 1 ? prev.filter((s) => s.key !== key) : prev,
+      prev.length > 1 ? prev.filter((s) => s.key !== key || s.hasRuns) : prev,
     );
   const updateStep = (key: string, patch: Partial<StepForm>) =>
     setSteps((prev) =>
@@ -312,7 +333,13 @@ export default function CampaignCreate({
     return errors;
   };
 
-  const handleSubmit = async () => {
+  // A segment that was switched off can't be scheduled, so only active ones
+  // are offered. The one already chosen stays listed, so an edit still shows it.
+  const selectableSegments = segments.filter(
+    (s) => s.is_active || String(s.id) === segmentId,
+  );
+
+  const handleSubmit = async (publish: boolean) => {
     if (!storeCode) return;
 
     const clientErrors = runClientValidation();
@@ -323,6 +350,19 @@ export default function CampaignCreate({
 
     // Backend expects HH:MM:SS; the input gives us HH:MM.
     const paddedStartTime = `${startTime}:00`;
+
+    // Existing steps keep their step_order, so removing one never shifts the
+    // rest onto another step's row. New steps take the next free number.
+    const stepOrders: number[] = [];
+    let nextOrder = Math.max(-1, ...steps.map((s) => s.stepOrder ?? -1)) + 1;
+    for (const step of steps) {
+      if (step.stepOrder === undefined) {
+        stepOrders.push(nextOrder);
+        nextOrder += 1;
+      } else {
+        stepOrders.push(step.stepOrder);
+      }
+    }
 
     const payload: CampaignWritePayload = {
       name: name.trim(),
@@ -344,7 +384,7 @@ export default function CampaignCreate({
         start_time: paddedStartTime,
         // First step has no previous step to wait on, so its delay is null.
         delay_value: index === 0 ? null : Number(s.delayValue),
-        step_order: index,
+        step_order: stepOrders[index],
       })),
     };
 
@@ -361,29 +401,39 @@ export default function CampaignCreate({
         ).unwrap();
         // The backend removes a campaign's schedules on edit, so a live one
         // is scheduled again straight away.
+        const detailUrl = `/campaign/campaigns/${campaignId}`;
         if (existingStatus === "published" && existingIsActive) {
-          await dispatch(
-            scheduleCampaign({ storeCode, campaignId: Number(campaignId) }),
-          )
-            .unwrap()
-            .catch(() => undefined);
+          try {
+            await dispatch(
+              scheduleCampaign({ storeCode, campaignId: Number(campaignId) }),
+            ).unwrap();
+          } catch {
+            // The thunk surfaced the error. The detail screen can reschedule.
+            router.push(detailUrl);
+            return;
+          }
         }
         toast.success("Campaign updated");
-        router.push(`/campaign/campaigns/${campaignId}`);
+        router.push(detailUrl);
       } else {
         const created = await dispatch(
           createCampaign({ storeCode, payload }),
         ).unwrap();
-        if (publish) {
+        if (!publish) {
+          toast.success("Campaign saved as draft");
+          router.push("/campaign/campaigns");
+          return;
+        }
+        try {
           await dispatch(
             scheduleCampaign({ storeCode, campaignId: created.id }),
-          )
-            .unwrap()
-            .catch(() => undefined);
+          ).unwrap();
+        } catch {
+          // Published but not scheduled: the detail screen can reschedule.
+          router.push(`/campaign/campaigns/${created.id}`);
+          return;
         }
-        toast.success(
-          publish ? "Campaign published" : "Campaign saved as draft",
-        );
+        toast.success("Campaign published");
         router.push("/campaign/campaigns");
       }
     } catch (rejected) {
@@ -430,26 +480,20 @@ export default function CampaignCreate({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {isEditMode ? (
-            <Button onClick={handleSubmit} disabled={submitting}>
+            <Button onClick={() => handleSubmit(false)} disabled={submitting}>
               {submitting ? "Saving…" : "Save Changes"}
             </Button>
           ) : (
             <>
               <Button
                 variant="outline"
-                onClick={() => {
-                  setPublish(false);
-                  handleSubmit();
-                }}
+                onClick={() => handleSubmit(false)}
                 disabled={submitting}
               >
                 Save draft
               </Button>
               <Button
-                onClick={() => {
-                  setPublish(true);
-                  handleSubmit();
-                }}
+                onClick={() => handleSubmit(true)}
                 disabled={submitting}
               >
                 {submitting ? "Publishing…" : "Publish"}
@@ -536,12 +580,14 @@ export default function CampaignCreate({
                 <SelectValue placeholder="Pick a saved segment" />
               </SelectTrigger>
               <SelectContent>
-                {segments.length === 0 ? (
+                {selectableSegments.length === 0 ? (
                   <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                    No segments yet — create one first.
+                    {segments.length === 0
+                      ? "No segments yet — create one first."
+                      : "No active segments — activate one first."}
                   </div>
                 ) : (
-                  segments.map((s) => (
+                  selectableSegments.map((s) => (
                     <SelectItem key={s.id} value={String(s.id)}>
                       {s.name}
                     </SelectItem>
@@ -559,7 +605,7 @@ export default function CampaignCreate({
               <Label htmlFor="campaign-start-time-hour">
                 <span className="inline-flex items-center gap-1.5">
                   <IconClock className="size-4" />
-                  Start time
+                  Start time ({CAMPAIGN_TIME_ZONE}, every day)
                 </span>
               </Label>
               <InfoIcon text="Time of day, in your store's timezone, that new entrants begin this campaign's first step." />
@@ -603,7 +649,9 @@ export default function CampaignCreate({
             Sequence
           </CardTitle>
           <CardDescription>
-            Steps fire in order. Each step must wait at least 30 minutes after
+            Each step runs every day at its time, in {CAMPAIGN_TIME_ZONE}, until
+            the campaign is paused or ended. Steps fire in order. Each step must
+            wait at least 30 minutes after
             the previous one, and the whole sequence must fit inside 24 hours.
             Total right now:{" "}
             <span className="font-medium text-foreground">
@@ -761,7 +809,12 @@ export default function CampaignCreate({
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => removeStep(step.key)}
-                    disabled={steps.length === 1}
+                    disabled={steps.length === 1 || step.hasRuns}
+                    title={
+                      step.hasRuns
+                        ? "This step has already run, so it stays in the sequence."
+                        : undefined
+                    }
                     aria-label={`Remove step ${index + 1}`}
                   >
                     <IconTrash className="size-4" />

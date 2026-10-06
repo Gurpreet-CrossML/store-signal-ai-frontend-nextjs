@@ -40,6 +40,7 @@ import {
   fetchSegmentCategories,
   fetchSegmentDetail,
   previewSegmentCount,
+  SEGMENT_CATEGORY_ABANDONED_CART_SLUG,
   updateSegment,
   type SegmentCategory,
   type SegmentPreviewCustomer,
@@ -234,6 +235,9 @@ export default function SegmentCreate({
     pageSize: 10,
   });
 
+  const isAbandonedCart =
+    categoryById.get(Number(form.category))?.slug ===
+    SEGMENT_CATEGORY_ABANDONED_CART_SLUG;
   const previewKey = `${form.category}|${form.time_period}|${form.min_price}`;
   const debouncedPreviewKey = useDebounce(previewKey, 400);
 
@@ -309,6 +313,12 @@ export default function SegmentCreate({
     if (!form.name.trim()) clientErrors.name = "Give the segment a name.";
     if (!form.category) clientErrors.category = "Pick a category.";
     if (!form.time_period) clientErrors.time_period = "Set the window in days.";
+    if (Number(form.min_price) < 0) {
+      clientErrors.min_price = "min_price cannot be negative.";
+    } else if (isAbandonedCart && Number(form.min_price) !== 0) {
+      clientErrors.min_price =
+        "min_price doesn't apply to this category; leave it at 0.";
+    }
     if (Object.keys(clientErrors).length) {
       setFieldErrors(clientErrors);
       return;
@@ -445,8 +455,17 @@ export default function SegmentCreate({
               <Select
                 value={form.category}
                 onValueChange={(value) => {
-                  setForm({ ...form, category: value });
+                  const picked = categoryById.get(Number(value));
+                  setForm({
+                    ...form,
+                    category: value,
+                    // Abandoned-cart has no cart value, so only 0 is accepted.
+                    ...(picked?.slug === SEGMENT_CATEGORY_ABANDONED_CART_SLUG
+                      ? { min_price: "0" }
+                      : {}),
+                  });
                   clearFieldError("category");
+                  clearFieldError("min_price");
                 }}
               >
                 <SelectTrigger
@@ -495,12 +514,13 @@ export default function SegmentCreate({
             <div className="space-y-2">
               <div className="flex items-center gap-1.5">
                 <Label htmlFor="segment-min-price">Min cart value (₹)</Label>
-                <InfoIcon text="Only customers whose order or spend reaches this amount are included." />
+                <InfoIcon text="Only customers whose order or spend reaches this amount are included. Abandoned-cart has no cart value, so it stays at 0." />
               </div>
               <Input
                 id="segment-min-price"
                 type="number"
                 min={0}
+                disabled={isAbandonedCart}
                 value={form.min_price}
                 onChange={(event) => {
                   setForm({ ...form, min_price: event.target.value });
