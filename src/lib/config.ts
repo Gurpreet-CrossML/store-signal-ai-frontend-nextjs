@@ -455,6 +455,8 @@ export const ENDPOINTS = {
     `/campaign/campaigns/${campaignId}/`,
   campaignSequenceSteps: ({ campaignId }: { campaignId: number }) =>
     `/campaign/campaigns/${campaignId}/sequence-steps/`,
+  campaignSchedule: ({ campaignId }: { campaignId: number }) =>
+    `/campaign/campaigns/${campaignId}/schedule/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

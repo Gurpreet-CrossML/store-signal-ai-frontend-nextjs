@@ -49,6 +49,7 @@ import {
   fetchCampaignSequenceSteps,
   fetchEmailTemplates,
   fetchSegments,
+  scheduleCampaign,
   updateCampaign,
   type CampaignWritePayload,
   type EmailTemplate,
@@ -358,10 +359,24 @@ export default function CampaignCreate({
             payload,
           }),
         ).unwrap();
+        // The backend removes a campaign's schedules on edit, so a live one
+        // is scheduled again straight away.
+        if (existingStatus === "published" && existingIsActive) {
+          await dispatch(
+            scheduleCampaign({ storeCode, campaignId: Number(campaignId) }),
+          ).unwrap().catch(() => undefined);
+        }
         toast.success("Campaign updated");
         router.push(`/campaign/campaigns/${campaignId}`);
       } else {
-        await dispatch(createCampaign({ storeCode, payload })).unwrap();
+        const created = await dispatch(
+          createCampaign({ storeCode, payload }),
+        ).unwrap();
+        if (publish) {
+          await dispatch(
+            scheduleCampaign({ storeCode, campaignId: created.id }),
+          ).unwrap().catch(() => undefined);
+        }
         toast.success(
           publish ? "Campaign published" : "Campaign saved as draft",
         );

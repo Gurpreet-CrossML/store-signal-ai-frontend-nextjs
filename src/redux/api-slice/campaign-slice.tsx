@@ -465,10 +465,20 @@ export type Campaign = {
 };
 
 // One campaign's own fields, as the detail endpoint returns them — the steps
-// come from their own endpoint (see CampaignSequenceSteps). ``job_id`` is the
-// next unfinished step run's id, or null when nothing is scheduled.
-export type CampaignDetail = Omit<Campaign, "sequence_steps"> & {
-  job_id: string | null;
+// come from their own endpoint (see CampaignSequenceSteps).
+export type CampaignDetail = Omit<Campaign, "sequence_steps">;
+
+// What the schedule endpoint reports: one recurring daily schedule per step
+// it could book, and an error for each step it could not.
+export type CampaignScheduleResult = {
+  campaign: string;
+  scheduled: {
+    step_order: number;
+    sequence_step_id: number;
+    schedule_name: string;
+    cron: string;
+  }[];
+  errors: { step_order: number; error: string }[];
 };
 
 // The steps endpoint's response: which campaign the steps belong to, plus
@@ -647,6 +657,41 @@ export const updateCampaign = createAsyncThunk(
       // Reject with the whole envelope so the form can pull field errors
       // out of ``err.data`` (DRF puts one on the 400 response).
       return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+    }
+  },
+);
+
+// Puts the campaign's recurring daily schedules in place. Call after anything
+// that starts a live campaign: publishing, resuming, or editing one that is
+// running (the backend removes its schedules on edit).
+export const scheduleCampaign = createAsyncThunk(
+  "scheduleCampaign",
+  async (
+    { storeCode, campaignId }: { storeCode: string; campaignId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.campaignSchedule({ campaignId })}?store_code=${storeCode}`,
+        undefined,
+        { useBackend: true },
+      );
+      const result = response.data.data as CampaignScheduleResult;
+      if (result.errors.length > 0) {
+        toast.error("Some steps couldn't be scheduled", {
+          description: result.errors
+            .map((entry) => `Step ${entry.step_order + 1}: ${entry.error}`)
+            .join("\n"),
+        });
+      }
+      return result;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't schedule the campaign", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );
