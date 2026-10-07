@@ -39,6 +39,12 @@ export const ENDPOINTS = {
   verifyToken: () => createAPIUrl("/auth/token/verify/", "django"),
   profile: () => createAPIUrl("/auth/profile/", "django"),
 
+  // Password reset (Django, public). Called without the session token: a
+  // revoked token on a public endpoint would fail authentication.
+  forgotPassword: () => createAPIUrl("/auth/password/forgot/", "django"),
+  openResetLink: () => createAPIUrl("/auth/password/reset/validate/", "django"),
+  resetPassword: () => createAPIUrl("/auth/password/reset/confirm/", "django"),
+
   // Chat Websocket (Django)
   chatSocket: (threadId: string, token: string) =>
     createWebSocketUrl(`/chat/${threadId}/?role=agent&token=${token}`),
@@ -68,11 +74,6 @@ export const ENDPOINTS = {
   createStaff: () => "/tenancy/staff/",
   updateStaff: (id: number) => `/tenancy/staff/${id}/`,
   resetStaffPassword: (id: number) => `/tenancy/staff/${id}/reset-password/`,
-  // Per-store access grants for a staff user (Django; GET needs useBackend).
-  fetchStoreAccess: (userId: number) =>
-    `/tenancy/staff/${userId}/store-access/`,
-  updateStoreAccess: (userId: number, storeCode: string) =>
-    `/tenancy/staff/${userId}/store-access/${storeCode}/`,
 
   // Store Management
   fetchStoresList: () => "/store/list",

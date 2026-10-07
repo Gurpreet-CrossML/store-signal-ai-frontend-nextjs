@@ -10,7 +10,7 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  * Optional query param `limit`: when a positive integer, returns the latest
  * `limit` messages (ordered -created_at); otherwise all messages (created_at).
  */
-export default withTenantRoute(handler);
+export default withTenantRoute(handler, "conversations");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {

@@ -2,8 +2,8 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import {
-  IconBuildingStore,
   IconDotsVertical,
+  IconUserCog,
   IconKey,
   IconUserCheck,
   IconUserOff,
@@ -18,9 +18,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { StaffMember } from "@/redux/api-slice/tenancy-slice";
+import { ROLE_LABELS } from "@/lib/staff-roles";
 
 export type StaffRowActions = {
-  onStoreAccess: (staff: StaffMember) => void;
+  onChangeRole: (staff: StaffMember) => void;
   onResetPassword: (staff: StaffMember) => void;
   onToggleActive: (staff: StaffMember) => void;
 };
@@ -49,11 +50,11 @@ export function getStaffColumns(
       ),
     },
     {
-      accessorKey: "is_staff",
+      accessorKey: "role",
       header: "Role",
       cell: ({ row }) => (
-        <Badge variant={row.original.is_staff ? "default" : "secondary"}>
-          {row.original.is_staff ? "Admin" : "Staff"}
+        <Badge variant="secondary">
+          {ROLE_LABELS[row.original.role] ?? row.original.role}
         </Badge>
       ),
     },
@@ -80,9 +81,9 @@ export function getStaffColumns(
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => actions.onStoreAccess(s)}>
-                  <IconBuildingStore />
-                  Store access
+                <DropdownMenuItem onSelect={() => actions.onChangeRole(s)}>
+                  <IconUserCog />
+                  Change role
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => actions.onResetPassword(s)}>
                   <IconKey />

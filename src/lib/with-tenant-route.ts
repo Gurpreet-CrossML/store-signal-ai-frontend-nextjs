@@ -4,7 +4,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { createAPIResponse, handleApiError } from "@/lib/helpers";
 import { runWithTenant } from "@/lib/tenant-context";
-import { buildAccess, resolveTenant } from "@/lib/access-rules";
+import {
+  buildAccess,
+  can,
+  isWriteMethod,
+  resolveTenant,
+} from "@/lib/access-rules";
+import type { Permission } from "@/lib/tenant-types";
 import { isSessionActive } from "@/lib/session-verify";
 
 /**
@@ -14,8 +20,16 @@ import { isSessionActive } from "@/lib/session-verify";
  * session, resolves the tenant, and runs the handler under
  * `runWithTenant(...)` — so every `getDb()` call inside `src/db/*` hits the
  * right schema. The handler itself stays unchanged.
+ *
+ * `permission` is the role permission the route needs, the same one its
+ * Django twin declares as `role_permission`. These routes read the database
+ * directly and never reach Django's role check, so it is repeated here.
+ * Leaving it out makes the route admin-only, as in Django.
  */
-export function withTenantRoute(handler: NextApiHandler): NextApiHandler {
+export function withTenantRoute(
+  handler: NextApiHandler,
+  permission?: Permission,
+): NextApiHandler {
   return async (req, res) => {
     const session = await getServerSession(req, res, authOptions);
     if (!session) {
@@ -32,6 +46,18 @@ export function withTenantRoute(handler: NextApiHandler): NextApiHandler {
       return res
         .status(401)
         .json(createAPIResponse(false, "Session is no longer valid.", null));
+    }
+
+    if (!can(session.user, permission, { write: isWriteMethod(req.method) })) {
+      return res
+        .status(403)
+        .json(
+          createAPIResponse(
+            false,
+            "You do not have permission to perform this action.",
+            null,
+          ),
+        );
     }
 
     const companyCode = resolveTenant(session.user);

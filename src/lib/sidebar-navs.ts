@@ -6,6 +6,8 @@ import {
   type Icon,
 } from "@tabler/icons-react";
 
+import { can, type SessionIdentity } from "@/lib/access-rules";
+import type { Permission } from "@/lib/tenant-types";
 import {
   NAV_AREAS,
   type AreaSection,
@@ -43,6 +45,8 @@ export type MainSidebarMenuItem = {
   activeBasePath?: string;
   /** Only shown to company admins (is_staff). */
   adminOnly?: boolean;
+  /** Shown to roles that may read this permission (see `can`). */
+  permission?: Permission;
 };
 
 export type SideBarMenus = {
@@ -230,7 +234,11 @@ export function findMenuItemByUrl(
  */
 function areaMenuItem(
   key: NavAreaKey,
-  { adminOnly, url }: { adminOnly?: boolean; url?: string } = {},
+  {
+    adminOnly,
+    permission,
+    url,
+  }: { adminOnly?: boolean; permission?: Permission; url?: string } = {},
 ): MainSidebarMenuItem {
   return {
     title: NAV_AREAS[key].title,
@@ -238,6 +246,7 @@ function areaMenuItem(
     icon: NAV_AREAS[key].icon,
     subSidebarKey: key,
     ...(adminOnly ? { adminOnly: true } : {}),
+    ...(permission ? { permission } : {}),
     // The icon lands on the first screen, but stays lit for the whole
     // area — without this it would unlight on every sibling screen.
     activeBasePath: NAV_AREAS[key].href,
@@ -281,24 +290,28 @@ export const sidebarMenus: SideBarMenus = {
       title: "Dashboard",
       url: "/",
       icon: IconDashboard,
+      permission: "team_metrics",
     },
     {
       title: "Live Support",
       url: "/support",
       icon: IconMessageUser,
+      permission: "conversations",
     },
     {
       title: "Threads",
       url: "/threads",
       icon: IconMessage2,
+      permission: "conversations",
     },
-    areaMenuItem("helpdesk", { adminOnly: true }),
-    areaMenuItem("socialAI"),
+    areaMenuItem("helpdesk", { permission: "conversations" }),
+    // Social AI is admin-only until its roles are decided.
+    areaMenuItem("socialAI", { adminOnly: true }),
+    areaMenuItem("crm", { permission: "conversations" }),
     areaMenuItem("campaign"),
-    areaMenuItem("crm"),
     areaMenuItem("brandVoice", { adminOnly: true }),
     areaMenuItem("settings", { adminOnly: true }),
-    areaMenuItem("knowledge", { adminOnly: true }),
+    areaMenuItem("knowledge", { permission: "knowledge" }),
   ],
 
   navSubSidebar: {
@@ -320,3 +333,25 @@ export const sidebarMenus: SideBarMenus = {
   //   },
   // ],
 };
+
+/**
+ * May this user see a main-nav entry? The same rule the area's page gate
+ * applies, so a visible entry never leads to a locked page.
+ */
+export function isNavItemVisible(
+  item: MainSidebarMenuItem,
+  user: SessionIdentity | null | undefined,
+): boolean {
+  if (item.adminOnly) return Boolean(user?.is_staff);
+  if (item.permission) return can(user, item.permission);
+  return true;
+}
+
+/** Where to send a user whose role cannot open the page they landed on. */
+export function firstVisibleNavUrl(
+  user: SessionIdentity | null | undefined,
+): string | null {
+  return (
+    sidebarMenus.nav.find((item) => isNavItemVisible(item, user))?.url ?? null
+  );
+}

@@ -69,6 +69,7 @@ export function KnowledgeList({
   onEditItem,
   onDelete,
   hasFilters,
+  canEdit,
 }: {
   items: KnowledgeItem[];
   isLoading: boolean;
@@ -76,6 +77,8 @@ export function KnowledgeList({
   onEditItem: (item: KnowledgeItem) => void;
   onDelete: (item: KnowledgeItem) => void;
   hasFilters: boolean;
+  /** False for a read-only role: no add, edit or delete controls. */
+  canEdit: boolean;
 }) {
   if (isLoading) {
     return <LoadingState label="Loading knowledge…" />;
@@ -99,7 +102,7 @@ export function KnowledgeList({
               : "Add general info, product & category knowledge, FAQs, policies, documents, or offers so the AI can answer from it."}
           </EmptyDescription>
         </EmptyHeader>
-        {!hasFilters && (
+        {!hasFilters && canEdit && (
           <EmptyContent>
             <Button size="sm" asChild>
               <Link href="/knowledge/library/new">
@@ -218,58 +221,60 @@ export function KnowledgeList({
                 </TableCell>
 
                 <TableCell className="px-4 text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Knowledge actions"
+                  {canEdit && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Knowledge actions"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <IconDotsVertical className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
                         onClick={(event) => event.stopPropagation()}
                       >
-                        <IconDotsVertical className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="end"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      {item.status === "completed" ? (
-                        <DropdownMenuItem onClick={() => onEditItem(item)}>
-                          <IconPencil />
-                          Edit
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem
-                          className="opacity-50 cursor-not-allowed"
-                          onClick={(e) => e.preventDefault()}
-                          title="Only completed items can be edited"
-                        >
-                          <IconPencil />
-                          Edit
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                      {item.status === "processing" ? (
-                        <DropdownMenuItem
-                          variant="destructive"
-                          className="opacity-50 cursor-not-allowed"
-                          onClick={(e) => e.preventDefault()}
-                          title="Item is in progress and cannot be deleted"
-                        >
-                          <IconTrash />
-                          Delete
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => onDelete(item)}
-                        >
-                          <IconTrash />
-                          Delete
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        {item.status === "completed" ? (
+                          <DropdownMenuItem onClick={() => onEditItem(item)}>
+                            <IconPencil />
+                            Edit
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            className="opacity-50 cursor-not-allowed"
+                            onClick={(e) => e.preventDefault()}
+                            title="Only completed items can be edited"
+                          >
+                            <IconPencil />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        {item.status === "processing" ? (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            className="opacity-50 cursor-not-allowed"
+                            onClick={(e) => e.preventDefault()}
+                            title="Item is in progress and cannot be deleted"
+                          >
+                            <IconTrash />
+                            Delete
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => onDelete(item)}
+                          >
+                            <IconTrash />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </TableCell>
               </TableRow>
             );

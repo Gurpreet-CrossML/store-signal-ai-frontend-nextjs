@@ -79,6 +79,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
+import { can } from "@/lib/access-rules";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { formatRelativeDateTime } from "@/lib/helpers";
 
@@ -1304,7 +1305,23 @@ export default function Support() {
         toast.error("Permission Issue!", {
           description: data?.message || "",
         });
+        // Refused because another agent holds the chat: show who.
+        if (data?.chat_handler_user) {
+          setConnectedAgent(data.chat_handler_user);
+          connectedAgentRef.current = data.chat_handler_user;
+        }
         setTransitionState("idle");
+        return;
+      }
+
+      // A message the server refused: a read-only role, another agent
+      // holding the chat, or no AI credits left.
+      if (data?.success === false && data?.message) {
+        toast.error("Message not sent", { description: data.message });
+        if (data?.chat_handler_user) {
+          setConnectedAgent(data.chat_handler_user);
+          connectedAgentRef.current = data.chat_handler_user;
+        }
         return;
       }
 
@@ -1695,7 +1712,16 @@ export default function Support() {
                         </div>
                       )}
                     </div>
-                    {selectedThread?.is_active ? (
+                    {selectedThread?.is_active &&
+                    !can(session?.user, "conversations", { write: true }) ? (
+                      // Read-only role: can watch the chat, not join it.
+                      <div className="border-t p-4 text-center">
+                        <Typography variant="muted">
+                          Your role can view this conversation but not reply or
+                          take it over.
+                        </Typography>
+                      </div>
+                    ) : selectedThread?.is_active ? (
                       <ThreadChatControls
                         activeThreadId={activeThreadId}
                         isThreadActive={selectedThread.is_active}
