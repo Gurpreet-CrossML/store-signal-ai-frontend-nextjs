@@ -8,6 +8,7 @@ import { CreateTicketDialog } from "@/components/custom/create-ticket-dialog";
 import { Button } from "@/components/ui/button";
 import { CreateSupportTicket } from "@/redux/api-slice/support-ticket-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useCan } from "@/hooks/use-can";
 
 /**
  * Raise a ticket with no conversation behind it.
@@ -25,7 +26,9 @@ export function CreateTicketAction() {
     (state) => state.GetStoresReducer.selectedStore,
   );
 
-  if (!storeCode) return null;
+  const canCreate = useCan("conversations", { write: true });
+
+  if (!storeCode || !canCreate) return null;
 
   return (
     <>

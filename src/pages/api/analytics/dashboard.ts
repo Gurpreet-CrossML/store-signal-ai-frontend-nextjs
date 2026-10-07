@@ -10,7 +10,7 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  * the dashboard makes a single request (one tenant transaction, one verify) and
  * benefits from the shared short-TTL cache instead of 5 separate calls.
  */
-export default withTenantRoute(handler);
+export default withTenantRoute(handler, "team_metrics");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {

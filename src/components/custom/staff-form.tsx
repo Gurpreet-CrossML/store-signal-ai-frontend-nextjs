@@ -10,6 +10,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -20,12 +27,24 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { formikErrorsFromZod, applyServerFieldErrors } from "@/lib/form-errors";
 import { CreateStaff } from "@/redux/api-slice/tenancy-slice";
+import { ASSIGNABLE_ROLES, ROLE_LABELS } from "@/lib/staff-roles";
 
 const validationSchema = z.object({
   first_name: z.string().trim().min(1, "First name is required"),
   last_name: z.string().trim().min(1, "Last name is required"),
   email: z.string().trim().email("Enter a valid email"),
+  // The select offers only valid roles, and the server checks it again.
+  role: z.string().min(1, "Choose a role"),
 });
+
+type AssignableRole = (typeof ASSIGNABLE_ROLES)[number]["value"];
+
+type StaffFormValues = {
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: AssignableRole | "";
+};
 
 type StaffFormProps = {
   open: boolean;
@@ -41,15 +60,21 @@ export default function StaffForm({
   const dispatch = useAppDispatch();
   const { staffSaving } = useAppSelector((state) => state.GetTenancyReducer);
 
-  const formik = useFormik({
-    initialValues: { first_name: "", last_name: "", email: "" },
+  const formik = useFormik<StaffFormValues>({
+    initialValues: { first_name: "", last_name: "", email: "", role: "" },
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
       return formikErrorsFromZod(result.error.issues);
     },
     onSubmit: async (values) => {
-      const result = await dispatch(CreateStaff(values));
+      // `validate` has already rejected an empty role.
+      const result = await dispatch(
+        CreateStaff({
+          ...values,
+          role: values.role as AssignableRole,
+        }),
+      );
       if (CreateStaff.fulfilled.match(result)) {
         onSaved();
         onOpenChange(false);
@@ -74,8 +99,8 @@ export default function StaffForm({
           <SheetTitle>Add Staff User</SheetTitle>
           <SheetDescription>
             Create a staff account for your company. A temporary password is
-            auto-generated and emailed to them. Store-level access is granted
-            separately.
+            auto-generated and emailed to them. Their role decides what they can
+            do, in every store.
           </SheetDescription>
         </SheetHeader>
 
@@ -112,6 +137,44 @@ export default function StaffForm({
                 )}
               </Field>
             ))}
+            <Field>
+              <FieldLabel htmlFor="role">Role</FieldLabel>
+              <Select
+                value={formik.values.role}
+                onValueChange={(value) => {
+                  formik.setFieldValue("role", value);
+                  formik.setFieldTouched("role", true, false);
+                }}
+              >
+                <SelectTrigger
+                  id="role"
+                  className="w-full"
+                  aria-invalid={Boolean(
+                    formik.touched.role && formik.errors.role,
+                  )}
+                >
+                  <SelectValue placeholder="Choose a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ASSIGNABLE_ROLES.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {ROLE_LABELS[role.value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formik.values.role && (
+                <p className="text-xs text-muted-foreground">
+                  {
+                    ASSIGNABLE_ROLES.find((r) => r.value === formik.values.role)
+                      ?.description
+                  }
+                </p>
+              )}
+              {formik.touched.role && formik.errors.role && (
+                <p className="text-xs text-destructive">{formik.errors.role}</p>
+              )}
+            </Field>
           </FieldGroup>
 
           <SheetFooter>

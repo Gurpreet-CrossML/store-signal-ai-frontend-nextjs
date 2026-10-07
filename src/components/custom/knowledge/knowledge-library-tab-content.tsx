@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useCan } from "@/hooks/use-can";
 import {
   DeleteKnowledgeItem,
   FetchKnowledgeItems,
@@ -71,6 +72,7 @@ const SOURCE_TABS: {
 
 export default function KnowledgeLibraryTabContent() {
   const dispatch = useAppDispatch();
+  const canEditKnowledge = useCan("knowledge", { write: true });
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -289,12 +291,14 @@ export default function KnowledgeLibraryTabContent() {
             )}
           </Button>
 
-          <Button size="sm" asChild>
-            <Link href="/knowledge/library/new">
-              <IconPlus className="size-4" />
-              Add Knowledge
-            </Link>
-          </Button>
+          {canEditKnowledge && (
+            <Button size="sm" asChild>
+              <Link href="/knowledge/library/new">
+                <IconPlus className="size-4" />
+                Add Knowledge
+              </Link>
+            </Button>
+          )}
         </div>
       )}
 
@@ -305,6 +309,7 @@ export default function KnowledgeLibraryTabContent() {
         onEditItem={handleEditItem}
         onDelete={(item) => setItemToDelete(item)}
         hasFilters={hasFilters}
+        canEdit={canEditKnowledge}
       />
 
       <KnowledgeDataTablePagination

@@ -17,7 +17,7 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  * Both branches return a generic 500 on error (the raw cause is logged
  * server-side, never sent to the client — see handleApiError).
  */
-export default withTenantRoute(handler);
+export default withTenantRoute(handler, "conversations");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {
