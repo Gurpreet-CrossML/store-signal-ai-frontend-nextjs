@@ -132,6 +132,7 @@ async function fetchIdentity(accessToken: string): Promise<Identity | null> {
       accessible_stores: Array.isArray(d.accessible_stores)
         ? d.accessible_stores
         : [],
+      permissions: d.permissions ?? {},
     };
     if (typeof d.onboarding_pending === "boolean") {
       identity.onboarding_pending = d.onboarding_pending;

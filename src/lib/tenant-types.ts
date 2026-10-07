@@ -43,6 +43,8 @@ export type Identity = {
   permissions: PermissionMap;
   /** Every store in the company. */
   accessible_stores: AccessibleStore[];
+  /** What the user's role may do, e.g. { conversations: "write" }. */
+  permissions?: Record<string, string>;
   /** Present when the profile endpoint reports onboarding (login always does). */
   onboarding_pending?: boolean;
   onboarding_step?: string | null;

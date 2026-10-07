@@ -24,6 +24,7 @@ declare module "next-auth" {
     role?: StaffRole | null;
     permissions?: PermissionMap;
     accessible_stores?: AccessibleStore[];
+    permissions?: Record<string, string>;
     // Onboarding flow: if the user has not yet completed the initial setup, we
     // redirect them to the onboarding flow instead of the dashboard.
     onboarding_pending?: boolean;
@@ -41,6 +42,8 @@ declare module "next-auth" {
       role?: StaffRole | null;
       permissions?: PermissionMap;
       accessible_stores?: AccessibleStore[];
+      // What the user's role may do, e.g. { conversations: "write" }.
+      permissions?: Record<string, string>;
       // Onboarding flow: if the user has not yet completed the initial setup, we
       // redirect them to the onboarding flow instead of the dashboard.
       onboarding_pending?: boolean;
@@ -65,6 +68,7 @@ declare module "next-auth/jwt" {
     role?: StaffRole | null;
     permissions?: PermissionMap;
     accessible_stores?: AccessibleStore[];
+    permissions?: Record<string, string>;
     onboarding_pending?: boolean;
     onboarding_step?: string | null;
     // Set when a refresh attempt fails; the client treats it as a signal to
@@ -210,6 +214,7 @@ export const authOptions: AuthOptions = {
           role: token.role,
           permissions: token.permissions,
           accessible_stores: token.accessible_stores,
+          permissions: token.permissions,
           onboarding_pending: token.onboarding_pending,
           onboarding_step: token.onboarding_step,
         },
@@ -236,6 +241,7 @@ export const authOptions: AuthOptions = {
         token.role = user.role ?? null;
         token.permissions = user.permissions ?? {};
         token.accessible_stores = user.accessible_stores ?? [];
+        token.permissions = user.permissions ?? {};
 
         token.onboarding_pending = user.onboarding_pending ?? false;
         token.onboarding_step = user.onboarding_step ?? null;
@@ -267,6 +273,7 @@ export const authOptions: AuthOptions = {
         token.role = identity.role;
         token.permissions = identity.permissions;
         token.accessible_stores = identity.accessible_stores;
+        token.permissions = identity.permissions ?? token.permissions;
         if (identity.onboarding_pending !== undefined) {
           token.onboarding_pending = identity.onboarding_pending;
           token.onboarding_step = identity.onboarding_step ?? null;
