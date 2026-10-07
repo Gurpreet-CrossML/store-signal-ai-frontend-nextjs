@@ -1,4 +1,8 @@
-import type { AccessLevel, AccessibleStore } from "@/lib/tenant-types";
+import type {
+  AccessibleStore,
+  Permission,
+  PermissionMap,
+} from "@/lib/tenant-types";
 
 /**
  * Pure tenancy / per-store access rules — the heart of cross-tenant and
@@ -9,10 +13,10 @@ import type { AccessLevel, AccessibleStore } from "@/lib/tenant-types";
  */
 
 /**
- * Per-store access for a request (mirrors backend §5b). `storeCodes` is the set
- * of stores a STAFF user may touch; it is `null` for a company admin
- * (`is_staff`), who is unrestricted within the active tenant. `levels` carries
- * the grant level per code (for write gating).
+ * Store access for a request. `storeCodes` is the set of stores a user may
+ * touch; it is `null` for a company admin (`is_staff`), who is unrestricted
+ * within the active tenant. A staff role applies to every store, so for
+ * staff it is simply the company's store list.
  *
  * Note: platform superusers (`is_superuser`) cannot sign in to the dashboard —
  * they are rejected at login (see api/auth/[...nextauth]) — so only company
@@ -21,7 +25,6 @@ import type { AccessLevel, AccessibleStore } from "@/lib/tenant-types";
 export type RequestAccess = {
   isStaff: boolean;
   storeCodes: string[] | null;
-  levels: Record<string, AccessLevel>;
 };
 
 /** The session identity fields these rules read. */
@@ -29,6 +32,7 @@ export type SessionIdentity = {
   is_staff?: boolean;
   company_code?: string | null;
   accessible_stores?: AccessibleStore[];
+  permissions?: PermissionMap;
 };
 
 // A company code IS a Postgres schema identifier and goes straight into a raw
@@ -41,16 +45,33 @@ export function isValidSchemaName(code: string): boolean {
   return SCHEMA_RE.test(code);
 }
 
-/** Required access level for an HTTP method: reads → view, writes → manage. */
-export function requiredLevel(method?: string): AccessLevel {
-  return (method ?? "GET").toUpperCase() === "GET" ? "view" : "manage";
+/**
+ * May this user use `permission`? Mirrors Django's `tenancy.roles.has_permission`
+ * using the permission map Django sent: a company admin always may; staff
+ * need the permission at `write` for a change, or at least `read` otherwise.
+ * `undefined` means admin-only, like an untagged Django view.
+ */
+export function can(
+  identity: SessionIdentity | null | undefined,
+  permission: Permission | undefined,
+  { write = false }: { write?: boolean } = {},
+): boolean {
+  if (!identity) return false;
+  if (identity.is_staff) return true;
+  if (!permission) return false;
+  const granted = identity.permissions?.[permission];
+  return write ? granted === "write" : granted !== undefined;
+}
+
+/** Is this HTTP method a change (anything but GET/HEAD/OPTIONS)? */
+export function isWriteMethod(method?: string): boolean {
+  return !["GET", "HEAD", "OPTIONS"].includes((method ?? "GET").toUpperCase());
 }
 
 /**
  * Build the access context from the session identity. A company admin
  * (`is_staff`) is unrestricted within the active tenant (`storeCodes = null`);
- * staff are limited to their granted stores. The `accessible_stores` list is the
- * backend's authoritative computation.
+ * staff are limited to the `accessible_stores` list the backend sent.
  */
 export function buildAccess(identity: SessionIdentity): RequestAccess {
   const stores = identity.accessible_stores ?? [];
@@ -58,7 +79,6 @@ export function buildAccess(identity: SessionIdentity): RequestAccess {
   return {
     isStaff: Boolean(identity.is_staff),
     storeCodes: unrestricted ? null : stores.map((s) => s.code),
-    levels: Object.fromEntries(stores.map((s) => [s.code, s.level])),
   };
 }
 
@@ -81,7 +101,7 @@ export function resolveStoreScope(
     // Company admin: any store in the active tenant.
     return requested ? [requested] : null;
   }
-  // Staff: only their granted stores. A requested code must be in the set.
+  // Staff: only the listed stores. A requested code must be in the set.
   if (requested) return codes.includes(requested) ? [requested] : [];
   return codes;
 }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getToken } from "next-auth/jwt";
 
+import { isPublicRoute, isSignedOutRoute } from "@/lib/auth-routes";
+
 // Next.js 16 renamed Middleware → Proxy (see node_modules/next/dist/docs/.../proxy.md).
 // Proxy runs on the Node.js runtime and is meant for FAST, optimistic checks —
 // not slow data fetching or full session management. So this only does the
@@ -10,9 +12,6 @@ import { getToken } from "next-auth/jwt";
 // cascade via Django verify-token — lives in the Node route layer
 // (src/lib/with-tenant-route.ts → src/lib/session-verify.ts), where a fetch is
 // appropriate and its result can be cached.
-
-// List of routes for unauthenticated users (auth pages)
-const authRoutes = ["/login", "/signup"];
 
 export async function proxy(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
@@ -35,14 +34,18 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Password reset links work signed in or not (see auth-routes).
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next();
+  }
+
   // Authenticated user trying to access auth pages → redirect to /dashboard
-  if (token && authRoutes.includes(pathname)) {
+  if (token && isSignedOutRoute(pathname)) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
   // Unauthenticated user trying to access protected route → redirect to /login
-  const isProtected = !authRoutes.includes(pathname);
-  if (!token && isProtected) {
+  if (!token && !isSignedOutRoute(pathname)) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 

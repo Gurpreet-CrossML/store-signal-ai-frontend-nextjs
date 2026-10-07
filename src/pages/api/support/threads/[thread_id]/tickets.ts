@@ -4,7 +4,7 @@ import { createAPIResponse } from "@/lib/helpers";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { withTenantRoute } from "@/lib/with-tenant-route";
 
-export default withTenantRoute(handler);
+export default withTenantRoute(handler, "conversations");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {

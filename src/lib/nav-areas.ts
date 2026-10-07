@@ -31,7 +31,7 @@ import {
   IconBuildingStore,
   IconTags,
   IconUserHexagon,
-  // IconUsers,
+  IconUsers,
   IconUser,
   IconUsersGroup,
   IconShoppingBag,
@@ -172,14 +172,14 @@ export const NAV_AREAS = {
           "Your company's contact details, logo, and address. The name and code are managed by the platform operator.",
         icon: IconBuildingSkyscraper,
       },
-      // {
-      //   href: "/settings/staff-management",
-      //   title: "Staff Management",
-      //   description: "Invite teammates and control who has access.",
-      //   pageDescription:
-      //     "Manage your company's users. New staff receive an emailed temporary password.",
-      //   icon: IconUsers,
-      // },
+      {
+        href: "/settings/staff-management",
+        title: "Staff Management",
+        description: "Invite teammates and choose what each one can do.",
+        pageDescription:
+          "Manage your company's users and their roles. New staff receive an emailed temporary password.",
+        icon: IconUsers,
+      },
       {
         href: "/settings/store",
         title: "Stores",

@@ -5,7 +5,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { withTenantRoute } from "@/lib/with-tenant-route";
 
 // Mirrors Django ConversionRateAPIView + ConversionRateSerializer.
-export default withTenantRoute(handler);
+export default withTenantRoute(handler, "team_metrics");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {
