@@ -60,6 +60,8 @@ export type PromptStepOverride = {
   suggestions?: string | null;
   /** Tools added to the step on top of the ones its YAML gives it. */
   tools_extra?: string[] | null;
+  /** Replaces the step's tool-call limit from its YAML. */
+  max_tool_calls?: number | null;
 };
 
 export type PromptOverride = {
@@ -317,9 +319,10 @@ export function withStepText(
   defaults: WorkflowStep,
   values: StepText,
 ): PromptOverride {
+  // Keep the step's other settings (added tools, tool-call limit).
   return withStep(draft, defaults.key, {
+    ...draft.steps?.[defaults.key],
     ...stepOverrideFrom(defaults, values),
-    tools_extra: draft.steps?.[defaults.key]?.tools_extra ?? null,
   });
 }
 
