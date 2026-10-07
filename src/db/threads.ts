@@ -421,7 +421,7 @@ export async function list_threads(
               id: row.chat_handler_user_id,
               name: handlerName,
               email: row.chat_handler_user_email ?? "",
-          }
+            }
           : null,
       need_escalation: row.need_escalation,
       escalation_timer: row.escalation_timer,

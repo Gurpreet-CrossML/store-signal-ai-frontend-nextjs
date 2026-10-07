@@ -1750,7 +1750,7 @@ export default function Support() {
                         ? "bg-red-50 text-red-700"
                         : readFilter === option.key
                           ? "bg-primary/10 text-primary"
-                        : "bg-muted text-foreground/70",
+                          : "bg-muted text-foreground/70",
                     )}
                   >
                     {threadTabCounts[option.key]}

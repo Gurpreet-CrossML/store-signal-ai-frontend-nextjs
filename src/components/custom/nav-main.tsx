@@ -162,9 +162,7 @@ function NavMainContent({
                 key={item.title}
                 item={item}
                 pathname={pathname}
-                badgeCount={
-                  item.url === "/support" ? liveSupportBadgeCount : 0
-                }
+                badgeCount={item.url === "/support" ? liveSupportBadgeCount : 0}
               />
             );
           })}
