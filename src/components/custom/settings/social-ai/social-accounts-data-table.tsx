@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/custom/threads-data-table-pagination";
+import { cn } from "@/lib/utils";
 
 interface SocialAccountsDataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -30,6 +31,13 @@ interface SocialAccountsDataTableProps<TData, TValue> {
   pagination: PaginationState;
   onPaginationChange: OnChangeFn<PaginationState>;
   isLoading?: boolean;
+  /** Noun for the pagination summary ("N accounts total"). */
+  noun?: string;
+  /** Row copy for the empty state, e.g. "No templates found." */
+  emptyMessage?: string;
+  /** Makes rows clickable — e.g. opening a detail panel for that row. */
+  onRowClick?: (row: TData) => void;
+  isRowSelected?: (row: TData) => boolean;
 }
 
 export function SocialAccountsDataTable<TData, TValue>({
@@ -39,6 +47,10 @@ export function SocialAccountsDataTable<TData, TValue>({
   pagination,
   onPaginationChange,
   isLoading = false,
+  noun = "account",
+  emptyMessage = "No accounts found.",
+  onRowClick,
+  isRowSelected,
 }: SocialAccountsDataTableProps<TData, TValue>) {
   const table = useReactTable({
     data,
@@ -101,7 +113,16 @@ export function SocialAccountsDataTable<TData, TValue>({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className="hover:bg-accent/50 data-[state=selected]:bg-accent"
+                  onClick={
+                    onRowClick ? () => onRowClick(row.original) : undefined
+                  }
+                  data-state={
+                    isRowSelected?.(row.original) ? "selected" : undefined
+                  }
+                  className={cn(
+                    "hover:bg-accent/50 data-[state=selected]:bg-accent",
+                    onRowClick && "cursor-pointer",
+                  )}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="px-4">
@@ -119,7 +140,7 @@ export function SocialAccountsDataTable<TData, TValue>({
                   colSpan={columns.length}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  No accounts found.
+                  {emptyMessage}
                 </TableCell>
               </TableRow>
             )}
@@ -127,11 +148,7 @@ export function SocialAccountsDataTable<TData, TValue>({
         </Table>
       </div>
 
-      <DataTablePagination
-        table={table}
-        totalCount={totalCount}
-        noun="account"
-      />
+      <DataTablePagination table={table} totalCount={totalCount} noun={noun} />
     </div>
   );
 }

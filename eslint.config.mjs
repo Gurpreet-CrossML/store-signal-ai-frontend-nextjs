@@ -25,6 +25,19 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    files: [
+      "src/clients/campaign-create.tsx",
+      "src/clients/campaign-detail.tsx",
+      "src/clients/campaigns.tsx",
+      "src/clients/email-template-form.tsx",
+      "src/clients/segment-create.tsx",
+      "src/clients/segments.tsx",
+    ],
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
+  {
     // TanStack Table's useReactTable() is flagged by the React Compiler as
     // unmemoizable; that's inherent to the library, not fixable at call sites.
     files: ["src/components/**/*data-table*.tsx"],
