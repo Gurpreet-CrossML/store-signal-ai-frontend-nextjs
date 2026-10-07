@@ -147,6 +147,27 @@ function getFilteredThreads(
   return threads;
 }
 
+function formatWaitingDuration(startedAt: string, now: number) {
+  const startedAtMs = new Date(startedAt).getTime();
+  if (Number.isNaN(startedAtMs)) return "0s";
+
+  const totalSeconds = Math.max(0, Math.floor((now - startedAtMs) / 1000));
+  const seconds = totalSeconds % 60;
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const minutes = totalMinutes % 60;
+  const hours = Math.floor(totalMinutes / 60);
+
+  if (hours > 0) {
+    return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+  }
+
+  if (totalMinutes > 0) {
+    return `${totalMinutes}m ${String(seconds).padStart(2, "0")}s`;
+  }
+
+  return `${seconds}s`;
+}
+
 type AttachmentStatus = "uploading" | "uploaded" | "error";
 
 type AttachmentUpload = {
@@ -933,6 +954,24 @@ export default function Support() {
       ),
     [activeThreadId, localThreads],
   );
+  const [waitingTimerNow, setWaitingTimerNow] = useState(() => Date.now());
+  const hasWaitingThreads = useMemo(
+    () =>
+      visibleThreads.some(
+        (thread) => thread.need_escalation && thread.escalation_timer,
+      ),
+    [visibleThreads],
+  );
+
+  useEffect(() => {
+    if (!hasWaitingThreads) return;
+
+    const interval = window.setInterval(() => {
+      setWaitingTimerNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [hasWaitingThreads]);
 
   const selectedThread = useMemo(
     () => visibleThreads.find((thread) => thread.id === activeThreadId) ?? null,
@@ -1737,7 +1776,10 @@ export default function Support() {
                       : "AI";
                   const waitingLabel =
                     thread.need_escalation && thread.escalation_timer
-                      ? `Waiting ${formatRelativeDateTime(thread.escalation_timer)}`
+                      ? `Waiting ${formatWaitingDuration(
+                          thread.escalation_timer,
+                          waitingTimerNow,
+                        )}`
                       : null;
 
                   return (
