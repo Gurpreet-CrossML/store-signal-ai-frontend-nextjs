@@ -11,6 +11,7 @@ import {
   IconEye,
   IconPencil,
   IconPlus,
+  IconRefresh,
   IconSpeakerphone,
   IconTrash,
   IconX,
@@ -57,6 +58,7 @@ import {
   fetchCampaigns,
   fetchSegments,
   activateCampaign,
+  scheduleCampaign,
   updateCampaignStatus,
   type Campaign,
   type Segment,
@@ -69,6 +71,8 @@ function getColumns(
   toggling: number | null,
   onEdit: (campaign: Campaign) => void,
   onDelete: (campaign: Campaign) => void,
+  onReschedule: (campaign: Campaign) => void,
+  rescheduling: number | null,
 ): ColumnDef<Campaign>[] {
   return [
     {
@@ -186,6 +190,17 @@ function getColumns(
                   <IconPencil className="size-4" />
                   Edit
                 </DropdownMenuItem>
+                {campaign.status === "published" && campaign.is_active && (
+                  <DropdownMenuItem
+                    disabled={rescheduling === campaign.id}
+                    onClick={() => onReschedule(campaign)}
+                  >
+                    <IconRefresh className="size-4" />
+                    {rescheduling === campaign.id
+                      ? "Scheduling…"
+                      : "Reschedule"}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
@@ -268,6 +283,7 @@ export default function Campaigns() {
   );
 
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [reschedulingId, setReschedulingId] = useState<number | null>(null);
   const handleToggleActive = useCallback(
     async (campaign: Campaign, checked: boolean) => {
       if (!storeCode) return;
@@ -329,6 +345,24 @@ export default function Campaigns() {
     }
   };
 
+  const handleReschedule = useCallback(
+    async (campaign: Campaign) => {
+      if (!storeCode) return;
+      setReschedulingId(campaign.id);
+      try {
+        await dispatch(
+          scheduleCampaign({ storeCode, campaignId: campaign.id }),
+        ).unwrap();
+        toast.success("Campaign rescheduled");
+      } catch {
+        // The thunk already surfaced the error.
+      } finally {
+        setReschedulingId(null);
+      }
+    },
+    [dispatch, storeCode],
+  );
+
   const columns = useMemo(
     () =>
       getColumns(
@@ -338,8 +372,17 @@ export default function Campaigns() {
         togglingId,
         (campaign) => router.push(`/campaign/campaigns/${campaign.id}/edit`),
         (campaign) => setCampaignToDelete(campaign),
+        handleReschedule,
+        reschedulingId,
       ),
-    [segmentById, router, handleToggleActive, togglingId],
+    [
+      segmentById,
+      router,
+      handleToggleActive,
+      togglingId,
+      handleReschedule,
+      reschedulingId,
+    ],
   );
 
   const liveCount = useMemo(

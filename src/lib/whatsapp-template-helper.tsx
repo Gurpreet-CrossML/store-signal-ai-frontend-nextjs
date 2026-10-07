@@ -54,6 +54,16 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
     icon: IconUser,
     variables: [
       { token: "customer_name", label: "Full name", sample: "Jhon Wick" },
+      {
+        token: "customer_email",
+        label: "Email address",
+        sample: "jhon.wick@example.com",
+      },
+      {
+        token: "customer_phone",
+        label: "Phone number",
+        sample: "919876543210",
+      },
     ],
   },
   {
@@ -68,6 +78,13 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
         token: "order_status_url",
         label: "Order status page link",
         sample: "https://example.com/orders/1001",
+      },
+      { token: "order_status", label: "Order status", sample: "fulfilled" },
+      { token: "payment_status", label: "Payment status", sample: "paid" },
+      {
+        token: "shipping_method",
+        label: "Shipping method",
+        sample: "Standard",
       },
     ],
   },
@@ -87,6 +104,11 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
         label: "Tracking link",
         sample: "https://example.com/track/1001",
       },
+      {
+        token: "shipment_status",
+        label: "Shipment status",
+        sample: "fulfilled",
+      },
     ],
   },
   {
@@ -99,6 +121,11 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
         label: "First item's name",
         sample: "Travel Backpack",
       },
+      {
+        token: "product_price",
+        label: "First item's price",
+        sample: "₹2,499.00",
+      },
     ],
   },
   {
@@ -106,6 +133,7 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
     label: "Discount & Payment",
     icon: IconDiscount,
     variables: [
+      { token: "discount_code", label: "Discount code", sample: "SAVE20" },
       { token: "refund_status", label: "Refund status", sample: "No Refund" },
     ],
   },
@@ -120,6 +148,14 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
         label: "Ticket subject",
         sample: "Where is my order?",
       },
+      {
+        token: "ticket_description",
+        label: "Ticket description",
+        sample:
+          "The package hasn't arrived and tracking hasn't updated in 5 days.",
+      },
+      { token: "ticket_status", label: "Ticket status", sample: "open" },
+      { token: "ticket_priority", label: "Ticket priority", sample: "high" },
     ],
   },
   {
@@ -133,11 +169,6 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
         label: "Store URL",
         sample: "https://safarnest.example.com",
       },
-      {
-        token: "ticket_description",
-        label: "Ticket description",
-        sample: "I received the wrong item.",
-      }
     ],
   },
 ];
@@ -152,7 +183,6 @@ export const WHATSAPP_VARIABLES_BY_TOKEN: Record<
   ),
 );
 
-/** `{{token}}` in the exact form the picker inserts and the body stores. */
 /** The longest body WhatsApp accepts. Mirrors WHATSAPP_BODY_TEXT_MAX_LENGTH on the backend. */
 export const WHATSAPP_BODY_TEXT_MAX_LENGTH = 1024;
 
@@ -162,6 +192,7 @@ export const WHATSAPP_FOOTER_TEXT_MAX_LENGTH = 60;
 /** Variables a TEXT header may use. Mirrors HEADER_TEXT_MAX_VARIABLES on the backend. */
 export const HEADER_TEXT_MAX_VARIABLES = 1;
 
+/** `{{token}}` in the exact form the picker inserts and the body stores. */
 export function variablePlaceholder(token: string) {
   return `{{${token}}}`;
 }
@@ -265,7 +296,10 @@ export const HEADER_FORMATS = [
 
 // Meta's LOCATION header. It can't be authored here, but a template that has
 // one must keep it on save, so it is loaded and offered read-only.
-export const LOCATION_HEADER_FORMAT = { value: "LOCATION", label: "Location" } as const;
+export const LOCATION_HEADER_FORMAT = {
+  value: "LOCATION",
+  label: "Location",
+} as const;
 
 export type HeaderFormat =
   | (typeof HEADER_FORMATS)[number]["value"]

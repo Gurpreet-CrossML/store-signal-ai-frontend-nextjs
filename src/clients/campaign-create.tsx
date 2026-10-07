@@ -408,7 +408,9 @@ export default function CampaignCreate({
               scheduleCampaign({ storeCode, campaignId: Number(campaignId) }),
             ).unwrap();
           } catch {
-            // The thunk surfaced the error. The detail screen can reschedule.
+            // The thunk already surfaced why scheduling failed. The edit
+            // itself did save, so say so — the detail screen can reschedule.
+            toast.success("Campaign updated");
             router.push(detailUrl);
             return;
           }
@@ -492,10 +494,7 @@ export default function CampaignCreate({
               >
                 Save draft
               </Button>
-              <Button
-                onClick={() => handleSubmit(true)}
-                disabled={submitting}
-              >
+              <Button onClick={() => handleSubmit(true)} disabled={submitting}>
                 {submitting ? "Publishing…" : "Publish"}
               </Button>
             </>
@@ -608,7 +607,9 @@ export default function CampaignCreate({
                   Start time ({CAMPAIGN_TIME_ZONE}, every day)
                 </span>
               </Label>
-              <InfoIcon text="Time of day, in your store's timezone, that new entrants begin this campaign's first step." />
+              <InfoIcon
+                text={`Time of day, in ${CAMPAIGN_TIME_ZONE}, that new entrants begin this campaign's first step.`}
+              />
             </div>
             <TimePicker12h
               idPrefix="campaign-start-time"
@@ -651,9 +652,8 @@ export default function CampaignCreate({
           <CardDescription>
             Each step runs every day at its time, in {CAMPAIGN_TIME_ZONE}, until
             the campaign is paused or ended. Steps fire in order. Each step must
-            wait at least 30 minutes after
-            the previous one, and the whole sequence must fit inside 24 hours.
-            Total right now:{" "}
+            wait at least 30 minutes after the previous one, and the whole
+            sequence must fit inside 24 hours. Total right now:{" "}
             <span className="font-medium text-foreground">
               {totalDelay} min
             </span>

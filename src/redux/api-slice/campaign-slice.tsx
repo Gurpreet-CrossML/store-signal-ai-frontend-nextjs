@@ -169,7 +169,7 @@ export type SegmentCategory = {
 
 // The backend's slug for the abandoned-cart category. It has no cart value to
 // filter on, so it only accepts a min_price of 0 (see SEGMENT_VALUE_FIELD).
-export const SEGMENT_CATEGORY_ABANDONED_CART_SLUG = "abondened-cart";
+export const SEGMENT_CATEGORY_ABANDONED_CART_SLUG = "abandoned-cart";
 
 export type Segment = {
   id: number;

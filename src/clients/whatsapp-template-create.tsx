@@ -127,18 +127,36 @@ const templateSchema = z
     if (headerFormat === "TEXT") {
       if (!values.headerText.trim()) {
         fail("headerText", "A TEXT header needs its text.");
-      } else if (
-        extractVariableTokens(values.headerText).length >
-        HEADER_TEXT_MAX_VARIABLES
-      ) {
-        fail(
-          "headerText",
-          `A text header takes at most ${HEADER_TEXT_MAX_VARIABLES} variable.`,
-        );
+      } else {
+        const unknownHeader = findUnknownVariables(values.headerText);
+        if (unknownHeader.length) {
+          fail(
+            "headerText",
+            `Unsupported variable${unknownHeader.length > 1 ? "s" : ""}: ${unknownHeader
+              .map((token) => `{{${token}}}`)
+              .join(", ")}`,
+          );
+        } else if (
+          extractVariableTokens(values.headerText).length >
+          HEADER_TEXT_MAX_VARIABLES
+        ) {
+          fail(
+            "headerText",
+            `A text header takes at most ${HEADER_TEXT_MAX_VARIABLES} variable.`,
+          );
+        }
       }
     }
 
-    if (extractVariableTokens(values.footer).length) {
+    const unknownFooter = findUnknownVariables(values.footer);
+    if (unknownFooter.length) {
+      fail(
+        "footer",
+        `Unsupported variable${unknownFooter.length > 1 ? "s" : ""}: ${unknownFooter
+          .map((token) => `{{${token}}}`)
+          .join(", ")}`,
+      );
+    } else if (extractVariableTokens(values.footer).length) {
       fail("footer", "A footer is always static — it takes no variables.");
     }
     if (values.footer.length > WHATSAPP_FOOTER_TEXT_MAX_LENGTH) {
@@ -155,8 +173,20 @@ const templateSchema = z
       if (!labelless && !button.text.trim()) {
         fail("buttons", "A button needs its label.");
       }
-      if (button.type === "URL" && !button.url.trim()) {
-        fail("buttons", "A URL button needs its URL.");
+      if (button.type === "URL") {
+        if (!button.url.trim()) {
+          fail("buttons", "A URL button needs its URL.");
+        } else {
+          const unknownUrl = findUnknownVariables(button.url);
+          if (unknownUrl.length) {
+            fail(
+              "buttons",
+              `Unsupported variable${unknownUrl.length > 1 ? "s" : ""} in the URL: ${unknownUrl
+                .map((token) => `{{${token}}}`)
+                .join(", ")}`,
+            );
+          }
+        }
       }
     }
 
@@ -210,6 +240,10 @@ export default function WhatsAppTemplateCreate({
   const [category, setCategory] = useState("MARKETING");
 
   const [headerFormat, setHeaderFormat] = useState<HeaderFormat>("NONE");
+  // Set once on load and never cleared, so switching away from LOCATION
+  // and back again never needs a reload to see it as an option.
+  const [templateHadLocationHeader, setTemplateHadLocationHeader] =
+    useState(false);
   const [headerText, setHeaderText] = useState("");
   const [headerPreviewUrl, setHeaderPreviewUrl] = useState<string | null>(null);
   // The chosen file is held here and nowhere else until the template is
@@ -266,6 +300,9 @@ export default function WhatsAppTemplateCreate({
 
         // A LOCATION header is kept as it is, so saving never turns it into NONE.
         setHeaderFormat(data.header_format as HeaderFormat);
+        if (data.header_format === "LOCATION") {
+          setTemplateHadLocationHeader(true);
+        }
         setHeaderText(data.header_text ?? "");
         // The stored S3 copy is what can actually be rendered; Meta's
         // handle is a write-only token and is never sent to the client.
@@ -303,12 +340,11 @@ export default function WhatsAppTemplateCreate({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateId, storeCode, account?.id]);
 
-  // A LOCATION template keeps its header option in the list, so it can be
-  // seen; the other options stay available for switching away from it.
-  const headerFormatOptions =
-    headerFormat === LOCATION_HEADER_FORMAT.value
-      ? [...HEADER_FORMATS, LOCATION_HEADER_FORMAT]
-      : HEADER_FORMATS;
+  // A template that started as LOCATION keeps that option in the list for
+  // the rest of this edit, so switching away and back needs no reload.
+  const headerFormatOptions = templateHadLocationHeader
+    ? [...HEADER_FORMATS, LOCATION_HEADER_FORMAT]
+    : HEADER_FORMATS;
 
   const handleHeaderFormatChange = (format: HeaderFormat) => {
     // A sample is only valid for the media type it was uploaded as, so any
@@ -935,9 +971,18 @@ export default function WhatsAppTemplateCreate({
                   >
                     <Select
                       value={btn.type}
-                      onValueChange={(value) =>
-                        updateButton(btn.key, { type: value as ButtonType })
-                      }
+                      onValueChange={(value) => {
+                        const nextType = value as ButtonType;
+                        updateButton(btn.key, {
+                          type: nextType,
+                          // Meta sets the label itself for these types, so a
+                          // label left over from the previous type must not
+                          // be sent, or shown stale in the preview.
+                          text: BUTTON_TYPES_WITHOUT_TEXT.includes(nextType)
+                            ? ""
+                            : btn.text,
+                        });
+                      }}
                     >
                       <SelectTrigger className="w-full sm:w-40">
                         <SelectValue />

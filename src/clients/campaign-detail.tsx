@@ -145,9 +145,7 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
     if (!storeCode) return;
     try {
       setCampaign(
-        await dispatch(
-          fetchCampaignDetail({ storeCode, campaignId }),
-        ).unwrap(),
+        await dispatch(fetchCampaignDetail({ storeCode, campaignId })).unwrap(),
       );
     } catch {
       // The thunk already surfaced the error.
@@ -320,8 +318,8 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <p className="text-sm text-muted-foreground sm:col-span-2">
             Runs every day from {campaign.start_time.slice(0, 5)} (
-            {CAMPAIGN_TIME_ZONE}) until it is paused or ended. Each step fires at
-            its own time, shown below.
+            {CAMPAIGN_TIME_ZONE}) until it is paused or ended. Each step fires
+            at its own time, shown below.
           </p>
           <div className="flex items-start gap-3 rounded-md border p-3">
             <IconUsersGroup className="mt-0.5 size-4 text-muted-foreground" />

@@ -599,7 +599,10 @@ export const submitWhatsAppTemplate = createAsyncThunk(
     } catch (error) {
       const data = errorEnvelope(error);
       toast.error("Couldn't submit the template", {
-        description: bestErrorMessage(data, "Please check the form and try again."),
+        description: bestErrorMessage(
+          data,
+          "Please check the form and try again.",
+        ),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -661,13 +664,15 @@ export const updateWhatsAppTemplate = createAsyncThunk(
     } catch (error) {
       const data = errorEnvelope(error);
       toast.error("Couldn't update the template", {
-        description: bestErrorMessage(data, "Please check the form and try again."),
+        description: bestErrorMessage(
+          data,
+          "Please check the form and try again.",
+        ),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );
-
 
 export const deleteWhatsAppTemplate = createAsyncThunk(
   "deleteWhatsAppTemplate",
@@ -694,8 +699,6 @@ export const deleteWhatsAppTemplate = createAsyncThunk(
     }
   },
 );
-
-
 
 export const fetchWhatsAppTemplateLibrary = createAsyncThunk(
   "fetchWhatsAppTemplateLibrary",
@@ -754,7 +757,6 @@ export const importWhatsAppTemplateFromLibrary = createAsyncThunk(
   },
 );
 
-
 export const updateAccountAutoRespond = createAsyncThunk(
   "updateAccountAutoRespond",
   async (
@@ -775,7 +777,10 @@ export const updateAccountAutoRespond = createAsyncThunk(
     } catch (error) {
       const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: bestErrorMessage(data, "Unable to update the AI auto-reply."),
+        description: bestErrorMessage(
+          data,
+          "Unable to update the AI auto-reply.",
+        ),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -1558,7 +1563,10 @@ export const deleteTopicRule = createAsyncThunk(
     } catch (error) {
       const data = errorEnvelope(error);
       toast.error("Uh oh! Something went wrong.", {
-        description: bestErrorMessage(data, "Unable to remove this topic rule."),
+        description: bestErrorMessage(
+          data,
+          "Unable to remove this topic rule.",
+        ),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
