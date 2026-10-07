@@ -1661,7 +1661,7 @@ export default function Support() {
               placeholder="Search name, message or order ID…"
               label="Search conversations"
             />
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex items-end gap-3 border-b border-border/70">
               {(
                 [
                   { key: "needs_human", label: "Needs human" },
@@ -1697,18 +1697,20 @@ export default function Support() {
                     });
                   }}
                   className={cn(
-                    "flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                    "-mb-px flex shrink-0 items-center gap-1 border-b-2 px-0.5 pb-2 pt-1 text-xs font-medium transition-colors",
                     readFilter === option.key
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border/60 bg-background text-muted-foreground hover:bg-muted/60",
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {option.label}
                   <span
                     className={cn(
                       "rounded-md px-1.5 text-xs",
-                      readFilter === option.key
-                        ? "bg-primary-foreground/20"
+                      option.key === "needs_human"
+                        ? "bg-red-50 text-red-700"
+                        : readFilter === option.key
+                          ? "bg-primary/10 text-primary"
                         : "bg-muted text-foreground/70",
                     )}
                   >
