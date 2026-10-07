@@ -1766,7 +1766,7 @@ export default function Support() {
                           {thread.last_message || "No messages yet."}
                         </ReactMarkdown>
                       }
-                      previewLines={2}
+                      previewLines={1}
                       footer={
                         <div className="flex flex-wrap items-center gap-1.5">
                           <Badge
@@ -1794,13 +1794,6 @@ export default function Support() {
                               {waitingLabel}
                             </Badge>
                           )}
-                          <Typography
-                            variant="muted"
-                            as="span"
-                            className="text-xs"
-                          >
-                            {thread.total_messages} messages
-                          </Typography>
                         </div>
                       }
                     />
