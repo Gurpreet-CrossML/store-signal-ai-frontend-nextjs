@@ -757,7 +757,9 @@ export default function Support() {
   >(null);
 
   const { data: session } = useSession();
-  const isAdmin = !!session?.user?.is_staff;
+  // The admin role and the company-admin flag mean the same user; accept
+  // either so a session carrying only one of them still works.
+  const isAdmin = !!session?.user?.is_staff || session?.user?.role === "admin";
   // Admins can always answer chats; everyone else needs a role with write
   // access to conversations (supervisor, agent). The backend enforces this
   // too — checking here spares a round trip and says why.
