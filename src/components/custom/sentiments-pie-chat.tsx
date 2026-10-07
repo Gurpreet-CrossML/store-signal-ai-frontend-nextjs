@@ -48,6 +48,7 @@ export function SentimentsPieChart({
         </CardTitle>
         <CardDescription>Customer feedback analysis</CardDescription>
       </CardHeader>
+
       <CardContent className="flex-1">
         <ChartContainer
           config={chartConfig}
@@ -66,8 +67,12 @@ export function SentimentsPieChart({
               strokeWidth={5}
             />
             <ChartLegend
-              content={<ChartLegendContent nameKey="sentiment" />}
-              className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
+              content={
+                <ChartLegendContent
+                  nameKey="sentiment"
+                  className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
+                />
+              }
             />
           </PieChart>
         </ChartContainer>
