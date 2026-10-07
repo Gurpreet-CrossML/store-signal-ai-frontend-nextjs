@@ -54,11 +54,13 @@ type Stage =
 function PasswordInput({
   name,
   label,
+  placeholder,
   autoComplete,
   formik,
 }: {
   name: "new_password" | "confirm_password";
   label: string;
+  placeholder: string;
   autoComplete: string;
   formik: ReturnType<
     typeof useFormik<{ new_password: string; confirm_password: string }>
@@ -77,6 +79,7 @@ function PasswordInput({
           id={name}
           name={name}
           type={visible ? "text" : "password"}
+          placeholder={placeholder}
           autoComplete={autoComplete}
           required
           aria-invalid={Boolean(error)}
@@ -227,12 +230,14 @@ export function ResetPasswordForm({
         <PasswordInput
           name="new_password"
           label="New Password"
+          placeholder="Enter a new password"
           autoComplete="new-password"
           formik={formik}
         />
         <PasswordInput
           name="confirm_password"
           label="Confirm New Password"
+          placeholder="Re-enter the new password"
           autoComplete="new-password"
           formik={formik}
         />
