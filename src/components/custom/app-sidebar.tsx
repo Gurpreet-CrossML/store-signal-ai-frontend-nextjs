@@ -37,6 +37,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { useAppSelector } from "@/redux/hooks";
 
 export function AppSidebar({
   className,
@@ -65,6 +66,12 @@ export function AppSidebar({
     subNavSearch,
   );
   const { data: session } = useSession();
+  const needsHumanCount = useAppSelector(
+    (state) =>
+      state.GetThreadReducer.FetchThreadsState.FetchThreadsListData.results.filter(
+        (thread) => thread.need_escalation,
+      ).length,
+  );
 
   // One ordered list, filtered rather than concatenated — a hidden entry
   // leaves the rest in their order. Admins see everything; staff see what
@@ -135,7 +142,10 @@ export function AppSidebar({
           <StoreSwitcher />
         </SidebarHeader>
         <SidebarContent>
-          <NavMain items={navMain} />
+          <NavMain
+            items={navMain}
+            liveSupportBadgeCount={needsHumanCount}
+          />
           {sidebarMenus.navSecondary && (
             <NavSecondary
               items={sidebarMenus.navSecondary}
