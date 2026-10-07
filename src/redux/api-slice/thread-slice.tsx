@@ -57,11 +57,19 @@ export type Customer = {
   email: string;
 };
 
+export type ThreadHandlerUser = {
+  id: number;
+  name: string;
+  email: string;
+};
+
 export type Thread = {
   id: string;
   name: string | null;
   customer: Customer | null;
   source?: "native" | "webhook" | "whatsapp" | null;
+  chat_handler?: "ai" | "human";
+  chat_handler_user?: ThreadHandlerUser | null;
   is_active: boolean;
   total_messages: number;
   created_at: string;

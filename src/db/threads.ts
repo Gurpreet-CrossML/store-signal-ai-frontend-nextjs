@@ -12,6 +12,7 @@ import {
   userMetadata,
   sessionResolutionVerdict,
   chatCustomerorder,
+  authUser,
 } from "@/lib/drizzle/schema";
 import {
   and,
@@ -95,12 +96,19 @@ type ThreadListRow = {
   customer_first_name: string | null;
   customer_last_name: string | null;
   customer_email: string | null;
+  chat_handler: string;
+  chat_handler_user_id: number | null;
+  chat_handler_user_first_name: string | null;
+  chat_handler_user_last_name: string | null;
+  chat_handler_user_email: string | null;
 };
 
 export type ThreadListItem = {
   id: string;
   name: string | null;
   source: string | null;
+  chat_handler: string;
+  chat_handler_user: { id: number; name: string; email: string } | null;
   customer: { id: number | null; name: string | null; email: string | null };
   followup_level: number;
   is_active: boolean;
@@ -300,9 +308,15 @@ export async function list_threads(
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
+      chat_handler: chatThread.chatHandler,
+      chat_handler_user_id: authUser.id,
+      chat_handler_user_first_name: authUser.firstName,
+      chat_handler_user_last_name: authUser.lastName,
+      chat_handler_user_email: authUser.email,
     })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
+    .leftJoin(authUser, eq(chatThread.chatHandlerUserId, authUser.id))
     .innerJoin(store, eq(chatThread.storeId, store.id))
     .leftJoin(chatHistory, eq(chatHistory.threadId, chatThread.id))
     .where(whereClause)
@@ -312,6 +326,10 @@ export async function list_threads(
       chatCustomer.firstName,
       chatCustomer.lastName,
       chatCustomer.email,
+      authUser.id,
+      authUser.firstName,
+      authUser.lastName,
+      authUser.email,
     )
     .orderBy(desc(chatThread.createdAt))
     .limit(pageSize)
@@ -370,10 +388,25 @@ export async function list_threads(
     const customerName = hasCustomer
       ? `${row.customer_first_name ?? ""} ${row.customer_last_name ?? ""}`.trim()
       : null;
+    const handlerName =
+      row.chat_handler_user_id != null
+        ? `${row.chat_handler_user_first_name ?? ""} ${row.chat_handler_user_last_name ?? ""}`.trim() ||
+          row.chat_handler_user_email ||
+          "Agent"
+        : "";
     return {
       id: row.id,
       name: row.name,
       source: row.source,
+      chat_handler: row.chat_handler,
+      chat_handler_user:
+        row.chat_handler_user_id != null
+          ? {
+              id: row.chat_handler_user_id,
+              name: handlerName,
+              email: row.chat_handler_user_email ?? "",
+            }
+          : null,
       customer: {
         // Null for a guest — the UI keys its tickets lookup off this.
         id: row.customer_id ?? null,

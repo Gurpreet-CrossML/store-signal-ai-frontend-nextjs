@@ -1670,7 +1670,7 @@ export default function Support() {
             <SearchInput
               value={threadSearch}
               onChange={setThreadSearch}
-              placeholder="Search name, email or order ID…"
+              placeholder="Search name, message or order ID…"
               label="Search conversations"
             />
             <div className="flex flex-wrap items-center gap-1.5">
@@ -1743,6 +1743,12 @@ export default function Support() {
               ) : filteredThreads.length ? (
                 filteredThreads.map((thread: ThreadWithReadState) => {
                   const isUnread = thread.is_read === false;
+                  const isWhatsapp = thread.source === "whatsapp";
+                  const channelLabel = isWhatsapp ? "WhatsApp" : "Web";
+                  const handlerLabel =
+                    thread.chat_handler === "human"
+                      ? thread.chat_handler_user?.name || "Agent"
+                      : "AI";
 
                   return (
                     <ConversationRow
@@ -1774,13 +1780,32 @@ export default function Support() {
                       }
                       previewLines={2}
                       footer={
-                        <Typography
-                          variant="muted"
-                          as="span"
-                          className="text-xs"
-                        >
-                          {thread.total_messages} messages
-                        </Typography>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge
+                            variant="secondary"
+                            className="h-5 rounded-md px-1.5 text-xs font-normal"
+                          >
+                            {channelLabel}
+                          </Badge>
+                          <Badge
+                            variant="secondary"
+                            className="h-5 rounded-md px-1.5 text-xs font-normal"
+                          >
+                            {thread.chat_handler === "human" ? (
+                              <IconHeadset className="size-3" />
+                            ) : (
+                              <IconRobot className="size-3" />
+                            )}
+                            {handlerLabel}
+                          </Badge>
+                          <Typography
+                            variant="muted"
+                            as="span"
+                            className="text-xs"
+                          >
+                            {thread.total_messages} messages
+                          </Typography>
+                        </div>
                       }
                     />
                   );
