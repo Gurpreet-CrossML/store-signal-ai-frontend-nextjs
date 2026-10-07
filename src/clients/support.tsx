@@ -757,17 +757,12 @@ export default function Support() {
   >(null);
 
   const { data: session } = useSession();
-  // The admin role and the company-admin flag mean the same user; accept
-  // either so a session carrying only one of them still works.
-  const isAdmin = !!session?.user?.is_staff || session?.user?.role === "admin";
-  // Admins can always answer chats; everyone else needs a role with write
-  // access to conversations (supervisor, agent). The backend enforces this
-  // too — checking here spares a round trip and says why.
-  const canHandleChats =
-    isAdmin || session?.user?.permissions?.conversations === "write";
+  // Same rules as the nav (see `can`): admins always may; everyone else needs
+  // the permission from their role. The backend enforces this too — checking
+  // here spares a round trip and says why.
+  const canHandleChats = can(session?.user, "conversations", { write: true });
   // Admins and supervisors may assign a chat to another agent.
-  const canReassign =
-    isAdmin || session?.user?.permissions?.reassignment === "write";
+  const canReassign = can(session?.user, "reassignment", { write: true });
   // Staff who can answer chats (see the effect below). Kept local: the
   // shared staff list in Redux is company-wide and used by other screens.
   const [staff, setStaff] = useState<StaffMember[]>([]);
