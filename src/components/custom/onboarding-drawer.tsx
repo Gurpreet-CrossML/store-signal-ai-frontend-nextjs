@@ -54,7 +54,8 @@ export function OnboardingDrawer() {
     (state) => state.GetOnboardingReducer.CompleteShopifyOauthState,
   );
 
-  if (!user?.onboarding_pending) return null;
+  // Onboarding is the company admin's job; its endpoints are admin-only.
+  if (!user?.onboarding_pending || !user.is_staff) return null;
 
   const sessionIndex = Math.max(
     0,

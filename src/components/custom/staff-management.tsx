@@ -16,11 +16,12 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   FetchStaff,
   ResetStaffPassword,
-  SetStaffActive,
+  UpdateStaff,
   type StaffMember,
 } from "@/redux/api-slice/tenancy-slice";
 import StaffForm from "@/components/custom/staff-form";
-import StaffStoreAccess from "@/components/custom/staff-store-access";
+import { ASSIGNABLE_ROLES, ROLE_LABELS } from "@/lib/staff-roles";
+import type { StaffRole } from "@/lib/tenant-types";
 import { StaffDataTable } from "@/components/custom/staff-data-table";
 import { getStaffColumns } from "@/components/custom/staff-columns";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,9 @@ export default function StaffManagement({
   const [formOpen, setFormOpen] = useState(false);
   const [resetTarget, setResetTarget] = useState<StaffMember | null>(null);
   const [toggleTarget, setToggleTarget] = useState<StaffMember | null>(null);
-  const [accessTarget, setAccessTarget] = useState<StaffMember | null>(null);
+  const [roleTarget, setRoleTarget] = useState<StaffMember | null>(null);
+  // The role picked in the change-role dialog, before it is saved.
+  const [roleDraft, setRoleDraft] = useState<StaffRole | "">("");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -68,8 +71,7 @@ export default function StaffManagement({
   const filteredStaff = useMemo(() => {
     const query = search.trim().toLowerCase();
     return (staff ?? []).filter((member) => {
-      if (roleFilter !== "all" && member.is_staff !== (roleFilter === "admin"))
-        return false;
+      if (roleFilter !== "all" && member.role !== roleFilter) return false;
       if (
         statusFilter !== "all" &&
         member.is_active !== (statusFilter === "active")
@@ -91,7 +93,10 @@ export default function StaffManagement({
   const columns = useMemo(
     () =>
       getStaffColumns({
-        onStoreAccess: setAccessTarget,
+        onChangeRole: (member) => {
+          setRoleTarget(member);
+          setRoleDraft(member.role);
+        },
         onResetPassword: setResetTarget,
         onToggleActive: setToggleTarget,
       }),
@@ -122,8 +127,11 @@ export default function StaffManagement({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Roles</SelectItem>
-            <SelectItem value="admin">Admin</SelectItem>
-            <SelectItem value="staff">Staff</SelectItem>
+            {ASSIGNABLE_ROLES.map((role) => (
+              <SelectItem key={role.value} value={role.value}>
+                {ROLE_LABELS[role.value]}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -171,11 +179,54 @@ export default function StaffManagement({
         onSaved={() => dispatch(FetchStaff())}
       />
 
-      <StaffStoreAccess
-        open={Boolean(accessTarget)}
-        onOpenChange={(o) => !o && setAccessTarget(null)}
-        staff={accessTarget}
-      />
+      {/* Change role */}
+      <AlertDialog
+        open={Boolean(roleTarget)}
+        onOpenChange={(o) => !o && setRoleTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change role</AlertDialogTitle>
+            <AlertDialogDescription>
+              Choose what {roleTarget?.email} can do. The role applies to every
+              store and takes effect within a minute.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-col gap-2">
+            <Select
+              value={roleDraft}
+              onValueChange={(value) => setRoleDraft(value as StaffRole)}
+            >
+              <SelectTrigger aria-label="Role" className="w-full">
+                <SelectValue placeholder="Choose a role" />
+              </SelectTrigger>
+              <SelectContent>
+                {ASSIGNABLE_ROLES.map((role) => (
+                  <SelectItem key={role.value} value={role.value}>
+                    {ROLE_LABELS[role.value]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {ASSIGNABLE_ROLES.find((r) => r.value === roleDraft)?.description}
+            </p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!roleDraft || roleDraft === roleTarget?.role}
+              onClick={() => {
+                if (roleTarget && roleDraft)
+                  dispatch(UpdateStaff({ id: roleTarget.id, role: roleDraft }));
+                setRoleTarget(null);
+              }}
+            >
+              Save role
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Reset-password confirmation */}
       <AlertDialog
@@ -232,7 +283,7 @@ export default function StaffManagement({
               onClick={() => {
                 if (toggleTarget)
                   dispatch(
-                    SetStaffActive({
+                    UpdateStaff({
                       id: toggleTarget.id,
                       is_active: !toggleTarget.is_active,
                     }),

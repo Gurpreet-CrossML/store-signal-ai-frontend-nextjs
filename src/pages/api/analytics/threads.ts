@@ -16,7 +16,7 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  * [] for a list GET path; we mirror that by returning [] (not the paginated
  * envelope) in the empty case.
  */
-export default withTenantRoute(handler);
+export default withTenantRoute(handler, "conversations");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {

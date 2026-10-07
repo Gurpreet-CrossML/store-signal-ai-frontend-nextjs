@@ -2019,11 +2019,14 @@ export default function HelpDesk() {
     upsertSocketTicket,
   ]);
 
+  // The staff list (for assigning tickets) is a company-admin endpoint;
+  // fetching it as staff would only fail with an error toast.
+  const isCompanyAdmin = Boolean(session?.user?.is_staff);
   useEffect(() => {
-    if (!storeCode) return;
+    if (!storeCode || !isCompanyAdmin) return;
 
     dispatch(FetchStaff());
-  }, [dispatch, storeCode]);
+  }, [dispatch, storeCode, isCompanyAdmin]);
 
   useEffect(() => {
     if (!storeCode) return;

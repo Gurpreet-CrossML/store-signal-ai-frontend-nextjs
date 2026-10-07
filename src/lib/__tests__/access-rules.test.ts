@@ -4,7 +4,8 @@ import {
   buildAccess,
   resolveStoreScope,
   resolveTenant,
-  requiredLevel,
+  can,
+  isWriteMethod,
   isValidSchemaName,
   type RequestAccess,
 } from "@/lib/access-rules";
@@ -29,25 +30,21 @@ describe("buildAccess — role → store scope", () => {
   it("treats a company admin (is_staff) as unrestricted", () => {
     const a = buildAccess({
       is_staff: true,
-      accessible_stores: [{ code: "a", level: "manage" }],
+      accessible_stores: [{ code: "a" }],
     });
     expect(a.storeCodes).toBeNull();
     expect(a.isStaff).toBe(true);
   });
 
-  it("limits staff to their granted store codes + levels", () => {
+  it("limits staff to the listed store codes", () => {
     const a = buildAccess({
       is_staff: false,
-      accessible_stores: [
-        { code: "x", level: "view" },
-        { code: "y", level: "manage" },
-      ],
+      accessible_stores: [{ code: "x" }, { code: "y" }],
     });
     expect(a.storeCodes).toEqual(["x", "y"]);
-    expect(a.levels).toEqual({ x: "view", y: "manage" });
   });
 
-  it("gives a staff user with no grants an empty set (sees nothing)", () => {
+  it("gives a staff user with no stores an empty set (sees nothing)", () => {
     expect(buildAccess({ is_staff: false }).storeCodes).toEqual([]);
   });
 });
@@ -56,12 +53,10 @@ describe("resolveStoreScope — store_code is validated, never trusted", () => {
   const admin: RequestAccess = {
     isStaff: true,
     storeCodes: null,
-    levels: {},
   };
   const staff: RequestAccess = {
     isStaff: false,
     storeCodes: ["x"],
-    levels: { x: "view" },
   };
 
   it("admin: unrestricted (null) without a code, that one store with a code", () => {
@@ -69,26 +64,60 @@ describe("resolveStoreScope — store_code is validated, never trusted", () => {
     expect(resolveStoreScope(admin, "anything")).toEqual(["anything"]);
   });
 
-  it("staff: granted code allowed; ungranted/forged code denied (empty)", () => {
+  it("staff: listed code allowed; unlisted/forged code denied (empty)", () => {
     expect(resolveStoreScope(staff, "x")).toEqual(["x"]);
     expect(resolveStoreScope(staff, "y")).toEqual([]); // forged → denied
     expect(resolveStoreScope(staff)).toEqual(["x"]); // no code → their set
   });
 
-  it("staff with no grants → empty for any request", () => {
-    const none: RequestAccess = { ...staff, storeCodes: [], levels: {} };
+  it("staff with no stores → empty for any request", () => {
+    const none: RequestAccess = { ...staff, storeCodes: [] };
     expect(resolveStoreScope(none, "x")).toEqual([]);
     expect(resolveStoreScope(none)).toEqual([]);
   });
 });
 
-describe("requiredLevel — method → level", () => {
-  it("reads need view, writes need manage", () => {
-    expect(requiredLevel("GET")).toBe("view");
-    expect(requiredLevel()).toBe("view");
-    expect(requiredLevel("POST")).toBe("manage");
-    expect(requiredLevel("patch")).toBe("manage");
-    expect(requiredLevel("DELETE")).toBe("manage");
+describe("can — role permissions from Django", () => {
+  const viewer = {
+    is_staff: false,
+    permissions: { conversations: "read", knowledge: "read" } as const,
+  };
+  const agent = {
+    is_staff: false,
+    permissions: { conversations: "write", copilot: "write" } as const,
+  };
+
+  it("company admin may do everything, including admin-only screens", () => {
+    expect(can({ is_staff: true }, undefined, { write: true })).toBe(true);
+    expect(can({ is_staff: true }, "knowledge", { write: true })).toBe(true);
+  });
+
+  it("staff never reach admin-only (undefined) permissions", () => {
+    expect(can(agent, undefined)).toBe(false);
+  });
+
+  it("read permission allows reads but not writes", () => {
+    expect(can(viewer, "conversations")).toBe(true);
+    expect(can(viewer, "conversations", { write: true })).toBe(false);
+  });
+
+  it("a permission the role lacks is denied", () => {
+    expect(can(agent, "knowledge")).toBe(false);
+    expect(can(viewer, "copilot")).toBe(false);
+  });
+
+  it("no session → denied", () => {
+    expect(can(null, "open")).toBe(false);
+  });
+});
+
+describe("isWriteMethod", () => {
+  it("only GET/HEAD/OPTIONS are reads", () => {
+    expect(isWriteMethod("GET")).toBe(false);
+    expect(isWriteMethod()).toBe(false);
+    expect(isWriteMethod("head")).toBe(false);
+    expect(isWriteMethod("POST")).toBe(true);
+    expect(isWriteMethod("delete")).toBe(true);
   });
 });
 
