@@ -37,6 +37,7 @@ export const ENDPOINTS = {
   // Auth/session (Django) — token lifecycle + identity.
   refreshToken: () => createAPIUrl("/auth/token/refresh/", "django"),
   verifyToken: () => createAPIUrl("/auth/token/verify/", "django"),
+  logout: () => createAPIUrl("/auth/logout/", "django"),
   profile: () => createAPIUrl("/auth/profile/", "django"),
 
   // Password reset (Django, public). Called without the session token: a
