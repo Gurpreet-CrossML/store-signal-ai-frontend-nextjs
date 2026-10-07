@@ -42,6 +42,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
     from: getStr(q.from),
     to: getStr(q.to),
     is_active: getStr(q.is_active),
+    need_escalation: getStr(q.need_escalation),
     search: getStr(q.search),
     user_type: getStr(q.user_type),
     has_ticket: getStr(q.has_ticket),

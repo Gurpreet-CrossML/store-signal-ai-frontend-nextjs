@@ -38,6 +38,8 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/hooks";
+import { axiosInstance } from "@/redux/axios-config";
+import { ENDPOINTS } from "@/lib/config";
 
 export function AppSidebar({
   className,
@@ -66,12 +68,47 @@ export function AppSidebar({
     subNavSearch,
   );
   const { data: session } = useSession();
-  const needsHumanCount = useAppSelector(
-    (state) =>
-      state.GetThreadReducer.FetchThreadsState.FetchThreadsListData.results.filter(
-        (thread) => thread.need_escalation,
-      ).length,
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
   );
+  const [needsHumanBadge, setNeedsHumanBadge] = React.useState({
+    storeCode: "",
+    count: 0,
+  });
+
+  React.useEffect(() => {
+    if (!storeCode) {
+      return;
+    }
+
+    let cancelled = false;
+    const params = new URLSearchParams({
+      store_code: storeCode,
+      is_active: "true",
+      need_escalation: "true",
+      page: "1",
+      page_size: "1",
+    });
+
+    axiosInstance
+      .get(`${ENDPOINTS.fetchThreads()}?${params.toString()}`)
+      .then((response) => {
+        if (cancelled) return;
+
+        const data = response.data?.data;
+        setNeedsHumanBadge({
+          storeCode,
+          count: Array.isArray(data) ? 0 : Number(data?.count ?? 0),
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setNeedsHumanBadge({ storeCode, count: 0 });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [storeCode]);
 
   // One ordered list, filtered rather than concatenated — a hidden entry
   // leaves the rest in their order. Admins see everything; staff see what
@@ -144,7 +181,11 @@ export function AppSidebar({
         <SidebarContent>
           <NavMain
             items={navMain}
-            liveSupportBadgeCount={needsHumanCount}
+            liveSupportBadgeCount={
+              needsHumanBadge.storeCode === storeCode
+                ? needsHumanBadge.count
+                : 0
+            }
           />
           {sidebarMenus.navSecondary && (
             <NavSecondary

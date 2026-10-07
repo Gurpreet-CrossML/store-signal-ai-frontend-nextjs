@@ -51,6 +51,7 @@ export type ListThreadsFilters = {
   tags?: string[]; // matches threads tagged with ANY of the given tags
   handled_by?: string; // ai | human
   channel?: string; // whatsapp | web (native/webhook)
+  need_escalation?: string;
 };
 
 const UUID_RE =
@@ -154,6 +155,15 @@ export async function list_threads(
   if (filters.is_active) {
     conditions.push(
       eq(chatThread.isActive, filters.is_active.toLowerCase() === "true"),
+    );
+  }
+
+  if (filters.need_escalation) {
+    conditions.push(
+      eq(
+        chatThread.needEscalation,
+        filters.need_escalation.toLowerCase() === "true",
+      ),
     );
   }
 
