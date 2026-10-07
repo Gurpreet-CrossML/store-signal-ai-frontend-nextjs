@@ -96,9 +96,7 @@ import { formatRelativeDateTime } from "@/lib/helpers";
 // `is_read` becomes a real field on Thread (and maybe comes from the API),
 // but until then we track it client-side, defaulting to true on load.
 type ThreadWithReadState = Thread & { is_read?: boolean };
-type ThreadFilter = "all" | "unread" | "read" | "active" | "visitors" | "cart";
-
-const ACTIVE_THREAD_WINDOW_MS = 30 * 60 * 1000;
+type ThreadFilter = "needs_human" | "ai" | "with_agent" | "all";
 
 // Message teasers render through react-markdown so formatting like **bold**
 // shows properly, but flattened to inline spans: block elements would break
@@ -130,44 +128,23 @@ function normalizeThreads(threads: Thread[] | undefined) {
   }));
 }
 
-function isThreadWithinActiveWindow(thread: Thread) {
-  if (!thread.last_message_at) return false;
-  const timestamp = new Date(thread.last_message_at).getTime();
-  if (!Number.isFinite(timestamp)) return false;
-  return Date.now() - timestamp <= ACTIVE_THREAD_WINDOW_MS;
-}
-
 function getFilteredThreads(
   threads: ThreadWithReadState[],
-  readFilter: ThreadFilter,
+  activeFilter: ThreadFilter,
 ) {
-  const filtered = threads.filter((thread) => {
-    if (readFilter === "unread" && thread.is_read !== false) {
-      return false;
-    }
-    if (readFilter === "read" && thread.is_read === false) {
-      return false;
-    }
-    if (readFilter === "active") {
-      return thread.total_messages > 0 && isThreadWithinActiveWindow(thread);
-    }
-    if (readFilter === "visitors") {
-      return thread.total_messages === 0 || !isThreadWithinActiveWindow(thread);
-    }
-    if (readFilter === "cart") {
-      return Number(thread.cart_total ?? 0) > 0;
-    }
-
-    return true;
-  });
-
-  if (readFilter === "cart") {
-    return [...filtered].sort(
-      (a, b) => Number(b.cart_total ?? 0) - Number(a.cart_total ?? 0),
+  if (activeFilter === "needs_human") {
+    return threads.filter((thread) => thread.need_escalation);
+  }
+  if (activeFilter === "ai") {
+    return threads.filter(
+      (thread) => thread.chat_handler === "ai" && !thread.need_escalation,
     );
   }
+  if (activeFilter === "with_agent") {
+    return threads.filter((thread) => thread.chat_handler === "human");
+  }
 
-  return filtered;
+  return threads;
 }
 
 type AttachmentStatus = "uploading" | "uploaded" | "error";
@@ -744,11 +721,10 @@ export default function Support() {
   const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
   const [readFilter, setReadFilter] = useState<ThreadFilter>(() => {
     const filter = searchParams?.get("filter");
-    return filter === "unread" ||
-      filter === "read" ||
-      filter === "active" ||
-      filter === "visitors" ||
-      filter === "cart"
+    return filter === "needs_human" ||
+      filter === "ai" ||
+      filter === "with_agent" ||
+      filter === "all"
       ? filter
       : "all";
   });
@@ -963,8 +939,18 @@ export default function Support() {
     [activeThreadId, visibleThreads],
   );
 
-  const unreadCount = useMemo(
-    () => visibleThreads.filter((thread) => thread.is_read === false).length,
+  const threadTabCounts = useMemo(
+    () => ({
+      needs_human: visibleThreads.filter((thread) => thread.need_escalation)
+        .length,
+      ai: visibleThreads.filter(
+        (thread) => thread.chat_handler === "ai" && !thread.need_escalation,
+      ).length,
+      with_agent: visibleThreads.filter(
+        (thread) => thread.chat_handler === "human",
+      ).length,
+      all: visibleThreads.length,
+    }),
     [visibleThreads],
   );
 
@@ -1348,6 +1334,8 @@ export default function Support() {
             total_messages: 1,
             created_at: new Date().toISOString(),
             customer: data.customer ?? null,
+            need_escalation: false,
+            escalation_timer: null,
             is_read: belongsToOpenThread,
           } as ThreadWithReadState;
           return [newThread, ...prev];
@@ -1676,12 +1664,10 @@ export default function Support() {
             <div className="flex flex-wrap items-center gap-1.5">
               {(
                 [
+                  { key: "needs_human", label: "Needs human" },
+                  { key: "ai", label: "AI" },
+                  { key: "with_agent", label: "With agent" },
                   { key: "all", label: "All" },
-                  { key: "unread", label: "Unread" },
-                  { key: "read", label: "Read" },
-                  { key: "active", label: "Active" },
-                  { key: "visitors", label: "Visitors" },
-                  { key: "cart", label: "Cart Activity" },
                 ] as const
               ).map((option) => (
                 <button
@@ -1718,18 +1704,16 @@ export default function Support() {
                   )}
                 >
                   {option.label}
-                  {option.key === "unread" && unreadCount > 0 && (
-                    <span
-                      className={cn(
-                        "rounded-md px-1.5 text-xs",
-                        readFilter === "unread"
-                          ? "bg-primary-foreground/20"
-                          : "bg-muted text-foreground/70",
-                      )}
-                    >
-                      {unreadCount}
-                    </span>
-                  )}
+                  <span
+                    className={cn(
+                      "rounded-md px-1.5 text-xs",
+                      readFilter === option.key
+                        ? "bg-primary-foreground/20"
+                        : "bg-muted text-foreground/70",
+                    )}
+                  >
+                    {threadTabCounts[option.key]}
+                  </span>
                 </button>
               ))}
             </div>
@@ -1749,6 +1733,10 @@ export default function Support() {
                     thread.chat_handler === "human"
                       ? thread.chat_handler_user?.name || "Agent"
                       : "AI";
+                  const waitingLabel =
+                    thread.need_escalation && thread.escalation_timer
+                      ? `Waiting ${formatRelativeDateTime(thread.escalation_timer)}`
+                      : null;
 
                   return (
                     <ConversationRow
@@ -1798,6 +1786,14 @@ export default function Support() {
                             )}
                             {handlerLabel}
                           </Badge>
+                          {waitingLabel && (
+                            <Badge
+                              variant="secondary"
+                              className="h-5 rounded-md bg-red-50 px-1.5 text-xs font-normal text-red-700"
+                            >
+                              {waitingLabel}
+                            </Badge>
+                          )}
                           <Typography
                             variant="muted"
                             as="span"
@@ -1813,17 +1809,13 @@ export default function Support() {
               ) : threadSearch || readFilter !== "all" ? (
                 <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
                   <Typography variant="small" as="p">
-                    {readFilter === "unread"
-                      ? "No unread conversations"
-                      : readFilter === "read"
-                        ? "No read conversations"
-                        : readFilter === "active"
-                          ? "No active conversations"
-                          : readFilter === "visitors"
-                            ? "No visitors"
-                            : readFilter === "cart"
-                              ? "No carts found"
-                              : "No matches"}
+                    {readFilter === "needs_human"
+                      ? "No chats need human help"
+                      : readFilter === "ai"
+                        ? "No AI-handled chats"
+                        : readFilter === "with_agent"
+                          ? "No chats with agents"
+                          : "No matches"}
                   </Typography>
                   <Typography variant="muted">
                     {threadSearch
