@@ -55,7 +55,7 @@ export const fetchEmailTemplates = createAsyncThunk(
   async (storeCode: string, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchEmailTemplates()}?store_code=${storeCode}`,
+        `${ENDPOINTS.fetchEmailTemplates()}?store_code=${encodeURIComponent(storeCode)}`,
         { useBackend: true },
       );
       return response.data.data as EmailTemplatesResponse;
@@ -83,7 +83,7 @@ export const createEmailTemplate = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.post(
-        `${ENDPOINTS.createEmailTemplate()}?store_code=${storeCode}`,
+        `${ENDPOINTS.createEmailTemplate()}?store_code=${encodeURIComponent(storeCode)}`,
         payload,
         { useBackend: true },
       );
@@ -115,7 +115,7 @@ export const updateEmailTemplate = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.patch(
-        `${ENDPOINTS.emailTemplateDetail({ templateId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.emailTemplateDetail({ templateId })}?store_code=${encodeURIComponent(storeCode)}`,
         payload,
         { useBackend: true },
       );
@@ -139,7 +139,7 @@ export const deleteEmailTemplate = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.delete(
-        `${ENDPOINTS.emailTemplateDetail({ templateId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.emailTemplateDetail({ templateId })}?store_code=${encodeURIComponent(storeCode)}`,
         { useBackend: true },
       );
       return response.data.data as { status: string };
@@ -309,7 +309,7 @@ export const createSegment = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.post(
-        `${ENDPOINTS.createSegment()}?store_code=${storeCode}`,
+        `${ENDPOINTS.createSegment()}?store_code=${encodeURIComponent(storeCode)}`,
         payload,
         { useBackend: true },
       );
@@ -336,7 +336,7 @@ export const fetchSegmentDetail = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.segmentDetail({ segmentId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.segmentDetail({ segmentId })}?store_code=${encodeURIComponent(storeCode)}`,
         { useBackend: true },
       );
       return response.data.data as Segment;
@@ -363,7 +363,7 @@ export const updateSegment = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.put(
-        `${ENDPOINTS.segmentDetail({ segmentId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.segmentDetail({ segmentId })}?store_code=${encodeURIComponent(storeCode)}`,
         payload,
         { useBackend: true },
       );
@@ -385,7 +385,7 @@ export const deleteSegment = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.delete(
-        `${ENDPOINTS.segmentDetail({ segmentId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.segmentDetail({ segmentId })}?store_code=${encodeURIComponent(storeCode)}`,
         { useBackend: true },
       );
       return response.data.data as { status: string };
@@ -412,7 +412,7 @@ export const updateSegmentStatus = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.patch(
-        `${ENDPOINTS.segmentDetail({ segmentId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.segmentDetail({ segmentId })}?store_code=${encodeURIComponent(storeCode)}`,
         { is_active: isActive },
         { useBackend: true },
       );
@@ -533,7 +533,7 @@ export const fetchCampaignDetail = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.campaignDetail({ campaignId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.campaignDetail({ campaignId })}?store_code=${encodeURIComponent(storeCode)}`,
         { useBackend: true },
       );
       return response.data.data as CampaignDetail;
@@ -556,7 +556,7 @@ export const fetchCampaignSequenceSteps = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.campaignSequenceSteps({ campaignId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.campaignSequenceSteps({ campaignId })}?store_code=${encodeURIComponent(storeCode)}`,
         { useBackend: true },
       );
       return response.data.data as CampaignSequenceSteps;
@@ -582,7 +582,7 @@ export const createCampaign = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.post(
-        `${ENDPOINTS.createCampaign()}?store_code=${storeCode}`,
+        `${ENDPOINTS.createCampaign()}?store_code=${encodeURIComponent(storeCode)}`,
         payload,
         { useBackend: true },
       );
@@ -617,7 +617,7 @@ export const updateCampaignStatus = createAsyncThunk(
       if (status !== undefined) body.status = status;
       if (isActive !== undefined) body.is_active = isActive;
       const response = await axiosInstance.patch(
-        `${ENDPOINTS.campaignDetail({ campaignId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.campaignDetail({ campaignId })}?store_code=${encodeURIComponent(storeCode)}`,
         body,
         { useBackend: true },
       );
@@ -644,7 +644,7 @@ export const updateCampaign = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.put(
-        `${ENDPOINTS.campaignDetail({ campaignId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.campaignDetail({ campaignId })}?store_code=${encodeURIComponent(storeCode)}`,
         payload,
         { useBackend: true },
       );
@@ -671,7 +671,7 @@ export const scheduleCampaign = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.post(
-        `${ENDPOINTS.campaignSchedule({ campaignId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.campaignSchedule({ campaignId })}?store_code=${encodeURIComponent(storeCode)}`,
         undefined,
         { useBackend: true },
       );
@@ -738,7 +738,7 @@ export const deleteCampaign = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.delete(
-        `${ENDPOINTS.campaignDetail({ campaignId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.campaignDetail({ campaignId })}?store_code=${encodeURIComponent(storeCode)}`,
         { useBackend: true },
       );
       return response.data.data as { status: string };
@@ -761,7 +761,7 @@ export const fetchEmailTemplateDetail = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.emailTemplateDetail({ templateId })}?store_code=${storeCode}`,
+        `${ENDPOINTS.emailTemplateDetail({ templateId })}?store_code=${encodeURIComponent(storeCode)}`,
         { useBackend: true },
       );
       return response.data.data as EmailTemplate;

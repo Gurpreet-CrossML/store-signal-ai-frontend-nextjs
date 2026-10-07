@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import EmailTemplateForm from "@/clients/email-template-form";
 
 export const metadata = {
@@ -10,5 +11,7 @@ export default async function Page({
   params: Promise<{ templateId: string }>;
 }) {
   const { templateId } = await params;
-  return <EmailTemplateForm templateId={Number(templateId)} />;
+  const parsed = Number(templateId);
+  if (!Number.isInteger(parsed) || parsed <= 0) notFound();
+  return <EmailTemplateForm templateId={parsed} />;
 }

@@ -15,7 +15,6 @@ import {
   IconLayoutBottombar,
   IconLayoutNavbar,
   IconListDetails,
-  IconLoader2,
   IconMessage2,
   IconPhoto,
   IconPlus,
@@ -622,7 +621,7 @@ export default function WhatsAppTemplateCreate({
             disabled={submitting || accountLoading || loadingTemplate}
           >
             {submitting ? (
-              <IconLoader2 className="size-4 animate-spin" />
+              <Spinner className="size-4" />
             ) : isEditMode ? (
               <IconDeviceFloppy className="size-4" />
             ) : (
