@@ -355,14 +355,14 @@ function ThreadChatControls({
                 </div>
               </div>
               {canReassign && (
-              <ReassignAgentSelect
-                agents={agents}
-                currentAgent={null}
-                disabled={transitionState !== "idle"}
-                onReassign={onReassign}
-              />
-            )}
-            {activeThreadId && !canReassign && connectedAgent !== user && (
+                <ReassignAgentSelect
+                  agents={agents}
+                  currentAgent={null}
+                  disabled={transitionState !== "idle"}
+                  onReassign={onReassign}
+                />
+              )}
+              {activeThreadId && !canReassign && connectedAgent !== user && (
                 // Same layoutId as Return to AI: framer treats the two as one
                 // element and slides it from here into the composer, so the
                 // control an agent just pressed is visibly where it went.
