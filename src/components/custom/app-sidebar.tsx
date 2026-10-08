@@ -40,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/hooks";
 import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
+import { useSupportDashboardEvents } from "@/hooks/use-support-dashboard-events";
 
 export function AppSidebar({
   className,
@@ -75,7 +76,6 @@ export function AppSidebar({
     storeCode: "",
     count: 0,
   });
-  const dashboardWsRef = React.useRef<WebSocket | null>(null);
 
   const refreshNeedsHumanBadge = React.useCallback(() => {
     if (!storeCode) {
@@ -113,52 +113,9 @@ export function AppSidebar({
 
   React.useEffect(() => refreshNeedsHumanBadge(), [refreshNeedsHumanBadge]);
 
-  React.useEffect(() => {
-    const token = session?.user?.access_token;
-    if (!token || !storeCode) {
-      dashboardWsRef.current?.close();
-      dashboardWsRef.current = null;
-      return;
-    }
-
-    const dashboardWs = new WebSocket(
-      ENDPOINTS.dashboardSocket(storeCode, token),
-    );
-    dashboardWsRef.current = dashboardWs;
-
-    dashboardWs.onmessage = (event) => {
-      let data: { success?: boolean; action_type?: string };
-      try {
-        data = JSON.parse(event.data);
-      } catch {
-        return;
-      }
-
-      if (
-        data?.success &&
-        ["message", "thread_updated", "thread_closed"].includes(
-          data.action_type ?? "",
-        )
-      ) {
-        refreshNeedsHumanBadge();
-      }
-    };
-
-    dashboardWs.onclose = () => {
-      if (dashboardWsRef.current === dashboardWs) {
-        dashboardWsRef.current = null;
-      }
-    };
-
-    dashboardWs.onerror = () => {};
-
-    return () => {
-      dashboardWs.close();
-      if (dashboardWsRef.current === dashboardWs) {
-        dashboardWsRef.current = null;
-      }
-    };
-  }, [session?.user?.access_token, storeCode, refreshNeedsHumanBadge]);
+  useSupportDashboardEvents(() => {
+    refreshNeedsHumanBadge();
+  });
 
   // One ordered list, filtered rather than concatenated — a hidden entry
   // leaves the rest in their order. Admins see everything; staff see what

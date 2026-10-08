@@ -53,8 +53,6 @@ import {
   type ThreadMessage,
   FetchOrders,
   UploadMessageAttachments,
-  type Customer,
-  type ThreadHandlerUser,
 } from "@/redux/api-slice/thread-slice";
 import {
   CreateSupportTicket,
@@ -92,6 +90,11 @@ import { ENDPOINTS } from "@/lib/config";
 import { can } from "@/lib/access-rules";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { formatRelativeDateTime } from "@/lib/helpers";
+import {
+  useSupportDashboardEvents,
+  type SupportDashboardMessageEvent,
+  type SupportDashboardThreadUpdateEvent,
+} from "@/hooks/use-support-dashboard-events";
 
 // Extends the shared Thread type with a local read-state flag. Ideally
 // `is_read` becomes a real field on Thread (and maybe comes from the API),
@@ -636,43 +639,6 @@ function ThreadChatControls({
   );
 }
 
-// Shape of the "message" event data coming from the dashboard socket.
-type DashboardMessageEvent = {
-  id: string;
-  message: string;
-  role: string;
-  thread_id: string;
-  customer?: Customer | null;
-  is_active: boolean;
-  created_at: string;
-  chat_handler?: Thread["chat_handler"];
-  chat_handler_user?: ThreadHandlerUser | null;
-  need_escalation?: boolean;
-  escalation_time?: string | null;
-};
-
-type DashboardThreadUpdateEvent = {
-  thread_id: string;
-  chat_handler?: Thread["chat_handler"];
-  chat_handler_user?: ThreadHandlerUser | null;
-  need_escalation?: boolean;
-  escalation_timer?: string | null;
-};
-
-type DashboardSocketPayload =
-  | { success: boolean; action_type: "connection"; data?: unknown }
-  | { success: boolean; action_type: "message"; data: DashboardMessageEvent }
-  | {
-      success: boolean;
-      action_type: "thread_updated";
-      data: DashboardThreadUpdateEvent;
-    }
-  | {
-      success: boolean;
-      action_type: "thread_closed";
-      data: { thread_id: string };
-    };
-
 const useNotificationSound = (soundUrl: string = "/notification_sound.mp3") => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -832,7 +798,6 @@ export default function Support() {
   }, [sessionStatus, session?.user, canReassign, dispatch]);
 
   const wsRef = useRef<WebSocket | null>(null);
-  const dashboardWsRef = useRef<WebSocket | null>(null);
   const connectedAgentRef = useRef<string | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
   // Last ?chat= value already applied to local state — stops the render-time
@@ -1375,7 +1340,7 @@ export default function Support() {
   // threads are prepended. Marks the thread unread unless it's the one
   // currently open.
   const upsertThreadFromMessage = useCallback(
-    (data: DashboardMessageEvent) => {
+    (data: SupportDashboardMessageEvent) => {
       const belongsToOpenThread = data.thread_id === activeThreadIdRef.current;
 
       setLocalThreads((prev) => {
@@ -1391,8 +1356,10 @@ export default function Support() {
             total_messages: 1,
             created_at: new Date().toISOString(),
             customer: data.customer ?? null,
-            need_escalation: false,
-            escalation_time: null,
+            chat_handler: data.chat_handler,
+            chat_handler_user: data.chat_handler_user ?? null,
+            need_escalation: data.need_escalation ?? false,
+            escalation_time: data.escalation_time ?? null,
             is_read: belongsToOpenThread,
           } as ThreadWithReadState;
           return [newThread, ...prev];
@@ -1405,6 +1372,17 @@ export default function Support() {
           last_message: data.message,
           last_message_at: data.created_at,
           is_active: data.is_active,
+          chat_handler: data.chat_handler ?? existingThread.chat_handler,
+          chat_handler_user:
+            "chat_handler_user" in data
+              ? (data.chat_handler_user ?? null)
+              : existingThread.chat_handler_user,
+          need_escalation:
+            data.need_escalation ?? existingThread.need_escalation,
+          escalation_time:
+            "escalation_time" in data
+              ? (data.escalation_time ?? null)
+              : existingThread.escalation_time,
           total_messages: (existingThread.total_messages ?? 0) + 1,
           is_read: belongsToOpenThread,
         };
@@ -1428,76 +1406,44 @@ export default function Support() {
     setLocalThreads((prev) => prev.filter((t) => t.id !== threadId));
   }, []);
 
-  // ---- Dashboard-wide socket: opens once the page has an authenticated
-  // session, independent of which thread is selected. Drives live updates
-  // to the thread list (new messages, new threads, closed threads). ----
-  useEffect(() => {
-    const token = session?.user?.access_token;
-    if (!token || !storeCode) {
-      dashboardWsRef.current?.close();
-      dashboardWsRef.current = null;
+  const patchThreadFromUpdate = useCallback(
+    (data: SupportDashboardThreadUpdateEvent) => {
+      setLocalThreads((prev) =>
+        prev.map((thread) =>
+          thread.id === data.thread_id
+            ? {
+                ...thread,
+                chat_handler: data.chat_handler ?? thread.chat_handler,
+                chat_handler_user:
+                  "chat_handler_user" in data
+                    ? (data.chat_handler_user ?? null)
+                    : thread.chat_handler_user,
+                need_escalation: data.need_escalation ?? thread.need_escalation,
+                escalation_time:
+                  "escalation_time" in data
+                    ? (data.escalation_time ?? null)
+                    : thread.escalation_time,
+              }
+            : thread,
+        ),
+      );
+    },
+    [],
+  );
+
+  useSupportDashboardEvents((event) => {
+    if (event.action_type === "message") {
+      upsertThreadFromMessage(event.data);
       return;
     }
 
-    if (dashboardWsRef.current) {
-      dashboardWsRef.current.close();
-      dashboardWsRef.current = null;
+    if (event.action_type === "thread_updated") {
+      patchThreadFromUpdate(event.data);
+      return;
     }
 
-    const dashboardUrl = ENDPOINTS.dashboardSocket(storeCode, token);
-    const dashboardWs = new WebSocket(dashboardUrl);
-    dashboardWsRef.current = dashboardWs;
-
-    dashboardWs.onopen = () => {
-      console.info("Dashboard socket connected");
-    };
-
-    dashboardWs.onmessage = (event) => {
-      let data: DashboardSocketPayload;
-      try {
-        data = JSON.parse(event.data);
-      } catch (error) {
-        console.error("Failed to parse dashboard socket message", error);
-        return;
-      }
-
-      if (!data?.success) {
-        return;
-      }
-
-      if (data.action_type === "connection") {
-        return;
-      }
-
-      if (data.action_type === "message") {
-        upsertThreadFromMessage(data.data);
-        return;
-      }
-
-      if (data.action_type === "thread_closed") {
-        removeClosedThread(data.data.thread_id);
-      }
-    };
-
-    dashboardWs.onclose = () => {
-      if (dashboardWsRef.current === dashboardWs) {
-        dashboardWsRef.current = null;
-      }
-      console.info("Dashboard socket disconnected");
-    };
-
-    dashboardWs.onerror = () => {};
-
-    return () => {
-      dashboardWs.close();
-      if (dashboardWsRef.current === dashboardWs) {
-        dashboardWsRef.current = null;
-      }
-    };
-    // Socket lifecycle deliberately keys on auth + store only; the handlers
-    // are read fresh via refs inside the socket callbacks.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.access_token, storeCode]);
+    removeClosedThread(event.data.thread_id);
+  });
 
   // ---- Per-thread chat socket: opens/closes as the selected thread changes. ----
   useEffect(() => {
@@ -1820,7 +1766,7 @@ export default function Support() {
                         thread.customer?.email ||
                         "Guest"
                       }
-                      timestamp={formatRelativeDateTime(thread.created_at)}
+                      timestamp={formatRelativeDateTime(thread.last_message_at)}
                       indicator={
                         isUnread ? (
                           <span className="size-2 shrink-0 rounded-full bg-primary" />

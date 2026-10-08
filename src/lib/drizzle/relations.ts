@@ -98,6 +98,7 @@ import {
   templateAttachment,
   campaignSequence,
   campaignStepRun,
+  supportConfiguration,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -208,6 +209,7 @@ export const storeRelations = relations(store, ({ many }) => ({
   segmentss: many(segments),
   campaigns: many(campaign),
   chatThreads: many(chatThread),
+  supportConfigurations: many(supportConfiguration),
 }));
 
 export const djangoAdminLogRelations = relations(djangoAdminLog, ({ one }) => ({
@@ -1262,6 +1264,16 @@ export const campaignStepRunRelations = relations(
     campaignSequence: one(campaignSequence, {
       fields: [campaignStepRun.sequenceStepId],
       references: [campaignSequence.id],
+    }),
+  }),
+);
+
+export const supportConfigurationRelations = relations(
+  supportConfiguration,
+  ({ one }) => ({
+    store: one(store, {
+      fields: [supportConfiguration.storeId],
+      references: [store.id],
     }),
   }),
 );

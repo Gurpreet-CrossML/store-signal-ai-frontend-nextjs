@@ -113,7 +113,7 @@ export type ThreadListItem = {
   chat_handler: string;
   chat_handler_user: { id: number; name: string; email: string } | null;
   need_escalation: boolean;
-  escalation_timer: string | null;
+  escalation_time: string | null;
   customer: { id: number | null; name: string | null; email: string | null };
   followup_level: number;
   is_active: boolean;
@@ -424,7 +424,7 @@ export async function list_threads(
             }
           : null,
       need_escalation: row.need_escalation,
-      escalation_timer: row.escalation_time,
+      escalation_time: row.escalation_time,
       customer: {
         // Null for a guest — the UI keys its tickets lookup off this.
         id: row.customer_id ?? null,
