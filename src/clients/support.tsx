@@ -424,7 +424,7 @@ function ThreadChatControls({
                     disabled={
                       transitionState !== "idle" ||
                       !chatSocketReady ||
-                    !!(connectedAgent && connectedAgent !== user)
+                      !!(connectedAgent && connectedAgent !== user)
                     }
                   >
                     <IconHeadset className="h-4 w-4" />
