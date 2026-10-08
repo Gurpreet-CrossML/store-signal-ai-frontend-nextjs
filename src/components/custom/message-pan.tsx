@@ -17,11 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  IconLock,
-  IconShoppingBag,
-  IconSparkles,
-} from "@tabler/icons-react";
+import { IconLock, IconShoppingBag, IconSparkles } from "@tabler/icons-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
@@ -104,7 +100,10 @@ export default function MessagePan({
                       {isInternalNote ? (
                         <>
                           <span className="font-medium">
-                            Internal note · {message.agent_name || message.messaged_by || "Agent"}
+                            Internal note ·{" "}
+                            {message.agent_name ||
+                              message.messaged_by ||
+                              "Agent"}
                           </span>
                           <span className="mx-1.5 opacity-60">·</span>
                           <span>{message.message}</span>

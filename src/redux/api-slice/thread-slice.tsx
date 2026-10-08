@@ -410,10 +410,13 @@ export const CreateInternalNote = createAsyncThunk(
     thunkAPI,
   ) => {
     try {
-      const response = await axiosInstance.post(ENDPOINTS.createInternalNote(), {
-        thread_id: threadId,
-        message,
-      });
+      const response = await axiosInstance.post(
+        ENDPOINTS.createInternalNote(),
+        {
+          thread_id: threadId,
+          message,
+        },
+      );
 
       return response.data.data as ThreadMessage;
     } catch (error) {
@@ -422,7 +425,8 @@ export const CreateInternalNote = createAsyncThunk(
 
       toast.error("Uh oh! Something went wrong.", {
         description:
-          data?.message || "Unable to save the internal note. Please try again later.",
+          data?.message ||
+          "Unable to save the internal note. Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -862,7 +866,8 @@ const ThreadSlice = createSlice({
       })
       .addCase(CreateInternalNote.rejected, (state, action) => {
         state.CreateInternalNoteState.CreateInternalNoteIsLoading = false;
-        state.CreateInternalNoteState.CreateInternalNoteIsError = action.payload;
+        state.CreateInternalNoteState.CreateInternalNoteIsError =
+          action.payload;
         state.CreateInternalNoteState.CreateInternalNoteIsSuccess = false;
       })
       .addCase(FetchUserMetadata.pending, (state) => {
