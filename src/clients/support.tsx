@@ -1772,7 +1772,10 @@ export default function Support() {
                   const channelLabel = isWhatsapp ? "WhatsApp" : "Web";
                   const handlerLabel =
                     thread.chat_handler === "human"
-                      ? thread.chat_handler_user?.name || "Agent"
+                      ? thread.chat_handler_user?.email?.toLowerCase() ===
+                        session?.user?.email?.toLowerCase()
+                        ? "You"
+                        : thread.chat_handler_user?.name || "Agent"
                       : "AI";
                   const waitingLabel =
                     thread.need_escalation && thread.escalation_timer
