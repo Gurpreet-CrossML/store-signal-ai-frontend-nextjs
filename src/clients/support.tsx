@@ -69,7 +69,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { StaffMember } from "@/redux/api-slice/tenancy-slice";
+import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import { axiosInstance } from "@/redux/axios-config";
 import {
   IconAlertTriangle,
@@ -756,20 +756,25 @@ export default function Support() {
     string | number | null
   >(null);
 
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   // Same rules as the nav (see `can`): admins always may; everyone else needs
   // the permission from their role. The backend enforces this too — checking
   // here spares a round trip and says why.
   const canHandleChats = can(session?.user, "conversations", { write: true });
   // Admins and supervisors may assign a chat to another agent.
   const canReassign = can(session?.user, "reassignment", { write: true });
-  // Staff who can answer chats (see the effect below). Kept local: the
-  // shared staff list in Redux is company-wide and used by other screens.
-  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const staff: StaffMember[] = useAppSelector(
+    (state) => state.GetTenancyReducer.staff,
+  );
   const agents = useMemo<AgentOption[]>(() => {
     const myEmail = session?.user?.email ?? "";
     const list = staff
-      .filter((member) => member.is_active)
+      .filter(
+        (member) =>
+          member.is_active &&
+          (member.is_staff ||
+            (!!member.role && CHAT_HANDLER_ROLES.includes(member.role))),
+      )
       .map((member) => ({
         email: member.email,
         name: `${member.first_name} ${member.last_name}`.trim() || member.email,
@@ -785,6 +790,7 @@ export default function Support() {
         : agent,
     );
   }, [staff, canReassign, session?.user?.email, session?.user?.name]);
+
   const connectedAgentName = useMemo(() => {
     if (!connectedAgent) return null;
     if (connectedAgentServerName) return connectedAgentServerName;
@@ -801,35 +807,14 @@ export default function Support() {
     session?.user?.name,
   ]);
 
-  // Only admins and supervisors can reassign, and only they need the agent list. The staff
-  // list is company-wide, so it is narrowed here to active users whose role
-  // can answer chats — the only people a chat may be assigned to.
+  // Only admins and supervisors can reassign, and only they need the agent list.
+  // Fetch the shared company staff roster from Redux so all screens use the same
+  // source of truth instead of a one-off axios call in this component.
   useEffect(() => {
-    if (!canReassign) return;
-    let cancelled = false;
-
-    axiosInstance
-      .get(ENDPOINTS.fetchStaff(), { useBackend: true })
-      .then((res) => {
-        if (cancelled) return;
-        const members = res.data.data as StaffMember[];
-        setStaff(
-          members.filter(
-            (member) =>
-              member.is_active &&
-              !!member.role &&
-              CHAT_HANDLER_ROLES.includes(member.role),
-          ),
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setStaff([]);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [canReassign]);
+    if (sessionStatus !== "authenticated") return;
+    if (!session?.user || !canReassign) return;
+    void dispatch(FetchStaff());
+  }, [sessionStatus, session?.user, canReassign, dispatch]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const dashboardWsRef = useRef<WebSocket | null>(null);

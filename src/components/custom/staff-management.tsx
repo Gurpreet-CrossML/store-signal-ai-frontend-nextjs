@@ -71,6 +71,7 @@ export default function StaffManagement({
   const filteredStaff = useMemo(() => {
     const query = search.trim().toLowerCase();
     return (staff ?? []).filter((member) => {
+      if (member.is_staff) return;
       if (roleFilter !== "all" && member.role !== roleFilter) return false;
       if (
         statusFilter !== "all" &&
