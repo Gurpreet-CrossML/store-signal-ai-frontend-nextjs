@@ -37,6 +37,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { FetchThreads } from "@/redux/api-slice/thread-slice";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useSupportDashboardEvents } from "@/hooks/use-support-dashboard-events";
 
 export function AppSidebar({
   className,
@@ -65,6 +68,57 @@ export function AppSidebar({
     subNavSearch,
   );
   const { data: session } = useSession();
+  const dispatch = useAppDispatch();
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
+  const [needsHumanBadge, setNeedsHumanBadge] = React.useState({
+    storeCode: "",
+    count: 0,
+  });
+
+  const refreshNeedsHumanBadge = React.useCallback(() => {
+    if (!storeCode) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void dispatch(
+      FetchThreads({
+        store_code: storeCode,
+        page: 1,
+        limit: 1,
+        skipListStateUpdate: true,
+        filters: {
+          is_active: true,
+          need_escalation: true,
+        },
+      }),
+    )
+      .unwrap()
+      .then((response) => {
+        if (cancelled) return;
+
+        setNeedsHumanBadge({
+          storeCode,
+          count: response.count,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setNeedsHumanBadge({ storeCode, count: 0 });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, storeCode]);
+
+  React.useEffect(() => refreshNeedsHumanBadge(), [refreshNeedsHumanBadge]);
+
+  useSupportDashboardEvents(() => {
+    refreshNeedsHumanBadge();
+  });
 
   // One ordered list, filtered rather than concatenated — a hidden entry
   // leaves the rest in their order. Admins see everything; staff see what
@@ -135,7 +189,14 @@ export function AppSidebar({
           <StoreSwitcher />
         </SidebarHeader>
         <SidebarContent>
-          <NavMain items={navMain} />
+          <NavMain
+            items={navMain}
+            liveSupportBadgeCount={
+              needsHumanBadge.storeCode === storeCode
+                ? needsHumanBadge.count
+                : 0
+            }
+          />
           {sidebarMenus.navSecondary && (
             <NavSecondary
               items={sidebarMenus.navSecondary}

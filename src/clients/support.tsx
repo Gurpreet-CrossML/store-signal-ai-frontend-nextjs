@@ -38,6 +38,7 @@ import {
   type TicketCustomer,
 } from "@/components/custom/create-ticket-dialog";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
+import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
 import { SearchInput } from "@/components/custom/search-input";
 import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
@@ -53,7 +54,6 @@ import {
   type ThreadMessage,
   FetchOrders,
   UploadMessageAttachments,
-  type Customer,
 } from "@/redux/api-slice/thread-slice";
 import {
   CreateSupportTicket,
@@ -63,16 +63,21 @@ import { SyncCustomerOrders } from "@/redux/api-slice/order-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { StaffMember } from "@/redux/api-slice/tenancy-slice";
-import { axiosInstance } from "@/redux/axios-config";
+import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import {
   IconAlertTriangle,
+  IconFilter,
   IconHeadset,
   IconMessage2,
   IconMessageChatbot,
@@ -91,14 +96,31 @@ import { ENDPOINTS } from "@/lib/config";
 import { can } from "@/lib/access-rules";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { formatRelativeDateTime } from "@/lib/helpers";
+import {
+  useSupportDashboardEvents,
+  type SupportDashboardMessageEvent,
+  type SupportDashboardThreadUpdateEvent,
+} from "@/hooks/use-support-dashboard-events";
 
 // Extends the shared Thread type with a local read-state flag. Ideally
 // `is_read` becomes a real field on Thread (and maybe comes from the API),
 // but until then we track it client-side, defaulting to true on load.
 type ThreadWithReadState = Thread & { is_read?: boolean };
-type ThreadFilter = "all" | "unread" | "read" | "active" | "visitors" | "cart";
+type ThreadFilter = "needs_human" | "ai" | "with_agent" | "all";
+type SupportThreadFilters = {
+  channels: string[];
+  assignees: string[];
+};
 
-const ACTIVE_THREAD_WINDOW_MS = 30 * 60 * 1000;
+const EMPTY_SUPPORT_THREAD_FILTERS: SupportThreadFilters = {
+  channels: [],
+  assignees: [],
+};
+
+const SUPPORT_CHANNEL_OPTIONS = [
+  { value: "web", label: "Web" },
+  { value: "whatsapp", label: "WhatsApp" },
+];
 
 // Message teasers render through react-markdown so formatting like **bold**
 // shows properly, but flattened to inline spans: block elements would break
@@ -130,44 +152,44 @@ function normalizeThreads(threads: Thread[] | undefined) {
   }));
 }
 
-function isThreadWithinActiveWindow(thread: Thread) {
-  if (!thread.last_message_at) return false;
-  const timestamp = new Date(thread.last_message_at).getTime();
-  if (!Number.isFinite(timestamp)) return false;
-  return Date.now() - timestamp <= ACTIVE_THREAD_WINDOW_MS;
-}
-
 function getFilteredThreads(
   threads: ThreadWithReadState[],
-  readFilter: ThreadFilter,
+  activeFilter: ThreadFilter,
 ) {
-  const filtered = threads.filter((thread) => {
-    if (readFilter === "unread" && thread.is_read !== false) {
-      return false;
-    }
-    if (readFilter === "read" && thread.is_read === false) {
-      return false;
-    }
-    if (readFilter === "active") {
-      return thread.total_messages > 0 && isThreadWithinActiveWindow(thread);
-    }
-    if (readFilter === "visitors") {
-      return thread.total_messages === 0 || !isThreadWithinActiveWindow(thread);
-    }
-    if (readFilter === "cart") {
-      return Number(thread.cart_total ?? 0) > 0;
-    }
-
-    return true;
-  });
-
-  if (readFilter === "cart") {
-    return [...filtered].sort(
-      (a, b) => Number(b.cart_total ?? 0) - Number(a.cart_total ?? 0),
+  if (activeFilter === "needs_human") {
+    return threads.filter((thread) => thread.need_escalation);
+  }
+  if (activeFilter === "ai") {
+    return threads.filter(
+      (thread) => thread.chat_handler === "ai" && !thread.need_escalation,
     );
   }
+  if (activeFilter === "with_agent") {
+    return threads.filter((thread) => thread.chat_handler === "human");
+  }
 
-  return filtered;
+  return threads;
+}
+
+function formatWaitingDuration(startedAt: string, now: number) {
+  const startedAtMs = new Date(startedAt).getTime();
+  if (Number.isNaN(startedAtMs)) return "0s";
+
+  const totalSeconds = Math.max(0, Math.floor((now - startedAtMs) / 1000));
+  const seconds = totalSeconds % 60;
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const minutes = totalMinutes % 60;
+  const hours = Math.floor(totalMinutes / 60);
+
+  if (hours > 0) {
+    return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+  }
+
+  if (totalMinutes > 0) {
+    return `${totalMinutes}m ${String(seconds).padStart(2, "0")}s`;
+  }
+
+  return `${seconds}s`;
 }
 
 type AttachmentStatus = "uploading" | "uploaded" | "error";
@@ -240,6 +262,7 @@ function ThreadChatControls({
   user,
   canReassign = false,
   agents = [],
+  chatSocketReady,
   transitionState,
   agentMessage,
   setAgentMessage,
@@ -263,6 +286,7 @@ function ThreadChatControls({
   user: string | null;
   canReassign?: boolean;
   agents?: AgentOption[];
+  chatSocketReady: boolean;
   transitionState: "idle" | "taking_over" | "returning_to_ai";
   agentMessage: string;
   setAgentMessage: (value: string) => void;
@@ -347,7 +371,7 @@ function ThreadChatControls({
               <ReassignAgentSelect
                 agents={agents}
                 currentAgent={null}
-                disabled={transitionState !== "idle"}
+                disabled={transitionState !== "idle" || !chatSocketReady}
                 onReassign={onReassign}
               />
             )}
@@ -361,6 +385,7 @@ function ThreadChatControls({
                   onClick={onTakeOver}
                   disabled={
                     transitionState !== "idle" ||
+                    !chatSocketReady ||
                     !!(connectedAgent && connectedAgent !== user)
                   }
                 >
@@ -398,7 +423,7 @@ function ThreadChatControls({
               <ReassignAgentSelect
                 agents={agents}
                 currentAgent={connectedAgent}
-                disabled={transitionState !== "idle"}
+                disabled={transitionState !== "idle" || !chatSocketReady}
                 onReassign={onReassign}
               />
             )}
@@ -575,7 +600,7 @@ function ThreadChatControls({
                   <ReassignAgentSelect
                     agents={agents}
                     currentAgent={connectedAgent}
-                    disabled={transitionState !== "idle"}
+                    disabled={transitionState !== "idle" || !chatSocketReady}
                     onReassign={onReassign}
                   />
                 )}
@@ -588,7 +613,7 @@ function ThreadChatControls({
                     variant="outline"
                     size="sm"
                     onClick={onReturnToAI}
-                    disabled={transitionState !== "idle"}
+                    disabled={transitionState !== "idle" || !chatSocketReady}
                   >
                     <IconRobot className="size-4" />
                     Return to AI
@@ -636,26 +661,6 @@ function ThreadChatControls({
     </div>
   );
 }
-
-// Shape of the "message" event data coming from the dashboard socket.
-type DashboardMessageEvent = {
-  id: string;
-  message: string;
-  role: string;
-  thread_id: string;
-  customer?: Customer | null;
-  is_active: boolean;
-  created_at: string;
-};
-
-type DashboardSocketPayload =
-  | { success: boolean; action_type: "connection"; data?: unknown }
-  | { success: boolean; action_type: "message"; data: DashboardMessageEvent }
-  | {
-      success: boolean;
-      action_type: "thread_closed";
-      data: { thread_id: string };
-    };
 
 const useNotificationSound = (soundUrl: string = "/notification_sound.mp3") => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -728,6 +733,7 @@ export default function Support() {
   const [connectedAgentServerName, setConnectedAgentServerName] = useState<
     string | null
   >(null);
+  const [chatSocketReady, setChatSocketReady] = useState(false);
   const [transitionState, setTransitionState] = useState<
     "idle" | "taking_over" | "returning_to_ai"
   >("idle");
@@ -744,32 +750,41 @@ export default function Support() {
   const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
   const [readFilter, setReadFilter] = useState<ThreadFilter>(() => {
     const filter = searchParams?.get("filter");
-    return filter === "unread" ||
-      filter === "read" ||
-      filter === "active" ||
-      filter === "visitors" ||
-      filter === "cart"
+    return filter === "needs_human" ||
+      filter === "ai" ||
+      filter === "with_agent" ||
+      filter === "all"
       ? filter
       : "all";
   });
+  const [isThreadFilterOpen, setIsThreadFilterOpen] = useState(false);
+  const [appliedThreadFilters, setAppliedThreadFilters] =
+    useState<SupportThreadFilters>(EMPTY_SUPPORT_THREAD_FILTERS);
+  const [draftThreadFilters, setDraftThreadFilters] =
+    useState<SupportThreadFilters>(EMPTY_SUPPORT_THREAD_FILTERS);
   const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
     string | number | null
   >(null);
 
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   // Same rules as the nav (see `can`): admins always may; everyone else needs
   // the permission from their role. The backend enforces this too — checking
   // here spares a round trip and says why.
   const canHandleChats = can(session?.user, "conversations", { write: true });
   // Admins and supervisors may assign a chat to another agent.
   const canReassign = can(session?.user, "reassignment", { write: true });
-  // Staff who can answer chats (see the effect below). Kept local: the
-  // shared staff list in Redux is company-wide and used by other screens.
-  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const staff: StaffMember[] = useAppSelector(
+    (state) => state.GetTenancyReducer.staff,
+  );
   const agents = useMemo<AgentOption[]>(() => {
     const myEmail = session?.user?.email ?? "";
     const list = staff
-      .filter((member) => member.is_active)
+      .filter(
+        (member) =>
+          member.is_active &&
+          (member.is_staff ||
+            (!!member.role && CHAT_HANDLER_ROLES.includes(member.role))),
+      )
       .map((member) => ({
         email: member.email,
         name: `${member.first_name} ${member.last_name}`.trim() || member.email,
@@ -785,6 +800,7 @@ export default function Support() {
         : agent,
     );
   }, [staff, canReassign, session?.user?.email, session?.user?.name]);
+
   const connectedAgentName = useMemo(() => {
     if (!connectedAgent) return null;
     if (connectedAgentServerName) return connectedAgentServerName;
@@ -801,38 +817,16 @@ export default function Support() {
     session?.user?.name,
   ]);
 
-  // Only admins and supervisors can reassign, and only they need the agent list. The staff
-  // list is company-wide, so it is narrowed here to active users whose role
-  // can answer chats — the only people a chat may be assigned to.
+  // Only admins and supervisors can reassign, and only they need the agent list.
+  // Fetch the shared company staff roster from Redux so the assignee filter and
+  // reassignment controls use the same source of truth.
   useEffect(() => {
-    if (!canReassign) return;
-    let cancelled = false;
-
-    axiosInstance
-      .get(ENDPOINTS.fetchStaff(), { useBackend: true })
-      .then((res) => {
-        if (cancelled) return;
-        const members = res.data.data as StaffMember[];
-        setStaff(
-          members.filter(
-            (member) =>
-              member.is_active &&
-              !!member.role &&
-              CHAT_HANDLER_ROLES.includes(member.role),
-          ),
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setStaff([]);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [canReassign]);
+    if (sessionStatus !== "authenticated") return;
+    if (!session?.user) return;
+    void dispatch(FetchStaff());
+  }, [sessionStatus, session?.user, dispatch]);
 
   const wsRef = useRef<WebSocket | null>(null);
-  const dashboardWsRef = useRef<WebSocket | null>(null);
   const connectedAgentRef = useRef<string | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
   // Last ?chat= value already applied to local state — stops the render-time
@@ -972,14 +966,42 @@ export default function Support() {
       ),
     [activeThreadId, localThreads],
   );
+  const [waitingTimerNow, setWaitingTimerNow] = useState(() => Date.now());
+  const hasWaitingThreads = useMemo(
+    () =>
+      visibleThreads.some(
+        (thread) => thread.need_escalation && thread.escalation_time,
+      ),
+    [visibleThreads],
+  );
+
+  useEffect(() => {
+    if (!hasWaitingThreads) return;
+
+    const interval = window.setInterval(() => {
+      setWaitingTimerNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [hasWaitingThreads]);
 
   const selectedThread = useMemo(
     () => visibleThreads.find((thread) => thread.id === activeThreadId) ?? null,
     [activeThreadId, visibleThreads],
   );
 
-  const unreadCount = useMemo(
-    () => visibleThreads.filter((thread) => thread.is_read === false).length,
+  const threadTabCounts = useMemo(
+    () => ({
+      needs_human: visibleThreads.filter((thread) => thread.need_escalation)
+        .length,
+      ai: visibleThreads.filter(
+        (thread) => thread.chat_handler === "ai" && !thread.need_escalation,
+      ).length,
+      with_agent: visibleThreads.filter(
+        (thread) => thread.chat_handler === "human",
+      ).length,
+      all: visibleThreads.length,
+    }),
     [visibleThreads],
   );
 
@@ -1001,10 +1023,16 @@ export default function Support() {
           // Resolved server-side so it can reach customer email, name and
           // order ids — none of which are on the thread rows themselves.
           ...(debouncedThreadSearch ? { search: debouncedThreadSearch } : {}),
+          ...(appliedThreadFilters.channels.length
+            ? { channel: appliedThreadFilters.channels }
+            : {}),
+          ...(appliedThreadFilters.assignees.length
+            ? { assignee: appliedThreadFilters.assignees }
+            : {}),
         },
       }),
     );
-  }, [dispatch, storeCode, debouncedThreadSearch]);
+  }, [appliedThreadFilters, dispatch, storeCode, debouncedThreadSearch]);
 
   useEffect(() => {
     const timeout = setTimeout(
@@ -1066,7 +1094,12 @@ export default function Support() {
       return;
     }
 
-    if (!activeThreadId || !wsRef.current) {
+    if (
+      !activeThreadId ||
+      !wsRef.current ||
+      wsRef.current.readyState !== WebSocket.OPEN
+    ) {
+      setTransitionState("idle");
       return;
     }
 
@@ -1095,7 +1128,12 @@ export default function Support() {
         return;
       }
 
-      if (!activeThreadId || !wsRef.current) {
+      if (
+        !activeThreadId ||
+        !wsRef.current ||
+        wsRef.current.readyState !== WebSocket.OPEN
+      ) {
+        setTransitionState("idle");
         return;
       }
 
@@ -1124,7 +1162,12 @@ export default function Support() {
       return;
     }
 
-    if (!activeThreadId || !wsRef.current) {
+    if (
+      !activeThreadId ||
+      !wsRef.current ||
+      wsRef.current.readyState !== WebSocket.OPEN
+    ) {
+      setTransitionState("idle");
       return;
     }
 
@@ -1347,7 +1390,7 @@ export default function Support() {
   // threads are prepended. Marks the thread unread unless it's the one
   // currently open.
   const upsertThreadFromMessage = useCallback(
-    (data: DashboardMessageEvent) => {
+    (data: SupportDashboardMessageEvent) => {
       const belongsToOpenThread = data.thread_id === activeThreadIdRef.current;
 
       setLocalThreads((prev) => {
@@ -1363,6 +1406,10 @@ export default function Support() {
             total_messages: 1,
             created_at: new Date().toISOString(),
             customer: data.customer ?? null,
+            chat_handler: data.chat_handler,
+            chat_handler_user: data.chat_handler_user ?? null,
+            need_escalation: data.need_escalation ?? false,
+            escalation_time: data.escalation_time ?? null,
             is_read: belongsToOpenThread,
           } as ThreadWithReadState;
           return [newThread, ...prev];
@@ -1375,6 +1422,17 @@ export default function Support() {
           last_message: data.message,
           last_message_at: data.created_at,
           is_active: data.is_active,
+          chat_handler: data.chat_handler ?? existingThread.chat_handler,
+          chat_handler_user:
+            "chat_handler_user" in data
+              ? (data.chat_handler_user ?? null)
+              : existingThread.chat_handler_user,
+          need_escalation:
+            data.need_escalation ?? existingThread.need_escalation,
+          escalation_time:
+            "escalation_time" in data
+              ? (data.escalation_time ?? null)
+              : existingThread.escalation_time,
           total_messages: (existingThread.total_messages ?? 0) + 1,
           is_read: belongsToOpenThread,
         };
@@ -1398,76 +1456,47 @@ export default function Support() {
     setLocalThreads((prev) => prev.filter((t) => t.id !== threadId));
   }, []);
 
-  // ---- Dashboard-wide socket: opens once the page has an authenticated
-  // session, independent of which thread is selected. Drives live updates
-  // to the thread list (new messages, new threads, closed threads). ----
-  useEffect(() => {
-    const token = session?.user?.access_token;
-    if (!token || !storeCode) {
-      dashboardWsRef.current?.close();
-      dashboardWsRef.current = null;
+  const patchThreadFromUpdate = useCallback(
+    (data: SupportDashboardThreadUpdateEvent) => {
+      setLocalThreads((prev) =>
+        prev.map((thread) =>
+          thread.id === data.thread_id
+            ? {
+                ...thread,
+                chat_handler: data.chat_handler ?? thread.chat_handler,
+                chat_handler_user:
+                  "chat_handler_user" in data
+                    ? (data.chat_handler_user ?? null)
+                    : thread.chat_handler_user,
+                need_escalation: data.need_escalation ?? thread.need_escalation,
+                escalation_time:
+                  "escalation_time" in data
+                    ? (data.escalation_time ?? null)
+                    : thread.escalation_time,
+              }
+            : thread,
+        ),
+      );
+    },
+    [],
+  );
+
+  useSupportDashboardEvents((event) => {
+    if (event.action_type === "message") {
+      upsertThreadFromMessage(event.data);
       return;
     }
 
-    if (dashboardWsRef.current) {
-      dashboardWsRef.current.close();
-      dashboardWsRef.current = null;
+    if (event.action_type === "thread_updated") {
+      patchThreadFromUpdate(event.data);
+      if (event.data.thread_id === activeThreadId) {
+        setTransitionState("idle");
+      }
+      return;
     }
 
-    const dashboardUrl = ENDPOINTS.dashboardSocket(storeCode, token);
-    const dashboardWs = new WebSocket(dashboardUrl);
-    dashboardWsRef.current = dashboardWs;
-
-    dashboardWs.onopen = () => {
-      console.info("Dashboard socket connected");
-    };
-
-    dashboardWs.onmessage = (event) => {
-      let data: DashboardSocketPayload;
-      try {
-        data = JSON.parse(event.data);
-      } catch (error) {
-        console.error("Failed to parse dashboard socket message", error);
-        return;
-      }
-
-      if (!data?.success) {
-        return;
-      }
-
-      if (data.action_type === "connection") {
-        return;
-      }
-
-      if (data.action_type === "message") {
-        upsertThreadFromMessage(data.data);
-        return;
-      }
-
-      if (data.action_type === "thread_closed") {
-        removeClosedThread(data.data.thread_id);
-      }
-    };
-
-    dashboardWs.onclose = () => {
-      if (dashboardWsRef.current === dashboardWs) {
-        dashboardWsRef.current = null;
-      }
-      console.info("Dashboard socket disconnected");
-    };
-
-    dashboardWs.onerror = () => {};
-
-    return () => {
-      dashboardWs.close();
-      if (dashboardWsRef.current === dashboardWs) {
-        dashboardWsRef.current = null;
-      }
-    };
-    // Socket lifecycle deliberately keys on auth + store only; the handlers
-    // are read fresh via refs inside the socket callbacks.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.access_token, storeCode]);
+    removeClosedThread(event.data.thread_id);
+  });
 
   // ---- Per-thread chat socket: opens/closes as the selected thread changes. ----
   useEffect(() => {
@@ -1482,6 +1511,7 @@ export default function Support() {
     }
 
     if (wsRef.current) {
+      setChatSocketReady(false);
       wsRef.current.close();
       wsRef.current = null;
     }
@@ -1500,6 +1530,7 @@ export default function Support() {
         ws.close(1000, "superseded");
         return;
       }
+      setChatSocketReady(true);
       console.info("Agent connected");
     };
 
@@ -1590,6 +1621,7 @@ export default function Support() {
     ws.onclose = (event) => {
       if (wsRef.current === ws) {
         wsRef.current = null;
+        setChatSocketReady(false);
       }
       // 1000 is a clean close and 1001 is the page going away — both are us
       // leaving, not a fault. Anything else is worth knowing about, and the
@@ -1607,6 +1639,9 @@ export default function Support() {
     };
 
     ws.onerror = () => {
+      if (wsRef.current === ws) {
+        setChatSocketReady(false);
+      }
       // Deliberately silent. A WebSocket error event carries no detail by
       // design — logging it prints "[object Event]" and nothing more. A
       // close event always follows, and that one says what happened.
@@ -1623,6 +1658,7 @@ export default function Support() {
       }
       if (wsRef.current === ws) {
         wsRef.current = null;
+        setChatSocketReady(false);
       }
     };
     // Reconnect only when the listed inputs change; clientID and the session
@@ -1682,21 +1718,134 @@ export default function Support() {
           </div>
 
           <div className="flex flex-col gap-2.5 border-b px-4 py-2.5">
-            <SearchInput
-              value={threadSearch}
-              onChange={setThreadSearch}
-              placeholder="Search name, email or order ID…"
-              label="Search conversations"
-            />
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <SearchInput
+                  value={threadSearch}
+                  onChange={setThreadSearch}
+                  placeholder="Search name, message or order ID…"
+                  label="Search conversations"
+                />
+              </div>
+              <Popover
+                open={isThreadFilterOpen}
+                onOpenChange={(open) => {
+                  setIsThreadFilterOpen(open);
+                  if (open) {
+                    setDraftThreadFilters({
+                      channels: [...appliedThreadFilters.channels],
+                      assignees: [...appliedThreadFilters.assignees],
+                    });
+                  }
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className="relative shrink-0"
+                    aria-label="Filter conversations"
+                  >
+                    <IconFilter className="size-4" />
+                    {appliedThreadFilters.channels.length +
+                      appliedThreadFilters.assignees.length >
+                    0 ? (
+                      <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                        {appliedThreadFilters.channels.length +
+                          appliedThreadFilters.assignees.length}
+                      </span>
+                    ) : null}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-80 p-0">
+                  <div className="border-b px-4 py-3">
+                    <CardTitle>Filter Conversations</CardTitle>
+                  </div>
+                  <div className="space-y-5 p-4">
+                    <fieldset>
+                      <legend className="mb-2">
+                        <Typography variant="small" as="span">
+                          Channel
+                        </Typography>
+                      </legend>
+                      <MultiSelectCombobox
+                        options={SUPPORT_CHANNEL_OPTIONS}
+                        value={draftThreadFilters.channels}
+                        onValueChange={(channels) =>
+                          setDraftThreadFilters((current) => ({
+                            ...current,
+                            channels,
+                          }))
+                        }
+                        placeholder="Search channels…"
+                        emptyMessage="No channels found."
+                      />
+                    </fieldset>
+
+                    <fieldset>
+                      <legend className="mb-2">
+                        <Typography variant="small" as="span">
+                          Assignee
+                        </Typography>
+                      </legend>
+                      <MultiSelectCombobox
+                        options={agents.map((agent) => ({
+                          value: agent.email,
+                          label: agent.name,
+                        }))}
+                        value={draftThreadFilters.assignees}
+                        onValueChange={(assignees) =>
+                          setDraftThreadFilters((current) => ({
+                            ...current,
+                            assignees,
+                          }))
+                        }
+                        placeholder="Search assignees…"
+                        emptyMessage="No assignees found."
+                      />
+                    </fieldset>
+                  </div>
+                  <div className="flex justify-between border-t p-3">
+                    {appliedThreadFilters.channels.length +
+                      appliedThreadFilters.assignees.length >
+                    0 ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setDraftThreadFilters(EMPTY_SUPPORT_THREAD_FILTERS);
+                          setAppliedThreadFilters(EMPTY_SUPPORT_THREAD_FILTERS);
+                          setIsThreadFilterOpen(false);
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    ) : (
+                      <span />
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setAppliedThreadFilters({
+                          channels: [...draftThreadFilters.channels],
+                          assignees: [...draftThreadFilters.assignees],
+                        });
+                        setIsThreadFilterOpen(false);
+                      }}
+                    >
+                      Apply Filters
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="flex items-end gap-3 border-b border-border/70">
               {(
                 [
+                  { key: "needs_human", label: "Needs human" },
+                  { key: "ai", label: "AI" },
+                  { key: "with_agent", label: "With agent" },
                   { key: "all", label: "All" },
-                  { key: "unread", label: "Unread" },
-                  { key: "read", label: "Read" },
-                  { key: "active", label: "Active" },
-                  { key: "visitors", label: "Visitors" },
-                  { key: "cart", label: "Cart Activity" },
                 ] as const
               ).map((option) => (
                 <button
@@ -1726,25 +1875,25 @@ export default function Support() {
                     });
                   }}
                   className={cn(
-                    "flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                    "-mb-px flex shrink-0 items-center gap-1 border-b-2 px-0.5 pb-2 pt-1 text-xs font-medium transition-colors",
                     readFilter === option.key
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border/60 bg-background text-muted-foreground hover:bg-muted/60",
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {option.label}
-                  {option.key === "unread" && unreadCount > 0 && (
-                    <span
-                      className={cn(
-                        "rounded-md px-1.5 text-xs",
-                        readFilter === "unread"
-                          ? "bg-primary-foreground/20"
+                  <span
+                    className={cn(
+                      "rounded-md px-1.5 text-xs",
+                      option.key === "needs_human"
+                        ? "bg-red-50 text-red-700"
+                        : readFilter === option.key
+                          ? "bg-primary/10 text-primary"
                           : "bg-muted text-foreground/70",
-                      )}
-                    >
-                      {unreadCount}
-                    </span>
-                  )}
+                    )}
+                  >
+                    {threadTabCounts[option.key]}
+                  </span>
                 </button>
               ))}
             </div>
@@ -1758,6 +1907,22 @@ export default function Support() {
               ) : filteredThreads.length ? (
                 filteredThreads.map((thread: ThreadWithReadState) => {
                   const isUnread = thread.is_read === false;
+                  const isWhatsapp = thread.source === "whatsapp";
+                  const channelLabel = isWhatsapp ? "WhatsApp" : "Web";
+                  const handlerLabel =
+                    thread.chat_handler === "human"
+                      ? thread.chat_handler_user?.email?.toLowerCase() ===
+                        session?.user?.email?.toLowerCase()
+                        ? "You"
+                        : thread.chat_handler_user?.name || "Agent"
+                      : "AI";
+                  const waitingLabel =
+                    thread.need_escalation && thread.escalation_time
+                      ? `Waiting ${formatWaitingDuration(
+                          thread.escalation_time,
+                          waitingTimerNow,
+                        )}`
+                      : null;
 
                   return (
                     <ConversationRow
@@ -1776,7 +1941,7 @@ export default function Support() {
                         thread.customer?.email ||
                         "Guest"
                       }
-                      timestamp={formatRelativeDateTime(thread.created_at)}
+                      timestamp={formatRelativeDateTime(thread.last_message_at)}
                       indicator={
                         isUnread ? (
                           <span className="size-2 shrink-0 rounded-full bg-primary" />
@@ -1787,15 +1952,35 @@ export default function Support() {
                           {thread.last_message || "No messages yet."}
                         </ReactMarkdown>
                       }
-                      previewLines={2}
+                      previewLines={1}
                       footer={
-                        <Typography
-                          variant="muted"
-                          as="span"
-                          className="text-xs"
-                        >
-                          {thread.total_messages} messages
-                        </Typography>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge
+                            variant="secondary"
+                            className="h-5 rounded-md px-1.5 text-xs font-normal"
+                          >
+                            {channelLabel}
+                          </Badge>
+                          <Badge
+                            variant="secondary"
+                            className="h-5 rounded-md px-1.5 text-xs font-normal"
+                          >
+                            {thread.chat_handler === "human" ? (
+                              <IconHeadset className="size-3" />
+                            ) : (
+                              <IconRobot className="size-3" />
+                            )}
+                            {handlerLabel}
+                          </Badge>
+                          {waitingLabel && (
+                            <Badge
+                              variant="secondary"
+                              className="h-5 rounded-md bg-red-50 px-1.5 text-xs font-normal text-red-700"
+                            >
+                              {waitingLabel}
+                            </Badge>
+                          )}
+                        </div>
                       }
                     />
                   );
@@ -1803,17 +1988,13 @@ export default function Support() {
               ) : threadSearch || readFilter !== "all" ? (
                 <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
                   <Typography variant="small" as="p">
-                    {readFilter === "unread"
-                      ? "No unread conversations"
-                      : readFilter === "read"
-                        ? "No read conversations"
-                        : readFilter === "active"
-                          ? "No active conversations"
-                          : readFilter === "visitors"
-                            ? "No visitors"
-                            : readFilter === "cart"
-                              ? "No carts found"
-                              : "No matches"}
+                    {readFilter === "needs_human"
+                      ? "No chats need human help"
+                      : readFilter === "ai"
+                        ? "No AI-handled chats"
+                        : readFilter === "with_agent"
+                          ? "No chats with agents"
+                          : "No matches"}
                   </Typography>
                   <Typography variant="muted">
                     {threadSearch
@@ -1943,6 +2124,7 @@ export default function Support() {
                         user={session?.user?.email || null}
                         canReassign={canReassign}
                         agents={agents}
+                        chatSocketReady={chatSocketReady}
                         onReassign={handleReassign}
                         transitionState={transitionState}
                         agentMessage={agentMessage}
