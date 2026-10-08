@@ -38,6 +38,7 @@ import {
   type TicketCustomer,
 } from "@/components/custom/create-ticket-dialog";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
+import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
 import { SearchInput } from "@/components/custom/search-input";
 import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
@@ -62,6 +63,11 @@ import { SyncCustomerOrders } from "@/redux/api-slice/order-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -69,9 +75,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
-import { axiosInstance } from "@/redux/axios-config";
 import {
   IconAlertTriangle,
+  IconFilter,
   IconHeadset,
   IconMessage2,
   IconMessageChatbot,
@@ -101,6 +107,20 @@ import {
 // but until then we track it client-side, defaulting to true on load.
 type ThreadWithReadState = Thread & { is_read?: boolean };
 type ThreadFilter = "needs_human" | "ai" | "with_agent" | "all";
+type SupportThreadFilters = {
+  channels: string[];
+  assignees: string[];
+};
+
+const EMPTY_SUPPORT_THREAD_FILTERS: SupportThreadFilters = {
+  channels: [],
+  assignees: [],
+};
+
+const SUPPORT_CHANNEL_OPTIONS = [
+  { value: "web", label: "Web" },
+  { value: "whatsapp", label: "WhatsApp" },
+];
 
 // Message teasers render through react-markdown so formatting like **bold**
 // shows properly, but flattened to inline spans: block elements would break
@@ -737,6 +757,11 @@ export default function Support() {
       ? filter
       : "all";
   });
+  const [isThreadFilterOpen, setIsThreadFilterOpen] = useState(false);
+  const [appliedThreadFilters, setAppliedThreadFilters] =
+    useState<SupportThreadFilters>(EMPTY_SUPPORT_THREAD_FILTERS);
+  const [draftThreadFilters, setDraftThreadFilters] =
+    useState<SupportThreadFilters>(EMPTY_SUPPORT_THREAD_FILTERS);
   const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
     string | number | null
   >(null);
@@ -793,13 +818,13 @@ export default function Support() {
   ]);
 
   // Only admins and supervisors can reassign, and only they need the agent list.
-  // Fetch the shared company staff roster from Redux so all screens use the same
-  // source of truth instead of a one-off axios call in this component.
+  // Fetch the shared company staff roster from Redux so the assignee filter and
+  // reassignment controls use the same source of truth.
   useEffect(() => {
     if (sessionStatus !== "authenticated") return;
-    if (!session?.user || !canReassign) return;
+    if (!session?.user) return;
     void dispatch(FetchStaff());
-  }, [sessionStatus, session?.user, canReassign, dispatch]);
+  }, [sessionStatus, session?.user, dispatch]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const connectedAgentRef = useRef<string | null>(null);
@@ -998,10 +1023,16 @@ export default function Support() {
           // Resolved server-side so it can reach customer email, name and
           // order ids — none of which are on the thread rows themselves.
           ...(debouncedThreadSearch ? { search: debouncedThreadSearch } : {}),
+          ...(appliedThreadFilters.channels.length
+            ? { channel: appliedThreadFilters.channels }
+            : {}),
+          ...(appliedThreadFilters.assignees.length
+            ? { assignee: appliedThreadFilters.assignees }
+            : {}),
         },
       }),
     );
-  }, [dispatch, storeCode, debouncedThreadSearch]);
+  }, [appliedThreadFilters, dispatch, storeCode, debouncedThreadSearch]);
 
   useEffect(() => {
     const timeout = setTimeout(
@@ -1687,12 +1718,127 @@ export default function Support() {
           </div>
 
           <div className="flex flex-col gap-2.5 border-b px-4 py-2.5">
-            <SearchInput
-              value={threadSearch}
-              onChange={setThreadSearch}
-              placeholder="Search name, message or order ID…"
-              label="Search conversations"
-            />
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <SearchInput
+                  value={threadSearch}
+                  onChange={setThreadSearch}
+                  placeholder="Search name, message or order ID…"
+                  label="Search conversations"
+                />
+              </div>
+              <Popover
+                open={isThreadFilterOpen}
+                onOpenChange={(open) => {
+                  setIsThreadFilterOpen(open);
+                  if (open) {
+                    setDraftThreadFilters({
+                      channels: [...appliedThreadFilters.channels],
+                      assignees: [...appliedThreadFilters.assignees],
+                    });
+                  }
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className="relative shrink-0"
+                    aria-label="Filter conversations"
+                  >
+                    <IconFilter className="size-4" />
+                    {appliedThreadFilters.channels.length +
+                      appliedThreadFilters.assignees.length >
+                    0 ? (
+                      <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                        {appliedThreadFilters.channels.length +
+                          appliedThreadFilters.assignees.length}
+                      </span>
+                    ) : null}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-80 p-0">
+                  <div className="border-b px-4 py-3">
+                    <CardTitle>Filter Conversations</CardTitle>
+                  </div>
+                  <div className="space-y-5 p-4">
+                    <fieldset>
+                      <legend className="mb-2">
+                        <Typography variant="small" as="span">
+                          Channel
+                        </Typography>
+                      </legend>
+                      <MultiSelectCombobox
+                        options={SUPPORT_CHANNEL_OPTIONS}
+                        value={draftThreadFilters.channels}
+                        onValueChange={(channels) =>
+                          setDraftThreadFilters((current) => ({
+                            ...current,
+                            channels,
+                          }))
+                        }
+                        placeholder="Search channels…"
+                        emptyMessage="No channels found."
+                      />
+                    </fieldset>
+
+                    <fieldset>
+                      <legend className="mb-2">
+                        <Typography variant="small" as="span">
+                          Assignee
+                        </Typography>
+                      </legend>
+                      <MultiSelectCombobox
+                        options={agents.map((agent) => ({
+                          value: agent.email,
+                          label: agent.name,
+                        }))}
+                        value={draftThreadFilters.assignees}
+                        onValueChange={(assignees) =>
+                          setDraftThreadFilters((current) => ({
+                            ...current,
+                            assignees,
+                          }))
+                        }
+                        placeholder="Search assignees…"
+                        emptyMessage="No assignees found."
+                      />
+                    </fieldset>
+                  </div>
+                  <div className="flex justify-between border-t p-3">
+                    {appliedThreadFilters.channels.length +
+                      appliedThreadFilters.assignees.length >
+                    0 ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setDraftThreadFilters(EMPTY_SUPPORT_THREAD_FILTERS);
+                          setAppliedThreadFilters(EMPTY_SUPPORT_THREAD_FILTERS);
+                          setIsThreadFilterOpen(false);
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    ) : (
+                      <span />
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setAppliedThreadFilters({
+                          channels: [...draftThreadFilters.channels],
+                          assignees: [...draftThreadFilters.assignees],
+                        });
+                        setIsThreadFilterOpen(false);
+                      }}
+                    >
+                      Apply Filters
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
             <div className="flex items-end gap-3 border-b border-border/70">
               {(
                 [

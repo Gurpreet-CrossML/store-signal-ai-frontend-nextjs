@@ -50,7 +50,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
     feedback_rating: getStr(q.feedback_rating),
     tags: getList(q.tags),
     handled_by: getStr(q.handled_by),
-    channel: getStr(q.channel),
+    channel: getList(q.channel),
+    assignee: getList(q.assignee),
   };
 
   const pageParam = getStr(q.page);

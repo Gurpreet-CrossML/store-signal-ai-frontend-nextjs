@@ -21,6 +21,7 @@ import {
   desc,
   eq,
   ilike,
+  inArray,
   isNull,
   isNotNull,
   max,
@@ -50,7 +51,8 @@ export type ListThreadsFilters = {
   feedback_rating?: string; // very_bad | bad | neutral | good | excellent
   tags?: string[]; // matches threads tagged with ANY of the given tags
   handled_by?: string; // ai | human
-  channel?: string; // whatsapp | web (native/webhook)
+  channel?: string[]; // whatsapp | web (native/webhook)
+  assignee?: string[]; // auth.User email values
   need_escalation?: string;
 };
 
@@ -234,12 +236,24 @@ export async function list_threads(
   }
 
   // Channel mirrors the UI's derivation: WhatsApp, or Web for everything else.
-  if (filters.channel === "whatsapp") {
-    conditions.push(eq(chatThread.source, "whatsapp"));
-  } else if (filters.channel === "web") {
-    conditions.push(
-      sql`(${chatThread.source} IS NULL OR ${chatThread.source} <> 'whatsapp')`,
-    );
+  if (filters.channel?.length) {
+    const channelConditions = filters.channel.flatMap((channel) => {
+      if (channel === "whatsapp") {
+        return [eq(chatThread.source, "whatsapp")];
+      }
+      if (channel === "web") {
+        return [
+          sql`(${chatThread.source} IS NULL OR ${chatThread.source} <> 'whatsapp')`,
+        ];
+      }
+      return [];
+    });
+    const combinedChannels = or(...channelConditions);
+    if (combinedChannels) conditions.push(combinedChannels);
+  }
+
+  if (filters.assignee?.length) {
+    conditions.push(inArray(authUser.email, filters.assignee));
   }
 
   // has_ticket / has_feedback are correlated EXISTS subqueries (Django uses
@@ -293,6 +307,7 @@ export async function list_threads(
     .select({ value: sql<number>`count(DISTINCT ${chatThread.id})` })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
+    .leftJoin(authUser, eq(chatThread.chatHandlerUserId, authUser.id))
     .innerJoin(store, eq(chatThread.storeId, store.id))
     .where(whereClause);
 

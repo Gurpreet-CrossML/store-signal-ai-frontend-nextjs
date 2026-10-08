@@ -16,7 +16,8 @@ type ThreadFilters = {
   feedback_rating?: string;
   tags?: (string | ThreadTagData)[];
   handled_by?: string;
-  channel?: string;
+  channel?: string | string[];
+  assignee?: string[];
 };
 
 /**
