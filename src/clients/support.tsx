@@ -64,6 +64,15 @@ import { SyncCustomerOrders } from "@/redux/api-slice/order-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { StaffMember } from "@/redux/api-slice/tenancy-slice";
+import { axiosInstance } from "@/redux/axios-config";
+import {
   IconAlertTriangle,
   IconHeadset,
   IconMessage2,
@@ -180,12 +189,59 @@ type AttachmentUpload = {
  */
 const HANDOVER_ACTION_ID = "thread-handover-action";
 
+type AgentOption = { email: string; name: string };
+
+// Roles allowed to answer live chats (the backend's "conversations" write
+// permission). Viewers and content managers can't be assigned a chat.
+const CHAT_HANDLER_ROLES = ["supervisor", "agent"];
+
+/** Admin and supervisor control to hand a taken chat to another agent. */
+function ReassignAgentSelect({
+  agents,
+  currentAgent,
+  disabled,
+  onReassign,
+}: {
+  agents: AgentOption[];
+  currentAgent: string | null;
+  disabled: boolean;
+  onReassign: (email: string) => void;
+}) {
+  if (agents.length === 0) return null;
+
+  return (
+    // Shows who the chat is assigned to ("Unassigned" while the AI has it);
+    // picking an agent assigns or reassigns it.
+    <Select
+      value={currentAgent ?? ""}
+      onValueChange={(email) => {
+        if (email !== currentAgent) onReassign(email);
+      }}
+      disabled={disabled}
+    >
+      <SelectTrigger size="sm" aria-label="Reassign chat" className="w-fit">
+        <SelectValue placeholder="Unassigned" />
+      </SelectTrigger>
+      <SelectContent>
+        {agents.map((agent) => (
+          <SelectItem key={agent.email} value={agent.email}>
+            {agent.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 function ThreadChatControls({
   activeThreadId,
   isThreadActive = true,
   className,
   connectedAgent,
+  connectedAgentName,
   user,
+  canReassign = false,
+  agents = [],
   transitionState,
   agentMessage,
   setAgentMessage,
@@ -196,6 +252,7 @@ function ThreadChatControls({
   isEmojiPickerOpen,
   setIsEmojiPickerOpen,
   onTakeOver,
+  onReassign,
   onReturnToAI,
   onSendAgentMessage,
   onSendInternalNote,
@@ -208,7 +265,10 @@ function ThreadChatControls({
   isThreadActive?: boolean;
   className?: string;
   connectedAgent: string | null;
+  connectedAgentName?: string | null;
   user: string | null;
+  canReassign?: boolean;
+  agents?: AgentOption[];
   transitionState: "idle" | "taking_over" | "returning_to_ai";
   agentMessage: string;
   setAgentMessage: (value: string) => void;
@@ -219,6 +279,7 @@ function ThreadChatControls({
   isEmojiPickerOpen: boolean;
   setIsEmojiPickerOpen: (value: boolean) => void;
   onTakeOver: () => void;
+  onReassign: (email: string) => void;
   onReturnToAI: () => void;
   onSendAgentMessage: () => void;
   onSendInternalNote: () => void;
@@ -293,7 +354,15 @@ function ThreadChatControls({
                   </Typography>
                 </div>
               </div>
-              {activeThreadId && connectedAgent !== user && (
+              {canReassign && (
+              <ReassignAgentSelect
+                agents={agents}
+                currentAgent={null}
+                disabled={transitionState !== "idle"}
+                onReassign={onReassign}
+              />
+            )}
+            {activeThreadId && !canReassign && connectedAgent !== user && (
                 // Same layoutId as Return to AI: framer treats the two as one
                 // element and slides it from here into the composer, so the
                 // control an agent just pressed is visibly where it went.
@@ -351,19 +420,29 @@ function ThreadChatControls({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="flex items-center gap-3 rounded-xl border bg-muted/30 p-3"
+            className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 p-3"
           >
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <IconHeadset className="size-5" />
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <IconHeadset className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <Typography variant="small" as="p" className="leading-normal">
+                  Taken by {connectedAgentName || connectedAgent}
+                </Typography>
+                <Typography variant="muted">
+                  Only the connected agent can reply right now.
+                </Typography>
+              </div>
             </div>
-            <div className="min-w-0">
-              <Typography variant="small" as="p" className="leading-normal">
-                Another agent is handling this conversation
-              </Typography>
-              <Typography variant="muted">
-                Only the connected agent can reply right now.
-              </Typography>
-            </div>
+            {canReassign && (
+              <ReassignAgentSelect
+                agents={agents}
+                currentAgent={connectedAgent}
+                disabled={transitionState !== "idle"}
+                onReassign={onReassign}
+              />
+            )}
           </motion.div>
         )}
 
@@ -533,6 +612,14 @@ function ThreadChatControls({
                     {attachments.length} attached
                   </Typography>
                 )}
+                {canReassign && connectedAgent && (
+                  <ReassignAgentSelect
+                    agents={agents}
+                    currentAgent={connectedAgent}
+                    disabled={transitionState !== "idle"}
+                    onReassign={onReassign}
+                  />
+                )}
                 {/* Sits beside Send because it's the other thing an agent can
                   do from here: hand the conversation back instead of
                   replying. Outline keeps Send the primary action. */}
@@ -682,6 +769,9 @@ export default function Support() {
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
   const [connectedAgent, setConnectedAgent] = useState<string | null>(null);
+  const [connectedAgentServerName, setConnectedAgentServerName] = useState<
+    string | null
+  >(null);
   const [transitionState, setTransitionState] = useState<
     "idle" | "taking_over" | "returning_to_ai"
   >("idle");
@@ -714,6 +804,79 @@ export default function Support() {
   >(null);
 
   const { data: session } = useSession();
+  // Same rules as the nav (see `can`): admins always may; everyone else needs
+  // the permission from their role. The backend enforces this too — checking
+  // here spares a round trip and says why.
+  const canHandleChats = can(session?.user, "conversations", { write: true });
+  // Admins and supervisors may assign a chat to another agent.
+  const canReassign = can(session?.user, "reassignment", { write: true });
+  // Staff who can answer chats (see the effect below). Kept local: the
+  // shared staff list in Redux is company-wide and used by other screens.
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const agents = useMemo<AgentOption[]>(() => {
+    const myEmail = session?.user?.email ?? "";
+    const list = staff
+      .filter((member) => member.is_active)
+      .map((member) => ({
+        email: member.email,
+        name: `${member.first_name} ${member.last_name}`.trim() || member.email,
+      }));
+    // An admin can always assign the chat to themselves, even if they are
+    // missing from the staff list.
+    if (canReassign && myEmail && !list.some((a) => a.email === myEmail)) {
+      list.unshift({ email: myEmail, name: session?.user?.name || myEmail });
+    }
+    return list.map((agent) =>
+      agent.email === myEmail
+        ? { ...agent, name: `${agent.name} (you)` }
+        : agent,
+    );
+  }, [staff, canReassign, session?.user?.email, session?.user?.name]);
+  const connectedAgentName = useMemo(() => {
+    if (!connectedAgent) return null;
+    if (connectedAgentServerName) return connectedAgentServerName;
+    const match = agents.find((agent) => agent.email === connectedAgent);
+    if (match) return match.name;
+    return connectedAgent === session?.user?.email
+      ? session?.user?.name || connectedAgent
+      : connectedAgent;
+  }, [
+    agents,
+    connectedAgent,
+    connectedAgentServerName,
+    session?.user?.email,
+    session?.user?.name,
+  ]);
+
+  // Only admins and supervisors can reassign, and only they need the agent list. The staff
+  // list is company-wide, so it is narrowed here to active users whose role
+  // can answer chats — the only people a chat may be assigned to.
+  useEffect(() => {
+    if (!canReassign) return;
+    let cancelled = false;
+
+    axiosInstance
+      .get(ENDPOINTS.fetchStaff(), { useBackend: true })
+      .then((res) => {
+        if (cancelled) return;
+        const members = res.data.data as StaffMember[];
+        setStaff(
+          members.filter(
+            (member) =>
+              member.is_active &&
+              !!member.role &&
+              CHAT_HANDLER_ROLES.includes(member.role),
+          ),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setStaff([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canReassign]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const dashboardWsRef = useRef<WebSocket | null>(null);
@@ -943,6 +1106,13 @@ export default function Support() {
   }, []);
 
   const handleTakeOver = useCallback(async () => {
+    if (!canHandleChats) {
+      toast.error("Permission Issue!", {
+        description: "You do not have permission to perform this action.",
+      });
+      return;
+    }
+
     if (!activeThreadId || !wsRef.current) {
       return;
     }
@@ -959,9 +1129,48 @@ export default function Support() {
       console.error(error);
       setTransitionState("idle");
     }
-  }, [activeThreadId]);
+  }, [activeThreadId, canHandleChats]);
+
+  // Admin and supervisor: hands the chat to another agent. Sent over the same
+  // handler_change channel as Take Over, naming the agent to assign.
+  const handleReassign = useCallback(
+    (email: string) => {
+      if (!canReassign) {
+        toast.error("Permission Issue!", {
+          description: "You do not have permission to perform this action.",
+        });
+        return;
+      }
+
+      if (!activeThreadId || !wsRef.current) {
+        return;
+      }
+
+      try {
+        setTransitionState("taking_over");
+        wsRef.current.send(
+          JSON.stringify({
+            action_type: "handler_change",
+            chat_handler: "human",
+            chat_handler_user: email,
+          }),
+        );
+      } catch (error) {
+        console.error(error);
+        setTransitionState("idle");
+      }
+    },
+    [activeThreadId, canReassign],
+  );
 
   const handleReturnToAI = useCallback(async () => {
+    if (!canHandleChats) {
+      toast.error("Permission Issue!", {
+        description: "You do not have permission to perform this action.",
+      });
+      return;
+    }
+
     if (!activeThreadId || !wsRef.current) {
       return;
     }
@@ -975,7 +1184,7 @@ export default function Support() {
       console.error(error);
       setTransitionState("idle");
     }
-  }, [activeThreadId]);
+  }, [activeThreadId, canHandleChats]);
 
   // Uploads a batch of newly-selected files immediately (one POST for the
   // whole batch, matching the "images" multi-append shape of the API) and
@@ -1366,7 +1575,9 @@ export default function Support() {
 
       if (!data?.success && data?.action_type === "handler_change") {
         toast.error("Permission Issue!", {
-          description: data?.message || "",
+          description:
+            data?.message ||
+            "You do not have permission to perform this action.",
         });
         // Refused because another agent holds the chat: show who.
         if (data?.chat_handler_user) {
@@ -1377,14 +1588,11 @@ export default function Support() {
         return;
       }
 
-      // A message the server refused: a read-only role, another agent
-      // holding the chat, or no AI credits left.
-      if (data?.success === false && data?.message) {
-        toast.error("Message not sent", { description: data.message });
-        if (data?.chat_handler_user) {
-          setConnectedAgent(data.chat_handler_user);
-          connectedAgentRef.current = data.chat_handler_user;
-        }
+      // Refusals with no action_type (e.g. a read-only role) would otherwise
+      // be dropped below, leaving Take Over stuck on "Connecting…".
+      if (!data?.success && data?.message) {
+        toast.error("Permission Issue!", { description: data.message });
+        setTransitionState("idle");
         return;
       }
 
@@ -1400,9 +1608,11 @@ export default function Support() {
       if (data?.success && data?.action_type === "connection") {
         if (data?.chat_handler === "human" && data?.chat_handler_user) {
           setConnectedAgent(data?.chat_handler_user);
+          setConnectedAgentServerName(data?.chat_handler_user_name ?? null);
           connectedAgentRef.current = data?.chat_handler_user;
         } else {
           setConnectedAgent(null);
+          setConnectedAgentServerName(null);
           connectedAgentRef.current = null;
         }
         return;
@@ -1421,9 +1631,11 @@ export default function Support() {
       if (data?.success && data?.action_type === "handler_change") {
         if (data?.chat_handler === "human" && data?.chat_handler_user) {
           setConnectedAgent(data?.chat_handler_user);
+          setConnectedAgentServerName(data?.chat_handler_user_name ?? null);
           connectedAgentRef.current = data?.chat_handler_user;
         } else {
           setConnectedAgent(null);
+          setConnectedAgentServerName(null);
           connectedAgentRef.current = null;
         }
         setTransitionState("idle");
@@ -1860,7 +2072,11 @@ export default function Support() {
                         isThreadActive={selectedThread.is_active}
                         className="border-t"
                         connectedAgent={connectedAgent}
+                        connectedAgentName={connectedAgentName}
                         user={session?.user?.email || null}
+                        canReassign={canReassign}
+                        agents={agents}
+                        onReassign={handleReassign}
                         transitionState={transitionState}
                         agentMessage={agentMessage}
                         setAgentMessage={setAgentMessage}

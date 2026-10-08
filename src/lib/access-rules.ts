@@ -2,6 +2,7 @@ import type {
   AccessibleStore,
   Permission,
   PermissionMap,
+  StaffRole,
 } from "@/lib/tenant-types";
 
 /**
@@ -30,6 +31,7 @@ export type RequestAccess = {
 /** The session identity fields these rules read. */
 export type SessionIdentity = {
   is_staff?: boolean;
+  role?: StaffRole | null;
   company_code?: string | null;
   accessible_stores?: AccessibleStore[];
   permissions?: PermissionMap;
@@ -47,7 +49,8 @@ export function isValidSchemaName(code: string): boolean {
 
 /**
  * May this user use `permission`? Mirrors Django's `tenancy.roles.has_permission`
- * using the permission map Django sent: a company admin always may; staff
+ * using the permission map Django sent: a company admin (`is_staff` or the
+ * `admin` role) always may; staff
  * need the permission at `write` for a change, or at least `read` otherwise.
  * `undefined` means admin-only, like an untagged Django view.
  */
@@ -57,7 +60,7 @@ export function can(
   { write = false }: { write?: boolean } = {},
 ): boolean {
   if (!identity) return false;
-  if (identity.is_staff) return true;
+  if (identity.is_staff || identity.role === "admin") return true;
   if (!permission) return false;
   const granted = identity.permissions?.[permission];
   return write ? granted === "write" : granted !== undefined;

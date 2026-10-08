@@ -28,6 +28,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { formikErrorsFromZod, applyServerFieldErrors } from "@/lib/form-errors";
 import { CreateStaff } from "@/redux/api-slice/tenancy-slice";
 import { ASSIGNABLE_ROLES, ROLE_LABELS } from "@/lib/staff-roles";
+import { InfoIcon } from "@/components/custom/info-icon";
 
 const validationSchema = z.object({
   first_name: z.string().trim().min(1, "First name is required"),
@@ -138,7 +139,23 @@ export default function StaffForm({
               </Field>
             ))}
             <Field>
-              <FieldLabel htmlFor="role">Role</FieldLabel>
+              <div className="flex items-center gap-1.5">
+                <FieldLabel htmlFor="role">Role</FieldLabel>
+                <InfoIcon
+                  text={
+                    <ul className="flex max-w-xs flex-col gap-1">
+                      {ASSIGNABLE_ROLES.map((role) => (
+                        <li key={role.value}>
+                          <span className="font-semibold">
+                            {ROLE_LABELS[role.value]}:
+                          </span>{" "}
+                          {role.description}
+                        </li>
+                      ))}
+                    </ul>
+                  }
+                />
+              </div>
               <Select
                 value={formik.values.role}
                 onValueChange={(value) => {
