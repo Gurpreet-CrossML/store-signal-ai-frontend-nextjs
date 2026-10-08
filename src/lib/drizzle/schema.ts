@@ -5605,7 +5605,7 @@ export const chatThread = pgTable(
     source: varchar({ length: 20 }).notNull(),
     chatHandler: varchar("chat_handler", { length: 10 }).notNull(),
     chatHandlerUserId: integer("chat_handler_user_id"),
-    escalationTimer: timestamp("escalation_timer", {
+    escalationTime: timestamp("escalation_time", {
       withTimezone: true,
       mode: "string",
     }),

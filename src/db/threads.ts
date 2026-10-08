@@ -89,7 +89,7 @@ type ThreadListRow = {
   followup_level: number;
   is_active: boolean;
   need_escalation: boolean;
-  escalation_timer: string | null;
+  escalation_time: string | null;
   total_messages: number;
   created_at: string;
   last_message_at: string | null;
@@ -312,7 +312,7 @@ export async function list_threads(
       followup_level: chatThread.followupLevel,
       is_active: chatThread.isActive,
       need_escalation: chatThread.needEscalation,
-      escalation_timer: chatThread.escalationTimer,
+      escalation_time: chatThread.escalationTime,
       total_messages: count(chatHistory.id),
       created_at: chatThread.createdAt,
       last_message_at: max(chatHistory.createdAt),
@@ -424,7 +424,7 @@ export async function list_threads(
             }
           : null,
       need_escalation: row.need_escalation,
-      escalation_timer: row.escalation_timer,
+      escalation_timer: row.escalation_time,
       customer: {
         // Null for a guest — the UI keys its tickets lookup off this.
         id: row.customer_id ?? null,

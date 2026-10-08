@@ -648,7 +648,7 @@ type DashboardMessageEvent = {
   chat_handler?: Thread["chat_handler"];
   chat_handler_user?: ThreadHandlerUser | null;
   need_escalation?: boolean;
-  escalation_timer?: string | null;
+  escalation_time?: string | null;
 };
 
 type DashboardThreadUpdateEvent = {
@@ -976,7 +976,7 @@ export default function Support() {
   const hasWaitingThreads = useMemo(
     () =>
       visibleThreads.some(
-        (thread) => thread.need_escalation && thread.escalation_timer,
+        (thread) => thread.need_escalation && thread.escalation_time,
       ),
     [visibleThreads],
   );
@@ -1392,7 +1392,7 @@ export default function Support() {
             created_at: new Date().toISOString(),
             customer: data.customer ?? null,
             need_escalation: false,
-            escalation_timer: null,
+            escalation_time: null,
             is_read: belongsToOpenThread,
           } as ThreadWithReadState;
           return [newThread, ...prev];
@@ -1796,9 +1796,9 @@ export default function Support() {
                         : thread.chat_handler_user?.name || "Agent"
                       : "AI";
                   const waitingLabel =
-                    thread.need_escalation && thread.escalation_timer
+                    thread.need_escalation && thread.escalation_time
                       ? `Waiting ${formatWaitingDuration(
-                          thread.escalation_timer,
+                          thread.escalation_time,
                           waitingTimerNow,
                         )}`
                       : null;
