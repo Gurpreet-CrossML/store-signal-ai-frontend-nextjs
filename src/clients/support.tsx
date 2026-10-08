@@ -174,13 +174,6 @@ function normalizeThreadMessage(message: ThreadMessage): ThreadMessage {
   return { ...message, confidence, source_used };
 }
 
-function isThreadWithinActiveWindow(thread: Thread) {
-  if (!thread.last_message_at) return false;
-  const timestamp = new Date(thread.last_message_at).getTime();
-  if (!Number.isFinite(timestamp)) return false;
-  return Date.now() - timestamp <= ACTIVE_THREAD_WINDOW_MS;
-}
-
 function getFilteredThreads(
   threads: ThreadWithReadState[],
   activeFilter: ThreadFilter,
