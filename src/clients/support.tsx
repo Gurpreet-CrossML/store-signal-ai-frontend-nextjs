@@ -242,6 +242,7 @@ function ThreadChatControls({
   user,
   canReassign = false,
   agents = [],
+  chatSocketReady,
   transitionState,
   agentMessage,
   setAgentMessage,
@@ -265,6 +266,7 @@ function ThreadChatControls({
   user: string | null;
   canReassign?: boolean;
   agents?: AgentOption[];
+  chatSocketReady: boolean;
   transitionState: "idle" | "taking_over" | "returning_to_ai";
   agentMessage: string;
   setAgentMessage: (value: string) => void;
@@ -349,7 +351,7 @@ function ThreadChatControls({
               <ReassignAgentSelect
                 agents={agents}
                 currentAgent={null}
-                disabled={transitionState !== "idle"}
+                disabled={transitionState !== "idle" || !chatSocketReady}
                 onReassign={onReassign}
               />
             )}
@@ -363,6 +365,7 @@ function ThreadChatControls({
                   onClick={onTakeOver}
                   disabled={
                     transitionState !== "idle" ||
+                    !chatSocketReady ||
                     !!(connectedAgent && connectedAgent !== user)
                   }
                 >
@@ -400,7 +403,7 @@ function ThreadChatControls({
               <ReassignAgentSelect
                 agents={agents}
                 currentAgent={connectedAgent}
-                disabled={transitionState !== "idle"}
+                disabled={transitionState !== "idle" || !chatSocketReady}
                 onReassign={onReassign}
               />
             )}
@@ -577,7 +580,7 @@ function ThreadChatControls({
                   <ReassignAgentSelect
                     agents={agents}
                     currentAgent={connectedAgent}
-                    disabled={transitionState !== "idle"}
+                    disabled={transitionState !== "idle" || !chatSocketReady}
                     onReassign={onReassign}
                   />
                 )}
@@ -590,7 +593,7 @@ function ThreadChatControls({
                     variant="outline"
                     size="sm"
                     onClick={onReturnToAI}
-                    disabled={transitionState !== "idle"}
+                    disabled={transitionState !== "idle" || !chatSocketReady}
                   >
                     <IconRobot className="size-4" />
                     Return to AI
@@ -710,6 +713,7 @@ export default function Support() {
   const [connectedAgentServerName, setConnectedAgentServerName] = useState<
     string | null
   >(null);
+  const [chatSocketReady, setChatSocketReady] = useState(false);
   const [transitionState, setTransitionState] = useState<
     "idle" | "taking_over" | "returning_to_ai"
   >("idle");
@@ -1059,7 +1063,12 @@ export default function Support() {
       return;
     }
 
-    if (!activeThreadId || !wsRef.current) {
+    if (
+      !activeThreadId ||
+      !wsRef.current ||
+      wsRef.current.readyState !== WebSocket.OPEN
+    ) {
+      setTransitionState("idle");
       return;
     }
 
@@ -1088,7 +1097,12 @@ export default function Support() {
         return;
       }
 
-      if (!activeThreadId || !wsRef.current) {
+      if (
+        !activeThreadId ||
+        !wsRef.current ||
+        wsRef.current.readyState !== WebSocket.OPEN
+      ) {
+        setTransitionState("idle");
         return;
       }
 
@@ -1117,7 +1131,12 @@ export default function Support() {
       return;
     }
 
-    if (!activeThreadId || !wsRef.current) {
+    if (
+      !activeThreadId ||
+      !wsRef.current ||
+      wsRef.current.readyState !== WebSocket.OPEN
+    ) {
+      setTransitionState("idle");
       return;
     }
 
@@ -1439,6 +1458,9 @@ export default function Support() {
 
     if (event.action_type === "thread_updated") {
       patchThreadFromUpdate(event.data);
+      if (event.data.thread_id === activeThreadId) {
+        setTransitionState("idle");
+      }
       return;
     }
 
@@ -1458,6 +1480,7 @@ export default function Support() {
     }
 
     if (wsRef.current) {
+      setChatSocketReady(false);
       wsRef.current.close();
       wsRef.current = null;
     }
@@ -1476,6 +1499,7 @@ export default function Support() {
         ws.close(1000, "superseded");
         return;
       }
+      setChatSocketReady(true);
       console.info("Agent connected");
     };
 
@@ -1566,6 +1590,7 @@ export default function Support() {
     ws.onclose = (event) => {
       if (wsRef.current === ws) {
         wsRef.current = null;
+        setChatSocketReady(false);
       }
       // 1000 is a clean close and 1001 is the page going away — both are us
       // leaving, not a fault. Anything else is worth knowing about, and the
@@ -1583,6 +1608,9 @@ export default function Support() {
     };
 
     ws.onerror = () => {
+      if (wsRef.current === ws) {
+        setChatSocketReady(false);
+      }
       // Deliberately silent. A WebSocket error event carries no detail by
       // design — logging it prints "[object Event]" and nothing more. A
       // close event always follows, and that one says what happened.
@@ -1599,6 +1627,7 @@ export default function Support() {
       }
       if (wsRef.current === ws) {
         wsRef.current = null;
+        setChatSocketReady(false);
       }
     };
     // Reconnect only when the listed inputs change; clientID and the session
@@ -1949,6 +1978,7 @@ export default function Support() {
                         user={session?.user?.email || null}
                         canReassign={canReassign}
                         agents={agents}
+                        chatSocketReady={chatSocketReady}
                         onReassign={handleReassign}
                         transitionState={transitionState}
                         agentMessage={agentMessage}
