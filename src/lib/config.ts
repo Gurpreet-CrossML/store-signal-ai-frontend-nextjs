@@ -50,7 +50,7 @@ export const ENDPOINTS = {
   chatSocket: (threadId: string, token: string) =>
     createWebSocketUrl(`/chat/${threadId}/?role=agent&token=${token}`),
   createInternalNote: () =>
-    createAPIUrl("/chat/chat-messages/internal-note/", "django"),
+    createAPIUrl("/chat/messages/internal-note/", "django"),
 
   // Dashboard Websocket (Django)
   dashboardSocket: (storeCode: string, token: string) =>
