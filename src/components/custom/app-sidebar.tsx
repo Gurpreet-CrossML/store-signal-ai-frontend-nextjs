@@ -37,9 +37,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
-import { useAppSelector } from "@/redux/hooks";
-import { axiosInstance } from "@/redux/axios-config";
-import { ENDPOINTS } from "@/lib/config";
+import { FetchThreads } from "@/redux/api-slice/thread-slice";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useSupportDashboardEvents } from "@/hooks/use-support-dashboard-events";
 
 export function AppSidebar({
@@ -69,6 +68,7 @@ export function AppSidebar({
     subNavSearch,
   );
   const { data: session } = useSession();
+  const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -83,23 +83,26 @@ export function AppSidebar({
     }
 
     let cancelled = false;
-    const params = new URLSearchParams({
-      store_code: storeCode,
-      is_active: "true",
-      need_escalation: "true",
-      page: "1",
-      page_size: "1",
-    });
 
-    axiosInstance
-      .get(`${ENDPOINTS.fetchThreads()}?${params.toString()}`)
+    void dispatch(
+      FetchThreads({
+        store_code: storeCode,
+        page: 1,
+        limit: 1,
+        skipListStateUpdate: true,
+        filters: {
+          is_active: true,
+          need_escalation: true,
+        },
+      }),
+    )
+      .unwrap()
       .then((response) => {
         if (cancelled) return;
 
-        const data = response.data?.data;
         setNeedsHumanBadge({
           storeCode,
-          count: Array.isArray(data) ? 0 : Number(data?.count ?? 0),
+          count: response.count,
         });
       })
       .catch(() => {
@@ -109,7 +112,7 @@ export function AppSidebar({
     return () => {
       cancelled = true;
     };
-  }, [storeCode]);
+  }, [dispatch, storeCode]);
 
   React.useEffect(() => refreshNeedsHumanBadge(), [refreshNeedsHumanBadge]);
 

@@ -9,6 +9,7 @@ type ThreadFilters = {
   to?: string;
   search?: string;
   is_active?: boolean;
+  need_escalation?: boolean;
   user_type?: string;
   has_ticket?: boolean;
   has_feedback?: boolean;
@@ -48,6 +49,7 @@ type GetThreadsArgs = {
   page?: number;
   limit?: number;
   filters?: ThreadFilters;
+  skipListStateUpdate?: boolean;
 };
 
 export type Customer = {
@@ -794,17 +796,20 @@ const ThreadSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(FetchThreads.pending, (state) => {
+      .addCase(FetchThreads.pending, (state, action) => {
+        if (action.meta.arg?.skipListStateUpdate) return;
         state.FetchThreadsState.FetchThreadsIsLoading = true;
         state.FetchThreadsState.FetchThreadsIsError = null;
         state.FetchThreadsState.FetchThreadsIsSuccess = false;
       })
       .addCase(FetchThreads.fulfilled, (state, action) => {
+        if (action.meta.arg?.skipListStateUpdate) return;
         state.FetchThreadsState.FetchThreadsIsLoading = false;
         state.FetchThreadsState.FetchThreadsListData = action.payload;
         state.FetchThreadsState.FetchThreadsIsSuccess = true;
       })
       .addCase(FetchThreads.rejected, (state, action) => {
+        if (action.meta.arg?.skipListStateUpdate) return;
         state.FetchThreadsState.FetchThreadsIsLoading = false;
         state.FetchThreadsState.FetchThreadsIsError = action.payload;
         state.FetchThreadsState.FetchThreadsIsSuccess = false;
