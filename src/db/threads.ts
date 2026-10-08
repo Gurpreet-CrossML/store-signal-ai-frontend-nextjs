@@ -21,6 +21,7 @@ import {
   desc,
   eq,
   ilike,
+  inArray,
   isNull,
   isNotNull,
   max,
@@ -50,7 +51,9 @@ export type ListThreadsFilters = {
   feedback_rating?: string; // very_bad | bad | neutral | good | excellent
   tags?: string[]; // matches threads tagged with ANY of the given tags
   handled_by?: string; // ai | human
-  channel?: string; // whatsapp | web (native/webhook)
+  channel?: string[]; // whatsapp | web (native/webhook)
+  assignee?: string[]; // auth.User email values
+  need_escalation?: string;
 };
 
 const UUID_RE =
@@ -87,6 +90,8 @@ type ThreadListRow = {
   source: string | null;
   followup_level: number;
   is_active: boolean;
+  need_escalation: boolean;
+  escalation_time: string | null;
   total_messages: number;
   created_at: string;
   last_message_at: string | null;
@@ -96,12 +101,21 @@ type ThreadListRow = {
   customer_first_name: string | null;
   customer_last_name: string | null;
   customer_email: string | null;
+  chat_handler: string;
+  chat_handler_user_id: number | null;
+  chat_handler_user_first_name: string | null;
+  chat_handler_user_last_name: string | null;
+  chat_handler_user_email: string | null;
 };
 
 export type ThreadListItem = {
   id: string;
   name: string | null;
   source: string | null;
+  chat_handler: string;
+  chat_handler_user: { id: number; name: string; email: string } | null;
+  need_escalation: boolean;
+  escalation_time: string | null;
   customer: { id: number | null; name: string | null; email: string | null };
   followup_level: number;
   is_active: boolean;
@@ -143,6 +157,15 @@ export async function list_threads(
   if (filters.is_active) {
     conditions.push(
       eq(chatThread.isActive, filters.is_active.toLowerCase() === "true"),
+    );
+  }
+
+  if (filters.need_escalation) {
+    conditions.push(
+      eq(
+        chatThread.needEscalation,
+        filters.need_escalation.toLowerCase() === "true",
+      ),
     );
   }
 
@@ -213,12 +236,24 @@ export async function list_threads(
   }
 
   // Channel mirrors the UI's derivation: WhatsApp, or Web for everything else.
-  if (filters.channel === "whatsapp") {
-    conditions.push(eq(chatThread.source, "whatsapp"));
-  } else if (filters.channel === "web") {
-    conditions.push(
-      sql`(${chatThread.source} IS NULL OR ${chatThread.source} <> 'whatsapp')`,
-    );
+  if (filters.channel?.length) {
+    const channelConditions = filters.channel.flatMap((channel) => {
+      if (channel === "whatsapp") {
+        return [eq(chatThread.source, "whatsapp")];
+      }
+      if (channel === "web") {
+        return [
+          sql`(${chatThread.source} IS NULL OR ${chatThread.source} <> 'whatsapp')`,
+        ];
+      }
+      return [];
+    });
+    const combinedChannels = or(...channelConditions);
+    if (combinedChannels) conditions.push(combinedChannels);
+  }
+
+  if (filters.assignee?.length) {
+    conditions.push(inArray(authUser.email, filters.assignee));
   }
 
   // has_ticket / has_feedback are correlated EXISTS subqueries (Django uses
@@ -272,6 +307,7 @@ export async function list_threads(
     .select({ value: sql<number>`count(DISTINCT ${chatThread.id})` })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
+    .leftJoin(authUser, eq(chatThread.chatHandlerUserId, authUser.id))
     .innerJoin(store, eq(chatThread.storeId, store.id))
     .where(whereClause);
 
@@ -290,6 +326,8 @@ export async function list_threads(
       source: chatThread.source,
       followup_level: chatThread.followupLevel,
       is_active: chatThread.isActive,
+      need_escalation: chatThread.needEscalation,
+      escalation_time: chatThread.escalationTime,
       total_messages: count(chatHistory.id),
       created_at: chatThread.createdAt,
       last_message_at: max(chatHistory.createdAt),
@@ -301,9 +339,15 @@ export async function list_threads(
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
+      chat_handler: chatThread.chatHandler,
+      chat_handler_user_id: authUser.id,
+      chat_handler_user_first_name: authUser.firstName,
+      chat_handler_user_last_name: authUser.lastName,
+      chat_handler_user_email: authUser.email,
     })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
+    .leftJoin(authUser, eq(chatThread.chatHandlerUserId, authUser.id))
     .innerJoin(store, eq(chatThread.storeId, store.id))
     .leftJoin(chatHistory, eq(chatHistory.threadId, chatThread.id))
     .where(whereClause)
@@ -313,6 +357,10 @@ export async function list_threads(
       chatCustomer.firstName,
       chatCustomer.lastName,
       chatCustomer.email,
+      authUser.id,
+      authUser.firstName,
+      authUser.lastName,
+      authUser.email,
     )
     .orderBy(desc(chatThread.createdAt))
     .limit(pageSize)
@@ -371,10 +419,27 @@ export async function list_threads(
     const customerName = hasCustomer
       ? `${row.customer_first_name ?? ""} ${row.customer_last_name ?? ""}`.trim()
       : null;
+    const handlerName =
+      row.chat_handler_user_id != null
+        ? `${row.chat_handler_user_first_name ?? ""} ${row.chat_handler_user_last_name ?? ""}`.trim() ||
+          row.chat_handler_user_email ||
+          "Agent"
+        : "";
     return {
       id: row.id,
       name: row.name,
       source: row.source,
+      chat_handler: row.chat_handler,
+      chat_handler_user:
+        row.chat_handler_user_id != null
+          ? {
+              id: row.chat_handler_user_id,
+              name: handlerName,
+              email: row.chat_handler_user_email ?? "",
+            }
+          : null,
+      need_escalation: row.need_escalation,
+      escalation_time: row.escalation_time,
       customer: {
         // Null for a guest — the UI keys its tickets lookup off this.
         id: row.customer_id ?? null,

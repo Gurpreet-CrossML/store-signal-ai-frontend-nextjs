@@ -9,13 +9,15 @@ type ThreadFilters = {
   to?: string;
   search?: string;
   is_active?: boolean;
+  need_escalation?: boolean;
   user_type?: string;
   has_ticket?: boolean;
   has_feedback?: boolean;
   feedback_rating?: string;
   tags?: (string | ThreadTagData)[];
   handled_by?: string;
-  channel?: string;
+  channel?: string | string[];
+  assignee?: string[];
 };
 
 /**
@@ -48,6 +50,7 @@ type GetThreadsArgs = {
   page?: number;
   limit?: number;
   filters?: ThreadFilters;
+  skipListStateUpdate?: boolean;
 };
 
 export type Customer = {
@@ -57,11 +60,21 @@ export type Customer = {
   email: string;
 };
 
+export type ThreadHandlerUser = {
+  id: number;
+  name: string;
+  email: string;
+};
+
 export type Thread = {
   id: string;
   name: string | null;
   customer: Customer | null;
   source?: "native" | "webhook" | "whatsapp" | null;
+  chat_handler?: "ai" | "human";
+  chat_handler_user?: ThreadHandlerUser | null;
+  need_escalation: boolean;
+  escalation_time: string | null;
   is_active: boolean;
   total_messages: number;
   created_at: string;
@@ -828,17 +841,20 @@ const ThreadSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(FetchThreads.pending, (state) => {
+      .addCase(FetchThreads.pending, (state, action) => {
+        if (action.meta.arg?.skipListStateUpdate) return;
         state.FetchThreadsState.FetchThreadsIsLoading = true;
         state.FetchThreadsState.FetchThreadsIsError = null;
         state.FetchThreadsState.FetchThreadsIsSuccess = false;
       })
       .addCase(FetchThreads.fulfilled, (state, action) => {
+        if (action.meta.arg?.skipListStateUpdate) return;
         state.FetchThreadsState.FetchThreadsIsLoading = false;
         state.FetchThreadsState.FetchThreadsListData = action.payload;
         state.FetchThreadsState.FetchThreadsIsSuccess = true;
       })
       .addCase(FetchThreads.rejected, (state, action) => {
+        if (action.meta.arg?.skipListStateUpdate) return;
         state.FetchThreadsState.FetchThreadsIsLoading = false;
         state.FetchThreadsState.FetchThreadsIsError = action.payload;
         state.FetchThreadsState.FetchThreadsIsSuccess = false;

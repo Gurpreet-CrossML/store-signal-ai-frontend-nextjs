@@ -37,6 +37,7 @@ export function SidebarMenuItemWrapper({
   pathname,
   isActive,
   expanded = false,
+  badgeCount = 0,
 }: {
   item: SideBarMenuItem & { activeBasePath?: string };
   pathname: string | null;
@@ -56,6 +57,7 @@ export function SidebarMenuItemWrapper({
    * only exists to name an icon that has no visible label.
    */
   expanded?: boolean;
+  badgeCount?: number;
 }) {
   const active =
     isActive ?? isMenuItemActive(pathname, item.activeBasePath ?? item.url);
@@ -66,7 +68,7 @@ export function SidebarMenuItemWrapper({
         tooltip={expanded ? undefined : item.title}
         isActive={active}
         className={cn(
-          "data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15 data-[active=true]:hover:text-primary",
+          "relative data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15 data-[active=true]:hover:text-primary",
           expanded && EXPANDED_MENU_BUTTON,
         )}
         asChild
@@ -76,6 +78,11 @@ export function SidebarMenuItemWrapper({
             <item.icon className={cn(active ? "text-primary!" : "")} />
           )}
           <span>{item.title}</span>
+          {badgeCount > 0 && (
+            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+              {badgeCount}
+            </span>
+          )}
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -109,15 +116,30 @@ function SidebarGroupWrapper({
   );
 }
 
-export function NavMain({ items }: { items: MainSidebarMenuItem[] }) {
+export function NavMain({
+  items,
+  liveSupportBadgeCount = 0,
+}: {
+  items: MainSidebarMenuItem[];
+  liveSupportBadgeCount?: number;
+}) {
   return (
     <Suspense fallback={null}>
-      <NavMainContent items={items} />
+      <NavMainContent
+        items={items}
+        liveSupportBadgeCount={liveSupportBadgeCount}
+      />
     </Suspense>
   );
 }
 
-function NavMainContent({ items }: { items: MainSidebarMenuItem[] }) {
+function NavMainContent({
+  items,
+  liveSupportBadgeCount = 0,
+}: {
+  items: MainSidebarMenuItem[];
+  liveSupportBadgeCount?: number;
+}) {
   const pathname = usePathname();
 
   return (
@@ -140,6 +162,7 @@ function NavMainContent({ items }: { items: MainSidebarMenuItem[] }) {
                 key={item.title}
                 item={item}
                 pathname={pathname}
+                badgeCount={item.url === "/support" ? liveSupportBadgeCount : 0}
               />
             );
           })}

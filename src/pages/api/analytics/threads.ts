@@ -42,6 +42,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
     from: getStr(q.from),
     to: getStr(q.to),
     is_active: getStr(q.is_active),
+    need_escalation: getStr(q.need_escalation),
     search: getStr(q.search),
     user_type: getStr(q.user_type),
     has_ticket: getStr(q.has_ticket),
@@ -49,7 +50,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
     feedback_rating: getStr(q.feedback_rating),
     tags: getList(q.tags),
     handled_by: getStr(q.handled_by),
-    channel: getStr(q.channel),
+    channel: getList(q.channel),
+    assignee: getList(q.assignee),
   };
 
   const pageParam = getStr(q.page);
