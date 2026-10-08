@@ -54,6 +54,7 @@ import {
   FetchOrders,
   UploadMessageAttachments,
   type Customer,
+  type ThreadHandlerUser,
 } from "@/redux/api-slice/thread-slice";
 import {
   CreateSupportTicket,
@@ -644,11 +645,28 @@ type DashboardMessageEvent = {
   customer?: Customer | null;
   is_active: boolean;
   created_at: string;
+  chat_handler?: Thread["chat_handler"];
+  chat_handler_user?: ThreadHandlerUser | null;
+  need_escalation?: boolean;
+  escalation_timer?: string | null;
+};
+
+type DashboardThreadUpdateEvent = {
+  thread_id: string;
+  chat_handler?: Thread["chat_handler"];
+  chat_handler_user?: ThreadHandlerUser | null;
+  need_escalation?: boolean;
+  escalation_timer?: string | null;
 };
 
 type DashboardSocketPayload =
   | { success: boolean; action_type: "connection"; data?: unknown }
   | { success: boolean; action_type: "message"; data: DashboardMessageEvent }
+  | {
+      success: boolean;
+      action_type: "thread_updated";
+      data: DashboardThreadUpdateEvent;
+    }
   | {
       success: boolean;
       action_type: "thread_closed";
