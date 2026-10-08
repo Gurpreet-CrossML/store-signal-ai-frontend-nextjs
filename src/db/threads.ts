@@ -12,6 +12,7 @@ import {
   userMetadata,
   sessionResolutionVerdict,
   chatCustomerorder,
+  authUser,
 } from "@/lib/drizzle/schema";
 import {
   and,
@@ -424,7 +425,12 @@ type ThreadMessage = {
   message: string;
   json_content: unknown;
   image_url: unknown;
+  message_type: string;
+  agent_name: string | null;
+  confidence: number | null;
+  source_used: string;
   created_at: string;
+  messaged_by: number | null;
 };
 
 export type ThreadDetail =
@@ -520,10 +526,19 @@ export async function get_thread_details(
       message: chatHistory.message,
       json_content: chatHistory.jsonContent,
       image_url: chatHistory.imageUrl,
+      message_type: chatHistory.messageType,
+      agent_name: sql<string | null>`case
+        when nullif(concat_ws(' ', ${authUser.firstName}, ${authUser.lastName}), '') is not null
+          then concat(concat_ws(' ', ${authUser.firstName}, ${authUser.lastName}), ' (', ${authUser.email}, ')')
+        else nullif(${authUser.email}, '')
+      end`,
+      confidence: chatHistory.confidence,
+      source_used: chatHistory.sourceUsed,
       created_at: chatHistory.createdAt,
       messaged_by: chatHistory.messagedById,
     })
     .from(chatHistory)
+    .leftJoin(authUser, eq(chatHistory.messagedById, authUser.id))
     .where(eq(chatHistory.threadId, thread_id))
     .orderBy(
       limit != null ? desc(chatHistory.createdAt) : asc(chatHistory.createdAt),
@@ -536,6 +551,10 @@ export async function get_thread_details(
     message: m.message,
     json_content: m.json_content,
     image_url: m.image_url,
+    message_type: m.message_type,
+    agent_name: m.agent_name,
+    confidence: m.confidence,
+    source_used: m.source_used,
     created_at: m.created_at,
     messaged_by: m.messaged_by,
   }));

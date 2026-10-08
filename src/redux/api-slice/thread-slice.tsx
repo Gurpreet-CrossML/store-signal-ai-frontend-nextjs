@@ -122,6 +122,10 @@ export type ThreadJsonContent = {
   order_id?: string;
   order_verification_step?: string;
   suggestions?: string[];
+  /** Mirrors ChatHistory.confidence for resilient session reloads. */
+  confidence?: number | null;
+  /** Mirrors ChatHistory.source_used for resilient session reloads. */
+  source_used?: string;
 };
 
 export type ThreadMessage = {

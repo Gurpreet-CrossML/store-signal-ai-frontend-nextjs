@@ -63,8 +63,17 @@ export default function MessagePan({
       <AnimatePresence>
         {messages?.map((message: ThreadMessage, index: number) => {
           const isLastMessage = index === messages.length - 1;
-          const isInternalNote = message.message_type === "internal";
-          const isAiAction = message.message_type === "ai_action";
+          // New responses carry message_type.  Treat a system row from an
+          // older/cached history payload as an internal note too, so a reload
+          // can never turn a staff-only note into a normal AI chat bubble.
+          const isSystemMessage = message.role === "system";
+          const isAiAction =
+            message.message_type === "ai_action" ||
+            (isSystemMessage &&
+              /^AI (looked up|performed)\b/.test(message.message));
+          const isInternalNote =
+            message.message_type === "internal" ||
+            (isSystemMessage && !isAiAction);
           const isSystemEvent = isInternalNote || isAiAction;
           const isAgentMessage = Boolean(
             message.agent_name || message.messaged_by,

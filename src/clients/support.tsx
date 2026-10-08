@@ -64,6 +64,15 @@ import { SyncCustomerOrders } from "@/redux/api-slice/order-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { StaffMember } from "@/redux/api-slice/tenancy-slice";
+import { axiosInstance } from "@/redux/axios-config";
+import {
   IconAlertTriangle,
   IconHeadset,
   IconMessage2,
@@ -123,6 +132,26 @@ function normalizeThreads(threads: Thread[] | undefined) {
   }));
 }
 
+/**
+ * Make live socket events and reloaded history use the same message shape.
+ * New backend rows expose confidence/source as dedicated fields and mirror
+ * them in json_content; the fallback keeps an in-flight deployment or a
+ * cached response from making those details disappear after a session switch.
+ */
+function normalizeThreadMessage(message: ThreadMessage): ThreadMessage {
+  const content = message.json_content;
+  const payloadConfidence = content?.confidence;
+  const confidence =
+    message.confidence ??
+    (typeof payloadConfidence === "number" ? payloadConfidence : null);
+  const payloadSource = content?.source_used;
+  const source_used =
+    message.source_used ||
+    (typeof payloadSource === "string" ? payloadSource : "");
+
+  return { ...message, confidence, source_used };
+}
+
 function isThreadWithinActiveWindow(thread: Thread) {
   if (!thread.last_message_at) return false;
   const timestamp = new Date(thread.last_message_at).getTime();
@@ -180,6 +209,50 @@ type AttachmentUpload = {
  */
 const HANDOVER_ACTION_ID = "thread-handover-action";
 
+type AgentOption = { email: string; name: string };
+
+// Roles allowed to answer live chats (the backend's "conversations" write
+// permission). Viewers and content managers can't be assigned a chat.
+const CHAT_HANDLER_ROLES = ["supervisor", "agent"];
+
+/** Admin and supervisor control to hand a taken chat to another agent. */
+function ReassignAgentSelect({
+  agents,
+  currentAgent,
+  disabled,
+  onReassign,
+}: {
+  agents: AgentOption[];
+  currentAgent: string | null;
+  disabled: boolean;
+  onReassign: (email: string) => void;
+}) {
+  if (agents.length === 0) return null;
+
+  return (
+    // Shows who the chat is assigned to ("Unassigned" while the AI has it);
+    // picking an agent assigns or reassigns it.
+    <Select
+      value={currentAgent ?? ""}
+      onValueChange={(email) => {
+        if (email !== currentAgent) onReassign(email);
+      }}
+      disabled={disabled}
+    >
+      <SelectTrigger size="sm" aria-label="Reassign chat" className="w-fit">
+        <SelectValue placeholder="Unassigned" />
+      </SelectTrigger>
+      <SelectContent>
+        {agents.map((agent) => (
+          <SelectItem key={agent.email} value={agent.email}>
+            {agent.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 function ThreadChatControls({
   activeThreadId,
   isThreadActive = true,
@@ -187,6 +260,8 @@ function ThreadChatControls({
   connectedAgent,
   connectedAgentName,
   user,
+  canReassign = false,
+  agents = [],
   transitionState,
   agentMessage,
   setAgentMessage,
@@ -197,6 +272,7 @@ function ThreadChatControls({
   isEmojiPickerOpen,
   setIsEmojiPickerOpen,
   onTakeOver,
+  onReassign,
   onReturnToAI,
   onSendAgentMessage,
   onSendInternalNote,
@@ -211,6 +287,8 @@ function ThreadChatControls({
   connectedAgent: string | null;
   connectedAgentName?: string | null;
   user: string | null;
+  canReassign?: boolean;
+  agents?: AgentOption[];
   transitionState: "idle" | "taking_over" | "returning_to_ai";
   agentMessage: string;
   setAgentMessage: (value: string) => void;
@@ -221,6 +299,7 @@ function ThreadChatControls({
   isEmojiPickerOpen: boolean;
   setIsEmojiPickerOpen: (value: boolean) => void;
   onTakeOver: () => void;
+  onReassign: (email: string) => void;
   onReturnToAI: () => void;
   onSendAgentMessage: () => void;
   onSendInternalNote: () => void;
@@ -295,7 +374,15 @@ function ThreadChatControls({
                   </Typography>
                 </div>
               </div>
-              {activeThreadId && connectedAgent !== user && (
+              {canReassign && (
+                <ReassignAgentSelect
+                  agents={agents}
+                  currentAgent={null}
+                  disabled={transitionState !== "idle"}
+                  onReassign={onReassign}
+                />
+              )}
+              {activeThreadId && !canReassign && connectedAgent !== user && (
                 // Same layoutId as Return to AI: framer treats the two as one
                 // element and slides it from here into the composer, so the
                 // control an agent just pressed is visibly where it went.
@@ -368,6 +455,14 @@ function ThreadChatControls({
                 </Typography>
               </div>
             </div>
+            {canReassign && (
+              <ReassignAgentSelect
+                agents={agents}
+                currentAgent={connectedAgent}
+                disabled={transitionState !== "idle"}
+                onReassign={onReassign}
+              />
+            )}
           </motion.div>
         )}
 
@@ -537,6 +632,14 @@ function ThreadChatControls({
                     {attachments.length} attached
                   </Typography>
                 )}
+                {canReassign && connectedAgent && (
+                  <ReassignAgentSelect
+                    agents={agents}
+                    currentAgent={connectedAgent}
+                    disabled={transitionState !== "idle"}
+                    onReassign={onReassign}
+                  />
+                )}
                 {/* Sits beside Send because it's the other thing an agent can
                   do from here: hand the conversation back instead of
                   replying. Outline keeps Send the primary action. */}
@@ -696,6 +799,12 @@ export default function Support() {
   const [noteMessage, setNoteMessage] = useState("");
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [isCustomerTyping, setIsCustomerTyping] = useState(false);
+  const [aiTypingThreadId, setAiTypingThreadId] = useState<string | null>(
+    null,
+  );
+  const [customerTypingThreadId, setCustomerTypingThreadId] = useState<
+    string | null
+  >(null);
   const [attachments, setAttachments] = useState<AttachmentUpload[]>([]);
 
   // Attaching a real customer to a chat a guest started, offered from the
@@ -725,23 +834,88 @@ export default function Support() {
   // the permission from their role. The backend enforces this too — checking
   // here spares a round trip and says why.
   const canHandleChats = can(session?.user, "conversations", { write: true });
+  // Admins and supervisors may assign a chat to another agent.
+  const canReassign = can(session?.user, "reassignment", { write: true });
+  // Staff who can answer chats (see the effect below). Kept local: the
+  // shared staff list in Redux is company-wide and used by other screens.
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const agents = useMemo<AgentOption[]>(() => {
+    const myEmail = session?.user?.email ?? "";
+    const list = staff
+      .filter((member) => member.is_active)
+      .map((member) => ({
+        email: member.email,
+        name: `${member.first_name} ${member.last_name}`.trim() || member.email,
+      }));
+    // An admin can always assign the chat to themselves, even if they are
+    // missing from the staff list.
+    if (canReassign && myEmail && !list.some((a) => a.email === myEmail)) {
+      list.unshift({ email: myEmail, name: session?.user?.name || myEmail });
+    }
+    return list.map((agent) =>
+      agent.email === myEmail
+        ? { ...agent, name: `${agent.name} (you)` }
+        : agent,
+    );
+  }, [staff, canReassign, session?.user?.email, session?.user?.name]);
   const connectedAgentName = useMemo(() => {
     if (!connectedAgent) return null;
     if (connectedAgentServerName) return connectedAgentServerName;
+    const match = agents.find((agent) => agent.email === connectedAgent);
+    if (match) return match.name;
     return connectedAgent === session?.user?.email
       ? session?.user?.name || connectedAgent
       : connectedAgent;
   }, [
+    agents,
     connectedAgent,
     connectedAgentServerName,
     session?.user?.email,
     session?.user?.name,
   ]);
 
+  // Only admins and supervisors can reassign, and only they need the agent list. The staff
+  // list is company-wide, so it is narrowed here to active users whose role
+  // can answer chats — the only people a chat may be assigned to.
+  useEffect(() => {
+    if (!canReassign) return;
+    let cancelled = false;
+
+    axiosInstance
+      .get(ENDPOINTS.fetchStaff(), { useBackend: true })
+      .then((res) => {
+        if (cancelled) return;
+        const members = res.data.data as StaffMember[];
+        setStaff(
+          members.filter(
+            (member) =>
+              member.is_active &&
+              !!member.role &&
+              CHAT_HANDLER_ROLES.includes(member.role),
+          ),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setStaff([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canReassign]);
+
   const wsRef = useRef<WebSocket | null>(null);
   const dashboardWsRef = useRef<WebSocket | null>(null);
   const connectedAgentRef = useRef<string | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
+  // Typing is intentionally transient. These timers recover from a missing
+  // stop event when a widget/browser disconnects while it is typing.
+  const aiTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const customerTypingTimeoutRef = useRef<
+    ReturnType<typeof setTimeout> | null
+  >(null);
   // Last ?chat= value already applied to local state — stops the render-time
   // URL sync from re-applying a stale param right after a click updates
   // state but before the router has caught up.
@@ -799,6 +973,9 @@ export default function Support() {
     selectedThreadStillExists && UUID_PATTERN.test(desiredThreadId)
       ? desiredThreadId
       : null;
+  const showAiTyping = isAiTyping && aiTypingThreadId === activeThreadId;
+  const showCustomerTyping =
+    isCustomerTyping && customerTypingThreadId === activeThreadId;
 
   const handleLinkCustomer = async (customerId: number) => {
     if (!storeCode || !activeThreadId) return;
@@ -936,7 +1113,7 @@ export default function Support() {
         .then((result) => {
           // Ignore late responses after the user has switched threads.
           if (activeThreadIdRef.current === activeThreadId) {
-            setThreadMessages(result.messages ?? []);
+            setThreadMessages((result.messages ?? []).map(normalizeThreadMessage));
           }
         })
         .catch(() => {
@@ -962,7 +1139,7 @@ export default function Support() {
   }, [dispatch, activeThreadId, storeCode, selectedThread?.customer?.id]);
 
   const handleThreadMessageAdded = useCallback((message: ThreadMessage) => {
-    setThreadMessages((prev) => [...prev, message]);
+    setThreadMessages((prev) => [...prev, normalizeThreadMessage(message)]);
   }, []);
 
   const handleTakeOver = useCallback(async () => {
@@ -990,6 +1167,38 @@ export default function Support() {
       setTransitionState("idle");
     }
   }, [activeThreadId, canHandleChats]);
+
+  // Admin and supervisor: hands the chat to another agent. Sent over the same
+  // handler_change channel as Take Over, naming the agent to assign.
+  const handleReassign = useCallback(
+    (email: string) => {
+      if (!canReassign) {
+        toast.error("Permission Issue!", {
+          description: "You do not have permission to perform this action.",
+        });
+        return;
+      }
+
+      if (!activeThreadId || !wsRef.current) {
+        return;
+      }
+
+      try {
+        setTransitionState("taking_over");
+        wsRef.current.send(
+          JSON.stringify({
+            action_type: "handler_change",
+            chat_handler: "human",
+            chat_handler_user: email,
+          }),
+        );
+      } catch (error) {
+        console.error(error);
+        setTransitionState("idle");
+      }
+    },
+    [activeThreadId, canReassign],
+  );
 
   const handleReturnToAI = useCallback(async () => {
     if (!canHandleChats) {
@@ -1283,7 +1492,24 @@ export default function Support() {
 
   useEffect(() => {
     activeThreadIdRef.current = activeThreadId;
+    if (aiTypingTimeoutRef.current) {
+      clearTimeout(aiTypingTimeoutRef.current);
+      aiTypingTimeoutRef.current = null;
+    }
+    if (customerTypingTimeoutRef.current) {
+      clearTimeout(customerTypingTimeoutRef.current);
+      customerTypingTimeoutRef.current = null;
+    }
   }, [activeThreadId]);
+
+  useEffect(
+    () => () => {
+      if (aiTypingTimeoutRef.current) clearTimeout(aiTypingTimeoutRef.current);
+      if (customerTypingTimeoutRef.current)
+        clearTimeout(customerTypingTimeoutRef.current);
+    },
+    [],
+  );
 
   const removeClosedThread = useCallback((threadId: string) => {
     setLocalThreads((prev) => prev.filter((t) => t.id !== threadId));
@@ -1448,10 +1674,26 @@ export default function Support() {
 
       if (data?.success && data?.action_type === "typing") {
         if (data?.sender === "assistant") {
-          setIsAiTyping(Boolean(data?.is_typing));
+          const isTyping = Boolean(data?.is_typing);
+          setIsAiTyping(isTyping);
+          setAiTypingThreadId(isTyping ? activeThreadId : null);
+          if (aiTypingTimeoutRef.current) {
+            clearTimeout(aiTypingTimeoutRef.current);
+          }
+          aiTypingTimeoutRef.current = isTyping
+            ? setTimeout(() => setIsAiTyping(false), 10_000)
+            : null;
         }
         if (data?.sender === "customer") {
-          setIsCustomerTyping(Boolean(data?.is_typing));
+          const isTyping = Boolean(data?.is_typing);
+          setIsCustomerTyping(isTyping);
+          setCustomerTypingThreadId(isTyping ? activeThreadId : null);
+          if (customerTypingTimeoutRef.current) {
+            clearTimeout(customerTypingTimeoutRef.current);
+          }
+          customerTypingTimeoutRef.current = isTyping
+            ? setTimeout(() => setIsCustomerTyping(false), 5_000)
+            : null;
         }
         return;
       }
@@ -1829,7 +2071,7 @@ export default function Support() {
                       <div className="flex items-center gap-2 border-y border-primary/15 bg-primary/5 px-4 py-2 text-sm text-primary">
                         <IconRobot className="size-4 shrink-0" />
                         <span>
-                          {isAiTyping
+                          {showAiTyping
                             ? "You’re watching live. AI is replying."
                             : "You’re watching live. AI is handling this chat."}
                         </span>
@@ -1858,9 +2100,9 @@ export default function Support() {
                         </div>
                       )}
                     </div>
-                    {(isCustomerTyping || isAiTyping) && (
+                    {(showCustomerTyping || showAiTyping) && (
                       <div className="shrink-0 border-t bg-background px-4 py-2">
-                        {isCustomerTyping && (
+                        {showCustomerTyping && (
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span className="flex gap-1">
                               <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.2s]" />
@@ -1870,7 +2112,7 @@ export default function Support() {
                             Customer is typing…
                           </div>
                         )}
-                        {isAiTyping && (
+                        {showAiTyping && (
                           <div className="flex items-center justify-end gap-2 text-xs text-primary">
                             <span className="inline-flex items-center gap-1 font-medium">
                               <IconSparkles className="size-3" />
@@ -1902,6 +2144,9 @@ export default function Support() {
                         connectedAgent={connectedAgent}
                         connectedAgentName={connectedAgentName}
                         user={session?.user?.email || null}
+                        canReassign={canReassign}
+                        agents={agents}
+                        onReassign={handleReassign}
                         transitionState={transitionState}
                         agentMessage={agentMessage}
                         setAgentMessage={setAgentMessage}
