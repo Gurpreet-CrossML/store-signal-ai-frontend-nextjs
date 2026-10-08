@@ -121,7 +121,9 @@ export function AppSidebar({
       return;
     }
 
-    const dashboardWs = new WebSocket(ENDPOINTS.dashboardSocket(storeCode, token));
+    const dashboardWs = new WebSocket(
+      ENDPOINTS.dashboardSocket(storeCode, token),
+    );
     dashboardWsRef.current = dashboardWs;
 
     dashboardWs.onmessage = (event) => {
