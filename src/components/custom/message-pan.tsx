@@ -197,9 +197,56 @@ export default function MessagePan({
           );
           const showReplyWithAI =
             isLastMessage && message.role === "user" && !!onReplyWithAI;
-          const isOutgoing = message.role === "user";
+          const isCustomer = message.role === "user";
+          const isOutgoing = !isCustomer;
 
-          return (
+          if (isSystemEvent) {
+            return [
+              <MessageAppear
+                key={message.id ?? index}
+                outgoing={false}
+                index={index}
+                total={messages.length}
+                className="py-1"
+              >
+                <div className="flex justify-center">
+                  <div
+                    className={
+                      isInternalNote
+                        ? "flex max-w-[82%] items-start gap-2 rounded-lg border border-dashed border-amber-300/80 bg-amber-50 px-3 py-2 text-xs text-amber-950 dark:border-amber-700/70 dark:bg-amber-950/30 dark:text-amber-100"
+                        : "flex max-w-[82%] items-center gap-2 rounded-full border border-dashed bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground"
+                    }
+                  >
+                    {isInternalNote ? (
+                      <IconLock className="mt-0.5 size-3.5 shrink-0" />
+                    ) : (
+                      <IconSparkles className="size-3.5 shrink-0 text-primary" />
+                    )}
+                    <div>
+                      {isInternalNote ? (
+                        <>
+                          <span className="font-medium">
+                            Internal note ·{" "}
+                            {message.agent_name || message.messaged_by || "Agent"}
+                          </span>
+                          <span className="mx-1.5 opacity-60">·</span>
+                          <span>{message.message}</span>
+                          <span className="ml-1.5 opacity-60">
+                            {formatDateTime(message.created_at)}
+                          </span>
+                        </>
+                      ) : (
+                        <span>{message.message}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </MessageAppear>,
+              ...(eventsAfter.get(index) ?? []).map(eventRow),
+            ];
+          }
+
+          return [
             <MessageAppear
               key={message.id ?? index}
               outgoing={isOutgoing}
