@@ -114,6 +114,10 @@ type SupportThreadFilters = {
   assignees: string[];
 };
 
+function hasAppliedThreadFilters(filters: SupportThreadFilters) {
+  return filters.channels.length > 0 || filters.assignees.length > 0;
+}
+
 const EMPTY_SUPPORT_THREAD_FILTERS: SupportThreadFilters = {
   channels: [],
   assignees: [],
@@ -915,11 +919,20 @@ export default function Support() {
     setLocalThreads(normalizeThreads(FetchThreadsListData?.results));
   }
 
-  const filterScopedThreads = useMemo(
-    () => getFilteredThreads(localThreads, readFilter),
-    [localThreads, readFilter],
-  );
   const threadsReady = FetchThreadsIsSuccess && !FetchThreadsIsLoading;
+  const hasAppliedFilters = hasAppliedThreadFilters(appliedThreadFilters);
+  const activeReadFilter =
+    threadsReady &&
+    hasAppliedFilters &&
+    readFilter !== "all" &&
+    localThreads.length > 0 &&
+    getFilteredThreads(localThreads, readFilter).length === 0
+      ? "all"
+      : readFilter;
+  const filterScopedThreads = useMemo(
+    () => getFilteredThreads(localThreads, activeReadFilter),
+    [activeReadFilter, localThreads],
+  );
 
   // If the URL points at a chat in the selected filter, open it. Otherwise,
   // fall back to the first filtered chat so a stale selection never stays open.
@@ -985,7 +998,8 @@ export default function Support() {
   useEffect(() => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     const safePathname = pathname ?? "/";
-    const expectedFilterParam = readFilter === "all" ? null : readFilter;
+    const expectedFilterParam =
+      activeReadFilter === "all" ? null : activeReadFilter;
     const filterParamMatches =
       (searchParams?.get("filter") ?? null) === expectedFilterParam;
 
@@ -1017,7 +1031,7 @@ export default function Support() {
     activeThreadId,
     chatParam,
     pathname,
-    readFilter,
+    activeReadFilter,
     router,
     searchParams,
     threadsReady,
@@ -1076,8 +1090,8 @@ export default function Support() {
   );
 
   const filteredThreads = useMemo(
-    () => getFilteredThreads(visibleThreads, readFilter),
-    [visibleThreads, readFilter],
+    () => getFilteredThreads(visibleThreads, activeReadFilter),
+    [activeReadFilter, visibleThreads],
   );
 
   useEffect(() => {
@@ -1570,6 +1584,45 @@ export default function Support() {
     }
 
     if (event.action_type === "thread_updated") {
+      if (
+        event.data.thread_id === activeThreadId &&
+        activeReadFilter !== "all"
+      ) {
+        const currentThread = localThreads.find(
+          (thread) => thread.id === event.data.thread_id,
+        );
+        const updatedThread = {
+          ...currentThread,
+          chat_handler: event.data.chat_handler ?? currentThread?.chat_handler,
+          need_escalation:
+            event.data.need_escalation ??
+            currentThread?.need_escalation ??
+            false,
+        };
+        const hasAppliedFilters =
+          appliedThreadFilters.channels.length > 0 ||
+          appliedThreadFilters.assignees.length > 0;
+
+        if (hasAppliedFilters) {
+          const projectedThreads = localThreads.map((thread) =>
+            thread.id === event.data.thread_id
+              ? { ...thread, ...updatedThread }
+              : thread,
+          );
+          if (
+            projectedThreads.length > 0 &&
+            getFilteredThreads(projectedThreads, activeReadFilter).length === 0
+          ) {
+            setReadFilter("all");
+          }
+        } else {
+          const nextFilter = getThreadFilter(updatedThread);
+          if (nextFilter && nextFilter !== activeReadFilter) {
+            setReadFilter(nextFilter);
+          }
+        }
+      }
+
       patchThreadFromUpdate(event.data);
       if (event.data.thread_id === activeThreadId) {
         setTransitionState("idle");
@@ -2006,7 +2059,7 @@ export default function Support() {
                   }}
                   className={cn(
                     "-mb-px flex shrink-0 items-center gap-1 border-b-2 px-0.5 pb-2 pt-1 text-xs font-medium transition-colors",
-                    readFilter === option.key
+                    activeReadFilter === option.key
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
@@ -2017,7 +2070,7 @@ export default function Support() {
                       "rounded-md px-1.5 text-xs",
                       option.key === "needs_human"
                         ? "bg-red-50 text-red-700"
-                        : readFilter === option.key
+                        : activeReadFilter === option.key
                           ? "bg-primary/10 text-primary"
                           : "bg-muted text-foreground/70",
                     )}
@@ -2115,14 +2168,14 @@ export default function Support() {
                     />
                   );
                 })
-              ) : threadSearch || readFilter !== "all" ? (
+              ) : threadSearch || activeReadFilter !== "all" ? (
                 <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
                   <Typography variant="small" as="p">
-                    {readFilter === "needs_human"
+                    {activeReadFilter === "needs_human"
                       ? "No chats need human help"
-                      : readFilter === "ai"
+                      : activeReadFilter === "ai"
                         ? "No AI-handled chats"
-                        : readFilter === "with_agent"
+                        : activeReadFilter === "with_agent"
                           ? "No chats with agents"
                           : "No matches"}
                   </Typography>
