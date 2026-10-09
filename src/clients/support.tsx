@@ -177,6 +177,16 @@ function getFilteredThreads(
   return threads;
 }
 
+function getThreadFilter(thread: {
+  chat_handler?: Thread["chat_handler"];
+  need_escalation?: boolean | null;
+}): ThreadFilter | null {
+  if (thread.need_escalation) return "needs_human";
+  if (thread.chat_handler === "human") return "with_agent";
+  if (thread.chat_handler === "ai") return "ai";
+  return null;
+}
+
 function formatWaitingDuration(startedAt: string, now: number) {
   const startedAtMs = new Date(startedAt).getTime();
   if (Number.isNaN(startedAtMs)) return "0s";
@@ -804,6 +814,7 @@ export default function Support() {
       ? filter
       : "all";
   });
+  const [hasManualTabSelection, setHasManualTabSelection] = useState(false);
   const [isThreadFilterOpen, setIsThreadFilterOpen] = useState(false);
   const [appliedThreadFilters, setAppliedThreadFilters] =
     useState<SupportThreadFilters>(EMPTY_SUPPORT_THREAD_FILTERS);
@@ -924,6 +935,7 @@ export default function Support() {
   const activeReadFilter =
     threadsReady &&
     hasAppliedFilters &&
+    !hasManualTabSelection &&
     readFilter !== "all" &&
     localThreads.length > 0 &&
     getFilteredThreads(localThreads, readFilter).length === 0
@@ -1998,6 +2010,7 @@ export default function Support() {
                         onClick={() => {
                           setDraftThreadFilters(EMPTY_SUPPORT_THREAD_FILTERS);
                           setAppliedThreadFilters(EMPTY_SUPPORT_THREAD_FILTERS);
+                          setHasManualTabSelection(false);
                           setIsThreadFilterOpen(false);
                         }}
                       >
@@ -2013,6 +2026,7 @@ export default function Support() {
                           channels: [...draftThreadFilters.channels],
                           assignees: [...draftThreadFilters.assignees],
                         });
+                        setHasManualTabSelection(false);
                         setIsThreadFilterOpen(false);
                       }}
                     >
@@ -2035,6 +2049,7 @@ export default function Support() {
                   key={option.key}
                   type="button"
                   onClick={() => {
+                    setHasManualTabSelection(true);
                     setReadFilter(option.key);
 
                     const params = new URLSearchParams(
