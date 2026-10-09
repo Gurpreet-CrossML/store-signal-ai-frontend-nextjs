@@ -52,6 +52,7 @@ import {
   FetchUserMetadata,
   type Thread,
   type ThreadMessage,
+  type HandlerEvent,
   FetchOrders,
   UploadMessageAttachments,
 } from "@/redux/api-slice/thread-slice";
@@ -729,6 +730,7 @@ export default function Support() {
   );
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
+  const [handlerEvents, setHandlerEvents] = useState<HandlerEvent[]>([]);
   const [connectedAgent, setConnectedAgent] = useState<string | null>(null);
   const [connectedAgentServerName, setConnectedAgentServerName] = useState<
     string | null
@@ -817,6 +819,10 @@ export default function Support() {
     session?.user?.name,
   ]);
 
+  useEffect(() => {
+    connectedAgentNameRef.current = connectedAgentName;
+  }, [connectedAgentName]);
+
   // Only admins and supervisors can reassign, and only they need the agent list.
   // Fetch the shared company staff roster from Redux so the assignee filter and
   // reassignment controls use the same source of truth.
@@ -828,6 +834,7 @@ export default function Support() {
 
   const wsRef = useRef<WebSocket | null>(null);
   const connectedAgentRef = useRef<string | null>(null);
+  const connectedAgentNameRef = useRef<string | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
   // Last ?chat= value already applied to local state — stops the render-time
   // URL sync from re-applying a stale param right after a click updates
@@ -1052,12 +1059,14 @@ export default function Support() {
     // until it finishes.
     const loadThreadData = () => {
       setThreadMessages([]);
+      setHandlerEvents([]);
       void dispatch(FetchThreadDetails(activeThreadId))
         .unwrap()
         .then((result) => {
           // Ignore late responses after the user has switched threads.
           if (activeThreadIdRef.current === activeThreadId) {
             setThreadMessages(result.messages ?? []);
+            setHandlerEvents(result.handler_events ?? []);
           }
         })
         .catch(() => {
@@ -1269,7 +1278,8 @@ export default function Support() {
       role: "assistant",
       message: message,
       created_at: new Date().toISOString(),
-      messaged_by: "You",
+      messaged_by: session?.user?.name || session?.user?.email || "Agent",
+      messaged_by_email: session?.user?.email,
       image_url: imageUrls,
     });
 
@@ -1284,7 +1294,14 @@ export default function Support() {
     setAgentMessage("");
     setAttachments([]);
     setIsEmojiPickerOpen(false);
-  }, [agentMessage, attachments, clientID, handleThreadMessageAdded]);
+  }, [
+    agentMessage,
+    attachments,
+    clientID,
+    handleThreadMessageAdded,
+    session?.user?.email,
+    session?.user?.name,
+  ]);
 
   const handleReplyWithAI = useCallback(
     (message_id: number | string) => {
@@ -1589,6 +1606,49 @@ export default function Support() {
       }
 
       if (data?.success && data?.action_type === "handler_change") {
+        const nextAgentName =
+          data?.chat_handler === "human" && data?.chat_handler_user
+            ? (data?.chat_handler_user_name ?? data.chat_handler_user)
+            : null;
+        const previousAgentName = connectedAgentNameRef.current;
+        // Prefer the handover the server saved (same row a reload returns,
+        // with who assigned it and where it sits in the transcript); fall back
+        // to deriving it from the change for an older backend.
+        if (data?.assignment) {
+          setHandlerEvents((prev) =>
+            prev.some((e) => String(e.id) === String(data.assignment.id))
+              ? prev
+              : [
+                  ...prev,
+                  {
+                    ...data.assignment,
+                    // The server flags which side is this user; the notice
+                    // compares emails, so map the flags onto mine.
+                    from_agent_email: data.assignment.from_is_you
+                      ? session?.user?.email
+                      : null,
+                    to_agent_email: data.assignment.to_is_you
+                      ? session?.user?.email
+                      : null,
+                    assigned_by_email: data.assignment.assigned_by_is_you
+                      ? session?.user?.email
+                      : null,
+                  } as HandlerEvent,
+                ],
+          );
+        } else if (nextAgentName !== previousAgentName) {
+          setHandlerEvents((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              action: data?.chat_handler === "human" ? "assigned" : "released",
+              from_agent_name: previousAgentName,
+              to_agent_name: nextAgentName,
+              assigned_by_name: data?.assigned_by_name ?? null,
+              created_at: new Date().toISOString(),
+            },
+          ]);
+        }
         if (data?.chat_handler === "human" && data?.chat_handler_user) {
           setConnectedAgent(data?.chat_handler_user);
           setConnectedAgentServerName(data?.chat_handler_user_name ?? null);
@@ -1613,7 +1673,12 @@ export default function Support() {
           message: data?.final_update?.message,
           json_content: data?.final_update?.json_content || {},
           created_at: new Date().toISOString(),
-          messaged_by: data?.sender === "agent" ? "agent" : "",
+          messaged_by:
+            data?.sender === "agent"
+              ? (data?.chat_handler_user_name ??
+                connectedAgentNameRef.current ??
+                "Agent")
+              : "",
           image_url: data?.final_update?.image_url || null,
         });
         setReplyWithAILoadingId(null);
@@ -2084,10 +2149,11 @@ export default function Support() {
                   </div>
                 ) : (
                   <div className="flex min-h-0 flex-1 flex-col">
-                    <div className="flex-1 min-h-0 overflow-y-auto p-3">
+                    <div className="flex-1 min-h-0 overflow-y-auto bg-[#d3d3d31a] p-3">
                       {threadMessages.length > 0 ? (
                         <MessagePan
                           messages={threadMessages}
+                          handlerEvents={handlerEvents}
                           onReplyWithAI={
                             connectedAgent === session?.user?.email
                               ? handleReplyWithAI
