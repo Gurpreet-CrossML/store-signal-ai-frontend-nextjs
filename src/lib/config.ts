@@ -292,6 +292,10 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/tickets/${ticket_id}/status/`, "django"),
   supportTicketPriorityUpdate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/priority/`, "django"),
+  supportTicketActivity: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/activity/`, "django"),
+  supportTicketLanguageSentimentUpdate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/language-sentiment/`, "django"),
   supportTicketMessagesTranslate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/messages/translate/`, "django"),
 

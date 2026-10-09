@@ -278,6 +278,7 @@ export type TicketPriority = "low" | "normal" | "high" | "urgent";
 
 export type ThreadTicketData = {
   id: number;
+  ticket_id: string;
   subject: string;
   description: string;
   status: TicketStatus;

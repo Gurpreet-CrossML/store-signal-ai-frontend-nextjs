@@ -38,6 +38,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Typography } from "@/components/ui/typography";
 import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import { formatDate, formatPrice } from "@/lib/helpers";
+import {
+  DEFAULT_TICKET_LANGUAGE,
+  DEFAULT_TICKET_SENTIMENT,
+  SUPPORTED_LANGUAGES,
+  TICKET_SENTIMENTS,
+  type TicketLanguage,
+  type TicketSentiment,
+} from "@/lib/ticket-options";
 import { SearchCustomers } from "@/redux/api-slice/customer-slice";
 import {
   FetchCustomerOrders,
@@ -99,6 +107,8 @@ type FormValues = {
   priority: SupportTicketPriority;
   orderId: string;
   tagNames: string[];
+  language: TicketLanguage;
+  sentiment: TicketSentiment;
 };
 
 const schema = z.object({
@@ -114,6 +124,8 @@ const schema = z.object({
   priority: z.enum(["low", "normal", "high", "urgent"]),
   orderId: z.string(),
   tagNames: z.array(z.string()),
+  language: z.string(),
+  sentiment: z.enum(["positive", "neutral", "negative"]),
 });
 
 /** The chosen customer, or the search that finds one. */
@@ -333,6 +345,8 @@ export function CreateTicketDialog({
       priority: "normal",
       orderId: NO_ORDER,
       tagNames: [],
+      language: DEFAULT_TICKET_LANGUAGE,
+      sentiment: DEFAULT_TICKET_SENTIMENT,
     },
     validate: (values) => {
       const result = schema.safeParse(values);
@@ -351,6 +365,8 @@ export function CreateTicketDialog({
         subject: values.subject.trim(),
         description: values.description.trim(),
         priority: values.priority,
+        language: values.language,
+        sentiment: values.sentiment,
         ...(values.tagNames.length
           ? { tags: values.tagNames.map((name) => ({ name })) }
           : {}),
@@ -383,6 +399,8 @@ export function CreateTicketDialog({
           priority: "normal",
           orderId: NO_ORDER,
           tagNames: [],
+          language: DEFAULT_TICKET_LANGUAGE,
+          sentiment: DEFAULT_TICKET_SENTIMENT,
         },
       });
       setCustomer(initialCustomer);
@@ -628,6 +646,54 @@ export function CreateTicketDialog({
               </SelectContent>
             </Select>
           </Field>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field>
+              <FieldLabel htmlFor="ticket-language">Language</FieldLabel>
+              <Select
+                value={formik.values.language}
+                onValueChange={(value) =>
+                  formik.setFieldValue("language", value)
+                }
+                disabled={busy}
+              >
+                <SelectTrigger id="ticket-language" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                {/* Opens below the field and scrolls, like the translate menu,
+                    instead of stretching to fit all the languages. */}
+                <SelectContent position="popper" className="max-h-72">
+                  {SUPPORTED_LANGUAGES.map((language) => (
+                    <SelectItem key={language.code} value={language.code}>
+                      {language.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="ticket-sentiment">Sentiment</FieldLabel>
+              <Select
+                value={formik.values.sentiment}
+                onValueChange={(value) =>
+                  formik.setFieldValue("sentiment", value)
+                }
+                disabled={busy}
+              >
+                <SelectTrigger id="ticket-sentiment" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TICKET_SENTIMENTS.map((sentiment) => (
+                    <SelectItem key={sentiment.value} value={sentiment.value}>
+                      {sentiment.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
 
           <Field>
             <FieldLabel>Tags</FieldLabel>
