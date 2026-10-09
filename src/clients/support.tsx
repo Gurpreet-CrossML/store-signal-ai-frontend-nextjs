@@ -172,6 +172,16 @@ function getFilteredThreads(
   return threads;
 }
 
+function getThreadFilter(thread: {
+  chat_handler?: Thread["chat_handler"];
+  need_escalation?: boolean | null;
+}): ThreadFilter | null {
+  if (thread.need_escalation) return "needs_human";
+  if (thread.chat_handler === "human") return "with_agent";
+  if (thread.chat_handler === "ai") return "ai";
+  return null;
+}
+
 function formatWaitingDuration(startedAt: string, now: number) {
   const startedAtMs = new Date(startedAt).getTime();
   if (Number.isNaN(startedAtMs)) return "0s";
@@ -1507,6 +1517,21 @@ export default function Support() {
     }
 
     if (event.action_type === "thread_updated") {
+      if (event.data.thread_id === activeThreadId && readFilter !== "all") {
+        const currentThread = localThreads.find(
+          (thread) => thread.id === event.data.thread_id,
+        );
+        const nextFilter = getThreadFilter({
+          chat_handler: event.data.chat_handler ?? currentThread?.chat_handler,
+          need_escalation:
+            event.data.need_escalation ?? currentThread?.need_escalation,
+        });
+
+        if (nextFilter && nextFilter !== readFilter) {
+          setReadFilter(nextFilter);
+        }
+      }
+
       patchThreadFromUpdate(event.data);
       if (event.data.thread_id === activeThreadId) {
         setTransitionState("idle");
