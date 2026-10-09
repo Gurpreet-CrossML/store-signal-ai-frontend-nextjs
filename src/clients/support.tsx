@@ -403,7 +403,7 @@ function ThreadChatControls({
                     AI Assistant is handling this conversation
                   </Typography>
                   <Typography variant="muted">
-                    Add a private note or take over to reply as a human.
+                    Take over anytime to reply as a human agent.
                   </Typography>
                 </div>
               </div>
