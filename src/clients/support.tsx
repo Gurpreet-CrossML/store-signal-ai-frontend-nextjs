@@ -1406,6 +1406,7 @@ export default function Support() {
             total_messages: 1,
             created_at: new Date().toISOString(),
             customer: data.customer ?? null,
+            source: data.source ?? null,
             chat_handler: data.chat_handler,
             chat_handler_user: data.chat_handler_user ?? null,
             need_escalation: data.need_escalation ?? false,
@@ -1419,6 +1420,7 @@ export default function Support() {
         const updatedThread: ThreadWithReadState = {
           ...existingThread,
           customer: data.customer || existingThread.customer,
+          source: data.source ?? existingThread.source,
           last_message: data.message,
           last_message_at: data.created_at,
           is_active: data.is_active,
