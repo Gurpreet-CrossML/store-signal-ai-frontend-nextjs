@@ -145,6 +145,23 @@ export type ThreadMessage = {
   image_url?: string | string[] | null;
   created_at: string;
   messaged_by: string;
+  /** Sender's email, to show "You" for the signed-in agent. */
+  messaged_by_email?: string | null;
+};
+
+/** One handover of a chat; a null agent name means the AI. */
+export type HandlerEvent = {
+  id: number | string;
+  action: string;
+  from_agent_name: string | null;
+  to_agent_name: string | null;
+  assigned_by_name: string | null;
+  /** Emails, so the UI can show "You" for the signed-in user. */
+  from_agent_email?: string | null;
+  to_agent_email?: string | null;
+  assigned_by_email?: string | null;
+  after_message_id?: number | null;
+  created_at: string;
 };
 
 export type ProductVariant = {
@@ -195,6 +212,7 @@ export type ThreadDetails = {
   created_at: string;
   ended_at: string | null;
   messages: ThreadMessage[];
+  handler_events?: HandlerEvent[];
   verdict: ThreadVerdict;
   followup_level: number;
 };
