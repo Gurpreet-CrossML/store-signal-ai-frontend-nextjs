@@ -115,6 +115,8 @@ export const ENDPOINTS = {
   fetchConversaionRateData: () => "/analytics/conversion-rate",
   fetchQueryCategoryInsights: () => "/analytics/query-category-insights",
   fetchConversationHistory: () => "/analytics/chat-history",
+  // Chat-to-order funnel + AI-assisted revenue (Django; GET needs useBackend).
+  fetchChatOrderFunnel: () => "/analytics/chat-order-funnel/",
   // AI Usage analytics (Django; GET requests require useBackend: true).
   fetchAIUsageSummary: () => "/chat/ai-usage/summary/",
   fetchAIUsageDaily: () => "/chat/ai-usage/daily/",
