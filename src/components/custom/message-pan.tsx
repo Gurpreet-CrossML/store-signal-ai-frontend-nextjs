@@ -19,7 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { IconShoppingBag, IconSparkles } from "@tabler/icons-react";
+import { IconLock, IconShoppingBag, IconSparkles } from "@tabler/icons-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
@@ -180,9 +180,78 @@ export default function MessagePan({
         {eventsBefore.map(eventRow)}
         {messages?.flatMap((message: ThreadMessage, index: number) => {
           const isLastMessage = index === messages.length - 1;
+          // New responses carry message_type.  Treat a system row from an
+          // older/cached history payload as an internal note too, so a reload
+          // can never turn a staff-only note into a normal AI chat bubble.
+          const isSystemMessage = message.role === "system";
+          const isAiAction =
+            message.message_type === "ai_action" ||
+            (isSystemMessage &&
+              /^AI (looked up|performed)\b/.test(message.message));
+          const isInternalNote =
+            message.message_type === "internal" ||
+            (isSystemMessage && !isAiAction);
+          const isSystemEvent = isInternalNote || isAiAction;
+          const isAgentMessage = Boolean(
+            message.agent_name || message.messaged_by,
+          );
           const showReplyWithAI =
             isLastMessage && message.role === "user" && !!onReplyWithAI;
-          const isOutgoing = message.role === "user";
+          const isCustomer = message.role === "user";
+          const isOutgoing = isCustomer;
+
+          if (isSystemEvent) {
+            return [
+              <MessageAppear
+                key={message.id ?? index}
+                outgoing={false}
+                index={index}
+                total={messages.length}
+                className="py-1"
+              >
+                <div className="flex justify-center">
+                  <div
+                    className={
+                      isInternalNote
+                        ? "flex max-w-[82%] items-start gap-2 rounded-lg border border-dashed border-amber-300/80 bg-amber-50 px-3 py-2 text-xs text-amber-950 dark:border-amber-700/70 dark:bg-amber-950/30 dark:text-amber-100"
+                        : "flex max-w-[82%] items-center gap-2 rounded-full border border-dashed bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground"
+                    }
+                  >
+                    {isInternalNote ? (
+                      <IconLock className="mt-0.5 size-3.5 shrink-0" />
+                    ) : (
+                      <IconSparkles className="size-3.5 shrink-0 text-primary" />
+                    )}
+                    <div className="min-w-0">
+                      {isInternalNote ? (
+                        <>
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="font-medium">
+                              Internal note ·{" "}
+                              {(
+                                message.agent_name ||
+                                message.messaged_by ||
+                                "Agent"
+                              ).replace(/\s*\([^)]*@[^)]*\)\s*$/, "")}
+                            </span>
+                            <span className="shrink-0 opacity-60">
+                              {formatDateTime(message.created_at)}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 whitespace-pre-wrap wrap-break-word">
+                            {message.message}
+                          </p>
+                        </>
+                      ) : (
+                        <span>{message.message}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </MessageAppear>,
+              ...(eventsAfter.get(index) ?? []).map(eventRow),
+            ];
+          }
 
           return [
             <MessageAppear
@@ -193,19 +262,23 @@ export default function MessagePan({
               className="space-y-2 pb-2"
             >
               <div
-                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                className={`flex ${isCustomer ? "justify-end" : "justify-start"}`}
               >
-                <div className="flex gap-2.5 max-w-[82%]">
-                  {message.role === "assistant" && (
+                <div
+                  className={`flex gap-2.5 max-w-[82%] ${
+                    isCustomer ? "flex-row-reverse" : "flex-row"
+                  }`}
+                >
+                  {isCustomer && (
                     <Avatar className="h-7 w-7 shrink-0 mt-1">
-                      <AvatarFallback className="bg-accent text-accent-foreground text-xs">
-                        A
+                      <AvatarFallback className="bg-muted text-muted-foreground text-xs">
+                        C
                       </AvatarFallback>
                     </Avatar>
                   )}
                   <div className="flex flex-col">
                     <div
-                      className={`flex items-center gap-2 mb-1 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                      className={`flex items-center gap-2 mb-1 ${isCustomer ? "justify-end" : "justify-start"}`}
                     >
                       <span className="text-xs font-medium text-foreground capitalize">
                         {message.messaged_by_email &&
@@ -218,6 +291,13 @@ export default function MessagePan({
                       <span className="text-xs text-muted-foreground">
                         {formatDateTime(message.created_at)}
                       </span>
+                      {!isCustomer &&
+                      !isAgentMessage &&
+                      message.confidence != null ? (
+                        <span className="text-xs text-primary">
+                          {Math.round(message.confidence * 100)}%
+                        </span>
+                      ) : null}
                     </div>
                     {!message.message.trim() ? (
                       <></>
@@ -225,7 +305,7 @@ export default function MessagePan({
                       <div
                         id="markdown-message-bubble"
                         style={{ borderRadius: "0.7rem" }}
-                        className={`p-3 text-sm wrap-break-word ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary border border-border rounded-tl-none"}`}
+                        className={`p-3 text-sm wrap-break-word ${isCustomer ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-secondary border border-border rounded-tl-none"}`}
                       >
                         {message.role === "assistant" ? (
                           (() => {
@@ -260,6 +340,14 @@ export default function MessagePan({
                         )}
                       </div>
                     )}
+
+                    {message.role === "assistant" &&
+                    !isAgentMessage &&
+                    message.source_used ? (
+                      <div className="mt-1 text-xs font-medium text-primary">
+                        <span>Source: {message.source_used}</span>
+                      </div>
+                    ) : null}
 
                     {/* "Reply with AI" — only for user messages, only when a
                     handler is supplied by the parent. Shown on row hover
@@ -447,10 +535,10 @@ export default function MessagePan({
                       </div>
                     )}
                   </div>
-                  {message.role === "user" && (
+                  {!isCustomer && (
                     <Avatar className="h-7 w-7 shrink-0 mt-1">
                       <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                        U
+                        {isAgentMessage ? "H" : "AI"}
                       </AvatarFallback>
                     </Avatar>
                   )}

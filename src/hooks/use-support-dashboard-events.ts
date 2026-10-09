@@ -22,6 +22,7 @@ export type SupportDashboardMessageEvent = {
   source?: Thread["source"];
   chat_handler?: Thread["chat_handler"];
   chat_handler_user?: ThreadHandlerUser | null;
+  ai_responding?: boolean;
   need_escalation?: boolean;
   escalation_time?: string | null;
 };
@@ -31,6 +32,7 @@ export type SupportDashboardThreadUpdateEvent = {
   source?: Thread["source"];
   chat_handler?: Thread["chat_handler"];
   chat_handler_user?: ThreadHandlerUser | null;
+  ai_responding?: boolean;
   need_escalation?: boolean;
   escalation_time?: string | null;
 };
