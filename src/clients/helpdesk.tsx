@@ -34,10 +34,12 @@ import {
   IconLock,
   IconNote,
   IconPencil,
+  IconBolt,
   IconPlus,
   IconReload,
   IconSend,
   IconSparkles,
+  IconUser,
 } from "@tabler/icons-react";
 import ReactMarkdown from "react-markdown";
 
@@ -103,7 +105,16 @@ import { DateRangePicker } from "@/components/custom/date-range-picker";
 import { LoadingState } from "@/components/custom/loading-state";
 import { SearchInput } from "@/components/custom/search-input";
 
+import { TicketActivityPopover } from "@/components/custom/ticket-activity-popover";
 import { ENDPOINTS } from "@/lib/config";
+import {
+  DEFAULT_TICKET_LANGUAGE,
+  DEFAULT_TICKET_SENTIMENT,
+  SUPPORTED_LANGUAGES,
+  TICKET_SENTIMENTS,
+  type TicketLanguage,
+  type TicketSentiment,
+} from "@/lib/ticket-options";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   FetchSupportTickets,
@@ -121,9 +132,11 @@ import {
   SupportTicketCustomerLink,
   SupportTicketStatusUpdate,
   SupportTicketPriorityUpdate,
+  SupportTicketLanguageSentimentUpdate,
   SupportTicketMessagesTranslate,
   type SupportTicket,
   type SupportTicketChannel,
+  type SupportTicketCreatedBy,
   type SupportTicketPriority,
   type SupportTicketTagData,
   type SupportTicketMessage,
@@ -165,29 +178,6 @@ const SNOOZE_PRESETS = [
   { label: "1 day", ms: 24 * 60 * 60 * 1000 },
   { label: "1 week", ms: 7 * 24 * 60 * 60 * 1000 },
   { label: "1 month", ms: 30 * 24 * 60 * 60 * 1000 },
-];
-
-// Message transalte languages
-const translationLanguages = [
-  { code: "en", name: "English" },
-  { code: "es", name: "Spanish" },
-  { code: "fr", name: "French" },
-  { code: "de", name: "German" },
-  { code: "it", name: "Italian" },
-  { code: "ru", name: "Russian" },
-  { code: "uk", name: "Ukrainian" },
-  { code: "tr", name: "Turkish" },
-  { code: "ar", name: "Arabic" },
-  { code: "hi", name: "Hindi" },
-  { code: "bn", name: "Bengali" },
-  { code: "ur", name: "Urdu" },
-  { code: "ta", name: "Tamil" },
-  { code: "te", name: "Telugu" },
-  { code: "mr", name: "Marathi" },
-  { code: "gu", name: "Gujarati" },
-  { code: "kn", name: "Kannada" },
-  { code: "ml", name: "Malayalam" },
-  { code: "pa", name: "Punjabi" },
 ];
 
 /**
@@ -324,6 +314,22 @@ const channelOptions: { value: SupportTicketChannel; label: string }[] =
     value,
     label: CHANNEL_META[value].label,
   }));
+
+/** Who opened a ticket, as the header shows it. */
+const CREATED_BY_META: Record<
+  SupportTicketCreatedBy,
+  { label: string; icon: Icon }
+> = {
+  ai: { label: "AI", icon: IconSparkles },
+  agent: { label: "Agent", icon: IconUser },
+  rule: { label: "Rule", icon: IconBolt },
+};
+
+const SENTIMENT_TONE: Record<TicketSentiment, BadgeTone> = {
+  positive: "success",
+  neutral: "neutral",
+  negative: "danger",
+};
 
 const priorityOptions: { value: SupportTicketPriority; label: string }[] = [
   { value: "low", label: "Low" },
@@ -616,6 +622,7 @@ function TicketListPanel({
 }
 
 function ConversationPanel({
+  storeCode,
   ticket,
   messages,
   reply,
@@ -639,6 +646,7 @@ function ConversationPanel({
   onTicketSnooze,
   onTicketStatusUpdate,
   onTicketPriorityUpdate,
+  onTicketLanguageSentimentUpdate,
   onAIDraftGenerate,
   isAIDraftLoading,
   aiDraft,
@@ -648,6 +656,7 @@ function ConversationPanel({
   translatedLanguage,
   onLinkCustomer,
 }: {
+  storeCode: string;
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
   reply: string;
@@ -672,6 +681,10 @@ function ConversationPanel({
   onTicketSnooze: (snoozeTime: number | null) => void;
   onTicketStatusUpdate: (status: SupportTicketStatus) => void;
   onTicketPriorityUpdate: (priority: SupportTicketPriority) => void;
+  onTicketLanguageSentimentUpdate: (payload: {
+    language?: TicketLanguage;
+    sentiment?: TicketSentiment;
+  }) => void;
   onAIDraftGenerate: () => void;
   isAIDraftLoading: boolean;
   aiDraft: SupportTicketDraftMessage | null;
@@ -701,6 +714,13 @@ function ConversationPanel({
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
   );
 
+  // Tickets from before these fields existed come back without them.
+  const ticketLanguage = ticket.language ?? DEFAULT_TICKET_LANGUAGE;
+  const ticketSentiment = ticket.sentiment ?? DEFAULT_TICKET_SENTIMENT;
+  const languageName =
+    SUPPORTED_LANGUAGES.find((language) => language.code === ticketLanguage)
+      ?.name ?? ticketLanguage;
+
   const customerName = customerLabel(ticket.customer);
   const customerEmail =
     ticket.customer && typeof ticket.customer === "object"
@@ -729,6 +749,26 @@ function ConversationPanel({
       label: "Created",
       value: `Created ${formatDateTime(ticket.created_at)}`,
     },
+    ...(ticket.created_by_type
+      ? [
+          {
+            icon: CREATED_BY_META[ticket.created_by_type]?.icon ?? IconUser,
+            label: "Created by",
+            value: `Created by ${
+              ticket.created_by?.name ||
+              ticket.created_by?.email ||
+              CREATED_BY_META[ticket.created_by_type]?.label ||
+              capitalizeText(ticket.created_by_type)
+            }`,
+            // Two agents can share a name, so the tooltip adds the email.
+            detail: ticket.created_by
+              ? [ticket.created_by.name, ticket.created_by.email]
+                  .filter(Boolean)
+                  .join(" · ")
+              : undefined,
+          },
+        ]
+      : []),
     ...(totalAttachments > 0
       ? [
           {
@@ -852,6 +892,12 @@ function ConversationPanel({
             </ComboboxContent>
           </Combobox> */}
 
+          <TicketActivityPopover
+            key={ticket.id}
+            storeCode={storeCode}
+            ticketId={ticket.id}
+          />
+
           {/* The two endings a ticket actually has, one click away —
               they were buried in the status Select behind the ⋮ menu. */}
           <Tooltip>
@@ -951,7 +997,7 @@ function ConversationPanel({
               </TooltipContent>
             </Tooltip>
             <Typography variant="caption" className="shrink-0">
-              {ticketRef(ticket.id)}
+              #{ticketRef(ticket.ticket_id)}
             </Typography>
             {ticket.order_id ? (
               <Typography variant="caption" className="shrink-0">
@@ -1031,6 +1077,77 @@ function ConversationPanel({
                     }
                     className={cn(
                       option.value === ticket.priority && "font-medium",
+                    )}
+                  >
+                    {option.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Change language"
+                disabled={isClosed}
+                className={cn(
+                  badgeVariants({ variant: "outline" }),
+                  "cursor-pointer disabled:cursor-default disabled:opacity-60",
+                )}
+              >
+                <IconLanguage />
+                {languageName}
+                {!isClosed ? <IconChevronDown /> : null}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="max-h-72 overflow-y-auto"
+              >
+                <DropdownMenuLabel>Language</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {SUPPORTED_LANGUAGES.map((option) => (
+                  <DropdownMenuItem
+                    key={option.code}
+                    onClick={() =>
+                      option.code !== ticketLanguage &&
+                      onTicketLanguageSentimentUpdate({ language: option.code })
+                    }
+                    className={cn(
+                      option.code === ticketLanguage && "font-medium",
+                    )}
+                  >
+                    {option.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Change sentiment"
+                disabled={isClosed}
+                className={cn(
+                  badgeVariants({ variant: "outline" }),
+                  "cursor-pointer capitalize disabled:cursor-default disabled:opacity-60",
+                  BADGE_TONE_STYLES[SENTIMENT_TONE[ticketSentiment]],
+                )}
+              >
+                {capitalizeText(ticketSentiment)}
+                {!isClosed ? <IconChevronDown /> : null}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Sentiment</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {TICKET_SENTIMENTS.map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    onClick={() =>
+                      option.value !== ticketSentiment &&
+                      onTicketLanguageSentimentUpdate({
+                        sentiment: option.value,
+                      })
+                    }
+                    className={cn(
+                      option.value === ticketSentiment && "font-medium",
                     )}
                   >
                     {option.label}
@@ -1388,7 +1505,7 @@ function ConversationPanel({
             >
               <DropdownMenuLabel>Translate to</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {translationLanguages.map((language) => (
+              {SUPPORTED_LANGUAGES.map((language) => (
                 <DropdownMenuItem
                   key={language.code}
                   onClick={() => onTranslate(language.code)}
@@ -1498,12 +1615,15 @@ function TicketFact({
   icon: Icon,
   label,
   value,
+  detail,
 }: {
   // The shared tabler type rather than one specific icon's: the channel
   // fact now picks its icon from a map, and every entry has to fit.
   icon: Icon;
   label: string;
   value: string;
+  /** What the tooltip says when it should say more than the value does. */
+  detail?: string;
 }) {
   return (
     <Tooltip>
@@ -1516,7 +1636,7 @@ function TicketFact({
         </div>
       </TooltipTrigger>
       <TooltipContent>
-        {label}: {value}
+        {label}: {detail ?? value}
       </TooltipContent>
     </Tooltip>
   );
@@ -2904,6 +3024,43 @@ export default function HelpDesk() {
     }
   };
 
+  const handleSupportTicketLanguageSentimentUpdate = async (payload: {
+    language?: TicketLanguage;
+    sentiment?: TicketSentiment;
+  }) => {
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+
+    try {
+      const updated = await dispatch(
+        SupportTicketLanguageSentimentUpdate({
+          storeCode,
+          ticketId: currentActiveSupportTicketIdRef.current,
+          payload,
+        }),
+      ).unwrap();
+
+      if (updated) {
+        setTicketRows((current) =>
+          current.map((ticket) =>
+            ticket.id === currentActiveSupportTicketIdRef.current
+              ? { ...ticket, ...updated }
+              : ticket,
+          ),
+        );
+
+        setActiveSupportTicket((current) =>
+          current ? { ...current, ...updated } : current,
+        );
+
+        toast.success("Ticket updated", {
+          description: "Ticket language and sentiment saved.",
+        });
+      }
+    } catch {
+      //
+    }
+  };
+
   const handleSupportTicketMessagesTranslate = async (code: string) => {
     if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
 
@@ -2914,7 +3071,7 @@ export default function HelpDesk() {
       return;
     }
 
-    const language = translationLanguages.find(
+    const language = SUPPORTED_LANGUAGES.find(
       (language) => language.code === code,
     );
 
@@ -3052,8 +3209,8 @@ export default function HelpDesk() {
               Ticket Not Found
             </Typography>
             <Typography variant="muted">
-              {ticketRef(activeTicketId ?? "")} could not be opened. It may
-              belong to another store, or have been removed.
+              This ticket could not be opened. It may belong to another store,
+              or have been removed.
             </Typography>
             <Button
               variant="outline"
@@ -3076,6 +3233,7 @@ export default function HelpDesk() {
           </div>
         ) : (
           <ConversationPanel
+            storeCode={storeCode}
             ticket={activeSupportTicket}
             messages={supportTikcetMessages}
             reply={reply}
@@ -3103,6 +3261,9 @@ export default function HelpDesk() {
             onTicketSnooze={handleTicketSnooze}
             onTicketStatusUpdate={handleSupportTicketStatusUpdate}
             onTicketPriorityUpdate={handleSupportTicketPriorityUpdate}
+            onTicketLanguageSentimentUpdate={
+              handleSupportTicketLanguageSentimentUpdate
+            }
             onAIDraftGenerate={handleAiDraftGenerate}
             isAIDraftLoading={SupportTicketAIMessageDraftGenerateIsLoading}
             aiDraft={
