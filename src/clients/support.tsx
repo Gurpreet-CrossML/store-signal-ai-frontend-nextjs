@@ -81,9 +81,11 @@ import {
   IconAlertTriangle,
   IconFilter,
   IconHeadset,
+  IconLock,
   IconMessage2,
   IconMessageChatbot,
   IconMoodSmile,
+  IconNote,
   IconPaperclip,
   IconRobot,
   IconSend,
@@ -482,8 +484,55 @@ function ThreadChatControls({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm"
+            className={cn(
+              "overflow-hidden rounded-xl border shadow-xs transition-shadow focus-within:shadow-sm",
+              isInternalNoteMode
+                ? "border-dashed border-primary/40 bg-primary/5 focus-within:border-primary/60"
+                : "border-border/60 bg-background focus-within:border-primary/50",
+            )}
           >
+            {/* Reply and Internal note are two modes of one composer, so they
+                sit together on top of it as tabs rather than as a button
+                beside Send. */}
+            <div
+              role="tablist"
+              aria-label="Composer mode"
+              className="flex items-center gap-1 border-b border-border/50 px-2 pt-2"
+            >
+              {(
+                [
+                  { id: false, label: "Reply", Icon: IconSend },
+                  { id: true, label: "Internal note", Icon: IconNote },
+                ] as const
+              ).map(({ id, label, Icon }) => {
+                const active = isInternalNoteMode === id;
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    disabled={transitionState !== "idle"}
+                    onClick={() => setIsInternalNoteMode(id)}
+                    className={cn(
+                      "-mb-px flex items-center gap-1.5 rounded-t-md border-b-2 px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                      active
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="size-3.5" />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            {isInternalNoteMode && (
+              <div className="flex items-center gap-1.5 border-b border-dashed border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
+                <IconLock className="size-3.5" />
+                Only visible to your team — the customer won&apos;t see this
+              </div>
+            )}
             {isEmojiPickerOpen && (
               <div className="border-b border-border/50 p-2">
                 <EmojiPicker
@@ -646,7 +695,9 @@ function ThreadChatControls({
               >
                 {isUploadingAttachments
                   ? "Uploading attachment…"
-                  : "Enter to send · Shift + Enter for a new line"}
+                  : isInternalNoteMode
+                    ? "Enter to save note · Shift + Enter for a new line"
+                    : "Enter to send · Shift + Enter for a new line"}
               </Typography>
               <div className="ml-auto flex shrink-0 items-center gap-2">
                 {!isInternalNoteMode && attachments.length > 0 && (
@@ -662,15 +713,6 @@ function ThreadChatControls({
                     onReassign={onReassign}
                   />
                 )}
-                <Button
-                  type="button"
-                  variant={isInternalNoteMode ? "secondary" : "outline"}
-                  size="sm"
-                  onClick={() => setIsInternalNoteMode((value) => !value)}
-                  disabled={transitionState !== "idle"}
-                >
-                  {isInternalNoteMode ? "Reply" : "Internal note"}
-                </Button>
                 {/* Sits beside Send because it's the other thing an agent can
                   do from here: hand the conversation back instead of
                   replying. Outline keeps Send the primary action. */}
@@ -703,8 +745,12 @@ function ThreadChatControls({
                         : "Send message"
                   }
                 >
-                  <IconSend className="size-4" />
-                  {isInternalNoteMode ? "Note" : "Send"}
+                  {isInternalNoteMode ? (
+                    <IconNote className="size-4" />
+                  ) : (
+                    <IconSend className="size-4" />
+                  )}
+                  {isInternalNoteMode ? "Add note" : "Send"}
                 </Button>
               </div>
             </div>
@@ -1100,6 +1146,18 @@ export default function Support() {
     () => visibleThreads.find((thread) => thread.id === activeThreadId) ?? null,
     [activeThreadId, visibleThreads],
   );
+  const selectedHandler =
+    selectedThread?.chat_handler === "human"
+      ? selectedThread.chat_handler_user
+      : null;
+  // Prefer the thread record for the controls: it survives refreshes and a
+  // WebSocket reconnect, unlike the transient connection event state.
+  const displayedConnectedAgent = selectedThread
+    ? (selectedHandler?.email ?? null)
+    : connectedAgent;
+  const displayedConnectedAgentName = selectedThread
+    ? (selectedHandler?.name ?? null)
+    : connectedAgentName;
   const showAiResponding = selectedThread?.ai_responding === true;
 
   const threadTabCounts = useMemo(
@@ -1411,6 +1469,8 @@ export default function Support() {
   const handleSendInternalNote = useCallback(async () => {
     const message = noteMessage.trim();
     if (!message || !activeThreadId) return;
+    // Notes are an agent-only action: the chat must be taken over by you first.
+    if (!connectedAgent || connectedAgent !== session?.user?.email) return;
 
     try {
       const note = await dispatch(
@@ -1422,7 +1482,14 @@ export default function Support() {
     } catch {
       // The thunk displays the API error and keeps the note available to retry.
     }
-  }, [activeThreadId, dispatch, handleThreadMessageAdded, noteMessage]);
+  }, [
+    activeThreadId,
+    connectedAgent,
+    dispatch,
+    handleThreadMessageAdded,
+    noteMessage,
+    session?.user?.email,
+  ]);
 
   const handleReplyWithAI = useCallback(
     (message_id: number | string) => {
@@ -2315,16 +2382,6 @@ export default function Support() {
                   </div>
                 ) : (
                   <div className="flex min-h-0 flex-1 flex-col">
-                    {!connectedAgent && (
-                      <div className="flex items-center gap-2 border-y border-primary/15 bg-primary/5 px-4 py-2 text-sm text-primary">
-                        <IconRobot className="size-4 shrink-0" />
-                        <span>
-                          {showAiResponding
-                            ? "You’re watching live. AI is replying."
-                            : "You’re watching live. AI is handling this chat."}
-                        </span>
-                      </div>
-                    )}
                     <div className="flex-1 min-h-0 overflow-y-auto p-3">
                       {threadMessages.length > 0 ? (
                         <MessagePan
@@ -2387,8 +2444,8 @@ export default function Support() {
                         activeThreadId={activeThreadId}
                         isThreadActive={selectedThread.is_active}
                         className="border-t"
-                        connectedAgent={connectedAgent}
-                        connectedAgentName={connectedAgentName}
+                        connectedAgent={displayedConnectedAgent}
+                        connectedAgentName={displayedConnectedAgentName}
                         user={session?.user?.email || null}
                         canReassign={canReassign}
                         agents={agents}

@@ -222,20 +222,25 @@ export default function MessagePan({
                     ) : (
                       <IconSparkles className="size-3.5 shrink-0 text-primary" />
                     )}
-                    <div>
+                    <div className="min-w-0">
                       {isInternalNote ? (
                         <>
-                          <span className="font-medium">
-                            Internal note ·{" "}
-                            {message.agent_name ||
-                              message.messaged_by ||
-                              "Agent"}
-                          </span>
-                          <span className="mx-1.5 opacity-60">·</span>
-                          <span>{message.message}</span>
-                          <span className="ml-1.5 opacity-60">
-                            {formatDateTime(message.created_at)}
-                          </span>
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="font-medium">
+                              Internal note ·{" "}
+                              {(
+                                message.agent_name ||
+                                message.messaged_by ||
+                                "Agent"
+                              ).replace(/\s*\([^)]*@[^)]*\)\s*$/, "")}
+                            </span>
+                            <span className="shrink-0 opacity-60">
+                              {formatDateTime(message.created_at)}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 whitespace-pre-wrap wrap-break-word">
+                            {message.message}
+                          </p>
                         </>
                       ) : (
                         <span>{message.message}</span>
