@@ -198,7 +198,7 @@ export default function MessagePan({
           const showReplyWithAI =
             isLastMessage && message.role === "user" && !!onReplyWithAI;
           const isCustomer = message.role === "user";
-          const isOutgoing = !isCustomer;
+          const isOutgoing = isCustomer;
 
           if (isSystemEvent) {
             return [
@@ -257,9 +257,13 @@ export default function MessagePan({
               className="space-y-2 pb-2"
             >
               <div
-                className={`flex ${isCustomer ? "justify-start" : "justify-end"}`}
+                className={`flex ${isCustomer ? "justify-end" : "justify-start"}`}
               >
-                <div className="flex gap-2.5 max-w-[82%]">
+                <div
+                  className={`flex gap-2.5 max-w-[82%] ${
+                    isCustomer ? "flex-row-reverse" : "flex-row"
+                  }`}
+                >
                   {isCustomer && (
                     <Avatar className="h-7 w-7 shrink-0 mt-1">
                       <AvatarFallback className="bg-muted text-muted-foreground text-xs">
@@ -269,7 +273,7 @@ export default function MessagePan({
                   )}
                   <div className="flex flex-col">
                     <div
-                      className={`flex items-center gap-2 mb-1 ${isCustomer ? "justify-start" : "justify-end"}`}
+                      className={`flex items-center gap-2 mb-1 ${isCustomer ? "justify-end" : "justify-start"}`}
                     >
                       <span className="text-xs font-medium text-foreground capitalize">
                         {message.messaged_by_email &&
@@ -296,7 +300,7 @@ export default function MessagePan({
                       <div
                         id="markdown-message-bubble"
                         style={{ borderRadius: "0.7rem" }}
-                        className={`p-3 text-sm wrap-break-word ${isCustomer ? "bg-secondary border border-border rounded-tl-none" : "bg-primary/10 text-foreground rounded-tr-none"}`}
+                        className={`p-3 text-sm wrap-break-word ${isCustomer ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-secondary border border-border rounded-tl-none"}`}
                       >
                         {message.role === "assistant" ? (
                           (() => {
