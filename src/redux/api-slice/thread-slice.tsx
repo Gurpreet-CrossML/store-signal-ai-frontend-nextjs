@@ -73,6 +73,7 @@ export type Thread = {
   source?: "native" | "webhook" | "whatsapp" | null;
   chat_handler?: "ai" | "human";
   chat_handler_user?: ThreadHandlerUser | null;
+  ai_responding: boolean;
   need_escalation: boolean;
   escalation_time: string | null;
   is_active: boolean;

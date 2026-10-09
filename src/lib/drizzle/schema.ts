@@ -5599,6 +5599,7 @@ export const chatThread = pgTable(
     source: varchar({ length: 20 }).notNull(),
     chatHandler: varchar("chat_handler", { length: 10 }).notNull(),
     chatHandlerUserId: integer("chat_handler_user_id"),
+    aiResponding: boolean("ai_responding").notNull(),
     needEscalation: boolean("need_escalation").notNull(),
     escalationTime: timestamp("escalation_time", {
       withTimezone: true,

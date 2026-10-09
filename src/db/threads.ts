@@ -90,6 +90,7 @@ type ThreadListRow = {
   source: string | null;
   followup_level: number;
   is_active: boolean;
+  ai_responding: boolean;
   need_escalation: boolean;
   escalation_time: string | null;
   total_messages: number;
@@ -119,6 +120,7 @@ export type ThreadListItem = {
   customer: { id: number | null; name: string | null; email: string | null };
   followup_level: number;
   is_active: boolean;
+  ai_responding: boolean;
   total_messages: number;
   created_at: string;
   last_message_at: string | null;
@@ -326,6 +328,7 @@ export async function list_threads(
       source: chatThread.source,
       followup_level: chatThread.followupLevel,
       is_active: chatThread.isActive,
+      ai_responding: chatThread.aiResponding,
       need_escalation: chatThread.needEscalation,
       escalation_time: chatThread.escalationTime,
       total_messages: count(chatHistory.id),
@@ -448,6 +451,7 @@ export async function list_threads(
       },
       followup_level: row.followup_level,
       is_active: row.is_active,
+      ai_responding: row.ai_responding,
       total_messages: Number(row.total_messages),
       created_at: row.created_at,
       last_message_at: row.last_message_at,
@@ -504,6 +508,7 @@ export type ThreadDetail =
       store: number;
       name: string | null;
       is_active: boolean;
+      ai_responding: boolean;
       followup_level: number;
       total_messages: number;
       last_message_at: string | null;
@@ -554,6 +559,7 @@ export async function get_thread_details(
       storeId: chatThread.storeId,
       name: chatThread.name,
       is_active: chatThread.isActive,
+      ai_responding: chatThread.aiResponding,
       followup_level: chatThread.followupLevel,
       created_at: chatThread.createdAt,
       ended_at: chatThread.endedAt,
@@ -663,6 +669,7 @@ export async function get_thread_details(
     store: Number(t.storeId),
     name: t.name,
     is_active: t.is_active,
+    ai_responding: t.ai_responding,
     followup_level: t.followup_level,
     total_messages,
     last_message_at,
