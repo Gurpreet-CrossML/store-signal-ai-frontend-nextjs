@@ -343,6 +343,12 @@ function ThreadChatControls({
     return null;
   }
 
+  // A chat an admin holds can only be reassigned by an admin (the backend
+  // enforces it too), so a supervisor sees the holder but can't change it.
+  const heldByAdmin = !!agents.find((a) => a.email === connectedAgent)?.isAdmin;
+  const iAmAdmin = !!agents.find((a) => a.email === user)?.isAdmin;
+  const lockedByAdmin = heldByAdmin && !iAmAdmin;
+
   const isUploadingAttachments = attachments.some(
     (attachment) => attachment.status === "uploading",
   );
@@ -445,7 +451,9 @@ function ThreadChatControls({
                   </span>
                 </Typography>
                 <Typography variant="muted">
-                  Only the connected agent can reply right now.
+                  {lockedByAdmin
+                    ? "Only an admin can reassign this chat."
+                    : "Only the connected agent can reply right now."}
                 </Typography>
               </div>
             </div>
@@ -453,7 +461,11 @@ function ThreadChatControls({
               <ReassignAgentSelect
                 agents={agents}
                 currentAgent={connectedAgent}
-                disabled={transitionState !== "idle" || !chatSocketReady}
+                disabled={
+                  transitionState !== "idle" ||
+                  !chatSocketReady ||
+                  lockedByAdmin
+                }
                 onReassign={onReassign}
               />
             )}
