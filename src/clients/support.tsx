@@ -1594,14 +1594,6 @@ export default function Support() {
     activeThreadIdRef.current = activeThreadId;
   }, [activeThreadId]);
 
-  useEffect(
-    () => () => {
-      if (customerTypingTimeoutRef.current)
-        clearTimeout(customerTypingTimeoutRef.current);
-    },
-    [],
-  );
-
   const removeClosedThread = useCallback((threadId: string) => {
     setLocalThreads((prev) => prev.filter((t) => t.id !== threadId));
   }, []);

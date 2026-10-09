@@ -227,7 +227,9 @@ export default function MessagePan({
                         <>
                           <span className="font-medium">
                             Internal note ·{" "}
-                            {message.agent_name || message.messaged_by || "Agent"}
+                            {message.agent_name ||
+                              message.messaged_by ||
+                              "Agent"}
                           </span>
                           <span className="mx-1.5 opacity-60">·</span>
                           <span>{message.message}</span>
