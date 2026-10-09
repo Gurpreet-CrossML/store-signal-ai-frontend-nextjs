@@ -690,7 +690,10 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 <LoadingState label="Loading conversation…" />
               ) : threadMessages.length > 0 ? (
                 <div className="p-2">
-                  <MessagePan messages={threadMessages} />
+                  <MessagePan
+                    messages={threadMessages}
+                    handlerEvents={details?.handler_events}
+                  />
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">

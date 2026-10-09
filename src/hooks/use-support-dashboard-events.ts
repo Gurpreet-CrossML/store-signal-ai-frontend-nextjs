@@ -19,6 +19,7 @@ export type SupportDashboardMessageEvent = {
   customer?: Customer | null;
   is_active: boolean;
   created_at: string;
+  source?: Thread["source"];
   chat_handler?: Thread["chat_handler"];
   chat_handler_user?: ThreadHandlerUser | null;
   ai_responding?: boolean;
@@ -28,6 +29,7 @@ export type SupportDashboardMessageEvent = {
 
 export type SupportDashboardThreadUpdateEvent = {
   thread_id: string;
+  source?: Thread["source"];
   chat_handler?: Thread["chat_handler"];
   chat_handler_user?: ThreadHandlerUser | null;
   ai_responding?: boolean;

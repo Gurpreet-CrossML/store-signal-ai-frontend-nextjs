@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react";
-import { AnimatePresence } from "framer-motion";
+import { useSession } from "next-auth/react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   CartItem,
+  HandlerEvent,
   ProductData,
   ThreadMessage,
 } from "@/redux/api-slice/thread-slice";
@@ -23,16 +25,130 @@ import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
 import { Spinner } from "../ui/spinner";
 
+/** "You" when `email` is the signed-in user, otherwise their name. */
+function whoIs(
+  name: string | null,
+  email: string | null | undefined,
+  me: string | null | undefined,
+  fallback: string,
+  { start = false } = {},
+): string {
+  if (email && me && email.toLowerCase() === me.toLowerCase()) {
+    return start ? "You" : "you";
+  }
+  return name ?? fallback;
+}
+
+/** One line for a handover, e.g. "Priya took over from AI at 1:32 pm · AI paused". */
+function describeHandlerEvent(
+  event: HandlerEvent,
+  me: string | null | undefined,
+): string {
+  const from = event.from_agent_name;
+  const to = event.to_agent_name;
+  const fromName = (opts?: { start?: boolean }) =>
+    whoIs(from, event.from_agent_email, me, "An agent", opts);
+  const toName = (opts?: { start?: boolean }) =>
+    whoIs(to, event.to_agent_email, me, "An agent", opts);
+  const byName = (opts?: { start?: boolean }) =>
+    whoIs(
+      event.assigned_by_name,
+      event.assigned_by_email,
+      me,
+      "A supervisor",
+      opts,
+    );
+  const when = formatDateTime(event.created_at);
+  switch (event.action) {
+    case "takeover":
+      return `${toName({ start: true })} took over from ${
+        from ? fromName() : "AI"
+      } at ${when}${from ? "" : " · AI paused"}`;
+    case "reassign":
+      return `${byName({ start: true })} assigned this chat to ${toName()}${
+        from ? ` (from ${fromName()})` : ""
+      } at ${when}`;
+    case "release":
+      return `${fromName({ start: true })} handed the chat back to AI at ${when}`;
+    case "closed":
+      return `${fromName({ start: true })} left · chat closed at ${when}`;
+  }
+  // Events added live before the server's summary arrives.
+  if (to && from) {
+    return `${fromName({ start: true })} left · ${toName()} joined at ${when}`;
+  }
+  if (to) return `${toName({ start: true })} joined at ${when}`;
+  if (from) {
+    return `${fromName({ start: true })} left · handed back to AI at ${when}`;
+  }
+  return `Chat handed back to AI at ${when}`;
+}
+
+function HandlerEventRow({
+  event,
+  me,
+}: {
+  event: HandlerEvent;
+  me: string | null | undefined;
+}) {
+  return (
+    <div className="flex justify-center py-1">
+      <span className="rounded-full border border-dashed border-border bg-background px-3 py-1 text-center text-xs text-muted-foreground">
+        {describeHandlerEvent(event, me)}
+      </span>
+    </div>
+  );
+}
+
 export default function MessagePan({
   messages,
+  handlerEvents,
   onReplyWithAI,
   replyWithAILoadingId,
 }: {
   messages: ThreadMessage[];
+  handlerEvents?: HandlerEvent[];
   onReplyWithAI?: (message_id: number | string) => void;
   replyWithAILoadingId?: string | number | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { data: session } = useSession();
+  const me = session?.user?.email;
+
+  // Slot each handover after the message it followed; events with no (or an
+  // unknown) anchor go after the last message sent at or before their time.
+  const eventsBefore: HandlerEvent[] = [];
+  const eventsAfter = new Map<number, HandlerEvent[]>();
+  for (const event of handlerEvents ?? []) {
+    let at = event.after_message_id
+      ? messages.findIndex(
+          (m) => String(m.id) === String(event.after_message_id),
+        )
+      : -1;
+    if (at === -1) {
+      const time = new Date(event.created_at).getTime();
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (new Date(messages[i].created_at).getTime() <= time) {
+          at = i;
+          break;
+        }
+      }
+    }
+    if (at === -1) {
+      eventsBefore.push(event);
+    } else {
+      eventsAfter.set(at, [...(eventsAfter.get(at) ?? []), event]);
+    }
+  }
+  const eventRow = (event: HandlerEvent) => (
+    <motion.div
+      key={`handler-event-${event.id}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+    >
+      <HandlerEventRow event={event} me={me} />
+    </motion.div>
+  );
 
   useEffect(() => {
     const scrollToBottom = () => {
@@ -61,7 +177,8 @@ export default function MessagePan({
           Keyed by message id, so AnimatePresence can tell a new message
           from a re-render of an existing one. */}
       <AnimatePresence>
-        {messages?.map((message: ThreadMessage, index: number) => {
+        {eventsBefore.map(eventRow)}
+        {messages?.flatMap((message: ThreadMessage, index: number) => {
           const isLastMessage = index === messages.length - 1;
           // New responses carry message_type.  Treat a system row from an
           // older/cached history payload as an internal note too, so a reload
@@ -80,55 +197,7 @@ export default function MessagePan({
           );
           const showReplyWithAI =
             isLastMessage && message.role === "user" && !!onReplyWithAI;
-          const isCustomer = message.role === "user";
-          const isOutgoing = !isCustomer;
-
-          if (isSystemEvent) {
-            return (
-              <MessageAppear
-                key={message.id ?? index}
-                outgoing={false}
-                index={index}
-                total={messages.length}
-                className="py-1"
-              >
-                <div className="flex justify-center">
-                  <div
-                    className={
-                      isInternalNote
-                        ? "flex max-w-[82%] items-start gap-2 rounded-lg border border-dashed border-amber-300/80 bg-amber-50 px-3 py-2 text-xs text-amber-950 dark:border-amber-700/70 dark:bg-amber-950/30 dark:text-amber-100"
-                        : "flex max-w-[82%] items-center gap-2 rounded-full border border-dashed bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground"
-                    }
-                  >
-                    {isInternalNote ? (
-                      <IconLock className="mt-0.5 size-3.5 shrink-0" />
-                    ) : (
-                      <IconSparkles className="size-3.5 shrink-0 text-primary" />
-                    )}
-                    <div>
-                      {isInternalNote ? (
-                        <>
-                          <span className="font-medium">
-                            Internal note ·{" "}
-                            {message.agent_name ||
-                              message.messaged_by ||
-                              "Agent"}
-                          </span>
-                          <span className="mx-1.5 opacity-60">·</span>
-                          <span>{message.message}</span>
-                          <span className="ml-1.5 opacity-60">
-                            {formatDateTime(message.created_at)}
-                          </span>
-                        </>
-                      ) : (
-                        <span>{message.message}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </MessageAppear>
-            );
-          }
+          const isOutgoing = message.role === "user";
 
           return (
             <MessageAppear
@@ -154,16 +223,12 @@ export default function MessagePan({
                       className={`flex items-center gap-2 mb-1 ${isCustomer ? "justify-start" : "justify-end"}`}
                     >
                       <span className="text-xs font-medium text-foreground capitalize">
-                        {!isCustomer && !isAgentMessage ? (
-                          <span className="inline-flex items-center gap-1 text-primary">
-                            <IconSparkles className="size-3" />
-                            AI
-                          </span>
-                        ) : isCustomer ? (
-                          "Customer"
-                        ) : (
-                          message.agent_name || message.messaged_by || "Agent"
-                        )}
+                        {message.messaged_by_email &&
+                        me &&
+                        message.messaged_by_email.toLowerCase() ===
+                          me.toLowerCase()
+                          ? "You"
+                          : message.messaged_by || message.role}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {formatDateTime(message.created_at)}
@@ -421,8 +486,9 @@ export default function MessagePan({
                   )}
                 </div>
               </div>
-            </MessageAppear>
-          );
+            </MessageAppear>,
+            ...(eventsAfter.get(index) ?? []).map(eventRow),
+          ];
         })}
       </AnimatePresence>
     </div>

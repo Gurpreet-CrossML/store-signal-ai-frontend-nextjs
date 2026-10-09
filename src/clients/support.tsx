@@ -53,6 +53,7 @@ import {
   FetchUserMetadata,
   type Thread,
   type ThreadMessage,
+  type HandlerEvent,
   FetchOrders,
   UploadMessageAttachments,
 } from "@/redux/api-slice/thread-slice";
@@ -86,6 +87,7 @@ import {
   IconPaperclip,
   IconRobot,
   IconSend,
+  IconShieldCheck,
   IconTicket,
   IconX,
 } from "@tabler/icons-react";
@@ -210,7 +212,24 @@ type AttachmentUpload = {
  */
 const HANDOVER_ACTION_ID = "thread-handover-action";
 
-type AgentOption = { email: string; name: string };
+type AgentOption = {
+  email: string;
+  name: string;
+  /** Company admin — shown with an "Admin" label. */
+  isAdmin?: boolean;
+  /** Can't be picked by this user (a supervisor can't assign to an admin). */
+  disabled?: boolean;
+};
+
+/** Small "Admin" tag shown beside an admin's name. */
+function AdminBadge() {
+  return (
+    <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[10px]">
+      <IconShieldCheck className="size-3" />
+      Admin
+    </Badge>
+  );
+}
 
 // Roles allowed to answer live chats (the backend's "conversations" write
 // permission). Viewers and content managers can't be assigned a chat.
@@ -245,8 +264,15 @@ function ReassignAgentSelect({
       </SelectTrigger>
       <SelectContent>
         {agents.map((agent) => (
-          <SelectItem key={agent.email} value={agent.email}>
-            {agent.name}
+          <SelectItem
+            key={agent.email}
+            value={agent.email}
+            disabled={agent.disabled}
+          >
+            <span className="flex items-center gap-2">
+              {agent.name}
+              {agent.isAdmin && <AdminBadge />}
+            </span>
           </SelectItem>
         ))}
       </SelectContent>
@@ -427,7 +453,11 @@ function ThreadChatControls({
               </div>
               <div className="min-w-0">
                 <Typography variant="small" as="p" className="leading-normal">
-                  Taken by {connectedAgentName || connectedAgent}
+                  <span className="inline-flex items-center gap-2">
+                    Taken by {connectedAgentName || connectedAgent}
+                    {agents.find((a) => a.email === connectedAgent)
+                      ?.isAdmin && <AdminBadge />}
+                  </span>
                 </Typography>
                 <Typography variant="muted">
                   Only the connected agent can reply right now.
@@ -775,6 +805,7 @@ export default function Support() {
   );
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
+  const [handlerEvents, setHandlerEvents] = useState<HandlerEvent[]>([]);
   const [connectedAgent, setConnectedAgent] = useState<string | null>(null);
   const [connectedAgentServerName, setConnectedAgentServerName] = useState<
     string | null
@@ -826,28 +857,50 @@ export default function Support() {
   );
   const agents = useMemo<AgentOption[]>(() => {
     const myEmail = session?.user?.email ?? "";
-    const list = staff
+    const iAmAdmin =
+      !!session?.user?.is_staff || session?.user?.role === "admin";
+    const list: AgentOption[] = staff
       .filter(
         (member) =>
           member.is_active &&
           (member.is_staff ||
+            member.role === "admin" ||
             (!!member.role && CHAT_HANDLER_ROLES.includes(member.role))),
       )
-      .map((member) => ({
-        email: member.email,
-        name: `${member.first_name} ${member.last_name}`.trim() || member.email,
-      }));
+      .map((member) => {
+        const isAdmin = member.is_staff || member.role === "admin";
+        return {
+          email: member.email,
+          name:
+            `${member.first_name} ${member.last_name}`.trim() || member.email,
+          isAdmin,
+          // Admins stay visible (so you can see who holds a chat), but only
+          // an admin can assign to one — the backend refuses a supervisor.
+          disabled: isAdmin && !iAmAdmin,
+        };
+      });
     // An admin can always assign the chat to themselves, even if they are
     // missing from the staff list.
     if (canReassign && myEmail && !list.some((a) => a.email === myEmail)) {
-      list.unshift({ email: myEmail, name: session?.user?.name || myEmail });
+      list.unshift({
+        email: myEmail,
+        name: session?.user?.name || myEmail,
+        isAdmin: iAmAdmin,
+      });
     }
     return list.map((agent) =>
       agent.email === myEmail
         ? { ...agent, name: `${agent.name} (you)` }
         : agent,
     );
-  }, [staff, canReassign, session?.user?.email, session?.user?.name]);
+  }, [
+    staff,
+    canReassign,
+    session?.user?.email,
+    session?.user?.name,
+    session?.user?.is_staff,
+    session?.user?.role,
+  ]);
 
   const connectedAgentName = useMemo(() => {
     if (!connectedAgent) return null;
@@ -865,6 +918,10 @@ export default function Support() {
     session?.user?.name,
   ]);
 
+  useEffect(() => {
+    connectedAgentNameRef.current = connectedAgentName;
+  }, [connectedAgentName]);
+
   // Only admins and supervisors can reassign, and only they need the agent list.
   // Fetch the shared company staff roster from Redux so the assignee filter and
   // reassignment controls use the same source of truth.
@@ -876,6 +933,7 @@ export default function Support() {
 
   const wsRef = useRef<WebSocket | null>(null);
   const connectedAgentRef = useRef<string | null>(null);
+  const connectedAgentNameRef = useRef<string | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
   // Customer typing is transient. This timer recovers from a missing stop
   // event when the widget/browser disconnects while it is typing.
@@ -1106,12 +1164,14 @@ export default function Support() {
     // until it finishes.
     const loadThreadData = () => {
       setThreadMessages([]);
+      setHandlerEvents([]);
       void dispatch(FetchThreadDetails(activeThreadId))
         .unwrap()
         .then((result) => {
           // Ignore late responses after the user has switched threads.
           if (activeThreadIdRef.current === activeThreadId) {
             setThreadMessages(result.messages ?? []);
+            setHandlerEvents(result.handler_events ?? []);
           }
         })
         .catch(() => {
@@ -1323,7 +1383,8 @@ export default function Support() {
       role: "assistant",
       message: message,
       created_at: new Date().toISOString(),
-      messaged_by: "You",
+      messaged_by: session?.user?.name || session?.user?.email || "Agent",
+      messaged_by_email: session?.user?.email,
       image_url: imageUrls,
     });
 
@@ -1338,7 +1399,14 @@ export default function Support() {
     setAgentMessage("");
     setAttachments([]);
     setIsEmojiPickerOpen(false);
-  }, [agentMessage, attachments, clientID, handleThreadMessageAdded]);
+  }, [
+    agentMessage,
+    attachments,
+    clientID,
+    handleThreadMessageAdded,
+    session?.user?.email,
+    session?.user?.name,
+  ]);
 
   const handleSendInternalNote = useCallback(async () => {
     const message = noteMessage.trim();
@@ -1476,6 +1544,7 @@ export default function Support() {
             total_messages: 1,
             created_at: new Date().toISOString(),
             customer: data.customer ?? null,
+            source: data.source ?? null,
             chat_handler: data.chat_handler,
             chat_handler_user: data.chat_handler_user ?? null,
             ai_responding: data.ai_responding ?? false,
@@ -1490,6 +1559,7 @@ export default function Support() {
         const updatedThread: ThreadWithReadState = {
           ...existingThread,
           customer: data.customer || existingThread.customer,
+          source: data.source ?? existingThread.source,
           last_message: data.message,
           last_message_at: data.created_at,
           is_active: data.is_active,
@@ -1682,6 +1752,49 @@ export default function Support() {
       }
 
       if (data?.success && data?.action_type === "handler_change") {
+        const nextAgentName =
+          data?.chat_handler === "human" && data?.chat_handler_user
+            ? (data?.chat_handler_user_name ?? data.chat_handler_user)
+            : null;
+        const previousAgentName = connectedAgentNameRef.current;
+        // Prefer the handover the server saved (same row a reload returns,
+        // with who assigned it and where it sits in the transcript); fall back
+        // to deriving it from the change for an older backend.
+        if (data?.assignment) {
+          setHandlerEvents((prev) =>
+            prev.some((e) => String(e.id) === String(data.assignment.id))
+              ? prev
+              : [
+                  ...prev,
+                  {
+                    ...data.assignment,
+                    // The server flags which side is this user; the notice
+                    // compares emails, so map the flags onto mine.
+                    from_agent_email: data.assignment.from_is_you
+                      ? session?.user?.email
+                      : null,
+                    to_agent_email: data.assignment.to_is_you
+                      ? session?.user?.email
+                      : null,
+                    assigned_by_email: data.assignment.assigned_by_is_you
+                      ? session?.user?.email
+                      : null,
+                  } as HandlerEvent,
+                ],
+          );
+        } else if (nextAgentName !== previousAgentName) {
+          setHandlerEvents((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              action: data?.chat_handler === "human" ? "assigned" : "released",
+              from_agent_name: previousAgentName,
+              to_agent_name: nextAgentName,
+              assigned_by_name: data?.assigned_by_name ?? null,
+              created_at: new Date().toISOString(),
+            },
+          ]);
+        }
         if (data?.chat_handler === "human" && data?.chat_handler_user) {
           setConnectedAgent(data?.chat_handler_user);
           setConnectedAgentServerName(data?.chat_handler_user_name ?? null);
@@ -1711,7 +1824,12 @@ export default function Support() {
           source_used: data?.final_update?.source_used,
           created_at:
             data?.final_update?.created_at || new Date().toISOString(),
-          messaged_by: data?.sender === "agent" ? "agent" : "",
+          messaged_by:
+            data?.sender === "agent"
+              ? (data?.chat_handler_user_name ??
+                connectedAgentNameRef.current ??
+                "Agent")
+              : "",
           image_url: data?.final_update?.image_url || null,
         });
         setReplyWithAILoadingId(null);
@@ -2219,6 +2337,7 @@ export default function Support() {
                       {threadMessages.length > 0 ? (
                         <MessagePan
                           messages={threadMessages}
+                          handlerEvents={handlerEvents}
                           onReplyWithAI={
                             connectedAgent === session?.user?.email
                               ? handleReplyWithAI

@@ -2890,6 +2890,41 @@ export const chatBotevent = pgTable(
   ],
 );
 
+// Handover history of a chat (agent took over / reassigned / handed back to AI).
+// Written by the Django chat consumer; `metadata` holds name snapshots of the
+// from/to/assigned-by users.
+export const chatThreadAssignment = pgTable(
+  "chat_thread_assignment",
+  {
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "chat_thread_assignment_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    action: varchar({ length: 20 }).notNull(),
+    metadata: jsonb().notNull(),
+    assignedAt: timestamp("assigned_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    afterMessageId: bigint("after_message_id", { mode: "number" }),
+    assignedById: integer("assigned_by_id"),
+    fromAgentId: integer("from_agent_id"),
+    toAgentId: integer("to_agent_id"),
+    threadId: uuid("thread_id").notNull(),
+  },
+  (table) => [
+    index("chat_thread_thread__d36e15_idx").using(
+      "btree",
+      table.threadId.asc().nullsLast().op("uuid_ops"),
+      table.assignedAt.asc().nullsLast().op("timestamptz_ops"),
+    ),
+  ],
+);
+
 export const chatAddress = pgTable(
   "chat_address",
   {
