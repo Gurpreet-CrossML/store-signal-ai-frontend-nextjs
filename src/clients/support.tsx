@@ -846,6 +846,12 @@ export default function Support() {
   const connectedAgentRef = useRef<string | null>(null);
   const connectedAgentNameRef = useRef<string | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
+  const readFilterRef = useRef(readFilter);
+
+  useEffect(() => {
+    readFilterRef.current = readFilter;
+  }, [readFilter]);
+
   // Last ?chat= value already applied to local state — stops the render-time
   // URL sync from re-applying a stale param right after a click updates
   // state but before the router has caught up.
@@ -1030,7 +1036,12 @@ export default function Support() {
   useEffect(() => {
     if (!storeCode) return;
 
-    dispatch(
+    const requestedFilter = readFilterRef.current;
+    const hasAppliedFilters =
+      appliedThreadFilters.channels.length > 0 ||
+      appliedThreadFilters.assignees.length > 0;
+
+    void dispatch(
       FetchThreads({
         store_code: storeCode,
         page: 1,
@@ -1048,7 +1059,23 @@ export default function Support() {
             : {}),
         },
       }),
-    );
+    ).then((result) => {
+      if (
+        !FetchThreads.fulfilled.match(result) ||
+        !hasAppliedFilters ||
+        requestedFilter === "all"
+      ) {
+        return;
+      }
+
+      const fetchedThreads = normalizeThreads(result.payload.results);
+      if (
+        fetchedThreads.length > 0 &&
+        getFilteredThreads(fetchedThreads, requestedFilter).length === 0
+      ) {
+        setReadFilter("all");
+      }
+    });
   }, [appliedThreadFilters, dispatch, storeCode, debouncedThreadSearch]);
 
   useEffect(() => {
@@ -1521,14 +1548,35 @@ export default function Support() {
         const currentThread = localThreads.find(
           (thread) => thread.id === event.data.thread_id,
         );
-        const nextFilter = getThreadFilter({
+        const updatedThread = {
+          ...currentThread,
           chat_handler: event.data.chat_handler ?? currentThread?.chat_handler,
           need_escalation:
-            event.data.need_escalation ?? currentThread?.need_escalation,
-        });
+            event.data.need_escalation ??
+            currentThread?.need_escalation ??
+            false,
+        };
+        const hasAppliedFilters =
+          appliedThreadFilters.channels.length > 0 ||
+          appliedThreadFilters.assignees.length > 0;
 
-        if (nextFilter && nextFilter !== readFilter) {
-          setReadFilter(nextFilter);
+        if (hasAppliedFilters) {
+          const projectedThreads = localThreads.map((thread) =>
+            thread.id === event.data.thread_id
+              ? { ...thread, ...updatedThread }
+              : thread,
+          );
+          if (
+            projectedThreads.length > 0 &&
+            getFilteredThreads(projectedThreads, readFilter).length === 0
+          ) {
+            setReadFilter("all");
+          }
+        } else {
+          const nextFilter = getThreadFilter(updatedThread);
+          if (nextFilter && nextFilter !== readFilter) {
+            setReadFilter(nextFilter);
+          }
         }
       }
 
