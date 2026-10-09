@@ -1,6 +1,8 @@
 "use client";
 
 import { ChatOrderFunnelSankey } from "@/components/custom/chat-order-funnel-sankey";
+import Link from "next/link";
+
 import {
   CustomerInteractionLineChart,
   type Granularity,
@@ -25,9 +27,11 @@ import {
   FetchChatOrderFunnel,
   FetchConversationHistory,
 } from "@/redux/api-slice/dashboard-slice";
+import { FetchThreads } from "@/redux/api-slice/thread-slice";
+import { useSupportDashboardEvents } from "@/hooks/use-support-dashboard-events";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { subMonths } from "date-fns";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { IconDownload } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,7 +46,8 @@ type SummaryMetric = {
   value: string;
   infoText: string;
   status: string;
-  statusVariant: "success" | "warning" | "neutral" | "info";
+  statusVariant: "success" | "warning" | "neutral" | "info" | "danger";
+  href?: string;
 };
 
 const displayMetricName = (metric: string) =>
@@ -104,6 +109,38 @@ export default function Dashboard() {
   const [granularity, setGranularity] = useState<Granularity>("hourly");
   const [from, setFrom] = useState(() => defaultRange("hourly").from);
   const [to, setTo] = useState(() => defaultRange("hourly").to);
+  const [liveCounts, setLiveCounts] = useState({
+    active: 0,
+    needsHuman: 0,
+  });
+
+  const refreshLiveCounts = useCallback(async () => {
+    if (!storeCode) return;
+
+    const [activeThreads, escalatedThreads] = await Promise.all([
+      dispatch(
+        FetchThreads({
+          store_code: storeCode,
+          limit: 1,
+          filters: { is_active: true },
+          skipListStateUpdate: true,
+        }),
+      ).unwrap(),
+      dispatch(
+        FetchThreads({
+          store_code: storeCode,
+          limit: 1,
+          filters: { is_active: true, need_escalation: true },
+          skipListStateUpdate: true,
+        }),
+      ).unwrap(),
+    ]);
+
+    setLiveCounts({
+      active: activeThreads.count,
+      needsHuman: escalatedThreads.count,
+    });
+  }, [dispatch, storeCode]);
 
   const handleGranularityChange = (next: Granularity) => {
     setGranularity(next);
@@ -122,6 +159,18 @@ export default function Dashboard() {
     // Served by Django, which links orders to chats when they are written.
     dispatch(FetchChatOrderFunnel({ storeCode }));
   }, [dispatch, storeCode]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void refreshLiveCounts();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [refreshLiveCounts]);
+
+  useSupportDashboardEvents(() => {
+    void refreshLiveCounts();
+  });
 
   useEffect(() => {
     if (!storeCode || !from || !to) return;
@@ -162,12 +211,13 @@ export default function Dashboard() {
       statusVariant: "neutral" as const,
     },
     {
-      label: "Active Sessions",
-      value: FetchEngagementData?.sessions_resolved?.toLocaleString() || "0",
+      label: "Active now",
+      value: liveCounts.active.toLocaleString(),
       infoText:
-        "Shows the number of sessions currently marked as active in the analytics data, helping you gauge current engagement.",
-      status: "Currently Active",
-      statusVariant: "neutral" as const,
+        "Shows the number of live support chats currently marked as active.",
+      status: `${liveCounts.needsHuman} need a human`,
+      statusVariant: "danger" as const,
+      href: "/support?filter=needs_human",
     },
     {
       label: "Avg Response Time",
@@ -430,9 +480,10 @@ export default function Dashboard() {
               warning: "bg-orange/20 text-orange",
               neutral: "bg-muted text-muted-foreground",
               info: "bg-primary/10 text-primary",
+              danger: "bg-red-100 text-red-600",
             };
-            return (
-              <Card key={metric.label} size="sm">
+            const card = (
+              <Card size="sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-1.5">
                     <Typography variant="muted" as="h3">
@@ -454,6 +505,14 @@ export default function Dashboard() {
                   </span>
                 </CardFooter>
               </Card>
+            );
+
+            return metric.href ? (
+              <Link key={metric.label} href={metric.href} className="block">
+                {card}
+              </Link>
+            ) : (
+              card
             );
           })}
         </div>
