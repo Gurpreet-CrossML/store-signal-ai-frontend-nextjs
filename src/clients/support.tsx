@@ -173,16 +173,6 @@ function getFilteredThreads(
   return threads;
 }
 
-function getThreadFilter(thread: {
-  chat_handler?: Thread["chat_handler"];
-  need_escalation?: boolean | null;
-}): ThreadFilter | null {
-  if (thread.need_escalation) return "needs_human";
-  if (thread.chat_handler === "human") return "with_agent";
-  if (thread.chat_handler === "ai") return "ai";
-  return null;
-}
-
 function formatWaitingDuration(startedAt: string, now: number) {
   const startedAtMs = new Date(startedAt).getTime();
   if (Number.isNaN(startedAtMs)) return "0s";
@@ -909,12 +899,6 @@ export default function Support() {
   const connectedAgentRef = useRef<string | null>(null);
   const connectedAgentNameRef = useRef<string | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
-  const readFilterRef = useRef(readFilter);
-
-  useEffect(() => {
-    readFilterRef.current = readFilter;
-  }, [readFilter]);
-
   // Last ?chat= value already applied to local state — stops the render-time
   // URL sync from re-applying a stale param right after a click updates
   // state but before the router has caught up.
@@ -1099,12 +1083,7 @@ export default function Support() {
   useEffect(() => {
     if (!storeCode) return;
 
-    const requestedFilter = readFilterRef.current;
-    const hasAppliedFilters =
-      appliedThreadFilters.channels.length > 0 ||
-      appliedThreadFilters.assignees.length > 0;
-
-    void dispatch(
+    dispatch(
       FetchThreads({
         store_code: storeCode,
         page: 1,
@@ -1122,23 +1101,7 @@ export default function Support() {
             : {}),
         },
       }),
-    ).then((result) => {
-      if (
-        !FetchThreads.fulfilled.match(result) ||
-        !hasAppliedFilters ||
-        requestedFilter === "all"
-      ) {
-        return;
-      }
-
-      const fetchedThreads = normalizeThreads(result.payload.results);
-      if (
-        fetchedThreads.length > 0 &&
-        getFilteredThreads(fetchedThreads, requestedFilter).length === 0
-      ) {
-        setReadFilter("all");
-      }
-    });
+    );
   }, [appliedThreadFilters, dispatch, storeCode, debouncedThreadSearch]);
 
   useEffect(() => {
@@ -1607,42 +1570,6 @@ export default function Support() {
     }
 
     if (event.action_type === "thread_updated") {
-      if (event.data.thread_id === activeThreadId && readFilter !== "all") {
-        const currentThread = localThreads.find(
-          (thread) => thread.id === event.data.thread_id,
-        );
-        const updatedThread = {
-          ...currentThread,
-          chat_handler: event.data.chat_handler ?? currentThread?.chat_handler,
-          need_escalation:
-            event.data.need_escalation ??
-            currentThread?.need_escalation ??
-            false,
-        };
-        const hasAppliedFilters =
-          appliedThreadFilters.channels.length > 0 ||
-          appliedThreadFilters.assignees.length > 0;
-
-        if (hasAppliedFilters) {
-          const projectedThreads = localThreads.map((thread) =>
-            thread.id === event.data.thread_id
-              ? { ...thread, ...updatedThread }
-              : thread,
-          );
-          if (
-            projectedThreads.length > 0 &&
-            getFilteredThreads(projectedThreads, readFilter).length === 0
-          ) {
-            setReadFilter("all");
-          }
-        } else {
-          const nextFilter = getThreadFilter(updatedThread);
-          if (nextFilter && nextFilter !== readFilter) {
-            setReadFilter(nextFilter);
-          }
-        }
-      }
-
       patchThreadFromUpdate(event.data);
       if (event.data.thread_id === activeThreadId) {
         setTransitionState("idle");
