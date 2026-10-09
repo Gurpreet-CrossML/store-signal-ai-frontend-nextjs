@@ -2357,6 +2357,18 @@ export default function Support() {
                         </div>
                       )}
                     </div>
+                    {showAiResponding && (
+                      <div className="flex shrink-0 justify-end border-t bg-background px-4 py-2">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="flex gap-1">
+                            <span className="size-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.2s]" />
+                            <span className="size-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.1s]" />
+                            <span className="size-1.5 animate-bounce rounded-full bg-primary" />
+                          </span>
+                          AI is typing…
+                        </div>
+                      </div>
+                    )}
                     {isCustomerTyping && (
                       <div className="shrink-0 border-t bg-background px-4 py-2">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
