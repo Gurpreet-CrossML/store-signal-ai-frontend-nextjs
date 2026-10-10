@@ -133,12 +133,21 @@ type PendingDm = PendingSend & {
   isExplicitReply: boolean;
   conversationId: number;
   expectedCount: number;
-  files: File[];
+  attachment: File | null;
 };
 
 function countOutgoingWithContent(messages: SocialDm[], content: string) {
   return messages.filter(
     (msg) => msg.message_direction === "outgoing" && msg.content === content,
+  ).length;
+}
+
+// A sent image is its own message (Meta delivers it apart from the text),
+// so a reply carrying one is delivered once that image message shows up.
+function countOutgoingWithAttachments(messages: SocialDm[]) {
+  return messages.filter(
+    (msg) =>
+      msg.message_direction === "outgoing" && (msg.attachments ?? []).length,
   ).length;
 }
 
@@ -415,13 +424,18 @@ function PendingDmBubble({
   // Local previews for the media being uploaded, so an image-only send
   // shows the image rather than an empty bubble. Created once and revoked
   // on unmount — object URLs leak otherwise.
-  const [previews] = useState(() =>
-    pending.files.map((file) => ({
-      name: file.name,
-      isImage: file.type.startsWith("image/"),
-      url: file.type.startsWith("image/") ? URL.createObjectURL(file) : "",
-    })),
-  );
+  const [previews] = useState(() => {
+    if (!pending.attachment) return [];
+    return [
+      {
+        name: pending.attachment.name,
+        isImage: pending.attachment.type.startsWith("image/"),
+        url: pending.attachment.type.startsWith("image/")
+          ? URL.createObjectURL(pending.attachment)
+          : "",
+      },
+    ];
+  });
 
   useEffect(() => {
     return () => {
@@ -821,9 +835,9 @@ export default function DmsInbox({
     .filter(
       (pending) =>
         pending.conversationId === activeConversationId &&
-        // Media-only sends carry no text to match on, so they're resolved
-        // by the outgoing message count for empty content instead.
-        countOutgoingWithContent(messages, pending.content) >=
+        (pending.attachment
+          ? countOutgoingWithAttachments(messages)
+          : countOutgoingWithContent(messages, pending.content)) >=
           pending.expectedCount,
     )
     .map((pending) => pending.tempId);
@@ -1008,7 +1022,7 @@ export default function DmsInbox({
           messageId: targetMessageId,
           message: pending.content,
           isExplicitReply,
-          attachments: pending.files,
+          attachment: pending.attachment,
         }),
       ).unwrap();
       refetchMessages();
@@ -1024,7 +1038,7 @@ export default function DmsInbox({
     }
   };
 
-  const handleReply = (text: string, files: File[] = []) => {
+  const handleReply = (text: string, attachment: File | null = null) => {
     if (
       !activeConversation ||
       !storeCode ||
@@ -1041,16 +1055,21 @@ export default function DmsInbox({
     const targetMessageId = replyingToMessage?.id ?? lastMessage.id;
     const conversationId = activeConversation.id;
 
-    // How many identical outgoing messages must exist before this one is
+    // How many matching outgoing messages must exist before this one is
     // considered delivered: what's on screen now, plus any still in flight
-    // with the same text, plus this one.
-    const expectedCount =
-      countOutgoingWithContent(messages, text) +
-      pendingMessages.filter(
-        (item) =>
-          item.content === text && item.conversationId === conversationId,
-      ).length +
-      1;
+    // that match the same way, plus this one.
+    const expectedCount = attachment
+      ? countOutgoingWithAttachments(messages) +
+        pendingMessages.filter(
+          (item) => item.attachment && item.conversationId === conversationId,
+        ).length +
+        1
+      : countOutgoingWithContent(messages, text) +
+        pendingMessages.filter(
+          (item) =>
+            item.content === text && item.conversationId === conversationId,
+        ).length +
+        1;
 
     const pending: PendingDm = {
       ...createPendingSend(text),
@@ -1058,7 +1077,7 @@ export default function DmsInbox({
       isExplicitReply,
       conversationId,
       expectedCount,
-      files,
+      attachment,
     };
 
     setPendingMessages((prev) => [...prev, pending]);

@@ -1221,14 +1221,14 @@ export const replyToMetaMessage = createAsyncThunk(
       messageId,
       message,
       isExplicitReply = true,
-      attachments,
+      attachment,
     }: {
       storeCode: string;
       userId: number;
       messageId: number;
       message: string;
       isExplicitReply?: boolean;
-      attachments?: File[];
+      attachment?: File | null;
     },
     thunkAPI,
   ) => {
@@ -1237,14 +1237,14 @@ export const replyToMetaMessage = createAsyncThunk(
 
       // With media the request has to be multipart; the JSON body stays the
       // shape it always was when there's nothing to upload.
-      const response = attachments?.length
+      const response = attachment
         ? await axiosInstance.post(
             url,
             (() => {
               const form = new FormData();
               form.append("message", message);
               form.append("is_explicit_reply", String(isExplicitReply));
-              attachments.forEach((file) => form.append("attachments", file));
+              form.append("attachment", attachment);
               return form;
             })(),
             {
