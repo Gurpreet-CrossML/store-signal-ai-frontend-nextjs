@@ -4,16 +4,15 @@ import { IconVideo, IconVolume, IconX } from "@tabler/icons-react";
 import { toast } from "sonner";
 
 /**
- * Meta's Send API caps attachments at 25 MB each, and the store's own
- * policy narrows images to the three formats below.
+ * Instagram caps DM images at 8 MB (Messenger allows 25 MB) and both take
+ * only PNG/JPEG — the backend enforces the same.
  */
-export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+export const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 
 const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg"];
-const ALLOWED_VIDEO_TYPES = ["video/mp4"];
 
 /** What the file picker offers, matching the validation below. */
-export const COMPOSER_ACCEPT = ".png,.jpg,.jpeg,image/*";
+export const COMPOSER_ACCEPT = ".png,.jpg,.jpeg";
 
 export type ComposerAttachment = {
   id: string;
@@ -53,7 +52,7 @@ export function pickComposerAttachment(
   }
   if (file.size > MAX_ATTACHMENT_BYTES) {
     toast.error("File too large", {
-      description: `${file.name} is ${formatMb(file.size)} — the limit is 25 MB.`,
+      description: `${file.name} is ${formatMb(file.size)} — the limit is 8 MB.`,
     });
     return null;
   }

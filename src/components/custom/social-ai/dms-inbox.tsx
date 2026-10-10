@@ -142,6 +142,15 @@ function countOutgoingWithContent(messages: SocialDm[], content: string) {
   ).length;
 }
 
+// A sent image is its own message (Meta delivers it apart from the text),
+// so a reply carrying one is delivered once that image message shows up.
+function countOutgoingWithAttachments(messages: SocialDm[]) {
+  return messages.filter(
+    (msg) =>
+      msg.message_direction === "outgoing" && (msg.attachments ?? []).length,
+  ).length;
+}
+
 // Minute-resolution clock that's safe under the React Compiler's purity
 // rules: Date.now() only ever runs at module load and inside the interval
 // callback (an event), never during render — getSnapshot just returns the
@@ -214,8 +223,7 @@ function DmMessageBubble({
   // nor media (an unsupported payload shape) so it isn't rendered as blank
   // — but not while media is still on its way.
   const showTextBubble =
-    Boolean(msg.content) ||
-    (!attachments.length && !awaitingMedia && !isOutgoing);
+    Boolean(msg.content) || (!attachments.length && !awaitingMedia);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showFullPicker, setShowFullPicker] = useState(false);
   // Shown immediately on click; the persisted value (owner_reaction, from
@@ -824,22 +832,14 @@ export default function DmsInbox({
   // how many such messages existed when it was queued, and clears once one
   // more than that shows up, which keeps repeated identical sends in order.
   const resolvedPendingIds = pendingMessages
-    .filter((pending) => {
-      if (pending.conversationId !== activeConversationId) return false;
-      if (pending.attachment !== null) {
-        return (
-          messages.filter(
-            (m) =>
-              m.message_direction === "outgoing" &&
-              (m.attachments ?? []).length > 0,
-          ).length >= pending.expectedCount
-        );
-      }
-      return (
-        countOutgoingWithContent(messages, pending.content) >=
-        pending.expectedCount
-      );
-    })
+    .filter(
+      (pending) =>
+        pending.conversationId === activeConversationId &&
+        (pending.attachment
+          ? countOutgoingWithAttachments(messages)
+          : countOutgoingWithContent(messages, pending.content)) >=
+          pending.expectedCount,
+    )
     .map((pending) => pending.tempId);
 
   if (resolvedPendingIds.length) {
@@ -936,10 +936,11 @@ export default function DmsInbox({
 
       if (contactId === activeConversationId) {
         dispatch(socialDmReceived(dm));
-
         // The broadcast is fired by the message's own post_save, which runs
         // BEFORE its attachments are written — a media message therefore
-        // arrives with an empty list. Re-read it once the sync has landed.
+        // arrives with an empty list. Re-read it once the sync has landed,
+        // and mark it so the bubble shows a media placeholder meanwhile
+        // instead of a "[Attachment]" bubble that swaps out a moment later.
         if (!dm.content && !(dm.attachments ?? []).length) {
           const messageId = dm.id;
           setAwaitingMediaIds((prev) =>
@@ -1025,10 +1026,6 @@ export default function DmsInbox({
         }),
       ).unwrap();
       refetchMessages();
-      // Explicitly remove the pending message on success!
-      setPendingMessages((prev) =>
-        prev.filter((item) => item.tempId !== pending.tempId),
-      );
     } catch {
       // The thunk already surfaces the error toast.
       setPendingMessages((prev) =>
@@ -1058,15 +1055,13 @@ export default function DmsInbox({
     const targetMessageId = replyingToMessage?.id ?? lastMessage.id;
     const conversationId = activeConversation.id;
 
+    // How many matching outgoing messages must exist before this one is
+    // considered delivered: what's on screen now, plus any still in flight
+    // that match the same way, plus this one.
     const expectedCount = attachment
-      ? messages.filter(
-          (m) =>
-            m.message_direction === "outgoing" &&
-            (m.attachments ?? []).length > 0,
-        ).length +
+      ? countOutgoingWithAttachments(messages) +
         pendingMessages.filter(
-          (item) =>
-            item.attachment !== null && item.conversationId === conversationId,
+          (item) => item.attachment && item.conversationId === conversationId,
         ).length +
         1
       : countOutgoingWithContent(messages, text) +
@@ -1100,7 +1095,7 @@ export default function DmsInbox({
       ),
     );
     void sendReply(
-      { ...pending, status: "sending" as const },
+      { ...pending, status: "sending" },
       pending.targetMessageId,
       pending.isExplicitReply,
       pending.conversationId,
@@ -1476,26 +1471,23 @@ export default function DmsInbox({
                               ) : null}
                             </MessageAppear>
                           ))}
-                          {visiblePendingMessages.map((pending, index) => {
-                            return (
-                              <MessageAppear
-                                key={pending.tempId}
-                                outgoing
-                                index={messages.length + index}
-                                total={
-                                  messages.length +
-                                  visiblePendingMessages.length
+                          {visiblePendingMessages.map((pending, index) => (
+                            <MessageAppear
+                              key={pending.tempId}
+                              outgoing
+                              index={messages.length + index}
+                              total={
+                                messages.length + visiblePendingMessages.length
+                              }
+                            >
+                              <PendingDmBubble
+                                pending={pending}
+                                onRetry={() =>
+                                  handleRetryPending(pending.tempId)
                                 }
-                              >
-                                <PendingDmBubble
-                                  pending={pending}
-                                  onRetry={() =>
-                                    handleRetryPending(pending.tempId)
-                                  }
-                                />
-                              </MessageAppear>
-                            );
-                          })}
+                              />
+                            </MessageAppear>
+                          ))}
                         </AnimatePresence>
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">

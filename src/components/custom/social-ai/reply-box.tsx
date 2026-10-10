@@ -52,8 +52,8 @@ export function ReplyBox({
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   }, [text]);
 
-  // Media on its own is a valid message — a caption isn't required.
-  const canSend = !disabled && (text.trim().length > 0 || attachment !== null);
+  // Text is required; an image rides along with it.
+  const canSend = !disabled && text.trim().length > 0;
 
   const submit = () => {
     if (!canSend) return;
