@@ -257,9 +257,10 @@ export default function Dashboard() {
     const reportWindow = window.open("", "_blank");
     if (!reportWindow) return;
     const renderedChart = (name: string) => {
-      const chart = document.querySelector(
-        `[data-export-chart="${name}"] [data-slot="chart"]`,
-      )?.outerHTML ?? "";
+      const chart =
+        document.querySelector(
+          `[data-export-chart="${name}"] [data-slot="chart"]`,
+        )?.outerHTML ?? "";
       return name === "overview"
         ? chart.replaceAll(">effortScore<", ">EffortScore<")
         : chart;
