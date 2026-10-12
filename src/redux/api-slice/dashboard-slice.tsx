@@ -60,7 +60,7 @@ export type ChatOrderFunnelStep = {
 
 export type ChatOrderFunnelResponse = {
   funnel: Record<
-    "chat_started" | "viewed_product" | "added_to_cart" | "order_placed",
+    "chat_started" | "viewed_product" | "added_to_cart",
     ChatOrderFunnelStep
   >;
   sankey: {
