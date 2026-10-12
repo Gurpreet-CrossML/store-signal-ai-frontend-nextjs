@@ -52,6 +52,7 @@ import {
   FetchUserMetadata,
   type Thread,
   type ThreadMessage,
+  type HandlerEvent,
   FetchOrders,
   UploadMessageAttachments,
 } from "@/redux/api-slice/thread-slice";
@@ -85,6 +86,7 @@ import {
   IconPaperclip,
   IconRobot,
   IconSend,
+  IconShieldCheck,
   IconTicket,
   IconX,
 } from "@tabler/icons-react";
@@ -111,6 +113,10 @@ type SupportThreadFilters = {
   channels: string[];
   assignees: string[];
 };
+
+function hasAppliedThreadFilters(filters: SupportThreadFilters) {
+  return filters.channels.length > 0 || filters.assignees.length > 0;
+}
 
 const EMPTY_SUPPORT_THREAD_FILTERS: SupportThreadFilters = {
   channels: [],
@@ -171,6 +177,16 @@ function getFilteredThreads(
   return threads;
 }
 
+function getThreadFilter(thread: {
+  chat_handler?: Thread["chat_handler"];
+  need_escalation?: boolean | null;
+}): ThreadFilter | null {
+  if (thread.need_escalation) return "needs_human";
+  if (thread.chat_handler === "human") return "with_agent";
+  if (thread.chat_handler === "ai") return "ai";
+  return null;
+}
+
 function formatWaitingDuration(startedAt: string, now: number) {
   const startedAtMs = new Date(startedAt).getTime();
   if (Number.isNaN(startedAtMs)) return "0s";
@@ -209,7 +225,24 @@ type AttachmentUpload = {
  */
 const HANDOVER_ACTION_ID = "thread-handover-action";
 
-type AgentOption = { email: string; name: string };
+type AgentOption = {
+  email: string;
+  name: string;
+  /** Company admin — shown with an "Admin" label. */
+  isAdmin?: boolean;
+  /** Can't be picked by this user (a supervisor can't assign to an admin). */
+  disabled?: boolean;
+};
+
+/** Small "Admin" tag shown beside an admin's name. */
+function AdminBadge() {
+  return (
+    <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[10px]">
+      <IconShieldCheck className="size-3" />
+      Admin
+    </Badge>
+  );
+}
 
 // Roles allowed to answer live chats (the backend's "conversations" write
 // permission). Viewers and content managers can't be assigned a chat.
@@ -244,8 +277,15 @@ function ReassignAgentSelect({
       </SelectTrigger>
       <SelectContent>
         {agents.map((agent) => (
-          <SelectItem key={agent.email} value={agent.email}>
-            {agent.name}
+          <SelectItem
+            key={agent.email}
+            value={agent.email}
+            disabled={agent.disabled}
+          >
+            <span className="flex items-center gap-2">
+              {agent.name}
+              {agent.isAdmin && <AdminBadge />}
+            </span>
           </SelectItem>
         ))}
       </SelectContent>
@@ -316,6 +356,12 @@ function ThreadChatControls({
   if (!activeThreadId || !isThreadActive) {
     return null;
   }
+
+  // A chat an admin holds can only be reassigned by an admin (the backend
+  // enforces it too), so a supervisor sees the holder but can't change it.
+  const heldByAdmin = !!agents.find((a) => a.email === connectedAgent)?.isAdmin;
+  const iAmAdmin = !!agents.find((a) => a.email === user)?.isAdmin;
+  const lockedByAdmin = heldByAdmin && !iAmAdmin;
 
   const isUploadingAttachments = attachments.some(
     (attachment) => attachment.status === "uploading",
@@ -412,10 +458,16 @@ function ThreadChatControls({
               </div>
               <div className="min-w-0">
                 <Typography variant="small" as="p" className="leading-normal">
-                  Taken by {connectedAgentName || connectedAgent}
+                  <span className="inline-flex items-center gap-2">
+                    Taken by {connectedAgentName || connectedAgent}
+                    {agents.find((a) => a.email === connectedAgent)
+                      ?.isAdmin && <AdminBadge />}
+                  </span>
                 </Typography>
                 <Typography variant="muted">
-                  Only the connected agent can reply right now.
+                  {lockedByAdmin
+                    ? "Only an admin can reassign this chat."
+                    : "Only the connected agent can reply right now."}
                 </Typography>
               </div>
             </div>
@@ -423,7 +475,11 @@ function ThreadChatControls({
               <ReassignAgentSelect
                 agents={agents}
                 currentAgent={connectedAgent}
-                disabled={transitionState !== "idle" || !chatSocketReady}
+                disabled={
+                  transitionState !== "idle" ||
+                  !chatSocketReady ||
+                  lockedByAdmin
+                }
                 onReassign={onReassign}
               />
             )}
@@ -729,6 +785,7 @@ export default function Support() {
   );
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
+  const [handlerEvents, setHandlerEvents] = useState<HandlerEvent[]>([]);
   const [connectedAgent, setConnectedAgent] = useState<string | null>(null);
   const [connectedAgentServerName, setConnectedAgentServerName] = useState<
     string | null
@@ -757,6 +814,7 @@ export default function Support() {
       ? filter
       : "all";
   });
+  const [hasManualTabSelection, setHasManualTabSelection] = useState(false);
   const [isThreadFilterOpen, setIsThreadFilterOpen] = useState(false);
   const [appliedThreadFilters, setAppliedThreadFilters] =
     useState<SupportThreadFilters>(EMPTY_SUPPORT_THREAD_FILTERS);
@@ -778,28 +836,50 @@ export default function Support() {
   );
   const agents = useMemo<AgentOption[]>(() => {
     const myEmail = session?.user?.email ?? "";
-    const list = staff
+    const iAmAdmin =
+      !!session?.user?.is_staff || session?.user?.role === "admin";
+    const list: AgentOption[] = staff
       .filter(
         (member) =>
           member.is_active &&
           (member.is_staff ||
+            member.role === "admin" ||
             (!!member.role && CHAT_HANDLER_ROLES.includes(member.role))),
       )
-      .map((member) => ({
-        email: member.email,
-        name: `${member.first_name} ${member.last_name}`.trim() || member.email,
-      }));
+      .map((member) => {
+        const isAdmin = member.is_staff || member.role === "admin";
+        return {
+          email: member.email,
+          name:
+            `${member.first_name} ${member.last_name}`.trim() || member.email,
+          isAdmin,
+          // Admins stay visible (so you can see who holds a chat), but only
+          // an admin can assign to one — the backend refuses a supervisor.
+          disabled: isAdmin && !iAmAdmin,
+        };
+      });
     // An admin can always assign the chat to themselves, even if they are
     // missing from the staff list.
     if (canReassign && myEmail && !list.some((a) => a.email === myEmail)) {
-      list.unshift({ email: myEmail, name: session?.user?.name || myEmail });
+      list.unshift({
+        email: myEmail,
+        name: session?.user?.name || myEmail,
+        isAdmin: iAmAdmin,
+      });
     }
     return list.map((agent) =>
       agent.email === myEmail
         ? { ...agent, name: `${agent.name} (you)` }
         : agent,
     );
-  }, [staff, canReassign, session?.user?.email, session?.user?.name]);
+  }, [
+    staff,
+    canReassign,
+    session?.user?.email,
+    session?.user?.name,
+    session?.user?.is_staff,
+    session?.user?.role,
+  ]);
 
   const connectedAgentName = useMemo(() => {
     if (!connectedAgent) return null;
@@ -817,6 +897,10 @@ export default function Support() {
     session?.user?.name,
   ]);
 
+  useEffect(() => {
+    connectedAgentNameRef.current = connectedAgentName;
+  }, [connectedAgentName]);
+
   // Only admins and supervisors can reassign, and only they need the agent list.
   // Fetch the shared company staff roster from Redux so the assignee filter and
   // reassignment controls use the same source of truth.
@@ -828,6 +912,7 @@ export default function Support() {
 
   const wsRef = useRef<WebSocket | null>(null);
   const connectedAgentRef = useRef<string | null>(null);
+  const connectedAgentNameRef = useRef<string | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
   // Last ?chat= value already applied to local state — stops the render-time
   // URL sync from re-applying a stale param right after a click updates
@@ -845,11 +930,21 @@ export default function Support() {
     setLocalThreads(normalizeThreads(FetchThreadsListData?.results));
   }
 
-  const filterScopedThreads = useMemo(
-    () => getFilteredThreads(localThreads, readFilter),
-    [localThreads, readFilter],
-  );
   const threadsReady = FetchThreadsIsSuccess && !FetchThreadsIsLoading;
+  const hasAppliedFilters = hasAppliedThreadFilters(appliedThreadFilters);
+  const activeReadFilter =
+    threadsReady &&
+    hasAppliedFilters &&
+    !hasManualTabSelection &&
+    readFilter !== "all" &&
+    localThreads.length > 0 &&
+    getFilteredThreads(localThreads, readFilter).length === 0
+      ? "all"
+      : readFilter;
+  const filterScopedThreads = useMemo(
+    () => getFilteredThreads(localThreads, activeReadFilter),
+    [activeReadFilter, localThreads],
+  );
 
   // If the URL points at a chat in the selected filter, open it. Otherwise,
   // fall back to the first filtered chat so a stale selection never stays open.
@@ -915,7 +1010,8 @@ export default function Support() {
   useEffect(() => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     const safePathname = pathname ?? "/";
-    const expectedFilterParam = readFilter === "all" ? null : readFilter;
+    const expectedFilterParam =
+      activeReadFilter === "all" ? null : activeReadFilter;
     const filterParamMatches =
       (searchParams?.get("filter") ?? null) === expectedFilterParam;
 
@@ -947,7 +1043,7 @@ export default function Support() {
     activeThreadId,
     chatParam,
     pathname,
-    readFilter,
+    activeReadFilter,
     router,
     searchParams,
     threadsReady,
@@ -1006,8 +1102,8 @@ export default function Support() {
   );
 
   const filteredThreads = useMemo(
-    () => getFilteredThreads(visibleThreads, readFilter),
-    [visibleThreads, readFilter],
+    () => getFilteredThreads(visibleThreads, activeReadFilter),
+    [activeReadFilter, visibleThreads],
   );
 
   useEffect(() => {
@@ -1052,12 +1148,14 @@ export default function Support() {
     // until it finishes.
     const loadThreadData = () => {
       setThreadMessages([]);
+      setHandlerEvents([]);
       void dispatch(FetchThreadDetails(activeThreadId))
         .unwrap()
         .then((result) => {
           // Ignore late responses after the user has switched threads.
           if (activeThreadIdRef.current === activeThreadId) {
             setThreadMessages(result.messages ?? []);
+            setHandlerEvents(result.handler_events ?? []);
           }
         })
         .catch(() => {
@@ -1269,7 +1367,8 @@ export default function Support() {
       role: "assistant",
       message: message,
       created_at: new Date().toISOString(),
-      messaged_by: "You",
+      messaged_by: session?.user?.name || session?.user?.email || "Agent",
+      messaged_by_email: session?.user?.email,
       image_url: imageUrls,
     });
 
@@ -1284,7 +1383,14 @@ export default function Support() {
     setAgentMessage("");
     setAttachments([]);
     setIsEmojiPickerOpen(false);
-  }, [agentMessage, attachments, clientID, handleThreadMessageAdded]);
+  }, [
+    agentMessage,
+    attachments,
+    clientID,
+    handleThreadMessageAdded,
+    session?.user?.email,
+    session?.user?.name,
+  ]);
 
   const handleReplyWithAI = useCallback(
     (message_id: number | string) => {
@@ -1406,6 +1512,7 @@ export default function Support() {
             total_messages: 1,
             created_at: new Date().toISOString(),
             customer: data.customer ?? null,
+            source: data.source ?? null,
             chat_handler: data.chat_handler,
             chat_handler_user: data.chat_handler_user ?? null,
             need_escalation: data.need_escalation ?? false,
@@ -1419,6 +1526,7 @@ export default function Support() {
         const updatedThread: ThreadWithReadState = {
           ...existingThread,
           customer: data.customer || existingThread.customer,
+          source: data.source ?? existingThread.source,
           last_message: data.message,
           last_message_at: data.created_at,
           is_active: data.is_active,
@@ -1488,6 +1596,45 @@ export default function Support() {
     }
 
     if (event.action_type === "thread_updated") {
+      if (
+        event.data.thread_id === activeThreadId &&
+        activeReadFilter !== "all"
+      ) {
+        const currentThread = localThreads.find(
+          (thread) => thread.id === event.data.thread_id,
+        );
+        const updatedThread = {
+          ...currentThread,
+          chat_handler: event.data.chat_handler ?? currentThread?.chat_handler,
+          need_escalation:
+            event.data.need_escalation ??
+            currentThread?.need_escalation ??
+            false,
+        };
+        const hasAppliedFilters =
+          appliedThreadFilters.channels.length > 0 ||
+          appliedThreadFilters.assignees.length > 0;
+
+        if (hasAppliedFilters) {
+          const projectedThreads = localThreads.map((thread) =>
+            thread.id === event.data.thread_id
+              ? { ...thread, ...updatedThread }
+              : thread,
+          );
+          if (
+            projectedThreads.length > 0 &&
+            getFilteredThreads(projectedThreads, activeReadFilter).length === 0
+          ) {
+            setReadFilter("all");
+          }
+        } else {
+          const nextFilter = getThreadFilter(updatedThread);
+          if (nextFilter && nextFilter !== activeReadFilter) {
+            setReadFilter(nextFilter);
+          }
+        }
+      }
+
       patchThreadFromUpdate(event.data);
       if (event.data.thread_id === activeThreadId) {
         setTransitionState("idle");
@@ -1587,6 +1734,49 @@ export default function Support() {
       }
 
       if (data?.success && data?.action_type === "handler_change") {
+        const nextAgentName =
+          data?.chat_handler === "human" && data?.chat_handler_user
+            ? (data?.chat_handler_user_name ?? data.chat_handler_user)
+            : null;
+        const previousAgentName = connectedAgentNameRef.current;
+        // Prefer the handover the server saved (same row a reload returns,
+        // with who assigned it and where it sits in the transcript); fall back
+        // to deriving it from the change for an older backend.
+        if (data?.assignment) {
+          setHandlerEvents((prev) =>
+            prev.some((e) => String(e.id) === String(data.assignment.id))
+              ? prev
+              : [
+                  ...prev,
+                  {
+                    ...data.assignment,
+                    // The server flags which side is this user; the notice
+                    // compares emails, so map the flags onto mine.
+                    from_agent_email: data.assignment.from_is_you
+                      ? session?.user?.email
+                      : null,
+                    to_agent_email: data.assignment.to_is_you
+                      ? session?.user?.email
+                      : null,
+                    assigned_by_email: data.assignment.assigned_by_is_you
+                      ? session?.user?.email
+                      : null,
+                  } as HandlerEvent,
+                ],
+          );
+        } else if (nextAgentName !== previousAgentName) {
+          setHandlerEvents((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              action: data?.chat_handler === "human" ? "assigned" : "released",
+              from_agent_name: previousAgentName,
+              to_agent_name: nextAgentName,
+              assigned_by_name: data?.assigned_by_name ?? null,
+              created_at: new Date().toISOString(),
+            },
+          ]);
+        }
         if (data?.chat_handler === "human" && data?.chat_handler_user) {
           setConnectedAgent(data?.chat_handler_user);
           setConnectedAgentServerName(data?.chat_handler_user_name ?? null);
@@ -1611,7 +1801,12 @@ export default function Support() {
           message: data?.final_update?.message,
           json_content: data?.final_update?.json_content || {},
           created_at: new Date().toISOString(),
-          messaged_by: data?.sender === "agent" ? "agent" : "",
+          messaged_by:
+            data?.sender === "agent"
+              ? (data?.chat_handler_user_name ??
+                connectedAgentNameRef.current ??
+                "Agent")
+              : "",
           image_url: data?.final_update?.image_url || null,
         });
         setReplyWithAILoadingId(null);
@@ -1815,6 +2010,7 @@ export default function Support() {
                         onClick={() => {
                           setDraftThreadFilters(EMPTY_SUPPORT_THREAD_FILTERS);
                           setAppliedThreadFilters(EMPTY_SUPPORT_THREAD_FILTERS);
+                          setHasManualTabSelection(false);
                           setIsThreadFilterOpen(false);
                         }}
                       >
@@ -1830,6 +2026,7 @@ export default function Support() {
                           channels: [...draftThreadFilters.channels],
                           assignees: [...draftThreadFilters.assignees],
                         });
+                        setHasManualTabSelection(false);
                         setIsThreadFilterOpen(false);
                       }}
                     >
@@ -1852,6 +2049,7 @@ export default function Support() {
                   key={option.key}
                   type="button"
                   onClick={() => {
+                    setHasManualTabSelection(true);
                     setReadFilter(option.key);
 
                     const params = new URLSearchParams(
@@ -1876,7 +2074,7 @@ export default function Support() {
                   }}
                   className={cn(
                     "-mb-px flex shrink-0 items-center gap-1 border-b-2 px-0.5 pb-2 pt-1 text-xs font-medium transition-colors",
-                    readFilter === option.key
+                    activeReadFilter === option.key
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
@@ -1887,7 +2085,7 @@ export default function Support() {
                       "rounded-md px-1.5 text-xs",
                       option.key === "needs_human"
                         ? "bg-red-50 text-red-700"
-                        : readFilter === option.key
+                        : activeReadFilter === option.key
                           ? "bg-primary/10 text-primary"
                           : "bg-muted text-foreground/70",
                     )}
@@ -1985,14 +2183,14 @@ export default function Support() {
                     />
                   );
                 })
-              ) : threadSearch || readFilter !== "all" ? (
+              ) : threadSearch || activeReadFilter !== "all" ? (
                 <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
                   <Typography variant="small" as="p">
-                    {readFilter === "needs_human"
+                    {activeReadFilter === "needs_human"
                       ? "No chats need human help"
-                      : readFilter === "ai"
+                      : activeReadFilter === "ai"
                         ? "No AI-handled chats"
-                        : readFilter === "with_agent"
+                        : activeReadFilter === "with_agent"
                           ? "No chats with agents"
                           : "No matches"}
                   </Typography>
@@ -2082,10 +2280,11 @@ export default function Support() {
                   </div>
                 ) : (
                   <div className="flex min-h-0 flex-1 flex-col">
-                    <div className="flex-1 min-h-0 overflow-y-auto p-3">
+                    <div className="flex-1 min-h-0 overflow-y-auto bg-[#d3d3d31a] p-3">
                       {threadMessages.length > 0 ? (
                         <MessagePan
                           messages={threadMessages}
+                          handlerEvents={handlerEvents}
                           onReplyWithAI={
                             connectedAgent === session?.user?.email
                               ? handleReplyWithAI

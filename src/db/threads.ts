@@ -12,6 +12,7 @@ import {
   userMetadata,
   sessionResolutionVerdict,
   chatCustomerorder,
+  chatThreadAssignment,
   authUser,
 } from "@/lib/drizzle/schema";
 import {
@@ -491,6 +492,22 @@ type ThreadMessage = {
   json_content: unknown;
   image_url: unknown;
   created_at: string;
+  messaged_by: string;
+  messaged_by_email: string | null;
+};
+
+/** One handover of a chat; a null agent name means the AI. */
+export type HandlerEvent = {
+  id: number;
+  action: string;
+  from_agent_name: string | null;
+  to_agent_name: string | null;
+  assigned_by_name: string | null;
+  from_agent_email: string | null;
+  to_agent_email: string | null;
+  assigned_by_email: string | null;
+  after_message_id: number | null;
+  created_at: string;
 };
 
 export type ThreadDetail =
@@ -519,6 +536,7 @@ export type ThreadDetail =
       created_at: string;
       ended_at: string | null;
       messages: ThreadMessage[];
+      handler_events: HandlerEvent[];
     }
   | Record<string, never>;
 
@@ -587,9 +605,13 @@ export async function get_thread_details(
       json_content: chatHistory.jsonContent,
       image_url: chatHistory.imageUrl,
       created_at: chatHistory.createdAt,
-      messaged_by: chatHistory.messagedById,
+      messaged_by_first_name: authUser.firstName,
+      messaged_by_last_name: authUser.lastName,
+      messaged_by_username: authUser.username,
+      messaged_by_email: authUser.email,
     })
     .from(chatHistory)
+    .leftJoin(authUser, eq(chatHistory.messagedById, authUser.id))
     .where(eq(chatHistory.threadId, thread_id))
     .orderBy(
       limit != null ? desc(chatHistory.createdAt) : asc(chatHistory.createdAt),
@@ -603,8 +625,53 @@ export async function get_thread_details(
     json_content: m.json_content,
     image_url: m.image_url,
     created_at: m.created_at,
-    messaged_by: m.messaged_by,
+    messaged_by:
+      [m.messaged_by_first_name, m.messaged_by_last_name]
+        .filter(Boolean)
+        .join(" ") ||
+      m.messaged_by_username ||
+      "",
+    messaged_by_email: m.messaged_by_email,
   }));
+
+  const assignmentRows = await db
+    .select({
+      id: chatThreadAssignment.id,
+      action: chatThreadAssignment.action,
+      metadata: chatThreadAssignment.metadata,
+      after_message_id: chatThreadAssignment.afterMessageId,
+      created_at: chatThreadAssignment.assignedAt,
+    })
+    .from(chatThreadAssignment)
+    .where(eq(chatThreadAssignment.threadId, thread_id))
+    .orderBy(
+      asc(chatThreadAssignment.assignedAt),
+      asc(chatThreadAssignment.id),
+    );
+
+  // The Django side stores a snapshot of each user in `metadata`; show the
+  // name, falling back to the email, and null for the AI.
+  const snapshotName = (snapshot: unknown): string | null => {
+    const user = snapshot as { name?: string; email?: string } | null;
+    return user ? user.name?.trim() || user.email || null : null;
+  };
+  const snapshotEmail = (snapshot: unknown): string | null =>
+    (snapshot as { email?: string } | null)?.email ?? null;
+  const handler_events: HandlerEvent[] = assignmentRows.map((a) => {
+    const meta = (a.metadata ?? {}) as Record<string, unknown>;
+    return {
+      id: a.id,
+      action: a.action,
+      from_agent_name: snapshotName(meta.from_agent),
+      to_agent_name: snapshotName(meta.to_agent),
+      assigned_by_name: snapshotName(meta.assigned_by),
+      from_agent_email: snapshotEmail(meta.from_agent),
+      to_agent_email: snapshotEmail(meta.to_agent),
+      assigned_by_email: snapshotEmail(meta.assigned_by),
+      after_message_id: a.after_message_id,
+      created_at: a.created_at,
+    };
+  });
 
   const verdictRows = await db
     .select({
@@ -657,6 +724,7 @@ export async function get_thread_details(
     created_at: t.created_at,
     ended_at: t.ended_at,
     messages,
+    handler_events,
   };
 }
 
