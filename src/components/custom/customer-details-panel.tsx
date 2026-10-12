@@ -5,6 +5,8 @@ import {
   OrdersCard,
   SupportTicketsCard,
 } from "@/components/custom/thread-detail-panels";
+import { CustomerProfileCard } from "@/components/custom/customer-profile-card";
+import type { CustomerRecord } from "@/redux/api-slice/customer-slice";
 import type {
   CartDataResponse,
   Customer,
@@ -28,6 +30,7 @@ import type {
  */
 export function CustomerDetailsPanel({
   customerData,
+  customerRecord,
   orders,
   ordersLoading,
   onOrdersSync,
@@ -37,6 +40,7 @@ export function CustomerDetailsPanel({
   cart,
 }: {
   customerData?: Customer | null;
+  customerRecord?: CustomerRecord | null;
   orders?: OrderData[] | null;
   ordersLoading?: boolean;
   onOrdersSync: () => void;
@@ -50,6 +54,7 @@ export function CustomerDetailsPanel({
   return (
     <aside className="hidden min-h-0 w-80 shrink-0 flex-col border-l xl:flex 2xl:w-95">
       <div className="min-h-0 flex-1 overflow-y-auto">
+        <CustomerProfileCard customer={customerRecord} fallback={customerData} />
         <OrdersCard
           orders={orders}
           loading={ordersLoading}

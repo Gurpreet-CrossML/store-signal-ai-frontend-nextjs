@@ -66,6 +66,10 @@ import {
   ThreadCustomerLink,
   type ThreadMessage,
 } from "@/redux/api-slice/thread-slice";
+import {
+  FetchCustomerDetails,
+  type CustomerRecord,
+} from "@/redux/api-slice/customer-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 /* ------------------------------------------------------------------ */
@@ -393,6 +397,9 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
   const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
+  const [customerRecord, setCustomerRecord] = useState<CustomerRecord | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!storeCode || !threadId) return;
@@ -400,6 +407,18 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     const loadData = async () => {
       const result = await dispatch(FetchThreadDetails(threadId)).unwrap();
       setThreadMessages(result.messages ?? []);
+      setCustomerRecord(null);
+      if (result.customer?.id) {
+        const customer = await dispatch(
+          FetchCustomerDetails({
+            storeCode,
+            customerId: result.customer.id,
+          }),
+        ).unwrap();
+        setCustomerRecord(customer);
+      } else {
+        setCustomerRecord(null);
+      }
 
       dispatch(FetchConversationSummary(threadId));
       dispatch(FetchAIInsight(threadId));
@@ -433,6 +452,15 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         // refetch rather than patching a guess into three places.
         const detail = await dispatch(FetchThreadDetails(threadId)).unwrap();
         setThreadMessages(detail.messages ?? []);
+        if (detail.customer?.id) {
+          const customer = await dispatch(
+            FetchCustomerDetails({
+              storeCode,
+              customerId: detail.customer.id,
+            }),
+          ).unwrap();
+          setCustomerRecord(customer);
+        }
         dispatch(FetchOrders(threadId));
         dispatch(
           FetchFreshdeskTicketId({
@@ -719,6 +747,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             name: customerName,
             email: details?.customer_email ?? "",
           }}
+          customerRecord={customerRecord}
           orders={FetchOrderData}
           ordersLoading={detailsLoading || FetchOrderDataIsLoading}
           onOrdersSync={() => dispatch(FetchOrders(threadId))}
