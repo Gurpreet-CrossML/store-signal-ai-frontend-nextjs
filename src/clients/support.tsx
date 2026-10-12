@@ -8,7 +8,9 @@ import {
   useState,
   type ChangeEvent,
   type CSSProperties,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { LoadingState } from "@/components/custom/loading-state";
@@ -54,6 +56,7 @@ import {
   type Thread,
   type ThreadMessage,
   type HandlerEvent,
+  type ProductData,
   FetchOrders,
   UploadMessageAttachments,
 } from "@/redux/api-slice/thread-slice";
@@ -90,9 +93,11 @@ import {
   IconRobot,
   IconSend,
   IconShieldCheck,
+  IconShoppingBag,
   IconTicket,
   IconX,
 } from "@tabler/icons-react";
+import { AttachProductsDialog } from "@/components/custom/attach-products-dialog";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -324,6 +329,9 @@ function ThreadChatControls({
   onEmojiSelect,
   onRemoveAttachment,
   onRetryAttachment,
+  attachedProducts = [],
+  setAttachedProducts,
+  storeCode = "",
 }: {
   activeThreadId?: string | null;
   isThreadActive?: boolean;
@@ -352,10 +360,14 @@ function ThreadChatControls({
   onEmojiSelect: (emoji: string) => void;
   onRemoveAttachment: (id: string) => void;
   onRetryAttachment: (id: string) => void;
+  attachedProducts?: ProductData[];
+  setAttachedProducts?: Dispatch<SetStateAction<ProductData[]>>;
+  storeCode?: string;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [isInternalNoteMode, setIsInternalNoteMode] = useState(false);
+  const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
 
   // Auto-grow the composer like a chat app, capped at a few lines.
   useEffect(() => {
@@ -388,7 +400,9 @@ function ThreadChatControls({
   const canSend =
     (isInternalNoteMode
       ? noteMessage.trim().length > 0
-      : agentMessage.trim().length > 0 || attachments.length > 0) &&
+      : agentMessage.trim().length > 0 ||
+        attachments.length > 0 ||
+        attachedProducts.length > 0) &&
     transitionState === "idle" &&
     (isInternalNoteMode || (!isUploadingAttachments && !hasFailedAttachments));
 
@@ -597,6 +611,51 @@ function ThreadChatControls({
               </div>
             )}
 
+            {!isInternalNoteMode && attachedProducts.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 border-b border-border/50 p-2">
+                {attachedProducts.map((product, idx) => (
+                  <div
+                    key={`${product.id}-${idx}`}
+                    className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/60 py-1 pl-1.5 pr-2 text-xs text-foreground"
+                  >
+                    {product.image ? (
+                      <Image
+                        src={product.image}
+                        alt={product.name}
+                        width={20}
+                        height={20}
+                        unoptimized
+                        className="size-5 rounded object-contain bg-background shrink-0"
+                      />
+                    ) : (
+                      <IconShoppingBag className="size-4 text-muted-foreground shrink-0" />
+                    )}
+                    <span className="max-w-[120px] truncate font-medium">
+                      {product.name}
+                    </span>
+                    {product.price && (
+                      <span className="text-muted-foreground text-[10px]">
+                        {product.price}
+                      </span>
+                    )}
+                    {setAttachedProducts && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAttachedProducts((prev) =>
+                            prev.filter((p) => p.id !== product.id),
+                          )
+                        }
+                        className="ml-0.5 text-muted-foreground hover:text-foreground"
+                      >
+                        <IconX className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
             {!isInternalNoteMode && attachments.length > 0 && (
               <div className="flex flex-wrap gap-2 border-b border-border/50 p-2">
                 {attachments.map((attachment) => {
@@ -728,6 +787,21 @@ function ThreadChatControls({
                   >
                     <IconPaperclip className="size-4" />
                   </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-sm"
+                    disabled={inputsDisabled}
+                    onClick={() => setIsProductPickerOpen(true)}
+                    title="Attach products (max 10)"
+                    className={
+                      attachedProducts.length > 0
+                        ? "text-primary border-primary/40 ring-1 ring-primary/40"
+                        : undefined
+                    }
+                  >
+                    <IconShoppingBag className="size-4" />
+                  </Button>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -737,6 +811,16 @@ function ThreadChatControls({
                     onChange={onFileSelection}
                     className="hidden"
                   />
+                  {setAttachedProducts && storeCode && (
+                    <AttachProductsDialog
+                      open={isProductPickerOpen}
+                      onOpenChange={setIsProductPickerOpen}
+                      storeCode={storeCode}
+                      selectedProducts={attachedProducts}
+                      onApplyProducts={setAttachedProducts}
+                      maxProducts={10}
+                    />
+                  )}
                 </>
               )}
               <Typography
@@ -751,6 +835,11 @@ function ThreadChatControls({
                     : "Enter to send · Shift + Enter for a new line"}
               </Typography>
               <div className="ml-auto flex shrink-0 items-center gap-2">
+                {!isInternalNoteMode && attachedProducts.length > 0 && (
+                  <Typography variant="muted" as="span">
+                    {attachedProducts.length} product{attachedProducts.length > 1 ? "s" : ""}
+                  </Typography>
+                )}
                 {!isInternalNoteMode && attachments.length > 0 && (
                   <Typography variant="muted" as="span">
                     {attachments.length} attached
@@ -923,6 +1012,7 @@ export default function Support() {
   const [noteMessage, setNoteMessage] = useState("");
   const [isCustomerTyping, setIsCustomerTyping] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentUpload[]>([]);
+  const [attachedProducts, setAttachedProducts] = useState<ProductData[]>([]);
 
   // Attaching a real customer to a chat a guest started, offered from the
   // conversation header where the guest's name sits.
@@ -1098,6 +1188,7 @@ export default function Support() {
   ) {
     setSelectedThreadId(desiredThreadId);
     setAttachments([]);
+    setAttachedProducts([]);
     setAppliedChatParam(chatParam ?? null);
   }
 
@@ -1503,7 +1594,10 @@ export default function Support() {
       )
       .map((attachment) => attachment.url as string);
 
-    if ((!message && imageUrls.length === 0) || !wsRef.current) {
+    if (
+      (!message && imageUrls.length === 0 && attachedProducts.length === 0) ||
+      !wsRef.current
+    ) {
       return;
     }
 
@@ -1515,6 +1609,8 @@ export default function Support() {
       messaged_by: session?.user?.name || session?.user?.email || "Agent",
       messaged_by_email: session?.user?.email,
       image_url: imageUrls,
+      json_content:
+        attachedProducts.length > 0 ? { products: attachedProducts } : {},
     });
 
     wsRef.current.send(
@@ -1522,15 +1618,18 @@ export default function Support() {
         message,
         client_id: clientID,
         image_url: imageUrls,
+        products: attachedProducts,
       }),
     );
 
     setAgentMessage("");
     setAttachments([]);
+    setAttachedProducts([]);
     setIsEmojiPickerOpen(false);
   }, [
     agentMessage,
     attachments,
+    attachedProducts,
     clientID,
     handleThreadMessageAdded,
     session?.user?.email,
@@ -2602,6 +2701,9 @@ export default function Support() {
                         onEmojiSelect={handleEmojiSelect}
                         onRemoveAttachment={removeAttachment}
                         onRetryAttachment={retryAttachment}
+                        attachedProducts={attachedProducts}
+                        setAttachedProducts={setAttachedProducts}
+                        storeCode={storeCode ?? ""}
                       />
                     ) : null}
                   </div>
