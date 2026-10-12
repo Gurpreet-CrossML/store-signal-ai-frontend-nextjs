@@ -140,7 +140,8 @@ export function ChatOrderFunnelSankey({
           textAnchor={textAnchor}
           className="fill-muted-foreground text-[11px]"
         >
-          {payload.value.toLocaleString()} · {shareOf(payload.value, totalChats)}
+          {payload.value.toLocaleString()} ·{" "}
+          {shareOf(payload.value, totalChats)}
         </text>
       </g>
     );
