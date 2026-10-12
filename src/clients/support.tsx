@@ -48,6 +48,7 @@ import {
   FetchFreshdeskTicketId,
   FetchThreadDetails,
   FetchThreads,
+  CreateInternalNote,
   ThreadCustomerLink,
   FetchUserMetadata,
   type Thread,
@@ -80,9 +81,11 @@ import {
   IconAlertTriangle,
   IconFilter,
   IconHeadset,
+  IconLock,
   IconMessage2,
   IconMessageChatbot,
   IconMoodSmile,
+  IconNote,
   IconPaperclip,
   IconRobot,
   IconSend,
@@ -306,6 +309,9 @@ function ThreadChatControls({
   transitionState,
   agentMessage,
   setAgentMessage,
+  noteMessage,
+  setNoteMessage,
+  isSavingInternalNote,
   attachments,
   isEmojiPickerOpen,
   setIsEmojiPickerOpen,
@@ -313,6 +319,7 @@ function ThreadChatControls({
   onReassign,
   onReturnToAI,
   onSendAgentMessage,
+  onSendInternalNote,
   onFileSelection,
   onEmojiSelect,
   onRemoveAttachment,
@@ -330,6 +337,9 @@ function ThreadChatControls({
   transitionState: "idle" | "taking_over" | "returning_to_ai";
   agentMessage: string;
   setAgentMessage: (value: string) => void;
+  noteMessage: string;
+  setNoteMessage: (value: string) => void;
+  isSavingInternalNote: boolean;
   attachments: AttachmentUpload[];
   isEmojiPickerOpen: boolean;
   setIsEmojiPickerOpen: (value: boolean) => void;
@@ -337,6 +347,7 @@ function ThreadChatControls({
   onReassign: (email: string) => void;
   onReturnToAI: () => void;
   onSendAgentMessage: () => void;
+  onSendInternalNote: () => void;
   onFileSelection: (event: ChangeEvent<HTMLInputElement>) => void;
   onEmojiSelect: (emoji: string) => void;
   onRemoveAttachment: (id: string) => void;
@@ -344,6 +355,7 @@ function ThreadChatControls({
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [isInternalNoteMode, setIsInternalNoteMode] = useState(false);
 
   // Auto-grow the composer like a chat app, capped at a few lines.
   useEffect(() => {
@@ -351,7 +363,7 @@ function ThreadChatControls({
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-  }, [agentMessage]);
+  }, [agentMessage, isInternalNoteMode, noteMessage]);
 
   if (!activeThreadId || !isThreadActive) {
     return null;
@@ -369,13 +381,16 @@ function ThreadChatControls({
   const hasFailedAttachments = attachments.some(
     (attachment) => attachment.status === "error",
   );
-  const inputsDisabled = isUploadingAttachments || transitionState !== "idle";
+  const inputsDisabled =
+    transitionState !== "idle" ||
+    (!isInternalNoteMode && isUploadingAttachments);
 
   const canSend =
-    (agentMessage.trim().length > 0 || attachments.length > 0) &&
+    (isInternalNoteMode
+      ? noteMessage.trim().length > 0
+      : agentMessage.trim().length > 0 || attachments.length > 0) &&
     transitionState === "idle" &&
-    !isUploadingAttachments &&
-    !hasFailedAttachments;
+    (isInternalNoteMode || (!isUploadingAttachments && !hasFailedAttachments));
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     onEmojiSelect(emojiData.emoji);
@@ -398,48 +413,116 @@ function ThreadChatControls({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 p-3"
+            className="rounded-xl border bg-muted/30 p-3"
           >
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <IconMessageChatbot className="size-5" />
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <IconMessageChatbot className="size-5" />
+                </div>
+                <div className="min-w-0">
+                  <Typography variant="small" as="p" className="leading-normal">
+                    AI Assistant is handling this conversation
+                  </Typography>
+                  <Typography variant="muted">
+                    Take over anytime to reply as a human agent.
+                  </Typography>
+                </div>
               </div>
-              <div className="min-w-0">
-                <Typography variant="small" as="p" className="leading-normal">
-                  AI Assistant is handling this conversation
+              {canReassign && (
+                <ReassignAgentSelect
+                  agents={agents}
+                  currentAgent={null}
+                  disabled={transitionState !== "idle" || !chatSocketReady}
+                  onReassign={onReassign}
+                />
+              )}
+              {activeThreadId && !canReassign && connectedAgent !== user && (
+                // Same layoutId as Return to AI: framer treats the two as one
+                // element and slides it from here into the composer, so the
+                // control an agent just pressed is visibly where it went.
+                <motion.div layoutId={HANDOVER_ACTION_ID} className="shrink-0">
+                  <Button
+                    type="button"
+                    onClick={onTakeOver}
+                    disabled={
+                      transitionState !== "idle" ||
+                      !chatSocketReady ||
+                      !!(connectedAgent && connectedAgent !== user)
+                    }
+                  >
+                    <IconHeadset className="h-4 w-4" />
+                    Take Over
+                  </Button>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* LC-02: while the AI handles the chat the composer only takes
+            internal notes (staff-only; the customer never sees them). The
+            Take Over card above is untouched. */}
+        {!connectedAgent && (
+          <motion.div
+            key="ai-note-composer"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="mt-2 space-y-2"
+          >
+            <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm">
+              <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                <IconLock className="size-3.5 text-primary" />
+                Internal note only — visible to your team, never to the customer
+              </div>
+              <div className="px-3 pt-1">
+                <textarea
+                  rows={1}
+                  placeholder="Write an internal note (customer won't see it)…"
+                  value={noteMessage}
+                  disabled={isSavingInternalNote || transitionState !== "idle"}
+                  onChange={(event) => setNoteMessage(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      onSendInternalNote();
+                    }
+                  }}
+                  className="max-h-30 w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </div>
+              <div className="flex items-center gap-1 px-2 py-1">
+                <Typography
+                  variant="muted"
+                  as="span"
+                  className="ml-1 hidden truncate sm:inline"
+                >
+                  Enter to save note · Shift + Enter for a new line
                 </Typography>
-                <Typography variant="muted">
-                  Take over anytime to reply as a human agent.
-                </Typography>
+                <div className="ml-auto flex shrink-0 items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={onSendInternalNote}
+                    disabled={
+                      noteMessage.trim().length === 0 ||
+                      isSavingInternalNote ||
+                      transitionState !== "idle"
+                    }
+                    title="Save internal note"
+                  >
+                    {isSavingInternalNote ? (
+                      <Spinner className="size-4" />
+                    ) : (
+                      <IconNote className="size-4" />
+                    )}
+                    Add note
+                  </Button>
+                </div>
               </div>
             </div>
-            {canReassign && (
-              <ReassignAgentSelect
-                agents={agents}
-                currentAgent={null}
-                disabled={transitionState !== "idle" || !chatSocketReady}
-                onReassign={onReassign}
-              />
-            )}
-            {activeThreadId && !canReassign && connectedAgent !== user && (
-              // Same layoutId as Return to AI: framer treats the two as one
-              // element and slides it from here into the composer, so the
-              // control an agent just pressed is visibly where it went.
-              <motion.div layoutId={HANDOVER_ACTION_ID} className="shrink-0">
-                <Button
-                  type="button"
-                  onClick={onTakeOver}
-                  disabled={
-                    transitionState !== "idle" ||
-                    !chatSocketReady ||
-                    !!(connectedAgent && connectedAgent !== user)
-                  }
-                >
-                  <IconHeadset className="h-4 w-4" />
-                  Take Over
-                </Button>
-              </motion.div>
-            )}
           </motion.div>
         )}
 
@@ -493,8 +576,14 @@ function ThreadChatControls({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm"
+            className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm"
           >
+            {isInternalNoteMode && (
+              <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                <IconLock className="size-3.5 text-primary" />
+                Only visible to your team — the customer won&apos;t see this
+              </div>
+            )}
             {isEmojiPickerOpen && (
               <div className="border-b border-border/50 p-2">
                 <EmojiPicker
@@ -508,7 +597,7 @@ function ThreadChatControls({
               </div>
             )}
 
-            {attachments.length > 0 && (
+            {!isInternalNoteMode && attachments.length > 0 && (
               <div className="flex flex-wrap gap-2 border-b border-border/50 p-2">
                 {attachments.map((attachment) => {
                   const isImage = attachment.file.type.startsWith("image/");
@@ -585,17 +674,26 @@ function ThreadChatControls({
                 ref={textareaRef}
                 rows={1}
                 placeholder={
-                  isUploadingAttachments
-                    ? "Uploading image…"
-                    : "Type your reply…"
+                  isInternalNoteMode
+                    ? "Write an internal note (customer won't see it)…"
+                    : isUploadingAttachments
+                      ? "Uploading image…"
+                      : "Type your reply…"
                 }
-                value={agentMessage}
-                disabled={inputsDisabled}
-                onChange={(event) => setAgentMessage(event.target.value)}
+                value={isInternalNoteMode ? noteMessage : agentMessage}
+                disabled={
+                  isInternalNoteMode ? isSavingInternalNote : inputsDisabled
+                }
+                onChange={(event) =>
+                  isInternalNoteMode
+                    ? setNoteMessage(event.target.value)
+                    : setAgentMessage(event.target.value)
+                }
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
-                    onSendAgentMessage();
+                    if (isInternalNoteMode) onSendInternalNote();
+                    else onSendAgentMessage();
                   }
                 }}
                 className="max-h-30 w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
@@ -604,39 +702,43 @@ function ThreadChatControls({
 
             {/* Toolbar: emoji + attach + hint on the left, send on the right */}
             <div className="flex items-center gap-1 p-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon-sm"
-                disabled={inputsDisabled}
-                aria-pressed={isEmojiPickerOpen}
-                className={
-                  isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined
-                }
-                onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                title="Add emoji"
-              >
-                <IconMoodSmile className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon-sm"
-                disabled={inputsDisabled}
-                onClick={() => fileInputRef.current?.click()}
-                title="Attach image or file"
-              >
-                <IconPaperclip className="size-4" />
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*"
-                disabled={inputsDisabled}
-                onChange={onFileSelection}
-                className="hidden"
-              />
+              {!isInternalNoteMode && (
+                <>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-sm"
+                    disabled={inputsDisabled}
+                    aria-pressed={isEmojiPickerOpen}
+                    className={
+                      isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined
+                    }
+                    onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                    title="Add emoji"
+                  >
+                    <IconMoodSmile className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-sm"
+                    disabled={inputsDisabled}
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Attach image or file"
+                  >
+                    <IconPaperclip className="size-4" />
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    disabled={inputsDisabled}
+                    onChange={onFileSelection}
+                    className="hidden"
+                  />
+                </>
+              )}
               <Typography
                 variant="muted"
                 as="span"
@@ -644,10 +746,12 @@ function ThreadChatControls({
               >
                 {isUploadingAttachments
                   ? "Uploading attachment…"
-                  : "Enter to send · Shift + Enter for a new line"}
+                  : isInternalNoteMode
+                    ? "Enter to save note · Shift + Enter for a new line"
+                    : "Enter to send · Shift + Enter for a new line"}
               </Typography>
               <div className="ml-auto flex shrink-0 items-center gap-2">
-                {attachments.length > 0 && (
+                {!isInternalNoteMode && attachments.length > 0 && (
                   <Typography variant="muted" as="span">
                     {attachments.length} attached
                   </Typography>
@@ -677,13 +781,31 @@ function ThreadChatControls({
                 </motion.div>
                 <Button
                   type="button"
+                  variant={isInternalNoteMode ? "secondary" : "outline"}
                   size="sm"
-                  onClick={onSendAgentMessage}
-                  disabled={!canSend}
+                  onClick={() => setIsInternalNoteMode((value) => !value)}
+                  disabled={transitionState !== "idle"}
+                >
+                  <IconNote className="size-4" />
+                  {isInternalNoteMode
+                    ? "Send as Reply"
+                    : "Send as Internal Note"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={
+                    isInternalNoteMode ? onSendInternalNote : onSendAgentMessage
+                  }
+                  disabled={
+                    !canSend || (isInternalNoteMode && isSavingInternalNote)
+                  }
                   title={
-                    isUploadingAttachments
-                      ? "Waiting for upload…"
-                      : "Send message"
+                    isInternalNoteMode
+                      ? "Save internal note"
+                      : isUploadingAttachments
+                        ? "Waiting for upload…"
+                        : "Send message"
                   }
                 >
                   <IconSend className="size-4" />
@@ -751,6 +873,9 @@ export default function Support() {
   const { FetchThreadDetailsIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchThreadDetailsState,
   );
+  const { CreateInternalNoteIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.CreateInternalNoteState,
+  );
   const { FetchFreshdeskTicketIdData, FetchFreshdeskTicketIdIsLoading } =
     useAppSelector(
       (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
@@ -795,6 +920,8 @@ export default function Support() {
     "idle" | "taking_over" | "returning_to_ai"
   >("idle");
   const [agentMessage, setAgentMessage] = useState("");
+  const [noteMessage, setNoteMessage] = useState("");
+  const [isCustomerTyping, setIsCustomerTyping] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentUpload[]>([]);
 
   // Attaching a real customer to a chat a guest started, offered from the
@@ -914,6 +1041,11 @@ export default function Support() {
   const connectedAgentRef = useRef<string | null>(null);
   const connectedAgentNameRef = useRef<string | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
+  // Customer typing is transient. This timer recovers from a missing stop
+  // event when the widget/browser disconnects while it is typing.
+  const customerTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   // Last ?chat= value already applied to local state — stops the render-time
   // URL sync from re-applying a stale param right after a click updates
   // state but before the router has caught up.
@@ -1085,6 +1217,19 @@ export default function Support() {
     () => visibleThreads.find((thread) => thread.id === activeThreadId) ?? null,
     [activeThreadId, visibleThreads],
   );
+  const selectedHandler =
+    selectedThread?.chat_handler === "human"
+      ? selectedThread.chat_handler_user
+      : null;
+  // Prefer the thread record for the controls: it survives refreshes and a
+  // WebSocket reconnect, unlike the transient connection event state.
+  const displayedConnectedAgent = selectedThread
+    ? (selectedHandler?.email ?? null)
+    : connectedAgent;
+  const displayedConnectedAgentName = selectedThread
+    ? (selectedHandler?.name ?? null)
+    : connectedAgentName;
+  const showAiResponding = selectedThread?.ai_responding === true;
 
   const threadTabCounts = useMemo(
     () => ({
@@ -1392,6 +1537,32 @@ export default function Support() {
     session?.user?.name,
   ]);
 
+  const handleSendInternalNote = useCallback(async () => {
+    const message = noteMessage.trim();
+    if (!message || !activeThreadId) return;
+    // Notes are allowed while the AI handles the chat (nobody holds it) or
+    // when you hold it; never on a chat another agent holds.
+    if (connectedAgent && connectedAgent !== session?.user?.email) return;
+
+    try {
+      const note = await dispatch(
+        CreateInternalNote({ threadId: activeThreadId, message }),
+      ).unwrap();
+
+      handleThreadMessageAdded(note);
+      setNoteMessage("");
+    } catch {
+      // The thunk displays the API error and keeps the note available to retry.
+    }
+  }, [
+    activeThreadId,
+    connectedAgent,
+    dispatch,
+    handleThreadMessageAdded,
+    noteMessage,
+    session?.user?.email,
+  ]);
+
   const handleReplyWithAI = useCallback(
     (message_id: number | string) => {
       if (!wsRef.current) return;
@@ -1515,6 +1686,7 @@ export default function Support() {
             source: data.source ?? null,
             chat_handler: data.chat_handler,
             chat_handler_user: data.chat_handler_user ?? null,
+            ai_responding: data.ai_responding ?? false,
             need_escalation: data.need_escalation ?? false,
             escalation_time: data.escalation_time ?? null,
             is_read: belongsToOpenThread,
@@ -1535,6 +1707,7 @@ export default function Support() {
             "chat_handler_user" in data
               ? (data.chat_handler_user ?? null)
               : existingThread.chat_handler_user,
+          ai_responding: data.ai_responding ?? existingThread.ai_responding,
           need_escalation:
             data.need_escalation ?? existingThread.need_escalation,
           escalation_time:
@@ -1576,6 +1749,7 @@ export default function Support() {
                   "chat_handler_user" in data
                     ? (data.chat_handler_user ?? null)
                     : thread.chat_handler_user,
+                ai_responding: data.ai_responding ?? thread.ai_responding,
                 need_escalation: data.need_escalation ?? thread.need_escalation,
                 escalation_time:
                   "escalation_time" in data
@@ -1688,6 +1862,26 @@ export default function Support() {
         return;
       }
 
+      // LC-02: the AI started/finished a turn. Carries no message, so it must
+      // not fall through to the message branch (its empty final_update would
+      // be appended as a blank message).
+      if (
+        data?.success &&
+        typeof data?.ai_responding === "boolean" &&
+        !data?.final_update?.id &&
+        data?.action_type !== "handler_change"
+      ) {
+        const threadId = activeThreadIdRef.current;
+        setLocalThreads((prev) =>
+          prev.map((thread) =>
+            thread.id === threadId
+              ? { ...thread, ai_responding: data.ai_responding }
+              : thread,
+          ),
+        );
+        return;
+      }
+
       if (!data?.success && data?.action_type === "handler_change") {
         toast.error("Permission Issue!", {
           description:
@@ -1729,6 +1923,20 @@ export default function Support() {
           setConnectedAgent(null);
           setConnectedAgentServerName(null);
           connectedAgentRef.current = null;
+        }
+        return;
+      }
+
+      if (data?.success && data?.action_type === "typing") {
+        if (data?.sender === "customer") {
+          const isTyping = Boolean(data?.is_typing);
+          setIsCustomerTyping(isTyping);
+          if (customerTypingTimeoutRef.current) {
+            clearTimeout(customerTypingTimeoutRef.current);
+          }
+          customerTypingTimeoutRef.current = isTyping
+            ? setTimeout(() => setIsCustomerTyping(false), 5_000)
+            : null;
         }
         return;
       }
@@ -1800,7 +2008,12 @@ export default function Support() {
           role: data?.final_update?.role,
           message: data?.final_update?.message,
           json_content: data?.final_update?.json_content || {},
-          created_at: new Date().toISOString(),
+          message_type: data?.final_update?.message_type,
+          agent_name: data?.final_update?.agent_name || data?.agent_name,
+          confidence: data?.final_update?.confidence,
+          source_used: data?.final_update?.source_used,
+          created_at:
+            data?.final_update?.created_at || new Date().toISOString(),
           messaged_by:
             data?.sender === "agent"
               ? (data?.chat_handler_user_name ??
@@ -1810,6 +2023,24 @@ export default function Support() {
           image_url: data?.final_update?.image_url || null,
         });
         setReplyWithAILoadingId(null);
+        return;
+      }
+
+      if (
+        data?.success &&
+        data?.action_type === "ai_action" &&
+        data?.final_update
+      ) {
+        handleThreadMessageAdded({
+          id: data.final_update.id,
+          role: data.final_update.role,
+          message: data.final_update.message,
+          message_type: data.final_update.message_type,
+          agent_name: data.final_update.agent_name || data.agent_name,
+          source_used: data.final_update.source_used,
+          created_at: data.final_update.created_at || new Date().toISOString(),
+          messaged_by: data?.sender === "agent" ? "agent" : "",
+        });
       }
     };
 
@@ -1844,6 +2075,11 @@ export default function Support() {
 
     return () => {
       cancelled = true;
+      setIsCustomerTyping(false);
+      if (customerTypingTimeoutRef.current) {
+        clearTimeout(customerTypingTimeoutRef.current);
+        customerTypingTimeoutRef.current = null;
+      }
       // Closing a socket that is still CONNECTING aborts the handshake and
       // fires an error event, which is where the console noise came from:
       // this effect re-runs whenever the open thread changes. Only an open
@@ -2280,7 +2516,7 @@ export default function Support() {
                   </div>
                 ) : (
                   <div className="flex min-h-0 flex-1 flex-col">
-                    <div className="flex-1 min-h-0 overflow-y-auto bg-[#d3d3d31a] p-3">
+                    <div className="flex-1 min-h-0 overflow-y-auto p-3">
                       {threadMessages.length > 0 ? (
                         <MessagePan
                           messages={threadMessages}
@@ -2304,6 +2540,30 @@ export default function Support() {
                         </div>
                       )}
                     </div>
+                    {showAiResponding && (
+                      <div className="flex shrink-0 justify-end border-t bg-background px-4 py-2">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="flex gap-1">
+                            <span className="size-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.2s]" />
+                            <span className="size-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.1s]" />
+                            <span className="size-1.5 animate-bounce rounded-full bg-primary" />
+                          </span>
+                          AI is typing…
+                        </div>
+                      </div>
+                    )}
+                    {isCustomerTyping && (
+                      <div className="shrink-0 border-t bg-background px-4 py-2">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="flex gap-1">
+                            <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.2s]" />
+                            <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.1s]" />
+                            <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground" />
+                          </span>
+                          Customer is typing…
+                        </div>
+                      </div>
+                    )}
                     {selectedThread?.is_active &&
                     !can(session?.user, "conversations", { write: true }) ? (
                       // Read-only role: can watch the chat, not join it.
@@ -2318,8 +2578,8 @@ export default function Support() {
                         activeThreadId={activeThreadId}
                         isThreadActive={selectedThread.is_active}
                         className="border-t"
-                        connectedAgent={connectedAgent}
-                        connectedAgentName={connectedAgentName}
+                        connectedAgent={displayedConnectedAgent}
+                        connectedAgentName={displayedConnectedAgentName}
                         user={session?.user?.email || null}
                         canReassign={canReassign}
                         agents={agents}
@@ -2328,12 +2588,16 @@ export default function Support() {
                         transitionState={transitionState}
                         agentMessage={agentMessage}
                         setAgentMessage={setAgentMessage}
+                        noteMessage={noteMessage}
+                        setNoteMessage={setNoteMessage}
+                        isSavingInternalNote={CreateInternalNoteIsLoading}
                         attachments={attachments}
                         isEmojiPickerOpen={isEmojiPickerOpen}
                         setIsEmojiPickerOpen={setIsEmojiPickerOpen}
                         onTakeOver={handleTakeOver}
                         onReturnToAI={handleReturnToAI}
                         onSendAgentMessage={handleSendAgentMessage}
+                        onSendInternalNote={handleSendInternalNote}
                         onFileSelection={handleFileSelection}
                         onEmojiSelect={handleEmojiSelect}
                         onRemoveAttachment={removeAttachment}

@@ -19,6 +19,7 @@ import { InfoIcon } from "@/components/custom/info-icon";
 import { PageHeading } from "@/components/custom/page-heading";
 import { Typography } from "@/components/ui/typography";
 import { custructTimeInHumanReadableFormat } from "@/lib/helpers";
+import { buildDashboardReportHtml } from "@/lib/dashboard-report";
 import {
   FetchDashboard,
   FetchChatOrderFunnel,
@@ -27,6 +28,25 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { subMonths } from "date-fns";
 import { useEffect, useState } from "react";
+import { IconDownload } from "@tabler/icons-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+type SummaryMetric = {
+  label: string;
+  value: string;
+  infoText: string;
+  status: string;
+  statusVariant: "success" | "warning" | "neutral" | "info";
+};
+
+const displayMetricName = (metric: string) =>
+  metric.replace(/([a-z])([A-Z])/g, "$1 $2");
 
 const toISODate = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -116,7 +136,7 @@ export default function Dashboard() {
     );
   }, [dispatch, storeCode, from, to, granularity]);
 
-  const performanceSummaryMetrics = [
+  const performanceSummaryMetrics: SummaryMetric[] = [
     {
       label: "CSAT Score",
       value: `${FetchFeedbackInsightsData?.csat_score?.percentage || 0}%`,
@@ -182,6 +202,125 @@ export default function Dashboard() {
       statusVariant: "info" as const,
     },
   ];
+
+  const exportFileStem = `dashboard_${storeCode || "all-stores"}_${from}_to_${to}`;
+
+  const exportCsv = () => {
+    const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
+    const reportRows = [
+      ...performanceSummaryMetrics.map((metric) => [
+        "Performance summary",
+        metric.label,
+        metric.value,
+        metric.status,
+      ]),
+      ...sentimentPieChartData.map((item) => [
+        "Sentiment distribution",
+        item.sentiment,
+        String(item.score),
+        "Customer feedback",
+      ]),
+      ...performanceRadialChartData.map((item) => [
+        "Performance overview",
+        displayMetricName(item.metric),
+        String(item.value),
+        "Service metric",
+      ]),
+      [
+        "User activity",
+        "Guest visitors",
+        String(userActivityChartData[0]?.guest ?? 0),
+        "Guest vs signed-in users",
+      ],
+      [
+        "User activity",
+        "Signed-in users",
+        String(userActivityChartData[0]?.signed ?? 0),
+        "Guest vs signed-in users",
+      ],
+      ...conversationHistoryChartData.map((point) => [
+        "Customer interaction analytics",
+        point.label,
+        String(point.value),
+        `${granularity} user queries`,
+      ]),
+    ];
+    const rows = [
+      ["Store", "From", "To", "Section", "Metric", "Value", "Detail"],
+      ...reportRows.map((row) => [storeCode || "All stores", from, to, ...row]),
+    ];
+    const csv = rows
+      .map((row) => row.map((value) => quote(String(value ?? ""))).join(","))
+      .join("\r\n");
+    const url = URL.createObjectURL(
+      new Blob([csv], { type: "text/csv;charset=utf-8" }),
+    );
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${exportFileStem}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPdf = () => {
+    const reportWindow = window.open("", "_blank");
+    if (!reportWindow) return;
+    const renderedChart = (name: string) => {
+      const chart =
+        document.querySelector(
+          `[data-export-chart="${name}"] [data-slot="chart"]`,
+        )?.outerHTML ?? "";
+      return name === "overview"
+        ? chart.replaceAll(">effortScore<", ">EffortScore<")
+        : chart;
+    };
+    reportWindow.document.write(
+      buildDashboardReportHtml({
+        fileName: exportFileStem,
+        storeName: storeCode || "All stores",
+        from,
+        to,
+        summary: performanceSummaryMetrics.map((metric) => ({
+          label: metric.label,
+          value: metric.value,
+          detail: metric.status,
+        })),
+        sentiments: sentimentPieChartData.map((item) => [
+          item.sentiment,
+          String(item.score),
+        ]),
+        overview: performanceRadialChartData.map((item) => [
+          displayMetricName(item.metric),
+          String(item.value),
+        ]),
+        activity: [
+          ["Guest visitors", String(userActivityChartData[0]?.guest ?? 0)],
+          ["Signed-in users", String(userActivityChartData[0]?.signed ?? 0)],
+          [
+            "Total visitors",
+            String(
+              (userActivityChartData[0]?.guest ?? 0) +
+                (userActivityChartData[0]?.signed ?? 0),
+            ),
+          ],
+        ],
+        interactions: conversationHistoryChartData.map((point) => [
+          point.label,
+          String(point.value),
+        ]),
+        charts: {
+          sentiment: renderedChart("sentiment"),
+          overview: renderedChart("overview"),
+          activity: renderedChart("activity"),
+          interaction: renderedChart("interaction"),
+        },
+      }),
+    );
+    reportWindow.document.close();
+    reportWindow.focus();
+    reportWindow.print();
+    reportWindow.close();
+  };
 
   const sentimentPieChartData = [
     {
@@ -263,6 +402,24 @@ export default function Dashboard() {
       <PageHeading
         title="Dashboard"
         description="How your AI assistant is performing — engagement, efficiency, sentiment, and conversions at a glance."
+        action={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline">
+                <IconDownload />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={exportCsv}>
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={exportPdf}>
+                Export as PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
       />
       <section className="flex flex-col gap-4">
         <Typography variant="h4">Performance Summary</Typography>
@@ -302,24 +459,32 @@ export default function Dashboard() {
         </div>
       </section>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <SentimentsPieChart data={sentimentPieChartData} />
-        <PerformanceRadialChart chartData={performanceRadialChartData} />
-        <GuestVsSignedUserRadialChart chartData={userActivityChartData} />
+        <div data-export-chart="sentiment">
+          <SentimentsPieChart data={sentimentPieChartData} />
+        </div>
+        <div data-export-chart="overview">
+          <PerformanceRadialChart chartData={performanceRadialChartData} />
+        </div>
+        <div data-export-chart="activity">
+          <GuestVsSignedUserRadialChart chartData={userActivityChartData} />
+        </div>
       </div>
-      <ChatOrderFunnelSankey
+      <div data-export-chart="interaction">
+        <ChatOrderFunnelSankey
         data={FetchChatOrderFunnelData}
         loading={FetchChatOrderFunnelIsLoading}
       />
       <CustomerInteractionLineChart
-        chartData={conversationHistoryChartData}
-        loading={FetchConversationHistoryIsLoading}
-        granularity={granularity}
-        onGranularityChange={handleGranularityChange}
-        from={from}
-        to={to}
-        onFromChange={setFrom}
-        onToChange={setTo}
-      />
+          chartData={conversationHistoryChartData}
+          loading={FetchConversationHistoryIsLoading}
+          granularity={granularity}
+          onGranularityChange={handleGranularityChange}
+          from={from}
+          to={to}
+          onFromChange={setFrom}
+          onToChange={setTo}
+        />
+      </div>
     </div>
   );
 }
