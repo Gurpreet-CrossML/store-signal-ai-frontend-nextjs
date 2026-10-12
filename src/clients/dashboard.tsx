@@ -471,10 +471,10 @@ export default function Dashboard() {
       </div>
       <div data-export-chart="interaction">
         <ChatOrderFunnelSankey
-        data={FetchChatOrderFunnelData}
-        loading={FetchChatOrderFunnelIsLoading}
-      />
-      <CustomerInteractionLineChart
+          data={FetchChatOrderFunnelData}
+          loading={FetchChatOrderFunnelIsLoading}
+        />
+        <CustomerInteractionLineChart
           chartData={conversationHistoryChartData}
           loading={FetchConversationHistoryIsLoading}
           granularity={granularity}
