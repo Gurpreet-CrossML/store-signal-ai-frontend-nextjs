@@ -73,6 +73,7 @@ export type Thread = {
   source?: "native" | "webhook" | "whatsapp" | null;
   chat_handler?: "ai" | "human";
   chat_handler_user?: ThreadHandlerUser | null;
+  ai_responding: boolean;
   need_escalation: boolean;
   escalation_time: string | null;
   is_active: boolean;
@@ -135,12 +136,20 @@ export type ThreadJsonContent = {
   order_id?: string;
   order_verification_step?: string;
   suggestions?: string[];
+  /** Mirrors ChatHistory.confidence for resilient session reloads. */
+  confidence?: number | null;
+  /** Mirrors ChatHistory.source_used for resilient session reloads. */
+  source_used?: string;
 };
 
 export type ThreadMessage = {
   id: string | number;
   role: string;
   message: string;
+  message_type?: "user_message" | "reply" | "internal" | "ai_action" | string;
+  agent_name?: string | null;
+  confidence?: number | null;
+  source_used?: string;
   json_content?: ThreadJsonContent;
   image_url?: string | string[] | null;
   created_at: string;
@@ -423,6 +432,37 @@ export const FetchThreadDetails = createAsyncThunk(
         description:
           data?.message ||
           "Unable to fetch the thread details, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const CreateInternalNote = createAsyncThunk(
+  "CreateInternalNote",
+  async (
+    { threadId, message }: { threadId: string; message: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.createInternalNote(),
+        {
+          thread_id: threadId,
+          message,
+        },
+      );
+
+      return response.data.data as ThreadMessage;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to save the internal note. Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -752,6 +792,11 @@ const ThreadSlice = createSlice({
       FetchThreadDetailsIsError: null as null | string | object | unknown,
       FetchThreadDetailsData: {} as ThreadDetails,
     },
+    CreateInternalNoteState: {
+      CreateInternalNoteIsLoading: false,
+      CreateInternalNoteIsSuccess: false,
+      CreateInternalNoteIsError: null as null | string | object | unknown,
+    },
     FetchUserMetadataState: {
       FetchUserMetadataIsLoading: false,
       FetchUserMetadataIsSuccess: false,
@@ -848,6 +893,21 @@ const ThreadSlice = createSlice({
         state.FetchThreadDetailsState.FetchThreadDetailsIsError =
           action.payload;
         state.FetchThreadDetailsState.FetchThreadDetailsIsSuccess = false;
+      })
+      .addCase(CreateInternalNote.pending, (state) => {
+        state.CreateInternalNoteState.CreateInternalNoteIsLoading = true;
+        state.CreateInternalNoteState.CreateInternalNoteIsError = null;
+        state.CreateInternalNoteState.CreateInternalNoteIsSuccess = false;
+      })
+      .addCase(CreateInternalNote.fulfilled, (state) => {
+        state.CreateInternalNoteState.CreateInternalNoteIsLoading = false;
+        state.CreateInternalNoteState.CreateInternalNoteIsSuccess = true;
+      })
+      .addCase(CreateInternalNote.rejected, (state, action) => {
+        state.CreateInternalNoteState.CreateInternalNoteIsLoading = false;
+        state.CreateInternalNoteState.CreateInternalNoteIsError =
+          action.payload;
+        state.CreateInternalNoteState.CreateInternalNoteIsSuccess = false;
       })
       .addCase(FetchUserMetadata.pending, (state) => {
         state.FetchUserMetadataState.FetchUserMetadataIsLoading = true;
