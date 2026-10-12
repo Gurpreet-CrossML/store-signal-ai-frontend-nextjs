@@ -16,7 +16,6 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { DateRangePicker } from "@/components/custom/date-range-picker";
 import {
   Select,
   SelectContent,
@@ -42,30 +41,18 @@ const subtitleMap: Record<Granularity, string> = {
   monthly: "User queries by month",
 };
 
-const autoRangeLabel: Record<Granularity, string> = {
-  hourly: "Last 7 days",
-  weekly: "Last 4 weeks",
-  monthly: "Custom range",
-};
-
 export function CustomerInteractionLineChart({
   chartData,
   loading = false,
   granularity,
   onGranularityChange,
-  from,
-  to,
-  onFromChange,
-  onToChange,
+  periodLabel,
 }: {
   chartData: ChartPoint[];
   loading?: boolean;
   granularity: Granularity;
   onGranularityChange: (granularity: Granularity) => void;
-  from: string;
-  to: string;
-  onFromChange: (value: string) => void;
-  onToChange: (value: string) => void;
+  periodLabel: string;
 }) {
   return (
     <Card className="flex flex-col">
@@ -75,40 +62,24 @@ export function CustomerInteractionLineChart({
             Customer Interaction Analytics
             <InfoIcon text="Tracks how many customer conversations happened over time for the selected date range and granularity, so you can spot trends and peak periods." />
           </CardTitle>
-          <CardDescription>{subtitleMap[granularity]}</CardDescription>
+          <CardDescription>
+            {subtitleMap[granularity]} · {periodLabel}
+          </CardDescription>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={granularity}
-            onValueChange={(value) => onGranularityChange(value as Granularity)}
-          >
-            <SelectTrigger className="w-[120px]" size="sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="hourly">Hourly</SelectItem>
-              <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {granularity === "monthly" ? (
-            <DateRangePicker
-              from={from}
-              to={to}
-              onRangeChange={(nextFrom, nextTo) => {
-                onFromChange(nextFrom);
-                onToChange(nextTo);
-              }}
-              disabled={{ after: new Date() }}
-            />
-          ) : (
-            <span className="rounded-md border bg-muted/30 px-3 py-1.5 text-sm text-muted-foreground">
-              {autoRangeLabel[granularity]}
-            </span>
-          )}
-        </div>
+        <Select
+          value={granularity}
+          onValueChange={(value) => onGranularityChange(value as Granularity)}
+        >
+          <SelectTrigger className="w-[120px]" size="sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="hourly">Hourly</SelectItem>
+            <SelectItem value="weekly">Weekly</SelectItem>
+            <SelectItem value="monthly">Monthly</SelectItem>
+          </SelectContent>
+        </Select>
       </CardHeader>
       <CardContent className="flex-1">
         {loading ? (

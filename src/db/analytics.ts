@@ -5,6 +5,7 @@ import {
   resolveStoreScope,
 } from "@/lib/tenant-context";
 import { storeIdScope, threadIdScope } from "@/db/access";
+import { threadChannelScope } from "@/db/threads";
 import { getCached, setCached } from "@/lib/dashboard-cache";
 import {
   chatThread,
@@ -265,6 +266,7 @@ export async function get_conversion_analytics(params: {
 
 export async function get_feedback_insights(params: {
   store_code?: string;
+  channel?: string;
   from?: string;
   to?: string;
 }) {
@@ -277,6 +279,8 @@ export async function get_feedback_insights(params: {
   ];
   const storeScope = storeIdScope(chatThread.storeId, params.store_code);
   if (storeScope) threadFilters.push(storeScope);
+  const channelScope = threadChannelScope(params.channel);
+  if (channelScope) threadFilters.push(channelScope);
   const threadWhere = and(...threadFilters)!;
   const threadSubquery = sql`(SELECT id FROM chat_thread WHERE ${threadWhere})`;
 
@@ -495,6 +499,7 @@ export async function get_feedback_insights(params: {
 
 export async function get_user_matrix(params: {
   store_code?: string;
+  channel?: string;
   from?: string;
   to?: string;
 }) {
@@ -507,6 +512,8 @@ export async function get_user_matrix(params: {
   ];
   const storeScope = storeIdScope(chatThread.storeId, params.store_code);
   if (storeScope) filters.push(storeScope);
+  const channelScope = threadChannelScope(params.channel);
+  if (channelScope) filters.push(channelScope);
 
   const [row] = await db
     .select({
@@ -528,6 +535,7 @@ export async function get_user_matrix(params: {
 
 export async function get_conversion_rate(params: {
   store_code?: string;
+  channel?: string;
   from?: string;
   to?: string;
 }) {
@@ -540,6 +548,8 @@ export async function get_conversion_rate(params: {
   ];
   const storeScope = storeIdScope(chatThread.storeId, params.store_code);
   if (storeScope) filters.push(storeScope);
+  const channelScope = threadChannelScope(params.channel);
+  if (channelScope) filters.push(channelScope);
   const threadWhere = and(...filters)!;
 
   const [{ total }] = await db
@@ -679,6 +689,7 @@ function formatHourIMp(hour: number): string {
 
 export async function get_engagements(params: {
   store_code?: string;
+  channel?: string;
   from?: string;
   to?: string;
 }) {
@@ -691,6 +702,8 @@ export async function get_engagements(params: {
   ];
   const storeScope = storeIdScope(chatThread.storeId, params.store_code);
   if (storeScope) threadFilters.push(storeScope);
+  const channelScope = threadChannelScope(params.channel);
+  if (channelScope) threadFilters.push(channelScope);
   const threadWhere = and(...threadFilters)!;
   const threadSubquery = sql`(SELECT id FROM chat_thread WHERE ${threadWhere})`;
 
@@ -983,6 +996,7 @@ export async function get_engagements(params: {
 
 export async function get_operational_efficiency(params: {
   store_code?: string;
+  channel?: string;
   from?: string;
   to?: string;
 }) {
@@ -997,6 +1011,8 @@ export async function get_operational_efficiency(params: {
     ];
     const storeScope = storeIdScope(chatThread.storeId, params.store_code);
     if (storeScope) f.push(storeScope);
+    const channelScope = threadChannelScope(params.channel);
+    if (channelScope) f.push(channelScope);
     return and(...f)!;
   };
 
@@ -1375,6 +1391,7 @@ function istHour(d: Date): number {
 
 export async function get_chat_history_aggregated(params: {
   store_code?: string;
+  channel?: string;
   from?: string;
   to?: string;
   granularity?: string;
@@ -1404,6 +1421,15 @@ export async function get_chat_history_aggregated(params: {
   ];
   const storeScope = threadIdScope(chatHistory.threadId, params.store_code);
   if (storeScope) conds.push(storeScope);
+  const channelScope = threadChannelScope(params.channel);
+  if (channelScope) {
+    conds.push(
+      inArray(
+        chatHistory.threadId,
+        db.select({ id: chatThread.id }).from(chatThread).where(channelScope),
+      ),
+    );
+  }
   if (params.query) {
     conds.push(sql`${chatHistory.message} ILIKE ${"%" + params.query + "%"}`);
   }
@@ -1670,6 +1696,7 @@ const EMPTY_DASHBOARD: DashboardSummary = {
 
 export async function get_dashboard_summary(params: {
   store_code?: string;
+  channel?: string;
   from?: string;
   to?: string;
 }): Promise<DashboardSummary> {
@@ -1680,7 +1707,7 @@ export async function get_dashboard_summary(params: {
   if (!accessible) return EMPTY_DASHBOARD;
 
   // Tenant-prefixed cache key — never crosses companies.
-  const key = `${currentCompany()}:${params.store_code ?? ""}:${params.from ?? ""}:${params.to ?? ""}`;
+  const key = `${currentCompany()}:${params.store_code ?? ""}:${params.channel ?? ""}:${params.from ?? ""}:${params.to ?? ""}`;
   const cached = getCached<DashboardSummary>(key);
   if (cached) return cached;
 

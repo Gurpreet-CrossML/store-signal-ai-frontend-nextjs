@@ -15,6 +15,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  DashboardFilters,
+  dashboardFiltersKey,
+  dashboardRangeLabel,
+  loadDashboardFilters,
+  resolveDashboardRange,
+  saveDashboardFilters,
+  type DashboardFilterState,
+} from "@/components/custom/dashboard-filters";
 import { InfoIcon } from "@/components/custom/info-icon";
 import { PageHeading } from "@/components/custom/page-heading";
 import { Typography } from "@/components/ui/typography";
@@ -25,25 +34,11 @@ import {
   FetchConversationHistory,
 } from "@/redux/api-slice/dashboard-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { subMonths } from "date-fns";
-import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import { useEffect, useRef, useState } from "react";
 
-const toISODate = (date: Date) => date.toISOString().slice(0, 10);
-
-// Default date range per granularity, anchored to today.
-const defaultRange = (granularity: Granularity) => {
-  const to = new Date();
-  const from = new Date();
-  if (granularity === "hourly") {
-    from.setDate(to.getDate() - 7);
-  } else if (granularity === "weekly") {
-    from.setDate(to.getDate() - 28);
-  } else {
-    // subMonths clamps month-end overflow (e.g. Mar 31 -> Feb 28).
-    return { from: toISODate(subMonths(to, 1)), to: toISODate(to) };
-  }
-  return { from: toISODate(from), to: toISODate(to) };
-};
+// How often every card and chart reloads in place.
+const AUTO_REFRESH_MS = 30_000;
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();
@@ -81,40 +76,79 @@ export default function Dashboard() {
       (state) => state.GetDashboardReducer.FetchConversationHistoryState,
     );
 
+  // AccessGate renders the dashboard only once the session has loaded, so the
+  // user's remembered filters can be read on the first render.
+  const { data: session } = useSession();
+  const filtersKey = dashboardFiltersKey(session?.user);
+  const [filters, setFilters] = useState(() =>
+    loadDashboardFilters(filtersKey),
+  );
   const [granularity, setGranularity] = useState<Granularity>("hourly");
-  const [from, setFrom] = useState(() => defaultRange("hourly").from);
-  const [to, setTo] = useState(() => defaultRange("hourly").to);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshRef = useRef(async () => {});
 
-  const handleGranularityChange = (next: Granularity) => {
-    setGranularity(next);
-    const range = defaultRange(next);
-    setFrom(range.from);
-    setTo(range.to);
+  const handleFiltersChange = (next: DashboardFilterState) => {
+    setFilters(next);
+    saveDashboardFilters(filtersKey, next);
   };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshRef.current();
+    setRefreshing(false);
+  };
+
+  const { range, from, to, channel } = filters;
+  const periodLabel = dashboardRangeLabel(filters);
 
   useEffect(() => {
     if (!storeCode) return;
-    // One consolidated request for all five summary widgets (feedback insights,
-    // engagement, operational efficiency, user matrix, conversion rate) — see
-    // /api/analytics/dashboard. Conversation history stays separate as it has
-    // its own date-range controls.
-    dispatch(FetchDashboard({ storeCode }));
-    // Served by Django, which links orders to chats when they are written.
-    dispatch(FetchChatOrderFunnel({ storeCode }));
-  }, [dispatch, storeCode]);
+    let inFlight: { abort: () => void }[] = [];
 
-  useEffect(() => {
-    if (!storeCode || !from || !to) return;
-    dispatch(
-      FetchConversationHistory({
+    // Every card and chart loads with the same filters. A silent load keeps
+    // the current numbers on screen and swaps them in place when it lands.
+    const load = async (silent: boolean) => {
+      inFlight.forEach((request) => request.abort());
+      const args = {
         storeCode,
-        from,
-        to,
-        granularity,
-        aggregated: true,
-      }),
-    );
-  }, [dispatch, storeCode, from, to, granularity]);
+        ...resolveDashboardRange({ range, from, to, channel }),
+        channel: channel || undefined,
+        silent,
+      };
+      const batch = [
+        // One consolidated request for all five summary widgets — see
+        // /api/analytics/dashboard.
+        dispatch(FetchDashboard(args)),
+        // Served by Django, which links orders to chats when they are written.
+        dispatch(FetchChatOrderFunnel(args)),
+        dispatch(
+          FetchConversationHistory({ ...args, granularity, aggregated: true }),
+        ),
+      ];
+      inFlight = batch;
+      const results = await Promise.all(batch);
+      if (inFlight !== batch) return; // superseded by a newer load
+      inFlight = [];
+      if (
+        results.every((result) => result.meta.requestStatus === "fulfilled")
+      ) {
+        setLastUpdated(new Date());
+      }
+    };
+
+    load(false);
+    refreshRef.current = () => load(true);
+    const timer = setInterval(() => {
+      if (!document.hidden) load(true);
+    }, AUTO_REFRESH_MS);
+
+    return () => {
+      clearInterval(timer);
+      inFlight.forEach((request) => request.abort());
+      inFlight = [];
+    };
+  }, [dispatch, storeCode, range, from, to, channel, granularity]);
 
   const performanceSummaryMetrics = [
     {
@@ -263,6 +297,15 @@ export default function Dashboard() {
       <PageHeading
         title="Dashboard"
         description="How your AI assistant is performing — engagement, efficiency, sentiment, and conversions at a glance."
+        action={
+          <DashboardFilters
+            filters={filters}
+            onChange={handleFiltersChange}
+            lastUpdated={lastUpdated}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+          />
+        }
       />
       <section className="flex flex-col gap-4">
         <Typography variant="h4">Performance Summary</Typography>
@@ -309,16 +352,14 @@ export default function Dashboard() {
       <ChatOrderFunnelSankey
         data={FetchChatOrderFunnelData}
         loading={FetchChatOrderFunnelIsLoading}
+        periodLabel={periodLabel}
       />
       <CustomerInteractionLineChart
         chartData={conversationHistoryChartData}
         loading={FetchConversationHistoryIsLoading}
         granularity={granularity}
-        onGranularityChange={handleGranularityChange}
-        from={from}
-        to={to}
-        onFromChange={setFrom}
-        onToChange={setTo}
+        onGranularityChange={setGranularity}
+        periodLabel={periodLabel}
       />
     </div>
   );

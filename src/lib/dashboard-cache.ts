@@ -1,9 +1,9 @@
 /**
  * Tiny in-memory TTL cache for the dashboard analytics payload.
  *
- * Dashboard analytics tolerate a few minutes of staleness, so caching the
- * combined result per (tenant, store, date-range) avoids re-running ~30 DB
- * queries on every load / re-render / navigation — the main DB-cost driver.
+ * Caching the combined result per (tenant, store, channel, date-range) avoids
+ * re-running ~30 DB queries on every load / re-render / navigation — the main
+ * DB-cost driver — while everyone viewing the same store shares one run.
  *
  * Tenant-safe: the key is always prefixed with the company schema, so one
  * company can never read another's cached data. Callers must also have already
@@ -16,8 +16,9 @@
 
 type Entry = { data: unknown; expires: number };
 
-// A few minutes stale is acceptable for analytics (confirmed with product).
-const TTL_MS = 5 * 60 * 1000;
+// Matches the dashboard's 30-second auto-refresh (DB-08); a longer TTL would
+// hand every refresh the same cached numbers.
+const TTL_MS = 30 * 1000;
 const MAX_ENTRIES = 1000;
 
 const cache = new Map<string, Entry>();
