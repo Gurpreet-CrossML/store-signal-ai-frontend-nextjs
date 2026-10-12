@@ -2,15 +2,15 @@
 
 import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/typography";
-import { IconMoodSmile, IconPhotoVideo, IconSend } from "@tabler/icons-react";
+import { IconMoodSmile, IconPhoto, IconSend } from "@tabler/icons-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 
 import {
   COMPOSER_ACCEPT,
-  ComposerAttachments,
-  pickComposerAttachments,
-  releaseComposerAttachments,
+  ComposerAttachmentPreview,
+  pickComposerAttachment,
+  releaseComposerAttachment,
   type ComposerAttachment,
 } from "./composer-attachments";
 
@@ -32,7 +32,7 @@ export function ReplyBox({
   allowAttachments = false,
 }: {
   replyingTo: string;
-  onSubmit: (text: string, attachments: File[]) => void;
+  onSubmit: (text: string, attachment: File | null) => void;
   textareaId?: string;
   placeholder?: string;
   disabled?: boolean;
@@ -40,7 +40,7 @@ export function ReplyBox({
 }) {
   const [text, setText] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
+  const [attachment, setAttachment] = useState<ComposerAttachment | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -52,34 +52,33 @@ export function ReplyBox({
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   }, [text]);
 
-  // Media on its own is a valid message — a caption isn't required.
+  // Text is required; an image rides along with it.
   const canSend = !disabled && text.trim().length > 0;
 
   const submit = () => {
     if (!canSend) return;
-    onSubmit(
-      text.trim(),
-      attachments.map((attachment) => attachment.file),
-    );
+    onSubmit(text.trim(), attachment?.file ?? null);
     setText("");
-    releaseComposerAttachments(attachments);
-    setAttachments([]);
+    releaseComposerAttachment(attachment);
+    setAttachment(null);
     setShowEmojiPicker(false);
   };
 
   const handleFilesPicked = (event: ChangeEvent<HTMLInputElement>) => {
-    const picked = pickComposerAttachments(event.target.files);
-    if (picked.length) setAttachments((prev) => [...prev, ...picked]);
+    const picked = pickComposerAttachment(event.target.files);
+    if (picked) {
+      releaseComposerAttachment(attachment);
+      setAttachment(picked);
+    }
     // Clearing lets the same file be chosen again after being removed.
     event.target.value = "";
   };
 
   const removeAttachment = (id: string) => {
-    setAttachments((prev) => {
-      const target = prev.find((attachment) => attachment.id === id);
-      if (target) releaseComposerAttachments([target]);
-      return prev.filter((attachment) => attachment.id !== id);
-    });
+    if (attachment?.id === id) {
+      releaseComposerAttachment(attachment);
+      setAttachment(null);
+    }
   };
 
   return (
@@ -99,10 +98,10 @@ export function ReplyBox({
         </div>
       )}
 
-      {attachments.length > 0 && (
+      {attachment && (
         <div className="border-b border-border/50 p-2">
-          <ComposerAttachments
-            attachments={attachments}
+          <ComposerAttachmentPreview
+            attachment={attachment}
             onRemove={removeAttachment}
             disabled={disabled}
           />
@@ -150,14 +149,13 @@ export function ReplyBox({
               disabled={disabled}
               className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => fileInputRef.current?.click()}
-              title="Attach photo, video or audio"
+              title="Attach photo"
             >
-              <IconPhotoVideo className="size-4" />
+              <IconPhoto className="size-4" />
             </button>
             <input
               ref={fileInputRef}
               type="file"
-              multiple
               accept={COMPOSER_ACCEPT}
               disabled={disabled}
               onChange={handleFilesPicked}
@@ -173,9 +171,9 @@ export function ReplyBox({
           Enter to send · Shift + Enter for a new line
         </Typography>
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          {attachments.length > 0 && (
+          {attachment && (
             <Typography variant="muted" as="span">
-              {attachments.length} attached
+              1 attached
             </Typography>
           )}
           <Button type="button" size="sm" onClick={submit} disabled={!canSend}>
