@@ -53,8 +53,7 @@ const formatPeakHour = (label: string) => {
   if (!match) return label;
 
   const hour =
-    (Number(match[1]) % 12) +
-    (match[2].toUpperCase() === "PM" ? 12 : 0);
+    (Number(match[1]) % 12) + (match[2].toUpperCase() === "PM" ? 12 : 0);
   const formatHour = (value: number) =>
     `${value % 12 || 12} ${value >= 12 ? "pm" : "am"}`;
 
