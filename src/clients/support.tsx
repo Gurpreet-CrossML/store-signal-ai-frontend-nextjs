@@ -333,7 +333,7 @@ function ThreadChatControls({
   onReassign: (email: string) => void;
   onReturnToAI: () => void;
   onSendAgentMessage: () => void;
-  onSendInternalNote: () => void;
+  onSendInternalNote: (message?: string) => void;
   onFileSelection: (event: ChangeEvent<HTMLInputElement>) => void;
   onEmojiSelect: (emoji: string) => void;
   onRemoveAttachment: (id: string) => void;
@@ -341,15 +341,13 @@ function ThreadChatControls({
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const [isInternalNoteMode, setIsInternalNoteMode] = useState(false);
-
   // Auto-grow the composer like a chat app, capped at a few lines.
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-  }, [agentMessage, isInternalNoteMode, noteMessage]);
+  }, [agentMessage]);
 
   if (!activeThreadId || !isThreadActive) {
     return null;
@@ -361,17 +359,16 @@ function ThreadChatControls({
   const hasFailedAttachments = attachments.some(
     (attachment) => attachment.status === "error",
   );
-  const inputsDisabled =
-    transitionState !== "idle" ||
-    (!isInternalNoteMode && isUploadingAttachments);
+  const inputsDisabled = transitionState !== "idle" || isUploadingAttachments;
 
   const canSend =
-    (isInternalNoteMode
-      ? noteMessage.trim().length > 0
-      : agentMessage.trim().length > 0 || attachments.length > 0) &&
+    (agentMessage.trim().length > 0 || attachments.length > 0) &&
     transitionState === "idle" &&
-    (isInternalNoteMode ||
-      (chatSocketReady && !isUploadingAttachments && !hasFailedAttachments));
+    chatSocketReady &&
+    !isUploadingAttachments &&
+    !hasFailedAttachments;
+  const canSaveInternalNote =
+    agentMessage.trim().length > 0 && transitionState === "idle";
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     onEmojiSelect(emojiData.emoji);
@@ -454,7 +451,7 @@ function ThreadChatControls({
             className="mt-2 space-y-2"
           >
             <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm">
-              <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+              <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-3 py-1.5 text-xs font-bold text-muted-foreground">
                 <IconLock className="size-3.5 text-primary" />
                 Internal note only — visible to your team, never to the customer
               </div>
@@ -486,7 +483,7 @@ function ThreadChatControls({
                   <Button
                     type="button"
                     size="sm"
-                    onClick={onSendInternalNote}
+                    onClick={() => onSendInternalNote()}
                     disabled={
                       noteMessage.trim().length === 0 ||
                       isSavingInternalNote ||
@@ -553,19 +550,6 @@ function ThreadChatControls({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm"
           >
-            <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-3 py-1.5 text-xs font-medium text-muted-foreground">
-              {isInternalNoteMode ? (
-                <>
-                  <IconLock className="size-3.5 text-primary" />
-                  Internal note — only visible to your team
-                </>
-              ) : (
-                <>
-                  <IconSend className="size-3.5 text-primary" />
-                  Reply — the customer will see this message
-                </>
-              )}
-            </div>
             {isEmojiPickerOpen && (
               <div className="border-b border-border/50 p-2">
                 <EmojiPicker
@@ -579,7 +563,7 @@ function ThreadChatControls({
               </div>
             )}
 
-            {!isInternalNoteMode && attachments.length > 0 && (
+            {attachments.length > 0 && (
               <div className="flex flex-wrap gap-2 border-b border-border/50 p-2">
                 {attachments.map((attachment) => {
                   const isImage = attachment.file.type.startsWith("image/");
@@ -656,26 +640,17 @@ function ThreadChatControls({
                 ref={textareaRef}
                 rows={1}
                 placeholder={
-                  isInternalNoteMode
-                    ? "Write an internal note (customer won't see it)…"
-                    : isUploadingAttachments
-                      ? "Uploading image…"
-                      : "Type your reply…"
+                  isUploadingAttachments
+                    ? "Uploading image…"
+                    : "Type your reply…"
                 }
-                value={isInternalNoteMode ? noteMessage : agentMessage}
-                disabled={
-                  isInternalNoteMode ? isSavingInternalNote : inputsDisabled
-                }
-                onChange={(event) =>
-                  isInternalNoteMode
-                    ? setNoteMessage(event.target.value)
-                    : setAgentMessage(event.target.value)
-                }
+                value={agentMessage}
+                disabled={inputsDisabled}
+                onChange={(event) => setAgentMessage(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
-                    if (isInternalNoteMode) onSendInternalNote();
-                    else onSendAgentMessage();
+                    onSendAgentMessage();
                   }
                 }}
                 className="max-h-30 w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
@@ -684,43 +659,39 @@ function ThreadChatControls({
 
             {/* Toolbar: emoji + attach + hint on the left, send on the right */}
             <div className="flex items-center gap-1 p-2">
-              {!isInternalNoteMode && (
-                <>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon-sm"
-                    disabled={inputsDisabled}
-                    aria-pressed={isEmojiPickerOpen}
-                    className={
-                      isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined
-                    }
-                    onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                    title="Add emoji"
-                  >
-                    <IconMoodSmile className="size-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon-sm"
-                    disabled={inputsDisabled}
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Attach image or file"
-                  >
-                    <IconPaperclip className="size-4" />
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    disabled={inputsDisabled}
-                    onChange={onFileSelection}
-                    className="hidden"
-                  />
-                </>
-              )}
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                disabled={inputsDisabled}
+                aria-pressed={isEmojiPickerOpen}
+                className={
+                  isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined
+                }
+                onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                title="Add emoji"
+              >
+                <IconMoodSmile className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                disabled={inputsDisabled}
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach image or file"
+              >
+                <IconPaperclip className="size-4" />
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                disabled={inputsDisabled}
+                onChange={onFileSelection}
+                className="hidden"
+              />
               <Typography
                 variant="muted"
                 as="span"
@@ -728,12 +699,10 @@ function ThreadChatControls({
               >
                 {isUploadingAttachments
                   ? "Uploading attachment…"
-                  : isInternalNoteMode
-                    ? "Enter to save note · Shift + Enter for a new line"
-                    : "Enter to send · Shift + Enter for a new line"}
+                  : "Enter to send · Shift + Enter for a new line"}
               </Typography>
               <div className="ml-auto flex shrink-0 items-center gap-2">
-                {!isInternalNoteMode && attachments.length > 0 && (
+                {attachments.length > 0 && (
                   <Typography variant="muted" as="span">
                     {attachments.length} attached
                   </Typography>
@@ -763,38 +732,28 @@ function ThreadChatControls({
                 </motion.div>
                 <Button
                   type="button"
-                  variant={isInternalNoteMode ? "secondary" : "outline"}
+                  variant="outline"
                   size="sm"
-                  onClick={() => setIsInternalNoteMode((value) => !value)}
-                  disabled={transitionState !== "idle"}
-                  title={
-                    isInternalNoteMode
-                      ? "Switch to customer reply mode"
-                      : "Switch to internal note mode"
-                  }
+                  onClick={() => onSendInternalNote(agentMessage)}
+                  disabled={!canSaveInternalNote || isSavingInternalNote}
+                  title="Save this text as an internal note"
                 >
                   <IconNote className="size-4" />
-                  {isInternalNoteMode ? "Switch to reply" : "Internal note"}
+                  Send as Internal Note
                 </Button>
                 <Button
                   type="button"
                   size="sm"
-                  onClick={
-                    isInternalNoteMode ? onSendInternalNote : onSendAgentMessage
-                  }
-                  disabled={
-                    !canSend || (isInternalNoteMode && isSavingInternalNote)
-                  }
+                  onClick={onSendAgentMessage}
+                  disabled={!canSend}
                   title={
-                    isInternalNoteMode
-                      ? "Add internal note"
-                      : isUploadingAttachments
-                        ? "Waiting for upload…"
-                        : "Send reply to customer"
+                    isUploadingAttachments
+                      ? "Waiting for upload…"
+                      : "Send reply to customer"
                   }
                 >
                   <IconSend className="size-4" />
-                  {isInternalNoteMode ? "Add note" : "Send reply"}
+                  Send
                 </Button>
               </div>
             </div>
@@ -1500,31 +1459,38 @@ export default function Support() {
     setIsEmojiPickerOpen(false);
   }, [agentMessage, attachments, clientID]);
 
-  const handleSendInternalNote = useCallback(async () => {
-    const message = noteMessage.trim();
-    if (!message || !activeThreadId) return;
-    // Notes are allowed while the AI handles the chat (nobody holds it) or
-    // when you hold it; never on a chat another agent holds.
-    if (connectedAgent && connectedAgent !== session?.user?.email) return;
+  const handleSendInternalNote = useCallback(
+    async (messageToSave?: string) => {
+      const message = (messageToSave ?? noteMessage).trim();
+      if (!message || !activeThreadId) return;
+      // Notes are allowed while the AI handles the chat (nobody holds it) or
+      // when you hold it; never on a chat another agent holds.
+      if (connectedAgent && connectedAgent !== session?.user?.email) return;
 
-    try {
-      const note = await dispatch(
-        CreateInternalNote({ threadId: activeThreadId, message }),
-      ).unwrap();
+      try {
+        const note = await dispatch(
+          CreateInternalNote({ threadId: activeThreadId, message }),
+        ).unwrap();
 
-      handleThreadMessageAdded(note);
-      setNoteMessage("");
-    } catch {
-      // The thunk displays the API error and keeps the note available to retry.
-    }
-  }, [
-    activeThreadId,
-    connectedAgent,
-    dispatch,
-    handleThreadMessageAdded,
-    noteMessage,
-    session?.user?.email,
-  ]);
+        handleThreadMessageAdded(note);
+        if (messageToSave === undefined) {
+          setNoteMessage("");
+        } else {
+          setAgentMessage("");
+        }
+      } catch {
+        // The thunk displays the API error and keeps the note available to retry.
+      }
+    },
+    [
+      activeThreadId,
+      connectedAgent,
+      dispatch,
+      handleThreadMessageAdded,
+      noteMessage,
+      session?.user?.email,
+    ],
+  );
 
   const handleReplyWithAI = useCallback(
     (message_id: number | string) => {
