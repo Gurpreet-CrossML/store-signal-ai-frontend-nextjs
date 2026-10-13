@@ -85,9 +85,7 @@ export function AppSidebar({
       FetchThreadCounts({
         store_code: storeCode,
       }),
-    )
-      .unwrap()
-      .catch(() => {});
+    );
   }, [dispatch, storeCode]);
 
   React.useEffect(() => refreshNeedsHumanBadge(), [refreshNeedsHumanBadge]);
