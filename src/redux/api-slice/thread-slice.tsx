@@ -795,6 +795,12 @@ export const FetchOrders = createAsyncThunk(
 const ThreadSlice = createSlice({
   name: "Thread",
   initialState: {
+    FetchThreadCountsState: {
+      FetchThreadCountsIsLoading: false,
+      FetchThreadCountsIsSuccess: false,
+      FetchThreadCountsIsError: null as null | string | object | unknown,
+      FetchThreadCountsData: { active: 0, needsHuman: 0 } as ThreadCounts,
+    },
     FetchThreadsState: {
       FetchThreadsIsLoading: false,
       FetchThreadsIsSuccess: false,
@@ -880,6 +886,25 @@ const ThreadSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
+      .addCase(FetchThreadCounts.pending, (state) => {
+        state.FetchThreadCountsState.FetchThreadCountsIsLoading = true;
+        state.FetchThreadCountsState.FetchThreadCountsIsError = null;
+        state.FetchThreadCountsState.FetchThreadCountsIsSuccess = false;
+        state.FetchThreadCountsState.FetchThreadCountsData = {
+          active: 0,
+          needsHuman: 0,
+        };
+      })
+      .addCase(FetchThreadCounts.fulfilled, (state, action) => {
+        state.FetchThreadCountsState.FetchThreadCountsIsLoading = false;
+        state.FetchThreadCountsState.FetchThreadCountsData = action.payload;
+        state.FetchThreadCountsState.FetchThreadCountsIsSuccess = true;
+      })
+      .addCase(FetchThreadCounts.rejected, (state, action) => {
+        state.FetchThreadCountsState.FetchThreadCountsIsLoading = false;
+        state.FetchThreadCountsState.FetchThreadCountsIsError = action.payload;
+        state.FetchThreadCountsState.FetchThreadCountsIsSuccess = false;
+      })
       .addCase(FetchThreads.pending, (state, action) => {
         if (action.meta.arg?.skipListStateUpdate) return;
         state.FetchThreadsState.FetchThreadsIsLoading = true;

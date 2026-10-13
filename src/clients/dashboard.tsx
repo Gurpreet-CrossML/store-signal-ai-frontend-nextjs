@@ -27,11 +27,9 @@ import {
   FetchChatOrderFunnel,
   FetchConversationHistory,
 } from "@/redux/api-slice/dashboard-slice";
-import { FetchThreadCounts } from "@/redux/api-slice/thread-slice";
-import { useSupportDashboardEvents } from "@/hooks/use-support-dashboard-events";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { subMonths } from "date-fns";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { IconDownload } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -106,20 +104,13 @@ export default function Dashboard() {
       (state) => state.GetDashboardReducer.FetchConversationHistoryState,
     );
 
+  const { FetchThreadCountsData } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchThreadCountsState,
+  );
+
   const [granularity, setGranularity] = useState<Granularity>("hourly");
   const [from, setFrom] = useState(() => defaultRange("hourly").from);
   const [to, setTo] = useState(() => defaultRange("hourly").to);
-  const [liveCounts, setLiveCounts] = useState({
-    active: 0,
-    needsHuman: 0,
-  });
-
-  const refreshLiveCounts = useCallback(async () => {
-    if (!storeCode) return;
-
-    return dispatch(FetchThreadCounts({ store_code: storeCode })).unwrap();
-  }, [dispatch, storeCode]);
-
   const handleGranularityChange = (next: Granularity) => {
     setGranularity(next);
     const range = defaultRange(next);
@@ -137,27 +128,6 @@ export default function Dashboard() {
     // Served by Django, which links orders to chats when they are written.
     dispatch(FetchChatOrderFunnel({ storeCode }));
   }, [dispatch, storeCode]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void refreshLiveCounts()
-      .then((counts) => {
-        if (!cancelled && counts) setLiveCounts(counts);
-      })
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshLiveCounts]);
-
-  useSupportDashboardEvents(() => {
-    void refreshLiveCounts()
-      .then((counts) => {
-        if (counts) setLiveCounts(counts);
-      })
-      .catch(() => {});
-  });
 
   useEffect(() => {
     if (!storeCode || !from || !to) return;
@@ -199,10 +169,10 @@ export default function Dashboard() {
     },
     {
       label: "Active now",
-      value: liveCounts.active.toLocaleString(),
+      value: FetchThreadCountsData.active.toLocaleString(),
       infoText:
         "Shows the number of live support chats currently marked as active.",
-      status: `${liveCounts.needsHuman} need a human`,
+      status: `${FetchThreadCountsData.needsHuman} need a human`,
       statusVariant: "danger" as const,
       href: "/support?filter=needs_human",
     },

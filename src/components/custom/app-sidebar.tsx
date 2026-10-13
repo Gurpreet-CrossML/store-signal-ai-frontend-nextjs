@@ -72,17 +72,14 @@ export function AppSidebar({
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const [needsHumanBadge, setNeedsHumanBadge] = React.useState({
-    storeCode: "",
-    count: 0,
-  });
+  const { FetchThreadCountsData } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchThreadCountsState,
+  );
 
   const refreshNeedsHumanBadge = React.useCallback(() => {
     if (!storeCode) {
       return;
     }
-
-    let cancelled = false;
 
     void dispatch(
       FetchThreadCounts({
@@ -90,21 +87,7 @@ export function AppSidebar({
       }),
     )
       .unwrap()
-      .then((response) => {
-        if (cancelled) return;
-
-        setNeedsHumanBadge({
-          storeCode,
-          count: response.needsHuman,
-        });
-      })
-      .catch(() => {
-        if (!cancelled) setNeedsHumanBadge({ storeCode, count: 0 });
-      });
-
-    return () => {
-      cancelled = true;
-    };
+      .catch(() => {});
   }, [dispatch, storeCode]);
 
   React.useEffect(() => refreshNeedsHumanBadge(), [refreshNeedsHumanBadge]);
@@ -184,11 +167,7 @@ export function AppSidebar({
         <SidebarContent>
           <NavMain
             items={navMain}
-            liveSupportBadgeCount={
-              needsHumanBadge.storeCode === storeCode
-                ? needsHumanBadge.count
-                : 0
-            }
+            liveSupportBadgeCount={FetchThreadCountsData.needsHuman}
           />
           {sidebarMenus.navSecondary && (
             <NavSecondary
