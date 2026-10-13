@@ -111,6 +111,7 @@ export default function Dashboard() {
   const [granularity, setGranularity] = useState<Granularity>("hourly");
   const [from, setFrom] = useState(() => defaultRange("hourly").from);
   const [to, setTo] = useState(() => defaultRange("hourly").to);
+
   const handleGranularityChange = (next: Granularity) => {
     setGranularity(next);
     const range = defaultRange(next);
@@ -168,10 +169,10 @@ export default function Dashboard() {
       statusVariant: "neutral" as const,
     },
     {
-      label: "Active now",
+      label: "Active Sessions",
       value: FetchThreadCountsData.active.toLocaleString(),
       infoText:
-        "Shows the number of live support chats currently marked as active.",
+        "Shows the number of sessions currently marked as active in the analytics data, helping you gauge current engagement.",
       status: `${FetchThreadCountsData.needsHuman} need a human`,
       statusVariant: "danger" as const,
       href: "/support?filter=needs_human",
