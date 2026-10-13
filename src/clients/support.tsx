@@ -2425,6 +2425,7 @@ export default function Support() {
                         <MessagePan
                           messages={threadMessages}
                           handlerEvents={handlerEvents}
+                          customerName={selectedThread?.customer?.name}
                           onReplyWithAI={
                             connectedAgent === session?.user?.email
                               ? handleReplyWithAI

@@ -39,6 +39,20 @@ function whoIs(
   return name ?? fallback;
 }
 
+function avatarInitials(
+  name: string | null | undefined,
+  fallback: string,
+): string {
+  const words = name
+    ?.replace(/\([^)]*\)/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words?.length) return fallback;
+
+  return `${words[0][0]}${words.length > 1 ? words.at(-1)?.[0] : ""}`.toUpperCase();
+}
+
 /** One line for a handover, e.g. "Priya took over from AI at 1:32 pm · AI paused". */
 function describeHandlerEvent(
   event: HandlerEvent,
@@ -103,11 +117,13 @@ function HandlerEventRow({
 export default function MessagePan({
   messages,
   handlerEvents,
+  customerName,
   onReplyWithAI,
   replyWithAILoadingId,
 }: {
   messages: ThreadMessage[];
   handlerEvents?: HandlerEvent[];
+  customerName?: string | null;
   onReplyWithAI?: (message_id: number | string) => void;
   replyWithAILoadingId?: string | number | null;
 }) {
@@ -199,6 +215,11 @@ export default function MessagePan({
             isLastMessage && message.role === "user" && !!onReplyWithAI;
           const isCustomer = message.role === "user";
           const isOutgoing = isCustomer;
+          const avatarLabel = isCustomer
+            ? avatarInitials(customerName || message.messaged_by, "C")
+            : isAgentMessage
+              ? avatarInitials(message.agent_name || message.messaged_by, "A")
+              : "AI";
 
           if (isSystemEvent) {
             return [
@@ -275,7 +296,7 @@ export default function MessagePan({
                           : "bg-primary/10 text-primary text-xs"
                       }
                     >
-                      {isCustomer ? "C" : isAgentMessage ? "U" : "AI"}
+                      {avatarLabel}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col">
