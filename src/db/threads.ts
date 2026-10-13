@@ -154,6 +154,26 @@ export type ThreadListItem = {
   last_message: string;
 };
 
+/** Count active chats and active chats waiting for human support. */
+export async function get_thread_counts(storeCode?: string) {
+  const conditions = [eq(chatThread.isActive, true)];
+  const storeScope = storeIdScope(chatThread.storeId, storeCode);
+  if (storeScope) conditions.push(storeScope);
+
+  const [counts] = await getDb()
+    .select({
+      active: count(),
+      needsHuman:
+        sql<number>`count(*) filter (where ${chatThread.needEscalation} = true)`.mapWith(
+          Number,
+        ),
+    })
+    .from(chatThread)
+    .where(and(...conditions));
+
+  return counts;
+}
+
 /**
  * Port of ThreadListAPIView.get_queryset + ThreadListSerializer
  * (analytics/views.py / analytics/serializers.py).
