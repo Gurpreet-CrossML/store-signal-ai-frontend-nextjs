@@ -57,6 +57,29 @@ export type ListThreadsFilters = {
   need_escalation?: string;
 };
 
+/**
+ * Channel condition on chat_thread, mirroring the UI's derivation: WhatsApp,
+ * or Web for everything else. Unknown values are ignored; `undefined` when no
+ * channel is selected, so callers add no filter.
+ */
+export function threadChannelScope(
+  channels: string | string[] = [],
+): SQL | undefined {
+  return or(
+    ...[channels].flat().flatMap((channel) => {
+      if (channel === "whatsapp") {
+        return [eq(chatThread.source, "whatsapp")];
+      }
+      if (channel === "web") {
+        return [
+          sql`(${chatThread.source} IS NULL OR ${chatThread.source} <> 'whatsapp')`,
+        ];
+      }
+      return [];
+    }),
+  );
+}
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -258,22 +281,8 @@ export async function list_threads(
     conditions.push(eq(chatThread.chatHandler, filters.handled_by));
   }
 
-  // Channel mirrors the UI's derivation: WhatsApp, or Web for everything else.
-  if (filters.channel?.length) {
-    const channelConditions = filters.channel.flatMap((channel) => {
-      if (channel === "whatsapp") {
-        return [eq(chatThread.source, "whatsapp")];
-      }
-      if (channel === "web") {
-        return [
-          sql`(${chatThread.source} IS NULL OR ${chatThread.source} <> 'whatsapp')`,
-        ];
-      }
-      return [];
-    });
-    const combinedChannels = or(...channelConditions);
-    if (combinedChannels) conditions.push(combinedChannels);
-  }
+  const channelCondition = threadChannelScope(filters.channel);
+  if (channelCondition) conditions.push(channelCondition);
 
   if (filters.assignee?.length) {
     conditions.push(inArray(authUser.email, filters.assignee));
