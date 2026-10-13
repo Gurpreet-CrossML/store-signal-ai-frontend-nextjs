@@ -367,6 +367,26 @@ export type OrderData = {
   admin_url?: string | null;
 };
 
+export type ThreadCounts = {
+  active: number;
+  needsHuman: number;
+};
+
+export const FetchThreadCounts = createAsyncThunk<
+  ThreadCounts,
+  { store_code: string }
+>("ThreadCounts", async ({ store_code }, thunkAPI) => {
+  try {
+    const response = await axiosInstance.get(
+      `${ENDPOINTS.fetchThreadCounts()}?store_code=${encodeURIComponent(store_code)}`,
+    );
+    return response.data.data;
+  } catch (error) {
+    const data = isAxiosError(error) ? error.response?.data : undefined;
+    return thunkAPI.rejectWithValue(data || "Unable to fetch thread counts.");
+  }
+});
+
 export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
   "Threads",
   async (

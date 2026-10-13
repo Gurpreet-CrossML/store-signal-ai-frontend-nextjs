@@ -27,7 +27,7 @@ import {
   FetchChatOrderFunnel,
   FetchConversationHistory,
 } from "@/redux/api-slice/dashboard-slice";
-import { FetchThreads } from "@/redux/api-slice/thread-slice";
+import { FetchThreadCounts } from "@/redux/api-slice/thread-slice";
 import { useSupportDashboardEvents } from "@/hooks/use-support-dashboard-events";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { subMonths } from "date-fns";
@@ -117,29 +117,7 @@ export default function Dashboard() {
   const refreshLiveCounts = useCallback(async () => {
     if (!storeCode) return;
 
-    const [activeThreads, escalatedThreads] = await Promise.all([
-      dispatch(
-        FetchThreads({
-          store_code: storeCode,
-          limit: 1,
-          filters: { is_active: true },
-          skipListStateUpdate: true,
-        }),
-      ).unwrap(),
-      dispatch(
-        FetchThreads({
-          store_code: storeCode,
-          limit: 1,
-          filters: { is_active: true, need_escalation: true },
-          skipListStateUpdate: true,
-        }),
-      ).unwrap(),
-    ]);
-
-    setLiveCounts({
-      active: activeThreads.count,
-      needsHuman: escalatedThreads.count,
-    });
+    return dispatch(FetchThreadCounts({ store_code: storeCode })).unwrap();
   }, [dispatch, storeCode]);
 
   const handleGranularityChange = (next: Granularity) => {
@@ -161,15 +139,24 @@ export default function Dashboard() {
   }, [dispatch, storeCode]);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void refreshLiveCounts();
-    }, 0);
+    let cancelled = false;
+    void refreshLiveCounts()
+      .then((counts) => {
+        if (!cancelled && counts) setLiveCounts(counts);
+      })
+      .catch(() => {});
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      cancelled = true;
+    };
   }, [refreshLiveCounts]);
 
   useSupportDashboardEvents(() => {
-    void refreshLiveCounts();
+    void refreshLiveCounts()
+      .then((counts) => {
+        if (counts) setLiveCounts(counts);
+      })
+      .catch(() => {});
   });
 
   useEffect(() => {

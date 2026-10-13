@@ -37,7 +37,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
-import { FetchThreads } from "@/redux/api-slice/thread-slice";
+import { FetchThreadCounts } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useSupportDashboardEvents } from "@/hooks/use-support-dashboard-events";
 
@@ -85,15 +85,8 @@ export function AppSidebar({
     let cancelled = false;
 
     void dispatch(
-      FetchThreads({
+      FetchThreadCounts({
         store_code: storeCode,
-        page: 1,
-        limit: 1,
-        skipListStateUpdate: true,
-        filters: {
-          is_active: true,
-          need_escalation: true,
-        },
       }),
     )
       .unwrap()
@@ -102,7 +95,7 @@ export function AppSidebar({
 
         setNeedsHumanBadge({
           storeCode,
-          count: response.count,
+          count: response.needsHuman,
         });
       })
       .catch(() => {

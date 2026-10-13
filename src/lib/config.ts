@@ -135,6 +135,7 @@ export const ENDPOINTS = {
 
   // Thread-level Analytics (local GETs — no trailing slash).
   fetchThreads: () => "/analytics/threads",
+  fetchThreadCounts: () => "/analytics/thread-counts",
   fetchThreadDetails: (threadId: string) => `/analytics/threads/${threadId}`,
   fetchUserMetadata: (threadId: string) =>
     `/analytics/threads/${threadId}/user-metadata`,
