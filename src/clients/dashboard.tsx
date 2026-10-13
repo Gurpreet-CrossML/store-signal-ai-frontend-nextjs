@@ -111,37 +111,46 @@ export default function Dashboard() {
     if (!storeCode) return;
     let inFlight: { abort: () => void }[] = [];
 
-    // Every card and chart loads with the same filters. A silent load keeps
-    // the current numbers on screen and swaps them in place when it lands.
+    // Load the dashboard data using the currently selected filters.
+    // When silent is true, keep the existing data visible while refreshing it.
     const load = async (silent: boolean) => {
       inFlight.forEach((request) => request.abort());
+
       const args = {
         storeCode,
         ...resolveDashboardRange({ range, from, to, channel }),
         channel: channel || undefined,
         silent,
       };
+
       const batch = [
-        // One consolidated request for all five summary widgets — see
-        // /api/analytics/dashboard.
+        // Fetch the data for all five dashboard summary widgets.
         dispatch(FetchDashboard(args)),
-        // Served by Django, which links orders to chats when they are written.
+
+        // Fetch the funnel data showing how chats lead to orders.
         dispatch(FetchChatOrderFunnel(args)),
+
+        // Fetch the conversation history grouped by the selected time interval.
         dispatch(
           FetchConversationHistory({ ...args, granularity, aggregated: true }),
         ),
       ];
-      // Mark this batch as the latest; a newer load replaces (and aborts) it.
+
+      // Track the current requests so older requests can be ignored.
       inFlight = batch;
+
       const results = await Promise.all(batch);
-      // A newer load started meanwhile (auto-refresh, refresh button or a
-      // filter change), so this stale batch must not touch "Updated".
+
+      // Ignore this result if a newer request has already started.
       if (inFlight !== batch) return;
-      // Done, so cleanup has nothing left to abort.
+
+      // All requests have finished, so clear the tracked requests.
       inFlight = [];
-      // Move "Updated" only when all three succeeded; a failed background
-      // refresh shows no toast, so the unchanged time signals stale numbers.
-      // (Aborted requests never reach Redux — the reducers skip them.)
+
+      // Update the last-refreshed time only if every request succeeds.
+      // If a background refresh fails, keep the previous time visible so
+      // users know the displayed data may not be up to date.
+      // Aborted requests are ignored by the Redux reducers.
       if (
         results.every((result) => result.meta.requestStatus === "fulfilled")
       ) {
