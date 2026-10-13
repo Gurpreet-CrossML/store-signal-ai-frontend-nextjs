@@ -1,5 +1,6 @@
 "use client";
 
+import { ChatOrderFunnelSankey } from "@/components/custom/chat-order-funnel-sankey";
 import {
   CustomerInteractionLineChart,
   type Granularity,
@@ -21,6 +22,7 @@ import { custructTimeInHumanReadableFormat } from "@/lib/helpers";
 import { buildDashboardReportHtml } from "@/lib/dashboard-report";
 import {
   FetchDashboard,
+  FetchChatOrderFunnel,
   FetchConversationHistory,
 } from "@/redux/api-slice/dashboard-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -89,6 +91,11 @@ export default function Dashboard() {
     (state) => state.GetDashboardReducer.FetchConversionRateDataState,
   );
 
+  const { FetchChatOrderFunnelData, FetchChatOrderFunnelIsLoading } =
+    useAppSelector(
+      (state) => state.GetDashboardReducer.FetchChatOrderFunnelState,
+    );
+
   const { FetchConversationHistoryData, FetchConversationHistoryIsLoading } =
     useAppSelector(
       (state) => state.GetDashboardReducer.FetchConversationHistoryState,
@@ -112,6 +119,8 @@ export default function Dashboard() {
     // /api/analytics/dashboard. Conversation history stays separate as it has
     // its own date-range controls.
     dispatch(FetchDashboard({ storeCode }));
+    // Served by Django, which links orders to chats when they are written.
+    dispatch(FetchChatOrderFunnel({ storeCode }));
   }, [dispatch, storeCode]);
 
   useEffect(() => {
@@ -461,6 +470,10 @@ export default function Dashboard() {
         </div>
       </div>
       <div data-export-chart="interaction">
+        <ChatOrderFunnelSankey
+          data={FetchChatOrderFunnelData}
+          loading={FetchChatOrderFunnelIsLoading}
+        />
         <CustomerInteractionLineChart
           chartData={conversationHistoryChartData}
           loading={FetchConversationHistoryIsLoading}
