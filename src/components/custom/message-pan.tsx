@@ -23,6 +23,7 @@ import { IconLock, IconShoppingBag, IconSparkles } from "@tabler/icons-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
+import { getInitials } from "@/components/custom/customer-avatar";
 import { Spinner } from "../ui/spinner";
 
 /** "You" when `email` is the signed-in user, otherwise their name. */
@@ -37,20 +38,6 @@ function whoIs(
     return start ? "You" : "you";
   }
   return name ?? fallback;
-}
-
-function avatarInitials(
-  name: string | null | undefined,
-  fallback: string,
-): string {
-  const words = name
-    ?.replace(/\([^)]*\)/g, "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (!words?.length) return fallback;
-
-  return `${words[0][0]}${words.length > 1 ? words.at(-1)?.[0] : ""}`.toUpperCase();
 }
 
 /** One line for a handover, e.g. "Priya took over from AI at 1:32 pm · AI paused". */
@@ -216,9 +203,9 @@ export default function MessagePan({
           const isCustomer = message.role === "user";
           const isOutgoing = isCustomer;
           const avatarLabel = isCustomer
-            ? avatarInitials(customerName || message.messaged_by, "C")
+            ? getInitials(customerName || message.messaged_by) || "C"
             : isAgentMessage
-              ? avatarInitials(message.agent_name || message.messaged_by, "A")
+              ? getInitials(message.agent_name || message.messaged_by) || "A"
               : "AI";
 
           if (isSystemEvent) {
