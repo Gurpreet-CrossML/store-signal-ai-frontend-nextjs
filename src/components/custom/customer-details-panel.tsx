@@ -12,6 +12,7 @@ import type {
   Customer,
   OrderData,
   ThreadTicketData,
+  UserMetadata,
 } from "@/redux/api-slice/thread-slice";
 
 /**
@@ -31,6 +32,7 @@ import type {
 export function CustomerDetailsPanel({
   customerData,
   customerRecord,
+  userMetadata,
   orders,
   ordersLoading,
   onOrdersSync,
@@ -41,6 +43,7 @@ export function CustomerDetailsPanel({
 }: {
   customerData?: Customer | null;
   customerRecord?: CustomerRecord | null;
+  userMetadata?: UserMetadata | null;
   orders?: OrderData[] | null;
   ordersLoading?: boolean;
   onOrdersSync: () => void;
@@ -54,7 +57,12 @@ export function CustomerDetailsPanel({
   return (
     <aside className="hidden min-h-0 w-80 shrink-0 flex-col border-l xl:flex 2xl:w-95">
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <CustomerProfileCard customer={customerRecord} fallback={customerData} />
+        <CustomerProfileCard
+          customer={customerRecord}
+          fallback={customerData}
+          orders={orders}
+          userMetadata={userMetadata}
+        />
         <OrdersCard
           orders={orders}
           loading={ordersLoading}

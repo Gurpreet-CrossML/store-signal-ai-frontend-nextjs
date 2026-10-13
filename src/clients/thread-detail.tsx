@@ -746,8 +746,14 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             id: details?.customer?.id ?? null,
             name: customerName,
             email: details?.customer_email ?? "",
+            phone: details?.customer?.phone ?? customerRecord?.phone ?? "",
+            threads_count:
+              details?.customer?.threads_count ??
+              customerRecord?.threads_count ??
+              0,
           }}
           customerRecord={customerRecord}
+          userMetadata={FetchUserMetadataData}
           orders={FetchOrderData}
           ordersLoading={detailsLoading || FetchOrderDataIsLoading}
           onOrdersSync={() => dispatch(FetchOrders(threadId))}

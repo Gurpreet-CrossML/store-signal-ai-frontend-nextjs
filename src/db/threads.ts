@@ -103,6 +103,8 @@ type ThreadListRow = {
   customer_first_name: string | null;
   customer_last_name: string | null;
   customer_email: string | null;
+  customer_phone: string | null;
+  customer_threads_count: number;
   chat_handler: string;
   chat_handler_user_id: number | null;
   chat_handler_user_first_name: string | null;
@@ -118,7 +120,13 @@ export type ThreadListItem = {
   chat_handler_user: { id: number; name: string; email: string } | null;
   need_escalation: boolean;
   escalation_time: string | null;
-  customer: { id: number | null; name: string | null; email: string | null };
+  customer: {
+    id: number | null;
+    name: string | null;
+    email: string | null;
+    phone?: string | null;
+    threads_count?: number;
+  };
   followup_level: number;
   is_active: boolean;
   ai_responding: boolean;
@@ -343,6 +351,8 @@ export async function list_threads(
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
+      customer_phone: chatCustomer.phone,
+      customer_threads_count: sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id}) ELSE 0 END`,
       chat_handler: chatThread.chatHandler,
       chat_handler_user_id: authUser.id,
       chat_handler_user_first_name: authUser.firstName,
@@ -361,6 +371,7 @@ export async function list_threads(
       chatCustomer.firstName,
       chatCustomer.lastName,
       chatCustomer.email,
+      chatCustomer.phone,
       authUser.id,
       authUser.firstName,
       authUser.lastName,
@@ -449,6 +460,8 @@ export async function list_threads(
         id: row.customer_id ?? null,
         name: hasCustomer ? customerName : null,
         email: row.customer_email,
+        phone: row.customer_phone || "",
+        threads_count: Number(row.customer_threads_count ?? 1),
       },
       followup_level: row.followup_level,
       is_active: row.is_active,
@@ -530,8 +543,14 @@ export type ThreadDetail =
       last_message_at: string | null;
       customer_name: string | null;
       customer_email: string | null;
-      /** Identity only — enough to link the thread to its Catalog record. */
-      customer: { id: number } | null;
+      /** Identity and details */
+      customer: {
+        id: number;
+        name?: string | null;
+        email?: string | null;
+        phone?: string | null;
+        threads_count?: number;
+      } | null;
       verdict: {
         verdict: string;
         reason: string | null;
@@ -584,6 +603,8 @@ export async function get_thread_details(
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
+      customer_phone: chatCustomer.phone,
+      customer_threads_count: sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id}) ELSE 0 END`,
     })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
@@ -740,9 +761,16 @@ export async function get_thread_details(
     last_message_at,
     customer_name,
     customer_email: t.customer_email,
-    // The id was always selected by the join but never returned, so the
-    // client's `customer?.id` reads were silently undefined.
-    customer: t.customer_id != null ? { id: Number(t.customer_id) } : null,
+    customer:
+      t.customer_id != null
+        ? {
+            id: Number(t.customer_id),
+            name: customer_name,
+            email: t.customer_email ?? "",
+            phone: t.customer_phone || "",
+            threads_count: Number(t.customer_threads_count ?? 1),
+          }
+        : null,
     verdict,
     created_at: t.created_at,
     ended_at: t.ended_at,
@@ -973,6 +1001,7 @@ export async function get_order_data(thread_id: string): Promise<OrderData[]> {
       fulfillment_status: chatCustomerorder.fulfillmentStatus,
       gateway: chatCustomerorder.gateway,
       shipping_address: chatCustomerorder.shippingAddress,
+      customer_phone: chatCustomerorder.customerPhone,
       currency: chatCustomerorder.currency,
       items: chatCustomerorder.items,
       subtotal_price: chatCustomerorder.subtotalPrice,
@@ -989,9 +1018,16 @@ export async function get_order_data(thread_id: string): Promise<OrderData[]> {
     return [];
   }
 
-  return orderRows.map((row) => ({
-    ...row,
-    shipping_address: row.shipping_address as OrderShippingAddress,
-    items: row.items as OrderItemData[],
-  }));
+  return orderRows.map((row) => {
+    const rawAddr = (row.shipping_address ?? {}) as OrderShippingAddress;
+    return {
+      ...row,
+      shipping_address: {
+        ...rawAddr,
+        phone: rawAddr.phone || row.customer_phone || "",
+        telephone: rawAddr.telephone || row.customer_phone || "",
+      },
+      items: row.items as OrderItemData[],
+    };
+  });
 }

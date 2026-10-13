@@ -2611,6 +2611,7 @@ export default function Support() {
 
             <CustomerDetailsPanel
               customerData={selectedThread?.customer || null}
+              userMetadata={FetchUserMetadataData}
               orders={FetchOrderData}
               ordersLoading={FetchOrderDataIsLoading}
               onOrdersSync={handleOrdersSync}

@@ -58,6 +58,8 @@ export type Customer = {
   id: number | null;
   name: string;
   email: string;
+  phone?: string | null;
+  threads_count?: number;
 };
 
 export type ThreadHandlerUser = {
@@ -214,8 +216,8 @@ export type ThreadDetails = {
   store: number;
   customer_name: string | null;
   customer_email: string | null;
-  /** Identity only — enough to link the thread to its Catalog record. */
-  customer: { id: number } | null;
+  /** Identity and details — mirrors Thread.customer */
+  customer: Customer | null;
   is_active: boolean;
   total_messages: number;
   created_at: string;
