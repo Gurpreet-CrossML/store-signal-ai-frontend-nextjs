@@ -49,7 +49,7 @@ const APP_TZ = "Asia/Kolkata";
 const APP_TZ_SQL = sql.raw(`'${APP_TZ}'`);
 
 // ---------------------------------------------------------------------------
-// Date helpers — replicate Django's parse_query_date / now().date() in IST.
+// Date helpers — replicate Django's _parse_query_date / now().date() in IST.
 // ---------------------------------------------------------------------------
 
 /** Today's date (YYYY-MM-DD) in Asia/Kolkata, matching Django now().date(). */
@@ -80,7 +80,7 @@ function daysBetween(start: string, end: string): number {
 }
 
 /**
- * Django parse_query_date: returns the provided YYYY-MM-DD or the default.
+ * Django _parse_query_date: returns the provided YYYY-MM-DD or the default.
  * (parse_date returns None for invalid; Django then raises. We accept valid
  * ISO dates and fall back to default otherwise to stay non-throwing.)
  */
