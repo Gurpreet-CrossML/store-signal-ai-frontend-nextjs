@@ -295,8 +295,6 @@ function ThreadChatControls({
   transitionState,
   agentMessage,
   setAgentMessage,
-  noteMessage,
-  setNoteMessage,
   isSavingInternalNote,
   attachments,
   isEmojiPickerOpen,
@@ -323,8 +321,6 @@ function ThreadChatControls({
   transitionState: "idle" | "taking_over" | "returning_to_ai";
   agentMessage: string;
   setAgentMessage: (value: string) => void;
-  noteMessage: string;
-  setNoteMessage: (value: string) => void;
   isSavingInternalNote: boolean;
   attachments: AttachmentUpload[];
   isEmojiPickerOpen: boolean;
@@ -333,7 +329,7 @@ function ThreadChatControls({
   onReassign: (email: string) => void;
   onReturnToAI: () => void;
   onSendAgentMessage: () => void;
-  onSendInternalNote: (message?: string) => void;
+  onSendInternalNote: () => void;
   onFileSelection: (event: ChangeEvent<HTMLInputElement>) => void;
   onEmojiSelect: (emoji: string) => void;
   onRemoveAttachment: (id: string) => void;
@@ -459,9 +455,9 @@ function ThreadChatControls({
                 <textarea
                   rows={1}
                   placeholder="Write an internal note (customer won't see it)…"
-                  value={noteMessage}
+                  value={agentMessage}
                   disabled={isSavingInternalNote || transitionState !== "idle"}
-                  onChange={(event) => setNoteMessage(event.target.value)}
+                  onChange={(event) => setAgentMessage(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
@@ -483,9 +479,9 @@ function ThreadChatControls({
                   <Button
                     type="button"
                     size="sm"
-                    onClick={() => onSendInternalNote()}
+                    onClick={onSendInternalNote}
                     disabled={
-                      noteMessage.trim().length === 0 ||
+                      agentMessage.trim().length === 0 ||
                       isSavingInternalNote ||
                       transitionState !== "idle"
                     }
@@ -734,7 +730,7 @@ function ThreadChatControls({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => onSendInternalNote(agentMessage)}
+                  onClick={onSendInternalNote}
                   disabled={!canSaveInternalNote || isSavingInternalNote}
                   title="Save this text as an internal note"
                 >
@@ -864,7 +860,6 @@ export default function Support() {
     "idle" | "taking_over" | "returning_to_ai"
   >("idle");
   const [agentMessage, setAgentMessage] = useState("");
-  const [noteMessage, setNoteMessage] = useState("");
   const [isCustomerTyping, setIsCustomerTyping] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentUpload[]>([]);
 
@@ -1477,8 +1472,8 @@ export default function Support() {
   ]);
 
   const handleSendInternalNote = useCallback(
-    async (messageToSave?: string) => {
-      const message = (messageToSave ?? noteMessage).trim();
+    async () => {
+      const message = agentMessage.trim();
       if (!message || !activeThreadId) return;
       // Notes are allowed while the AI handles the chat (nobody holds it) or
       // when you hold it; never on a chat another agent holds.
@@ -1490,11 +1485,7 @@ export default function Support() {
         ).unwrap();
 
         handleThreadMessageAdded(note);
-        if (messageToSave === undefined) {
-          setNoteMessage("");
-        } else {
-          setAgentMessage("");
-        }
+        setAgentMessage("");
       } catch {
         // The thunk displays the API error and keeps the note available to retry.
       }
@@ -1504,7 +1495,7 @@ export default function Support() {
       connectedAgent,
       dispatch,
       handleThreadMessageAdded,
-      noteMessage,
+      agentMessage,
       session?.user?.email,
     ],
   );
@@ -2493,8 +2484,6 @@ export default function Support() {
                         transitionState={transitionState}
                         agentMessage={agentMessage}
                         setAgentMessage={setAgentMessage}
-                        noteMessage={noteMessage}
-                        setNoteMessage={setNoteMessage}
                         isSavingInternalNote={CreateInternalNoteIsLoading}
                         attachments={attachments}
                         isEmojiPickerOpen={isEmojiPickerOpen}
