@@ -997,7 +997,7 @@ function ConversationPanel({
               </TooltipContent>
             </Tooltip>
             <Typography variant="caption" className="shrink-0">
-              #{ticketRef(ticket.ticket_id)}
+              {ticketRef(ticket.ticket_id)}
             </Typography>
             {ticket.order_id ? (
               <Typography variant="caption" className="shrink-0">
