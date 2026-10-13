@@ -31,7 +31,6 @@ const FUNNEL_STEP_KEYS = [
   "chat_started",
   "viewed_product",
   "added_to_cart",
-  "order_placed",
 ] as const;
 
 type SankeyNodeShapeProps = {
@@ -238,7 +237,7 @@ export function ChatOrderFunnelSankey({
               </div>
             )}
 
-            <dl className="grid grid-cols-2 gap-4 border-t pt-4 sm:grid-cols-4">
+            <dl className="grid grid-cols-2 gap-4 border-t pt-4 sm:grid-cols-3">
               {FUNNEL_STEP_KEYS.map((key) => {
                 const step = data.funnel[key];
                 return (
