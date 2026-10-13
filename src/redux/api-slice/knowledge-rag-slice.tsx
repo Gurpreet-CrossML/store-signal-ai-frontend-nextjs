@@ -126,6 +126,12 @@ export type KnowledgeItem = {
 export type ProductOption = {
   id: string;
   name: string;
+  external_id?: number | string;
+  price?: string | number | null;
+  sale_price?: string | number | null;
+  url?: string;
+  images?: { url: string; alt?: string; position?: number }[];
+  image?: string;
 };
 
 export type KnowledgeItemListResponse = {
@@ -520,7 +526,7 @@ export const DeleteKnowledgeItem = createAsyncThunk(
 
 // Product.id is a UUID (products/models.py), not an integer — do not
 // Number() it when building the write payload below.
-type ApiProductOption = { id: string; name: string };
+type ApiProductOption = ProductOption;
 
 /** Type-ahead product picker for Product Knowledge. `search` is optional on
  * the backend — omitted or blank, it returns any `PRODUCT_SEARCH_RESULT_LIMIT`
@@ -544,6 +550,12 @@ export const FetchProductOptions = createAsyncThunk(
       return data.map((product) => ({
         id: String(product.id),
         name: product.name,
+        external_id: product.external_id,
+        price: product.price,
+        sale_price: product.sale_price,
+        url: product.url,
+        images: product.images,
+        image: product.image,
       }));
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;

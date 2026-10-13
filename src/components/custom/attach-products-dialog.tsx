@@ -19,11 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 import { formatPrice } from "@/lib/helpers";
+import { type ProductData } from "@/redux/api-slice/thread-slice";
 import {
-  SearchProducts,
-  type ProductData,
-  type ProductSearchResult,
-} from "@/redux/api-slice/thread-slice";
+  FetchProductOptions,
+  type ProductOption,
+} from "@/redux/api-slice/knowledge-rag-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 interface AttachProductsDialogProps {
@@ -51,9 +51,10 @@ export function AttachProductsDialog({
   const [currentSelected, setCurrentSelected] =
     useState<ProductData[]>(selectedProducts);
 
-  const { SearchProductsData, SearchProductsIsLoading } = useAppSelector(
-    (state) => state.GetThreadReducer.SearchProductsState,
-  );
+  const { FetchProductOptionsListData, FetchProductOptionsIsLoading } =
+    useAppSelector(
+      (state) => state.GetKnowledgeRagReducer.FetchProductOptionsState,
+    );
 
   // Reopening starts with latest selectedProducts. Adjusted during render
   // against a sentinel to avoid cascading renders from useEffect.
@@ -78,13 +79,13 @@ export function AttachProductsDialog({
   // Dispatch search through Redux
   useEffect(() => {
     if (!open || !storeCode) return;
-    dispatch(SearchProducts({ storeCode, search: debouncedSearch }));
+    dispatch(FetchProductOptions({ storeCode, search: debouncedSearch }));
   }, [dispatch, open, storeCode, debouncedSearch]);
 
-  const products = SearchProductsData ?? [];
-  const isLoading = SearchProductsIsLoading;
+  const products = FetchProductOptionsListData ?? [];
+  const isLoading = FetchProductOptionsIsLoading;
 
-  const toggleProduct = (product: ProductSearchResult) => {
+  const toggleProduct = (product: ProductOption) => {
     const id = String(product.id);
     setCurrentSelected((prev) => {
       const isAlreadySelected = prev.some((p) => p.id === id);

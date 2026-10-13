@@ -8,9 +8,7 @@ import {
   useState,
   type ChangeEvent,
   type CSSProperties,
-  type Dispatch,
   type ReactNode,
-  type SetStateAction,
 } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { LoadingState } from "@/components/custom/loading-state";
@@ -361,7 +359,7 @@ function ThreadChatControls({
   onRemoveAttachment: (id: string) => void;
   onRetryAttachment: (id: string) => void;
   attachedProducts?: ProductData[];
-  setAttachedProducts?: Dispatch<SetStateAction<ProductData[]>>;
+  setAttachedProducts?: (products: ProductData[]) => void;
   storeCode?: string;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -642,8 +640,8 @@ function ThreadChatControls({
                       <button
                         type="button"
                         onClick={() =>
-                          setAttachedProducts((prev) =>
-                            prev.filter((p) => p.id !== product.id),
+                          setAttachedProducts(
+                            attachedProducts.filter((p) => p.id !== product.id),
                           )
                         }
                         className="ml-0.5 text-muted-foreground hover:text-foreground"
