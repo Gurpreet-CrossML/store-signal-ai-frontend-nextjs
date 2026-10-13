@@ -370,7 +370,8 @@ function ThreadChatControls({
       ? noteMessage.trim().length > 0
       : agentMessage.trim().length > 0 || attachments.length > 0) &&
     transitionState === "idle" &&
-    (isInternalNoteMode || (!isUploadingAttachments && !hasFailedAttachments));
+    (isInternalNoteMode ||
+      (chatSocketReady && !isUploadingAttachments && !hasFailedAttachments));
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     onEmojiSelect(emojiData.emoji);
@@ -477,7 +478,7 @@ function ThreadChatControls({
                 <Typography
                   variant="muted"
                   as="span"
-                  className="ml-1 hidden truncate sm:inline"
+                  className="ml-1 hidden truncate font-semibold sm:inline"
                 >
                   Enter to save note · Shift + Enter for a new line
                 </Typography>
@@ -552,12 +553,19 @@ function ThreadChatControls({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm"
           >
-            {isInternalNoteMode && (
-              <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-3 py-1.5 text-xs font-medium text-muted-foreground">
-                <IconLock className="size-3.5 text-primary" />
-                Only visible to your team — the customer won&apos;t see this
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+              {isInternalNoteMode ? (
+                <>
+                  <IconLock className="size-3.5 text-primary" />
+                  Internal note — only visible to your team
+                </>
+              ) : (
+                <>
+                  <IconSend className="size-3.5 text-primary" />
+                  Reply — the customer will see this message
+                </>
+              )}
+            </div>
             {isEmojiPickerOpen && (
               <div className="border-b border-border/50 p-2">
                 <EmojiPicker
@@ -759,11 +767,14 @@ function ThreadChatControls({
                   size="sm"
                   onClick={() => setIsInternalNoteMode((value) => !value)}
                   disabled={transitionState !== "idle"}
+                  title={
+                    isInternalNoteMode
+                      ? "Switch to customer reply mode"
+                      : "Switch to internal note mode"
+                  }
                 >
                   <IconNote className="size-4" />
-                  {isInternalNoteMode
-                    ? "Send as Reply"
-                    : "Send as Internal Note"}
+                  {isInternalNoteMode ? "Switch to reply" : "Internal note"}
                 </Button>
                 <Button
                   type="button"
@@ -776,14 +787,14 @@ function ThreadChatControls({
                   }
                   title={
                     isInternalNoteMode
-                      ? "Save internal note"
+                      ? "Add internal note"
                       : isUploadingAttachments
                         ? "Waiting for upload…"
-                        : "Send message"
+                        : "Send reply to customer"
                   }
                 >
                   <IconSend className="size-4" />
-                  Send
+                  {isInternalNoteMode ? "Add note" : "Send reply"}
                 </Button>
               </div>
             </div>
@@ -1465,19 +1476,16 @@ export default function Support() {
       )
       .map((attachment) => attachment.url as string);
 
-    if ((!message && imageUrls.length === 0) || !wsRef.current) {
+    if (
+      (!message && imageUrls.length === 0) ||
+      !wsRef.current ||
+      wsRef.current.readyState !== WebSocket.OPEN
+    ) {
+      toast.error("Chat connection unavailable", {
+        description: "Please wait for the chat connection, then try again.",
+      });
       return;
     }
-
-    handleThreadMessageAdded({
-      id: crypto.randomUUID(),
-      role: "assistant",
-      message: message,
-      created_at: new Date().toISOString(),
-      messaged_by: session?.user?.name || session?.user?.email || "Agent",
-      messaged_by_email: session?.user?.email,
-      image_url: imageUrls,
-    });
 
     wsRef.current.send(
       JSON.stringify({
@@ -1490,14 +1498,7 @@ export default function Support() {
     setAgentMessage("");
     setAttachments([]);
     setIsEmojiPickerOpen(false);
-  }, [
-    agentMessage,
-    attachments,
-    clientID,
-    handleThreadMessageAdded,
-    session?.user?.email,
-    session?.user?.name,
-  ]);
+  }, [agentMessage, attachments, clientID]);
 
   const handleSendInternalNote = useCallback(async () => {
     const message = noteMessage.trim();
@@ -1828,12 +1829,7 @@ export default function Support() {
         return;
       }
 
-      if (
-        !data?.success ||
-        (data?.sender === "agent" &&
-          connectedAgentRef.current === session?.user?.email &&
-          data?.client_id === clientID)
-      ) {
+      if (!data?.success) {
         return;
       }
 
