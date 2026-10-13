@@ -192,7 +192,7 @@ export function ChatOrderFunnelSankey({
   };
 
   return (
-    <Card>
+    <Card className="mb-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5">
           Chat to Order Funnel
