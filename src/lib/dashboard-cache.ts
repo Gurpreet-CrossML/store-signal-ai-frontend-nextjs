@@ -16,9 +16,8 @@
 
 type Entry = { data: unknown; expires: number };
 
-// Matches the dashboard's 30-second auto-refresh (DB-08); a longer TTL would
-// hand every refresh the same cached numbers.
-const TTL_MS = 30 * 1000;
+// A few minutes stale is acceptable for analytics (confirmed with product).
+const TTL_MS = 5 * 60 * 1000;
 const MAX_ENTRIES = 1000;
 
 const cache = new Map<string, Entry>();
