@@ -52,6 +52,31 @@ export type ConversationHistoryResponse = {
   points: ConversationHistoryPoint[];
 };
 
+export type ChatOrderFunnelStep = {
+  label: string;
+  count: number;
+  percentage: number;
+};
+
+export type ChatOrderFunnelResponse = {
+  funnel: Record<
+    "chat_started" | "viewed_product" | "added_to_cart" | "order_placed",
+    ChatOrderFunnelStep
+  >;
+  sankey: {
+    nodes: { name: string }[];
+    links: { source: number; target: number; value: number }[];
+  };
+  ai_revenue: {
+    currency: string;
+    symbol: string;
+    amount: number;
+    orders: number;
+    display: string;
+  }[];
+  attribution_window_days: number;
+};
+
 export const FetchFeedbackInsights = createAsyncThunk(
   "FetchFeedbackInsights",
   async (args: { storeCode: string }, thunkAPI) => {
@@ -261,6 +286,30 @@ export const FetchConversationHistory = createAsyncThunk(
   },
 );
 
+export const FetchChatOrderFunnel = createAsyncThunk(
+  "FetchChatOrderFunnel",
+  async (args: { storeCode: string }, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchChatOrderFunnel()}?store_code=${args.storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as ChatOrderFunnelResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch chat to order funnel, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 // Consolidated dashboard payload (one request) — fanned out into the existing
 // per-widget state below so the dashboard selectors don't change.
 type DashboardSummaryResponse = {
@@ -345,6 +394,12 @@ const DashboardSlice = createSlice({
       FetchConversationHistoryIsSuccess: false,
       FetchConversationHistoryIsError: null as null | string | object,
       FetchConversationHistoryData: null as null | ConversationHistoryResponse,
+    },
+    FetchChatOrderFunnelState: {
+      FetchChatOrderFunnelIsLoading: false,
+      FetchChatOrderFunnelIsSuccess: false,
+      FetchChatOrderFunnelIsError: null as null | string | object,
+      FetchChatOrderFunnelData: null as null | ChatOrderFunnelResponse,
     },
   },
   reducers: {},
@@ -493,6 +548,24 @@ const DashboardSlice = createSlice({
         state.FetchConversationHistoryState.FetchConversationHistoryIsLoading = false;
         state.FetchConversationHistoryState.FetchConversationHistoryIsSuccess = false;
         state.FetchConversationHistoryState.FetchConversationHistoryIsError =
+          action.payload || "Something went wrong";
+      })
+      // Chat to Order Funnel
+      .addCase(FetchChatOrderFunnel.pending, (state) => {
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsLoading = true;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsSuccess = false;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsError = null;
+      })
+      .addCase(FetchChatOrderFunnel.fulfilled, (state, action) => {
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsLoading = false;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsSuccess = true;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelData =
+          action.payload;
+      })
+      .addCase(FetchChatOrderFunnel.rejected, (state, action) => {
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsLoading = false;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsSuccess = false;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsError =
           action.payload || "Something went wrong";
       })
       // Consolidated dashboard: one request fans out into all five widget states.
