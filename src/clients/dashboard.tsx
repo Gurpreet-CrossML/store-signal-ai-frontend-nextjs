@@ -1,6 +1,8 @@
 "use client";
 
 import { ChatOrderFunnelSankey } from "@/components/custom/chat-order-funnel-sankey";
+import Link from "next/link";
+
 import {
   CustomerInteractionLineChart,
   type Granularity,
@@ -42,7 +44,8 @@ type SummaryMetric = {
   value: string;
   infoText: string;
   status: string;
-  statusVariant: "success" | "warning" | "neutral" | "info";
+  statusVariant: "success" | "warning" | "neutral" | "info" | "danger";
+  href?: string;
 };
 
 const displayMetricName = (metric: string) =>
@@ -100,6 +103,10 @@ export default function Dashboard() {
     useAppSelector(
       (state) => state.GetDashboardReducer.FetchConversationHistoryState,
     );
+
+  const { FetchThreadCountsData } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchThreadCountsState,
+  );
 
   const [granularity, setGranularity] = useState<Granularity>("hourly");
   const [from, setFrom] = useState(() => defaultRange("hourly").from);
@@ -163,11 +170,12 @@ export default function Dashboard() {
     },
     {
       label: "Active Sessions",
-      value: FetchEngagementData?.sessions_resolved?.toLocaleString() || "0",
+      value: FetchThreadCountsData.active.toLocaleString(),
       infoText:
         "Shows the number of sessions currently marked as active in the analytics data, helping you gauge current engagement.",
-      status: "Currently Active",
-      statusVariant: "neutral" as const,
+      status: `${FetchThreadCountsData.needsHuman} need a human`,
+      statusVariant: "danger" as const,
+      href: "/support?filter=needs_human",
     },
     {
       label: "Avg Response Time",
@@ -430,9 +438,10 @@ export default function Dashboard() {
               warning: "bg-orange/20 text-orange",
               neutral: "bg-muted text-muted-foreground",
               info: "bg-primary/10 text-primary",
+              danger: "bg-red-100 text-red-600",
             };
-            return (
-              <Card key={metric.label} size="sm">
+            const card = (
+              <Card size="sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-1.5">
                     <Typography variant="muted" as="h3">
@@ -454,6 +463,14 @@ export default function Dashboard() {
                   </span>
                 </CardFooter>
               </Card>
+            );
+
+            return metric.href ? (
+              <Link key={metric.label} href={metric.href} className="block">
+                {card}
+              </Link>
+            ) : (
+              card
             );
           })}
         </div>

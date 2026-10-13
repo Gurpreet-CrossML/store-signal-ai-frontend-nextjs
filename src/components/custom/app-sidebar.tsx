@@ -37,7 +37,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
-import { FetchThreads } from "@/redux/api-slice/thread-slice";
+import { FetchThreadCounts } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useSupportDashboardEvents } from "@/hooks/use-support-dashboard-events";
 
@@ -72,46 +72,20 @@ export function AppSidebar({
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const [needsHumanBadge, setNeedsHumanBadge] = React.useState({
-    storeCode: "",
-    count: 0,
-  });
+  const { FetchThreadCountsData } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchThreadCountsState,
+  );
 
   const refreshNeedsHumanBadge = React.useCallback(() => {
     if (!storeCode) {
       return;
     }
 
-    let cancelled = false;
-
     void dispatch(
-      FetchThreads({
+      FetchThreadCounts({
         store_code: storeCode,
-        page: 1,
-        limit: 1,
-        skipListStateUpdate: true,
-        filters: {
-          is_active: true,
-          need_escalation: true,
-        },
       }),
-    )
-      .unwrap()
-      .then((response) => {
-        if (cancelled) return;
-
-        setNeedsHumanBadge({
-          storeCode,
-          count: response.count,
-        });
-      })
-      .catch(() => {
-        if (!cancelled) setNeedsHumanBadge({ storeCode, count: 0 });
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    );
   }, [dispatch, storeCode]);
 
   React.useEffect(() => refreshNeedsHumanBadge(), [refreshNeedsHumanBadge]);
@@ -191,11 +165,7 @@ export function AppSidebar({
         <SidebarContent>
           <NavMain
             items={navMain}
-            liveSupportBadgeCount={
-              needsHumanBadge.storeCode === storeCode
-                ? needsHumanBadge.count
-                : 0
-            }
+            liveSupportBadgeCount={FetchThreadCountsData.needsHuman}
           />
           {sidebarMenus.navSecondary && (
             <NavSecondary
