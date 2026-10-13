@@ -536,7 +536,7 @@ export default function Dashboard() {
               danger: "bg-red-100 text-red-600",
             };
             const card = (
-              <Card size="sm">
+              <Card key={metric.label} size="sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-1.5">
                     <Typography variant="muted" as="h3">
