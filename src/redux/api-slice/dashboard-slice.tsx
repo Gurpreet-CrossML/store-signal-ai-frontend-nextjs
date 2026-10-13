@@ -77,6 +77,28 @@ export type ChatOrderFunnelResponse = {
   attribution_window_days: number;
 };
 
+// Filters every dashboard widget is fetched with.
+export type DashboardFilterArgs = {
+  storeCode: string;
+  from?: string;
+  to?: string;
+  channel?: string;
+  silent?: boolean;
+};
+
+// axios drops undefined values, so unset filters fall back to server defaults.
+const dashboardParams = ({
+  storeCode,
+  from,
+  to,
+  channel,
+}: DashboardFilterArgs) => ({
+  store_code: storeCode,
+  from,
+  to,
+  channel,
+});
+
 export const FetchFeedbackInsights = createAsyncThunk(
   "FetchFeedbackInsights",
   async (args: { storeCode: string }, thunkAPI) => {
@@ -255,10 +277,7 @@ export const FetchQueryCategoryInsights = createAsyncThunk(
 export const FetchConversationHistory = createAsyncThunk(
   "FetchConversationHistory",
   async (
-    args: {
-      storeCode: string;
-      from?: string;
-      to?: string;
+    args: DashboardFilterArgs & {
       granularity?: string;
       aggregated?: boolean;
     },
@@ -266,7 +285,14 @@ export const FetchConversationHistory = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchConversationHistory()}?store_code=${args.storeCode}&from=${args.from}&to=${args.to}&granularity=${args.granularity}&aggregated=${args.aggregated}`,
+        ENDPOINTS.fetchConversationHistory(),
+        {
+          params: {
+            ...dashboardParams(args),
+            granularity: args.granularity,
+            aggregated: args.aggregated,
+          },
+        },
       );
       const data = response.data.data;
 
@@ -288,11 +314,11 @@ export const FetchConversationHistory = createAsyncThunk(
 
 export const FetchChatOrderFunnel = createAsyncThunk(
   "FetchChatOrderFunnel",
-  async (args: { storeCode: string }, thunkAPI) => {
+  async (args: DashboardFilterArgs, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchChatOrderFunnel()}?store_code=${args.storeCode}`,
-        { useBackend: true },
+        ENDPOINTS.fetchChatOrderFunnel(),
+        { params: dashboardParams(args), useBackend: true },
       );
       return response.data.data as ChatOrderFunnelResponse;
     } catch (error) {
@@ -322,11 +348,11 @@ type DashboardSummaryResponse = {
 
 export const FetchDashboard = createAsyncThunk(
   "FetchDashboard",
-  async (args: { storeCode: string }, thunkAPI) => {
+  async (args: DashboardFilterArgs, thunkAPI) => {
     try {
-      const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchDashboard()}?store_code=${args.storeCode}`,
-      );
+      const response = await axiosInstance.get(ENDPOINTS.fetchDashboard(), {
+        params: dashboardParams(args),
+      });
       return response.data.data as DashboardSummaryResponse;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;

@@ -86,9 +86,11 @@ function withoutUnlinkedNodes(sankey?: ChatOrderFunnelResponse["sankey"]) {
 export function ChatOrderFunnelSankey({
   data,
   loading,
+  periodLabel,
 }: {
   data: ChatOrderFunnelResponse | null;
   loading: boolean;
+  periodLabel: string;
 }) {
   const totalChats = data?.funnel.chat_started.count ?? 0;
   const { nodes, links, droppedIndex } = withoutUnlinkedNodes(data?.sankey);
@@ -190,7 +192,7 @@ export function ChatOrderFunnelSankey({
   };
 
   return (
-    <Card>
+    <Card className="mb-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5">
           Chat to Order Funnel
@@ -198,7 +200,7 @@ export function ChatOrderFunnelSankey({
             text={`How chats turn into orders. Each step counts chats that reached it or any later step, as a share of chats started. An order counts if it was placed within ${data?.attribution_window_days ?? 7} days of the chat.`}
           />
         </CardTitle>
-        <CardDescription>Last 30 days</CardDescription>
+        <CardDescription>{periodLabel}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         {!data ? (
@@ -233,7 +235,7 @@ export function ChatOrderFunnelSankey({
               </ChartContainer>
             ) : (
               <div className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">
-                No chats in the last 30 days
+                No chats in this period
               </div>
             )}
 

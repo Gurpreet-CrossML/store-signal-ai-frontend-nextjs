@@ -22,6 +22,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   try {
     const data = await get_dashboard_summary({
       store_code: req.query.store_code as string | undefined,
+      channel: req.query.channel as string | undefined,
       from: req.query.from as string | undefined,
       to: req.query.to as string | undefined,
     });

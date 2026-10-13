@@ -69,7 +69,14 @@ type ThreadFilterationProps = {
 const ALL = "all";
 const ALL_TAGS = "__all_tags__";
 
-function FilterSelect({
+// Shared with the dashboard filters, so both screens offer the same channels.
+export const CHANNEL_OPTIONS = [
+  { value: "", label: "All Channels" },
+  { value: "web", label: "Web" },
+  { value: "whatsapp", label: "WhatsApp" },
+];
+
+export function FilterSelect({
   ariaLabel,
   value,
   onChange,
@@ -266,11 +273,7 @@ export default function ThreadFilteration({
             channel: channel as ThreadFilterState["channel"],
           })
         }
-        options={[
-          { value: "", label: "All Channels" },
-          { value: "web", label: "Web" },
-          { value: "whatsapp", label: "WhatsApp" },
-        ]}
+        options={CHANNEL_OPTIONS}
       />
 
       <MultiSelectFilter
