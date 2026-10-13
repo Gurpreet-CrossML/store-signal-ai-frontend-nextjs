@@ -293,8 +293,8 @@ function ThreadChatControls({
   agents = [],
   chatSocketReady,
   transitionState,
-  agentMessage,
-  setAgentMessage,
+  composerMessage,
+  setComposerMessage,
   isSavingInternalNote,
   attachments,
   isEmojiPickerOpen,
@@ -319,8 +319,8 @@ function ThreadChatControls({
   agents?: AgentOption[];
   chatSocketReady: boolean;
   transitionState: "idle" | "taking_over" | "returning_to_ai";
-  agentMessage: string;
-  setAgentMessage: (value: string) => void;
+  composerMessage: string;
+  setComposerMessage: (value: string) => void;
   isSavingInternalNote: boolean;
   attachments: AttachmentUpload[];
   isEmojiPickerOpen: boolean;
@@ -343,7 +343,7 @@ function ThreadChatControls({
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-  }, [agentMessage]);
+  }, [composerMessage]);
 
   if (!activeThreadId || !isThreadActive) {
     return null;
@@ -358,13 +358,13 @@ function ThreadChatControls({
   const inputsDisabled = transitionState !== "idle" || isUploadingAttachments;
 
   const canSend =
-    (agentMessage.trim().length > 0 || attachments.length > 0) &&
+    (composerMessage.trim().length > 0 || attachments.length > 0) &&
     transitionState === "idle" &&
     chatSocketReady &&
     !isUploadingAttachments &&
     !hasFailedAttachments;
   const canSaveInternalNote =
-    agentMessage.trim().length > 0 && transitionState === "idle";
+    composerMessage.trim().length > 0 && transitionState === "idle";
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     onEmojiSelect(emojiData.emoji);
@@ -455,9 +455,9 @@ function ThreadChatControls({
                 <textarea
                   rows={1}
                   placeholder="Write an internal note (customer won't see it)…"
-                  value={agentMessage}
+                  value={composerMessage}
                   disabled={isSavingInternalNote || transitionState !== "idle"}
-                  onChange={(event) => setAgentMessage(event.target.value)}
+                  onChange={(event) => setComposerMessage(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
@@ -481,7 +481,7 @@ function ThreadChatControls({
                     size="sm"
                     onClick={onSendInternalNote}
                     disabled={
-                      agentMessage.trim().length === 0 ||
+                      composerMessage.trim().length === 0 ||
                       isSavingInternalNote ||
                       transitionState !== "idle"
                     }
@@ -640,9 +640,9 @@ function ThreadChatControls({
                     ? "Uploading image…"
                     : "Type your reply…"
                 }
-                value={agentMessage}
+                value={composerMessage}
                 disabled={inputsDisabled}
-                onChange={(event) => setAgentMessage(event.target.value)}
+                onChange={(event) => setComposerMessage(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
@@ -859,7 +859,7 @@ export default function Support() {
   const [transitionState, setTransitionState] = useState<
     "idle" | "taking_over" | "returning_to_ai"
   >("idle");
-  const [agentMessage, setAgentMessage] = useState("");
+  const [composerMessage, setComposerMessage] = useState("");
   const [isCustomerTyping, setIsCustomerTyping] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentUpload[]>([]);
 
@@ -1402,7 +1402,7 @@ export default function Support() {
   );
 
   const handleSendAgentMessage = useCallback(() => {
-    const message = agentMessage.trim();
+    const message = composerMessage.trim();
     const isUploadingAttachments = attachments.some(
       (attachment) => attachment.status === "uploading",
     );
@@ -1459,11 +1459,11 @@ export default function Support() {
       }),
     );
 
-    setAgentMessage("");
+    setComposerMessage("");
     setAttachments([]);
     setIsEmojiPickerOpen(false);
   }, [
-    agentMessage,
+    composerMessage,
     attachments,
     clientID,
     handleThreadMessageAdded,
@@ -1473,7 +1473,7 @@ export default function Support() {
 
   const handleSendInternalNote = useCallback(
     async () => {
-      const message = agentMessage.trim();
+      const message = composerMessage.trim();
       if (!message || !activeThreadId) return;
       // Notes are allowed while the AI handles the chat (nobody holds it) or
       // when you hold it; never on a chat another agent holds.
@@ -1485,7 +1485,7 @@ export default function Support() {
         ).unwrap();
 
         handleThreadMessageAdded(note);
-        setAgentMessage("");
+        setComposerMessage("");
       } catch {
         // The thunk displays the API error and keeps the note available to retry.
       }
@@ -1495,7 +1495,7 @@ export default function Support() {
       connectedAgent,
       dispatch,
       handleThreadMessageAdded,
-      agentMessage,
+      composerMessage,
       session?.user?.email,
     ],
   );
@@ -1546,7 +1546,7 @@ export default function Support() {
   );
 
   const handleEmojiSelect = useCallback((emoji: string) => {
-    setAgentMessage((prev) => `${prev}${emoji}`);
+    setComposerMessage((prev) => `${prev}${emoji}`);
     setIsEmojiPickerOpen(false);
   }, []);
 
@@ -2482,8 +2482,8 @@ export default function Support() {
                         chatSocketReady={chatSocketReady}
                         onReassign={handleReassign}
                         transitionState={transitionState}
-                        agentMessage={agentMessage}
-                        setAgentMessage={setAgentMessage}
+                        composerMessage={composerMessage}
+                        setComposerMessage={setComposerMessage}
                         isSavingInternalNote={CreateInternalNoteIsLoading}
                         attachments={attachments}
                         isEmojiPickerOpen={isEmojiPickerOpen}
