@@ -114,6 +114,7 @@ type ThreadListRow = {
   source: string | null;
   followup_level: number;
   is_active: boolean;
+  ai_responding: boolean;
   need_escalation: boolean;
   escalation_time: string | null;
   total_messages: number;
@@ -143,6 +144,7 @@ export type ThreadListItem = {
   customer: { id: number | null; name: string | null; email: string | null };
   followup_level: number;
   is_active: boolean;
+  ai_responding: boolean;
   total_messages: number;
   created_at: string;
   last_message_at: string | null;
@@ -336,6 +338,7 @@ export async function list_threads(
       source: chatThread.source,
       followup_level: chatThread.followupLevel,
       is_active: chatThread.isActive,
+      ai_responding: chatThread.aiResponding,
       need_escalation: chatThread.needEscalation,
       escalation_time: chatThread.escalationTime,
       total_messages: count(chatHistory.id),
@@ -458,6 +461,7 @@ export async function list_threads(
       },
       followup_level: row.followup_level,
       is_active: row.is_active,
+      ai_responding: row.ai_responding,
       total_messages: Number(row.total_messages),
       created_at: row.created_at,
       last_message_at: row.last_message_at,
@@ -500,6 +504,10 @@ type ThreadMessage = {
   message: string;
   json_content: unknown;
   image_url: unknown;
+  message_type: string;
+  agent_name: string | null;
+  confidence: number | null;
+  source_used: string;
   created_at: string;
   messaged_by: string;
   messaged_by_email: string | null;
@@ -525,6 +533,7 @@ export type ThreadDetail =
       store: number;
       name: string | null;
       is_active: boolean;
+      ai_responding: boolean;
       followup_level: number;
       total_messages: number;
       last_message_at: string | null;
@@ -576,6 +585,7 @@ export async function get_thread_details(
       storeId: chatThread.storeId,
       name: chatThread.name,
       is_active: chatThread.isActive,
+      ai_responding: chatThread.aiResponding,
       followup_level: chatThread.followupLevel,
       created_at: chatThread.createdAt,
       ended_at: chatThread.endedAt,
@@ -613,6 +623,14 @@ export async function get_thread_details(
       message: chatHistory.message,
       json_content: chatHistory.jsonContent,
       image_url: chatHistory.imageUrl,
+      message_type: chatHistory.messageType,
+      agent_name: sql<string | null>`case
+        when nullif(concat_ws(' ', ${authUser.firstName}, ${authUser.lastName}), '') is not null
+          then concat(concat_ws(' ', ${authUser.firstName}, ${authUser.lastName}), ' (', ${authUser.email}, ')')
+        else nullif(${authUser.email}, '')
+      end`,
+      confidence: chatHistory.confidence,
+      source_used: chatHistory.sourceUsed,
       created_at: chatHistory.createdAt,
       messaged_by_first_name: authUser.firstName,
       messaged_by_last_name: authUser.lastName,
@@ -633,6 +651,10 @@ export async function get_thread_details(
     message: m.message,
     json_content: m.json_content,
     image_url: m.image_url,
+    message_type: m.message_type,
+    agent_name: m.agent_name,
+    confidence: m.confidence,
+    source_used: m.source_used,
     created_at: m.created_at,
     messaged_by:
       [m.messaged_by_first_name, m.messaged_by_last_name]
@@ -721,6 +743,7 @@ export async function get_thread_details(
     store: Number(t.storeId),
     name: t.name,
     is_active: t.is_active,
+    ai_responding: t.ai_responding,
     followup_level: t.followup_level,
     total_messages,
     last_message_at,

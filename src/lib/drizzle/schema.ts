@@ -3018,6 +3018,8 @@ export const chatHistory = pgTable(
     message: text().notNull(),
     imageUrl: jsonb("image_url"),
     messagedById: integer("messaged_by_id"),
+    confidence: doublePrecision(),
+    sourceUsed: varchar("source_used", { length: 255 }).notNull().default(""),
     totalCost: numeric("total_cost", { precision: 12, scale: 8 }).notNull(),
     totalInputTokens: integer("total_input_tokens").notNull(),
     totalOutputTokens: integer("total_output_tokens").notNull(),
@@ -5632,6 +5634,7 @@ export const chatThread = pgTable(
     source: varchar({ length: 20 }).notNull(),
     chatHandler: varchar("chat_handler", { length: 10 }).notNull(),
     chatHandlerUserId: integer("chat_handler_user_id"),
+    aiResponding: boolean("ai_responding").notNull(),
     needEscalation: boolean("need_escalation").notNull(),
     escalationTime: timestamp("escalation_time", {
       withTimezone: true,
