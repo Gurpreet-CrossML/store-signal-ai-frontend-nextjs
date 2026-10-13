@@ -1446,6 +1446,16 @@ export default function Support() {
       return;
     }
 
+    handleThreadMessageAdded({
+      id: crypto.randomUUID(),
+      role: "assistant",
+      message: message,
+      created_at: new Date().toISOString(),
+      messaged_by: session?.user?.name || session?.user?.email || "Agent",
+      messaged_by_email: session?.user?.email,
+      image_url: imageUrls,
+    });
+
     wsRef.current.send(
       JSON.stringify({
         message,
@@ -1457,7 +1467,14 @@ export default function Support() {
     setAgentMessage("");
     setAttachments([]);
     setIsEmojiPickerOpen(false);
-  }, [agentMessage, attachments, clientID]);
+  }, [
+    agentMessage,
+    attachments,
+    clientID,
+    handleThreadMessageAdded,
+    session?.user?.email,
+    session?.user?.name,
+  ]);
 
   const handleSendInternalNote = useCallback(
     async (messageToSave?: string) => {
@@ -1795,7 +1812,12 @@ export default function Support() {
         return;
       }
 
-      if (!data?.success) {
+      if (
+        !data?.success ||
+        (data?.sender === "agent" &&
+          connectedAgentRef.current === session?.user?.email &&
+          data?.client_id === clientID)
+      ) {
         return;
       }
 
