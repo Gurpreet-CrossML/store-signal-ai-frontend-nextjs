@@ -1471,34 +1471,31 @@ export default function Support() {
     session?.user?.name,
   ]);
 
-  const handleSendInternalNote = useCallback(
-    async () => {
-      const message = composerMessage.trim();
-      if (!message || !activeThreadId) return;
-      // Notes are allowed while the AI handles the chat (nobody holds it) or
-      // when you hold it; never on a chat another agent holds.
-      if (connectedAgent && connectedAgent !== session?.user?.email) return;
+  const handleSendInternalNote = useCallback(async () => {
+    const message = composerMessage.trim();
+    if (!message || !activeThreadId) return;
+    // Notes are allowed while the AI handles the chat (nobody holds it) or
+    // when you hold it; never on a chat another agent holds.
+    if (connectedAgent && connectedAgent !== session?.user?.email) return;
 
-      try {
-        const note = await dispatch(
-          CreateInternalNote({ threadId: activeThreadId, message }),
-        ).unwrap();
+    try {
+      const note = await dispatch(
+        CreateInternalNote({ threadId: activeThreadId, message }),
+      ).unwrap();
 
-        handleThreadMessageAdded(note);
-        setComposerMessage("");
-      } catch {
-        // The thunk displays the API error and keeps the note available to retry.
-      }
-    },
-    [
-      activeThreadId,
-      connectedAgent,
-      dispatch,
-      handleThreadMessageAdded,
-      composerMessage,
-      session?.user?.email,
-    ],
-  );
+      handleThreadMessageAdded(note);
+      setComposerMessage("");
+    } catch {
+      // The thunk displays the API error and keeps the note available to retry.
+    }
+  }, [
+    activeThreadId,
+    connectedAgent,
+    dispatch,
+    handleThreadMessageAdded,
+    composerMessage,
+    session?.user?.email,
+  ]);
 
   const handleReplyWithAI = useCallback(
     (message_id: number | string) => {
