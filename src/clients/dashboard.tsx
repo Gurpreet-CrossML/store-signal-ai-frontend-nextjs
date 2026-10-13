@@ -17,12 +17,9 @@ import {
 } from "@/components/ui/card";
 import {
   DashboardFilters,
-  dashboardFiltersKey,
+  DEFAULT_DASHBOARD_FILTERS,
   dashboardRangeLabel,
-  loadDashboardFilters,
   resolveDashboardRange,
-  saveDashboardFilters,
-  type DashboardFilterState,
 } from "@/components/custom/dashboard-filters";
 import { InfoIcon } from "@/components/custom/info-icon";
 import { PageHeading } from "@/components/custom/page-heading";
@@ -44,7 +41,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useSession } from "next-auth/react";
 
 type SummaryMetric = {
   label: string;
@@ -96,22 +92,11 @@ export default function Dashboard() {
       (state) => state.GetDashboardReducer.FetchConversationHistoryState,
     );
 
-  // AccessGate renders the dashboard only once the session has loaded, so the
-  // user's remembered filters can be read on the first render.
-  const { data: session } = useSession();
-  const filtersKey = dashboardFiltersKey(session?.user);
-  const [filters, setFilters] = useState(() =>
-    loadDashboardFilters(filtersKey),
-  );
+  const [filters, setFilters] = useState(DEFAULT_DASHBOARD_FILTERS);
   const [granularity, setGranularity] = useState<Granularity>("hourly");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const refreshRef = useRef(async () => {});
-
-  const handleFiltersChange = (next: DashboardFilterState) => {
-    setFilters(next);
-    saveDashboardFilters(filtersKey, next);
-  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -146,10 +131,17 @@ export default function Dashboard() {
           FetchConversationHistory({ ...args, granularity, aggregated: true }),
         ),
       ];
+      // Mark this batch as the latest; a newer load replaces (and aborts) it.
       inFlight = batch;
       const results = await Promise.all(batch);
-      if (inFlight !== batch) return; // superseded by a newer load
+      // A newer load started meanwhile (auto-refresh, refresh button or a
+      // filter change), so this stale batch must not touch "Updated".
+      if (inFlight !== batch) return;
+      // Done, so cleanup has nothing left to abort.
       inFlight = [];
+      // Move "Updated" only when all three succeeded; a failed background
+      // refresh shows no toast, so the unchanged time signals stale numbers.
+      // (Aborted requests never reach Redux — the reducers skip them.)
       if (
         results.every((result) => result.meta.requestStatus === "fulfilled")
       ) {
@@ -447,7 +439,7 @@ export default function Dashboard() {
           <div className="flex flex-wrap items-center gap-2">
             <DashboardFilters
               filters={filters}
-              onChange={handleFiltersChange}
+              onChange={setFilters}
               lastUpdated={lastUpdated}
               refreshing={refreshing}
               onRefresh={handleRefresh}

@@ -12,8 +12,7 @@ import { Button } from "@/components/ui/button";
 
 export type DashboardFilterState = {
   range: "today" | "7d" | "30d" | "custom";
-  // Only read for the custom range. Presets resolve against today on every
-  // load, so a remembered "Last 7 days" still means the last 7 days tomorrow.
+  // Only read for the custom range; presets resolve against today on every load.
   from: string;
   to: string;
   channel: "" | "web" | "whatsapp";
@@ -36,8 +35,6 @@ const RANGE_OPTIONS = [
 // Days back from today — the same window the APIs default to for 30 days.
 const PRESET_DAYS = { today: 0, "7d": 7, "30d": 30 };
 
-const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
-
 const toISODate = (date: Date) => format(date, "yyyy-MM-dd");
 
 /** The from/to (YYYY-MM-DD) every dashboard API is called with. */
@@ -58,56 +55,6 @@ export function dashboardRangeLabel(filters: DashboardFilterState) {
     return `${format(parseISO(filters.from), "MMM dd, yyyy")} – ${format(parseISO(filters.to), "MMM dd, yyyy")}`;
   }
   return RANGE_OPTIONS.find((option) => option.value === filters.range)!.label;
-}
-
-/** Per-user storage key; the company prefix keeps one email in two companies apart. */
-export function dashboardFiltersKey(user?: {
-  email?: string | null;
-  company_code?: string | null;
-}) {
-  return user?.email
-    ? `dashboardFilters:${user.company_code ?? ""}:${user.email}`
-    : null;
-}
-
-/** The filters this user last applied, or the defaults. */
-export function loadDashboardFilters(
-  storageKey: string | null,
-): DashboardFilterState {
-  try {
-    const stored = storageKey
-      ? JSON.parse(localStorage.getItem(storageKey) ?? "null")
-      : null;
-    const isCustom = stored?.range === "custom";
-    if (
-      RANGE_OPTIONS.some((option) => option.value === stored?.range) &&
-      CHANNEL_OPTIONS.some((option) => option.value === stored?.channel) &&
-      (!isCustom ||
-        (DATE_ONLY_RE.test(stored.from) && DATE_ONLY_RE.test(stored.to)))
-    ) {
-      return {
-        range: stored.range,
-        from: isCustom ? stored.from : "",
-        to: isCustom ? stored.to : "",
-        channel: stored.channel,
-      };
-    }
-  } catch {
-    // Corrupt value or blocked storage (private mode): use the defaults.
-  }
-  return DEFAULT_DASHBOARD_FILTERS;
-}
-
-export function saveDashboardFilters(
-  storageKey: string | null,
-  filters: DashboardFilterState,
-) {
-  if (!storageKey) return;
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(filters));
-  } catch {
-    // Blocked storage: the filters still apply, they just aren't remembered.
-  }
 }
 
 /** Date and channel filters for the whole dashboard, with refresh status. */
