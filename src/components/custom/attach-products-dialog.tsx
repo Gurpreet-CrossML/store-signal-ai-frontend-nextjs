@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { IconSearch, IconShoppingBag } from "@tabler/icons-react";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -18,20 +18,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
-import { ENDPOINTS } from "@/lib/config";
-import { axiosInstance } from "@/redux/axios-config";
-import { ProductData } from "@/redux/api-slice/thread-slice";
-
-interface ApiProductResult {
-  id: string | number;
-  name: string;
-  external_id?: number | string;
-  price?: string | number | null;
-  sale_price?: string | number | null;
-  url?: string;
-  image?: string;
-  images?: Array<{ url: string }>;
-}
+import { formatPrice } from "@/lib/helpers";
+import {
+  SearchProducts,
+  type ProductData,
+  type ProductSearchResult,
+} from "@/redux/api-slice/thread-slice";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 interface AttachProductsDialogProps {
   open: boolean;
@@ -40,6 +33,7 @@ interface AttachProductsDialogProps {
   selectedProducts: ProductData[];
   onApplyProducts: (products: ProductData[]) => void;
   maxProducts?: number;
+  currency?: string;
 }
 
 export function AttachProductsDialog({
@@ -49,12 +43,17 @@ export function AttachProductsDialog({
   selectedProducts,
   onApplyProducts,
   maxProducts = 10,
+  currency,
 }: AttachProductsDialogProps) {
+  const dispatch = useAppDispatch();
   const [search, setSearch] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [products, setProducts] = useState<ProductData[]>([]);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentSelected, setCurrentSelected] =
     useState<ProductData[]>(selectedProducts);
+
+  const { SearchProductsData, SearchProductsIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.SearchProductsState,
+  );
 
   // Reopening starts with latest selectedProducts. Adjusted during render
   // against a sentinel to avoid cascading renders from useEffect.
@@ -64,88 +63,65 @@ export function AttachProductsDialog({
     if (open) {
       setCurrentSelected(selectedProducts);
       setSearch("");
+      setDebouncedSearch("");
     }
   }
 
-  const fetchProducts = useCallback(
-    async (query: string) => {
-      if (!storeCode) return;
-      setIsLoading(true);
-      try {
-        const params = new URLSearchParams({ store_code: storeCode });
-        if (query.trim()) params.set("search", query.trim());
-
-        const response = await axiosInstance.get(
-          `${ENDPOINTS.searchProducts()}?${params.toString()}`,
-          { useBackend: true },
-        );
-        const data: ApiProductResult[] = response.data?.data ?? [];
-        const seenIds = new Set<string>();
-        const mapped: ProductData[] = [];
-        for (const p of data) {
-          const id = String(p.id);
-          if (seenIds.has(id)) continue;
-          seenIds.add(id);
-
-          const imgUrl =
-            p.image || (Array.isArray(p.images) && p.images[0]?.url) || "";
-          const rawPrice = p.sale_price ?? p.price;
-          const formattedPrice =
-            rawPrice != null && rawPrice !== ""
-              ? typeof rawPrice === "number" ||
-                !String(rawPrice).startsWith("$")
-                ? `$${rawPrice}`
-                : String(rawPrice)
-              : "";
-
-          mapped.push({
-            id,
-            name: p.name,
-            image: imgUrl,
-            price: formattedPrice,
-            product_url: p.url || "",
-            description: "",
-            available_for_sale: true,
-          });
-        }
-        setProducts(mapped);
-      } catch (error) {
-        console.error("Failed to load products:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [storeCode],
-  );
-
+  // Debounce search input to avoid hitting the API on every keystroke
   useEffect(() => {
-    if (!open) return;
     const timer = setTimeout(() => {
-      fetchProducts(search);
+      setDebouncedSearch(search.trim());
     }, 250);
     return () => clearTimeout(timer);
-  }, [fetchProducts, open, search]);
+  }, [search]);
 
-  const toggleProduct = (product: ProductData) => {
-    const isAlreadySelected = currentSelected.some((p) => p.id === product.id);
-    if (isAlreadySelected) {
-      setCurrentSelected((prev) => prev.filter((p) => p.id !== product.id));
-    } else {
-      if (currentSelected.length >= maxProducts) {
-        toast.error(`Limit reached`, {
+  // Dispatch search through Redux
+  useEffect(() => {
+    if (!open || !storeCode) return;
+    dispatch(SearchProducts({ storeCode, search: debouncedSearch }));
+  }, [dispatch, open, storeCode, debouncedSearch]);
+
+  const products = SearchProductsData ?? [];
+  const isLoading = SearchProductsIsLoading;
+
+  const toggleProduct = (product: ProductSearchResult) => {
+    const id = String(product.id);
+    setCurrentSelected((prev) => {
+      const isAlreadySelected = prev.some((p) => p.id === id);
+      if (isAlreadySelected) {
+        return prev.filter((p) => p.id !== id);
+      }
+      if (prev.length >= maxProducts) {
+        toast.error("Limit reached", {
           description: `You can attach up to ${maxProducts} products at once.`,
         });
-        return;
+        return prev;
       }
-      setCurrentSelected((prev) => [...prev, product]);
-    }
+      const rawPrice = product.sale_price ?? product.price;
+      const formattedPrice =
+        rawPrice != null && rawPrice !== ""
+          ? formatPrice(rawPrice, currency)
+          : "";
+      const imgUrl =
+        product.image ||
+        (Array.isArray(product.images) && product.images[0]?.url) ||
+        "";
+
+      const mapped: ProductData = {
+        id,
+        name: product.name,
+        image: imgUrl,
+        price: formattedPrice,
+        product_url: product.url || "",
+        description: "",
+        available_for_sale: true,
+      };
+      return [...prev, mapped];
+    });
   };
 
   const handleApply = () => {
-    const unique = Array.from(
-      new Map(currentSelected.map((p) => [p.id, p])).values(),
-    );
-    onApplyProducts(unique);
+    onApplyProducts(currentSelected);
     onOpenChange(false);
   };
 
@@ -207,10 +183,21 @@ export function AttachProductsDialog({
             </div>
           ) : (
             products.map((product) => {
-              const checked = currentSelected.some((p) => p.id === product.id);
+              const productId = String(product.id);
+              const checked = currentSelected.some((p) => p.id === productId);
+              const imgUrl =
+                product.image ||
+                (Array.isArray(product.images) && product.images[0]?.url) ||
+                "";
+              const rawPrice = product.sale_price ?? product.price;
+              const displayPrice =
+                rawPrice != null && rawPrice !== ""
+                  ? formatPrice(rawPrice, currency)
+                  : "";
+
               return (
                 <div
-                  key={product.id}
+                  key={productId}
                   onClick={() => toggleProduct(product)}
                   className={`flex items-center gap-3 p-3 transition-colors cursor-pointer hover:bg-muted/50 ${
                     checked ? "bg-primary/5" : ""
@@ -218,12 +205,12 @@ export function AttachProductsDialog({
                 >
                   <Checkbox
                     checked={checked}
-                    onCheckedChange={() => toggleProduct(product)}
-                    className="shrink-0"
+                    tabIndex={-1}
+                    className="shrink-0 pointer-events-none"
                   />
-                  {product.image ? (
+                  {imgUrl ? (
                     <Image
-                      src={product.image}
+                      src={imgUrl}
                       alt={product.name}
                       width={40}
                       height={40}
@@ -240,12 +227,12 @@ export function AttachProductsDialog({
                       {product.name}
                     </p>
                     <p className="text-[11px] text-muted-foreground font-mono">
-                      ID: {product.id}
+                      ID: {productId}
                     </p>
                   </div>
-                  {product.price && (
+                  {displayPrice && (
                     <span className="text-xs font-semibold text-primary shrink-0">
-                      {product.price}
+                      {displayPrice}
                     </span>
                   )}
                 </div>

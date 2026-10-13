@@ -197,6 +197,17 @@ export type ProductData = {
   variants?: ProductVariant[];
 };
 
+export type ProductSearchResult = {
+  id: string | number;
+  name: string;
+  external_id?: number | string;
+  price?: string | number | null;
+  sale_price?: string | number | null;
+  url?: string;
+  images?: { url: string; alt?: string; position?: number }[];
+  image?: string;
+};
+
 export type ThreadVerdict = {
   confidence: number;
   created_at: string;
@@ -772,6 +783,28 @@ export const FetchOrders = createAsyncThunk(
   },
 );
 
+export const SearchProducts = createAsyncThunk(
+  "SearchProducts",
+  async (
+    { storeCode, search = "" }: { storeCode: string; search?: string },
+    thunkAPI,
+  ) => {
+    try {
+      const params = new URLSearchParams({ store_code: storeCode });
+      if (search.trim()) params.set("search", search.trim());
+
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.searchProducts()}?${params.toString()}`,
+        { useBackend: true },
+      );
+      return (response.data?.data ?? []) as ProductSearchResult[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+    }
+  },
+);
+
 const ThreadSlice = createSlice({
   name: "Thread",
   initialState: {
@@ -855,6 +888,12 @@ const ThreadSlice = createSlice({
       FetchOrderDataIsSuccess: false,
       FetchOrderDataIsError: null as null | string | object | unknown,
       FetchOrderData: [] as OrderData[],
+    },
+    SearchProductsState: {
+      SearchProductsIsLoading: false,
+      SearchProductsIsSuccess: false,
+      SearchProductsIsError: null as null | string | object | unknown,
+      SearchProductsData: [] as ProductSearchResult[],
     },
   },
   reducers: {},
@@ -1068,6 +1107,21 @@ const ThreadSlice = createSlice({
         state.FetchOrderDataState.FetchOrderDataIsLoading = false;
         state.FetchOrderDataState.FetchOrderDataIsError = action.payload;
         state.FetchOrderDataState.FetchOrderDataIsSuccess = false;
+      })
+      .addCase(SearchProducts.pending, (state) => {
+        state.SearchProductsState.SearchProductsIsLoading = true;
+        state.SearchProductsState.SearchProductsIsError = null;
+        state.SearchProductsState.SearchProductsIsSuccess = false;
+      })
+      .addCase(SearchProducts.fulfilled, (state, action) => {
+        state.SearchProductsState.SearchProductsIsLoading = false;
+        state.SearchProductsState.SearchProductsData = action.payload;
+        state.SearchProductsState.SearchProductsIsSuccess = true;
+      })
+      .addCase(SearchProducts.rejected, (state, action) => {
+        state.SearchProductsState.SearchProductsIsLoading = false;
+        state.SearchProductsState.SearchProductsIsError = action.payload;
+        state.SearchProductsState.SearchProductsIsSuccess = false;
       });
   },
 });
