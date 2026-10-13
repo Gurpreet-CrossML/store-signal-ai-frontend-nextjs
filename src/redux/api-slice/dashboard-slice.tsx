@@ -77,9 +77,7 @@ export type ChatOrderFunnelResponse = {
   attribution_window_days: number;
 };
 
-// Filters every dashboard widget is fetched with. `silent` marks a background
-// refresh: the current numbers stay on screen (no loading state) and a failed
-// refresh doesn't toast — the stale "Updated" time already shows it.
+// Filters every dashboard widget is fetched with.
 export type DashboardFilterArgs = {
   storeCode: string;
   from?: string;
@@ -303,13 +301,11 @@ export const FetchConversationHistory = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      if (!args.silent) {
-        toast.error("Uh oh! Something went wrong.", {
-          description:
-            data?.message ||
-            "Unable to fetch conversation history, please try again later.",
-        });
-      }
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch conversation history, please try again later.",
+      });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -329,13 +325,11 @@ export const FetchChatOrderFunnel = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      if (!args.silent) {
-        toast.error("Uh oh! Something went wrong.", {
-          description:
-            data?.message ||
-            "Unable to fetch chat to order funnel, please try again later.",
-        });
-      }
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch chat to order funnel, please try again later.",
+      });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -364,13 +358,11 @@ export const FetchDashboard = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      if (!args.silent) {
-        toast.error("Uh oh! Something went wrong.", {
-          description:
-            data?.message ||
-            "Unable to fetch dashboard data, please try again later.",
-        });
-      }
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch dashboard data, please try again later.",
+      });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -566,8 +558,7 @@ const DashboardSlice = createSlice({
           action.payload || "Something went wrong";
       })
       // Conversation History
-      .addCase(FetchConversationHistory.pending, (state, action) => {
-        if (action.meta.arg.silent) return;
+      .addCase(FetchConversationHistory.pending, (state) => {
         state.FetchConversationHistoryState.FetchConversationHistoryIsLoading = true;
         state.FetchConversationHistoryState.FetchConversationHistoryIsSuccess = false;
         state.FetchConversationHistoryState.FetchConversationHistoryIsError =
@@ -580,16 +571,13 @@ const DashboardSlice = createSlice({
           action.payload;
       })
       .addCase(FetchConversationHistory.rejected, (state, action) => {
-        // Superseded by a newer request, whose result will land instead.
-        if (action.meta.aborted) return;
         state.FetchConversationHistoryState.FetchConversationHistoryIsLoading = false;
         state.FetchConversationHistoryState.FetchConversationHistoryIsSuccess = false;
         state.FetchConversationHistoryState.FetchConversationHistoryIsError =
           action.payload || "Something went wrong";
       })
       // Chat to Order Funnel
-      .addCase(FetchChatOrderFunnel.pending, (state, action) => {
-        if (action.meta.arg.silent) return;
+      .addCase(FetchChatOrderFunnel.pending, (state) => {
         state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsLoading = true;
         state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsSuccess = false;
         state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsError = null;
@@ -601,15 +589,13 @@ const DashboardSlice = createSlice({
           action.payload;
       })
       .addCase(FetchChatOrderFunnel.rejected, (state, action) => {
-        if (action.meta.aborted) return;
         state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsLoading = false;
         state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsSuccess = false;
         state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsError =
           action.payload || "Something went wrong";
       })
       // Consolidated dashboard: one request fans out into all five widget states.
-      .addCase(FetchDashboard.pending, (state, action) => {
-        if (action.meta.arg.silent) return;
+      .addCase(FetchDashboard.pending, (state) => {
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsLoading = true;
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsSuccess = false;
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsError = null;
@@ -650,7 +636,6 @@ const DashboardSlice = createSlice({
           d.conversion_rate;
       })
       .addCase(FetchDashboard.rejected, (state, action) => {
-        if (action.meta.aborted) return;
         const err = action.payload || "Something went wrong";
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsLoading = false;
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsError = err;

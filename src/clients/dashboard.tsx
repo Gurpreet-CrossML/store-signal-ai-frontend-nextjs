@@ -32,6 +32,7 @@ import {
   FetchConversationHistory,
 } from "@/redux/api-slice/dashboard-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { subMonths } from "date-fns";
 import { useEffect, useState, useRef } from "react";
 import { IconDownload } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,23 @@ const displayMetricName = (metric: string) =>
 
 // How often every card and chart reloads in place.
 const AUTO_REFRESH_MS = 30_000;
+
+const toISODate = (date: Date) => date.toISOString().slice(0, 10);
+
+// Default date range per granularity, anchored to today.
+const defaultRange = (granularity: Granularity) => {
+  const to = new Date();
+  const from = new Date();
+  if (granularity === "hourly") {
+    from.setDate(to.getDate() - 7);
+  } else if (granularity === "weekly") {
+    from.setDate(to.getDate() - 28);
+  } else {
+    // subMonths clamps month-end overflow (e.g. Mar 31 -> Feb 28).
+    return { from: toISODate(subMonths(to, 1)), to: toISODate(to) };
+  }
+  return { from: toISODate(from), to: toISODate(to) };
+};
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();
@@ -94,9 +112,19 @@ export default function Dashboard() {
 
   const [filters, setFilters] = useState(DEFAULT_DASHBOARD_FILTERS);
   const [granularity, setGranularity] = useState<Granularity>("hourly");
+  // The interaction chart keeps its own date range, set by its own controls.
+  const [chartFrom, setChartFrom] = useState(() => defaultRange("hourly").from);
+  const [chartTo, setChartTo] = useState(() => defaultRange("hourly").to);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const refreshRef = useRef(async () => {});
+
+  const handleGranularityChange = (next: Granularity) => {
+    setGranularity(next);
+    const range = defaultRange(next);
+    setChartFrom(range.from);
+    setChartTo(range.to);
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -132,7 +160,13 @@ export default function Dashboard() {
 
         // Fetch the conversation history grouped by the selected time interval.
         dispatch(
-          FetchConversationHistory({ ...args, granularity, aggregated: true }),
+          FetchConversationHistory({
+            ...args,
+            from: chartFrom,
+            to: chartTo,
+            granularity,
+            aggregated: true,
+          }),
         ),
       ];
 
@@ -169,7 +203,17 @@ export default function Dashboard() {
       inFlight.forEach((request) => request.abort());
       inFlight = [];
     };
-  }, [dispatch, storeCode, range, from, to, channel, granularity]);
+  }, [
+    dispatch,
+    storeCode,
+    range,
+    from,
+    to,
+    channel,
+    granularity,
+    chartFrom,
+    chartTo,
+  ]);
 
   const performanceSummaryMetrics: SummaryMetric[] = [
     {
@@ -530,8 +574,11 @@ export default function Dashboard() {
           chartData={conversationHistoryChartData}
           loading={FetchConversationHistoryIsLoading}
           granularity={granularity}
-          onGranularityChange={setGranularity}
-          periodLabel={periodLabel}
+          onGranularityChange={handleGranularityChange}
+          from={chartFrom}
+          to={chartTo}
+          onFromChange={setChartFrom}
+          onToChange={setChartTo}
         />
       </div>
     </div>
