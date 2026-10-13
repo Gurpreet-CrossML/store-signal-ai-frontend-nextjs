@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { IconSearch, IconShoppingBag, IconX } from "@tabler/icons-react";
+import { IconSearch, IconShoppingBag } from "@tabler/icons-react";
 import Image from "next/image";
 import { toast } from "sonner";
 
@@ -56,11 +56,16 @@ export function AttachProductsDialog({
   const [currentSelected, setCurrentSelected] =
     useState<ProductData[]>(selectedProducts);
 
-  useEffect(() => {
+  // Reopening starts with latest selectedProducts. Adjusted during render
+  // against a sentinel to avoid cascading renders from useEffect.
+  const [lastOpen, setLastOpen] = useState(open);
+  if (lastOpen !== open) {
+    setLastOpen(open);
     if (open) {
       setCurrentSelected(selectedProducts);
+      setSearch("");
     }
-  }, [open, selectedProducts]);
+  }
 
   const fetchProducts = useCallback(
     async (query: string) => {
@@ -83,15 +88,15 @@ export function AttachProductsDialog({
           seenIds.add(id);
 
           const imgUrl =
-            p.image ||
-            (Array.isArray(p.images) && p.images[0]?.url) ||
-            "";
+            p.image || (Array.isArray(p.images) && p.images[0]?.url) || "";
           const rawPrice = p.sale_price ?? p.price;
-          const formattedPrice = rawPrice != null && rawPrice !== ""
-            ? typeof rawPrice === "number" || !String(rawPrice).startsWith("$")
-              ? `$${rawPrice}`
-              : String(rawPrice)
-            : "";
+          const formattedPrice =
+            rawPrice != null && rawPrice !== ""
+              ? typeof rawPrice === "number" ||
+                !String(rawPrice).startsWith("$")
+                ? `$${rawPrice}`
+                : String(rawPrice)
+              : "";
 
           mapped.push({
             id,

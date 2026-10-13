@@ -837,7 +837,8 @@ function ThreadChatControls({
               <div className="ml-auto flex shrink-0 items-center gap-2">
                 {!isInternalNoteMode && attachedProducts.length > 0 && (
                   <Typography variant="muted" as="span">
-                    {attachedProducts.length} product{attachedProducts.length > 1 ? "s" : ""}
+                    {attachedProducts.length} product
+                    {attachedProducts.length > 1 ? "s" : ""}
                   </Typography>
                 )}
                 {!isInternalNoteMode && attachments.length > 0 && (
