@@ -197,6 +197,24 @@ export type ProductData = {
   variants?: ProductVariant[];
 };
 
+/** One row of the paginated `/products/` list, picked in Attach Products. */
+export type ProductListItem = {
+  id: string;
+  name: string;
+  external_id: number;
+  price: string | null;
+  sale_price: string | null;
+  url: string;
+  images: { url: string; alt?: string; position?: number }[];
+};
+
+export type ProductListResponse = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: ProductListItem[];
+};
+
 export type ThreadVerdict = {
   confidence: number;
   created_at: string;
@@ -793,6 +811,35 @@ export const FetchOrders = createAsyncThunk(
   },
 );
 
+export const FetchProducts = createAsyncThunk(
+  "FetchProducts",
+  async (
+    {
+      storeCode,
+      search = "",
+      page = 1,
+    }: { storeCode: string; search?: string; page?: number },
+    thunkAPI,
+  ) => {
+    try {
+      const params = new URLSearchParams({
+        store_code: storeCode,
+        page: String(page),
+      });
+      if (search.trim()) params.set("search", search.trim());
+
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchProducts()}?${params.toString()}`,
+        { useBackend: true },
+      );
+      return (response.data?.data ?? null) as ProductListResponse | null;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+    }
+  },
+);
+
 const ThreadSlice = createSlice({
   name: "Thread",
   initialState: {
@@ -882,6 +929,12 @@ const ThreadSlice = createSlice({
       FetchOrderDataIsSuccess: false,
       FetchOrderDataIsError: null as null | string | object | unknown,
       FetchOrderData: [] as OrderData[],
+    },
+    FetchProductsState: {
+      FetchProductsIsLoading: false,
+      FetchProductsIsSuccess: false,
+      FetchProductsIsError: null as null | string | object | unknown,
+      FetchProductsData: null as ProductListResponse | null,
     },
   },
   reducers: {},
@@ -1114,6 +1167,21 @@ const ThreadSlice = createSlice({
         state.FetchOrderDataState.FetchOrderDataIsLoading = false;
         state.FetchOrderDataState.FetchOrderDataIsError = action.payload;
         state.FetchOrderDataState.FetchOrderDataIsSuccess = false;
+      })
+      .addCase(FetchProducts.pending, (state) => {
+        state.FetchProductsState.FetchProductsIsLoading = true;
+        state.FetchProductsState.FetchProductsIsError = null;
+        state.FetchProductsState.FetchProductsIsSuccess = false;
+      })
+      .addCase(FetchProducts.fulfilled, (state, action) => {
+        state.FetchProductsState.FetchProductsIsLoading = false;
+        state.FetchProductsState.FetchProductsData = action.payload;
+        state.FetchProductsState.FetchProductsIsSuccess = true;
+      })
+      .addCase(FetchProducts.rejected, (state, action) => {
+        state.FetchProductsState.FetchProductsIsLoading = false;
+        state.FetchProductsState.FetchProductsIsError = action.payload;
+        state.FetchProductsState.FetchProductsIsSuccess = false;
       });
   },
 });
