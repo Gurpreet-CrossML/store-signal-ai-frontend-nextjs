@@ -3274,6 +3274,7 @@ export const userMetadata = pgTable(
     deviceType: varchar("device_type", { length: 100 }),
     browser: varchar({ length: 100 }),
     os: varchar({ length: 100 }),
+    viewedProducts: jsonb("viewed_products").notNull(),
     initialCartData: jsonb("initial_cart_data").notNull(),
     updatedCartData: jsonb("updated_cart_data").notNull(),
     createdAt: timestamp("created_at", {
