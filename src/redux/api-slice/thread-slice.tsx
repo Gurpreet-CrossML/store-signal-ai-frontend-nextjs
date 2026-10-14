@@ -191,16 +191,35 @@ export type ProductData = {
   price: string;
   product_url: string;
   available_for_sale: boolean;
-  discount_percentage?: number | null;
   variants?: ProductVariant[];
 };
 
-/** The paginated `/products/` list, already in the chat's product-card shape. */
+/** One row of the paginated `/products/` list, picked in Attach Products. */
+export type ProductListItem = {
+  id: string;
+  name: string;
+  external_id: number;
+  price: string | null;
+  sale_price: string | null;
+  currency: string;
+  url: string;
+  images: { url: string; alt?: string; position?: number }[];
+  variants: {
+    id: string;
+    external_id: number;
+    name: string;
+    price: string | null;
+    sale_price: string | null;
+    stock_quantity: number | null;
+    options: Record<string, string>;
+  }[];
+};
+
 export type ProductListResponse = {
   count: number;
   next: string | null;
   previous: string | null;
-  results: ProductData[];
+  results: ProductListItem[];
 };
 
 export type ThreadVerdict = {
