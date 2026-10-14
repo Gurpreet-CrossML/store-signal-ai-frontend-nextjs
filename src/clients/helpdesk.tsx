@@ -42,6 +42,7 @@ import {
   IconSend,
   IconSparkles,
   IconUser,
+  IconX,
 } from "@tabler/icons-react";
 import ReactMarkdown from "react-markdown";
 
@@ -99,6 +100,7 @@ import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel
 import { CrmLinkButton } from "@/components/custom/customer-header";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { MessageAttachments } from "@/components/custom/helpdesk/message-attachments";
 import {
   HiddenTagsBadge,
   TagBadge,
@@ -690,11 +692,17 @@ function TicketListPanel({
   );
 }
 
+type HelpdeskMessage = SupportTicketMessage & {
+  pendingFiles?: File[];
+};
+
 function ConversationPanel({
   storeCode,
   ticket,
   messages,
   reply,
+  attachments,
+  onAttachmentsChange,
   isSending,
   onReplyChange,
   onSend,
@@ -727,8 +735,10 @@ function ConversationPanel({
 }: {
   storeCode: string;
   ticket: SupportTicket;
-  messages: SupportTicketMessage[];
+  messages: HelpdeskMessage[];
   reply: string;
+  attachments: File[];
+  onAttachmentsChange: (files: File[]) => void;
   isSending: boolean;
   onReplyChange: (value: string) => void;
   /** Reply is the default; internal note and translated reply are deliberate choices. */
@@ -781,6 +791,7 @@ function ConversationPanel({
     selectedSendMode === "reply_and_resolve" && !canResolve
       ? "reply"
       : selectedSendMode;
+  const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const selectedSendLabel =
     effectiveSendMode === "customer_language"
       ? "Send in Customer Language"
@@ -1441,6 +1452,10 @@ function ConversationPanel({
                         Internal note
                       </Typography>
                     ) : null}
+                    <MessageAttachments
+                      attachments={message.attachments}
+                      pendingFiles={message.pendingFiles}
+                    />
                     <div className="text-sm leading-6 text-foreground [&_p]:mb-2 [&_p:last-child]:mb-0">
                       <ReactMarkdown>{message.message}</ReactMarkdown>
                     </div>
@@ -1449,7 +1464,9 @@ function ConversationPanel({
                       as="div"
                       className="mt-1 text-right"
                     >
-                      {formatDateTime(message.created_at)}
+                      {message.id < 0
+                        ? "Sending..."
+                        : formatDateTime(message.created_at)}
                     </Typography>
                   </div>
                 </div>
@@ -1461,6 +1478,35 @@ function ConversationPanel({
       </ScrollArea>
 
       <div className="shrink-0 border-t p-4">
+        {attachments.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {attachments.map((file, index) => (
+              <div
+                key={`${file.name}-${index}`}
+                className="flex max-w-full items-center gap-2 rounded-md border px-2 py-1 text-sm"
+              >
+                <IconPaperclip className="size-4 shrink-0" />
+                <span className="max-w-48 truncate" title={file.name}>
+                  {file.name}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Remove ${file.name}`}
+                  title="Remove attachment"
+                  disabled={isSending}
+                  onClick={() =>
+                    onAttachmentsChange(
+                      attachments.filter((_, fileIndex) => fileIndex !== index),
+                    )
+                  }
+                >
+                  <IconX className="size-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
         <CKEditorTextArea
           id="ticket-reply-editor"
           value={reply}
@@ -1468,13 +1514,64 @@ function ConversationPanel({
           useMarkdown
           disabled={
             // isMessageImproving ||
-            isClosed || isTranslating
+            isSending || isClosed || isTranslating
           }
           placeholder="Write a reply, or use the AI draft…"
           minHeight="6rem"
         />
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label="Attach files"
+                disabled={isSending || isClosed || isTranslating}
+                onClick={() => attachmentInputRef.current?.click()}
+              >
+                <IconPaperclip className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Attach files</TooltipContent>
+          </Tooltip>
+          <input
+            ref={attachmentInputRef}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.doc,.docx"
+            className="hidden"
+            aria-label="Choose attachments"
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? []).filter(
+                (file) => {
+                  if (
+                    !file.type.startsWith("image/") &&
+                    !/\.(pdf|doc|docx)$/i.test(file.name)
+                  ) {
+                    toast.error(
+                      `${file.name}: Only images, PDF and Word documents are allowed.`,
+                    );
+                    return false;
+                  }
+                  if (file.size > 5 * 1024 * 1024) {
+                    toast.error(`${file.name}: Maximum file size is 5 MB.`);
+                    return false;
+                  }
+                  return true;
+                },
+              );
+              const remainingSlots = Math.max(0, 5 - attachments.length);
+              if (files.length > remainingSlots) {
+                toast.error("You can attach a maximum of 5 files per message.");
+              }
+              onAttachmentsChange([
+                ...attachments,
+                ...files.slice(0, remainingSlots),
+              ]);
+              event.target.value = "";
+            }}
+          />
           {/* AI tools stay icons — the two sends are what need words. */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -1819,7 +1916,7 @@ export default function HelpDesk() {
   const [sortOrder, setSortOrder] =
     useState<SupportTicketOrdering>("last_updated");
   const [supportTikcetMessages, setSupportTicketMessages] = useState<
-    SupportTicketMessage[]
+    HelpdeskMessage[]
   >([]);
   const [activeSupportTicket, setActiveSupportTicket] =
     useState<SupportTicket | null>(null);
@@ -1838,6 +1935,14 @@ export default function HelpDesk() {
   } | null>(null);
 
   const [reply, setReply] = useState("");
+  const [attachmentSelection, setAttachmentSelection] = useState<{
+    ticketId: number | null;
+    files: File[];
+  }>({ ticketId: null, files: [] });
+  const attachments =
+    attachmentSelection.ticketId === activeTicketId
+      ? attachmentSelection.files
+      : [];
 
   // Support Ticket Search Filters
   const [searchValue, setSearchValue] = useState("");
@@ -2012,10 +2117,13 @@ export default function HelpDesk() {
         return;
       }
 
-      setSupportTicketMessages((currentMessages) => [
-        ...currentMessages,
-        incomingMessage,
-      ]);
+      setSupportTicketMessages((currentMessages) =>
+        currentMessages.some((message) => message.id === incomingMessage.id)
+          ? currentMessages.map((message) =>
+              message.id === incomingMessage.id ? incomingMessage : message,
+            )
+          : [...currentMessages, incomingMessage],
+      );
 
       setActiveSupportTicket((current) => {
         if (!current || current.id !== ticketId) {
@@ -2520,12 +2628,14 @@ export default function HelpDesk() {
     setActiveTicketId(ticketId);
     setReply("");
     setTranslatedLanguage(null);
+    setAttachmentSelection({ ticketId: null, files: [] });
   };
 
   const handleQueueChange = (queue: SupportTicketStatus) => {
     setActiveQueue(queue);
     setPage(1);
     setActiveTicketId(null);
+    setAttachmentSelection({ ticketId: null, files: [] });
     setTicketRows([]);
     toast.info(`${queue[0].toUpperCase()}${queue.slice(1)} tickets loaded`, {
       description: "Fetching support tickets for the selected queue.",
@@ -2827,7 +2937,7 @@ export default function HelpDesk() {
       | "customer_language"
       | "reply_and_resolve" = "reply",
   ) => {
-    if (!storeCode) return;
+    if (!storeCode || SupportTicketMessageSendIsLoading) return;
 
     const trimmedReply = reply.trim();
     if (!trimmedReply) {
@@ -2844,7 +2954,9 @@ export default function HelpDesk() {
     }
 
     const tempId = createTempMessageId();
-    const optimisticMessage: SupportTicketMessage = {
+    const selectedFiles = attachments;
+    const draftReply = reply;
+    const pendingMessage: HelpdeskMessage = {
       id: tempId,
       sender_type: "agent",
       message: trimmedReply,
@@ -2853,18 +2965,20 @@ export default function HelpDesk() {
       message_direction: "outgoing",
       platform: "internal",
       channel: "web",
-      content_type: "text/plain",
+      content_type: selectedFiles.length ? "multipart" : "text/plain",
       metadata: {},
       attachments: [],
+      pendingFiles: selectedFiles,
       created_at: new Date().toISOString(),
     };
-
+    setSupportTicketMessages((current) => [...current, pendingMessage]);
     setReply("");
-    setSupportTicketMessages((current) => [...current, optimisticMessage]);
+    setAttachmentSelection({ ticketId: null, files: [] });
 
     try {
       const formData = new FormData();
       formData.append("message", trimmedReply);
+      selectedFiles.forEach((file) => formData.append("attachments", file));
 
       if (mode === "note") {
         formData.append("message_type", "internal");
@@ -2881,18 +2995,26 @@ export default function HelpDesk() {
         }),
       ).unwrap();
 
-      setSupportTicketMessages((current) =>
-        current.map((message) =>
-          message.id === tempId ? sentMessage : message,
-        ),
-      );
+      if (currentActiveSupportTicketIdRef.current !== ticketId) return;
+      setSupportTicketMessages((current) => {
+        const messages = current.filter(
+          (message) => message.id !== sentMessage.id,
+        );
+        return messages.some((message) => message.id === tempId)
+          ? messages.map((message) =>
+              message.id === tempId ? sentMessage : message,
+            )
+          : [...messages, sentMessage];
+      });
 
       toast.success(mode === "note" ? "Internal note added" : "Reply sent");
     } catch {
+      if (currentActiveSupportTicketIdRef.current !== ticketId) return;
       setSupportTicketMessages((current) =>
         current.filter((message) => message.id !== tempId),
       );
-      setReply(trimmedReply);
+      setReply(draftReply);
+      setAttachmentSelection({ ticketId, files: selectedFiles });
       return;
     }
 
@@ -3377,6 +3499,10 @@ export default function HelpDesk() {
             ticket={activeSupportTicket}
             messages={supportTikcetMessages}
             reply={reply}
+            attachments={attachments}
+            onAttachmentsChange={(files) =>
+              setAttachmentSelection({ ticketId: activeTicketId, files })
+            }
             isSending={SupportTicketMessageSendIsLoading}
             onReplyChange={setReply}
             onSend={handleSend}
