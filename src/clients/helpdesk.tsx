@@ -1707,6 +1707,9 @@ export default function HelpDesk() {
     useAppSelector(
       (state) => state.GetSupportTicketsReducer.FetchSupportTicketTagsState,
     );
+  //  const { SupportMessageImproveIsLoading } = useAppSelector(
+  //   (state) => state.GetSupportTicketsReducer.SupportMessageImproveState,
+  // );  
   const { SupportTicketAIMessageDraftGenerateIsLoading } = useAppSelector(
     (state) =>
       state.GetSupportTicketsReducer.SupportTicketAIMessageDraftGenerateState,
