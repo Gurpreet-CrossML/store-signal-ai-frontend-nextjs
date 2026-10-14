@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
+import { useDebounce } from "@/hooks/use-debounce";
 import { formatPrice } from "@/lib/helpers";
 import {
   FetchProducts,
@@ -25,6 +26,23 @@ import {
   type ProductListItem,
 } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+
+/** The shape a picked product is sent in, as the chat renders it. */
+function toProductData(
+  product: ProductListItem,
+  currency?: string,
+): ProductData {
+  const rawPrice = product.sale_price ?? product.price;
+  return {
+    id: product.id,
+    name: product.name,
+    image: product.images?.[0]?.url ?? "",
+    price: rawPrice ? formatPrice(rawPrice, currency) : "",
+    product_url: product.url || "",
+    description: "",
+    available_for_sale: true,
+  };
+}
 
 interface AttachProductsDialogProps {
   open: boolean;
@@ -47,7 +65,6 @@ export function AttachProductsDialog({
 }: AttachProductsDialogProps) {
   const dispatch = useAppDispatch();
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [currentSelected, setCurrentSelected] =
     useState<ProductData[]>(selectedProducts);
@@ -64,19 +81,18 @@ export function AttachProductsDialog({
     if (open) {
       setCurrentSelected(selectedProducts);
       setSearch("");
-      setDebouncedSearch("");
       setPage(1);
     }
   }
 
-  // Debounce search input to avoid hitting the API on every keystroke
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search.trim());
-      setPage(1);
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [search]);
+  // Debounce search input to avoid hitting the API on every keystroke, and
+  // start a new search from its first page.
+  const debouncedSearch = useDebounce(search.trim(), 250);
+  const [lastSearch, setLastSearch] = useState(debouncedSearch);
+  if (lastSearch !== debouncedSearch) {
+    setLastSearch(debouncedSearch);
+    setPage(1);
+  }
 
   // Dispatch search through Redux
   useEffect(() => {
@@ -100,20 +116,7 @@ export function AttachProductsDialog({
         });
         return prev;
       }
-      const rawPrice = product.sale_price ?? product.price;
-      const formattedPrice = rawPrice ? formatPrice(rawPrice, currency) : "";
-      const imgUrl = product.images?.[0]?.url ?? "";
-
-      const mapped: ProductData = {
-        id,
-        name: product.name,
-        image: imgUrl,
-        price: formattedPrice,
-        product_url: product.url || "",
-        description: "",
-        available_for_sale: true,
-      };
-      return [...prev, mapped];
+      return [...prev, toProductData(product, currency)];
     });
   };
 
@@ -182,11 +185,10 @@ export function AttachProductsDialog({
             products.map((product) => {
               const productId = product.id;
               const checked = currentSelected.some((p) => p.id === productId);
-              const imgUrl = product.images?.[0]?.url ?? "";
-              const rawPrice = product.sale_price ?? product.price;
-              const displayPrice = rawPrice
-                ? formatPrice(rawPrice, currency)
-                : "";
+              const { image: imgUrl, price: displayPrice } = toProductData(
+                product,
+                currency,
+              );
 
               return (
                 <div
