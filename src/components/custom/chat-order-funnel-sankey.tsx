@@ -24,14 +24,28 @@ import type { ChatOrderFunnelResponse } from "@/redux/api-slice/dashboard-slice"
 // so the eye follows the chats that turn into orders.
 const chartConfig = {
   step: { label: "Funnel step", color: "var(--chart-1)" },
+  cart: { label: "Added to cart", color: "hsl(45, 93%, 47%)" },
+  checkout: { label: "Checkout link", color: "hsl(217, 91%, 60%)" },
+  order: { label: "Order placed", color: "hsl(142, 71%, 45%)" },
   dropped: { label: "Dropped", color: "var(--muted-foreground)" },
+  // Chats that reached checkout but placed no order.
+  leftAtCheckout: { label: "Left at checkout", color: "hsl(0, 84%, 60%)" },
 } satisfies ChartConfig;
 
 const FUNNEL_STEP_KEYS = [
   "chat_started",
   "viewed_product",
   "added_to_cart",
+  "checkout_link",
+  "order_placed",
 ] as const;
+
+const STEP_COLORS: Partial<Record<(typeof FUNNEL_STEP_KEYS)[number], string>> =
+  {
+    added_to_cart: "var(--color-cart)",
+    checkout_link: "var(--color-checkout)",
+    order_placed: "var(--color-order)",
+  };
 
 type SankeyNodeShapeProps = {
   x: number;
@@ -96,6 +110,13 @@ export function ChatOrderFunnelSankey({
   const { nodes, links, droppedIndex } = withoutUnlinkedNodes(data?.sankey);
   // Nodes with no outgoing link sit in the last column; label them on their left.
   const isSink = (index: number) => !links.some((l) => l.source === index);
+  const colorByName = new Map(
+    FUNNEL_STEP_KEYS.map((key) => [data?.funnel[key].label, STEP_COLORS[key]]),
+  );
+  const nodeColor = (index: number) =>
+    index === droppedIndex
+      ? "var(--color-dropped)"
+      : (colorByName.get(nodes[index]?.name) ?? "var(--color-step)");
 
   const revenueLine = data?.ai_revenue.length
     ? data.ai_revenue.map((row) => row.display).join(" + ")
@@ -121,11 +142,7 @@ export function ChatOrderFunnelSankey({
           width={width}
           height={Math.max(height, 2)}
           rx={2}
-          fill={
-            index === droppedIndex
-              ? "var(--color-dropped)"
-              : "var(--color-step)"
-          }
+          fill={nodeColor(index)}
         />
         <text
           x={textX}
@@ -158,14 +175,20 @@ export function ChatOrderFunnelSankey({
     linkWidth,
     index,
   }: SankeyLinkShapeProps) => {
-    const isDrop = links[index]?.target === droppedIndex;
+    const target = links[index]?.target;
+    const isDrop = target === droppedIndex;
+    const leftAtCheckout =
+      isDrop &&
+      nodes[links[index].source]?.name === data?.funnel.checkout_link.label;
     return (
       <path
         key={`link-${index}`}
         d={`M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
         fill="none"
-        stroke={isDrop ? "var(--color-dropped)" : "var(--color-step)"}
-        strokeOpacity={isDrop ? 0.15 : 0.35}
+        stroke={
+          leftAtCheckout ? "var(--color-leftAtCheckout)" : nodeColor(target)
+        }
+        strokeOpacity={isDrop && !leftAtCheckout ? 0.15 : 0.35}
         strokeWidth={Math.max(linkWidth, 1)}
         className="transition-[stroke-opacity] hover:stroke-opacity-60"
       />
@@ -197,14 +220,14 @@ export function ChatOrderFunnelSankey({
         <CardTitle className="flex items-center gap-1.5">
           Chat to Order Funnel
           <InfoIcon
-            text={`How chats turn into orders. Each step counts chats that reached it or any later step, as a share of chats started. An order counts if it was placed within ${data?.attribution_window_days ?? 7} days of the chat.`}
+            text={`How chats turn into orders. Each step counts chats that reached it or any later step, as a share of chats started. An order counts when it contains a product the chatbot added to the same customer's cart within the ${data?.attribution_window_hours ?? 24} hours before it was placed.`}
           />
         </CardTitle>
         <CardDescription>{periodLabel}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         {!data ? (
-          <Skeleton className="h-[360px] w-full" />
+          <Skeleton className="h-[480px] w-full" />
         ) : (
           <div
             className={`flex flex-col gap-6 transition-opacity ${loading ? "opacity-60" : ""}`}
@@ -221,25 +244,25 @@ export function ChatOrderFunnelSankey({
             </div>
 
             {totalChats ? (
-              <ChartContainer config={chartConfig} className="h-[320px] w-full">
+              <ChartContainer config={chartConfig} className="h-[440px] w-full">
                 <Sankey
                   data={{ nodes, links }}
                   node={renderNode}
                   link={renderLink}
                   nodeWidth={10}
-                  nodePadding={36}
+                  nodePadding={48}
                   margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
                 >
                   <ChartTooltip content={renderTooltip} />
                 </Sankey>
               </ChartContainer>
             ) : (
-              <div className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">
+              <div className="flex h-[440px] items-center justify-center text-sm text-muted-foreground">
                 No chats in this period
               </div>
             )}
 
-            <dl className="grid grid-cols-2 gap-4 border-t pt-4 sm:grid-cols-3">
+            <dl className="grid grid-cols-2 gap-4 border-t pt-4 sm:grid-cols-3 lg:grid-cols-5">
               {FUNNEL_STEP_KEYS.map((key) => {
                 const step = data.funnel[key];
                 return (
