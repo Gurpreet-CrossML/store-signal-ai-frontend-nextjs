@@ -105,6 +105,16 @@ export function DashboardFilters({
         }
         options={CHANNEL_OPTIONS}
       />
+      {(filters.range !== DEFAULT_DASHBOARD_FILTERS.range ||
+        filters.channel !== DEFAULT_DASHBOARD_FILTERS.channel) && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onChange(DEFAULT_DASHBOARD_FILTERS)}
+        >
+          Clear Filters
+        </Button>
+      )}
       <span className="text-xs text-muted-foreground">
         {lastUpdated
           ? `Updated ${format(lastUpdated, "h:mm:ss a")} · auto-refresh on`
