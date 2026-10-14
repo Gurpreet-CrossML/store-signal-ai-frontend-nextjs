@@ -60,7 +60,11 @@ export type ChatOrderFunnelStep = {
 
 export type ChatOrderFunnelResponse = {
   funnel: Record<
-    "chat_started" | "viewed_product" | "added_to_cart",
+    | "chat_started"
+    | "viewed_product"
+    | "added_to_cart"
+    | "checkout_link"
+    | "order_placed",
     ChatOrderFunnelStep
   >;
   sankey: {
@@ -74,7 +78,7 @@ export type ChatOrderFunnelResponse = {
     orders: number;
     display: string;
   }[];
-  attribution_window_days: number;
+  attribution_window_hours: number;
 };
 
 // Filters every dashboard widget is fetched with.
