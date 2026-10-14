@@ -83,7 +83,7 @@ export function CustomerDetailsPanel({
             currentThreadId={currentThreadId}
             pastThreadsCount={customerData?.past_threads_count ?? 0}
             customerEmail={customerData?.email}
-            viewedProductsCount={userMetadata?.viewed_products.length ?? 0}
+            viewedProductsCount={userMetadata?.viewed_products?.length ?? 0}
           />
         ) : null}
       </div>
