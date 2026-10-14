@@ -12,10 +12,7 @@ import type {
   CartData,
   ThreadTicketData,
 } from "@/redux/api-slice/thread-slice";
-import {
-  IconShoppingBag,
-  IconTicket,
-} from "@tabler/icons-react";
+import { IconShoppingBag, IconTicket } from "@tabler/icons-react";
 import { FulfillmentBadge } from "@/components/ui/status-badge";
 import { OrderDetails } from "@/components/custom/order-details";
 import { IconRefresh } from "@tabler/icons-react";

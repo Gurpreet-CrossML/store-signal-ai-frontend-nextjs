@@ -103,8 +103,7 @@ export function CustomerProfileCard({
 
   const loc = effectiveCustomer ? customerLocation(effectiveCustomer) : null;
   const latestOrderShipping = orderList.find(
-    (order) =>
-      order.shipping_address?.city || order.shipping_address?.province,
+    (order) => order.shipping_address?.city || order.shipping_address?.province,
   )?.shipping_address;
   const orderCity = latestOrderShipping
     ? [latestOrderShipping.city, latestOrderShipping.province]
@@ -114,9 +113,7 @@ export function CustomerProfileCard({
   const geoCity = userMetadata?.geo_location?.split(",")?.[0]?.trim();
   const city = loc || orderCity || geoCity || null;
 
-  const subtitle = [status, city]
-    .filter(Boolean)
-    .join(" · ");
+  const subtitle = [status, city].filter(Boolean).join(" · ");
 
   const orderPhone = orderList.find(
     (order) =>
@@ -178,7 +175,9 @@ export function CustomerProfileCard({
         <div className="flex flex-col gap-2 text-xs">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Phone</span>
-            <span className="text-right font-normal text-foreground">{phone}</span>
+            <span className="text-right font-normal text-foreground">
+              {phone}
+            </span>
           </div>
 
           <div className="flex items-center justify-between">
