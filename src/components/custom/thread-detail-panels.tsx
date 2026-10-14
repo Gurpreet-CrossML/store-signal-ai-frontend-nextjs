@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { LoadingState } from "@/components/custom/loading-state";
 import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
@@ -13,8 +14,6 @@ import type {
 } from "@/redux/api-slice/thread-slice";
 import {
   IconShoppingBag,
-  IconPackage,
-  IconChevronRight,
   IconTicket,
 } from "@tabler/icons-react";
 import { FulfillmentBadge } from "@/components/ui/status-badge";
@@ -67,59 +66,115 @@ function formatCartPrice(price: string | null | undefined): string | null {
 export function CartDetailsCard({
   cartData,
   loading,
+  currentThreadId,
+  pastThreadsCount = 0,
+  customerEmail,
 }: {
   cartData: CartDataResponse | null;
   loading?: boolean;
+  currentThreadId?: string | null;
+  /** Threads this customer started before the current one. */
+  pastThreadsCount?: number;
+  customerEmail?: string | null;
 }) {
   const cart = cartData?.updated_cart_data;
   const items = cart?.items ?? [];
 
+  const totalItems = items.reduce(
+    (sum, item) => sum + (Number(item.qty) || 1),
+    0,
+  );
+
+  const totalPrice = cart?.total
+    ? formatCartPrice(cart.total)
+    : items.length > 0
+      ? formatCartPrice(
+          String(
+            items.reduce((sum, item) => {
+              const num =
+                Number(String(item.price ?? "").replace(/[^0-9.-]/g, "")) || 0;
+              return sum + num * (Number(item.qty) || 1);
+            }, 0),
+          ),
+        )
+      : null;
+
+  const cartSummary =
+    items.length === 0
+      ? "Empty"
+      : totalPrice
+        ? `${totalItems} ${totalItems === 1 ? "item" : "items"} · ${totalPrice}`
+        : `${totalItems} ${totalItems === 1 ? "item" : "items"}`;
+
+  const pastChatsLabel =
+    pastThreadsCount > 0
+      ? `${pastThreadsCount} ${pastThreadsCount === 1 ? "thread" : "threads"}`
+      : "None";
+
   return (
     <section className="flex flex-col gap-3 border-b p-4">
-      <CardTitle className="flex items-center gap-2">
-        <IconShoppingBag className="size-4" />
-        Cart
-      </CardTitle>
+      <h4 className="text-sm font-semibold text-foreground">Current session</h4>
       {loading ? (
         <CardLoadingState />
-      ) : items.length === 0 ? (
-        <Typography variant="muted">Nothing in the cart right now.</Typography>
       ) : (
-        <div className="flex flex-col gap-2.5">
-          {items.map((item: CartData, index: number) => (
-            <div
-              key={index}
-              className="flex items-center justify-between gap-3"
-            >
-              <div className="flex min-w-0 items-center gap-2.5">
-                <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-muted">
-                  {item.product_image ? (
-                    // Product images come from arbitrary store CDNs, so
-                    // next/image's domain allowlist can't cover them.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.product_image}
-                      alt={item.name}
-                      className="h-full w-full object-contain"
-                    />
-                  ) : (
-                    <IconShoppingBag className="size-4 text-muted-foreground" />
-                  )}
+        <div className="flex flex-col gap-2.5 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Cart</span>
+            <span className="font-normal text-foreground">{cartSummary}</span>
+          </div>
+
+          {items.length > 0 ? (
+            <div className="flex max-h-60 flex-col gap-2 overflow-y-auto rounded-lg border bg-muted/20 p-2.5">
+              {items.map((item: CartData, index: number) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between gap-3"
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-muted">
+                      {item.product_image ? (
+                        // Product images come from arbitrary store CDNs, so
+                        // next/image's domain allowlist can't cover them.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.product_image}
+                          alt={item.name}
+                          className="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <IconShoppingBag className="size-3 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-normal text-foreground">
+                        {item.name}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Qty: {item.qty}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-xs font-normal text-foreground">
+                    {formatCartPrice(item.price) ?? "-"}
+                  </span>
                 </div>
-                <div className="min-w-0">
-                  <Typography variant="small" as="p" className="truncate">
-                    {item.name}
-                  </Typography>
-                  <Typography variant="muted" className="mt-0.5">
-                    Qty: {item.qty}
-                  </Typography>
-                </div>
-              </div>
-              <Typography variant="small" as="span" className="shrink-0">
-                {formatCartPrice(item.price) ?? "-"}
-              </Typography>
+              ))}
             </div>
-          ))}
+          ) : null}
+
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Past chats</span>
+            {customerEmail && currentThreadId && pastThreadsCount > 0 ? (
+              <Link
+                href={`/threads?search=${encodeURIComponent(customerEmail)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
+                className="text-primary hover:underline"
+              >
+                {pastChatsLabel}
+              </Link>
+            ) : (
+              <span className="text-foreground">{pastChatsLabel}</span>
+            )}
+          </div>
         </div>
       )}
     </section>
@@ -180,18 +235,6 @@ export function SupportTicketsCard({
   );
 }
 
-/** One figure in the orders summary. */
-function SummaryStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
-      <Typography variant="muted">{label}</Typography>
-      <Typography variant="small" as="p" className="truncate tabular-nums">
-        {value}
-      </Typography>
-    </div>
-  );
-}
-
 export function OrdersCard({
   orders,
   loading,
@@ -233,15 +276,6 @@ export function OrdersCard({
     (state) => state.GetOrderReducer.FetchOrderDetailsState,
   );
 
-  // The two figures that used to sit in a card of their own above this
-  // one. They are a fact about these orders, so they belong to the section
-  // that lists them — and the pane gets a whole card's height back.
-  const totalSpent = orderList.reduce(
-    (sum, order) => sum + Number(order.total_price ?? 0),
-    0,
-  );
-  const currency = orderList[0]?.currency ?? "USD";
-
   const toggleOrder = (id: number) => {
     setExpandedId((prev) => {
       if (prev === id) return null;
@@ -253,15 +287,12 @@ export function OrdersCard({
   return (
     <section className="flex flex-col gap-3 border-b p-4">
       <div className="flex items-center justify-between gap-3">
-        <CardTitle className="flex items-center gap-2">
-          <IconPackage className="h-4 w-4" />
-          Orders
-        </CardTitle>
+        <h4 className="text-sm font-semibold text-foreground">Recent orders</h4>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="icon-sm"
               aria-label="Sync orders"
               onClick={handleOrdersSync}
@@ -272,11 +303,12 @@ export function OrdersCard({
               disabled={
                 loading || orderSyncLoading || !customerData?.id || isDisabled
               }
+              className="size-6 text-muted-foreground hover:text-foreground"
             >
               {orderSyncLoading ? (
-                <Spinner className="size-4" />
+                <Spinner className="size-3.5" />
               ) : (
-                <IconRefresh className="size-4" />
+                <IconRefresh className="size-3.5" />
               )}
             </Button>
           </TooltipTrigger>
@@ -285,105 +317,55 @@ export function OrdersCard({
           </TooltipContent>
         </Tooltip>
       </div>
-      {/* The figures the orders below add up to, in the section that
-          lists them rather than a card of its own above it. A 1px gap over
-          a border-coloured ground gives even separators however the pair
-          wraps. */}
-      {!loading ? (
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
-          <SummaryStat
-            label="Total Spent"
-            value={formatPrice(totalSpent, currency)}
-          />
-          <SummaryStat label="Orders" value={String(orderList.length)} />
-        </div>
-      ) : null}
 
       {loading ? (
         <CardLoadingState />
-      ) : !orderList || orderList?.length === 0 ? (
-        <Typography variant="muted">
+      ) : !orderList || orderList.length === 0 ? (
+        <Typography variant="muted" className="text-xs">
           {!customerData?.id
             ? "Link a customer to see their order history."
             : "No orders yet."}
         </Typography>
       ) : (
-        <div className="flex flex-col gap-2">
-          {visibleOrders.map((order, index) => {
+        <div className="flex flex-col gap-2.5">
+          {visibleOrders.map((order) => {
             const isExpanded = expandedId === order.id;
+            const items = order.items ?? [];
+            const firstItemName = items[0]?.name || "Order item";
+            const additionalCount = items.length - 1;
+            const itemSummary =
+              additionalCount > 0
+                ? `${firstItemName} +${additionalCount}`
+                : firstItemName;
+            const metaLine = [
+              itemSummary,
+              formatPrice(order.total_price, order.currency),
+              formatDate(order.created_at),
+            ].join(" · ");
 
             return (
-              // One box per order: the details continue inside this same
-              // container rather than opening a second box beneath it.
-              <motion.div
+              <div
                 key={order.id}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.18,
-                  // Capped so a long history still settles quickly.
-                  delay: Math.min(index, 5) * 0.04,
-                }}
-                className={`overflow-hidden rounded-xl border transition ${
-                  isExpanded ? "border-primary/40" : "border-border/50"
+                className={`rounded-xl border p-3 transition ${
+                  isExpanded ? "border-primary/40" : "border-border/80"
                 }`}
               >
                 <button
                   type="button"
                   onClick={() => toggleOrder(order.id)}
-                  className={`flex w-full items-center gap-3 p-2.5 text-left transition ${
-                    isExpanded ? "bg-primary/4" : "hover:bg-muted/50"
-                  }`}
+                  className="w-full text-left"
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                    <IconPackage className="h-4 w-4" />
+                  <div className="flex items-center justify-between gap-2">
+                    <Typography variant="small" as="span">
+                      #{order.order_number}
+                    </Typography>
+                    <FulfillmentBadge status={order.fulfillment_status} />
                   </div>
-                  {/* The order number is how an agent knows which order to
-                      open, so it owns the first line and never truncates —
-                      a fixed price column squeezed it down to "#11…" in the
-                      narrow panel. The price sits at the end of the meta
-                      line instead, and only the date/items text truncates,
-                      so every row keeps the same height. */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Typography
-                        variant="small"
-                        as="p"
-                        className="shrink-0 leading-normal"
-                      >
-                        #{order.order_number}
-                      </Typography>
-                      <FulfillmentBadge status={order.fulfillment_status} />
-                    </div>
-                    <div className="mt-0.5 flex items-center gap-2">
-                      <Typography
-                        variant="muted"
-                        as="p"
-                        className="min-w-0 flex-1 truncate"
-                      >
-                        {formatDate(order.created_at)} · {order.items.length}{" "}
-                        item
-                        {order.items.length !== 1 ? "s" : ""}
-                      </Typography>
-                      <Typography
-                        variant="small"
-                        as="span"
-                        className="shrink-0 text-primary"
-                      >
-                        {formatPrice(order.total_price, order.currency)}
-                      </Typography>
-                    </div>
-                  </div>
-                  <IconChevronRight
-                    className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${
-                      isExpanded ? "rotate-90" : ""
-                    }`}
-                  />
+                  <Typography variant="muted" as="p" className="mt-1 truncate">
+                    {metaLine}
+                  </Typography>
                 </button>
 
-                {/* Height animates from 0 so the orders below slide down
-                    rather than jumping, and so collapsing reads as the
-                    same motion in reverse. */}
                 <AnimatePresence initial={false}>
                   {isExpanded && (
                     <motion.div
@@ -391,12 +373,8 @@ export function OrdersCard({
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.18, ease: "easeOut" }}
-                      className="overflow-hidden"
+                      className="mt-3 border-t pt-3 overflow-hidden"
                     >
-                      {/* The fetched record while it is this row's, the
-                          list row until then — so opening an order shows
-                          what it already knows rather than a blank panel,
-                          and fills in the rest when it lands. */}
                       <OrderDetails
                         order={
                           FetchOrderDetailsData?.id === order.id
@@ -411,9 +389,10 @@ export function OrdersCard({
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </motion.div>
+              </div>
             );
           })}
+
           <ShowMoreToggle
             hiddenCount={hiddenOrderCount}
             expanded={ordersExpanded}

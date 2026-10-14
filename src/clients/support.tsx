@@ -2610,6 +2610,7 @@ export default function Support() {
             </div>
 
             <CustomerDetailsPanel
+              currentThreadId={activeThreadId}
               customerData={selectedThread?.customer || null}
               userMetadata={FetchUserMetadataData}
               orders={FetchOrderData}

@@ -52,6 +52,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
     handled_by: getStr(q.handled_by),
     channel: getList(q.channel),
     assignee: getList(q.assignee),
+    before_thread_id: getStr(q.before_thread_id),
   };
 
   const pageParam = getStr(q.page);

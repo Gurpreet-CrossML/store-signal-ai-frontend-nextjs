@@ -135,6 +135,9 @@ export default function Threads() {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }
 
+  // Set by the "Past chats" link: only threads started before that one.
+  const beforeThreadId = searchParams?.get("before_thread_id") ?? undefined;
+
   // Fetch whenever the store, page, page size or filters change.
   // The API is 1-indexed, the table is 0-indexed.
   useEffect(() => {
@@ -157,6 +160,7 @@ export default function Threads() {
       ...(filters.channel ? { channel: filters.channel } : {}),
       ...(filters.from ? { from: filters.from } : {}),
       ...(filters.to ? { to: filters.to } : {}),
+      ...(beforeThreadId ? { before_thread_id: beforeThreadId } : {}),
     };
     dispatch(
       FetchThreads({
@@ -182,6 +186,7 @@ export default function Threads() {
     filters.channel,
     filters.from,
     filters.to,
+    beforeThreadId,
   ]);
 
   // Tag options for the filter bar's tags combobox — refetched per store.

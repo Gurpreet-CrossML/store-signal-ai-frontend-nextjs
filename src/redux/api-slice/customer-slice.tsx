@@ -56,8 +56,6 @@ export type CustomerRecord = {
   orders?: OrderData[];
   /** The conversation this customer was first identified in, if any. */
   thread_id?: string | null;
-  /** Total lifetime chat threads for this customer. */
-  threads_count?: number;
 };
 
 export type CustomerListResponse = {

@@ -55,6 +55,7 @@ export type ListThreadsFilters = {
   channel?: string[]; // whatsapp | web (native/webhook)
   assignee?: string[]; // auth.User email values
   need_escalation?: string;
+  before_thread_id?: string; // only threads started before this one
 };
 
 const UUID_RE =
@@ -104,7 +105,7 @@ type ThreadListRow = {
   customer_last_name: string | null;
   customer_email: string | null;
   customer_phone: string | null;
-  customer_threads_count: number;
+  customer_past_threads_count: number;
   chat_handler: string;
   chat_handler_user_id: number | null;
   chat_handler_user_first_name: string | null;
@@ -125,7 +126,7 @@ export type ThreadListItem = {
     name: string | null;
     email: string | null;
     phone?: string | null;
-    threads_count?: number;
+    past_threads_count?: number;
   };
   followup_level: number;
   is_active: boolean;
@@ -242,6 +243,12 @@ export async function list_threads(
     conditions.push(isNotNull(chatThread.customerId));
   }
 
+  if (filters.before_thread_id && isValidUuid(filters.before_thread_id)) {
+    conditions.push(
+      sql`${chatThread.createdAt} < (SELECT created_at FROM ${chatThread} WHERE id = ${filters.before_thread_id})`,
+    );
+  }
+
   if (filters.handled_by === "ai" || filters.handled_by === "human") {
     conditions.push(eq(chatThread.chatHandler, filters.handled_by));
   }
@@ -352,7 +359,7 @@ export async function list_threads(
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
       customer_phone: chatCustomer.phone,
-      customer_threads_count: sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id}) ELSE 0 END`,
+      customer_past_threads_count: sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id} AND ct.store_id = ${chatThread.storeId} AND ct.created_at < ${chatThread.createdAt}) ELSE 0 END`,
       chat_handler: chatThread.chatHandler,
       chat_handler_user_id: authUser.id,
       chat_handler_user_first_name: authUser.firstName,
@@ -461,7 +468,7 @@ export async function list_threads(
         name: hasCustomer ? customerName : null,
         email: row.customer_email,
         phone: row.customer_phone || "",
-        threads_count: Number(row.customer_threads_count ?? 1),
+        past_threads_count: Number(row.customer_past_threads_count ?? 0),
       },
       followup_level: row.followup_level,
       is_active: row.is_active,
@@ -549,7 +556,7 @@ export type ThreadDetail =
         name?: string | null;
         email?: string | null;
         phone?: string | null;
-        threads_count?: number;
+        past_threads_count?: number;
       } | null;
       verdict: {
         verdict: string;
@@ -604,7 +611,7 @@ export async function get_thread_details(
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
       customer_phone: chatCustomer.phone,
-      customer_threads_count: sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id}) ELSE 0 END`,
+      customer_past_threads_count: sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id} AND ct.store_id = ${chatThread.storeId} AND ct.created_at < ${chatThread.createdAt}) ELSE 0 END`,
     })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
@@ -768,7 +775,7 @@ export async function get_thread_details(
             name: customer_name,
             email: t.customer_email ?? "",
             phone: t.customer_phone || "",
-            threads_count: Number(t.customer_threads_count ?? 1),
+            past_threads_count: Number(t.customer_past_threads_count ?? 0),
           }
         : null,
     verdict,

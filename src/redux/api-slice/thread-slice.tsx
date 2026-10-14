@@ -18,6 +18,7 @@ type ThreadFilters = {
   handled_by?: string;
   channel?: string | string[];
   assignee?: string[];
+  before_thread_id?: string;
 };
 
 /**
@@ -59,7 +60,7 @@ export type Customer = {
   name: string;
   email: string;
   phone?: string | null;
-  threads_count?: number;
+  past_threads_count?: number;
 };
 
 export type ThreadHandlerUser = {
