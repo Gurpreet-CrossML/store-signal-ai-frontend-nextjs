@@ -360,7 +360,6 @@ function ThreadChatControls({
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const [isInternalNoteMode, setIsInternalNoteMode] = useState(false);
   const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
 
   // Auto-grow the composer like a chat app, capped at a few lines.
@@ -390,11 +389,9 @@ function ThreadChatControls({
   const inputsDisabled = transitionState !== "idle" || isUploadingAttachments;
 
   const canSend =
-    (isInternalNoteMode
-      ? noteMessage.trim().length > 0
-      : agentMessage.trim().length > 0 ||
-        attachments.length > 0 ||
-        attachedProducts.length > 0) &&
+    (composerMessage.trim().length > 0 ||
+      attachments.length > 0 ||
+      attachedProducts.length > 0) &&
     transitionState === "idle" &&
     chatSocketReady &&
     !isUploadingAttachments &&
@@ -601,7 +598,7 @@ function ThreadChatControls({
               </div>
             )}
 
-            {!isInternalNoteMode && attachedProducts.length > 0 && (
+            {attachedProducts.length > 0 && (
               <div className="flex flex-wrap gap-1.5 border-b border-border/50 p-2">
                 {attachedProducts.map((product, idx) => (
                   <div
@@ -646,7 +643,7 @@ function ThreadChatControls({
               </div>
             )}
 
-            {!isInternalNoteMode && attachments.length > 0 && (
+            {attachments.length > 0 && (
               <div className="flex flex-wrap gap-2 border-b border-border/50 p-2">
                 {attachments.map((attachment) => {
                   const isImage = attachment.file.type.startsWith("image/");
@@ -742,67 +739,63 @@ function ThreadChatControls({
 
             {/* Toolbar: emoji + attach + hint on the left, send on the right */}
             <div className="flex items-center gap-1 p-2">
-              {!isInternalNoteMode && (
-                <>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon-sm"
-                    disabled={inputsDisabled}
-                    aria-pressed={isEmojiPickerOpen}
-                    className={
-                      isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined
-                    }
-                    onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                    title="Add emoji"
-                  >
-                    <IconMoodSmile className="size-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon-sm"
-                    disabled={inputsDisabled}
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Attach image or file"
-                  >
-                    <IconPaperclip className="size-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon-sm"
-                    disabled={inputsDisabled}
-                    onClick={() => setIsProductPickerOpen(true)}
-                    title="Attach products (max 10)"
-                    className={
-                      attachedProducts.length > 0
-                        ? "text-primary border-primary/40 ring-1 ring-primary/40"
-                        : undefined
-                    }
-                  >
-                    <IconShoppingBag className="size-4" />
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    disabled={inputsDisabled}
-                    onChange={onFileSelection}
-                    className="hidden"
-                  />
-                  {setAttachedProducts && storeCode && (
-                    <AttachProductsDialog
-                      open={isProductPickerOpen}
-                      onOpenChange={setIsProductPickerOpen}
-                      storeCode={storeCode}
-                      selectedProducts={attachedProducts}
-                      onApplyProducts={setAttachedProducts}
-                      maxProducts={10}
-                    />
-                  )}
-                </>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                disabled={inputsDisabled}
+                aria-pressed={isEmojiPickerOpen}
+                className={
+                  isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined
+                }
+                onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                title="Add emoji"
+              >
+                <IconMoodSmile className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                disabled={inputsDisabled}
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach image or file"
+              >
+                <IconPaperclip className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                disabled={inputsDisabled}
+                onClick={() => setIsProductPickerOpen(true)}
+                title="Attach products (max 10)"
+                className={
+                  attachedProducts.length > 0
+                    ? "text-primary border-primary/40 ring-1 ring-primary/40"
+                    : undefined
+                }
+              >
+                <IconShoppingBag className="size-4" />
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                disabled={inputsDisabled}
+                onChange={onFileSelection}
+                className="hidden"
+              />
+              {setAttachedProducts && storeCode && (
+                <AttachProductsDialog
+                  open={isProductPickerOpen}
+                  onOpenChange={setIsProductPickerOpen}
+                  storeCode={storeCode}
+                  selectedProducts={attachedProducts}
+                  onApplyProducts={setAttachedProducts}
+                  maxProducts={10}
+                />
               )}
               <Typography
                 variant="muted"
@@ -814,13 +807,13 @@ function ThreadChatControls({
                   : "Enter to send · Shift + Enter for a new line"}
               </Typography>
               <div className="ml-auto flex shrink-0 items-center gap-2">
-                {!isInternalNoteMode && attachedProducts.length > 0 && (
+                {attachedProducts.length > 0 && (
                   <Typography variant="muted" as="span">
                     {attachedProducts.length} product
                     {attachedProducts.length > 1 ? "s" : ""}
                   </Typography>
                 )}
-                {!isInternalNoteMode && attachments.length > 0 && (
+                {attachments.length > 0 && (
                   <Typography variant="muted" as="span">
                     {attachments.length} attached
                   </Typography>
