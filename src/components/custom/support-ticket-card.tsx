@@ -36,13 +36,14 @@ import type { ThreadTicketData } from "@/redux/api-slice/thread-slice";
 
 export const TICKET_STATUS_TONES: Record<string, BadgeTone> = {
   open: "danger",
-  pending: "warning",
+  reopen: "danger",
+  snoozed: "warning",
   resolved: "success",
   closed: "neutral",
 };
 
 /** Still needing attention — these get the actions, and lead the list. */
-export const LIVE_TICKET_STATUSES = ["open", "pending"];
+export const LIVE_TICKET_STATUSES = ["open", "reopen", "snoozed"];
 
 function StatusBadge({ status }: { status: string }) {
   return (
