@@ -19,11 +19,54 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 import { useDebounce } from "@/hooks/use-debounce";
+import { formatPrice } from "@/lib/helpers";
 import {
   FetchProducts,
   type ProductData,
+  type ProductListItem,
 } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+
+/**
+ * A list row in the shape the chat's product card reads — the same one the
+ * AI sends — so the widget shows its variants and can add the picked one to
+ * cart. Ids are the platform's: the cart is keyed on them, not our UUIDs.
+ */
+function toProductData(product: ProductListItem): ProductData {
+  const displayPrice = (row: {
+    price: string | null;
+    sale_price: string | null;
+  }) => {
+    const raw = row.sale_price ?? row.price;
+    return raw ? formatPrice(raw, product.currency) : "";
+  };
+
+  return {
+    id: String(product.external_id),
+    name: product.name,
+    image: product.images?.[0]?.url ?? "",
+    description: "",
+    price: displayPrice(product),
+    product_url: product.url || "",
+    available_for_sale: product.variants.some(
+      (variant) => (variant.stock_quantity ?? 0) > 0,
+    ),
+    variants: product.variants.map((variant) => ({
+      variant_id: variant.external_id,
+      variant_name: variant.name,
+      variant_price: displayPrice(variant),
+      compare_at_price: variant.price
+        ? formatPrice(variant.price, product.currency)
+        : null,
+      available_for_sale: (variant.stock_quantity ?? 0) > 0,
+      discount_percentage: null,
+      options: Object.entries(variant.options ?? {}).map(([name, value]) => ({
+        name,
+        value,
+      })),
+    })),
+  };
+}
 
 interface AttachProductsDialogProps {
   open: boolean;
@@ -79,7 +122,7 @@ export function AttachProductsDialog({
     dispatch(FetchProducts({ storeCode, search: debouncedSearch, page }));
   }, [dispatch, open, storeCode, debouncedSearch, page]);
 
-  const products = FetchProductsData?.results ?? [];
+  const products = (FetchProductsData?.results ?? []).map(toProductData);
   const isLoading = FetchProductsIsLoading;
 
   const toggleProduct = (product: ProductData) => {
