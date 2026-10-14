@@ -19,30 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 import { useDebounce } from "@/hooks/use-debounce";
-import { formatPrice } from "@/lib/helpers";
 import {
   FetchProducts,
   type ProductData,
-  type ProductListItem,
 } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-
-/** The shape a picked product is sent in, as the chat renders it. */
-function toProductData(
-  product: ProductListItem,
-  currency?: string,
-): ProductData {
-  const rawPrice = product.sale_price ?? product.price;
-  return {
-    id: product.id,
-    name: product.name,
-    image: product.images?.[0]?.url ?? "",
-    price: rawPrice ? formatPrice(rawPrice, currency) : "",
-    product_url: product.url || "",
-    description: "",
-    available_for_sale: true,
-  };
-}
 
 interface AttachProductsDialogProps {
   open: boolean;
@@ -51,7 +32,6 @@ interface AttachProductsDialogProps {
   selectedProducts: ProductData[];
   onApplyProducts: (products: ProductData[]) => void;
   maxProducts?: number;
-  currency?: string;
 }
 
 export function AttachProductsDialog({
@@ -61,7 +41,6 @@ export function AttachProductsDialog({
   selectedProducts,
   onApplyProducts,
   maxProducts = 10,
-  currency,
 }: AttachProductsDialogProps) {
   const dispatch = useAppDispatch();
   const [search, setSearch] = useState("");
@@ -103,7 +82,7 @@ export function AttachProductsDialog({
   const products = FetchProductsData?.results ?? [];
   const isLoading = FetchProductsIsLoading;
 
-  const toggleProduct = (product: ProductListItem) => {
+  const toggleProduct = (product: ProductData) => {
     const id = product.id;
     setCurrentSelected((prev) => {
       const isAlreadySelected = prev.some((p) => p.id === id);
@@ -116,7 +95,7 @@ export function AttachProductsDialog({
         });
         return prev;
       }
-      return [...prev, toProductData(product, currency)];
+      return [...prev, product];
     });
   };
 
@@ -185,10 +164,6 @@ export function AttachProductsDialog({
             products.map((product) => {
               const productId = product.id;
               const checked = currentSelected.some((p) => p.id === productId);
-              const { image: imgUrl, price: displayPrice } = toProductData(
-                product,
-                currency,
-              );
 
               return (
                 <div
@@ -203,9 +178,9 @@ export function AttachProductsDialog({
                     tabIndex={-1}
                     className="shrink-0 pointer-events-none"
                   />
-                  {imgUrl ? (
+                  {product.image ? (
                     <Image
-                      src={imgUrl}
+                      src={product.image}
                       alt={product.name}
                       width={40}
                       height={40}
@@ -225,9 +200,9 @@ export function AttachProductsDialog({
                       ID: {productId}
                     </p>
                   </div>
-                  {displayPrice && (
+                  {product.price && (
                     <span className="text-xs font-semibold text-primary shrink-0">
-                      {displayPrice}
+                      {product.price}
                     </span>
                   )}
                 </div>
