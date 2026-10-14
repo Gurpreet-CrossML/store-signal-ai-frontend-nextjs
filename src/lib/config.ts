@@ -179,6 +179,9 @@ export const ENDPOINTS = {
   // omitted/blank, returns any 5 products for the store. Results are
   // capped server-side either way.
   searchProducts: () => `/products/search/`,
+  // Paginated product list (Django; GET needs useBackend), with the same
+  // optional `?search=` as above. Used by Attach Products.
+  fetchProducts: () => `/products/`,
   // Category/Collection pickers for Knowledge item creation (Django; GET
   // needs useBackend). Same shape/behavior as `searchProducts` above.
   searchCategories: () => `/products/categories/search/`,
