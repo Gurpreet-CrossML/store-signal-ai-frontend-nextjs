@@ -125,7 +125,7 @@ import {
   SupportTicketAgentDraftSave,
   SupportTicketTagAssign,
   SupportTicketTagRemove,
-  SupportMessageImprove,
+  // SupportMessageImprove,
   SupportTicketSnooze,
   SupportTicketMarkRead,
   SupportTicketAIMessageDraftGenerate,
@@ -641,8 +641,8 @@ function ConversationPanel({
   onRemoveTag,
   availableStaff,
   onAssignStaff,
-  onMessageImprove,
-  isMessageImproving,
+  // onMessageImprove,
+  // isMessageImproving,
   onTicketSnooze,
   onTicketStatusUpdate,
   onTicketPriorityUpdate,
@@ -676,8 +676,8 @@ function ConversationPanel({
   onRemoveTag: (tagId: number) => void;
   availableStaff: StaffMember[];
   onAssignStaff: (staffId: number | null) => void;
-  onMessageImprove: (action: string) => void;
-  isMessageImproving: boolean;
+  // onMessageImprove: (action: string) => void;
+  // isMessageImproving: boolean;
   onTicketSnooze: (snoozeTime: number | null) => void;
   onTicketStatusUpdate: (status: SupportTicketStatus) => void;
   onTicketPriorityUpdate: (priority: SupportTicketPriority) => void;
@@ -1390,7 +1390,10 @@ function ConversationPanel({
           value={reply}
           onChange={onReplyChange}
           useMarkdown
-          disabled={isMessageImproving || isClosed || isTranslating}
+          disabled={
+            // isMessageImproving ||
+            isClosed || isTranslating
+          }
           placeholder="Write a reply, or use the AI draft…"
           minHeight="6rem"
         />
@@ -1410,7 +1413,7 @@ function ConversationPanel({
                 }
                 disabled={
                   isAIDraftLoading ||
-                  isMessageImproving ||
+                  // isMessageImproving ||
                   isClosed ||
                   isTranslating
                 }
@@ -1431,6 +1434,7 @@ function ConversationPanel({
             </TooltipContent>
           </Tooltip>
 
+          {/*
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1466,6 +1470,7 @@ function ConversationPanel({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          */}
 
           <DropdownMenu>
             <Tooltip>
@@ -1544,7 +1549,10 @@ function ConversationPanel({
                   size="sm"
                   onClick={() => onSend("note")}
                   disabled={
-                    isSending || isMessageImproving || isClosed || isTranslating
+                    isSending ||
+                    // isMessageImproving ||
+                    isClosed ||
+                    isTranslating
                   }
                   aria-label="Send as Internal Note"
                 >
@@ -1561,7 +1569,10 @@ function ConversationPanel({
                 size="sm"
                 onClick={() => onSend(selectedSendMode)}
                 disabled={
-                  isSending || isMessageImproving || isClosed || isTranslating
+                  isSending ||
+                  // isMessageImproving ||
+                  isClosed ||
+                  isTranslating
                 }
               >
                 {isSending ? (
@@ -1577,7 +1588,7 @@ function ConversationPanel({
                     size="sm"
                     disabled={
                       isSending ||
-                      isMessageImproving ||
+                      // isMessageImproving ||
                       isClosed ||
                       isTranslating
                     }
@@ -1696,9 +1707,9 @@ export default function HelpDesk() {
     useAppSelector(
       (state) => state.GetSupportTicketsReducer.FetchSupportTicketTagsState,
     );
-  const { SupportMessageImproveIsLoading } = useAppSelector(
-    (state) => state.GetSupportTicketsReducer.SupportMessageImproveState,
-  );
+  //  const { SupportMessageImproveIsLoading } = useAppSelector(
+  //   (state) => state.GetSupportTicketsReducer.SupportMessageImproveState,
+  // );
   const { SupportTicketAIMessageDraftGenerateIsLoading } = useAppSelector(
     (state) =>
       state.GetSupportTicketsReducer.SupportTicketAIMessageDraftGenerateState,
@@ -2774,6 +2785,7 @@ export default function HelpDesk() {
     }
   };
 
+  /*
   const handleMessageImprove = async (action: string) => {
     if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
 
@@ -2811,6 +2823,7 @@ export default function HelpDesk() {
       //
     }
   };
+  */
 
   const handleTicketSnooze = async (snoozeTime: number | null) => {
     if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
@@ -3256,8 +3269,8 @@ export default function HelpDesk() {
             onRemoveTag={handleRemoveTag}
             availableStaff={staff}
             onAssignStaff={handleStaffAssign}
-            onMessageImprove={handleMessageImprove}
-            isMessageImproving={SupportMessageImproveIsLoading}
+            // onMessageImprove={handleMessageImprove}
+            // isMessageImproving={SupportMessageImproveIsLoading}
             onTicketSnooze={handleTicketSnooze}
             onTicketStatusUpdate={handleSupportTicketStatusUpdate}
             onTicketPriorityUpdate={handleSupportTicketPriorityUpdate}
