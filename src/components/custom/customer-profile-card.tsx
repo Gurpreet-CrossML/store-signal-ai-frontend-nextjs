@@ -2,13 +2,7 @@
 
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  customerLocation,
-  customerOrderCount,
-  customerTotalSpent,
-} from "@/lib/customer-facts";
 import { formatPrice } from "@/lib/helpers";
-import type { CustomerRecord } from "@/redux/api-slice/customer-slice";
 import type {
   Customer,
   OrderData,
@@ -24,13 +18,11 @@ function maskPhone(phone: string | null | undefined) {
 
 export function CustomerProfileCard({
   customer,
-  fallback,
   orders,
   userMetadata,
   loading = false,
 }: {
-  customer?: CustomerRecord | null;
-  fallback?: Customer | null;
+  customer?: Customer | null;
   orders?: OrderData[] | null;
   userMetadata?: UserMetadata | null;
   loading?: boolean;
@@ -71,37 +63,21 @@ export function CustomerProfileCard({
     );
   }
 
-  const realFallbackName =
-    fallback?.name && fallback.name !== "Guest" ? fallback.name : null;
-  const name = customer
-    ? `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() ||
-      customer.email
-    : realFallbackName ||
-      userMetadata?.customer_name ||
-      fallback?.email ||
-      "Guest";
+  const realName =
+    customer?.name && customer.name !== "Guest" ? customer.name : null;
+  const name =
+    realName || userMetadata?.customer_name || customer?.email || "Guest";
 
-  const effectiveCustomer: CustomerRecord | null = customer
-    ? {
-        ...customer,
-        orders: orders ?? customer.orders,
-      }
-    : null;
+  const orderList = orders ?? [];
+  const orderCount = orderList.length;
 
-  const orderList = orders ?? customer?.orders ?? [];
-  const orderCount = effectiveCustomer
-    ? customerOrderCount(effectiveCustomer)
-    : orderList.length;
-
-  const hasAccount = Boolean(customer?.id || fallback?.id);
   const status =
-    !hasAccount && orderCount === 0
+    !customer?.id && orderCount === 0
       ? "Guest"
       : orderCount > 0
         ? "Returning customer"
         : "New customer";
 
-  const loc = effectiveCustomer ? customerLocation(effectiveCustomer) : null;
   const latestOrderShipping = orderList.find(
     (order) => order.shipping_address?.city || order.shipping_address?.province,
   )?.shipping_address;
@@ -111,38 +87,29 @@ export function CustomerProfileCard({
         .join(" ")
     : null;
   const geoCity = userMetadata?.geo_location?.split(",")?.[0]?.trim();
-  const city = loc || orderCity || geoCity || null;
+  const city = orderCity || geoCity || null;
 
   const subtitle = [status, city].filter(Boolean).join(" · ");
 
-  const orderPhone = orderList.find(
-    (order) =>
-      order.shipping_address?.phone || order.shipping_address?.telephone,
-  )?.shipping_address;
-  const rawPhone =
-    customer?.phone ||
-    fallback?.phone ||
-    orderPhone?.phone ||
-    orderPhone?.telephone;
-  const phone = maskPhone(rawPhone);
+  const orderPhone = orderList
+    .map(
+      (order) =>
+        order.shipping_address?.phone ||
+        order.shipping_address?.telephone ||
+        order.customer_phone,
+    )
+    .find(Boolean);
+  const phone = maskPhone(customer?.phone || orderPhone);
 
   // Lifetime value formatting: e.g. "₹14,870 · 6 orders"
-  let formattedSpent = "—";
-  if (effectiveCustomer) {
-    const { amount, currency } = customerTotalSpent(effectiveCustomer);
-    if (amount > 0) {
-      formattedSpent = formatPrice(amount, currency);
-    }
-  } else if (orderList.length > 0) {
-    const currency = orderList[0]?.currency ?? "USD";
-    const totalSpent = orderList.reduce(
-      (sum, order) => sum + Number(order.total_price ?? 0),
-      0,
-    );
-    if (totalSpent > 0) {
-      formattedSpent = formatPrice(totalSpent, currency);
-    }
-  }
+  const totalSpent = orderList.reduce(
+    (sum, order) => sum + Number(order.total_price ?? 0),
+    0,
+  );
+  const formattedSpent =
+    totalSpent > 0
+      ? formatPrice(totalSpent, orderList[0]?.currency ?? "")
+      : "—";
 
   const ordersPart = `${orderCount} ${orderCount === 1 ? "order" : "orders"}`;
   const lifetimeValueText =

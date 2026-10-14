@@ -148,8 +148,8 @@ export type ThreadListItem = {
     id: number | null;
     name: string | null;
     email: string | null;
-    phone?: string | null;
-    past_threads_count?: number;
+    phone: string;
+    past_threads_count: number;
   };
   followup_level: number;
   is_active: boolean;
@@ -182,6 +182,9 @@ export async function get_thread_counts(storeCode?: string) {
 
   return counts;
 }
+
+/** Threads the customer started in this store before this one. */
+const pastThreadsCount = sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id} AND ct.store_id = ${chatThread.storeId} AND ct.created_at < ${chatThread.createdAt}) ELSE 0 END`;
 
 /**
  * Port of ThreadListAPIView.get_queryset + ThreadListSerializer
@@ -388,7 +391,7 @@ export async function list_threads(
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
       customer_phone: chatCustomer.phone,
-      customer_past_threads_count: sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id} AND ct.store_id = ${chatThread.storeId} AND ct.created_at < ${chatThread.createdAt}) ELSE 0 END`,
+      customer_past_threads_count: pastThreadsCount,
       chat_handler: chatThread.chatHandler,
       chat_handler_user_id: authUser.id,
       chat_handler_user_first_name: authUser.firstName,
@@ -579,13 +582,11 @@ export type ThreadDetail =
       last_message_at: string | null;
       customer_name: string | null;
       customer_email: string | null;
-      /** Identity and details */
+      /** Identity, plus the phone and past-thread count the side panel shows. */
       customer: {
         id: number;
-        name?: string | null;
-        email?: string | null;
-        phone?: string | null;
-        past_threads_count?: number;
+        phone: string;
+        past_threads_count: number;
       } | null;
       verdict: {
         verdict: string;
@@ -640,7 +641,7 @@ export async function get_thread_details(
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
       customer_phone: chatCustomer.phone,
-      customer_past_threads_count: sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id} AND ct.store_id = ${chatThread.storeId} AND ct.created_at < ${chatThread.createdAt}) ELSE 0 END`,
+      customer_past_threads_count: pastThreadsCount,
     })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
@@ -797,12 +798,12 @@ export async function get_thread_details(
     last_message_at,
     customer_name,
     customer_email: t.customer_email,
+    // The id was always selected by the join but never returned, so the
+    // client's `customer?.id` reads were silently undefined.
     customer:
       t.customer_id != null
         ? {
             id: Number(t.customer_id),
-            name: customer_name,
-            email: t.customer_email ?? "",
             phone: t.customer_phone || "",
             past_threads_count: Number(t.customer_past_threads_count ?? 0),
           }
@@ -980,6 +981,7 @@ export type UserMetadataData = {
   device_type: string | null;
   browser: string | null;
   os: string | null;
+  viewed_products: string[];
 };
 
 /**
@@ -1003,6 +1005,7 @@ export async function get_user_metadata(
       device_type: userMetadata.deviceType,
       browser: userMetadata.browser,
       os: userMetadata.os,
+      viewed_products: userMetadata.viewedProducts,
     })
     .from(userMetadata)
     .where(scopedThreadFilter(userMetadata.threadId, thread_id))
@@ -1010,7 +1013,11 @@ export async function get_user_metadata(
     .limit(1);
 
   if (rows.length === 0) return null;
-  return { ...rows[0], id: Number(rows[0].id) };
+  return {
+    ...rows[0],
+    id: Number(rows[0].id),
+    viewed_products: rows[0].viewed_products as string[],
+  };
 }
 
 export async function get_order_data(thread_id: string): Promise<OrderData[]> {
@@ -1054,16 +1061,9 @@ export async function get_order_data(thread_id: string): Promise<OrderData[]> {
     return [];
   }
 
-  return orderRows.map((row) => {
-    const rawAddr = (row.shipping_address ?? {}) as OrderShippingAddress;
-    return {
-      ...row,
-      shipping_address: {
-        ...rawAddr,
-        phone: rawAddr.phone || row.customer_phone || "",
-        telephone: rawAddr.telephone || row.customer_phone || "",
-      },
-      items: row.items as OrderItemData[],
-    };
-  });
+  return orderRows.map((row) => ({
+    ...row,
+    shipping_address: row.shipping_address as OrderShippingAddress,
+    items: row.items as OrderItemData[],
+  }));
 }

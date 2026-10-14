@@ -57,7 +57,7 @@ export function CustomerDetailsPanel({
     <aside className="hidden min-h-0 w-80 shrink-0 flex-col border-l xl:flex 2xl:w-95">
       <div className="min-h-0 flex-1 overflow-y-auto">
         <CustomerProfileCard
-          fallback={customerData}
+          customer={customerData}
           orders={orders}
           userMetadata={userMetadata}
           loading={Boolean(ordersLoading && !customerData?.id)}
@@ -83,6 +83,7 @@ export function CustomerDetailsPanel({
             currentThreadId={currentThreadId}
             pastThreadsCount={customerData?.past_threads_count ?? 0}
             customerEmail={customerData?.email}
+            viewedProductsCount={userMetadata?.viewed_products.length ?? 0}
           />
         ) : null}
       </div>

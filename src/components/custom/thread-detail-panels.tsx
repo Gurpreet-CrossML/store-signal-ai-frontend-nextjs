@@ -66,6 +66,7 @@ export function CartDetailsCard({
   currentThreadId,
   pastThreadsCount = 0,
   customerEmail,
+  viewedProductsCount = 0,
 }: {
   cartData: CartDataResponse | null;
   loading?: boolean;
@@ -73,6 +74,8 @@ export function CartDetailsCard({
   /** Threads this customer started before the current one. */
   pastThreadsCount?: number;
   customerEmail?: string | null;
+  /** Product pages the shopper has opened, as the store theme records them. */
+  viewedProductsCount?: number;
 }) {
   const cart = cartData?.updated_cart_data;
   const items = cart?.items ?? [];
@@ -115,6 +118,13 @@ export function CartDetailsCard({
         <CardLoadingState />
       ) : (
         <div className="flex flex-col gap-2.5 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Products viewed</span>
+            <span className="font-normal text-foreground">
+              {viewedProductsCount}
+            </span>
+          </div>
+
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Cart</span>
             <span className="font-normal text-foreground">{cartSummary}</span>
