@@ -122,7 +122,7 @@ export function SupportTicketCard({
           <div className="mt-1 flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <Typography variant="muted" as="span">
-                {ticketRef(ticket.id)} · {formatDate(ticket.created_at)}
+                {ticketRef(ticket.ticket_id)} · {formatDate(ticket.created_at)}
               </Typography>
               {ticket.priority === "high" || ticket.priority === "urgent" ? (
                 <Badge
@@ -189,7 +189,7 @@ export function SupportTicketCard({
               <StatusBadge status={ticket.status} />
             </div>
             <DialogDescription className="text-left">
-              {ticketRef(ticket.id)} · raised{" "}
+              {ticketRef(ticket.ticket_id)} · raised{" "}
               {formatDateTime(ticket.created_at)}
             </DialogDescription>
           </DialogHeader>

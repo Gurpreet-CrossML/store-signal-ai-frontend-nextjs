@@ -1,5 +1,8 @@
 "use client";
 
+import { ChatOrderFunnelSankey } from "@/components/custom/chat-order-funnel-sankey";
+import Link from "next/link";
+
 import {
   CustomerInteractionLineChart,
   type Granularity,
@@ -14,6 +17,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  DashboardFilters,
+  DEFAULT_DASHBOARD_FILTERS,
+  dashboardRangeLabel,
+  resolveDashboardRange,
+} from "@/components/custom/dashboard-filters";
 import { InfoIcon } from "@/components/custom/info-icon";
 import { PageHeading } from "@/components/custom/page-heading";
 import { Typography } from "@/components/ui/typography";
@@ -21,11 +30,12 @@ import { custructTimeInHumanReadableFormat } from "@/lib/helpers";
 import { buildDashboardReportHtml } from "@/lib/dashboard-report";
 import {
   FetchDashboard,
+  FetchChatOrderFunnel,
   FetchConversationHistory,
 } from "@/redux/api-slice/dashboard-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { subMonths } from "date-fns";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { IconDownload } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,11 +50,15 @@ type SummaryMetric = {
   value: string;
   infoText: string;
   status: string;
-  statusVariant: "success" | "warning" | "neutral" | "info";
+  statusVariant: "success" | "warning" | "neutral" | "info" | "danger";
+  href?: string;
 };
 
 const displayMetricName = (metric: string) =>
   metric.replace(/([a-z])([A-Z])/g, "$1 $2");
+
+// How often every card and chart reloads in place.
+const AUTO_REFRESH_MS = 30_000;
 
 const toISODate = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -89,43 +103,124 @@ export default function Dashboard() {
     (state) => state.GetDashboardReducer.FetchConversionRateDataState,
   );
 
+  const { FetchChatOrderFunnelData, FetchChatOrderFunnelIsLoading } =
+    useAppSelector(
+      (state) => state.GetDashboardReducer.FetchChatOrderFunnelState,
+    );
+
   const { FetchConversationHistoryData, FetchConversationHistoryIsLoading } =
     useAppSelector(
       (state) => state.GetDashboardReducer.FetchConversationHistoryState,
     );
 
+  const { FetchThreadCountsData } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchThreadCountsState,
+  );
+
+  const [filters, setFilters] = useState(DEFAULT_DASHBOARD_FILTERS);
   const [granularity, setGranularity] = useState<Granularity>("hourly");
-  const [from, setFrom] = useState(() => defaultRange("hourly").from);
-  const [to, setTo] = useState(() => defaultRange("hourly").to);
+  // The interaction chart keeps its own date range, set by its own controls.
+  const [chartFrom, setChartFrom] = useState(() => defaultRange("hourly").from);
+  const [chartTo, setChartTo] = useState(() => defaultRange("hourly").to);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshRef = useRef(async () => {});
 
   const handleGranularityChange = (next: Granularity) => {
     setGranularity(next);
     const range = defaultRange(next);
-    setFrom(range.from);
-    setTo(range.to);
+    setChartFrom(range.from);
+    setChartTo(range.to);
   };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshRef.current();
+    setRefreshing(false);
+  };
+
+  const { range, from, to, channel } = filters;
+  const periodLabel = dashboardRangeLabel(filters);
 
   useEffect(() => {
     if (!storeCode) return;
-    // One consolidated request for all five summary widgets (feedback insights,
-    // engagement, operational efficiency, user matrix, conversion rate) — see
-    // /api/analytics/dashboard. Conversation history stays separate as it has
-    // its own date-range controls.
-    dispatch(FetchDashboard({ storeCode }));
-  }, [dispatch, storeCode]);
+    let inFlight: { abort: () => void }[] = [];
 
-  useEffect(() => {
-    if (!storeCode || !from || !to) return;
-    dispatch(
-      FetchConversationHistory({
+    // Load the dashboard data using the currently selected filters.
+    // When silent is true, keep the existing data visible while refreshing it.
+    const load = async (silent: boolean) => {
+      inFlight.forEach((request) => request.abort());
+
+      const args = {
         storeCode,
-        from,
-        to,
-        granularity,
-        aggregated: true,
-      }),
-    );
-  }, [dispatch, storeCode, from, to, granularity]);
+        ...resolveDashboardRange({ range, from, to, channel }),
+        channel: channel || undefined,
+        silent,
+      };
+
+      const batch = [
+        // Fetch the data for all five dashboard summary widgets.
+        dispatch(FetchDashboard(args)),
+
+        // Fetch the funnel data showing how chats lead to orders.
+        dispatch(FetchChatOrderFunnel(args)),
+
+        // Fetch the conversation history grouped by the selected time interval.
+        dispatch(
+          FetchConversationHistory({
+            ...args,
+            from: chartFrom,
+            to: chartTo,
+            granularity,
+            aggregated: true,
+          }),
+        ),
+      ];
+
+      // Track the current requests so older requests can be ignored.
+      inFlight = batch;
+
+      const results = await Promise.all(batch);
+
+      // Ignore this result if a newer request has already started.
+      if (inFlight !== batch) return;
+
+      // All requests have finished, so clear the tracked requests.
+      inFlight = [];
+
+      // Update the last-refreshed time only if every request succeeds.
+      // If a background refresh fails, keep the previous time visible so
+      // users know the displayed data may not be up to date.
+      // Aborted requests are ignored by the Redux reducers.
+      if (
+        results.every((result) => result.meta.requestStatus === "fulfilled")
+      ) {
+        setLastUpdated(new Date());
+      }
+    };
+
+    load(false);
+    refreshRef.current = () => load(true);
+    const timer = setInterval(() => {
+      if (!document.hidden) load(true);
+    }, AUTO_REFRESH_MS);
+
+    return () => {
+      clearInterval(timer);
+      inFlight.forEach((request) => request.abort());
+      inFlight = [];
+    };
+  }, [
+    dispatch,
+    storeCode,
+    range,
+    from,
+    to,
+    channel,
+    granularity,
+    chartFrom,
+    chartTo,
+  ]);
 
   const performanceSummaryMetrics: SummaryMetric[] = [
     {
@@ -154,11 +249,12 @@ export default function Dashboard() {
     },
     {
       label: "Active Sessions",
-      value: FetchEngagementData?.sessions_resolved?.toLocaleString() || "0",
+      value: FetchThreadCountsData.active.toLocaleString(),
       infoText:
         "Shows the number of sessions currently marked as active in the analytics data, helping you gauge current engagement.",
-      status: "Currently Active",
-      statusVariant: "neutral" as const,
+      status: `${FetchThreadCountsData.needsHuman} need a human`,
+      statusVariant: "danger" as const,
+      href: "/support?filter=needs_human",
     },
     {
       label: "Avg Response Time",
@@ -194,7 +290,9 @@ export default function Dashboard() {
     },
   ];
 
-  const exportFileStem = `dashboard_${storeCode || "all-stores"}_${from}_to_${to}`;
+  // Presets keep no dates of their own, so export the range actually on screen.
+  const exportRange = resolveDashboardRange(filters);
+  const exportFileStem = `dashboard_${storeCode || "all-stores"}_${exportRange.from}_to_${exportRange.to}`;
 
   const exportCsv = () => {
     const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
@@ -238,7 +336,12 @@ export default function Dashboard() {
     ];
     const rows = [
       ["Store", "From", "To", "Section", "Metric", "Value", "Detail"],
-      ...reportRows.map((row) => [storeCode || "All stores", from, to, ...row]),
+      ...reportRows.map((row) => [
+        storeCode || "All stores",
+        exportRange.from,
+        exportRange.to,
+        ...row,
+      ]),
     ];
     const csv = rows
       .map((row) => row.map((value) => quote(String(value ?? ""))).join(","))
@@ -269,8 +372,8 @@ export default function Dashboard() {
       buildDashboardReportHtml({
         fileName: exportFileStem,
         storeName: storeCode || "All stores",
-        from,
-        to,
+        from: exportRange.from,
+        to: exportRange.to,
         summary: performanceSummaryMetrics.map((metric) => ({
           label: metric.label,
           value: metric.value,
@@ -394,22 +497,31 @@ export default function Dashboard() {
         title="Dashboard"
         description="How your AI assistant is performing — engagement, efficiency, sentiment, and conversions at a glance."
         action={
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline">
-                <IconDownload />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={exportCsv}>
-                Export as CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={exportPdf}>
-                Export as PDF
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex flex-wrap items-center gap-2">
+            <DashboardFilters
+              filters={filters}
+              onChange={setFilters}
+              lastUpdated={lastUpdated}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+            />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline">
+                  <IconDownload />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={exportCsv}>
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={exportPdf}>
+                  Export as PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         }
       />
       <section className="flex flex-col gap-4">
@@ -421,8 +533,9 @@ export default function Dashboard() {
               warning: "bg-orange/20 text-orange",
               neutral: "bg-muted text-muted-foreground",
               info: "bg-primary/10 text-primary",
+              danger: "bg-red-100 text-red-600",
             };
-            return (
+            const card = (
               <Card key={metric.label} size="sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-1.5">
@@ -446,6 +559,14 @@ export default function Dashboard() {
                 </CardFooter>
               </Card>
             );
+
+            return metric.href ? (
+              <Link key={metric.label} href={metric.href} className="block">
+                {card}
+              </Link>
+            ) : (
+              card
+            );
           })}
         </div>
       </section>
@@ -461,15 +582,20 @@ export default function Dashboard() {
         </div>
       </div>
       <div data-export-chart="interaction">
+        <ChatOrderFunnelSankey
+          data={FetchChatOrderFunnelData}
+          loading={FetchChatOrderFunnelIsLoading}
+          periodLabel={periodLabel}
+        />
         <CustomerInteractionLineChart
           chartData={conversationHistoryChartData}
           loading={FetchConversationHistoryIsLoading}
           granularity={granularity}
           onGranularityChange={handleGranularityChange}
-          from={from}
-          to={to}
-          onFromChange={setFrom}
-          onToChange={setTo}
+          from={chartFrom}
+          to={chartTo}
+          onFromChange={setChartFrom}
+          onToChange={setChartTo}
         />
       </div>
     </div>

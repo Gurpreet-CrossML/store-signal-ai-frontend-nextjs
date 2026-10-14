@@ -117,6 +117,8 @@ export const ENDPOINTS = {
   fetchConversaionRateData: () => "/analytics/conversion-rate",
   fetchQueryCategoryInsights: () => "/analytics/query-category-insights",
   fetchConversationHistory: () => "/analytics/chat-history",
+  // Chat-to-order funnel + AI-assisted revenue (Django; GET needs useBackend).
+  fetchChatOrderFunnel: () => "/analytics/chat-order-funnel/",
   // AI Usage analytics (Django; GET requests require useBackend: true).
   fetchAIUsageSummary: () => "/chat/ai-usage/summary/",
   fetchAIUsageDaily: () => "/chat/ai-usage/daily/",
@@ -133,6 +135,7 @@ export const ENDPOINTS = {
 
   // Thread-level Analytics (local GETs — no trailing slash).
   fetchThreads: () => "/analytics/threads",
+  fetchThreadCounts: () => "/analytics/thread-counts",
   fetchThreadDetails: (threadId: string) => `/analytics/threads/${threadId}`,
   fetchUserMetadata: (threadId: string) =>
     `/analytics/threads/${threadId}/user-metadata`,
@@ -294,6 +297,10 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/tickets/${ticket_id}/status/`, "django"),
   supportTicketPriorityUpdate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/priority/`, "django"),
+  supportTicketActivity: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/activity/`, "django"),
+  supportTicketLanguageSentimentUpdate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/language-sentiment/`, "django"),
   supportTicketMessagesTranslate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/messages/translate/`, "django"),
 

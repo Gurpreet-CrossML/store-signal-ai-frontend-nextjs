@@ -52,6 +52,53 @@ export type ConversationHistoryResponse = {
   points: ConversationHistoryPoint[];
 };
 
+export type ChatOrderFunnelStep = {
+  label: string;
+  count: number;
+  percentage: number;
+};
+
+export type ChatOrderFunnelResponse = {
+  funnel: Record<
+    "chat_started" | "viewed_product" | "added_to_cart",
+    ChatOrderFunnelStep
+  >;
+  sankey: {
+    nodes: { name: string }[];
+    links: { source: number; target: number; value: number }[];
+  };
+  ai_revenue: {
+    currency: string;
+    symbol: string;
+    amount: number;
+    orders: number;
+    display: string;
+  }[];
+  attribution_window_days: number;
+};
+
+// Filters every dashboard widget is fetched with.
+export type DashboardFilterArgs = {
+  storeCode: string;
+  from?: string;
+  to?: string;
+  channel?: string;
+  silent?: boolean;
+};
+
+// axios drops undefined values, so unset filters fall back to server defaults.
+const dashboardParams = ({
+  storeCode,
+  from,
+  to,
+  channel,
+}: DashboardFilterArgs) => ({
+  store_code: storeCode,
+  from,
+  to,
+  channel,
+});
+
 export const FetchFeedbackInsights = createAsyncThunk(
   "FetchFeedbackInsights",
   async (args: { storeCode: string }, thunkAPI) => {
@@ -230,10 +277,7 @@ export const FetchQueryCategoryInsights = createAsyncThunk(
 export const FetchConversationHistory = createAsyncThunk(
   "FetchConversationHistory",
   async (
-    args: {
-      storeCode: string;
-      from?: string;
-      to?: string;
+    args: DashboardFilterArgs & {
       granularity?: string;
       aggregated?: boolean;
     },
@@ -241,7 +285,14 @@ export const FetchConversationHistory = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchConversationHistory()}?store_code=${args.storeCode}&from=${args.from}&to=${args.to}&granularity=${args.granularity}&aggregated=${args.aggregated}`,
+        ENDPOINTS.fetchConversationHistory(),
+        {
+          params: {
+            ...dashboardParams(args),
+            granularity: args.granularity,
+            aggregated: args.aggregated,
+          },
+        },
       );
       const data = response.data.data;
 
@@ -261,6 +312,30 @@ export const FetchConversationHistory = createAsyncThunk(
   },
 );
 
+export const FetchChatOrderFunnel = createAsyncThunk(
+  "FetchChatOrderFunnel",
+  async (args: DashboardFilterArgs, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        ENDPOINTS.fetchChatOrderFunnel(),
+        { params: dashboardParams(args), useBackend: true },
+      );
+      return response.data.data as ChatOrderFunnelResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to fetch chat to order funnel, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 // Consolidated dashboard payload (one request) — fanned out into the existing
 // per-widget state below so the dashboard selectors don't change.
 type DashboardSummaryResponse = {
@@ -273,11 +348,11 @@ type DashboardSummaryResponse = {
 
 export const FetchDashboard = createAsyncThunk(
   "FetchDashboard",
-  async (args: { storeCode: string }, thunkAPI) => {
+  async (args: DashboardFilterArgs, thunkAPI) => {
     try {
-      const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchDashboard()}?store_code=${args.storeCode}`,
-      );
+      const response = await axiosInstance.get(ENDPOINTS.fetchDashboard(), {
+        params: dashboardParams(args),
+      });
       return response.data.data as DashboardSummaryResponse;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -345,6 +420,12 @@ const DashboardSlice = createSlice({
       FetchConversationHistoryIsSuccess: false,
       FetchConversationHistoryIsError: null as null | string | object,
       FetchConversationHistoryData: null as null | ConversationHistoryResponse,
+    },
+    FetchChatOrderFunnelState: {
+      FetchChatOrderFunnelIsLoading: false,
+      FetchChatOrderFunnelIsSuccess: false,
+      FetchChatOrderFunnelIsError: null as null | string | object,
+      FetchChatOrderFunnelData: null as null | ChatOrderFunnelResponse,
     },
   },
   reducers: {},
@@ -493,6 +574,24 @@ const DashboardSlice = createSlice({
         state.FetchConversationHistoryState.FetchConversationHistoryIsLoading = false;
         state.FetchConversationHistoryState.FetchConversationHistoryIsSuccess = false;
         state.FetchConversationHistoryState.FetchConversationHistoryIsError =
+          action.payload || "Something went wrong";
+      })
+      // Chat to Order Funnel
+      .addCase(FetchChatOrderFunnel.pending, (state) => {
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsLoading = true;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsSuccess = false;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsError = null;
+      })
+      .addCase(FetchChatOrderFunnel.fulfilled, (state, action) => {
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsLoading = false;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsSuccess = true;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelData =
+          action.payload;
+      })
+      .addCase(FetchChatOrderFunnel.rejected, (state, action) => {
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsLoading = false;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsSuccess = false;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsError =
           action.payload || "Something went wrong";
       })
       // Consolidated dashboard: one request fans out into all five widget states.

@@ -310,10 +310,8 @@ function ThreadChatControls({
   agents = [],
   chatSocketReady,
   transitionState,
-  agentMessage,
-  setAgentMessage,
-  noteMessage,
-  setNoteMessage,
+  composerMessage,
+  setComposerMessage,
   isSavingInternalNote,
   attachments,
   isEmojiPickerOpen,
@@ -341,10 +339,8 @@ function ThreadChatControls({
   agents?: AgentOption[];
   chatSocketReady: boolean;
   transitionState: "idle" | "taking_over" | "returning_to_ai";
-  agentMessage: string;
-  setAgentMessage: (value: string) => void;
-  noteMessage: string;
-  setNoteMessage: (value: string) => void;
+  composerMessage: string;
+  setComposerMessage: (value: string) => void;
   isSavingInternalNote: boolean;
   attachments: AttachmentUpload[];
   isEmojiPickerOpen: boolean;
@@ -373,7 +369,7 @@ function ThreadChatControls({
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-  }, [agentMessage, isInternalNoteMode, noteMessage]);
+  }, [composerMessage]);
 
   if (!activeThreadId || !isThreadActive) {
     return null;
@@ -391,9 +387,7 @@ function ThreadChatControls({
   const hasFailedAttachments = attachments.some(
     (attachment) => attachment.status === "error",
   );
-  const inputsDisabled =
-    transitionState !== "idle" ||
-    (!isInternalNoteMode && isUploadingAttachments);
+  const inputsDisabled = transitionState !== "idle" || isUploadingAttachments;
 
   const canSend =
     (isInternalNoteMode
@@ -402,7 +396,11 @@ function ThreadChatControls({
         attachments.length > 0 ||
         attachedProducts.length > 0) &&
     transitionState === "idle" &&
-    (isInternalNoteMode || (!isUploadingAttachments && !hasFailedAttachments));
+    chatSocketReady &&
+    !isUploadingAttachments &&
+    !hasFailedAttachments;
+  const canSaveInternalNote =
+    composerMessage.trim().length > 0 && transitionState === "idle";
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     onEmojiSelect(emojiData.emoji);
@@ -485,7 +483,7 @@ function ThreadChatControls({
             className="mt-2 space-y-2"
           >
             <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm">
-              <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+              <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-3 py-1.5 text-xs font-bold text-muted-foreground">
                 <IconLock className="size-3.5 text-primary" />
                 Internal note only — visible to your team, never to the customer
               </div>
@@ -493,9 +491,9 @@ function ThreadChatControls({
                 <textarea
                   rows={1}
                   placeholder="Write an internal note (customer won't see it)…"
-                  value={noteMessage}
+                  value={composerMessage}
                   disabled={isSavingInternalNote || transitionState !== "idle"}
-                  onChange={(event) => setNoteMessage(event.target.value)}
+                  onChange={(event) => setComposerMessage(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
@@ -509,7 +507,7 @@ function ThreadChatControls({
                 <Typography
                   variant="muted"
                   as="span"
-                  className="ml-1 hidden truncate sm:inline"
+                  className="ml-1 hidden truncate font-semibold sm:inline"
                 >
                   Enter to save note · Shift + Enter for a new line
                 </Typography>
@@ -519,7 +517,7 @@ function ThreadChatControls({
                     size="sm"
                     onClick={onSendInternalNote}
                     disabled={
-                      noteMessage.trim().length === 0 ||
+                      composerMessage.trim().length === 0 ||
                       isSavingInternalNote ||
                       transitionState !== "idle"
                     }
@@ -590,12 +588,6 @@ function ThreadChatControls({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm"
           >
-            {isInternalNoteMode && (
-              <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-3 py-1.5 text-xs font-medium text-muted-foreground">
-                <IconLock className="size-3.5 text-primary" />
-                Only visible to your team — the customer won&apos;t see this
-              </div>
-            )}
             {isEmojiPickerOpen && (
               <div className="border-b border-border/50 p-2">
                 <EmojiPicker
@@ -731,26 +723,17 @@ function ThreadChatControls({
                 ref={textareaRef}
                 rows={1}
                 placeholder={
-                  isInternalNoteMode
-                    ? "Write an internal note (customer won't see it)…"
-                    : isUploadingAttachments
-                      ? "Uploading image…"
-                      : "Type your reply…"
+                  isUploadingAttachments
+                    ? "Uploading image…"
+                    : "Type your reply…"
                 }
-                value={isInternalNoteMode ? noteMessage : agentMessage}
-                disabled={
-                  isInternalNoteMode ? isSavingInternalNote : inputsDisabled
-                }
-                onChange={(event) =>
-                  isInternalNoteMode
-                    ? setNoteMessage(event.target.value)
-                    : setAgentMessage(event.target.value)
-                }
+                value={composerMessage}
+                disabled={inputsDisabled}
+                onChange={(event) => setComposerMessage(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
-                    if (isInternalNoteMode) onSendInternalNote();
-                    else onSendAgentMessage();
+                    onSendAgentMessage();
                   }
                 }}
                 className="max-h-30 w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
@@ -828,9 +811,7 @@ function ThreadChatControls({
               >
                 {isUploadingAttachments
                   ? "Uploading attachment…"
-                  : isInternalNoteMode
-                    ? "Enter to save note · Shift + Enter for a new line"
-                    : "Enter to send · Shift + Enter for a new line"}
+                  : "Enter to send · Shift + Enter for a new line"}
               </Typography>
               <div className="ml-auto flex shrink-0 items-center gap-2">
                 {!isInternalNoteMode && attachedProducts.length > 0 && (
@@ -869,31 +850,24 @@ function ThreadChatControls({
                 </motion.div>
                 <Button
                   type="button"
-                  variant={isInternalNoteMode ? "secondary" : "outline"}
+                  variant="outline"
                   size="sm"
-                  onClick={() => setIsInternalNoteMode((value) => !value)}
-                  disabled={transitionState !== "idle"}
+                  onClick={onSendInternalNote}
+                  disabled={!canSaveInternalNote || isSavingInternalNote}
+                  title="Save this text as an internal note"
                 >
                   <IconNote className="size-4" />
-                  {isInternalNoteMode
-                    ? "Send as Reply"
-                    : "Send as Internal Note"}
+                  Send as Internal Note
                 </Button>
                 <Button
                   type="button"
                   size="sm"
-                  onClick={
-                    isInternalNoteMode ? onSendInternalNote : onSendAgentMessage
-                  }
-                  disabled={
-                    !canSend || (isInternalNoteMode && isSavingInternalNote)
-                  }
+                  onClick={onSendAgentMessage}
+                  disabled={!canSend}
                   title={
-                    isInternalNoteMode
-                      ? "Save internal note"
-                      : isUploadingAttachments
-                        ? "Waiting for upload…"
-                        : "Send message"
+                    isUploadingAttachments
+                      ? "Waiting for upload…"
+                      : "Send reply to customer"
                   }
                 >
                   <IconSend className="size-4" />
@@ -1007,8 +981,7 @@ export default function Support() {
   const [transitionState, setTransitionState] = useState<
     "idle" | "taking_over" | "returning_to_ai"
   >("idle");
-  const [agentMessage, setAgentMessage] = useState("");
-  const [noteMessage, setNoteMessage] = useState("");
+  const [composerMessage, setComposerMessage] = useState("");
   const [isCustomerTyping, setIsCustomerTyping] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentUpload[]>([]);
   const [attachedProducts, setAttachedProducts] = useState<ProductData[]>([]);
@@ -1565,7 +1538,7 @@ export default function Support() {
   );
 
   const handleSendAgentMessage = useCallback(() => {
-    const message = agentMessage.trim();
+    const message = composerMessage.trim();
     const isUploadingAttachments = attachments.some(
       (attachment) => attachment.status === "uploading",
     );
@@ -1595,8 +1568,12 @@ export default function Support() {
 
     if (
       (!message && imageUrls.length === 0 && attachedProducts.length === 0) ||
-      !wsRef.current
+      !wsRef.current ||
+      wsRef.current.readyState !== WebSocket.OPEN
     ) {
+      toast.error("Chat connection unavailable", {
+        description: "Please wait for the chat connection, then try again.",
+      });
       return;
     }
 
@@ -1621,12 +1598,12 @@ export default function Support() {
       }),
     );
 
-    setAgentMessage("");
+    setComposerMessage("");
     setAttachments([]);
     setAttachedProducts([]);
     setIsEmojiPickerOpen(false);
   }, [
-    agentMessage,
+    composerMessage,
     attachments,
     attachedProducts,
     clientID,
@@ -1636,7 +1613,7 @@ export default function Support() {
   ]);
 
   const handleSendInternalNote = useCallback(async () => {
-    const message = noteMessage.trim();
+    const message = composerMessage.trim();
     if (!message || !activeThreadId) return;
     // Notes are allowed while the AI handles the chat (nobody holds it) or
     // when you hold it; never on a chat another agent holds.
@@ -1648,7 +1625,7 @@ export default function Support() {
       ).unwrap();
 
       handleThreadMessageAdded(note);
-      setNoteMessage("");
+      setComposerMessage("");
     } catch {
       // The thunk displays the API error and keeps the note available to retry.
     }
@@ -1657,7 +1634,7 @@ export default function Support() {
     connectedAgent,
     dispatch,
     handleThreadMessageAdded,
-    noteMessage,
+    composerMessage,
     session?.user?.email,
   ]);
 
@@ -1707,7 +1684,7 @@ export default function Support() {
   );
 
   const handleEmojiSelect = useCallback((emoji: string) => {
-    setAgentMessage((prev) => `${prev}${emoji}`);
+    setComposerMessage((prev) => `${prev}${emoji}`);
     setIsEmojiPickerOpen(false);
   }, []);
 
@@ -2619,6 +2596,7 @@ export default function Support() {
                         <MessagePan
                           messages={threadMessages}
                           handlerEvents={handlerEvents}
+                          customerName={selectedThread?.customer?.name}
                           onReplyWithAI={
                             connectedAgent === session?.user?.email
                               ? handleReplyWithAI
@@ -2684,10 +2662,8 @@ export default function Support() {
                         chatSocketReady={chatSocketReady}
                         onReassign={handleReassign}
                         transitionState={transitionState}
-                        agentMessage={agentMessage}
-                        setAgentMessage={setAgentMessage}
-                        noteMessage={noteMessage}
-                        setNoteMessage={setNoteMessage}
+                        composerMessage={composerMessage}
+                        setComposerMessage={setComposerMessage}
                         isSavingInternalNote={CreateInternalNoteIsLoading}
                         attachments={attachments}
                         isEmojiPickerOpen={isEmojiPickerOpen}
