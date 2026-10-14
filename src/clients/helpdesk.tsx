@@ -29,14 +29,12 @@ import {
   type Icon,
   IconLanguage,
   IconMessageChatbot,
-  IconMoodSmile,
   IconPaperclip,
   IconLock,
   IconNote,
   IconPencil,
   IconBolt,
   IconPlus,
-  IconReload,
   IconSend,
   IconSparkles,
   IconUser,
@@ -125,7 +123,6 @@ import {
   SupportTicketAgentDraftSave,
   SupportTicketTagAssign,
   SupportTicketTagRemove,
-  SupportMessageImprove,
   SupportTicketSnooze,
   SupportTicketMarkRead,
   SupportTicketAIMessageDraftGenerate,
@@ -641,8 +638,6 @@ function ConversationPanel({
   onRemoveTag,
   availableStaff,
   onAssignStaff,
-  onMessageImprove,
-  isMessageImproving,
   onTicketSnooze,
   onTicketStatusUpdate,
   onTicketPriorityUpdate,
@@ -676,8 +671,6 @@ function ConversationPanel({
   onRemoveTag: (tagId: number) => void;
   availableStaff: StaffMember[];
   onAssignStaff: (staffId: number | null) => void;
-  onMessageImprove: (action: string) => void;
-  isMessageImproving: boolean;
   onTicketSnooze: (snoozeTime: number | null) => void;
   onTicketStatusUpdate: (status: SupportTicketStatus) => void;
   onTicketPriorityUpdate: (priority: SupportTicketPriority) => void;
@@ -1390,7 +1383,7 @@ function ConversationPanel({
           value={reply}
           onChange={onReplyChange}
           useMarkdown
-          disabled={isMessageImproving || isClosed || isTranslating}
+          disabled={isClosed || isTranslating}
           placeholder="Write a reply, or use the AI draft…"
           minHeight="6rem"
         />
@@ -1408,12 +1401,7 @@ function ConversationPanel({
                 onClick={() =>
                   aiDraft?.message ? onAcceptDraft() : onAIDraftGenerate()
                 }
-                disabled={
-                  isAIDraftLoading ||
-                  isMessageImproving ||
-                  isClosed ||
-                  isTranslating
-                }
+                disabled={isAIDraftLoading || isClosed || isTranslating}
               >
                 {isAIDraftLoading ? (
                   <Spinner className="size-4" />
@@ -1430,42 +1418,6 @@ function ConversationPanel({
                   : "Generate AI draft"}
             </TooltipContent>
           </Tooltip>
-
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    aria-label="Improve the reply"
-                    disabled={isMessageImproving || isClosed || isTranslating}
-                  >
-                    {isMessageImproving ? (
-                      <Spinner className="size-4" />
-                    ) : (
-                      <IconSparkles className="size-4" />
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isMessageImproving ? "Improving…" : "Improve"}
-              </TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel>Improve the reply</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onMessageImprove("rephrase")}>
-                <IconReload className="size-4" />
-                Rephrase
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onMessageImprove("warmer")}>
-                <IconMoodSmile className="size-4" />
-                Warmer
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
 
           <DropdownMenu>
             <Tooltip>
@@ -1543,9 +1495,7 @@ function ConversationPanel({
                   variant="outline"
                   size="sm"
                   onClick={() => onSend("note")}
-                  disabled={
-                    isSending || isMessageImproving || isClosed || isTranslating
-                  }
+                  disabled={isSending || isClosed || isTranslating}
                   aria-label="Send as Internal Note"
                 >
                   <IconPencil className="size-4" />
@@ -1560,9 +1510,7 @@ function ConversationPanel({
               <Button
                 size="sm"
                 onClick={() => onSend(selectedSendMode)}
-                disabled={
-                  isSending || isMessageImproving || isClosed || isTranslating
-                }
+                disabled={isSending || isClosed || isTranslating}
               >
                 {isSending ? (
                   <Spinner className="size-4" />
@@ -1575,12 +1523,7 @@ function ConversationPanel({
                 <DropdownMenuTrigger asChild>
                   <Button
                     size="sm"
-                    disabled={
-                      isSending ||
-                      isMessageImproving ||
-                      isClosed ||
-                      isTranslating
-                    }
+                    disabled={isSending || isClosed || isTranslating}
                     className="px-2"
                     aria-label="Choose send option"
                   >
@@ -1696,9 +1639,6 @@ export default function HelpDesk() {
     useAppSelector(
       (state) => state.GetSupportTicketsReducer.FetchSupportTicketTagsState,
     );
-  const { SupportMessageImproveIsLoading } = useAppSelector(
-    (state) => state.GetSupportTicketsReducer.SupportMessageImproveState,
-  );
   const { SupportTicketAIMessageDraftGenerateIsLoading } = useAppSelector(
     (state) =>
       state.GetSupportTicketsReducer.SupportTicketAIMessageDraftGenerateState,
@@ -2774,44 +2714,6 @@ export default function HelpDesk() {
     }
   };
 
-  const handleMessageImprove = async (action: string) => {
-    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
-
-    const trimmedReply = reply.trim();
-
-    if (!trimmedReply) {
-      toast.info("Nothing to improve", {
-        description: "Type a message before before imrove a message.",
-      });
-      return;
-    }
-
-    try {
-      const payload = {
-        message: trimmedReply,
-        action: action,
-      };
-
-      const improvedMessage = await dispatch(
-        SupportMessageImprove({
-          storeCode,
-          ticketId: currentActiveSupportTicketIdRef.current,
-          payload,
-        }),
-      ).unwrap();
-
-      if (improvedMessage && improvedMessage?.message) {
-        setReply(improvedMessage?.message);
-      }
-
-      toast.success("Message improved", {
-        description: "Your message has been improved by AI.",
-      });
-    } catch {
-      //
-    }
-  };
-
   const handleTicketSnooze = async (snoozeTime: number | null) => {
     if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
 
@@ -3256,8 +3158,6 @@ export default function HelpDesk() {
             onRemoveTag={handleRemoveTag}
             availableStaff={staff}
             onAssignStaff={handleStaffAssign}
-            onMessageImprove={handleMessageImprove}
-            isMessageImproving={SupportMessageImproveIsLoading}
             onTicketSnooze={handleTicketSnooze}
             onTicketStatusUpdate={handleSupportTicketStatusUpdate}
             onTicketPriorityUpdate={handleSupportTicketPriorityUpdate}
