@@ -7,7 +7,12 @@ import { toast } from "sonner";
 import { isAxiosError } from "axios";
 import { OrderData } from "@/redux/api-slice/thread-slice";
 
-export type SupportTicketStatus = "open" | "pending" | "resolved" | "closed";
+export type SupportTicketStatus =
+  | "open"
+  | "snoozed"
+  | "resolved"
+  | "closed"
+  | "reopen";
 export type SupportTicketPriority = "low" | "normal" | "high" | "urgent";
 export type SupportTicketChannel =
   | "web"
@@ -37,8 +42,11 @@ export type SupportSocketPayload = {
   message?: SupportTicketMessage;
 };
 
+export type SupportTicketOrdering = "newest" | "oldest" | "last_updated";
+
 export type SupportTicketFilters = {
   status?: SupportTicketStatus;
+  ordering?: SupportTicketOrdering;
   search?: string;
   channel?: SupportTicketChannel[];
   tags?: string[];
@@ -165,6 +173,8 @@ export type SupportTicket = {
   last_message?: string | null;
 
   status: SupportTicketStatus;
+  /** How many times the ticket has moved into the reopen status. */
+  reopen_count?: number;
   priority: SupportTicketPriority;
 
   tags: SupportTicketTagData[];
@@ -193,8 +203,9 @@ export type SupportTicket = {
 export type SupportTicketStatusCounts = {
   closed: number;
   open: number;
-  pending: number;
+  reopen: number;
   resolved: number;
+  snoozed: number;
 };
 
 export type SupportTicketsResponse = {
@@ -872,6 +883,11 @@ export const SupportTicketStatusUpdate = createAsyncThunk(
       storeCode: string;
       ticketId: number;
       payload: { status: SupportTicketStatus };
+      /**
+       * The status the ticket is leaving. Not sent to the API; it lets the
+       * queue counts move by one without refetching the whole list.
+       */
+      previousStatus?: SupportTicketStatus;
     },
     thunkAPI,
   ) => {
@@ -1060,9 +1076,10 @@ const SupportTicketsSlice = createSlice({
         results: [],
         status_counts: {
           open: 0,
-          pending: 0,
+          snoozed: 0,
           resolved: 0,
           closed: 0,
+          reopen: 0,
         },
       } as SupportTicketsResponse,
     },
@@ -1246,9 +1263,10 @@ const SupportTicketsSlice = createSlice({
             results: [],
             status_counts: {
               open: 0,
-              pending: 0,
+              snoozed: 0,
               resolved: 0,
               closed: 0,
+              reopen: 0,
             },
           };
         }
@@ -1564,6 +1582,22 @@ const SupportTicketsSlice = createSlice({
         state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateData =
           action.payload;
         state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsSuccess = true;
+
+        // The ticket changed queue, so move it between the queue counts now
+        // rather than waiting for the next list fetch.
+        const { previousStatus, payload } = action.meta.arg;
+        const nextStatus: SupportTicketStatus =
+          action.payload?.status ?? payload.status;
+        const counts =
+          state.FetchSupportTicketsState.FetchSupportTicketsListData
+            .status_counts;
+
+        if (counts && previousStatus && previousStatus !== nextStatus) {
+          if ((counts[previousStatus] ?? 0) > 0) {
+            counts[previousStatus] -= 1;
+          }
+          counts[nextStatus] = (counts[nextStatus] ?? 0) + 1;
+        }
       })
       .addCase(SupportTicketStatusUpdate.rejected, (state, action) => {
         state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsLoading = false;

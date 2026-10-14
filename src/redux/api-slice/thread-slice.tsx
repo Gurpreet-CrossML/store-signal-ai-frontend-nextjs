@@ -305,7 +305,12 @@ export type UserMetadata = {
 };
 
 /** Normalised slugs, never the helpdesk provider's numeric codes. */
-export type TicketStatus = "open" | "pending" | "resolved" | "closed";
+export type TicketStatus =
+  | "open"
+  | "snoozed"
+  | "resolved"
+  | "closed"
+  | "reopen";
 export type TicketPriority = "low" | "normal" | "high" | "urgent";
 
 export type ThreadTicketData = {

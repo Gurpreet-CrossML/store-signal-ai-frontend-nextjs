@@ -36,7 +36,9 @@ import {
   IconPencil,
   IconBolt,
   IconPlus,
+  IconArrowsSort,
   IconReload,
+  IconRepeat,
   IconSend,
   IconSparkles,
   IconUser,
@@ -105,7 +107,6 @@ import { DateRangePicker } from "@/components/custom/date-range-picker";
 import { LoadingState } from "@/components/custom/loading-state";
 import { SearchInput } from "@/components/custom/search-input";
 
-import { TicketActivityPopover } from "@/components/custom/ticket-activity-popover";
 import { ENDPOINTS } from "@/lib/config";
 import {
   DEFAULT_TICKET_LANGUAGE,
@@ -142,6 +143,7 @@ import {
   type SupportTicketMessage,
   type SupportTicketDraftMessage,
   type SupportTicketCustomer,
+  type SupportTicketOrdering,
   type SupportTicketStatus,
   type SupportTicketFilters,
   type SupportTicketStatusCounts,
@@ -187,7 +189,8 @@ const SNOOZE_PRESETS = [
  */
 const STATUS_TONE: Record<SupportTicketStatus, BadgeTone> = {
   open: "info",
-  pending: "warning",
+  reopen: "danger",
+  snoozed: "warning",
   resolved: "success",
   closed: "neutral",
 };
@@ -268,10 +271,31 @@ function TicketRow({
 
 const queues = [
   { key: "open", label: "Open" },
-  { key: "pending", label: "Pending" },
+  { key: "reopen", label: "Reopen" },
+  // Hidden for now: snoozing is not available from the UI yet.
+  // { key: "snoozed", label: "Snoozed" },
   { key: "resolved", label: "Resolved" },
   { key: "closed", label: "Closed" },
 ] as const;
+
+const SORT_OPTIONS: { key: SupportTicketOrdering; label: string }[] = [
+  { key: "last_updated", label: "Last updated" },
+  { key: "newest", label: "Newest" },
+  { key: "oldest", label: "Oldest" },
+];
+
+/**
+ * Where an agent can move a ticket from the status menu. Mirrors the API:
+ * a resolved ticket can only be opened or closed and a closed one only
+ * reopened, and snoozed is set from the snooze control, never from here.
+ */
+const STATUS_TRANSITIONS: Record<SupportTicketStatus, SupportTicketStatus[]> = {
+  open: ["resolved", "closed"],
+  reopen: ["resolved", "closed"],
+  snoozed: ["resolved", "closed"],
+  resolved: ["open", "closed"],
+  closed: ["reopen"],
+};
 
 type TicketFilterSelection = {
   channels: SupportTicketChannel[];
@@ -344,6 +368,8 @@ function TicketListPanel({
   activeQueue,
   queueLabel,
   onQueueChange,
+  sortOrder,
+  onSortChange,
   onSelectTicket,
   isLoading,
   isLoadingMore,
@@ -371,6 +397,8 @@ function TicketListPanel({
   activeQueue: SupportTicketStatus;
   queueLabel: string;
   onQueueChange: (queue: SupportTicketStatus) => void;
+  sortOrder: SupportTicketOrdering;
+  onSortChange: (order: SupportTicketOrdering) => void;
   onSelectTicket: (ticketId: number) => void;
   isLoading: boolean;
   isLoadingMore: boolean;
@@ -444,134 +472,172 @@ function TicketListPanel({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Popover open={isFilterOpen} onOpenChange={onFilterOpenChange}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              className="relative"
-              aria-label="Filter Tickets"
-            >
-              <IconFilter className="size-4" />
-              {activeFilterCount > 0 ? (
-                <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                  {activeFilterCount}
-                </span>
-              ) : null}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-80 p-0">
-            <div className="border-b px-4 py-3">
-              <CardTitle>Filter Tickets</CardTitle>
-            </div>
-            <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4">
-              <fieldset>
-                <legend className="mb-2">
-                  <Typography variant="small" as="span">
-                    Channel
-                  </Typography>
-                </legend>
-                <MultiSelectCombobox
-                  options={channelOptions}
-                  value={filters.channels}
-                  onValueChange={(channels) =>
-                    onFiltersChange({
-                      ...filters,
-                      channels: channels as SupportTicketChannel[],
-                    })
-                  }
-                  placeholder="Search channels…"
-                  emptyMessage="No channels found."
-                />
-              </fieldset>
+        <div className="flex items-center gap-2">
+          <Popover open={isFilterOpen} onOpenChange={onFilterOpenChange}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="relative"
+                aria-label="Filter Tickets"
+              >
+                <IconFilter className="size-4" />
+                {activeFilterCount > 0 ? (
+                  <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 p-0">
+              <div className="border-b px-4 py-3">
+                <CardTitle>Filter Tickets</CardTitle>
+              </div>
+              <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4">
+                <fieldset>
+                  <legend className="mb-2">
+                    <Typography variant="small" as="span">
+                      Channel
+                    </Typography>
+                  </legend>
+                  <MultiSelectCombobox
+                    options={channelOptions}
+                    value={filters.channels}
+                    onValueChange={(channels) =>
+                      onFiltersChange({
+                        ...filters,
+                        channels: channels as SupportTicketChannel[],
+                      })
+                    }
+                    placeholder="Search channels…"
+                    emptyMessage="No channels found."
+                  />
+                </fieldset>
 
-              <fieldset>
-                <legend className="mb-2">
-                  <Typography variant="small" as="span">
-                    Tags
-                  </Typography>
-                </legend>
-                <MultiSelectCombobox
-                  options={availableTags.map((tag) => ({
-                    value: tag.name,
-                    label: tag.name,
-                  }))}
-                  value={filters.tags}
-                  onValueChange={(tags) =>
-                    onFiltersChange({ ...filters, tags })
-                  }
-                  placeholder="Search tags…"
-                  emptyMessage="No tags found."
-                  onSearchChange={onTagSearchChange}
-                  hasMore={hasMoreTags}
-                  isLoading={isTagListLoading}
-                  onLoadMore={onLoadMoreTags}
-                />
-              </fieldset>
+                <fieldset>
+                  <legend className="mb-2">
+                    <Typography variant="small" as="span">
+                      Tags
+                    </Typography>
+                  </legend>
+                  <MultiSelectCombobox
+                    options={availableTags.map((tag) => ({
+                      value: tag.name,
+                      label: tag.name,
+                    }))}
+                    value={filters.tags}
+                    onValueChange={(tags) =>
+                      onFiltersChange({ ...filters, tags })
+                    }
+                    placeholder="Search tags…"
+                    emptyMessage="No tags found."
+                    onSearchChange={onTagSearchChange}
+                    hasMore={hasMoreTags}
+                    isLoading={isTagListLoading}
+                    onLoadMore={onLoadMoreTags}
+                  />
+                </fieldset>
 
-              <fieldset>
-                <legend className="mb-2">
-                  <Typography variant="small" as="span">
-                    Last message date
-                  </Typography>
-                </legend>
-                {/* One range, picked on a calendar. Two datetime-local
+                <fieldset>
+                  <legend className="mb-2">
+                    <Typography variant="small" as="span">
+                      Last message date
+                    </Typography>
+                  </legend>
+                  {/* One range, picked on a calendar. Two datetime-local
                     boxes made the reader assemble the range themselves and
                     let them pick a "to" before the "from"; the calendar
                     can't express either mistake. */}
-                <DateRangePicker
-                  from={filters.fromDate}
-                  to={filters.toDate}
-                  disabled={{ after: new Date() }}
-                  onRangeChange={(fromDate, toDate) =>
-                    onFiltersChange({ ...filters, fromDate, toDate })
-                  }
-                />
-                {dateError ? (
-                  <Typography
-                    variant="caption"
-                    as="p"
-                    className="mt-2 text-destructive"
-                  >
-                    {dateError}
-                  </Typography>
-                ) : null}
-              </fieldset>
+                  <DateRangePicker
+                    from={filters.fromDate}
+                    to={filters.toDate}
+                    disabled={{ after: new Date() }}
+                    onRangeChange={(fromDate, toDate) =>
+                      onFiltersChange({ ...filters, fromDate, toDate })
+                    }
+                  />
+                  {dateError ? (
+                    <Typography
+                      variant="caption"
+                      as="p"
+                      className="mt-2 text-destructive"
+                    >
+                      {dateError}
+                    </Typography>
+                  ) : null}
+                </fieldset>
 
-              <fieldset>
-                <legend className="mb-2">
-                  <Typography variant="small" as="span">
-                    Priority
-                  </Typography>
-                </legend>
-                <MultiSelectCombobox
-                  options={priorityOptions}
-                  value={filters.priorities}
-                  onValueChange={(priorities) =>
-                    onFiltersChange({
-                      ...filters,
-                      priorities: priorities as SupportTicketPriority[],
-                    })
-                  }
-                  placeholder="Search priorities…"
-                  emptyMessage="No priorities found."
-                />
-              </fieldset>
-            </div>
-            <div className="flex justify-between border-t p-3">
-              {activeFilterCount > 0 ? (
-                <Button variant="ghost" size="sm" onClick={onClearFilters}>
-                  Clear
+                <fieldset>
+                  <legend className="mb-2">
+                    <Typography variant="small" as="span">
+                      Priority
+                    </Typography>
+                  </legend>
+                  <MultiSelectCombobox
+                    options={priorityOptions}
+                    value={filters.priorities}
+                    onValueChange={(priorities) =>
+                      onFiltersChange({
+                        ...filters,
+                        priorities: priorities as SupportTicketPriority[],
+                      })
+                    }
+                    placeholder="Search priorities…"
+                    emptyMessage="No priorities found."
+                  />
+                </fieldset>
+              </div>
+              <div className="flex justify-between border-t p-3">
+                {activeFilterCount > 0 ? (
+                  <Button variant="ghost" size="sm" onClick={onClearFilters}>
+                    Clear
+                  </Button>
+                ) : (
+                  <span />
+                )}
+                <Button size="sm" onClick={onApplyFilters}>
+                  Apply Filters
                 </Button>
-              ) : (
-                <span />
-              )}
-              <Button size="sm" onClick={onApplyFilters}>
-                Apply Filters
-              </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label="Sort tickets"
+                  >
+                    <IconArrowsSort className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                Sort: {SORT_OPTIONS.find((o) => o.key === sortOrder)?.label}
+              </TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {SORT_OPTIONS.map((option) => (
+                <DropdownMenuItem
+                  key={option.key}
+                  onClick={() =>
+                    option.key !== sortOrder && onSortChange(option.key)
+                  }
+                  className={cn(
+                    option.key === sortOrder && "font-medium text-primary",
+                  )}
+                >
+                  {option.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </header>
 
       {/* h-20, matching the two-row ticket strip opposite so the second
@@ -892,12 +958,6 @@ function ConversationPanel({
             </ComboboxContent>
           </Combobox> */}
 
-          <TicketActivityPopover
-            key={ticket.id}
-            storeCode={storeCode}
-            ticketId={ticket.id}
-          />
-
           {/* The two endings a ticket actually has, one click away —
               they were buried in the status Select behind the ⋮ menu. */}
           <Tooltip>
@@ -1025,32 +1085,61 @@ function ConversationPanel({
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Change status"
+                disabled={!(STATUS_TRANSITIONS[ticket.status] ?? []).length}
                 className={cn(
                   badgeVariants({ variant: "outline" }),
-                  "cursor-pointer capitalize",
+                  "cursor-pointer capitalize disabled:cursor-default",
                   BADGE_TONE_STYLES[STATUS_TONE[ticket.status]],
                 )}
               >
                 {capitalizeText(ticket.status)}
-                <IconChevronDown />
+                {(STATUS_TRANSITIONS[ticket.status] ?? []).length ? (
+                  <IconChevronDown />
+                ) : null}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuLabel>Status</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {queues.map((queue) => (
-                  <DropdownMenuItem
-                    key={queue.key}
-                    onClick={() =>
-                      queue.key !== ticket.status &&
-                      onTicketStatusUpdate(queue.key)
-                    }
-                    className={cn(queue.key === ticket.status && "font-medium")}
-                  >
-                    {queue.label}
-                  </DropdownMenuItem>
-                ))}
+                {queues
+                  .filter(
+                    (queue) =>
+                      queue.key === ticket.status ||
+                      (STATUS_TRANSITIONS[ticket.status] ?? []).includes(
+                        queue.key,
+                      ),
+                  )
+                  .map((queue) => (
+                    <DropdownMenuItem
+                      key={queue.key}
+                      onClick={() =>
+                        queue.key !== ticket.status &&
+                        onTicketStatusUpdate(queue.key)
+                      }
+                      className={cn(
+                        queue.key === ticket.status && "font-medium",
+                      )}
+                    >
+                      {queue.label}
+                    </DropdownMenuItem>
+                  ))}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* How many times the ticket has been reopened — only worth the
+                width once it has happened. */}
+            {(ticket.reopen_count ?? 0) > 0 ? (
+              <Badge
+                variant="outline"
+                aria-label="Times reopened"
+                title="Times this ticket has been reopened"
+                className={BADGE_TONE_STYLES.warning}
+              >
+                <IconRepeat />
+                {ticket.reopen_count === 1
+                  ? "Reopened once"
+                  : `Reopened ${ticket.reopen_count} times`}
+              </Badge>
+            ) : null}
 
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -1085,41 +1174,12 @@ function ConversationPanel({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label="Change language"
-                disabled={isClosed}
-                className={cn(
-                  badgeVariants({ variant: "outline" }),
-                  "cursor-pointer disabled:cursor-default disabled:opacity-60",
-                )}
-              >
-                <IconLanguage />
-                {languageName}
-                {!isClosed ? <IconChevronDown /> : null}
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                className="max-h-72 overflow-y-auto"
-              >
-                <DropdownMenuLabel>Language</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {SUPPORTED_LANGUAGES.map((option) => (
-                  <DropdownMenuItem
-                    key={option.code}
-                    onClick={() =>
-                      option.code !== ticketLanguage &&
-                      onTicketLanguageSentimentUpdate({ language: option.code })
-                    }
-                    className={cn(
-                      option.code === ticketLanguage && "font-medium",
-                    )}
-                  >
-                    {option.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* The language is detected from the conversation, so it is
+                only shown here, not set. */}
+            <Badge variant="outline" aria-label="Ticket language">
+              <IconLanguage />
+              {languageName}
+            </Badge>
 
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -1732,6 +1792,8 @@ export default function HelpDesk() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
   const [activeQueue, setActiveQueue] = useState<SupportTicketStatus>("open");
+  const [sortOrder, setSortOrder] =
+    useState<SupportTicketOrdering>("last_updated");
   const [supportTikcetMessages, setSupportTicketMessages] = useState<
     SupportTicketMessage[]
   >([]);
@@ -1865,6 +1927,12 @@ export default function HelpDesk() {
               existingTicket.last_message_at ??
               incomingTicket.created_at,
           };
+
+          // A status that changed on its own (a customer reply reopening a
+          // closed ticket) takes the ticket out of the queue being viewed.
+          if (updatedTicket.status !== activeQueue) {
+            return currentRows.filter((row) => row.id !== incomingTicket.id);
+          }
 
           return currentRows.map((row) =>
             row.id === incomingTicket.id ? updatedTicket : row,
@@ -2070,6 +2138,12 @@ export default function HelpDesk() {
                 (row) => row.id !== incomingTicket.id,
               );
 
+              // The reply may have reopened the ticket, moving it to
+              // another queue.
+              if (updatedTicket.status !== activeQueue) {
+                return rowsWithoutTicket;
+              }
+
               if (incomingTicket.is_snoozed) {
                 return currentRows.map((row) =>
                   row.id === incomingTicket.id ? updatedTicket : row,
@@ -2164,6 +2238,7 @@ export default function HelpDesk() {
 
     const filters: SupportTicketFilters = {
       status: activeQueue,
+      ordering: sortOrder,
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
       ...(appliedFilters.channels.length
         ? { channel: appliedFilters.channels }
@@ -2252,6 +2327,7 @@ export default function HelpDesk() {
     activeFilter,
     debouncedSearch,
     appliedFilters,
+    sortOrder,
   ]);
 
   useEffect(() => {
@@ -2430,6 +2506,12 @@ export default function HelpDesk() {
     toast.info(`${queue[0].toUpperCase()}${queue.slice(1)} tickets loaded`, {
       description: "Fetching support tickets for the selected queue.",
     });
+  };
+
+  const handleSortChange = (order: SupportTicketOrdering) => {
+    setSortOrder(order);
+    setPage(1);
+    setTicketRows([]);
   };
 
   const handleAiDraftGenerate = async () => {
@@ -2944,11 +3026,17 @@ export default function HelpDesk() {
 
       const ticketId = currentActiveSupportTicketIdRef.current;
 
+      // Read before the update: the queue counts move from this status.
+      const previousStatus =
+        ticketRows.find((ticket) => ticket.id === ticketId)?.status ??
+        activeSupportTicket?.status;
+
       const updatedStatus = await dispatch(
         SupportTicketStatusUpdate({
           storeCode,
           ticketId,
           payload,
+          previousStatus,
         }),
       ).unwrap();
 
@@ -3181,6 +3269,8 @@ export default function HelpDesk() {
           activeQueue={activeQueue}
           queueLabel={activeQueueLabel}
           onQueueChange={handleQueueChange}
+          sortOrder={sortOrder}
+          onSortChange={handleSortChange}
           onSelectTicket={handleSelectTicket}
           isLoading={FetchSupportTicketsLoading}
           isLoadingMore={isLoadingMore}
