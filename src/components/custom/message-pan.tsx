@@ -23,6 +23,7 @@ import { IconLock, IconShoppingBag, IconSparkles } from "@tabler/icons-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
+import { getInitials } from "@/components/custom/customer-avatar";
 import { Spinner } from "../ui/spinner";
 
 /** "You" when `email` is the signed-in user, otherwise their name. */
@@ -103,11 +104,13 @@ function HandlerEventRow({
 export default function MessagePan({
   messages,
   handlerEvents,
+  customerName,
   onReplyWithAI,
   replyWithAILoadingId,
 }: {
   messages: ThreadMessage[];
   handlerEvents?: HandlerEvent[];
+  customerName?: string | null;
   onReplyWithAI?: (message_id: number | string) => void;
   replyWithAILoadingId?: string | number | null;
 }) {
@@ -199,6 +202,11 @@ export default function MessagePan({
             isLastMessage && message.role === "user" && !!onReplyWithAI;
           const isCustomer = message.role === "user";
           const isOutgoing = isCustomer;
+          const avatarLabel = isCustomer
+            ? getInitials(customerName || message.messaged_by) || "C"
+            : isAgentMessage
+              ? getInitials(message.agent_name || message.messaged_by) || "A"
+              : "AI";
 
           if (isSystemEvent) {
             return [
@@ -228,11 +236,9 @@ export default function MessagePan({
                           <div className="flex items-baseline justify-between gap-3">
                             <span className="font-medium">
                               Internal note ·{" "}
-                              {(
-                                message.agent_name ||
+                              {message.agent_name ||
                                 message.messaged_by ||
-                                "Agent"
-                              ).replace(/\s*\([^)]*@[^)]*\)\s*$/, "")}
+                                "Agent"}
                             </span>
                             <span className="shrink-0 opacity-60">
                               {formatDateTime(message.created_at)}
@@ -269,13 +275,17 @@ export default function MessagePan({
                     isCustomer ? "flex-row-reverse" : "flex-row"
                   }`}
                 >
-                  {isCustomer && (
-                    <Avatar className="h-7 w-7 shrink-0 mt-1">
-                      <AvatarFallback className="bg-muted text-muted-foreground text-xs">
-                        C
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
+                  <Avatar className="h-7 w-7 shrink-0 mt-1">
+                    <AvatarFallback
+                      className={
+                        isCustomer
+                          ? "bg-muted text-muted-foreground text-xs"
+                          : "bg-primary/10 text-primary text-xs"
+                      }
+                    >
+                      {avatarLabel}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="flex flex-col">
                     <div
                       className={`flex items-center gap-2 mb-1 ${isCustomer ? "justify-end" : "justify-start"}`}
@@ -535,13 +545,6 @@ export default function MessagePan({
                       </div>
                     )}
                   </div>
-                  {!isCustomer && (
-                    <Avatar className="h-7 w-7 shrink-0 mt-1">
-                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                        {isAgentMessage ? "U" : "AI"}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
                 </div>
               </div>
             </MessageAppear>,

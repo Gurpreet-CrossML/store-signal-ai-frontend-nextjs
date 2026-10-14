@@ -58,6 +58,29 @@ export type ListThreadsFilters = {
   before_thread_id?: string; // only threads started before this one
 };
 
+/**
+ * Channel condition on chat_thread, mirroring the UI's derivation: WhatsApp,
+ * or Web for everything else. Unknown values are ignored; `undefined` when no
+ * channel is selected, so callers add no filter.
+ */
+export function threadChannelScope(
+  channels: string | string[] = [],
+): SQL | undefined {
+  return or(
+    ...[channels].flat().flatMap((channel) => {
+      if (channel === "whatsapp") {
+        return [eq(chatThread.source, "whatsapp")];
+      }
+      if (channel === "web") {
+        return [
+          sql`(${chatThread.source} IS NULL OR ${chatThread.source} <> 'whatsapp')`,
+        ];
+      }
+      return [];
+    }),
+  );
+}
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -139,6 +162,26 @@ export type ThreadListItem = {
   tags: string[];
   last_message: string;
 };
+
+/** Count active chats and active chats waiting for human support. */
+export async function get_thread_counts(storeCode?: string) {
+  const conditions = [eq(chatThread.isActive, true)];
+  const storeScope = storeIdScope(chatThread.storeId, storeCode);
+  if (storeScope) conditions.push(storeScope);
+
+  const [counts] = await getDb()
+    .select({
+      active: count(),
+      needsHuman:
+        sql<number>`count(*) filter (where ${chatThread.needEscalation} = true)`.mapWith(
+          Number,
+        ),
+    })
+    .from(chatThread)
+    .where(and(...conditions));
+
+  return counts;
+}
 
 /**
  * Port of ThreadListAPIView.get_queryset + ThreadListSerializer
@@ -253,22 +296,8 @@ export async function list_threads(
     conditions.push(eq(chatThread.chatHandler, filters.handled_by));
   }
 
-  // Channel mirrors the UI's derivation: WhatsApp, or Web for everything else.
-  if (filters.channel?.length) {
-    const channelConditions = filters.channel.flatMap((channel) => {
-      if (channel === "whatsapp") {
-        return [eq(chatThread.source, "whatsapp")];
-      }
-      if (channel === "web") {
-        return [
-          sql`(${chatThread.source} IS NULL OR ${chatThread.source} <> 'whatsapp')`,
-        ];
-      }
-      return [];
-    });
-    const combinedChannels = or(...channelConditions);
-    if (combinedChannels) conditions.push(combinedChannels);
-  }
+  const channelCondition = threadChannelScope(filters.channel);
+  if (channelCondition) conditions.push(channelCondition);
 
   if (filters.assignee?.length) {
     conditions.push(inArray(authUser.email, filters.assignee));

@@ -290,6 +290,7 @@ export type TicketPriority = "low" | "normal" | "high" | "urgent";
 
 export type ThreadTicketData = {
   id: number;
+  ticket_id: string;
   subject: string;
   description: string;
   status: TicketStatus;
@@ -369,6 +370,26 @@ export type OrderData = {
    */
   admin_url?: string | null;
 };
+
+export type ThreadCounts = {
+  active: number;
+  needsHuman: number;
+};
+
+export const FetchThreadCounts = createAsyncThunk<
+  ThreadCounts,
+  { store_code: string }
+>("ThreadCounts", async ({ store_code }, thunkAPI) => {
+  try {
+    const response = await axiosInstance.get(
+      `${ENDPOINTS.fetchThreadCounts()}?store_code=${encodeURIComponent(store_code)}`,
+    );
+    return response.data.data;
+  } catch (error) {
+    const data = isAxiosError(error) ? error.response?.data : undefined;
+    return thunkAPI.rejectWithValue(data || "Unable to fetch thread counts.");
+  }
+});
 
 export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
   "Threads",
@@ -778,6 +799,12 @@ export const FetchOrders = createAsyncThunk(
 const ThreadSlice = createSlice({
   name: "Thread",
   initialState: {
+    FetchThreadCountsState: {
+      FetchThreadCountsIsLoading: false,
+      FetchThreadCountsIsSuccess: false,
+      FetchThreadCountsIsError: null as null | string | object | unknown,
+      FetchThreadCountsData: { active: 0, needsHuman: 0 } as ThreadCounts,
+    },
     FetchThreadsState: {
       FetchThreadsIsLoading: false,
       FetchThreadsIsSuccess: false,
@@ -863,6 +890,25 @@ const ThreadSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
+      .addCase(FetchThreadCounts.pending, (state) => {
+        state.FetchThreadCountsState.FetchThreadCountsIsLoading = true;
+        state.FetchThreadCountsState.FetchThreadCountsIsError = null;
+        state.FetchThreadCountsState.FetchThreadCountsIsSuccess = false;
+        state.FetchThreadCountsState.FetchThreadCountsData = {
+          active: 0,
+          needsHuman: 0,
+        };
+      })
+      .addCase(FetchThreadCounts.fulfilled, (state, action) => {
+        state.FetchThreadCountsState.FetchThreadCountsIsLoading = false;
+        state.FetchThreadCountsState.FetchThreadCountsData = action.payload;
+        state.FetchThreadCountsState.FetchThreadCountsIsSuccess = true;
+      })
+      .addCase(FetchThreadCounts.rejected, (state, action) => {
+        state.FetchThreadCountsState.FetchThreadCountsIsLoading = false;
+        state.FetchThreadCountsState.FetchThreadCountsIsError = action.payload;
+        state.FetchThreadCountsState.FetchThreadCountsIsSuccess = false;
+      })
       .addCase(FetchThreads.pending, (state, action) => {
         if (action.meta.arg?.skipListStateUpdate) return;
         state.FetchThreadsState.FetchThreadsIsLoading = true;
