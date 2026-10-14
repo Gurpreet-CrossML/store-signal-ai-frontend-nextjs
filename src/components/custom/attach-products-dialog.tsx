@@ -19,11 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 import { formatPrice } from "@/lib/helpers";
-import { type ProductData } from "@/redux/api-slice/thread-slice";
 import {
-  FetchProductOptions,
-  type ProductOption,
-} from "@/redux/api-slice/knowledge-rag-slice";
+  FetchProducts,
+  type ProductData,
+  type ProductListItem,
+} from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 interface AttachProductsDialogProps {
@@ -48,13 +48,13 @@ export function AttachProductsDialog({
   const dispatch = useAppDispatch();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [currentSelected, setCurrentSelected] =
     useState<ProductData[]>(selectedProducts);
 
-  const { FetchProductOptionsListData, FetchProductOptionsIsLoading } =
-    useAppSelector(
-      (state) => state.GetKnowledgeRagReducer.FetchProductOptionsState,
-    );
+  const { FetchProductsData, FetchProductsIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchProductsState,
+  );
 
   // Reopening starts with latest selectedProducts. Adjusted during render
   // against a sentinel to avoid cascading renders from useEffect.
@@ -65,6 +65,7 @@ export function AttachProductsDialog({
       setCurrentSelected(selectedProducts);
       setSearch("");
       setDebouncedSearch("");
+      setPage(1);
     }
   }
 
@@ -72,6 +73,7 @@ export function AttachProductsDialog({
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search.trim());
+      setPage(1);
     }, 250);
     return () => clearTimeout(timer);
   }, [search]);
@@ -79,14 +81,14 @@ export function AttachProductsDialog({
   // Dispatch search through Redux
   useEffect(() => {
     if (!open || !storeCode) return;
-    dispatch(FetchProductOptions({ storeCode, search: debouncedSearch }));
-  }, [dispatch, open, storeCode, debouncedSearch]);
+    dispatch(FetchProducts({ storeCode, search: debouncedSearch, page }));
+  }, [dispatch, open, storeCode, debouncedSearch, page]);
 
-  const products = FetchProductOptionsListData ?? [];
-  const isLoading = FetchProductOptionsIsLoading;
+  const products = FetchProductsData?.results ?? [];
+  const isLoading = FetchProductsIsLoading;
 
-  const toggleProduct = (product: ProductOption) => {
-    const id = String(product.id);
+  const toggleProduct = (product: ProductListItem) => {
+    const id = product.id;
     setCurrentSelected((prev) => {
       const isAlreadySelected = prev.some((p) => p.id === id);
       if (isAlreadySelected) {
@@ -99,14 +101,8 @@ export function AttachProductsDialog({
         return prev;
       }
       const rawPrice = product.sale_price ?? product.price;
-      const formattedPrice =
-        rawPrice != null && rawPrice !== ""
-          ? formatPrice(rawPrice, currency)
-          : "";
-      const imgUrl =
-        product.image ||
-        (Array.isArray(product.images) && product.images[0]?.url) ||
-        "";
+      const formattedPrice = rawPrice ? formatPrice(rawPrice, currency) : "";
+      const imgUrl = product.images?.[0]?.url ?? "";
 
       const mapped: ProductData = {
         id,
@@ -184,17 +180,13 @@ export function AttachProductsDialog({
             </div>
           ) : (
             products.map((product) => {
-              const productId = String(product.id);
+              const productId = product.id;
               const checked = currentSelected.some((p) => p.id === productId);
-              const imgUrl =
-                product.image ||
-                (Array.isArray(product.images) && product.images[0]?.url) ||
-                "";
+              const imgUrl = product.images?.[0]?.url ?? "";
               const rawPrice = product.sale_price ?? product.price;
-              const displayPrice =
-                rawPrice != null && rawPrice !== ""
-                  ? formatPrice(rawPrice, currency)
-                  : "";
+              const displayPrice = rawPrice
+                ? formatPrice(rawPrice, currency)
+                : "";
 
               return (
                 <div
@@ -241,6 +233,34 @@ export function AttachProductsDialog({
             })
           )}
         </div>
+
+        {FetchProductsData?.next || FetchProductsData?.previous ? (
+          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              {FetchProductsData.count} products · Page {page}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isLoading || !FetchProductsData.previous}
+                onClick={() => setPage((prev) => prev - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isLoading || !FetchProductsData.next}
+                onClick={() => setPage((prev) => prev + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        ) : null}
 
         <DialogFooter className="mt-3 flex items-center justify-end gap-2">
           <Button
