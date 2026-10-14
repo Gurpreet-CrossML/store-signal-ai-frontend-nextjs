@@ -55,6 +55,7 @@ export type ListThreadsFilters = {
   channel?: string[]; // whatsapp | web (native/webhook)
   assignee?: string[]; // auth.User email values
   need_escalation?: string;
+  before_thread_id?: string; // only threads started before this one
 };
 
 /**
@@ -126,6 +127,8 @@ type ThreadListRow = {
   customer_first_name: string | null;
   customer_last_name: string | null;
   customer_email: string | null;
+  customer_phone: string | null;
+  customer_past_threads_count: number;
   chat_handler: string;
   chat_handler_user_id: number | null;
   chat_handler_user_first_name: string | null;
@@ -141,7 +144,13 @@ export type ThreadListItem = {
   chat_handler_user: { id: number; name: string; email: string } | null;
   need_escalation: boolean;
   escalation_time: string | null;
-  customer: { id: number | null; name: string | null; email: string | null };
+  customer: {
+    id: number | null;
+    name: string | null;
+    email: string | null;
+    phone: string;
+    past_threads_count: number;
+  };
   followup_level: number;
   is_active: boolean;
   ai_responding: boolean;
@@ -173,6 +182,9 @@ export async function get_thread_counts(storeCode?: string) {
 
   return counts;
 }
+
+/** Threads the customer started in this store before this one. */
+const pastThreadsCount = sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id} AND ct.store_id = ${chatThread.storeId} AND ct.created_at < ${chatThread.createdAt}) ELSE 0 END`;
 
 /**
  * Port of ThreadListAPIView.get_queryset + ThreadListSerializer
@@ -277,6 +289,12 @@ export async function list_threads(
     conditions.push(isNotNull(chatThread.customerId));
   }
 
+  if (filters.before_thread_id && isValidUuid(filters.before_thread_id)) {
+    conditions.push(
+      sql`${chatThread.createdAt} < (SELECT created_at FROM ${chatThread} WHERE id = ${filters.before_thread_id})`,
+    );
+  }
+
   if (filters.handled_by === "ai" || filters.handled_by === "human") {
     conditions.push(eq(chatThread.chatHandler, filters.handled_by));
   }
@@ -372,6 +390,8 @@ export async function list_threads(
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
+      customer_phone: chatCustomer.phone,
+      customer_past_threads_count: pastThreadsCount,
       chat_handler: chatThread.chatHandler,
       chat_handler_user_id: authUser.id,
       chat_handler_user_first_name: authUser.firstName,
@@ -390,6 +410,7 @@ export async function list_threads(
       chatCustomer.firstName,
       chatCustomer.lastName,
       chatCustomer.email,
+      chatCustomer.phone,
       authUser.id,
       authUser.firstName,
       authUser.lastName,
@@ -478,6 +499,8 @@ export async function list_threads(
         id: row.customer_id ?? null,
         name: hasCustomer ? customerName : null,
         email: row.customer_email,
+        phone: row.customer_phone || "",
+        past_threads_count: Number(row.customer_past_threads_count ?? 0),
       },
       followup_level: row.followup_level,
       is_active: row.is_active,
@@ -559,8 +582,12 @@ export type ThreadDetail =
       last_message_at: string | null;
       customer_name: string | null;
       customer_email: string | null;
-      /** Identity only — enough to link the thread to its Catalog record. */
-      customer: { id: number } | null;
+      /** Identity, plus the phone and past-thread count the side panel shows. */
+      customer: {
+        id: number;
+        phone: string;
+        past_threads_count: number;
+      } | null;
       verdict: {
         verdict: string;
         reason: string | null;
@@ -613,6 +640,8 @@ export async function get_thread_details(
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
+      customer_phone: chatCustomer.phone,
+      customer_past_threads_count: pastThreadsCount,
     })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
@@ -771,7 +800,14 @@ export async function get_thread_details(
     customer_email: t.customer_email,
     // The id was always selected by the join but never returned, so the
     // client's `customer?.id` reads were silently undefined.
-    customer: t.customer_id != null ? { id: Number(t.customer_id) } : null,
+    customer:
+      t.customer_id != null
+        ? {
+            id: Number(t.customer_id),
+            phone: t.customer_phone || "",
+            past_threads_count: Number(t.customer_past_threads_count ?? 0),
+          }
+        : null,
     verdict,
     created_at: t.created_at,
     ended_at: t.ended_at,
@@ -945,6 +981,7 @@ export type UserMetadataData = {
   device_type: string | null;
   browser: string | null;
   os: string | null;
+  viewed_products: string[];
 };
 
 /**
@@ -968,6 +1005,7 @@ export async function get_user_metadata(
       device_type: userMetadata.deviceType,
       browser: userMetadata.browser,
       os: userMetadata.os,
+      viewed_products: userMetadata.viewedProducts,
     })
     .from(userMetadata)
     .where(scopedThreadFilter(userMetadata.threadId, thread_id))
@@ -975,7 +1013,11 @@ export async function get_user_metadata(
     .limit(1);
 
   if (rows.length === 0) return null;
-  return { ...rows[0], id: Number(rows[0].id) };
+  return {
+    ...rows[0],
+    id: Number(rows[0].id),
+    viewed_products: rows[0].viewed_products as string[],
+  };
 }
 
 export async function get_order_data(thread_id: string): Promise<OrderData[]> {
@@ -1002,6 +1044,7 @@ export async function get_order_data(thread_id: string): Promise<OrderData[]> {
       fulfillment_status: chatCustomerorder.fulfillmentStatus,
       gateway: chatCustomerorder.gateway,
       shipping_address: chatCustomerorder.shippingAddress,
+      customer_phone: chatCustomerorder.customerPhone,
       currency: chatCustomerorder.currency,
       items: chatCustomerorder.items,
       subtotal_price: chatCustomerorder.subtotalPrice,

@@ -18,6 +18,7 @@ type ThreadFilters = {
   handled_by?: string;
   channel?: string | string[];
   assignee?: string[];
+  before_thread_id?: string;
 };
 
 /**
@@ -58,6 +59,8 @@ export type Customer = {
   id: number | null;
   name: string;
   email: string;
+  phone?: string | null;
+  past_threads_count?: number;
 };
 
 export type ThreadHandlerUser = {
@@ -232,8 +235,8 @@ export type ThreadDetails = {
   store: number;
   customer_name: string | null;
   customer_email: string | null;
-  /** Identity only — enough to link the thread to its Catalog record. */
-  customer: { id: number } | null;
+  /** Identity, plus the phone and past-thread count the side panel shows. */
+  customer: { id: number; phone: string; past_threads_count: number } | null;
   is_active: boolean;
   total_messages: number;
   created_at: string;
@@ -297,6 +300,8 @@ export type UserMetadata = {
   device_type: string;
   browser: string;
   os: string;
+  /** Platform ids of the product pages the shopper opened. */
+  viewed_products: string[];
 };
 
 /** Normalised slugs, never the helpdesk provider's numeric codes. */
@@ -372,6 +377,8 @@ export type OrderData = {
   gateway: string;
   shipping_method: string | null;
   shipping_address: OrderShippingAddress;
+  /** Phone on the order itself, when its shipping address has none. */
+  customer_phone?: string | null;
   items: OrderItemData[];
   /**
    * Deep link to this order in the store's own admin, for the actions we

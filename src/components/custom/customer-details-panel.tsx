@@ -5,11 +5,13 @@ import {
   OrdersCard,
   SupportTicketsCard,
 } from "@/components/custom/thread-detail-panels";
+import { CustomerProfileCard } from "@/components/custom/customer-profile-card";
 import type {
   CartDataResponse,
   Customer,
   OrderData,
   ThreadTicketData,
+  UserMetadata,
 } from "@/redux/api-slice/thread-slice";
 
 /**
@@ -28,6 +30,7 @@ import type {
  */
 export function CustomerDetailsPanel({
   customerData,
+  userMetadata,
   orders,
   ordersLoading,
   onOrdersSync,
@@ -35,8 +38,10 @@ export function CustomerDetailsPanel({
   ordersDisabled,
   tickets,
   cart,
+  currentThreadId,
 }: {
   customerData?: Customer | null;
+  userMetadata?: UserMetadata | null;
   orders?: OrderData[] | null;
   ordersLoading?: boolean;
   onOrdersSync: () => void;
@@ -46,10 +51,17 @@ export function CustomerDetailsPanel({
   tickets?: { data: ThreadTicketData[]; loading?: boolean };
   /** Omit entirely on screens with no live cart. */
   cart?: { data: CartDataResponse | null; loading?: boolean };
+  currentThreadId?: string | null;
 }) {
   return (
     <aside className="hidden min-h-0 w-80 shrink-0 flex-col border-l xl:flex 2xl:w-95">
       <div className="min-h-0 flex-1 overflow-y-auto">
+        <CustomerProfileCard
+          customer={customerData}
+          orders={orders}
+          userMetadata={userMetadata}
+          loading={Boolean(ordersLoading && !customerData?.id)}
+        />
         <OrdersCard
           orders={orders}
           loading={ordersLoading}
@@ -65,7 +77,14 @@ export function CustomerDetailsPanel({
           />
         ) : null}
         {cart ? (
-          <CartDetailsCard cartData={cart.data} loading={cart.loading} />
+          <CartDetailsCard
+            cartData={cart.data}
+            loading={cart.loading}
+            currentThreadId={currentThreadId}
+            pastThreadsCount={customerData?.past_threads_count ?? 0}
+            customerEmail={customerData?.email}
+            viewedProductsCount={userMetadata?.viewed_products.length ?? 0}
+          />
         ) : null}
       </div>
     </aside>

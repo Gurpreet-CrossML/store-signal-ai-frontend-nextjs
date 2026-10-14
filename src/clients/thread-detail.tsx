@@ -712,13 +712,17 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         </div>
 
         <CustomerDetailsPanel
+          currentThreadId={threadId}
           // The detail response carries the customer's id and their name
           // and email as separate fields; the panel wants them together.
           customerData={{
             id: details?.customer?.id ?? null,
             name: customerName,
             email: details?.customer_email ?? "",
+            phone: details?.customer?.phone ?? "",
+            past_threads_count: details?.customer?.past_threads_count ?? 0,
           }}
+          userMetadata={FetchUserMetadataData}
           orders={FetchOrderData}
           ordersLoading={detailsLoading || FetchOrderDataIsLoading}
           onOrdersSync={() => dispatch(FetchOrders(threadId))}
