@@ -26,7 +26,7 @@ import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
 import {
   CrmLinkButton,
-  SessionFacts,
+  CustomerContact,
 } from "@/components/custom/customer-header";
 import { TagsCell } from "@/components/custom/threads-columns";
 import { InfoIcon } from "@/components/custom/info-icon";
@@ -530,13 +530,17 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 }
               />
             </div>
-            {/* Nothing rather than "no email on file" for a guest — the
-                avatar and the link action already say which this is. */}
-            {details?.customer_email ? (
-              <Typography variant="muted" className="truncate">
-                {details.customer_email}
-              </Typography>
-            ) : null}
+            <CustomerContact
+              email={details?.customer_email}
+              phone={details?.customer?.phone}
+              // Orders keep the last thread's rows until the new ones land;
+              // reading them sooner would show the previous customer's phone.
+              orders={
+                detailsLoading || FetchOrderDataIsLoading
+                  ? null
+                  : FetchOrderData
+              }
+            />
           </div>
         </div>
 
@@ -582,14 +586,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             </>
           )}
         </div>
-
-        <SessionFacts
-          userMetadata={
-            FetchUserMetadataIsLoading || detailsLoading
-              ? null
-              : FetchUserMetadataData
-          }
-        />
       </header>
 
       <div className="flex min-h-0 flex-1">
@@ -723,6 +719,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             past_threads_count: details?.customer?.past_threads_count ?? 0,
           }}
           userMetadata={FetchUserMetadataData}
+          userMetadataLoading={detailsLoading || FetchUserMetadataIsLoading}
           orders={FetchOrderData}
           ordersLoading={detailsLoading || FetchOrderDataIsLoading}
           onOrdersSync={() => dispatch(FetchOrders(threadId))}

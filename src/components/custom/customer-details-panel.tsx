@@ -3,7 +3,7 @@
 import {
   CartDetailsCard,
   OrdersCard,
-  PastChatsCard,
+  SessionDataCard,
   SupportTicketsCard,
   ViewedProductsCard,
 } from "@/components/custom/thread-detail-panels";
@@ -40,6 +40,7 @@ export function CustomerDetailsPanel({
   tickets,
   cart,
   currentThreadId,
+  userMetadataLoading,
 }: {
   customerData?: Customer | null;
   userMetadata?: UserMetadata | null;
@@ -53,6 +54,8 @@ export function CustomerDetailsPanel({
   /** Omit entirely on screens with no live cart. */
   cart?: { data: CartDataResponse | null; loading?: boolean };
   currentThreadId?: string | null;
+  /** True while `userMetadata` may still be the previous thread's. */
+  userMetadataLoading?: boolean;
 }) {
   return (
     <aside className="hidden min-h-0 w-80 shrink-0 flex-col border-l xl:flex 2xl:w-95">
@@ -64,7 +67,6 @@ export function CustomerDetailsPanel({
           orderSyncLoading={orderSyncLoading}
           customerData={customerData}
           isDisabled={ordersDisabled}
-          userMetadata={userMetadata}
         />
         {tickets ? (
           <SupportTicketsCard
@@ -77,10 +79,13 @@ export function CustomerDetailsPanel({
             <CartDetailsCard cartData={cart.data} loading={cart.loading} />
             <ViewedProductsCard
               viewedProducts={userMetadata?.viewed_products}
+              loading={userMetadataLoading}
             />
-            <PastChatsCard
+            <SessionDataCard
+              userMetadata={userMetadata}
               customer={customerData}
               currentThreadId={currentThreadId}
+              loading={userMetadataLoading}
             />
           </>
         ) : null}
