@@ -27,20 +27,45 @@ import {
 } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
-/** The shape a picked product is sent in, as the chat renders it. */
-function toProductData(
-  product: ProductListItem,
-  currency?: string,
-): ProductData {
-  const rawPrice = product.sale_price ?? product.price;
+/**
+ * A list row in the shape the chat's product card reads — the same one the
+ * AI sends — so the widget shows its variants and can add the picked one to
+ * cart. Ids are the platform's: the cart is keyed on them, not our UUIDs.
+ */
+function toProductData(product: ProductListItem): ProductData {
+  const displayPrice = (row: {
+    price: string | null;
+    sale_price: string | null;
+  }) => {
+    const raw = row.sale_price ?? row.price;
+    return raw ? formatPrice(raw, product.currency) : "";
+  };
+
   return {
-    id: product.id,
+    id: String(product.external_id),
     name: product.name,
     image: product.images?.[0]?.url ?? "",
-    price: rawPrice ? formatPrice(rawPrice, currency) : "",
+    description: product.description ?? "",
+    price: displayPrice(product),
+    discount_percentage: product.discount_percentage ?? null,
     product_url: product.url || "",
-    description: "",
-    available_for_sale: true,
+    available_for_sale:
+      product.variants?.some((variant) => (variant.stock_quantity ?? 0) > 0) ??
+      false,
+    variants: product.variants?.map((variant) => ({
+      variant_id: variant.external_id,
+      variant_name: variant.name,
+      variant_price: displayPrice(variant),
+      compare_at_price: variant.price
+        ? formatPrice(variant.price, product.currency)
+        : null,
+      available_for_sale: (variant.stock_quantity ?? 0) > 0,
+      discount_percentage: variant.discount_percentage ?? null,
+      options: Object.entries(variant.options ?? {}).map(([name, value]) => ({
+        name,
+        value,
+      })),
+    })),
   };
 }
 
@@ -51,7 +76,6 @@ interface AttachProductsDialogProps {
   selectedProducts: ProductData[];
   onApplyProducts: (products: ProductData[]) => void;
   maxProducts?: number;
-  currency?: string;
 }
 
 export function AttachProductsDialog({
@@ -61,7 +85,6 @@ export function AttachProductsDialog({
   selectedProducts,
   onApplyProducts,
   maxProducts = 10,
-  currency,
 }: AttachProductsDialogProps) {
   const dispatch = useAppDispatch();
   const [search, setSearch] = useState("");
@@ -100,10 +123,10 @@ export function AttachProductsDialog({
     dispatch(FetchProducts({ storeCode, search: debouncedSearch, page }));
   }, [dispatch, open, storeCode, debouncedSearch, page]);
 
-  const products = FetchProductsData?.results ?? [];
+  const products = (FetchProductsData?.results ?? []).map(toProductData);
   const isLoading = FetchProductsIsLoading;
 
-  const toggleProduct = (product: ProductListItem) => {
+  const toggleProduct = (product: ProductData) => {
     const id = product.id;
     setCurrentSelected((prev) => {
       const isAlreadySelected = prev.some((p) => p.id === id);
@@ -116,7 +139,7 @@ export function AttachProductsDialog({
         });
         return prev;
       }
-      return [...prev, toProductData(product, currency)];
+      return [...prev, product];
     });
   };
 
@@ -185,10 +208,6 @@ export function AttachProductsDialog({
             products.map((product) => {
               const productId = product.id;
               const checked = currentSelected.some((p) => p.id === productId);
-              const { image: imgUrl, price: displayPrice } = toProductData(
-                product,
-                currency,
-              );
 
               return (
                 <div
@@ -203,9 +222,9 @@ export function AttachProductsDialog({
                     tabIndex={-1}
                     className="shrink-0 pointer-events-none"
                   />
-                  {imgUrl ? (
+                  {product.image ? (
                     <Image
-                      src={imgUrl}
+                      src={product.image}
                       alt={product.name}
                       width={40}
                       height={40}
@@ -225,9 +244,9 @@ export function AttachProductsDialog({
                       ID: {productId}
                     </p>
                   </div>
-                  {displayPrice && (
+                  {product.price && (
                     <span className="text-xs font-semibold text-primary shrink-0">
-                      {displayPrice}
+                      {product.price}
                     </span>
                   )}
                 </div>
