@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import type { SupportTicketMessage } from "@/redux/api-slice/support-ticket-slice";
 import { Spinner } from "@/components/ui/spinner";
+import { hasSupportAttachmentExtension } from "@/lib/support-attachment-constants";
 
 type Attachment = SupportTicketMessage["attachments"][number];
 
@@ -35,14 +36,15 @@ function AttachmentCard({ attachment }: { attachment: Attachment }) {
   const name = attachmentName(url);
   const isImage =
     attachment.content_type?.startsWith("image/") ||
-    /\.(png|jpe?g)$/i.test(name);
+    hasSupportAttachmentExtension(name, [".png", ".jpg", ".jpeg"]);
   const isPdf =
-    attachment.content_type === "application/pdf" || /\.pdf$/i.test(name);
+    attachment.content_type === "application/pdf" ||
+    hasSupportAttachmentExtension(name, [".pdf"]);
   const isWord =
     attachment.content_type === "application/msword" ||
     attachment.content_type ===
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-    /\.(doc|docx)$/i.test(name);
+    hasSupportAttachmentExtension(name, [".doc", ".docx"]);
   const FileIcon = isPdf
     ? IconFileTypePdf
     : isWord

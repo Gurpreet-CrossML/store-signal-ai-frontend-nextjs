@@ -112,9 +112,9 @@ import { SearchInput } from "@/components/custom/search-input";
 import { ENDPOINTS } from "@/lib/config";
 import {
   SUPPORT_ATTACHMENT_ACCEPT,
-  SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS,
-  SUPPORT_ATTACHMENT_MAX_FILE_SIZE,
-  SUPPORT_ATTACHMENT_MAX_FILES,
+  getSupportAttachmentCountError,
+  getSupportAttachmentRemainingSlots,
+  validateSupportAttachment,
 } from "@/lib/support-attachment-constants";
 import {
   DEFAULT_TICKET_LANGUAGE,
@@ -1547,33 +1547,23 @@ function ConversationPanel({
             onChange={(event) => {
               const files = Array.from(event.target.files ?? []).filter(
                 (file) => {
-                  const extension =
-                    `.${file.name.split(".").pop() ?? ""}`.toLowerCase();
-                  if (
-                    !SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS.some(
-                      (allowedExtension) => allowedExtension === extension,
-                    )
-                  ) {
-                    toast.error(
-                      `${file.name}: Only images, PDF and Word documents are allowed.`,
-                    );
-                    return false;
-                  }
-                  if (file.size > SUPPORT_ATTACHMENT_MAX_FILE_SIZE) {
-                    toast.error(`${file.name}: Maximum file size is 5 MB.`);
+                  const validationError = validateSupportAttachment(file);
+                  if (validationError) {
+                    toast.error(validationError);
                     return false;
                   }
                   return true;
                 },
               );
-              const remainingSlots = Math.max(
-                0,
-                SUPPORT_ATTACHMENT_MAX_FILES - attachments.length,
+              const remainingSlots = getSupportAttachmentRemainingSlots(
+                attachments.length,
               );
-              if (files.length > remainingSlots) {
-                toast.error(
-                  `You can attach a maximum of ${SUPPORT_ATTACHMENT_MAX_FILES} files per message.`,
-                );
+              const countError = getSupportAttachmentCountError(
+                attachments.length,
+                files.length,
+              );
+              if (countError) {
+                toast.error(countError);
               }
               onAttachmentsChange([
                 ...attachments,
