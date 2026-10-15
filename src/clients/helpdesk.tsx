@@ -768,6 +768,7 @@ function ConversationPanel({
   onLinkCustomer: () => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
+  const [isAIDraftSelected, setIsAIDraftSelected] = useState(false);
   const [selectedSendMode, setSelectedSendMode] = useState<
     "reply" | "customer_language" | "reply_and_resolve"
   >("reply");
@@ -791,6 +792,10 @@ function ConversationPanel({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
   }, [ticket.id, messages.length]);
+
+  useEffect(() => {
+    setIsAIDraftSelected(false);
+  }, [ticket.id]);
 
   const filteredTags = availableTags.filter((tag) =>
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
@@ -1474,7 +1479,7 @@ function ConversationPanel({
           minHeight="6rem"
         />
 
-        {aiDraft?.message && reply.trim() && (
+        {isAIDraftSelected && aiDraft?.message && reply.trim() && (
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Badge variant="outline">
               AI confidence:{" "}
@@ -1499,15 +1504,17 @@ function ConversationPanel({
                 variant="outline"
                 size="icon-sm"
                 className={cn(
-                aiDraft?.message && reply.trim() &&
+                  isAIDraftSelected &&
+                    aiDraft?.message &&
                     "border-primary bg-primary/10 text-primary hover:bg-primary/15",
                 )}
                 aria-label={
                   aiDraft?.message ? "Use AI draft" : "Generate AI draft"
                 }
-                onClick={() =>
-                  aiDraft?.message ? onAcceptDraft() : onAIDraftGenerate()
-                }
+                onClick={() => {
+                  setIsAIDraftSelected(true);
+                  aiDraft?.message ? onAcceptDraft() : onAIDraftGenerate();
+                }}
                 disabled={
                   isAIDraftLoading ||
                   // isMessageImproving ||
@@ -1644,7 +1651,10 @@ function ConversationPanel({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onSend("note")}
+                  onClick={() => {
+                    setIsAIDraftSelected(false);
+                    onSend("note");
+                  }}
                   disabled={
                     isSending ||
                     // isMessageImproving ||
@@ -1664,7 +1674,10 @@ function ConversationPanel({
             <ButtonGroup>
               <Button
                 size="sm"
-                onClick={() => onSend(effectiveSendMode)}
+                onClick={() => {
+                  setIsAIDraftSelected(false);
+                  onSend(effectiveSendMode);
+                }}
                 disabled={
                   isSending ||
                   // isMessageImproving ||
