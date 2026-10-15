@@ -45,13 +45,14 @@ function toProductData(product: ProductListItem): ProductData {
     id: String(product.external_id),
     name: product.name,
     image: product.images?.[0]?.url ?? "",
-    description: "",
+    description: product.description ?? "",
     price: displayPrice(product),
+    discount_percentage: product.discount_percentage ?? null,
     product_url: product.url || "",
-    available_for_sale: product.variants.some(
-      (variant) => (variant.stock_quantity ?? 0) > 0,
-    ),
-    variants: product.variants.map((variant) => ({
+    available_for_sale:
+      product.variants?.some((variant) => (variant.stock_quantity ?? 0) > 0) ??
+      false,
+    variants: product.variants?.map((variant) => ({
       variant_id: variant.external_id,
       variant_name: variant.name,
       variant_price: displayPrice(variant),
@@ -59,7 +60,7 @@ function toProductData(product: ProductListItem): ProductData {
         ? formatPrice(variant.price, product.currency)
         : null,
       available_for_sale: (variant.stock_quantity ?? 0) > 0,
-      discount_percentage: null,
+      discount_percentage: variant.discount_percentage ?? null,
       options: Object.entries(variant.options ?? {}).map(([name, value]) => ({
         name,
         value,

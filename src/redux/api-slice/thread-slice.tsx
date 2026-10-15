@@ -191,6 +191,7 @@ export type ProductData = {
   price: string;
   product_url: string;
   available_for_sale: boolean;
+  discount_percentage?: number | null;
   variants?: ProductVariant[];
 };
 
@@ -201,15 +202,19 @@ export type ProductListItem = {
   external_id: number;
   price: string | null;
   sale_price: string | null;
-  currency: string;
+  /** These are absent on an older backend, like `variants`. */
+  currency?: string;
+  discount_percentage?: number | null;
+  description?: string;
   url: string;
   images: { url: string; alt?: string; position?: number }[];
-  variants: {
+  variants?: {
     id: string;
     external_id: number;
     name: string;
     price: string | null;
     sale_price: string | null;
+    discount_percentage?: number | null;
     stock_quantity: number | null;
     options: Record<string, string>;
   }[];
