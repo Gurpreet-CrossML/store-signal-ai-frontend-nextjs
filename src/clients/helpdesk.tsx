@@ -1539,15 +1539,14 @@ function ConversationPanel({
             ref={attachmentInputRef}
             type="file"
             multiple
-            accept="image/*,.pdf,.doc,.docx"
+            accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
             className="hidden"
             aria-label="Choose attachments"
             onChange={(event) => {
               const files = Array.from(event.target.files ?? []).filter(
                 (file) => {
                   if (
-                    !file.type.startsWith("image/") &&
-                    !/\.(pdf|doc|docx)$/i.test(file.name)
+                    !/\.(jpg|jpeg|png|pdf|doc|docx)$/i.test(file.name)
                   ) {
                     toast.error(
                       `${file.name}: Only images, PDF and Word documents are allowed.`,
