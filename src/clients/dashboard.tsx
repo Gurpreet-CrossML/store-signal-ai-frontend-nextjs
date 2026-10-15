@@ -249,10 +249,10 @@ export default function Dashboard() {
     },
     {
       label: "Active Sessions",
-      value: FetchThreadCountsData.active.toLocaleString(),
+      value: FetchThreadCountsData?.active.toLocaleString() || "0",
       infoText:
         "Shows the number of sessions currently marked as active in the analytics data, helping you gauge current engagement.",
-      status: `${FetchThreadCountsData.needsHuman} need a human`,
+      status: `${FetchThreadCountsData.needsHuman || 0} need a human`,
       statusVariant: "danger" as const,
       href: "/support?filter=needs_human",
     },
