@@ -789,6 +789,7 @@ function ConversationPanel({
   onLinkCustomer: () => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
+  const [isAIDraftSelected, setIsAIDraftSelected] = useState(false);
   const [selectedSendMode, setSelectedSendMode] = useState<
     "reply" | "customer_language" | "reply_and_resolve"
   >("reply");
@@ -1495,6 +1496,23 @@ function ConversationPanel({
           minHeight="6rem"
         />
 
+        {isAIDraftSelected && aiDraft?.message && reply.trim() && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <Badge variant="outline">
+              AI confidence:{" "}
+              {aiDraft.confidence != null
+                ? `${Math.round(aiDraft.confidence * 100)}%`
+                : "Not available"}
+            </Badge>
+            <span>
+              Sources:{" "}
+              {aiDraft.sources?.length
+                ? aiDraft.sources.join(" and ")
+                : "Not available — regenerate this draft"}
+            </span>
+          </div>
+        )}
+
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {/* AI tools stay icons — the two sends are what need words. */}
           <Tooltip>
@@ -1502,12 +1520,18 @@ function ConversationPanel({
               <Button
                 variant="outline"
                 size="icon-sm"
+                className={cn(
+                  isAIDraftSelected &&
+                    aiDraft?.message &&
+                    "border-primary bg-primary/10 text-primary hover:bg-primary/15",
+                )}
                 aria-label={
                   aiDraft?.message ? "Use AI draft" : "Generate AI draft"
                 }
-                onClick={() =>
-                  aiDraft?.message ? onAcceptDraft() : onAIDraftGenerate()
-                }
+                onClick={() => {
+                  setIsAIDraftSelected(true);
+                  aiDraft?.message ? onAcceptDraft() : onAIDraftGenerate();
+                }}
                 disabled={
                   isAIDraftLoading ||
                   // isMessageImproving ||
@@ -1644,7 +1668,10 @@ function ConversationPanel({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onSend("note")}
+                  onClick={() => {
+                    setIsAIDraftSelected(false);
+                    onSend("note");
+                  }}
                   disabled={
                     isSending ||
                     // isMessageImproving ||
@@ -1664,7 +1691,10 @@ function ConversationPanel({
             <ButtonGroup>
               <Button
                 size="sm"
-                onClick={() => onSend(effectiveSendMode)}
+                onClick={() => {
+                  setIsAIDraftSelected(false);
+                  onSend(effectiveSendMode);
+                }}
                 disabled={
                   isSending ||
                   // isMessageImproving ||
@@ -3394,6 +3424,7 @@ export default function HelpDesk() {
           </div>
         ) : (
           <ConversationPanel
+            key={activeSupportTicket.id}
             storeCode={storeCode}
             ticket={activeSupportTicket}
             messages={supportTikcetMessages}
