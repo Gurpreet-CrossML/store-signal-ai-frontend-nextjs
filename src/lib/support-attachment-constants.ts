@@ -19,7 +19,7 @@ export function hasSupportAttachmentExtension(
   return extensions.some((extension) => name.toLowerCase().endsWith(extension));
 }
 
-export function validateSupportAttachment(file: File): string | null {
+function validateSupportAttachment(file: File): string | null {
   const extension = `.${file.name.split(".").pop() ?? ""}`.toLowerCase();
   const isAllowed = hasSupportAttachmentExtension(
     extension,
@@ -37,17 +37,29 @@ export function validateSupportAttachment(file: File): string | null {
   return null;
 }
 
-export function getSupportAttachmentRemainingSlots(currentCount: number) {
-  return Math.max(0, SUPPORT_ATTACHMENT_MAX_FILES - currentCount);
-}
+export function prepareSupportAttachments(
+  selectedFiles: File[],
+  currentFiles: File[],
+) {
+  const errors: string[] = [];
+  const validFiles = selectedFiles.filter((file) => {
+    const validationError = validateSupportAttachment(file);
+    if (validationError) errors.push(validationError);
+    return !validationError;
+  });
+  const remainingSlots = Math.max(
+    0,
+    SUPPORT_ATTACHMENT_MAX_FILES - currentFiles.length,
+  );
 
-export function getSupportAttachmentCountError(
-  currentCount: number,
-  newFileCount: number,
-): string | null {
-  const remainingSlots = getSupportAttachmentRemainingSlots(currentCount);
+  if (validFiles.length > remainingSlots) {
+    errors.push(
+      `You can attach a maximum of ${SUPPORT_ATTACHMENT_MAX_FILES} files per message.`,
+    );
+  }
 
-  return newFileCount > remainingSlots
-    ? `You can attach a maximum of ${SUPPORT_ATTACHMENT_MAX_FILES} files per message.`
-    : null;
+  return {
+    files: [...currentFiles, ...validFiles.slice(0, remainingSlots)],
+    errors,
+  };
 }

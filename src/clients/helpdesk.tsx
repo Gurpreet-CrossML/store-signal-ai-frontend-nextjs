@@ -7,6 +7,7 @@ import {
   useState,
   useRef,
   startTransition,
+  type ChangeEvent,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -112,9 +113,7 @@ import { SearchInput } from "@/components/custom/search-input";
 import { ENDPOINTS } from "@/lib/config";
 import {
   SUPPORT_ATTACHMENT_ACCEPT,
-  getSupportAttachmentCountError,
-  getSupportAttachmentRemainingSlots,
-  validateSupportAttachment,
+  prepareSupportAttachments,
 } from "@/lib/support-attachment-constants";
 import {
   DEFAULT_TICKET_LANGUAGE,
@@ -794,6 +793,15 @@ function ConversationPanel({
       ? "reply"
       : selectedSendMode;
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
+  const handleAttachmentChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const result = prepareSupportAttachments(
+      Array.from(event.target.files ?? []),
+      attachments,
+    );
+    result.errors.forEach((error) => toast.error(error));
+    onAttachmentsChange(result.files);
+    event.target.value = "";
+  };
   const selectedSendLabel =
     effectiveSendMode === "customer_language"
       ? "Send in Customer Language"
@@ -1544,33 +1552,7 @@ function ConversationPanel({
             accept={SUPPORT_ATTACHMENT_ACCEPT}
             className="hidden"
             aria-label="Choose attachments"
-            onChange={(event) => {
-              const files = Array.from(event.target.files ?? []).filter(
-                (file) => {
-                  const validationError = validateSupportAttachment(file);
-                  if (validationError) {
-                    toast.error(validationError);
-                    return false;
-                  }
-                  return true;
-                },
-              );
-              const remainingSlots = getSupportAttachmentRemainingSlots(
-                attachments.length,
-              );
-              const countError = getSupportAttachmentCountError(
-                attachments.length,
-                files.length,
-              );
-              if (countError) {
-                toast.error(countError);
-              }
-              onAttachmentsChange([
-                ...attachments,
-                ...files.slice(0, remainingSlots),
-              ]);
-              event.target.value = "";
-            }}
+            onChange={handleAttachmentChange}
           />
           {/* AI tools stay icons — the two sends are what need words. */}
           <Tooltip>
