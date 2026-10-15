@@ -1545,9 +1545,7 @@ function ConversationPanel({
             onChange={(event) => {
               const files = Array.from(event.target.files ?? []).filter(
                 (file) => {
-                  if (
-                    !/\.(jpg|jpeg|png|pdf|doc|docx)$/i.test(file.name)
-                  ) {
+                  if (!/\.(jpg|jpeg|png|pdf|doc|docx)$/i.test(file.name)) {
                     toast.error(
                       `${file.name}: Only images, PDF and Word documents are allowed.`,
                     );
