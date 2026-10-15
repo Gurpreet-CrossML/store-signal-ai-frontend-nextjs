@@ -31,7 +31,7 @@ import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
 import {
   CrmLinkButton,
-  SessionFacts,
+  CustomerContact,
 } from "@/components/custom/customer-header";
 import {
   CreateTicketDialog,
@@ -941,7 +941,7 @@ export default function Support() {
   const { FetchOrderData, FetchOrderDataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchOrderDataState,
   );
-  const { FetchUserMetadataData } = useAppSelector(
+  const { FetchUserMetadataData, FetchUserMetadataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchUserMetadataState,
   );
   const { SyncCustomerOrdersIsLoading } = useAppSelector(
@@ -2547,25 +2547,22 @@ export default function Support() {
                           }
                         />
                       </div>
-                      {/* Email rather than a status line: who you are
+                      {/* Contact rather than a status line: who you are
                           talking to is what an agent needs from a header,
                           and who is handling the thread is already said by
-                          the take-over banner above the composer. Omitted
-                          entirely for a guest — a line reading "no email"
-                          is worse than no line. */}
-                      {selectedThread?.customer?.email ? (
-                        <Typography variant="muted" className="truncate">
-                          {selectedThread.customer.email}
-                        </Typography>
-                      ) : null}
+                          the take-over banner above the composer. */}
+                      <CustomerContact
+                        email={selectedThread?.customer?.email}
+                        phone={selectedThread?.customer?.phone}
+                        // Orders keep the last thread's rows until the new
+                        // ones land; reading them sooner would show the
+                        // previous customer's phone.
+                        orders={FetchOrderDataIsLoading ? null : FetchOrderData}
+                      />
                     </div>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-3">
-                    {/* Where they are browsing from, beside who they are —
-                        context for the person already on screen, and three
-                        rows the details pane gets back for orders. */}
-                    <SessionFacts userMetadata={FetchUserMetadataData} />
                     <Button
                       variant="outline"
                       size="sm"
@@ -2683,6 +2680,7 @@ export default function Support() {
               currentThreadId={activeThreadId}
               customerData={selectedThread?.customer || null}
               userMetadata={FetchUserMetadataData}
+              userMetadataLoading={FetchUserMetadataIsLoading}
               orders={FetchOrderData}
               ordersLoading={FetchOrderDataIsLoading}
               onOrdersSync={handleOrdersSync}
