@@ -309,6 +309,9 @@ export type ViewedProduct = {
   name: string;
   url: string;
   image: string;
+  /** Sale price when there is one, in the store's `currency`. */
+  price: string | null;
+  currency: string;
 };
 
 /** Normalised slugs, never the helpdesk provider's numeric codes. */

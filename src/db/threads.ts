@@ -1030,9 +1030,13 @@ export async function get_user_metadata(
           name: product.name,
           url: product.url,
           images: product.images,
+          price: product.price,
+          sale_price: product.salePrice,
+          currency: store.currency,
         })
         .from(product)
         .innerJoin(chatThread, eq(chatThread.storeId, product.storeId))
+        .innerJoin(store, eq(store.id, chatThread.storeId))
         .where(
           and(
             eq(chatThread.id, thread_id),
@@ -1055,6 +1059,8 @@ export async function get_user_metadata(
           name: row.name,
           url: row.url,
           image: images[0]?.url ?? "",
+          price: row.sale_price ?? row.price,
+          currency: row.currency,
         },
       ];
     }),

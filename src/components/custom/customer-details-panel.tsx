@@ -3,9 +3,10 @@
 import {
   CartDetailsCard,
   OrdersCard,
+  PastChatsCard,
   SupportTicketsCard,
+  ViewedProductsCard,
 } from "@/components/custom/thread-detail-panels";
-import { CustomerProfileCard } from "@/components/custom/customer-profile-card";
 import type {
   CartDataResponse,
   Customer,
@@ -56,12 +57,6 @@ export function CustomerDetailsPanel({
   return (
     <aside className="hidden min-h-0 w-80 shrink-0 flex-col border-l xl:flex 2xl:w-95">
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <CustomerProfileCard
-          customer={customerData}
-          orders={orders}
-          userMetadata={userMetadata}
-          loading={Boolean(ordersLoading && !customerData?.id)}
-        />
         <OrdersCard
           orders={orders}
           loading={ordersLoading}
@@ -69,6 +64,7 @@ export function CustomerDetailsPanel({
           orderSyncLoading={orderSyncLoading}
           customerData={customerData}
           isDisabled={ordersDisabled}
+          userMetadata={userMetadata}
         />
         {tickets ? (
           <SupportTicketsCard
@@ -77,14 +73,16 @@ export function CustomerDetailsPanel({
           />
         ) : null}
         {cart ? (
-          <CartDetailsCard
-            cartData={cart.data}
-            loading={cart.loading}
-            currentThreadId={currentThreadId}
-            pastThreadsCount={customerData?.past_threads_count ?? 0}
-            customerEmail={customerData?.email}
-            viewedProducts={userMetadata?.viewed_products}
-          />
+          <>
+            <CartDetailsCard cartData={cart.data} loading={cart.loading} />
+            <ViewedProductsCard
+              viewedProducts={userMetadata?.viewed_products}
+            />
+            <PastChatsCard
+              customer={customerData}
+              currentThreadId={currentThreadId}
+            />
+          </>
         ) : null}
       </div>
     </aside>
