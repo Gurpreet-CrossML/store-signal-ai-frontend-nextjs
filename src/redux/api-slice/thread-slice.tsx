@@ -978,10 +978,6 @@ const ThreadSlice = createSlice({
         state.FetchThreadCountsState.FetchThreadCountsIsLoading = true;
         state.FetchThreadCountsState.FetchThreadCountsIsError = null;
         state.FetchThreadCountsState.FetchThreadCountsIsSuccess = false;
-        state.FetchThreadCountsState.FetchThreadCountsData = {
-          active: 0,
-          needsHuman: 0,
-        };
       })
       .addCase(FetchThreadCounts.fulfilled, (state, action) => {
         state.FetchThreadCountsState.FetchThreadCountsIsLoading = false;
