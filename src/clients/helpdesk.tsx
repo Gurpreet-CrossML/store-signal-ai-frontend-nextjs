@@ -297,6 +297,9 @@ const STATUS_TRANSITIONS: Record<SupportTicketStatus, SupportTicketStatus[]> = {
   closed: ["reopen"],
 };
 
+/** Negative so an optimistic message can never collide with a server id. */
+const createTempMessageId = () => -Date.now();
+
 type TicketFilterSelection = {
   channels: SupportTicketChannel[];
   tags: string[];
@@ -729,7 +732,9 @@ function ConversationPanel({
   isSending: boolean;
   onReplyChange: (value: string) => void;
   /** Reply is the default; internal note and translated reply are deliberate choices. */
-  onSend: (mode: "reply" | "note" | "customer_language") => void;
+  onSend: (
+    mode: "reply" | "note" | "customer_language" | "reply_and_resolve",
+  ) => void;
   onAcceptDraft: () => void;
   onSaveDraft: () => void;
   availableTags: SupportTicketTagData[];
@@ -764,13 +769,24 @@ function ConversationPanel({
 }) {
   const [tagSearch, setTagSearch] = useState("");
   const [selectedSendMode, setSelectedSendMode] = useState<
-    "reply" | "customer_language"
+    "reply" | "customer_language" | "reply_and_resolve"
   >("reply");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  // Only offered while resolving is a legal move for the ticket's status.
+  const canResolve = (STATUS_TRANSITIONS[ticket.status] ?? []).includes(
+    "resolved",
+  );
+  // The ticket may have moved on since "send and resolve" was picked.
+  const effectiveSendMode =
+    selectedSendMode === "reply_and_resolve" && !canResolve
+      ? "reply"
+      : selectedSendMode;
   const selectedSendLabel =
-    selectedSendMode === "customer_language"
+    effectiveSendMode === "customer_language"
       ? "Send in Customer Language"
-      : "Send";
+      : effectiveSendMode === "reply_and_resolve"
+        ? "Send and Mark Resolved"
+        : "Send";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
@@ -1644,7 +1660,7 @@ function ConversationPanel({
             <ButtonGroup>
               <Button
                 size="sm"
-                onClick={() => onSend(selectedSendMode)}
+                onClick={() => onSend(effectiveSendMode)}
                 disabled={
                   isSending ||
                   // isMessageImproving ||
@@ -1688,6 +1704,14 @@ function ConversationPanel({
                     <IconLanguage className="size-4" />
                     Send in Customer Language
                   </DropdownMenuItem>
+                  {canResolve ? (
+                    <DropdownMenuItem
+                      onClick={() => setSelectedSendMode("reply_and_resolve")}
+                    >
+                      <IconCircleCheck className="size-4" />
+                      Send and Mark Resolved
+                    </DropdownMenuItem>
+                  ) : null}
                 </DropdownMenuContent>
               </DropdownMenu>
             </ButtonGroup>
@@ -2814,7 +2838,11 @@ export default function HelpDesk() {
   };
 
   const handleSend = async (
-    mode: "reply" | "note" | "customer_language" = "reply",
+    mode:
+      | "reply"
+      | "note"
+      | "customer_language"
+      | "reply_and_resolve" = "reply",
   ) => {
     if (!storeCode) return;
 
@@ -2826,12 +2854,13 @@ export default function HelpDesk() {
       return;
     }
 
-    if (!currentActiveSupportTicketIdRef.current) {
+    const ticketId = currentActiveSupportTicketIdRef.current;
+    if (!ticketId) {
       toast.error("No ticket selected to send a reply.");
       return;
     }
 
-    const tempId = -Date.now();
+    const tempId = createTempMessageId();
     const optimisticMessage: SupportTicketMessage = {
       id: tempId,
       sender_type: "agent",
@@ -2864,7 +2893,7 @@ export default function HelpDesk() {
       const sentMessage = await dispatch(
         SupportTicketMessageSend({
           storeCode,
-          ticketId: currentActiveSupportTicketIdRef.current,
+          ticketId,
           formData,
         }),
       ).unwrap();
@@ -2881,6 +2910,12 @@ export default function HelpDesk() {
         current.filter((message) => message.id !== tempId),
       );
       setReply(trimmedReply);
+      return;
+    }
+
+    // Only reached once the reply is out: a failed send leaves the ticket as is.
+    if (mode === "reply_and_resolve") {
+      await handleSupportTicketStatusUpdate("resolved", ticketId);
     }
   };
 
@@ -3033,15 +3068,17 @@ export default function HelpDesk() {
 
   const handleSupportTicketStatusUpdate = async (
     status: SupportTicketStatus,
+    // Passed by callers that act on a ticket that may no longer be the
+    // active one by the time they get here.
+    targetTicketId?: number,
   ) => {
-    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+    const ticketId = targetTicketId ?? currentActiveSupportTicketIdRef.current;
+    if (!storeCode || !ticketId) return;
 
     try {
       const payload = {
         status: status,
       };
-
-      const ticketId = currentActiveSupportTicketIdRef.current;
 
       // Read before the update: the queue counts move from this status.
       const previousStatus =
