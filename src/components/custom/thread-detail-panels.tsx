@@ -11,10 +11,19 @@ import type {
   OrderData,
   CartData,
   ThreadTicketData,
+  UserMetadata,
+  ViewedProduct,
 } from "@/redux/api-slice/thread-slice";
-import { IconShoppingBag, IconTicket } from "@tabler/icons-react";
+import {
+  IconShoppingBag,
+  IconPackage,
+  IconChevronRight,
+  IconEye,
+  IconTicket,
+} from "@tabler/icons-react";
 import { FulfillmentBadge } from "@/components/ui/status-badge";
 import { OrderDetails } from "@/components/custom/order-details";
+import { CustomerProfileCard } from "@/components/custom/customer-profile-card";
 import { IconRefresh } from "@tabler/icons-react";
 
 import { AnimatePresence, motion } from "framer-motion";
@@ -60,128 +69,190 @@ function formatCartPrice(price: string | null | undefined): string | null {
   })}`;
 }
 
-export function CartDetailsCard({
-  cartData,
-  loading,
-  currentThreadId,
-  pastThreadsCount = 0,
-  customerEmail,
-  viewedProductsCount = 0,
+/**
+ * One product line — a cart item or a viewed page. A linked (viewed) row
+ * wraps its name so the agent reads it whole; a cart line keeps to one.
+ */
+function ProductRow({
+  image,
+  name,
+  detail,
+  price,
+  href,
 }: {
-  cartData: CartDataResponse | null;
-  loading?: boolean;
-  currentThreadId?: string | null;
-  /** Threads this customer started before the current one. */
-  pastThreadsCount?: number;
-  customerEmail?: string | null;
-  /** Product pages the shopper has opened, as the store theme records them. */
-  viewedProductsCount?: number;
+  image?: string;
+  name: string;
+  /** Muted line under the name, e.g. "Qty: 2". */
+  detail?: string;
+  price: string;
+  /** Storefront page; the row links there in a new tab when given. */
+  href?: string;
 }) {
-  const cart = cartData?.updated_cart_data;
-  const items = cart?.items ?? [];
-
-  const totalItems = items.reduce(
-    (sum, item) => sum + (Number(item.qty) || 1),
-    0,
+  const content = (
+    <>
+      <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-muted">
+          {image ? (
+            // Product images come from arbitrary store CDNs, so
+            // next/image's domain allowlist can't cover them.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={image}
+              alt={name}
+              className="h-full w-full object-contain"
+            />
+          ) : (
+            <IconShoppingBag className="size-4 text-muted-foreground" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <Typography
+            variant="small"
+            as="p"
+            className={href ? "break-words leading-snug" : "truncate"}
+          >
+            {name}
+          </Typography>
+          {detail ? (
+            <Typography variant="muted" className="mt-0.5">
+              {detail}
+            </Typography>
+          ) : null}
+        </div>
+      </div>
+      <Typography variant="small" as="span" className="shrink-0">
+        {price}
+      </Typography>
+    </>
   );
+  const className = "flex items-center justify-between gap-3";
 
-  const totalPrice = cart?.total
-    ? formatCartPrice(cart.total)
-    : items.length > 0
-      ? formatCartPrice(
-          String(
-            items.reduce((sum, item) => {
-              const num =
-                Number(String(item.price ?? "").replace(/[^0-9.-]/g, "")) || 0;
-              return sum + num * (Number(item.qty) || 1);
-            }, 0),
-          ),
-        )
-      : null;
+  return href ? (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`${className} hover:underline`}
+    >
+      {content}
+    </a>
+  ) : (
+    <div className={className}>{content}</div>
+  );
+}
 
-  const cartSummary =
-    items.length === 0
-      ? "Empty"
-      : totalPrice
-        ? `${totalItems} ${totalItems === 1 ? "item" : "items"} · ${totalPrice}`
-        : `${totalItems} ${totalItems === 1 ? "item" : "items"}`;
+export function ViewedProductsCard({
+  viewedProducts = [],
+  loading,
+}: {
+  /** Product pages the shopper has opened, as the store theme records them. */
+  viewedProducts?: ViewedProduct[];
+  loading?: boolean;
+}) {
+  const {
+    visible: visibleViewed,
+    hiddenCount: hiddenViewedCount,
+    expanded: viewedExpanded,
+    toggle: toggleViewed,
+  } = useCollapsibleList(viewedProducts);
 
+  return (
+    <section className="flex flex-col gap-3 border-b p-4">
+      <CardTitle className="flex items-center gap-2">
+        <IconEye className="size-4" />
+        Products Viewed
+      </CardTitle>
+      {loading ? (
+        <CardLoadingState />
+      ) : viewedProducts.length === 0 ? (
+        <Typography variant="muted">No product pages viewed yet.</Typography>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {visibleViewed.map((viewed) => (
+            <ProductRow
+              key={viewed.id}
+              image={viewed.image}
+              name={viewed.name}
+              price={formatPrice(viewed.price, viewed.currency)}
+              href={viewed.url}
+            />
+          ))}
+          <ShowMoreToggle
+            hiddenCount={hiddenViewedCount}
+            expanded={viewedExpanded}
+            onToggle={toggleViewed}
+            noun="product"
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function PastChatsCard({
+  customer,
+  currentThreadId,
+}: {
+  customer?: Customer | null;
+  currentThreadId?: string | null;
+}) {
+  /** Threads this customer started before the current one. */
+  const pastThreadsCount = customer?.past_threads_count ?? 0;
   const pastChatsLabel =
     pastThreadsCount > 0
       ? `${pastThreadsCount} ${pastThreadsCount === 1 ? "thread" : "threads"}`
       : "None";
 
   return (
+    <section className="flex items-center justify-between gap-3 border-b p-4">
+      <Typography variant="muted">Past chats</Typography>
+      {customer?.email && currentThreadId && pastThreadsCount > 0 ? (
+        <Link
+          href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
+          className="text-sm font-medium text-primary hover:underline"
+        >
+          {pastChatsLabel}
+        </Link>
+      ) : (
+        <Typography variant="small" as="span">
+          {pastChatsLabel}
+        </Typography>
+      )}
+    </section>
+  );
+}
+
+export function CartDetailsCard({
+  cartData,
+  loading,
+}: {
+  cartData: CartDataResponse | null;
+  loading?: boolean;
+}) {
+  const cart = cartData?.updated_cart_data;
+  const items = cart?.items ?? [];
+
+  return (
     <section className="flex flex-col gap-3 border-b p-4">
-      <h4 className="text-sm font-semibold text-foreground">Current session</h4>
+      <CardTitle className="flex items-center gap-2">
+        <IconShoppingBag className="size-4" />
+        Cart
+      </CardTitle>
       {loading ? (
         <CardLoadingState />
+      ) : items.length === 0 ? (
+        <Typography variant="muted">Nothing in the cart right now.</Typography>
       ) : (
-        <div className="flex flex-col gap-2.5 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Products viewed</span>
-            <span className="font-normal text-foreground">
-              {viewedProductsCount}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Cart</span>
-            <span className="font-normal text-foreground">{cartSummary}</span>
-          </div>
-
-          {items.length > 0 ? (
-            <div className="flex max-h-60 flex-col gap-2 overflow-y-auto rounded-lg border bg-muted/20 p-2.5">
-              {items.map((item: CartData, index: number) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between gap-3"
-                >
-                  <div className="flex min-w-0 items-center gap-2">
-                    <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-muted">
-                      {item.product_image ? (
-                        // Product images come from arbitrary store CDNs, so
-                        // next/image's domain allowlist can't cover them.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={item.product_image}
-                          alt={item.name}
-                          className="h-full w-full object-contain"
-                        />
-                      ) : (
-                        <IconShoppingBag className="size-3 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-normal text-foreground">
-                        {item.name}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Qty: {item.qty}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="shrink-0 text-xs font-normal text-foreground">
-                    {formatCartPrice(item.price) ?? "-"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Past chats</span>
-            {customerEmail && currentThreadId && pastThreadsCount > 0 ? (
-              <Link
-                href={`/threads?search=${encodeURIComponent(customerEmail)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
-                className="text-primary hover:underline"
-              >
-                {pastChatsLabel}
-              </Link>
-            ) : (
-              <span className="text-foreground">{pastChatsLabel}</span>
-            )}
-          </div>
+        <div className="flex flex-col gap-2.5">
+          {items.map((item: CartData, index: number) => (
+            <ProductRow
+              key={index}
+              image={item.product_image}
+              name={item.name}
+              detail={`Qty: ${item.qty}`}
+              price={formatCartPrice(item.price) ?? "-"}
+            />
+          ))}
         </div>
       )}
     </section>
@@ -242,6 +313,18 @@ export function SupportTicketsCard({
   );
 }
 
+/** One figure in the orders summary. */
+function SummaryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
+      <Typography variant="muted">{label}</Typography>
+      <Typography variant="small" as="p" className="truncate tabular-nums">
+        {value}
+      </Typography>
+    </div>
+  );
+}
+
 export function OrdersCard({
   orders,
   loading,
@@ -249,6 +332,7 @@ export function OrdersCard({
   orderSyncLoading,
   customerData,
   isDisabled,
+  userMetadata,
 }: {
   orders?: OrderData[] | null;
   loading?: boolean;
@@ -256,6 +340,8 @@ export function OrdersCard({
   orderSyncLoading?: boolean;
   customerData?: Customer | null;
   isDisabled?: boolean;
+  /** Feeds the city fallback when no order carries one. */
+  userMetadata?: UserMetadata | null;
 }) {
   const orderList = orders ?? [];
   const {
@@ -283,6 +369,15 @@ export function OrdersCard({
     (state) => state.GetOrderReducer.FetchOrderDetailsState,
   );
 
+  // The two figures that used to sit in a card of their own above this
+  // one. They are a fact about these orders, so they belong to the section
+  // that lists them — and the pane gets a whole card's height back.
+  const totalSpent = orderList.reduce(
+    (sum, order) => sum + Number(order.total_price ?? 0),
+    0,
+  );
+  const currency = orderList[0]?.currency ?? "USD";
+
   const toggleOrder = (id: number) => {
     setExpandedId((prev) => {
       if (prev === id) return null;
@@ -294,12 +389,15 @@ export function OrdersCard({
   return (
     <section className="flex flex-col gap-3 border-b p-4">
       <div className="flex items-center justify-between gap-3">
-        <h4 className="text-sm font-semibold text-foreground">Recent orders</h4>
+        <CardTitle className="flex items-center gap-2">
+          <IconPackage className="h-4 w-4" />
+          Orders
+        </CardTitle>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="icon-sm"
               aria-label="Sync orders"
               onClick={handleOrdersSync}
@@ -310,12 +408,11 @@ export function OrdersCard({
               disabled={
                 loading || orderSyncLoading || !customerData?.id || isDisabled
               }
-              className="size-6 text-muted-foreground hover:text-foreground"
             >
               {orderSyncLoading ? (
-                <Spinner className="size-3.5" />
+                <Spinner className="size-4" />
               ) : (
-                <IconRefresh className="size-3.5" />
+                <IconRefresh className="size-4" />
               )}
             </Button>
           </TooltipTrigger>
@@ -324,55 +421,113 @@ export function OrdersCard({
           </TooltipContent>
         </Tooltip>
       </div>
+      {!loading ? (
+        <CustomerProfileCard
+          customer={customerData}
+          orders={orderList}
+          userMetadata={userMetadata}
+        />
+      ) : null}
+
+      {/* The figures the orders below add up to, in the section that
+          lists them rather than a card of its own above it. A 1px gap over
+          a border-coloured ground gives even separators however the pair
+          wraps. */}
+      {!loading ? (
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
+          <SummaryStat
+            label="Lifetime value"
+            value={formatPrice(totalSpent, currency)}
+          />
+          <SummaryStat label="Orders" value={String(orderList.length)} />
+        </div>
+      ) : null}
 
       {loading ? (
         <CardLoadingState />
-      ) : !orderList || orderList.length === 0 ? (
-        <Typography variant="muted" className="text-xs">
+      ) : !orderList || orderList?.length === 0 ? (
+        <Typography variant="muted">
           {!customerData?.id
             ? "Link a customer to see their order history."
             : "No orders yet."}
         </Typography>
       ) : (
-        <div className="flex flex-col gap-2.5">
-          {visibleOrders.map((order) => {
+        <div className="flex flex-col gap-2">
+          {visibleOrders.map((order, index) => {
             const isExpanded = expandedId === order.id;
-            const items = order.items ?? [];
-            const firstItemName = items[0]?.name || "Order item";
-            const additionalCount = items.length - 1;
-            const itemSummary =
-              additionalCount > 0
-                ? `${firstItemName} +${additionalCount}`
-                : firstItemName;
-            const metaLine = [
-              itemSummary,
-              formatPrice(order.total_price, order.currency),
-              formatDate(order.created_at),
-            ].join(" · ");
 
             return (
-              <div
+              // One box per order: the details continue inside this same
+              // container rather than opening a second box beneath it.
+              <motion.div
                 key={order.id}
-                className={`rounded-xl border p-3 transition ${
-                  isExpanded ? "border-primary/40" : "border-border/80"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.18,
+                  // Capped so a long history still settles quickly.
+                  delay: Math.min(index, 5) * 0.04,
+                }}
+                className={`overflow-hidden rounded-xl border transition ${
+                  isExpanded ? "border-primary/40" : "border-border/50"
                 }`}
               >
                 <button
                   type="button"
                   onClick={() => toggleOrder(order.id)}
-                  className="w-full text-left"
+                  className={`flex w-full items-center gap-3 p-2.5 text-left transition ${
+                    isExpanded ? "bg-primary/4" : "hover:bg-muted/50"
+                  }`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <Typography variant="small" as="span">
-                      #{order.order_number}
-                    </Typography>
-                    <FulfillmentBadge status={order.fulfillment_status} />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <IconPackage className="h-4 w-4" />
                   </div>
-                  <Typography variant="muted" as="p" className="mt-1 truncate">
-                    {metaLine}
-                  </Typography>
+                  {/* The order number is how an agent knows which order to
+                      open, so it owns the first line and never truncates —
+                      a fixed price column squeezed it down to "#11…" in the
+                      narrow panel. The price sits at the end of the meta
+                      line instead, and only the date/items text truncates,
+                      so every row keeps the same height. */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Typography
+                        variant="small"
+                        as="p"
+                        className="shrink-0 leading-normal"
+                      >
+                        #{order.order_number}
+                      </Typography>
+                      <FulfillmentBadge status={order.fulfillment_status} />
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <Typography
+                        variant="muted"
+                        as="p"
+                        className="min-w-0 flex-1 truncate"
+                      >
+                        {formatDate(order.created_at)} · {order.items.length}{" "}
+                        item
+                        {order.items.length !== 1 ? "s" : ""}
+                      </Typography>
+                      <Typography
+                        variant="small"
+                        as="span"
+                        className="shrink-0 text-primary"
+                      >
+                        {formatPrice(order.total_price, order.currency)}
+                      </Typography>
+                    </div>
+                  </div>
+                  <IconChevronRight
+                    className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${
+                      isExpanded ? "rotate-90" : ""
+                    }`}
+                  />
                 </button>
 
+                {/* Height animates from 0 so the orders below slide down
+                    rather than jumping, and so collapsing reads as the
+                    same motion in reverse. */}
                 <AnimatePresence initial={false}>
                   {isExpanded && (
                     <motion.div
@@ -380,8 +535,12 @@ export function OrdersCard({
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.18, ease: "easeOut" }}
-                      className="mt-3 border-t pt-3 overflow-hidden"
+                      className="overflow-hidden"
                     >
+                      {/* The fetched record while it is this row's, the
+                          list row until then — so opening an order shows
+                          what it already knows rather than a blank panel,
+                          and fills in the rest when it lands. */}
                       <OrderDetails
                         order={
                           FetchOrderDetailsData?.id === order.id
@@ -396,10 +555,9 @@ export function OrdersCard({
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </div>
+              </motion.div>
             );
           })}
-
           <ShowMoreToggle
             hiddenCount={hiddenOrderCount}
             expanded={ordersExpanded}

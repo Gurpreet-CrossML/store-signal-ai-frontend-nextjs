@@ -312,8 +312,18 @@ export type UserMetadata = {
   device_type: string;
   browser: string;
   os: string;
-  /** Platform ids of the product pages the shopper opened. */
-  viewed_products: string[];
+  /** Product pages the shopper opened, in viewing order. */
+  viewed_products: ViewedProduct[];
+};
+
+export type ViewedProduct = {
+  id: string;
+  name: string;
+  url: string;
+  image: string;
+  /** Sale price when there is one, in the store's `currency`. */
+  price: string | null;
+  currency: string;
 };
 
 /** Normalised slugs, never the helpdesk provider's numeric codes. */
