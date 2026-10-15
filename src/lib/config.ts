@@ -255,6 +255,9 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/tickets/${ticket_id}/`, "django"),
   supportTicketMessageSend: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/messages/`, "django"),
+  // GET with ?before=<message id> — the page of messages above that one.
+  fetchSupportTicketMessages: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/messages/`, "django"),
   fetchSupportTicketTags: () => createAPIUrl("/support/ticket-tags", "django"),
   // PATCH — attach an existing customer to a ticket raised by a guest.
   // NOTE: pending confirmation from the backend team.

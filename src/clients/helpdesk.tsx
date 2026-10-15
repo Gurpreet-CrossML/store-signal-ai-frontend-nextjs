@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   useRef,
@@ -18,6 +19,7 @@ import {
   IconCircleCheck,
   IconCircleX,
   IconChevronDown,
+  IconArrowDown,
   IconDeviceFloppy,
   IconFilter,
   IconInbox,
@@ -77,7 +79,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Typography } from "@/components/ui/typography";
 import { CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -122,6 +123,7 @@ import {
   FetchSupportTicketTags,
   SupportTicketStaffAssign,
   FetchSupportTicketDetails,
+  FetchSupportTicketMessages,
   SupportTicketMessageSend,
   SupportTicketAgentDraftSave,
   SupportTicketTagAssign,
@@ -715,6 +717,9 @@ function ConversationPanel({
   storeCode,
   ticket,
   messages,
+  hasOlderMessages,
+  isLoadingOlderMessages,
+  onLoadOlderMessages,
   reply,
   isSending,
   onReplyChange,
@@ -749,6 +754,9 @@ function ConversationPanel({
   storeCode: string;
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
+  hasOlderMessages: boolean;
+  isLoadingOlderMessages: boolean;
+  onLoadOlderMessages: () => void;
   reply: string;
   isSending: boolean;
   onReplyChange: (value: string) => void;
@@ -792,7 +800,12 @@ function ConversationPanel({
   const [selectedSendMode, setSelectedSendMode] = useState<
     "reply" | "customer_language" | "reply_and_resolve"
   >("reply");
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Thread height before an older page went in above, to hold the reader's place.
+  const heightBeforeOlderRef = useRef<number | null>(null);
+  const [isAwayFromLatest, setIsAwayFromLatest] = useState(false);
+  const firstMessageId = messages[0]?.id;
+  const lastMessageId = messages.at(-1)?.id;
   // Only offered while resolving is a legal move for the ticket's status.
   const canResolve = (STATUS_TRANSITIONS[ticket.status] ?? []).includes(
     "resolved",
@@ -809,9 +822,31 @@ function ConversationPanel({
         ? "Send and Mark Resolved"
         : "Send";
 
+  // Keyed on the newest message, not the count, so an older page going in
+  // above does not throw the reader to the bottom.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ block: "end" });
-  }, [ticket.id, messages.length]);
+    const thread = scrollRef.current;
+    if (thread) thread.scrollTop = thread.scrollHeight;
+  }, [ticket.id, lastMessageId]);
+
+  // Before paint, push the scroll down by exactly what was added above.
+  useLayoutEffect(() => {
+    const thread = scrollRef.current;
+    if (!thread || heightBeforeOlderRef.current === null) return;
+    thread.scrollTop += thread.scrollHeight - heightBeforeOlderRef.current;
+    heightBeforeOlderRef.current = null;
+  }, [firstMessageId]);
+
+  const handleThreadScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const thread = event.currentTarget;
+    setIsAwayFromLatest(
+      thread.scrollHeight - thread.scrollTop - thread.clientHeight > 200,
+    );
+    if (thread.scrollTop < 80 && hasOlderMessages && !isLoadingOlderMessages) {
+      heightBeforeOlderRef.current = thread.scrollHeight;
+      onLoadOlderMessages();
+    }
+  };
 
   const filteredTags = availableTags.filter((tag) =>
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
@@ -1378,108 +1413,140 @@ function ConversationPanel({
         </div>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-3 p-4">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
-              <IconMessageChatbot className="mb-1 size-6 text-muted-foreground opacity-40" />
-              <Typography variant="small" as="p">
-                No messages yet
-              </Typography>
-              <Typography variant="muted">
-                Messages exchanged with the customer will appear here.
-              </Typography>
-            </div>
-          ) : (
-            messages.map((message) => {
-              // A "system" message (the ticket summary, or an issue the AI
-              // adds later) deliberately shares the customer bubble: it is
-              // anything that is not a note or an agent reply.
-              const SystemIcon =
-                ticket.channel === "web"
-                  ? IconSparkles
-                  : (CHANNEL_META[ticket.channel]?.icon ?? IconSparkles);
-              const isNote = message.message_type === "internal";
-              // Notes are written by staff, so they sit on the staff side.
-              const isOutgoing = isNote || message.sender_type === "agent";
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={scrollRef}
+          className="h-full overflow-y-auto"
+          onScroll={handleThreadScroll}
+        >
+          <div className="flex flex-col gap-3 p-4">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
+                <IconMessageChatbot className="mb-1 size-6 text-muted-foreground opacity-40" />
+                <Typography variant="small" as="p">
+                  No messages yet
+                </Typography>
+                <Typography variant="muted">
+                  Messages exchanged with the customer will appear here.
+                </Typography>
+              </div>
+            ) : (
+              messages.map((message) => {
+                // A "system" message (the ticket summary, or an issue the AI
+                // adds later) deliberately shares the customer bubble: it is
+                // anything that is not a note or an agent reply.
+                const SystemIcon =
+                  ticket.channel === "web"
+                    ? IconSparkles
+                    : (CHANNEL_META[ticket.channel]?.icon ?? IconSparkles);
+                const isNote = message.message_type === "internal";
+                // Notes are written by staff, so they sit on the staff side.
+                const isOutgoing = isNote || message.sender_type === "agent";
 
-              return (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex items-end gap-2",
-                    isOutgoing && "flex-row-reverse",
-                  )}
-                >
-                  {isNote ? (
-                    // A sticky note, not a pencil: a pencil in a circle
-                    // beside a message reads as an edit button, and this
-                    // is a label, not something you can press.
-                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-primary/40 bg-primary/10 text-primary">
-                      <IconNote className="size-3.5" />
-                    </div>
-                  ) : isOutgoing ? (
-                    <Avatar className="size-7 shrink-0">
-                      <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
-                        A
-                      </AvatarFallback>
-                    </Avatar>
-                  ) : message.sender_type === "system" ? (
-                    // Nobody wrote it, so no initials: the channel the
-                    // ticket came in on, sparkles for the web assistant.
-                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                      <SystemIcon className="size-3.5" />
-                    </div>
-                  ) : (
-                    <CustomerAvatar name={customerName} size="size-7" />
-                  )}
-
-                  {/* Wide bubbles with the time tucked inside: a support
-                      reply is a paragraph, not a chat line, and a separate
-                      meta row under every bubble doubled the spacing. */}
+                return (
                   <div
+                    key={message.id}
                     className={cn(
-                      "min-w-0 max-w-4/5 rounded-2xl px-4 py-3",
-                      isNote
-                        ? // Dashed and tinted: an internal note is the one
-                          // thing here the customer never sees, so it has
-                          // to be unmistakable at a glance. The old
-                          // border-on-background was so faint it read as a
-                          // rendering fault.
-                          "rounded-br-md border border-dashed border-primary/40 bg-primary/5"
-                        : isOutgoing
-                          ? "rounded-br-md bg-primary/10"
-                          : "rounded-bl-md bg-muted",
+                      "flex items-end gap-2",
+                      isOutgoing && "flex-row-reverse",
                     )}
                   >
                     {isNote ? (
-                      <Typography
-                        variant="small"
-                        as="p"
-                        className="mb-1 flex items-center gap-1.5 text-primary"
-                      >
-                        <IconLock className="size-3.5" />
-                        Internal note
-                      </Typography>
-                    ) : null}
-                    <div className="text-sm leading-6 text-foreground [&_p]:mb-2 [&_p:last-child]:mb-0">
-                      <ReactMarkdown>{message.message}</ReactMarkdown>
-                    </div>
-                    <Typography
-                      variant="caption"
-                      as="div"
-                      className="mt-1 text-right"
+                      // A sticky note, not a pencil: a pencil in a circle
+                      // beside a message reads as an edit button, and this
+                      // is a label, not something you can press.
+                      <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-primary/40 bg-primary/10 text-primary">
+                        <IconNote className="size-3.5" />
+                      </div>
+                    ) : isOutgoing ? (
+                      <Avatar className="size-7 shrink-0">
+                        <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
+                          A
+                        </AvatarFallback>
+                      </Avatar>
+                    ) : message.sender_type === "system" ? (
+                      // Nobody wrote it, so no initials: the channel the
+                      // ticket came in on, sparkles for the web assistant.
+                      <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                        <SystemIcon className="size-3.5" />
+                      </div>
+                    ) : (
+                      <CustomerAvatar name={customerName} size="size-7" />
+                    )}
+
+                    {/* Wide bubbles with the time tucked inside: a support
+                      reply is a paragraph, not a chat line, and a separate
+                      meta row under every bubble doubled the spacing. */}
+                    <div
+                      className={cn(
+                        "min-w-0 max-w-4/5 rounded-2xl px-4 py-3",
+                        isNote
+                          ? // Dashed and tinted: an internal note is the one
+                            // thing here the customer never sees, so it has
+                            // to be unmistakable at a glance. The old
+                            // border-on-background was so faint it read as a
+                            // rendering fault.
+                            "rounded-br-md border border-dashed border-primary/40 bg-primary/5"
+                          : isOutgoing
+                            ? "rounded-br-md bg-primary/10"
+                            : "rounded-bl-md bg-muted",
+                      )}
                     >
-                      {formatDateTime(message.created_at)}
-                    </Typography>
+                      {isNote ? (
+                        <Typography
+                          variant="small"
+                          as="p"
+                          className="mb-1 flex items-center gap-1.5 text-primary"
+                        >
+                          <IconLock className="size-3.5" />
+                          Internal note
+                        </Typography>
+                      ) : null}
+                      <div className="text-sm leading-6 text-foreground [&_p]:mb-2 [&_p:last-child]:mb-0">
+                        <ReactMarkdown>{message.message}</ReactMarkdown>
+                      </div>
+                      <Typography
+                        variant="caption"
+                        as="div"
+                        className="mt-1 text-right"
+                      >
+                        {formatDateTime(message.created_at)}
+                      </Typography>
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          )}
-          <div ref={messagesEndRef} />
+                );
+              })
+            )}
+          </div>
         </div>
-      </ScrollArea>
+        {/* Overlaid, not in the thread, so it cannot shift the messages. */}
+        {isLoadingOlderMessages ? (
+          <div className="absolute inset-x-0 top-2 flex justify-center">
+            <div className="flex items-center gap-2 rounded-full border bg-background px-3 py-1 shadow-sm">
+              <Spinner className="size-4" />
+              <Typography variant="muted" as="span">
+                Loading older messages…
+              </Typography>
+            </div>
+          </div>
+        ) : null}
+        {isAwayFromLatest ? (
+          <Button
+            size="sm"
+            variant="outline"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full shadow-md"
+            onClick={() =>
+              scrollRef.current?.scrollTo({
+                top: scrollRef.current.scrollHeight,
+                behavior: "smooth",
+              })
+            }
+          >
+            <IconArrowDown />
+            Latest messages
+          </Button>
+        ) : null}
+      </div>
 
       <div className="shrink-0 border-t p-4">
         <CKEditorTextArea
@@ -1842,6 +1909,10 @@ export default function HelpDesk() {
   const [supportTikcetMessages, setSupportTicketMessages] = useState<
     SupportTicketMessage[]
   >([]);
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
+  // Scroll events outrun state updates; the ref stops one page loading twice.
+  const isLoadingOlderMessagesRef = useRef(false);
   const [activeSupportTicket, setActiveSupportTicket] =
     useState<SupportTicket | null>(null);
   const currentActiveSupportTicketIdRef = useRef<number | null>(null);
@@ -2441,6 +2512,9 @@ export default function HelpDesk() {
     startTransition(() => {
       setActiveSupportTicket(FetchSupportTicketDetailsData);
       setSupportTicketMessages(FetchSupportTicketDetailsData.messages ?? []);
+      setHasOlderMessages(
+        Boolean(FetchSupportTicketDetailsData.has_more_messages),
+      );
 
       // Followed from a link, it may belong to another queue or sit ten
       // pages down. Put it at the head of the list so the open ticket is
@@ -3220,6 +3294,35 @@ export default function HelpDesk() {
     }
   };
 
+  const handleLoadOlderMessages = async () => {
+    const ticketId = currentActiveSupportTicketIdRef.current;
+    const oldestMessage = supportTikcetMessages[0];
+    if (!storeCode || !ticketId || !oldestMessage) return;
+    if (isLoadingOlderMessagesRef.current) return;
+
+    isLoadingOlderMessagesRef.current = true;
+    setIsLoadingOlderMessages(true);
+    try {
+      const page = await dispatch(
+        FetchSupportTicketMessages({
+          storeCode,
+          ticketId,
+          before: oldestMessage.id,
+        }),
+      ).unwrap();
+
+      // Another ticket may have been opened while this page loaded.
+      if (currentActiveSupportTicketIdRef.current !== ticketId) return;
+      setSupportTicketMessages((current) => [...page.messages, ...current]);
+      setHasOlderMessages(page.has_more);
+    } catch {
+      // The thunk has already shown the error.
+    } finally {
+      isLoadingOlderMessagesRef.current = false;
+      setIsLoadingOlderMessages(false);
+    }
+  };
+
   const handleSupportTicketMessagesTranslate = async (code: string) => {
     if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
 
@@ -3397,6 +3500,9 @@ export default function HelpDesk() {
             storeCode={storeCode}
             ticket={activeSupportTicket}
             messages={supportTikcetMessages}
+            hasOlderMessages={hasOlderMessages}
+            isLoadingOlderMessages={isLoadingOlderMessages}
+            onLoadOlderMessages={handleLoadOlderMessages}
             reply={reply}
             isSending={SupportTicketMessageSendIsLoading}
             onReplyChange={setReply}

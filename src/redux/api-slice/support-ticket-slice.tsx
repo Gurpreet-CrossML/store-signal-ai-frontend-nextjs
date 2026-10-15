@@ -193,7 +193,9 @@ export type SupportTicket = {
   updated_at?: string;
   last_message_at?: string | null;
 
+  /** Newest page only; older pages come from FetchSupportTicketMessages. */
   messages?: SupportTicketMessage[];
+  has_more_messages?: boolean;
   drafts?: SupportTicketDraftMessage[];
 
   is_snoozed: boolean;
@@ -283,6 +285,40 @@ export const FetchSupportTicketDetails = createAsyncThunk(
         description:
           data?.message ||
           "Unable to fetch ticket details, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+// The page of messages just older than `before`, oldest first.
+export const FetchSupportTicketMessages = createAsyncThunk(
+  "FetchSupportTicketMessages",
+  async (
+    {
+      storeCode,
+      ticketId,
+      before,
+    }: { storeCode: string; ticketId: number; before: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchSupportTicketMessages(ticketId)}?store_code=${storeCode}&before=${before}`,
+      );
+      return response.data.data as {
+        messages: SupportTicketMessage[];
+        has_more: boolean;
+      };
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to load older messages, please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
