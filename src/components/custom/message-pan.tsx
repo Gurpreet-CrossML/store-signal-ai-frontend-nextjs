@@ -21,7 +21,7 @@ import {
 import { IconLock, IconShoppingBag, IconSparkles } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
-import { SupportProductCarousel } from "@/components/custom/support-product-carousel";
+import { SupportProductCarousel } from "@/components/custom/product-carousel";
 import { getInitials } from "@/components/custom/customer-avatar";
 import { Spinner } from "../ui/spinner";
 

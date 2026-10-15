@@ -9,7 +9,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { Button } from "@/components/ui/button";
-import { SupportProductCard } from "@/components/custom/support-product-card";
+import { SupportProductCard } from "@/components/custom/product-card";
 
 export function SupportProductCarousel({
   products,
