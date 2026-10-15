@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { IconFileTypeDoc, IconFileTypePdf } from "@tabler/icons-react";
+import {
+  IconFile,
+  IconFileTypeDoc,
+  IconFileTypePdf,
+} from "@tabler/icons-react";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +38,23 @@ function AttachmentCard({ attachment }: { attachment: Attachment }) {
     /\.(png|jpe?g|gif|webp|avif|bmp|svg)$/i.test(name);
   const isPdf =
     attachment.content_type === "application/pdf" || /\.pdf$/i.test(name);
-  const FileIcon = isPdf ? IconFileTypePdf : IconFileTypeDoc;
+  const isWord =
+    attachment.content_type === "application/msword" ||
+    attachment.content_type ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    /\.(doc|docx)$/i.test(name);
+  const FileIcon = isPdf
+    ? IconFileTypePdf
+    : isWord
+      ? IconFileTypeDoc
+      : IconFile;
+  const attachmentLabel = isImage
+    ? "Image"
+    : isPdf
+      ? "PDF"
+      : isWord
+        ? "Word document"
+        : "Other document";
 
   if (!url) return null;
 
@@ -65,7 +85,13 @@ function AttachmentCard({ attachment }: { attachment: Attachment }) {
           className="flex h-24 items-center justify-center bg-muted focus-visible:outline-2 focus-visible:outline-primary"
         >
           <FileIcon
-            className={`size-12 ${isPdf ? "text-red-500" : "text-blue-500"}`}
+            className={`size-12 ${
+              isPdf
+                ? "text-red-500"
+                : isWord
+                  ? "text-blue-500"
+                  : "text-muted-foreground"
+            }`}
           />
         </a>
       )}
@@ -85,9 +111,7 @@ function AttachmentCard({ attachment }: { attachment: Attachment }) {
               </a>
             )}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {isImage ? "Image" : isPdf ? "PDF" : "Word document"}
-          </p>
+          <p className="text-xs text-muted-foreground">{attachmentLabel}</p>
         </div>
       </div>
       {isImage && (
