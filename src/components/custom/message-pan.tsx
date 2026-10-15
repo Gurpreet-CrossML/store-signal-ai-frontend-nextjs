@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   CartItem,
   HandlerEvent,
-  ProductData,
   ThreadMessage,
 } from "@/redux/api-slice/thread-slice";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,9 +19,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { IconLock, IconShoppingBag, IconSparkles } from "@tabler/icons-react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
+import { ProductCarousel } from "@/components/custom/product-carousel";
 import { getInitials } from "@/components/custom/customer-avatar";
 import { Spinner } from "../ui/spinner";
 
@@ -393,55 +392,9 @@ export default function MessagePan({
                     {message.role === "assistant" &&
                       message?.json_content?.products &&
                       message.json_content.products.length > 0 && (
-                        <div className="flex justify-start mt-2">
-                          <div className="flex flex-wrap gap-2 w-full">
-                            {message.json_content.products.map(
-                              (product: ProductData, idx: number) => {
-                                return (
-                                  <a
-                                    key={idx}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-3 p-2.5 border border-border bg-background hover:bg-muted/50 transition-colors no-underline w-[240px] shrink-0"
-                                  >
-                                    {product.image ? (
-                                      <Image
-                                        src={product.image}
-                                        alt={product.name}
-                                        width={48}
-                                        height={48}
-                                        // Product images come from arbitrary, untrusted
-                                        // store hostnames (Magento/Shopify/etc.) we can't
-                                        // enumerate. unoptimized renders a direct <img> so
-                                        // we skip the remotePatterns allowlist and avoid
-                                        // proxying third-party bandwidth through our optimizer.
-                                        unoptimized
-                                        className="h-12 w-12 object-contain shrink-0 bg-muted"
-                                      />
-                                    ) : (
-                                      <div className="h-12 w-12 rounded bg-muted shrink-0 flex items-center justify-center text-muted-foreground text-[10px]">
-                                        No img
-                                      </div>
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-medium text-foreground truncate leading-snug">
-                                        {product.name}
-                                      </p>
-                                      <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
-                                        {product.id}
-                                      </p>
-                                    </div>
-                                    {product.price && (
-                                      <span className="text-xs font-semibold text-primary shrink-0">
-                                        {product.price}
-                                      </span>
-                                    )}
-                                  </a>
-                                );
-                              },
-                            )}
-                          </div>
-                        </div>
+                        <ProductCarousel
+                          products={message.json_content.products}
+                        />
                       )}
 
                     {message.role === "assistant" &&
