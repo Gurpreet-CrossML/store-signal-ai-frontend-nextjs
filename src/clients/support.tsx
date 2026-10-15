@@ -941,7 +941,7 @@ export default function Support() {
   const { FetchOrderData, FetchOrderDataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchOrderDataState,
   );
-  const { FetchUserMetadataData } = useAppSelector(
+  const { FetchUserMetadataData, FetchUserMetadataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchUserMetadataState,
   );
   const { SyncCustomerOrdersIsLoading } = useAppSelector(
@@ -2554,7 +2554,10 @@ export default function Support() {
                       <CustomerContact
                         email={selectedThread?.customer?.email}
                         phone={selectedThread?.customer?.phone}
-                        orders={FetchOrderData}
+                        // Orders keep the last thread's rows until the new
+                        // ones land; reading them sooner would show the
+                        // previous customer's phone.
+                        orders={FetchOrderDataIsLoading ? null : FetchOrderData}
                       />
                     </div>
                   </div>
@@ -2677,6 +2680,7 @@ export default function Support() {
               currentThreadId={activeThreadId}
               customerData={selectedThread?.customer || null}
               userMetadata={FetchUserMetadataData}
+              userMetadataLoading={FetchUserMetadataIsLoading}
               orders={FetchOrderData}
               ordersLoading={FetchOrderDataIsLoading}
               onOrdersSync={handleOrdersSync}

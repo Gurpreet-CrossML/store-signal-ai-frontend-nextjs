@@ -197,10 +197,12 @@ export function SessionDataCard({
   userMetadata,
   customer,
   currentThreadId,
+  loading,
 }: {
   userMetadata?: UserMetadata | null;
   customer?: Customer | null;
   currentThreadId?: string | null;
+  loading?: boolean;
 }) {
   const device =
     [userMetadata?.device_type, userMetadata?.browser, userMetadata?.os]
@@ -226,36 +228,44 @@ export function SessionDataCard({
         <IconDeviceLaptop className="size-4" />
         Session Data
       </CardTitle>
-      <div className="flex flex-col gap-2">
-        {facts.map((fact) => (
-          <div
-            key={fact.label}
-            className="flex items-center justify-between gap-3"
-          >
-            <Typography variant="muted" className="shrink-0">
-              {fact.label}
-            </Typography>
-            <Typography variant="small" as="span" className="text-right">
-              {fact.value}
-            </Typography>
-          </div>
-        ))}
-        <div className="flex items-center justify-between gap-3">
-          <Typography variant="muted">Past chats</Typography>
-          {customer?.email && currentThreadId && pastThreadsCount > 0 ? (
-            <Link
-              href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
-              className="text-sm font-medium text-primary hover:underline"
+      {loading ? (
+        <CardLoadingState />
+      ) : (
+        <div className="flex flex-col gap-2">
+          {facts.map((fact) => (
+            <div
+              key={fact.label}
+              className="flex items-center justify-between gap-3"
             >
-              {pastChatsLabel}
-            </Link>
-          ) : (
-            <Typography variant="small" as="span">
-              {pastChatsLabel}
-            </Typography>
-          )}
+              <Typography variant="muted" className="shrink-0">
+                {fact.label}
+              </Typography>
+              <Typography
+                variant="small"
+                as="span"
+                className="text-right leading-snug"
+              >
+                {fact.value}
+              </Typography>
+            </div>
+          ))}
+          <div className="flex items-center justify-between gap-3">
+            <Typography variant="muted">Past chats</Typography>
+            {customer?.email && currentThreadId && pastThreadsCount > 0 ? (
+              <Link
+                href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                {pastChatsLabel}
+              </Link>
+            ) : (
+              <Typography variant="small" as="span">
+                {pastChatsLabel}
+              </Typography>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }

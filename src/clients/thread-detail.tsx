@@ -364,7 +364,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const { FetchCartData, FetchCartDataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchCartDataState,
   );
-  const { FetchUserMetadataData } = useAppSelector(
+  const { FetchUserMetadataData, FetchUserMetadataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchUserMetadataState,
   );
   const { FetchFeedbackSequenceData, FetchFeedbackSequenceIsLoading } =
@@ -533,7 +533,13 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             <CustomerContact
               email={details?.customer_email}
               phone={details?.customer?.phone}
-              orders={FetchOrderData}
+              // Orders keep the last thread's rows until the new ones land;
+              // reading them sooner would show the previous customer's phone.
+              orders={
+                detailsLoading || FetchOrderDataIsLoading
+                  ? null
+                  : FetchOrderData
+              }
             />
           </div>
         </div>
@@ -713,6 +719,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             past_threads_count: details?.customer?.past_threads_count ?? 0,
           }}
           userMetadata={FetchUserMetadataData}
+          userMetadataLoading={detailsLoading || FetchUserMetadataIsLoading}
           orders={FetchOrderData}
           ordersLoading={detailsLoading || FetchOrderDataIsLoading}
           onOrdersSync={() => dispatch(FetchOrders(threadId))}
