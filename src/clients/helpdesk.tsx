@@ -1498,6 +1498,10 @@ function ConversationPanel({
               <Button
                 variant="outline"
                 size="icon-sm"
+                className={cn(
+                aiDraft?.message && reply.trim() &&
+                    "border-primary bg-primary/10 text-primary hover:bg-primary/15",
+                )}
                 aria-label={
                   aiDraft?.message ? "Use AI draft" : "Generate AI draft"
                 }
