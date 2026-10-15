@@ -151,6 +151,8 @@ export type SupportTicketDraftMessage = {
   agent: number;
   message: string;
   draft_type: SupportTicketDraftType;
+  confidence?: number | null;
+  sources?: string[];
 };
 
 /** Who or what opened a ticket. */

@@ -1458,6 +1458,23 @@ function ConversationPanel({
           minHeight="6rem"
         />
 
+        {aiDraft?.message && reply.trim() && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <Badge variant="outline">
+              AI confidence:{" "}
+              {aiDraft.confidence != null
+                ? `${Math.round(aiDraft.confidence * 100)}%`
+                : "Not available"}
+            </Badge>
+            <span>
+              Sources:{" "}
+              {aiDraft.sources?.length
+                ? aiDraft.sources.join(", ")
+                : "Not available — regenerate this draft"}
+            </span>
+          </div>
+        )}
+
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {/* AI tools stay icons — the two sends are what need words. */}
           <Tooltip>
