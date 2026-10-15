@@ -505,7 +505,7 @@ export default function Dashboard() {
               refreshing={refreshing}
               onRefresh={handleRefresh}
             />
-            <DropdownMenu>
+            {/* <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button type="button" variant="outline">
                   <IconDownload />
@@ -520,7 +520,7 @@ export default function Dashboard() {
                   Export as PDF
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenu> */}
           </div>
         }
       />

@@ -39,7 +39,6 @@ import {
   IconPlus,
   IconArrowsSort,
   IconReload,
-  IconRepeat,
   IconSend,
   IconSparkles,
   IconUser,
@@ -846,6 +845,9 @@ function ConversationPanel({
       ?.name ?? ticketLanguage;
 
   const customerName = customerLabel(ticket.customer);
+  // Shown in brackets beside the status — only worth the width once the
+  // ticket has actually been reopened.
+  const reopenCount = ticket.reopen_count ?? 0;
   const customerEmail =
     ticket.customer && typeof ticket.customer === "object"
       ? ticket.customer.email
@@ -1143,6 +1145,11 @@ function ConversationPanel({
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Change status"
+                title={
+                  reopenCount > 0
+                    ? `Reopened ${pluralize(reopenCount, "time")}`
+                    : undefined
+                }
                 disabled={!(STATUS_TRANSITIONS[ticket.status] ?? []).length}
                 className={cn(
                   badgeVariants({ variant: "outline" }),
@@ -1151,6 +1158,7 @@ function ConversationPanel({
                 )}
               >
                 {capitalizeText(ticket.status)}
+                {reopenCount > 0 ? ` (${reopenCount})` : null}
                 {(STATUS_TRANSITIONS[ticket.status] ?? []).length ? (
                   <IconChevronDown />
                 ) : null}
@@ -1182,22 +1190,6 @@ function ConversationPanel({
                   ))}
               </DropdownMenuContent>
             </DropdownMenu>
-
-            {/* How many times the ticket has been reopened — only worth the
-                width once it has happened. */}
-            {(ticket.reopen_count ?? 0) > 0 ? (
-              <Badge
-                variant="outline"
-                aria-label="Times reopened"
-                title="Times this ticket has been reopened"
-                className={BADGE_TONE_STYLES.warning}
-              >
-                <IconRepeat />
-                {ticket.reopen_count === 1
-                  ? "Reopened once"
-                  : `Reopened ${ticket.reopen_count} times`}
-              </Badge>
-            ) : null}
 
             <DropdownMenu>
               <DropdownMenuTrigger
