@@ -143,6 +143,7 @@ export type SupportTicketMessage = {
   created_at: string;
   metadata: object;
   attachments: SupportTicketMessageAttachments[];
+  pendingFiles?: File[];
 };
 
 export type SupportTicketDraftMessage = {
