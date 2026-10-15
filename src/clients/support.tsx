@@ -1357,6 +1357,25 @@ export default function Support() {
           if (activeThreadIdRef.current === activeThreadId) {
             setThreadMessages(result.messages ?? []);
             setHandlerEvents(result.handler_events ?? []);
+            // Threads added over the socket have no phone or past-chat
+            // count; fill them in from this thread's details.
+            if (result.customer) {
+              const { phone, past_threads_count } = result.customer;
+              setLocalThreads((prev) =>
+                prev.map((thread) =>
+                  thread.id === activeThreadId && thread.customer
+                    ? {
+                        ...thread,
+                        customer: {
+                          ...thread.customer,
+                          phone,
+                          past_threads_count,
+                        },
+                      }
+                    : thread,
+                ),
+              );
+            }
           }
         })
         .catch(() => {
@@ -1765,7 +1784,11 @@ export default function Support() {
         const existingThread = prev[existingIndex];
         const updatedThread: ThreadWithReadState = {
           ...existingThread,
-          customer: data.customer || existingThread.customer,
+          // The event's customer is only id, name and email — merge it so
+          // the phone and past-thread count from the list survive.
+          customer: data.customer
+            ? { ...existingThread.customer, ...data.customer }
+            : existingThread.customer,
           source: data.source ?? existingThread.source,
           last_message: data.message,
           last_message_at: data.created_at,
