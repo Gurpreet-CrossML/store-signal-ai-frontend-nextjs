@@ -111,6 +111,12 @@ import { SearchInput } from "@/components/custom/search-input";
 
 import { ENDPOINTS } from "@/lib/config";
 import {
+  SUPPORT_ATTACHMENT_ACCEPT,
+  SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS,
+  SUPPORT_ATTACHMENT_MAX_FILE_SIZE,
+  SUPPORT_ATTACHMENT_MAX_FILES,
+} from "@/lib/support-attachment-constants";
+import {
   DEFAULT_TICKET_LANGUAGE,
   DEFAULT_TICKET_SENTIMENT,
   SUPPORTED_LANGUAGES,
@@ -1535,28 +1541,39 @@ function ConversationPanel({
             ref={attachmentInputRef}
             type="file"
             multiple
-            accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+            accept={SUPPORT_ATTACHMENT_ACCEPT}
             className="hidden"
             aria-label="Choose attachments"
             onChange={(event) => {
               const files = Array.from(event.target.files ?? []).filter(
                 (file) => {
-                  if (!/\.(jpg|jpeg|png|pdf|doc|docx)$/i.test(file.name)) {
+                  const extension =
+                    `.${file.name.split(".").pop() ?? ""}`.toLowerCase();
+                  if (
+                    !SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS.some(
+                      (allowedExtension) => allowedExtension === extension,
+                    )
+                  ) {
                     toast.error(
                       `${file.name}: Only images, PDF and Word documents are allowed.`,
                     );
                     return false;
                   }
-                  if (file.size > 5 * 1024 * 1024) {
+                  if (file.size > SUPPORT_ATTACHMENT_MAX_FILE_SIZE) {
                     toast.error(`${file.name}: Maximum file size is 5 MB.`);
                     return false;
                   }
                   return true;
                 },
               );
-              const remainingSlots = Math.max(0, 5 - attachments.length);
+              const remainingSlots = Math.max(
+                0,
+                SUPPORT_ATTACHMENT_MAX_FILES - attachments.length,
+              );
               if (files.length > remainingSlots) {
-                toast.error("You can attach a maximum of 5 files per message.");
+                toast.error(
+                  `You can attach a maximum of ${SUPPORT_ATTACHMENT_MAX_FILES} files per message.`,
+                );
               }
               onAttachmentsChange([
                 ...attachments,

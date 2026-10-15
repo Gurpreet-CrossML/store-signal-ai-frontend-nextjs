@@ -35,7 +35,7 @@ function AttachmentCard({ attachment }: { attachment: Attachment }) {
   const name = attachmentName(url);
   const isImage =
     attachment.content_type?.startsWith("image/") ||
-    /\.(png|jpe?g|gif|webp|avif|bmp|svg)$/i.test(name);
+    /\.(png|jpe?g)$/i.test(name);
   const isPdf =
     attachment.content_type === "application/pdf" || /\.pdf$/i.test(name);
   const isWord =
