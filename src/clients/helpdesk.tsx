@@ -112,7 +112,7 @@ import { SearchInput } from "@/components/custom/search-input";
 
 import { ENDPOINTS } from "@/lib/config";
 import {
-  SUPPORT_ATTACHMENT_ACCEPT,
+  SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS,
   prepareSupportAttachments,
 } from "@/lib/support-attachment-constants";
 import {
@@ -1549,7 +1549,7 @@ function ConversationPanel({
             ref={attachmentInputRef}
             type="file"
             multiple
-            accept={SUPPORT_ATTACHMENT_ACCEPT}
+            accept={SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS.join(",")}
             className="hidden"
             aria-label="Choose attachments"
             onChange={handleAttachmentChange}
