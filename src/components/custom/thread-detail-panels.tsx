@@ -11,6 +11,7 @@ import type {
   OrderData,
   CartData,
   ThreadTicketData,
+  ViewedProduct,
 } from "@/redux/api-slice/thread-slice";
 import { IconShoppingBag, IconTicket } from "@tabler/icons-react";
 import { FulfillmentBadge } from "@/components/ui/status-badge";
@@ -42,6 +43,22 @@ function CardLoadingState() {
   return <LoadingState className="py-6" />;
 }
 
+/** A product's first image, or a bag icon when it has none. */
+function ProductThumb({ image, name }: { image?: string; name: string }) {
+  return (
+    <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-muted">
+      {image ? (
+        // Product images come from arbitrary store CDNs, so
+        // next/image's domain allowlist can't cover them.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt={name} className="h-full w-full object-contain" />
+      ) : (
+        <IconShoppingBag className="size-3 text-muted-foreground" />
+      )}
+    </div>
+  );
+}
+
 /**
  * Cart prices arrive as display strings (e.g. "$9999.0") — reformat the
  * numeric part to two decimals, keeping the store's currency prefix.
@@ -66,7 +83,7 @@ export function CartDetailsCard({
   currentThreadId,
   pastThreadsCount = 0,
   customerEmail,
-  viewedProductsCount = 0,
+  viewedProducts = [],
 }: {
   cartData: CartDataResponse | null;
   loading?: boolean;
@@ -75,7 +92,7 @@ export function CartDetailsCard({
   pastThreadsCount?: number;
   customerEmail?: string | null;
   /** Product pages the shopper has opened, as the store theme records them. */
-  viewedProductsCount?: number;
+  viewedProducts?: ViewedProduct[];
 }) {
   const cart = cartData?.updated_cart_data;
   const items = cart?.items ?? [];
@@ -121,9 +138,28 @@ export function CartDetailsCard({
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Products viewed</span>
             <span className="font-normal text-foreground">
-              {viewedProductsCount}
+              {viewedProducts.length}
             </span>
           </div>
+
+          {viewedProducts.length > 0 ? (
+            <div className="flex max-h-60 flex-col gap-2 overflow-y-auto rounded-lg border bg-muted/20 p-2.5">
+              {viewedProducts.map((viewed) => (
+                <a
+                  key={viewed.id}
+                  href={viewed.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex min-w-0 items-center gap-2 hover:underline"
+                >
+                  <ProductThumb image={viewed.image} name={viewed.name} />
+                  <span className="truncate text-xs font-normal text-foreground">
+                    {viewed.name}
+                  </span>
+                </a>
+              ))}
+            </div>
+          ) : null}
 
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Cart</span>
@@ -138,20 +174,7 @@ export function CartDetailsCard({
                   className="flex items-center justify-between gap-3"
                 >
                   <div className="flex min-w-0 items-center gap-2">
-                    <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-muted">
-                      {item.product_image ? (
-                        // Product images come from arbitrary store CDNs, so
-                        // next/image's domain allowlist can't cover them.
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={item.product_image}
-                          alt={item.name}
-                          className="h-full w-full object-contain"
-                        />
-                      ) : (
-                        <IconShoppingBag className="size-3 text-muted-foreground" />
-                      )}
-                    </div>
+                    <ProductThumb image={item.product_image} name={item.name} />
                     <div className="min-w-0">
                       <p className="truncate text-xs font-normal text-foreground">
                         {item.name}
@@ -242,6 +265,18 @@ export function SupportTicketsCard({
   );
 }
 
+/** One figure in the orders summary. */
+function SummaryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
+      <Typography variant="muted">{label}</Typography>
+      <Typography variant="small" as="p" className="truncate tabular-nums">
+        {value}
+      </Typography>
+    </div>
+  );
+}
+
 export function OrdersCard({
   orders,
   loading,
@@ -282,6 +317,12 @@ export function OrdersCard({
   const { FetchOrderDetailsData, FetchOrderDetailsIsLoading } = useAppSelector(
     (state) => state.GetOrderReducer.FetchOrderDetailsState,
   );
+
+  const totalSpent = orderList.reduce(
+    (sum, order) => sum + Number(order.total_price ?? 0),
+    0,
+  );
+  const currency = orderList[0]?.currency ?? "USD";
 
   const toggleOrder = (id: number) => {
     setExpandedId((prev) => {
@@ -324,6 +365,17 @@ export function OrdersCard({
           </TooltipContent>
         </Tooltip>
       </div>
+      {/* A 1px gap over a border-coloured ground gives even separators
+          however the pair wraps. */}
+      {!loading ? (
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
+          <SummaryStat
+            label="Lifetime value"
+            value={formatPrice(totalSpent, currency)}
+          />
+          <SummaryStat label="Orders" value={String(orderList.length)} />
+        </div>
+      ) : null}
 
       {loading ? (
         <CardLoadingState />

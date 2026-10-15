@@ -14,6 +14,7 @@ import {
   chatCustomerorder,
   chatThreadAssignment,
   authUser,
+  product,
 } from "@/lib/drizzle/schema";
 import {
   and,
@@ -34,6 +35,7 @@ import {
   OrderData,
   OrderItemData,
   OrderShippingAddress,
+  ViewedProduct,
 } from "@/redux/api-slice/thread-slice";
 
 /**
@@ -981,7 +983,7 @@ export type UserMetadataData = {
   device_type: string | null;
   browser: string | null;
   os: string | null;
-  viewed_products: string[];
+  viewed_products: ViewedProduct[];
 };
 
 /**
@@ -989,7 +991,9 @@ export type UserMetadataData = {
  * Returns the latest UserMetadata row (order_by -created_at) for the thread.
  * thread_id is write_only on the serializer, so it is NOT in the read output;
  * read fields are: id, customer_name, geo_location, ip_address, device_type,
- * browser, os.
+ * browser, os, viewed_products — the last resolved here from the platform
+ * ids the widget stores to the products they are, in viewing order; ids
+ * not in the store's catalog are dropped.
  * Returns null when none -> route serializes a None instance (empty object).
  */
 export async function get_user_metadata(
@@ -1013,10 +1017,47 @@ export async function get_user_metadata(
     .limit(1);
 
   if (rows.length === 0) return null;
+
+  // The widget posts whatever the storefront left in localStorage, so drop
+  // repeats and anything that is not a bigint id before it reaches SQL.
+  const viewedIds = [
+    ...new Set((rows[0].viewed_products as string[]).map(Number)),
+  ].filter(Number.isSafeInteger);
+  const viewed = viewedIds.length
+    ? await db
+        .select({
+          external_id: product.externalId,
+          name: product.name,
+          url: product.url,
+          images: product.images,
+        })
+        .from(product)
+        .innerJoin(chatThread, eq(chatThread.storeId, product.storeId))
+        .where(
+          and(
+            eq(chatThread.id, thread_id),
+            inArray(product.externalId, viewedIds),
+          ),
+        )
+    : [];
+  const byId = new Map(viewed.map((row) => [row.external_id, row]));
+
   return {
     ...rows[0],
     id: Number(rows[0].id),
-    viewed_products: rows[0].viewed_products as string[],
+    viewed_products: viewedIds.flatMap((viewedId) => {
+      const row = byId.get(viewedId);
+      if (!row) return [];
+      const images = row.images as { url: string }[];
+      return [
+        {
+          id: String(row.external_id),
+          name: row.name,
+          url: row.url,
+          image: images[0]?.url ?? "",
+        },
+      ];
+    }),
   };
 }
 
