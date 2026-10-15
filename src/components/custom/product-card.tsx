@@ -2,7 +2,7 @@ import Image from "next/image";
 
 import type { ProductData } from "@/redux/api-slice/thread-slice";
 
-export function SupportProductCard({ product }: { product: ProductData }) {
+export function ProductCard({ product }: { product: ProductData }) {
   return (
     <div className="flex flex-col overflow-hidden rounded-md border border-border bg-background">
       <a

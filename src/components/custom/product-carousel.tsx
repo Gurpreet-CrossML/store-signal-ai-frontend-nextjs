@@ -9,13 +9,9 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { Button } from "@/components/ui/button";
-import { SupportProductCard } from "@/components/custom/product-card";
+import { ProductCard } from "@/components/custom/product-card";
 
-export function SupportProductCarousel({
-  products,
-}: {
-  products: ProductData[];
-}) {
+export function ProductCarousel({ products }: { products: ProductData[] }) {
   const [api, setApi] = useState<CarouselApi>();
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -54,7 +50,7 @@ export function SupportProductCarousel({
               key={product.id}
               className="basis-[42%] pl-2 sm:basis-1/4"
             >
-              <SupportProductCard product={product} />
+              <ProductCard product={product} />
             </CarouselItem>
           ))}
         </CarouselContent>

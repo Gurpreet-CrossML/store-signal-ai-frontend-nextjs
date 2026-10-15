@@ -21,7 +21,7 @@ import {
 import { IconLock, IconShoppingBag, IconSparkles } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
-import { SupportProductCarousel } from "@/components/custom/product-carousel";
+import { ProductCarousel } from "@/components/custom/product-carousel";
 import { getInitials } from "@/components/custom/customer-avatar";
 import { Spinner } from "../ui/spinner";
 
@@ -392,7 +392,7 @@ export default function MessagePan({
                     {message.role === "assistant" &&
                       message?.json_content?.products &&
                       message.json_content.products.length > 0 && (
-                        <SupportProductCarousel
+                        <ProductCarousel
                           products={message.json_content.products}
                         />
                       )}
