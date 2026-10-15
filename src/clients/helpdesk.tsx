@@ -227,6 +227,11 @@ function TicketRow({
   const visibleTags = ticket.tags?.slice(0, MAX_VISIBLE_TKT_ROW_TAGS) ?? [];
   const hiddenTags = ticket.tags?.slice(MAX_VISIBLE_TKT_ROW_TAGS) ?? [];
   const customerName = customerLabel(ticket.customer);
+  // Falls back like the ticket header does, for a channel the backend adds
+  // before CHANNEL_META hears about it.
+  const ChannelIcon = CHANNEL_META[ticket.channel]?.icon ?? IconInbox;
+  const channelLabel =
+    CHANNEL_META[ticket.channel]?.label ?? capitalizeText(ticket.channel);
 
   return (
     <ConversationRow
@@ -249,7 +254,23 @@ function TicketRow({
       // what the ticket is about, so a teaser of the latest message only
       // competed with it — and trailing off mid-sentence after an email
       // address read as one run-on string.
-      preview={<span className="text-foreground/70">{customerName}</span>}
+      preview={
+        <span className="flex items-center gap-1.5 text-foreground/70">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                role="img"
+                aria-label={channelLabel}
+                className="flex shrink-0 items-center"
+              >
+                <ChannelIcon className="size-3.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{channelLabel}</TooltipContent>
+          </Tooltip>
+          <span className="truncate">{customerName}</span>
+        </span>
+      }
       footer={
         visibleTags.length > 0 ? (
           <div className="flex flex-wrap items-center gap-1">
