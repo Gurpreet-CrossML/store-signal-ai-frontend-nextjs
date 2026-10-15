@@ -692,10 +692,6 @@ function TicketListPanel({
   );
 }
 
-type HelpdeskMessage = SupportTicketMessage & {
-  pendingFiles?: File[];
-};
-
 function ConversationPanel({
   storeCode,
   ticket,
@@ -735,7 +731,7 @@ function ConversationPanel({
 }: {
   storeCode: string;
   ticket: SupportTicket;
-  messages: HelpdeskMessage[];
+  messages: SupportTicketMessage[];
   reply: string;
   attachments: File[];
   onAttachmentsChange: (files: File[]) => void;
@@ -1913,7 +1909,7 @@ export default function HelpDesk() {
   const [sortOrder, setSortOrder] =
     useState<SupportTicketOrdering>("last_updated");
   const [supportTikcetMessages, setSupportTicketMessages] = useState<
-    HelpdeskMessage[]
+    SupportTicketMessage[]
   >([]);
   const [activeSupportTicket, setActiveSupportTicket] =
     useState<SupportTicket | null>(null);
@@ -2953,7 +2949,7 @@ export default function HelpDesk() {
     const tempId = createTempMessageId();
     const selectedFiles = attachments;
     const draftReply = reply;
-    const pendingMessage: HelpdeskMessage = {
+    const optimisticMessage: SupportTicketMessage = {
       id: tempId,
       sender_type: "agent",
       message: trimmedReply,
@@ -2968,7 +2964,7 @@ export default function HelpDesk() {
       pendingFiles: selectedFiles,
       created_at: new Date().toISOString(),
     };
-    setSupportTicketMessages((current) => [...current, pendingMessage]);
+    setSupportTicketMessages((current) => [...current, optimisticMessage]);
     setReply("");
     setAttachmentSelection({ ticketId: null, files: [] });
 
