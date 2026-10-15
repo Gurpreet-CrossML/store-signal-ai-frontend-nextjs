@@ -4,24 +4,6 @@ import { getToken } from "next-auth/jwt";
 
 import { isPublicRoute, isSignedOutRoute } from "@/lib/auth-routes";
 
-// Screens switched off for now. Hidden from the sidebar too (see
-// src/lib/sidebar-navs.ts and src/lib/nav-areas.ts); this is what stops a typed
-// URL or bookmark. Each prefix covers every route beneath it. Remove an entry
-// to turn its screens back on.
-const DISABLED_ROUTE_PREFIXES = [
-  "/campaign",
-  "/social-ai",
-  "/settings/social-ai",
-  "/settings/ai-usage",
-  "/settings/staff-management",
-];
-
-function isDisabledRoute(pathname: string) {
-  return DISABLED_ROUTE_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
-}
-
 // Next.js 16 renamed Middleware → Proxy (see node_modules/next/dist/docs/.../proxy.md).
 // Proxy runs on the Node.js runtime and is meant for FAST, optimistic checks —
 // not slow data fetching or full session management. So this only does the
@@ -65,11 +47,6 @@ export async function proxy(req: NextRequest) {
   // Unauthenticated user trying to access protected route → redirect to /login
   if (!token && !isSignedOutRoute(pathname)) {
     return NextResponse.redirect(new URL("/login", req.url));
-  }
-
-  // Disabled screens bounce to the dashboard, whatever the role.
-  if (token && isDisabledRoute(pathname)) {
-    return NextResponse.redirect(new URL("/", req.url));
   }
 
   // Onboarding not finished → the user is pinned to "/" where the onboarding

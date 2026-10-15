@@ -305,7 +305,7 @@ export const sidebarMenus: SideBarMenus = {
       permission: "conversations",
     },
     areaMenuItem("helpdesk", { permission: "conversations" }),
-    // Social AI and Campaign are disabled for now (also blocked in src/proxy.ts).
+    // Social AI and Campaign are disabled for now (their layouts redirect to "/").
     // // Social AI is admin-only until its roles are decided.
     // areaMenuItem("socialAI", { adminOnly: true }),
     areaMenuItem("crm", { permission: "conversations" }),
