@@ -793,10 +793,6 @@ function ConversationPanel({
     messagesEndRef.current?.scrollIntoView({ block: "end" });
   }, [ticket.id, messages.length]);
 
-  useEffect(() => {
-    setIsAIDraftSelected(false);
-  }, [ticket.id]);
-
   const filteredTags = availableTags.filter((tag) =>
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
   );
@@ -1490,7 +1486,7 @@ function ConversationPanel({
             <span>
               Sources:{" "}
               {aiDraft.sources?.length
-                ? aiDraft.sources.join(", ")
+                ? aiDraft.sources.join(" and ")
                 : "Not available — regenerate this draft"}
             </span>
           </div>
@@ -3407,6 +3403,7 @@ export default function HelpDesk() {
           </div>
         ) : (
           <ConversationPanel
+            key={activeSupportTicket.id}
             storeCode={storeCode}
             ticket={activeSupportTicket}
             messages={supportTikcetMessages}
