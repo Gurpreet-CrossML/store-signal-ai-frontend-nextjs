@@ -18,12 +18,12 @@ import {
   IconShoppingBag,
   IconPackage,
   IconChevronRight,
+  IconDeviceLaptop,
   IconEye,
   IconTicket,
 } from "@tabler/icons-react";
 import { FulfillmentBadge } from "@/components/ui/status-badge";
 import { OrderDetails } from "@/components/custom/order-details";
-import { CustomerProfileCard } from "@/components/custom/customer-profile-card";
 import { IconRefresh } from "@tabler/icons-react";
 
 import { AnimatePresence, motion } from "framer-motion";
@@ -189,13 +189,24 @@ export function ViewedProductsCard({
   );
 }
 
-export function PastChatsCard({
+/**
+ * Where and on what the visitor is browsing, and how often they have been
+ * here before.
+ */
+export function SessionDataCard({
+  userMetadata,
   customer,
   currentThreadId,
 }: {
+  userMetadata?: UserMetadata | null;
   customer?: Customer | null;
   currentThreadId?: string | null;
 }) {
+  const device =
+    [userMetadata?.device_type, userMetadata?.browser, userMetadata?.os]
+      .filter(Boolean)
+      .join(" · ") || "—";
+
   /** Threads this customer started before the current one. */
   const pastThreadsCount = customer?.past_threads_count ?? 0;
   const pastChatsLabel =
@@ -203,21 +214,48 @@ export function PastChatsCard({
       ? `${pastThreadsCount} ${pastThreadsCount === 1 ? "thread" : "threads"}`
       : "None";
 
+  const facts = [
+    { label: "Location", value: userMetadata?.geo_location || "—" },
+    { label: "IP address", value: userMetadata?.ip_address || "—" },
+    { label: "Device", value: device },
+  ];
+
   return (
-    <section className="flex items-center justify-between gap-3 border-b p-4">
-      <Typography variant="muted">Past chats</Typography>
-      {customer?.email && currentThreadId && pastThreadsCount > 0 ? (
-        <Link
-          href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
-          className="text-sm font-medium text-primary hover:underline"
-        >
-          {pastChatsLabel}
-        </Link>
-      ) : (
-        <Typography variant="small" as="span">
-          {pastChatsLabel}
-        </Typography>
-      )}
+    <section className="flex flex-col gap-3 border-b p-4">
+      <CardTitle className="flex items-center gap-2">
+        <IconDeviceLaptop className="size-4" />
+        Session Data
+      </CardTitle>
+      <div className="flex flex-col gap-2">
+        {facts.map((fact) => (
+          <div
+            key={fact.label}
+            className="flex items-center justify-between gap-3"
+          >
+            <Typography variant="muted" className="shrink-0">
+              {fact.label}
+            </Typography>
+            <Typography variant="small" as="span" className="text-right">
+              {fact.value}
+            </Typography>
+          </div>
+        ))}
+        <div className="flex items-center justify-between gap-3">
+          <Typography variant="muted">Past chats</Typography>
+          {customer?.email && currentThreadId && pastThreadsCount > 0 ? (
+            <Link
+              href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              {pastChatsLabel}
+            </Link>
+          ) : (
+            <Typography variant="small" as="span">
+              {pastChatsLabel}
+            </Typography>
+          )}
+        </div>
+      </div>
     </section>
   );
 }
@@ -332,7 +370,6 @@ export function OrdersCard({
   orderSyncLoading,
   customerData,
   isDisabled,
-  userMetadata,
 }: {
   orders?: OrderData[] | null;
   loading?: boolean;
@@ -340,8 +377,6 @@ export function OrdersCard({
   orderSyncLoading?: boolean;
   customerData?: Customer | null;
   isDisabled?: boolean;
-  /** Feeds the city fallback when no order carries one. */
-  userMetadata?: UserMetadata | null;
 }) {
   const orderList = orders ?? [];
   const {
@@ -421,14 +456,6 @@ export function OrdersCard({
           </TooltipContent>
         </Tooltip>
       </div>
-      {!loading ? (
-        <CustomerProfileCard
-          customer={customerData}
-          orders={orderList}
-          userMetadata={userMetadata}
-        />
-      ) : null}
-
       {/* The figures the orders below add up to, in the section that
           lists them rather than a card of its own above it. A 1px gap over
           a border-coloured ground gives even separators however the pair

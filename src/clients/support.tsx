@@ -31,7 +31,7 @@ import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
 import {
   CrmLinkButton,
-  SessionFacts,
+  CustomerContact,
 } from "@/components/custom/customer-header";
 import {
   CreateTicketDialog,
@@ -2547,25 +2547,19 @@ export default function Support() {
                           }
                         />
                       </div>
-                      {/* Email rather than a status line: who you are
+                      {/* Contact rather than a status line: who you are
                           talking to is what an agent needs from a header,
                           and who is handling the thread is already said by
-                          the take-over banner above the composer. Omitted
-                          entirely for a guest — a line reading "no email"
-                          is worse than no line. */}
-                      {selectedThread?.customer?.email ? (
-                        <Typography variant="muted" className="truncate">
-                          {selectedThread.customer.email}
-                        </Typography>
-                      ) : null}
+                          the take-over banner above the composer. */}
+                      <CustomerContact
+                        email={selectedThread?.customer?.email}
+                        phone={selectedThread?.customer?.phone}
+                        orders={FetchOrderData}
+                      />
                     </div>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-3">
-                    {/* Where they are browsing from, beside who they are —
-                        context for the person already on screen, and three
-                        rows the details pane gets back for orders. */}
-                    <SessionFacts userMetadata={FetchUserMetadataData} />
                     <Button
                       variant="outline"
                       size="sm"

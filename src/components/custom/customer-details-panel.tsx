@@ -3,7 +3,7 @@
 import {
   CartDetailsCard,
   OrdersCard,
-  PastChatsCard,
+  SessionDataCard,
   SupportTicketsCard,
   ViewedProductsCard,
 } from "@/components/custom/thread-detail-panels";
@@ -64,7 +64,6 @@ export function CustomerDetailsPanel({
           orderSyncLoading={orderSyncLoading}
           customerData={customerData}
           isDisabled={ordersDisabled}
-          userMetadata={userMetadata}
         />
         {tickets ? (
           <SupportTicketsCard
@@ -78,7 +77,8 @@ export function CustomerDetailsPanel({
             <ViewedProductsCard
               viewedProducts={userMetadata?.viewed_products}
             />
-            <PastChatsCard
+            <SessionDataCard
+              userMetadata={userMetadata}
               customer={customerData}
               currentThreadId={currentThreadId}
             />

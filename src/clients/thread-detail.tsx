@@ -26,7 +26,7 @@ import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
 import {
   CrmLinkButton,
-  SessionFacts,
+  CustomerContact,
 } from "@/components/custom/customer-header";
 import { TagsCell } from "@/components/custom/threads-columns";
 import { InfoIcon } from "@/components/custom/info-icon";
@@ -364,7 +364,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const { FetchCartData, FetchCartDataIsLoading } = useAppSelector(
     (state) => state.GetThreadReducer.FetchCartDataState,
   );
-  const { FetchUserMetadataData, FetchUserMetadataIsLoading } = useAppSelector(
+  const { FetchUserMetadataData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchUserMetadataState,
   );
   const { FetchFeedbackSequenceData, FetchFeedbackSequenceIsLoading } =
@@ -530,13 +530,11 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 }
               />
             </div>
-            {/* Nothing rather than "no email on file" for a guest — the
-                avatar and the link action already say which this is. */}
-            {details?.customer_email ? (
-              <Typography variant="muted" className="truncate">
-                {details.customer_email}
-              </Typography>
-            ) : null}
+            <CustomerContact
+              email={details?.customer_email}
+              phone={details?.customer?.phone}
+              orders={FetchOrderData}
+            />
           </div>
         </div>
 
@@ -582,14 +580,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             </>
           )}
         </div>
-
-        <SessionFacts
-          userMetadata={
-            FetchUserMetadataIsLoading || detailsLoading
-              ? null
-              : FetchUserMetadataData
-          }
-        />
       </header>
 
       <div className="flex min-h-0 flex-1">
