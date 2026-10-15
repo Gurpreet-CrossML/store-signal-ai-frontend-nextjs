@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import type { SupportTicketMessage } from "@/redux/api-slice/support-ticket-slice";
 import { Spinner } from "@/components/ui/spinner";
-import { hasSupportAttachmentExtension } from "@/lib/support-attachment-constants";
+import { getSupportAttachmentType } from "@/lib/support-attachment-constants";
 
 type Attachment = SupportTicketMessage["attachments"][number];
 
@@ -34,29 +34,21 @@ function AttachmentCard({ attachment }: { attachment: Attachment }) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const url = attachment.file_url || attachment.file;
   const name = attachmentName(url);
-  const isImage =
-    attachment.content_type?.startsWith("image/") ||
-    hasSupportAttachmentExtension(name, [".png", ".jpg", ".jpeg"]);
-  const isPdf =
-    attachment.content_type === "application/pdf" ||
-    hasSupportAttachmentExtension(name, [".pdf"]);
-  const isWord =
-    attachment.content_type === "application/msword" ||
-    attachment.content_type ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-    hasSupportAttachmentExtension(name, [".doc", ".docx"]);
+  const attachmentType = getSupportAttachmentType(name);
+  const isImage = attachmentType === "image";
+  const isPdf = attachmentType === "pdf";
+  const isWord = attachmentType === "word";
   const FileIcon = isPdf
     ? IconFileTypePdf
     : isWord
       ? IconFileTypeDoc
       : IconFile;
-  const attachmentLabel = isImage
-    ? "Image"
-    : isPdf
-      ? "PDF"
-      : isWord
-        ? "Word document"
-        : "Other document";
+  const attachmentLabel = {
+    image: "Image",
+    pdf: "PDF",
+    word: "Word document",
+    other: "Other document",
+  }[attachmentType];
 
   if (!url) return null;
 
