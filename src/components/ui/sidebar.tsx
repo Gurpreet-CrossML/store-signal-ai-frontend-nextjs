@@ -222,7 +222,10 @@ function Sidebar({
           "group-data-[side=right]:rotate-180",
           variant === "floating" || variant === "inset"
             ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
-            : "group-data-[collapsible=icon]:w-(--sidebar-width-icon)",
+            : // --sidebar-gap-width lets a caller reserve less room than the
+              // sidebar occupies, so a widened sidebar overlays the page
+              // instead of pushing it aside. Unset, it follows the icon width.
+              "group-data-[collapsible=icon]:w-[var(--sidebar-gap-width,var(--sidebar-width-icon))]",
         )}
       />
       <div

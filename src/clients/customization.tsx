@@ -29,6 +29,7 @@ import CustomizationTheme from "@/components/custom/customization-theme";
 import CustomizationActionButtons from "@/components/custom/customization-action-buttons";
 import CustomizationBranding from "@/components/custom/customization-branding";
 import CustomizationQuickLinks from "@/components/custom/customization-quick-links";
+import { PreviewModalButton } from "@/components/custom/preview-modal-button";
 import CustomizationLivePreview from "@/components/custom/customization-live-preview";
 import type {
   ActionButton,
@@ -489,6 +490,18 @@ export default function Customization() {
     setLogoUrl(null);
   };
 
+  const previewProps = {
+    storeLabel,
+    logoUrl,
+    welcomeMessage,
+    greetingMessage,
+    themeColor,
+    secondaryColor,
+    themeVars,
+    actionButtons,
+    quickLinks: previewQuickLinks,
+  };
+
   return (
     <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
       <div className="flex flex-col gap-6">
@@ -561,19 +574,15 @@ export default function Customization() {
         </div>
       </div>
 
-      <div className="relative">
-        <CustomizationLivePreview
-          storeLabel={storeLabel}
-          logoUrl={logoUrl}
-          welcomeMessage={welcomeMessage}
-          greetingMessage={greetingMessage}
-          themeColor={themeColor}
-          secondaryColor={secondaryColor}
-          themeVars={themeVars}
-          actionButtons={actionButtons}
-          quickLinks={previewQuickLinks}
-        />
+      {/* Docked beside the form from `lg`; below that it opens in a modal
+          from the Preview button instead of sitting at the bottom of the
+          page. */}
+      <div className="relative hidden lg:block">
+        <CustomizationLivePreview {...previewProps} />
       </div>
+      <PreviewModalButton title="Widget preview">
+        <CustomizationLivePreview {...previewProps} />
+      </PreviewModalButton>
     </div>
   );
 }

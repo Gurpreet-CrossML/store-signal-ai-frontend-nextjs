@@ -1,5 +1,15 @@
 "use client";
 
+import { IconId } from "@tabler/icons-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   CartDetailsCard,
   OrdersCard,
@@ -7,6 +17,7 @@ import {
   SupportTicketsCard,
   ViewedProductsCard,
 } from "@/components/custom/thread-detail-panels";
+import { cn } from "@/lib/utils";
 import type {
   CartDataResponse,
   Customer,
@@ -14,6 +25,33 @@ import type {
   ThreadTicketData,
   UserMetadata,
 } from "@/redux/api-slice/thread-slice";
+
+/**
+ * Opens the details as a sheet. Shown only below `xl`, where the docked
+ * pane has no room and is hidden — without it the customer's orders,
+ * tickets, cart and session data are unreachable on a tablet.
+ */
+export function CustomerDetailsButton({
+  onClick,
+  className,
+}: {
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      aria-label="Show customer details"
+      className={cn("xl:hidden", className)}
+      onClick={onClick}
+    >
+      <IconId className="size-4" />
+      <span className="hidden sm:inline">Details</span>
+    </Button>
+  );
+}
 
 /**
  * The right-hand pane on any screen where an agent is talking to a
@@ -41,6 +79,8 @@ export function CustomerDetailsPanel({
   cart,
   currentThreadId,
   userMetadataLoading,
+  open,
+  onOpenChange,
 }: {
   customerData?: Customer | null;
   userMetadata?: UserMetadata | null;
@@ -56,40 +96,65 @@ export function CustomerDetailsPanel({
   currentThreadId?: string | null;
   /** True while `userMetadata` may still be the previous thread's. */
   userMetadataLoading?: boolean;
+  /**
+   * Below `xl` the pane is not docked; it opens as a sheet instead, driven
+   * by these. Omit them where a screen has no way to open it.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  return (
-    <aside className="hidden min-h-0 w-80 shrink-0 flex-col border-l xl:flex 2xl:w-95">
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <OrdersCard
-          orders={orders}
-          loading={ordersLoading}
-          handleOrdersSync={onOrdersSync}
-          orderSyncLoading={orderSyncLoading}
-          customerData={customerData}
-          isDisabled={ordersDisabled}
-        />
-        {tickets ? (
-          <SupportTicketsCard
-            tickets={tickets.data}
-            loading={tickets.loading}
+  const content = (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <OrdersCard
+        orders={orders}
+        loading={ordersLoading}
+        handleOrdersSync={onOrdersSync}
+        orderSyncLoading={orderSyncLoading}
+        customerData={customerData}
+        isDisabled={ordersDisabled}
+      />
+      {tickets ? (
+        <SupportTicketsCard tickets={tickets.data} loading={tickets.loading} />
+      ) : null}
+      {cart ? (
+        <>
+          <CartDetailsCard cartData={cart.data} loading={cart.loading} />
+          <ViewedProductsCard
+            viewedProducts={userMetadata?.viewed_products}
+            loading={userMetadataLoading}
           />
-        ) : null}
-        {cart ? (
-          <>
-            <CartDetailsCard cartData={cart.data} loading={cart.loading} />
-            <ViewedProductsCard
-              viewedProducts={userMetadata?.viewed_products}
-              loading={userMetadataLoading}
-            />
-            <SessionDataCard
-              userMetadata={userMetadata}
-              customer={customerData}
-              currentThreadId={currentThreadId}
-              loading={userMetadataLoading}
-            />
-          </>
-        ) : null}
-      </div>
-    </aside>
+          <SessionDataCard
+            userMetadata={userMetadata}
+            customer={customerData}
+            currentThreadId={currentThreadId}
+            loading={userMetadataLoading}
+          />
+        </>
+      ) : null}
+    </div>
+  );
+
+  return (
+    <>
+      <aside className="hidden min-h-0 w-80 shrink-0 flex-col border-l xl:flex 2xl:w-95">
+        {content}
+      </aside>
+      {onOpenChange ? (
+        <Sheet open={Boolean(open)} onOpenChange={onOpenChange}>
+          <SheetContent
+            side="right"
+            className="w-full gap-0 p-0 data-[side=right]:sm:max-w-md xl:hidden"
+          >
+            <SheetHeader className="border-b">
+              <SheetTitle>Customer details</SheetTitle>
+              <SheetDescription className="sr-only">
+                Orders, tickets and session data for this customer.
+              </SheetDescription>
+            </SheetHeader>
+            {content}
+          </SheetContent>
+        </Sheet>
+      ) : null}
+    </>
   );
 }

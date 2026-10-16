@@ -581,7 +581,9 @@ export default function Dashboard() {
         <div data-export-chart="overview">
           <PerformanceRadialChart chartData={performanceRadialChartData} />
         </div>
-        <div data-export-chart="activity">
+        {/* Three cards on a two-column grid leave the third alone beside
+            an empty cell; it takes the full row until three fit across. */}
+        <div data-export-chart="activity" className="sm:max-lg:col-span-2">
           <GuestVsSignedUserRadialChart chartData={userActivityChartData} />
         </div>
       </div>

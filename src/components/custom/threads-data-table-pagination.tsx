@@ -47,12 +47,12 @@ export function DataTablePagination<TData>({
   };
 
   return (
-    <div className="flex flex-col gap-4 px-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="text-sm text-muted-foreground">
+    <div className="flex flex-col gap-4 px-2 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="text-sm whitespace-nowrap text-muted-foreground">
         {totalCount} {totalCount === 1 ? noun : `${noun}s`} total
       </div>
 
-      <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:gap-6">
+      <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-3">
         {/* Page size selector */}
         <div className="flex items-center gap-2">
           <p className="text-sm font-medium whitespace-nowrap">Rows per page</p>
