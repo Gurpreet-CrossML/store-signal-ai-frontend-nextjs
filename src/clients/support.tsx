@@ -1410,7 +1410,13 @@ export default function Support() {
   }, [dispatch, activeThreadId, storeCode, selectedThread?.customer?.id]);
 
   const handleThreadMessageAdded = useCallback((message: ThreadMessage) => {
-    setThreadMessages((prev) => [...prev, message]);
+    setThreadMessages((prev) =>
+      [...prev, message].sort(
+        (first, second) =>
+          new Date(first.created_at).getTime() -
+          new Date(second.created_at).getTime(),
+      ),
+    );
   }, []);
 
   const handleTakeOver = useCallback(async () => {
@@ -1864,6 +1870,21 @@ export default function Support() {
   );
 
   useSupportDashboardEvents((event) => {
+    if (event.action_type === "proactive_message") {
+      if (event.data.thread_id === activeThreadIdRef.current) {
+        handleThreadMessageAdded({
+          id: event.data.id,
+          role: event.data.role,
+          message: event.data.message,
+          message_type: event.data.message_type,
+          json_content: event.data.json_content,
+          created_at: event.data.created_at,
+          messaged_by: "",
+        });
+      }
+      return;
+    }
+
     if (event.action_type === "message") {
       upsertThreadFromMessage(event.data);
       return;
