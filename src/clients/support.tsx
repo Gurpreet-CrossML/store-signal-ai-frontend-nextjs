@@ -1739,8 +1739,10 @@ export default function Support() {
     (threadId: string) => {
       // Close the previously open thread's chat socket immediately on click,
       // rather than waiting for the effect below to notice the id changed.
-      wsRef.current?.close();
-      wsRef.current = null;
+      if (threadId !== activeThreadIdRef.current) {
+        wsRef.current?.close();
+        wsRef.current = null;
+      }
       setLocalThreads((prev) =>
         prev.map((thread) =>
           thread.id === threadId && thread.is_read === false
