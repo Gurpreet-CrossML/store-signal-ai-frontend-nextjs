@@ -201,9 +201,13 @@ export default function Dashboard() {
 
     load(false);
     refreshRef.current = () => load(true);
-    const timer = setInterval(() => {
-      if (!document.hidden) load(true);
-    }, AUTO_REFRESH_MS);
+    // A custom range is a fixed past window, so only presets auto-refresh.
+    const timer =
+      range === "custom"
+        ? undefined
+        : setInterval(() => {
+            if (!document.hidden) load(true);
+          }, AUTO_REFRESH_MS);
 
     return () => {
       clearInterval(timer);
