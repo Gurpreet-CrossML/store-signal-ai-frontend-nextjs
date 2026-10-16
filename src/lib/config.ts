@@ -211,6 +211,9 @@ export const ENDPOINTS = {
   // NOTE: the backend confirmed the two list routes. The detail routes are
   // the DRF convention on top of them and are still to be verified.
   fetchCustomers: () => createAPIUrl("/chat/customers/", "django"),
+  // Paginated customer list for the dashboard (page / limit). The plain
+  // route above stays for the chat widget, which reads it unpaginated.
+  fetchCustomerList: () => createAPIUrl("/chat/customers/list/", "django"),
   fetchCustomerDetails: (customerId: number) =>
     createAPIUrl(`/chat/customers/${customerId}/`, "django"),
   // POST — create a shopper from just an email, so a guest ticket can be
