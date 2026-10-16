@@ -47,6 +47,16 @@ import {
 import ReactMarkdown from "react-markdown";
 
 import { useFormik } from "formik";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -799,6 +809,10 @@ function ConversationPanel({
   onLinkCustomer: () => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
+  // Resolving and closing end a conversation, so they wait for a yes.
+  const [pendingEndStatus, setPendingEndStatus] = useState<
+    "resolved" | "closed" | null
+  >(null);
   const [selectedSendMode, setSelectedSendMode] = useState<
     "reply" | "customer_language" | "reply_and_resolve"
   >("reply");
@@ -1025,11 +1039,11 @@ function ConversationPanel({
             size="sm"
             aria-label="Mark as resolved"
             className={ACTION_TONE_STYLES.success}
-            onClick={() => onTicketStatusUpdate("resolved")}
+            onClick={() => setPendingEndStatus("resolved")}
             disabled={isClosed}
           >
             <IconCircleCheck className="size-4" />
-            Resolved
+            Resolve
           </Button>
 
           <Button
@@ -1037,11 +1051,11 @@ function ConversationPanel({
             size="sm"
             aria-label="Close ticket"
             className={ACTION_TONE_STYLES.danger}
-            onClick={() => onTicketStatusUpdate("closed")}
+            onClick={() => setPendingEndStatus("closed")}
             disabled={ticket.status === "closed"}
           >
             <IconCircleX className="size-4" />
-            Closed
+            Close
           </Button>
 
           {/* <DropdownMenu>
@@ -1785,6 +1799,41 @@ function ConversationPanel({
           </div>
         </div>
       </div>
+
+      <AlertDialog
+        open={pendingEndStatus !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingEndStatus(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingEndStatus === "closed"
+                ? "Close ticket"
+                : "Mark ticket as resolved"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingEndStatus === "closed"
+                ? "Are you sure you want to close this ticket? This will mark the ticket as closed."
+                : "Are you sure this issue has been resolved? This will mark the ticket as resolved."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant={
+                pendingEndStatus === "closed" ? "destructive" : "default"
+              }
+              onClick={() => {
+                if (pendingEndStatus) onTicketStatusUpdate(pendingEndStatus);
+              }}
+            >
+              {pendingEndStatus === "closed" ? "Close ticket" : "Mark resolved"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
