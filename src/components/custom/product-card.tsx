@@ -3,8 +3,10 @@ import Image from "next/image";
 import type { ProductData } from "@/redux/api-slice/thread-slice";
 
 export function ProductCard({ product }: { product: ProductData }) {
+  const variants = product.variants ?? [];
+
   return (
-    <div className="flex flex-col overflow-hidden rounded-md border border-border bg-background">
+    <div className="flex h-full flex-col overflow-hidden rounded-md border border-border bg-background">
       <a
         href={product.product_url}
         target="_blank"
@@ -41,6 +43,24 @@ export function ProductCard({ product }: { product: ProductData }) {
         <span className="text-xs font-semibold text-primary">
           {product.price}
         </span>
+        {variants.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {variants.slice(0, 3).map((variant) => (
+              <span
+                key={variant.variant_id}
+                className="max-w-full truncate rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground"
+                title={variant.variant_name}
+              >
+                {variant.variant_name}
+              </span>
+            ))}
+            {variants.length > 3 && (
+              <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+                +{variants.length - 3} more
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
