@@ -11,7 +11,7 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  * Returns the latest UserMetadata row for the thread. When none exists, Django
  * serializes a None instance which yields {} (empty object).
  */
-export default withTenantRoute(handler);
+export default withTenantRoute(handler, "conversations");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {

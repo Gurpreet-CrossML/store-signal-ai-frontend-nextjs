@@ -2,46 +2,42 @@ import type { ComponentType } from "react";
 
 import {
   IconAdjustmentsSpark,
-  IconBan,
-  IconBook,
-  IconBook2,
   IconBooks,
-  IconAlarmSnoozeFilled,
   IconArrowsExchange,
-  // IconBrandFacebook,
-  // IconBrandInstagram,
-  // IconBrandMessenger,
+  IconBrandFacebook,
+  IconBrandInstagram,
+  IconBrandMessenger,
+  IconBrandWhatsapp,
+  IconMail,
   IconAddressBook,
-  // IconBrandMeta,
+  IconBrandMeta,
   IconBuildingSkyscraper,
-  // IconChecklist,
-  // IconClockShield,
+  IconChecklist,
+  // IconClockShield, // used by a disabled screen
   IconCreditCardOff,
   IconImageGeneration,
   IconHeadset,
   IconInbox,
-  // IconMessageCircle,
-  IconMessageQuestion,
-  // IconMessages,
-  // IconSocial,
+  // IconMessageCircle, // used by a disabled screen
+  IconLibrary,
+  // IconMessages, // used by a disabled screen
+  // IconSocial, // used by a disabled screen
   IconPackageOff,
-  IconPlugConnected,
-  // IconSend,
+  IconSend,
   IconSettings,
-  IconShield,
+  // IconShield, // used by a disabled screen
   IconBuildingStore,
+  IconSpeakerphone,
   IconTags,
   IconUserHexagon,
-  // IconUsers,
-  IconUser,
+  // IconUsers, // used by a disabled screen
+  // IconUser, // used by a disabled screen
   IconUsersGroup,
   IconShoppingBag,
   IconVolume,
   type Icon,
-  IconChartBar,
-  // IconAutomaticGearbox,
-  // IconPackageImport,
-  // IconShoppingBagEdit,
+  // IconChartBar, // used by a disabled screen
+  IconPackage,
 } from "@tabler/icons-react";
 
 import { CreateTicketAction } from "@/components/custom/helpdesk/create-ticket-action";
@@ -173,12 +169,13 @@ export const NAV_AREAS = {
           "Your company's contact details, logo, and address. The name and code are managed by the platform operator.",
         icon: IconBuildingSkyscraper,
       },
+      // Disabled for now: Staff Management is not available.
       // {
       //   href: "/settings/staff-management",
       //   title: "Staff Management",
-      //   description: "Invite teammates and control who has access.",
+      //   description: "Invite teammates and choose what each one can do.",
       //   pageDescription:
-      //     "Manage your company's users. New staff receive an emailed temporary password.",
+      //     "Manage your company's users and their roles. New staff receive an emailed temporary password.",
       //   icon: IconUsers,
       // },
       {
@@ -203,14 +200,15 @@ export const NAV_AREAS = {
       //   description: "Connect your store and third-party platforms.",
       //   icon: IconPlugConnected,
       // },
-      {
-        href: "/settings/ai-usage",
-        title: "AI Usage",
-        description: "What the assistant costs to run, and how hard it works.",
-        pageDescription:
-          "Token spend, workflow costs and response latency for this store's assistant.",
-        icon: IconChartBar,
-      },
+      // Disabled for now: AI Usage and Social AI (settings) are not available.
+      // {
+      //   href: "/settings/ai-usage",
+      //   title: "AI Usage",
+      //   description: "What the assistant costs to run, and how hard it works.",
+      //   pageDescription:
+      //     "Token spend, workflow costs and response latency for this store's assistant.",
+      //   icon: IconChartBar,
+      // },
       // {
       //   href: "/settings/social-ai",
       //   title: "Social AI",
@@ -362,75 +360,114 @@ export const NAV_AREAS = {
   knowledge: {
     href: "/knowledge",
     title: "Knowledge",
-    description:
-      "Everything the chatbot knows about your store — FAQs, policies, and documents.",
+    description: "Everything the chatbot knows about your store, in one place.",
     icon: IconBooks,
     sections: [
       {
-        href: "/knowledge/faqs",
-        title: "Quick FAQs",
+        href: "/knowledge/library",
+        title: "Knowledge Library",
         description:
-          "Question-and-answer pairs the chatbot can respond with instantly.",
-        icon: IconMessageQuestion,
-      },
-      {
-        href: "/knowledge/policies",
-        title: "Company Policies",
-        description:
-          "Link your refund, shipping, and other policies so the AI can reference them.",
-        icon: IconShield,
-      },
-      {
-        href: "/knowledge/documents",
-        title: "Document Library",
-        description:
-          "Upload PDFs and DOCX files to enrich the chatbot's knowledge.",
-        icon: IconBook,
+          "Every type of knowledge the AI can draw on, in one searchable place.",
+        pageDescription:
+          "General info, product & category knowledge, FAQs, policies, documents, and offers — all in one searchable, filterable library.",
+        icon: IconLibrary,
       },
     ],
   },
 
-  // socialAI: {
-  //   href: "/social-ai",
-  //   title: "Social AI",
-  //   description:
-  //     "AI-handled comments and messages across your connected social accounts.",
-  //   icon: IconBrandMeta,
-  //   sections: [
-  //     {
-  //       href: "/social-ai/facebook-post",
-  //       title: "Facebook Posts",
-  //       description: "AI replies to comments on your Facebook posts.",
-  //       icon: IconBrandFacebook,
-  //     },
-  //     {
-  //       href: "/social-ai/facebook-messages",
-  //       title: "Facebook Messages",
-  //       description: "AI conversations in your Facebook page inbox.",
-  //       icon: IconBrandMessenger,
-  //     },
-  //     {
-  //       href: "/social-ai/instagram-post",
-  //       title: "Instagram Posts",
-  //       description: "AI replies to comments on your Instagram posts.",
-  //       icon: IconBrandInstagram,
-  //     },
-  //     {
-  //       href: "/social-ai/instagram-messages",
-  //       title: "Instagram Messages",
-  //       description: "AI conversations in your Instagram direct messages.",
-  //       icon: IconSend,
-  //     },
-  //     {
-  //       href: "/social-ai/comment-drafts",
-  //       title: "Draft Review",
-  //       description: "Review AI-drafted comment replies before they go out.",
-  //       pageDescription:
-  //         "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
-  //       icon: IconChecklist,
-  //     },
-  //   ],
-  // },
+  socialAI: {
+    href: "/social-ai",
+    title: "Social AI",
+    description:
+      "AI-handled comments and messages across your connected social accounts.",
+    icon: IconBrandMeta,
+    sections: [
+      {
+        href: "/social-ai/facebook-post",
+        title: "Facebook Posts",
+        description: "AI replies to comments on your Facebook posts.",
+        icon: IconBrandFacebook,
+      },
+      {
+        href: "/social-ai/facebook-messages",
+        title: "Facebook Messages",
+        description: "AI conversations in your Facebook page inbox.",
+        icon: IconBrandMessenger,
+      },
+      {
+        href: "/social-ai/instagram-post",
+        title: "Instagram Posts",
+        description: "AI replies to comments on your Instagram posts.",
+        icon: IconBrandInstagram,
+      },
+      {
+        href: "/social-ai/instagram-messages",
+        title: "Instagram Messages",
+        description: "AI conversations in your Instagram direct messages.",
+        icon: IconSend,
+      },
+      {
+        href: "/social-ai/comment-drafts",
+        title: "Draft Review",
+        description: "Review AI-drafted comment replies before they go out.",
+        pageDescription:
+          "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
+        icon: IconChecklist,
+      },
+    ],
+  },
+
+  campaign: {
+    href: "/campaign",
+    title: "Campaign",
+    description: "WhatsApp templates and campaigns for reaching customers.",
+    icon: IconSpeakerphone,
+    sections: [
+      {
+        href: "/campaign/post-sale",
+        title: "Post Sale Templates",
+        description:
+          "Import ready-made templates for order placed, shipped, delivered, and review requests.",
+        pageDescription:
+          "Import Meta-ready WhatsApp templates for your order lifecycle — placed, shipped, delivered, and review requests. Once imported, they go through the same review process as any other template and show up in WhatsApp Templates.",
+        icon: IconPackage,
+      },
+      {
+        href: "/campaign/whatsapp-templates",
+        title: "WhatsApp Templates",
+        description: "Message templates approved for sending on WhatsApp.",
+        pageDescription:
+          "Manage the message templates Meta has approved — or is reviewing — for your connected WhatsApp number.",
+        icon: IconBrandWhatsapp,
+      },
+      {
+        href: "/campaign/email-templates",
+        title: "Email Templates",
+        description:
+          "Transactional email templates rendered through a shared HTML shell.",
+        pageDescription:
+          "Create and manage email templates for your store — offers, order updates and support notifications rendered through a branded HTML shell.",
+        icon: IconMail,
+      },
+      {
+        href: "/campaign/segments",
+        title: "Segments",
+        description: "Saved, reusable audiences a campaign can target.",
+        pageDescription:
+          "Saved, reusable audiences. Each segment narrows a platform-wide category (Abandoned Checkout, Total Spent, Last Order Date) with a time window and an optional cart-value floor.",
+        icon: IconUsersGroup,
+      },
+      {
+        href: "/campaign/campaigns",
+        title: "Campaigns",
+        description:
+          "Multi-step journeys — sends, waits and channel splits — targeting a segment.",
+        pageDescription:
+          "Multi-step outbound journeys targeting a saved segment. Each step sends one WhatsApp or email template, and the whole sequence must fit within a 24-hour span.",
+        icon: IconSpeakerphone,
+      },
+    ],
+  },
 } as const satisfies Record<string, NavArea>;
 
 export type NavAreaKey = keyof typeof NAV_AREAS;

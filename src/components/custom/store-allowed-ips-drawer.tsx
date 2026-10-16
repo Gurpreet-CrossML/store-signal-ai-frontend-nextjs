@@ -185,6 +185,9 @@ export function StoreAllowedIpsDrawer({
                 chipClassName="bg-muted font-mono text-foreground"
               />
             )}
+            <Typography variant="muted" className="mt-2 text-xs">
+              Only IPv4 addresses are supported. IPv6 is not supported.
+            </Typography>
           </div>
           <DrawerFooter className="flex-row justify-end">
             <Button variant="outline" onClick={requestClose}>

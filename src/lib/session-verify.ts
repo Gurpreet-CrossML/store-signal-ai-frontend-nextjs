@@ -76,7 +76,7 @@ async function verifyAndCache(accessToken: string): Promise<boolean> {
 /**
  * Refresh a session's tenant/identity claims from Django's profile endpoint.
  *
- * Grants, role (is_staff) and company membership can change server-side after a
+ * Role, permissions and company membership can change server-side after a
  * token is issued, so the NextAuth `jwt` callback periodically re-pulls the
  * identity bundle (GET /api/auth/profile/) rather than trusting the claims
  * baked in at login. Same short cache + in-flight dedup as isSessionActive so
@@ -126,6 +126,9 @@ async function fetchIdentity(accessToken: string): Promise<Identity | null> {
     const identity: Identity = {
       company_code: d.company_code ?? null,
       is_staff: Boolean(d.is_staff),
+      role: d.role ?? null,
+      permissions:
+        d.permissions && typeof d.permissions === "object" ? d.permissions : {},
       accessible_stores: Array.isArray(d.accessible_stores)
         ? d.accessible_stores
         : [],

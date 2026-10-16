@@ -2,11 +2,17 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { getApiErrorMessage } from "@/lib/helpers";
+import type { TicketLanguage, TicketSentiment } from "@/lib/ticket-options";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 import { OrderData } from "@/redux/api-slice/thread-slice";
 
-export type SupportTicketStatus = "open" | "pending" | "resolved" | "closed";
+export type SupportTicketStatus =
+  | "open"
+  | "snoozed"
+  | "resolved"
+  | "closed"
+  | "reopen";
 export type SupportTicketPriority = "low" | "normal" | "high" | "urgent";
 export type SupportTicketChannel =
   | "web"
@@ -36,8 +42,11 @@ export type SupportSocketPayload = {
   message?: SupportTicketMessage;
 };
 
+export type SupportTicketOrdering = "newest" | "oldest" | "last_updated";
+
 export type SupportTicketFilters = {
   status?: SupportTicketStatus;
+  ordering?: SupportTicketOrdering;
   search?: string;
   channel?: SupportTicketChannel[];
   tags?: string[];
@@ -134,6 +143,7 @@ export type SupportTicketMessage = {
   created_at: string;
   metadata: object;
   attachments: SupportTicketMessageAttachments[];
+  pendingFiles?: File[];
 };
 
 export type SupportTicketDraftMessage = {
@@ -144,8 +154,17 @@ export type SupportTicketDraftMessage = {
   draft_type: SupportTicketDraftType;
 };
 
+/** Who or what opened a ticket. */
+export type SupportTicketCreatedBy = "agent" | "ai" | "rule";
+
 export type SupportTicket = {
   id: number;
+  ticket_id: string;
+  created_by_type?: SupportTicketCreatedBy;
+  /** The agent who raised it; null when the AI or a rule did. */
+  created_by?: SupportTicketAssignee | null;
+  language?: TicketLanguage;
+  sentiment?: TicketSentiment;
   order_id?: string | null;
   customer: string | SupportTicketCustomer | null;
   internal_assignee: SupportTicketAssignee | null;
@@ -155,6 +174,8 @@ export type SupportTicket = {
   last_message?: string | null;
 
   status: SupportTicketStatus;
+  /** How many times the ticket has moved into the reopen status. */
+  reopen_count?: number;
   priority: SupportTicketPriority;
 
   tags: SupportTicketTagData[];
@@ -183,8 +204,9 @@ export type SupportTicket = {
 export type SupportTicketStatusCounts = {
   closed: number;
   open: number;
-  pending: number;
+  reopen: number;
   resolved: number;
+  snoozed: number;
 };
 
 export type SupportTicketsResponse = {
@@ -364,6 +386,10 @@ export type CreateSupportTicketPayload = {
   /** The order this is about, by id. Omitted when it is about nothing in particular. */
   order?: number;
   tags?: { name: string }[];
+  /** Language of the conversation. The server defaults to English. */
+  language?: TicketLanguage;
+  /** The customer's tone. The server defaults to neutral. */
+  sentiment?: TicketSentiment;
 };
 
 /**
@@ -858,6 +884,11 @@ export const SupportTicketStatusUpdate = createAsyncThunk(
       storeCode: string;
       ticketId: number;
       payload: { status: SupportTicketStatus };
+      /**
+       * The status the ticket is leaving. Not sent to the API; it lets the
+       * queue counts move by one without refetching the whole list.
+       */
+      previousStatus?: SupportTicketStatus;
     },
     thunkAPI,
   ) => {
@@ -921,6 +952,84 @@ export const SupportTicketPriorityUpdate = createAsyncThunk(
   },
 );
 
+/** One line of a ticket's history: its creation, a status change or an assignment. */
+export type SupportTicketActivityItem = {
+  type: "created" | "status_changed" | "assigned";
+  /** Who did it, or null when the system did (creation) or the name is unknown. */
+  actor: string | null;
+  /** Previous status or agent; for "created" always null. */
+  from_value: string | null;
+  /** New status or agent; for "created" who opened it (ai, agent, rule). */
+  to_value: string | null;
+  created_at: string;
+};
+
+/** What happened to a ticket, newest first. */
+export const SupportTicketActivityFetch = createAsyncThunk(
+  "SupportTicketActivityFetch",
+  async (
+    { storeCode, ticketId }: { storeCode: string; ticketId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.supportTicketActivity(ticketId)}?store_code=${storeCode}`,
+      );
+      return response.data.data.activity as SupportTicketActivityItem[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to load ticket activity, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+/** Change a ticket's language and/or sentiment; either may be sent alone. */
+export const SupportTicketLanguageSentimentUpdate = createAsyncThunk(
+  "SupportTicketLanguageSentimentUpdate",
+  async (
+    {
+      storeCode,
+      ticketId,
+      payload,
+    }: {
+      storeCode: string;
+      ticketId: number;
+      payload: { language?: TicketLanguage; sentiment?: TicketSentiment };
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.supportTicketLanguageSentimentUpdate(ticketId)}?store_code=${storeCode}`,
+        payload,
+      );
+      return response.data.data as {
+        language: TicketLanguage;
+        sentiment: TicketSentiment;
+      };
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to update ticket language or sentiment, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 export const SupportTicketMessagesTranslate = createAsyncThunk<
   SupportTicketTranslateResponse,
   {
@@ -968,9 +1077,10 @@ const SupportTicketsSlice = createSlice({
         results: [],
         status_counts: {
           open: 0,
-          pending: 0,
+          snoozed: 0,
           resolved: 0,
           closed: 0,
+          reopen: 0,
         },
       } as SupportTicketsResponse,
     },
@@ -1104,6 +1214,29 @@ const SupportTicketsSlice = createSlice({
         | unknown,
       SupportTicketPriorityUpdateData: {} as { status: SupportTicketPriority },
     },
+    SupportTicketLanguageSentimentUpdateState: {
+      SupportTicketLanguageSentimentUpdateIsLoading: false,
+      SupportTicketLanguageSentimentUpdateIsSuccess: false,
+      SupportTicketLanguageSentimentUpdateIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      SupportTicketLanguageSentimentUpdateData: {} as {
+        language?: TicketLanguage;
+        sentiment?: TicketSentiment;
+      },
+    },
+    SupportTicketActivityFetchState: {
+      SupportTicketActivityFetchIsLoading: false,
+      SupportTicketActivityFetchIsSuccess: false,
+      SupportTicketActivityFetchIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      SupportTicketActivityFetchData: [] as SupportTicketActivityItem[],
+    },
     SupportTicketMessagesTranslateState: {
       SupportTicketMessagesTranslateIsLoading: false,
       SupportTicketMessagesTranslateIsSuccess: false,
@@ -1131,9 +1264,10 @@ const SupportTicketsSlice = createSlice({
             results: [],
             status_counts: {
               open: 0,
-              pending: 0,
+              snoozed: 0,
               resolved: 0,
               closed: 0,
+              reopen: 0,
             },
           };
         }
@@ -1449,6 +1583,22 @@ const SupportTicketsSlice = createSlice({
         state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateData =
           action.payload;
         state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsSuccess = true;
+
+        // The ticket changed queue, so move it between the queue counts now
+        // rather than waiting for the next list fetch.
+        const { previousStatus, payload } = action.meta.arg;
+        const nextStatus: SupportTicketStatus =
+          action.payload?.status ?? payload.status;
+        const counts =
+          state.FetchSupportTicketsState.FetchSupportTicketsListData
+            .status_counts;
+
+        if (counts && previousStatus && previousStatus !== nextStatus) {
+          if ((counts[previousStatus] ?? 0) > 0) {
+            counts[previousStatus] -= 1;
+          }
+          counts[nextStatus] = (counts[nextStatus] ?? 0) + 1;
+        }
       })
       .addCase(SupportTicketStatusUpdate.rejected, (state, action) => {
         state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsLoading = false;
@@ -1473,6 +1623,48 @@ const SupportTicketsSlice = createSlice({
         state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsError =
           action.payload;
         state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsSuccess = false;
+      })
+      .addCase(SupportTicketLanguageSentimentUpdate.pending, (state) => {
+        state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsLoading = true;
+        state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsError =
+          null;
+        state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsSuccess = false;
+      })
+      .addCase(
+        SupportTicketLanguageSentimentUpdate.fulfilled,
+        (state, action) => {
+          state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsLoading = false;
+          state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateData =
+            action.payload;
+          state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsSuccess = true;
+        },
+      )
+      .addCase(
+        SupportTicketLanguageSentimentUpdate.rejected,
+        (state, action) => {
+          state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsLoading = false;
+          state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsError =
+            action.payload;
+          state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsSuccess = false;
+        },
+      )
+      .addCase(SupportTicketActivityFetch.pending, (state) => {
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsLoading = true;
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsError =
+          null;
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsSuccess = false;
+      })
+      .addCase(SupportTicketActivityFetch.fulfilled, (state, action) => {
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsLoading = false;
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchData =
+          action.payload;
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsSuccess = true;
+      })
+      .addCase(SupportTicketActivityFetch.rejected, (state, action) => {
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsLoading = false;
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsError =
+          action.payload;
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsSuccess = false;
       })
       .addCase(SupportTicketMessagesTranslate.pending, (state) => {
         state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsLoading = true;

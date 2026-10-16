@@ -8,7 +8,7 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  * GET /analytics/threads/{thread_id}/order-data/  ->  OrderDataAPIView.
  * "No order data found for this thread" and data [].
  */
-export default withTenantRoute(handler);
+export default withTenantRoute(handler, "conversations");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {

@@ -9,7 +9,7 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  * When no AiInsights row exists, returns message "No AI Insights found for this
  * thread" with data {} (HTTP 200), mirroring the Django view.
  */
-export default withTenantRoute(handler);
+export default withTenantRoute(handler, "conversations");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {

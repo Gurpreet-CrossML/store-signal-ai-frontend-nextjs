@@ -18,6 +18,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
+import { isAuthPage } from "@/lib/auth-routes";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/hooks";
 import { usePathname } from "next/navigation";
@@ -64,7 +65,7 @@ export default function MainLayout({
     : null;
   const hasSubSidebar = subSidebarItems !== null;
 
-  if (pathname === "/login" || pathname === "/signup") {
+  if (isAuthPage(pathname)) {
     return <>{children}</>;
   }
 

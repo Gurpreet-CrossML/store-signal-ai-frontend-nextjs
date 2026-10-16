@@ -12,6 +12,17 @@ const nextConfig: NextConfig = {
     "/**": ["./global-bundle.pem"],
   },
 
+  // A reset link carries its token in the URL. Never send that URL to
+  // another site as a Referer (fonts, images, analytics).
+  async headers() {
+    return [
+      {
+        source: "/reset-password/:path*",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
+    ];
+  },
+
   images: {
     dangerouslyAllowLocalIP: true,
     remotePatterns: [

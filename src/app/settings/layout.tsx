@@ -1,4 +1,4 @@
-import SettingsAdminGate from "@/components/custom/settings/settings-admin-gate";
+import { AccessGate } from "@/components/custom/access-gate";
 
 /**
  * Company-admin gate for every settings route, menu page included. Held
@@ -10,5 +10,5 @@ export default function SettingsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <SettingsAdminGate>{children}</SettingsAdminGate>;
+  return <AccessGate>{children}</AccessGate>;
 }

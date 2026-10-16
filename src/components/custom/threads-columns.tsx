@@ -1,6 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+import { IconBrandWhatsapp, IconWorld } from "@tabler/icons-react";
 
 import {
   HiddenTagsBadge,
@@ -12,15 +13,12 @@ import type { SupportTicketTagData } from "@/redux/api-slice/support-ticket-slic
 import type { Thread } from "@/redux/api-slice/thread-slice";
 import Markdown from "react-markdown";
 
-// Absolute, localized date-time e.g. "May 30, 2026, 2:14 PM".
-function formatDateTime(value: string | null | undefined): string {
+// Time of day only, e.g. "2:14 PM" — the date comes from the group header.
+function formatTime(value: string | null | undefined): string {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return new Intl.DateTimeFormat("en-US", { timeStyle: "short" }).format(date);
 }
 
 // Compact elapsed time between two timestamps, e.g. "4m", "1h 20m", "2d 3h".
@@ -109,44 +107,58 @@ export const threadsColumns: ColumnDef<Thread>[] = [
     },
   },
 
-  // Topic — the conversation title, same one the detail drawer shows.
+  // Channel — derived from the thread source: WhatsApp, or Web for
+  // native/webhook threads.
   {
-    accessorKey: "topic",
-    header: "Topic",
-    cell: ({ row }) =>
-      row.original.name ? (
-        <Typography
-          variant="small"
-          as="span"
-          className="block max-w-48 truncate font-normal"
-          title={row.original.name}
+    accessorKey: "source",
+    header: "Channel",
+    cell: ({ row }) => {
+      const source = row.original.source;
+      if (!source) return <span className="text-muted-foreground">—</span>;
+      const isWhatsapp = source === "whatsapp";
+      return (
+        <Badge
+          variant="outline"
+          className={
+            isWhatsapp
+              ? "border-green-200 bg-green-50 text-green-700"
+              : "border-blue-200 bg-blue-50 text-blue-700"
+          }
         >
-          {row.original.name}
-        </Typography>
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
+          {isWhatsapp ? <IconBrandWhatsapp /> : <IconWorld />}
+          {isWhatsapp ? "WhatsApp" : "Web"}
+        </Badge>
+      );
+    },
   },
 
-  // Last Message — what the last message was in the thread.
+  // Topic · Last Message — the conversation title with the last assistant
+  // message beneath it.
   {
-    accessorKey: "last_message",
-    header: "Last Message",
+    accessorKey: "topic",
+    header: "Topic · Last Message",
     cell: ({ row }) => {
-      let last_message = row.original.last_message;
-      const last_message_splits = last_message?.split("\n");
-      last_message = last_message_splits
-        ? last_message_splits[0]
-        : last_message;
+      const { name, last_message } = row.original;
+      const firstLine = last_message?.split("\n")[0];
 
       return (
-        <Typography
-          variant="muted"
-          as="span"
-          className="whitespace-nowrap overflow-hidden text-ellipsis *:truncate"
-        >
-          <Markdown>{last_message || "—"}</Markdown>
-        </Typography>
+        <div className="flex max-w-64 flex-col gap-0.5">
+          <Typography
+            variant="small"
+            as="span"
+            className={`truncate ${name ? "" : "font-normal text-muted-foreground"}`}
+            title={name ?? undefined}
+          >
+            {name || "No messages yet"}
+          </Typography>
+          <Typography
+            variant="muted"
+            as="span"
+            className="truncate text-xs *:truncate"
+          >
+            <Markdown>{firstLine || "—"}</Markdown>
+          </Typography>
+        </div>
       );
     },
   },
@@ -165,7 +177,15 @@ export const threadsColumns: ColumnDef<Thread>[] = [
     cell: ({ row }) => {
       const isActive = row.original.is_active;
       return (
-        <Badge variant={isActive ? "default" : "secondary"}>
+        <Badge
+          variant="secondary"
+          className={
+            isActive
+              ? "bg-primary/10 text-primary"
+              : "bg-muted text-muted-foreground"
+          }
+        >
+          <span className="size-1.5 rounded-full bg-current" />
           {isActive ? "Active" : "Closed"}
         </Badge>
       );
@@ -195,7 +215,9 @@ export const threadsColumns: ColumnDef<Thread>[] = [
       <Typography
         variant="muted"
         as="span"
-        className="whitespace-nowrap tabular-nums"
+        className={`whitespace-nowrap tabular-nums ${
+          row.original.is_active ? "font-medium text-primary" : ""
+        }`}
       >
         {row.original.is_active
           ? "Ongoing"
@@ -210,7 +232,7 @@ export const threadsColumns: ColumnDef<Thread>[] = [
     header: "Started",
     cell: ({ row }) => (
       <Typography variant="muted" as="span" className="whitespace-nowrap">
-        {formatDateTime(row.original.created_at)}
+        {formatTime(row.original.created_at)}
       </Typography>
     ),
   },

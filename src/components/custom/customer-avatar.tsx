@@ -20,7 +20,7 @@ function getAvatarColor(seed: string) {
   return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
 }
 
-function getInitials(name: string | null | undefined) {
+export function getInitials(name: string | null | undefined) {
   if (!name) return null;
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return null;

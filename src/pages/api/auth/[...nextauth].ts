@@ -5,7 +5,11 @@ import type { JWT } from "next-auth/jwt";
 import jwt from "jsonwebtoken";
 import { ENDPOINTS } from "@/lib/config";
 import { refreshIdentity } from "@/lib/session-verify";
-import type { AccessibleStore } from "@/lib/tenant-types";
+import type {
+  AccessibleStore,
+  PermissionMap,
+  StaffRole,
+} from "@/lib/tenant-types";
 
 declare module "next-auth" {
   interface User {
@@ -17,6 +21,8 @@ declare module "next-auth" {
     // Tenancy/identity from the Django login `data` (see account/serializers.py).
     company_code?: string | null;
     is_staff?: boolean;
+    role?: StaffRole | null;
+    permissions?: PermissionMap;
     accessible_stores?: AccessibleStore[];
     // Onboarding flow: if the user has not yet completed the initial setup, we
     // redirect them to the onboarding flow instead of the dashboard.
@@ -29,9 +35,11 @@ declare module "next-auth" {
       username?: string;
       name?: string | null;
       access_token?: string;
-      // Tenant routing + per-store access (read by withTenantRoute / resolveAccess).
+      // Tenant routing + access (read by withTenantRoute and the UI gates).
       company_code?: string | null;
       is_staff?: boolean;
+      role?: StaffRole | null;
+      permissions?: PermissionMap;
       accessible_stores?: AccessibleStore[];
       // Onboarding flow: if the user has not yet completed the initial setup, we
       // redirect them to the onboarding flow instead of the dashboard.
@@ -54,6 +62,8 @@ declare module "next-auth/jwt" {
     name?: string;
     company_code?: string | null;
     is_staff?: boolean;
+    role?: StaffRole | null;
+    permissions?: PermissionMap;
     accessible_stores?: AccessibleStore[];
     onboarding_pending?: boolean;
     onboarding_step?: string | null;
@@ -62,6 +72,9 @@ declare module "next-auth/jwt" {
     error?: string;
   }
 }
+
+// How long before the access token expires it is refreshed.
+const REFRESH_MARGIN_MS = 60_000;
 
 // Decode a JWT and return its expiry in milliseconds, if present.
 function getTokenExpiry(token?: string): number | undefined {
@@ -79,9 +92,12 @@ function getTokenExpiry(token?: string): number | undefined {
 
 // Exchange the refresh token for a fresh access token via Django's SimpleJWT
 // endpoint (POST /api/auth/token/refresh/ — body { refresh }, returns { access }
-// under the standard { status, message, data } envelope). On any failure we
-// keep the existing claims and flag `error` instead of wiping the token, so a
-// transient backend issue doesn't silently destroy the session.
+// under the standard { status, message, data } envelope).
+//
+// Only Django saying the refresh token is dead (401, or 400 for a missing one)
+// flags `error`, which makes SessionGuard sign the user out. A network error
+// or 5xx keeps the token as it is and the next session read retries, so a
+// short backend outage does not log everyone out.
 async function refreshAccessToken(token: JWT): Promise<JWT> {
   try {
     const res = await fetch(ENDPOINTS.refreshToken(), {
@@ -90,15 +106,18 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
       body: JSON.stringify({ refresh: token.refresh_token }),
     });
 
+    if (res.status === 401 || res.status === 400) {
+      return { ...token, error: "RefreshAccessTokenError" };
+    }
     if (!res.ok) {
       console.error("Failed to refresh access token:", res.statusText);
-      return { ...token, error: "RefreshAccessTokenError" };
+      return token;
     }
 
     const data = await res.json();
     const access: string | undefined = data?.data?.access;
     if (!access) {
-      return { ...token, error: "RefreshAccessTokenError" };
+      return token;
     }
 
     return {
@@ -109,7 +128,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
     };
   } catch (error) {
     console.error("Error refreshing access token:", error);
-    return { ...token, error: "RefreshAccessTokenError" };
+    return token;
   }
 }
 
@@ -155,6 +174,27 @@ export const authOptions: AuthOptions = {
       },
     }),
   ],
+  events: {
+    // End the session on Django too, not just in this cookie: its access and
+    // refresh tokens would otherwise keep working until they expire. Runs on
+    // the server, where the refresh token is. Best-effort — a failure here
+    // (e.g. the token was already revoked) must not block signing out.
+    async signOut({ token }) {
+      if (!token?.access_token) return;
+      try {
+        await fetch(ENDPOINTS.logout(), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token.access_token}`,
+          },
+          body: JSON.stringify({ refresh: token.refresh_token }),
+        });
+      } catch (error) {
+        console.error("Django logout failed:", error);
+      }
+    },
+  },
   callbacks: {
     async session({ session, token }) {
       session = {
@@ -167,6 +207,8 @@ export const authOptions: AuthOptions = {
           access_token: token.access_token,
           company_code: token.company_code,
           is_staff: token.is_staff,
+          role: token.role,
+          permissions: token.permissions,
           accessible_stores: token.accessible_stores,
           onboarding_pending: token.onboarding_pending,
           onboarding_step: token.onboarding_step,
@@ -191,6 +233,8 @@ export const authOptions: AuthOptions = {
         // request can resolve its tenant + per-store access from the session.
         token.company_code = user.company_code ?? null;
         token.is_staff = user.is_staff ?? false;
+        token.role = user.role ?? null;
+        token.permissions = user.permissions ?? {};
         token.accessible_stores = user.accessible_stores ?? [];
 
         token.onboarding_pending = user.onboarding_pending ?? false;
@@ -199,12 +243,19 @@ export const authOptions: AuthOptions = {
         return token;
       }
 
-      // If the access token has expired, refresh it.
-      if (token.accessTokenExpires && Date.now() > token.accessTokenExpires) {
+      // Refresh a minute before expiry, not after: a request sent with a
+      // token on its last second can arrive expired, and its 401 signs the
+      // user out. A refresh that already failed is not retried on every
+      // read — SessionGuard signs the user out instead.
+      if (
+        !token.error &&
+        token.accessTokenExpires &&
+        Date.now() > token.accessTokenExpires - REFRESH_MARGIN_MS
+      ) {
         token = await refreshAccessToken(token);
       }
 
-      // Keep tenant/identity claims fresh — role, company and per-store grants
+      // Keep tenant/identity claims fresh — role, permissions and company
       // can change server-side after login. Cached (≤1 call/min/token) and
       // fails open to the existing claims on any error.
       const identity = await refreshIdentity(token.access_token, {
@@ -213,6 +264,8 @@ export const authOptions: AuthOptions = {
       if (identity) {
         token.company_code = identity.company_code;
         token.is_staff = identity.is_staff;
+        token.role = identity.role;
+        token.permissions = identity.permissions;
         token.accessible_stores = identity.accessible_stores;
         if (identity.onboarding_pending !== undefined) {
           token.onboarding_pending = identity.onboarding_pending;
