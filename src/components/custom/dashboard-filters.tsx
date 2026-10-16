@@ -116,9 +116,8 @@ export function DashboardFilters({
         </Button>
       )}
       <span className="text-xs text-muted-foreground">
-        {lastUpdated
-          ? `Updated ${format(lastUpdated, "h:mm:ss a")} · auto-refresh on`
-          : "Auto-refresh on"}
+        {lastUpdated && `Updated ${format(lastUpdated, "h:mm:ss a")} · `}
+        {filters.range === "custom" ? "auto-refresh off" : "auto-refresh on"}
       </span>
       <Button
         variant="outline"
