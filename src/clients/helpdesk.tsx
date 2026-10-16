@@ -1574,7 +1574,7 @@ function ConversationPanel({
             onChange={handleAttachmentChange}
           />
           {/* AI tools stay icons — the two sends are what need words. */}
-          <Tooltip>
+          {/* <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="outline"
@@ -1606,7 +1606,7 @@ function ConversationPanel({
                   ? "Use AI draft"
                   : "Generate AI draft"}
             </TooltipContent>
-          </Tooltip>
+          </Tooltip> */}
 
           {/*
           <DropdownMenu>
