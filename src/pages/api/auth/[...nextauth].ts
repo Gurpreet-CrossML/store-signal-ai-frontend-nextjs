@@ -155,11 +155,20 @@ export const authOptions: AuthOptions = {
           body: JSON.stringify(credentials),
         });
 
-        if (res.status === 500) {
-          throw new Error("Server error");
+        // A body that isn't JSON (an HTML error page from a proxy, a 5xx)
+        // must not reach the login screen as a JSON.parse error.
+        const unavailable = JSON.stringify({
+          message: "Unable to log in right now. Please try again in a moment.",
+        });
+        if (res.status >= 500) {
+          throw new Error(unavailable);
         }
-
-        const data = await res.json();
+        let data;
+        try {
+          data = JSON.parse(await res.text());
+        } catch {
+          throw new Error(unavailable);
+        }
 
         if (res.ok && data?.data) {
           // Platform superusers must NEVER access the dashboard. Reject them at
