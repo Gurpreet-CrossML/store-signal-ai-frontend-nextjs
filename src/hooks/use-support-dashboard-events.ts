@@ -8,6 +8,7 @@ import { useAppSelector } from "@/redux/hooks";
 import type {
   Customer,
   Thread,
+  ThreadJsonContent,
   ThreadHandlerUser,
 } from "@/redux/api-slice/thread-slice";
 
@@ -37,6 +38,16 @@ export type SupportDashboardThreadUpdateEvent = {
   escalation_time?: string | null;
 };
 
+export type SupportDashboardProactiveMessageEvent = {
+  thread_id: string;
+  id: string;
+  message: string;
+  role: string;
+  message_type?: string;
+  json_content?: ThreadJsonContent;
+  created_at: string;
+};
+
 export type SupportDashboardEvent =
   | {
       success: true;
@@ -47,6 +58,11 @@ export type SupportDashboardEvent =
       success: true;
       action_type: "thread_updated";
       data: SupportDashboardThreadUpdateEvent;
+    }
+  | {
+      success: true;
+      action_type: "proactive_message";
+      data: SupportDashboardProactiveMessageEvent;
     }
   | {
       success: true;
@@ -76,7 +92,12 @@ function isDashboardEvent(
 ): data is SupportDashboardEvent {
   return (
     data.success === true &&
-    ["message", "thread_updated", "thread_closed"].includes(data.action_type)
+    [
+      "message",
+      "thread_updated",
+      "proactive_message",
+      "thread_closed",
+    ].includes(data.action_type)
   );
 }
 
