@@ -1545,7 +1545,7 @@ function ConversationPanel({
             // isMessageImproving ||
             isSending || isClosed || isTranslating
           }
-          placeholder="Write a reply, or use the AI draft…"
+          placeholder="Write a reply…"
           minHeight="6rem"
         />
 
@@ -2978,7 +2978,7 @@ export default function HelpDesk() {
     const trimmedReply = reply.trim();
     if (!trimmedReply) {
       toast.error("Write a reply first", {
-        description: "Or accept the AI draft to populate the composer.",
+        description: "Type your reply in the composer before sending.",
       });
       return;
     }
