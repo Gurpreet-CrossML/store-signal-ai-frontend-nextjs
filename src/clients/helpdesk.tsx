@@ -1020,37 +1020,29 @@ function ConversationPanel({
 
           {/* The two endings a ticket actually has, one click away —
               they were buried in the status Select behind the ⋮ menu. */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Mark as resolved"
-                className={ACTION_TONE_STYLES.success}
-                onClick={() => onTicketStatusUpdate("resolved")}
-                disabled={isClosed}
-              >
-                <IconCircleCheck className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Mark as resolved</TooltipContent>
-          </Tooltip>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label="Mark as resolved"
+            className={ACTION_TONE_STYLES.success}
+            onClick={() => onTicketStatusUpdate("resolved")}
+            disabled={isClosed}
+          >
+            <IconCircleCheck className="size-4" />
+            Resolved
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Close ticket"
-                className={ACTION_TONE_STYLES.danger}
-                onClick={() => onTicketStatusUpdate("closed")}
-                disabled={ticket.status === "closed"}
-              >
-                <IconCircleX className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Close ticket</TooltipContent>
-          </Tooltip>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label="Close ticket"
+            className={ACTION_TONE_STYLES.danger}
+            onClick={() => onTicketStatusUpdate("closed")}
+            disabled={ticket.status === "closed"}
+          >
+            <IconCircleX className="size-4" />
+            Closed
+          </Button>
 
           {/* <DropdownMenu>
             <Tooltip>
