@@ -56,7 +56,7 @@ export function ProductCarousel({ products }: { products: ProductData[] }) {
         </CarouselContent>
       </Carousel>
 
-      {products.length > 3 && (
+      {products.length > 4 && (
         <div className="mt-2 flex items-center gap-2">
           <Button
             type="button"
