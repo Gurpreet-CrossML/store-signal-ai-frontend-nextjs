@@ -1,9 +1,22 @@
+import { useState } from "react";
 import Image from "next/image";
 
 import type { ProductData } from "@/redux/api-slice/thread-slice";
 
+const EMPTY_VARIANTS: NonNullable<ProductData["variants"]> = [];
+
 export function ProductCard({ product }: { product: ProductData }) {
-  const variants = product.variants ?? [];
+  const variants = product.variants ?? EMPTY_VARIANTS;
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(
+    () =>
+      variants.find((variant) => variant.available_for_sale !== false)
+        ?.variant_id ?? null,
+  );
+
+  const selectedVariant =
+    variants.find((variant) => variant.variant_id === selectedVariantId) ??
+    variants.find((variant) => variant.available_for_sale !== false);
+  const displayPrice = selectedVariant?.variant_price ?? product.price;
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-md border border-border bg-background">
@@ -41,24 +54,26 @@ export function ProductCard({ product }: { product: ProductData }) {
           {product.name}
         </a>
         <span className="text-xs font-semibold text-primary">
-          {product.price}
+          {displayPrice}
         </span>
         {variants.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1">
-            {variants.slice(0, 3).map((variant) => (
-              <span
+            {variants.map((variant) => (
+              <button
+                type="button"
                 key={variant.variant_id}
-                className="max-w-full truncate rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground"
+                disabled={variant.available_for_sale === false}
+                onClick={() => setSelectedVariantId(variant.variant_id)}
+                className={`max-w-full truncate rounded-full border px-2 py-0.5 text-[10px] transition-colors ${
+                  selectedVariantId === variant.variant_id
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground"
+                } ${variant.available_for_sale === false ? "cursor-not-allowed opacity-50 line-through" : "hover:border-primary hover:text-primary"}`}
                 title={variant.variant_name}
               >
                 {variant.variant_name}
-              </span>
+              </button>
             ))}
-            {variants.length > 3 && (
-              <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
-                +{variants.length - 3} more
-              </span>
-            )}
           </div>
         )}
       </div>
