@@ -176,12 +176,12 @@ export function LoginForm({
             </Typography>
           )}
         </Field>
-        <Field orientation="horizontal">
+        {/* <Field orientation="horizontal">
           <Checkbox id="remember-me" name="rememberMe" />
           <FieldLabel htmlFor="remember-me" className="font-normal">
             Remember me
           </FieldLabel>
-        </Field>
+        </Field> */}
         <Field>
           <Button
             disabled={isLoading}
