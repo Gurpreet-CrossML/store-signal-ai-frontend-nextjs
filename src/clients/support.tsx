@@ -1807,7 +1807,10 @@ export default function Support() {
             "chat_handler_user" in data
               ? (data.chat_handler_user ?? null)
               : existingThread.chat_handler_user,
-          ai_responding: data.ai_responding ?? existingThread.ai_responding,
+          // AI state is updated by the authoritative "thread_updated" event.
+          // A delayed message event can still contain the previous `true` value
+          // after the AI has finished, which would incorrectly show typing.
+          ai_responding: existingThread.ai_responding,
           need_escalation:
             data.need_escalation ?? existingThread.need_escalation,
           escalation_time:
