@@ -11,7 +11,7 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  * Returns the thread's chatbot feedback (rating, message, timestamp), or null
  * when none was submitted. See get_feedback_sequence.
  */
-export default withTenantRoute(handler);
+export default withTenantRoute(handler, "conversations");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {

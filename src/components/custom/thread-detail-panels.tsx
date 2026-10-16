@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { LoadingState } from "@/components/custom/loading-state";
 import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
@@ -10,11 +11,15 @@ import type {
   OrderData,
   CartData,
   ThreadTicketData,
+  UserMetadata,
+  ViewedProduct,
 } from "@/redux/api-slice/thread-slice";
 import {
   IconShoppingBag,
   IconPackage,
   IconChevronRight,
+  IconDeviceLaptop,
+  IconEye,
   IconTicket,
 } from "@tabler/icons-react";
 import { FulfillmentBadge } from "@/components/ui/status-badge";
@@ -64,6 +69,207 @@ function formatCartPrice(price: string | null | undefined): string | null {
   })}`;
 }
 
+/**
+ * One product line — a cart item or a viewed page. A linked (viewed) row
+ * wraps its name so the agent reads it whole; a cart line keeps to one.
+ */
+function ProductRow({
+  image,
+  name,
+  detail,
+  price,
+  href,
+}: {
+  image?: string;
+  name: string;
+  /** Muted line under the name, e.g. "Qty: 2". */
+  detail?: string;
+  price: string;
+  /** Storefront page; the row links there in a new tab when given. */
+  href?: string;
+}) {
+  const content = (
+    <>
+      <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-muted">
+          {image ? (
+            // Product images come from arbitrary store CDNs, so
+            // next/image's domain allowlist can't cover them.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={image}
+              alt={name}
+              className="h-full w-full object-contain"
+            />
+          ) : (
+            <IconShoppingBag className="size-4 text-muted-foreground" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <Typography
+            variant="small"
+            as="p"
+            className={href ? "break-words leading-snug" : "truncate"}
+          >
+            {name}
+          </Typography>
+          {detail ? (
+            <Typography variant="muted" className="mt-0.5">
+              {detail}
+            </Typography>
+          ) : null}
+        </div>
+      </div>
+      <Typography variant="small" as="span" className="shrink-0">
+        {price}
+      </Typography>
+    </>
+  );
+  const className = "flex items-center justify-between gap-3";
+
+  return href ? (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`${className} hover:underline`}
+    >
+      {content}
+    </a>
+  ) : (
+    <div className={className}>{content}</div>
+  );
+}
+
+export function ViewedProductsCard({
+  viewedProducts = [],
+  loading,
+}: {
+  /** Product pages the shopper has opened, as the store theme records them. */
+  viewedProducts?: ViewedProduct[];
+  loading?: boolean;
+}) {
+  const {
+    visible: visibleViewed,
+    hiddenCount: hiddenViewedCount,
+    expanded: viewedExpanded,
+    toggle: toggleViewed,
+  } = useCollapsibleList(viewedProducts);
+
+  return (
+    <section className="flex flex-col gap-3 border-b p-4">
+      <CardTitle className="flex items-center gap-2">
+        <IconEye className="size-4" />
+        Products Viewed
+      </CardTitle>
+      {loading ? (
+        <CardLoadingState />
+      ) : viewedProducts.length === 0 ? (
+        <Typography variant="muted">No product pages viewed yet.</Typography>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {visibleViewed.map((viewed) => (
+            <ProductRow
+              key={viewed.id}
+              image={viewed.image}
+              name={viewed.name}
+              price={formatPrice(viewed.price, viewed.currency)}
+              href={viewed.url}
+            />
+          ))}
+          <ShowMoreToggle
+            hiddenCount={hiddenViewedCount}
+            expanded={viewedExpanded}
+            onToggle={toggleViewed}
+            noun="product"
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Where and on what the visitor is browsing, and how often they have been
+ * here before.
+ */
+export function SessionDataCard({
+  userMetadata,
+  customer,
+  currentThreadId,
+  loading,
+}: {
+  userMetadata?: UserMetadata | null;
+  customer?: Customer | null;
+  currentThreadId?: string | null;
+  loading?: boolean;
+}) {
+  const device =
+    [userMetadata?.device_type, userMetadata?.browser, userMetadata?.os]
+      .filter(Boolean)
+      .join(" · ") || "—";
+
+  /** Threads this customer started before the current one. */
+  const pastThreadsCount = customer?.past_threads_count ?? 0;
+  const pastChatsLabel =
+    pastThreadsCount > 0
+      ? `${pastThreadsCount} ${pastThreadsCount === 1 ? "thread" : "threads"}`
+      : "None";
+
+  const facts = [
+    { label: "Location", value: userMetadata?.geo_location || "—" },
+    { label: "IP address", value: userMetadata?.ip_address || "—" },
+    { label: "Device", value: device },
+  ];
+
+  return (
+    <section className="flex flex-col gap-3 border-b p-4">
+      <CardTitle className="flex items-center gap-2">
+        <IconDeviceLaptop className="size-4" />
+        Session Data
+      </CardTitle>
+      {loading ? (
+        <CardLoadingState />
+      ) : (
+        <div className="flex flex-col gap-2">
+          {facts.map((fact) => (
+            <div
+              key={fact.label}
+              className="flex items-center justify-between gap-3"
+            >
+              <Typography variant="muted" className="shrink-0">
+                {fact.label}
+              </Typography>
+              <Typography
+                variant="small"
+                as="span"
+                className="text-right leading-snug"
+              >
+                {fact.value}
+              </Typography>
+            </div>
+          ))}
+          <div className="flex items-center justify-between gap-3">
+            <Typography variant="muted">Past chats</Typography>
+            {customer?.email && currentThreadId && pastThreadsCount > 0 ? (
+              <Link
+                href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                {pastChatsLabel}
+              </Link>
+            ) : (
+              <Typography variant="small" as="span">
+                {pastChatsLabel}
+              </Typography>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function CartDetailsCard({
   cartData,
   loading,
@@ -87,38 +293,13 @@ export function CartDetailsCard({
       ) : (
         <div className="flex flex-col gap-2.5">
           {items.map((item: CartData, index: number) => (
-            <div
+            <ProductRow
               key={index}
-              className="flex items-center justify-between gap-3"
-            >
-              <div className="flex min-w-0 items-center gap-2.5">
-                <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-muted">
-                  {item.product_image ? (
-                    // Product images come from arbitrary store CDNs, so
-                    // next/image's domain allowlist can't cover them.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.product_image}
-                      alt={item.name}
-                      className="h-full w-full object-contain"
-                    />
-                  ) : (
-                    <IconShoppingBag className="size-4 text-muted-foreground" />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <Typography variant="small" as="p" className="truncate">
-                    {item.name}
-                  </Typography>
-                  <Typography variant="muted" className="mt-0.5">
-                    Qty: {item.qty}
-                  </Typography>
-                </div>
-              </div>
-              <Typography variant="small" as="span" className="shrink-0">
-                {formatCartPrice(item.price) ?? "-"}
-              </Typography>
-            </div>
+              image={item.product_image}
+              name={item.name}
+              detail={`Qty: ${item.qty}`}
+              price={formatCartPrice(item.price) ?? "-"}
+            />
           ))}
         </div>
       )}
@@ -292,7 +473,7 @@ export function OrdersCard({
       {!loading ? (
         <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
           <SummaryStat
-            label="Total Spent"
+            label="Lifetime value"
             value={formatPrice(totalSpent, currency)}
           />
           <SummaryStat label="Orders" value={String(orderList.length)} />

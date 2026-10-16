@@ -26,7 +26,7 @@ import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
 import {
   CrmLinkButton,
-  SessionFacts,
+  CustomerContact,
 } from "@/components/custom/customer-header";
 import { TagsCell } from "@/components/custom/threads-columns";
 import { InfoIcon } from "@/components/custom/info-icon";
@@ -260,7 +260,7 @@ function AIInsightsSection({
         {/* Recap and score side by side: the two things read first, and
             the only two tinted, so the eye lands on them before the
             plainer lists below. */}
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="grid gap-4 lg:grid-cols-2">
           <div className="flex flex-col gap-2 rounded-xl border border-primary/20 bg-primary/5 p-4">
             <div className="flex items-center gap-2 text-primary">
               <IconSparkles className="size-4" />
@@ -293,9 +293,14 @@ function AIInsightsSection({
                   as="span"
                   className="text-primary tabular-nums"
                 >
-                  {rate}%
+                  {rate && rate > 0 ? `${rate}%` : "N/A"}
                 </Typography>
                 <Progress value={rate} />
+                {reasonForScore && (
+                  <Typography variant="muted" className="leading-relaxed">
+                    {reasonForScore}
+                  </Typography>
+                )}
               </>
             )}
           </div>
@@ -305,12 +310,6 @@ function AIInsightsSection({
           <LoadingState className="py-6" />
         ) : (
           <>
-            {reasonForScore && (
-              <Typography variant="muted" className="leading-relaxed">
-                {reasonForScore}
-              </Typography>
-            )}
-
             <InsightGroup
               icon={IconListCheck}
               title="Suggested Follow-ups"
@@ -531,13 +530,17 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 }
               />
             </div>
-            {/* Nothing rather than "no email on file" for a guest — the
-                avatar and the link action already say which this is. */}
-            {details?.customer_email ? (
-              <Typography variant="muted" className="truncate">
-                {details.customer_email}
-              </Typography>
-            ) : null}
+            <CustomerContact
+              email={details?.customer_email}
+              phone={details?.customer?.phone}
+              // Orders keep the last thread's rows until the new ones land;
+              // reading them sooner would show the previous customer's phone.
+              orders={
+                detailsLoading || FetchOrderDataIsLoading
+                  ? null
+                  : FetchOrderData
+              }
+            />
           </div>
         </div>
 
@@ -583,14 +586,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             </>
           )}
         </div>
-
-        <SessionFacts
-          userMetadata={
-            FetchUserMetadataIsLoading || detailsLoading
-              ? null
-              : FetchUserMetadataData
-          }
-        />
       </header>
 
       <div className="flex min-h-0 flex-1">
@@ -691,7 +686,10 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 <LoadingState label="Loading conversation…" />
               ) : threadMessages.length > 0 ? (
                 <div className="p-2">
-                  <MessagePan messages={threadMessages} />
+                  <MessagePan
+                    messages={threadMessages}
+                    handlerEvents={details?.handler_events}
+                  />
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
@@ -710,13 +708,18 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         </div>
 
         <CustomerDetailsPanel
+          currentThreadId={threadId}
           // The detail response carries the customer's id and their name
           // and email as separate fields; the panel wants them together.
           customerData={{
             id: details?.customer?.id ?? null,
             name: customerName,
             email: details?.customer_email ?? "",
+            phone: details?.customer?.phone ?? "",
+            past_threads_count: details?.customer?.past_threads_count ?? 0,
           }}
+          userMetadata={FetchUserMetadataData}
+          userMetadataLoading={detailsLoading || FetchUserMetadataIsLoading}
           orders={FetchOrderData}
           ordersLoading={detailsLoading || FetchOrderDataIsLoading}
           onOrdersSync={() => dispatch(FetchOrders(threadId))}

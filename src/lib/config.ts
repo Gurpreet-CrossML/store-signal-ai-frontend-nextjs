@@ -40,9 +40,17 @@ export const ENDPOINTS = {
   logout: () => createAPIUrl("/auth/logout/", "django"),
   profile: () => createAPIUrl("/auth/profile/", "django"),
 
+  // Password reset (Django, public). Called without the session token: a
+  // revoked token on a public endpoint would fail authentication.
+  forgotPassword: () => createAPIUrl("/auth/password/forgot/", "django"),
+  openResetLink: () => createAPIUrl("/auth/password/reset/validate/", "django"),
+  resetPassword: () => createAPIUrl("/auth/password/reset/confirm/", "django"),
+
   // Chat Websocket (Django)
   chatSocket: (threadId: string, token: string) =>
     createWebSocketUrl(`/chat/${threadId}/?role=agent&token=${token}`),
+  createInternalNote: () =>
+    createAPIUrl("/chat/messages/internal-note/", "django"),
 
   // Dashboard Websocket (Django)
   dashboardSocket: (storeCode: string, token: string) =>
@@ -69,11 +77,6 @@ export const ENDPOINTS = {
   createStaff: () => "/tenancy/staff/",
   updateStaff: (id: number) => `/tenancy/staff/${id}/`,
   resetStaffPassword: (id: number) => `/tenancy/staff/${id}/reset-password/`,
-  // Per-store access grants for a staff user (Django; GET needs useBackend).
-  fetchStoreAccess: (userId: number) =>
-    `/tenancy/staff/${userId}/store-access/`,
-  updateStoreAccess: (userId: number, storeCode: string) =>
-    `/tenancy/staff/${userId}/store-access/${storeCode}/`,
 
   // Store Management
   fetchStoresList: () => "/store/list",
@@ -114,6 +117,8 @@ export const ENDPOINTS = {
   fetchConversaionRateData: () => "/analytics/conversion-rate",
   fetchQueryCategoryInsights: () => "/analytics/query-category-insights",
   fetchConversationHistory: () => "/analytics/chat-history",
+  // Chat-to-order funnel + AI-assisted revenue (Django; GET needs useBackend).
+  fetchChatOrderFunnel: () => "/analytics/chat-order-funnel/",
   // AI Usage analytics (Django; GET requests require useBackend: true).
   fetchAIUsageSummary: () => "/chat/ai-usage/summary/",
   fetchAIUsageDaily: () => "/chat/ai-usage/daily/",
@@ -121,8 +126,16 @@ export const ENDPOINTS = {
   fetchAIUsageWorkflowCosts: () => "/chat/ai-usage/workflow-costs/",
   fetchAIUsageLatencyTrend: () => "/chat/ai-usage/latency-trend/",
 
+  // Geography (Django Cities Light). Countries is intentionally limited to
+  // India by the backend; states and cities are dependent lists.
+  fetchCountries: () => "/core/location/countries/",
+  fetchStates: (countryId: number) =>
+    `/core/location/countries/${countryId}/states/`,
+  fetchCities: (stateId: number) => `/core/location/states/${stateId}/cities/`,
+
   // Thread-level Analytics (local GETs — no trailing slash).
   fetchThreads: () => "/analytics/threads",
+  fetchThreadCounts: () => "/analytics/thread-counts",
   fetchThreadDetails: (threadId: string) => `/analytics/threads/${threadId}`,
   fetchUserMetadata: (threadId: string) =>
     `/analytics/threads/${threadId}/user-metadata`,
@@ -155,17 +168,24 @@ export const ENDPOINTS = {
   personaIdentity: () => "/chat/persona-identity/",
   neverSayRules: () => "/chat/never-say-rules/",
 
-  // Knowledge Base Management. Local GETs have no trailing slash; Django writes
-  // (upload/create/update/delete) keep theirs (DRF requires it).
-  fetchLibraryDocuments: () => `/knowledge/library-documents`,
-  uploadLibraryDocument: () => `/knowledge/library-documents/`,
-  fetchStoreFaqs: () => `/knowledge/store-faqs`,
-  createStoreFaq: () => `/knowledge/store-faqs/`,
-  updateStoreFaq: (id: number) => `/knowledge/store-faqs/${id}/`,
-  deleteStoreFaq: (id: number) => `/knowledge/store-faqs/${id}/`,
-  fetchScrapeLinkTypes: () => `/knowledge/scrape-links/types`,
-  createScrapeLink: () => `/knowledge/scrape-links/`,
-  fetchScrapeLink: () => `/knowledge/scrape-links`,
+  // Knowledge Library items (general/product knowledge entries). GET is
+  // routed to Django via `useBackend: true` (not ported to a local API
+  // route); writes go to Django by the axios-config default.
+  fetchKnowledgeItems: () => `/knowledge/knowledge-items/`,
+  createKnowledgeItem: () => `/knowledge/knowledge-items/`,
+  knowledgeItemDetail: (id: number) => `/knowledge/knowledge-items/${id}/`,
+  // Product picker for Product Knowledge (Django; GET needs useBackend).
+  // Case-insensitive partial match on name via `?search=`, optional — when
+  // omitted/blank, returns any 5 products for the store. Results are
+  // capped server-side either way.
+  searchProducts: () => `/products/search/`,
+  // Paginated product list (Django; GET needs useBackend), with the same
+  // optional `?search=` as above. Used by Attach Products.
+  fetchProducts: () => `/products/`,
+  // Category/Collection pickers for Knowledge item creation (Django; GET
+  // needs useBackend). Same shape/behavior as `searchProducts` above.
+  searchCategories: () => `/products/categories/search/`,
+  searchCollections: () => `/products/collections/search/`,
 
   // Integrations
   fetchIntegrations: () => `/integrations`,
@@ -280,6 +300,10 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/tickets/${ticket_id}/status/`, "django"),
   supportTicketPriorityUpdate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/priority/`, "django"),
+  supportTicketActivity: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/activity/`, "django"),
+  supportTicketLanguageSentimentUpdate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/language-sentiment/`, "django"),
   supportTicketMessagesTranslate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/messages/translate/`, "django"),
 
@@ -400,6 +424,53 @@ export const ENDPOINTS = {
     `/social/comment-drafts/${draftId}/approve/`,
   discardCommentDraft: ({ draftId }: { draftId: number }) =>
     `/social/comment-drafts/${draftId}/discard/`,
+
+  // WhatsApp templates (Django via useBackend — keep trailing slash).
+  fetchWhatsAppTemplates: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/`,
+  createWhatsAppTemplate: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/`,
+  whatsAppTemplateDetail: ({
+    accountId,
+    templateId,
+  }: {
+    accountId: string;
+    templateId: number;
+  }) => `/campaign/accounts/${accountId}/templates/${templateId}/`,
+  whatsAppTemplateLibraryList: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/import/`,
+  whatsAppTemplateLibraryImport: ({
+    accountId,
+    catalogueId,
+  }: {
+    accountId: string;
+    catalogueId: number;
+  }) => `/campaign/accounts/${accountId}/templates/${catalogueId}/import/`,
+  // Email templates (Django via useBackend — keep trailing slash).
+  fetchEmailTemplates: () => `/campaign/email-templates/`,
+  createEmailTemplate: () => `/campaign/email-templates/`,
+  emailTemplateDetail: ({ templateId }: { templateId: number }) =>
+    `/campaign/email-templates/${templateId}/`,
+  // Segments & campaigns (Django via useBackend — keep trailing slash).
+  // Segment categories are platform-wide (no store_code needed); segments
+  // and campaigns are store-scoped and take ?store_code=<code> on the URL.
+  // The list endpoints also accept ?search=<q> (case-insensitive contains
+  // on name), so the list screens can push filtering to the server.
+  fetchSegmentCategories: () => `/campaign/segment-categories/`,
+  fetchSegments: () => `/campaign/segments/`,
+  createSegment: () => `/campaign/segments/`,
+  previewSegment: (categoryId: number) =>
+    `/campaign/segments/preview/${categoryId}/`,
+  segmentDetail: ({ segmentId }: { segmentId: number }) =>
+    `/campaign/segments/${segmentId}/`,
+  fetchCampaigns: () => `/campaign/campaigns/`,
+  createCampaign: () => `/campaign/campaigns/`,
+  campaignDetail: ({ campaignId }: { campaignId: number }) =>
+    `/campaign/campaigns/${campaignId}/`,
+  campaignSequenceSteps: ({ campaignId }: { campaignId: number }) =>
+    `/campaign/campaigns/${campaignId}/sequence-steps/`,
+  campaignSchedule: ({ campaignId }: { campaignId: number }) =>
+    `/campaign/campaigns/${campaignId}/schedule/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.

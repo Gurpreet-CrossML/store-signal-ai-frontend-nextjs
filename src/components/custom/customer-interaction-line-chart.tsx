@@ -48,6 +48,18 @@ const autoRangeLabel: Record<Granularity, string> = {
   monthly: "Custom range",
 };
 
+const formatPeakHour = (label: string) => {
+  const match = label.trim().match(/^(\d{1,2})\s*(AM|PM)$/i);
+  if (!match) return label;
+
+  const hour =
+    (Number(match[1]) % 12) + (match[2].toUpperCase() === "PM" ? 12 : 0);
+  const formatHour = (value: number) =>
+    `${value % 12 || 12} ${value >= 12 ? "pm" : "am"}`;
+
+  return `${formatHour(hour)}–${formatHour((hour + 1) % 24)}`;
+};
+
 export function CustomerInteractionLineChart({
   chartData,
   loading = false,
@@ -67,6 +79,15 @@ export function CustomerInteractionLineChart({
   onFromChange: (value: string) => void;
   onToChange: (value: string) => void;
 }) {
+  const peakPoint =
+    granularity === "hourly"
+      ? chartData.reduce<ChartPoint | null>(
+          (peak, point) =>
+            peak === null || point.value > peak.value ? point : peak,
+          null,
+        )
+      : null;
+
   return (
     <Card className="flex flex-col">
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
@@ -75,7 +96,11 @@ export function CustomerInteractionLineChart({
             Customer Interaction Analytics
             <InfoIcon text="Tracks how many customer conversations happened over time for the selected date range and granularity, so you can spot trends and peak periods." />
           </CardTitle>
-          <CardDescription>{subtitleMap[granularity]}</CardDescription>
+          <CardDescription>
+            {peakPoint && peakPoint.value > 0
+              ? `Peak at ${formatPeakHour(peakPoint.label)}, plan agent shifts around it`
+              : subtitleMap[granularity]}
+          </CardDescription>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

@@ -8,7 +8,7 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  * GET /analytics/threads/{thread_id}/summary/  ->
  * ConversationSummaryByThreadAPIView.
  */
-export default withTenantRoute(handler);
+export default withTenantRoute(handler, "conversations");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {

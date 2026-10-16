@@ -53,8 +53,7 @@ export function ReplyBox({
   }, [text]);
 
   // Media on its own is a valid message — a caption isn't required.
-  const canSend =
-    !disabled && (text.trim().length > 0 || attachments.length > 0);
+  const canSend = !disabled && text.trim().length > 0;
 
   const submit = () => {
     if (!canSend) return;

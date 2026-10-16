@@ -9,12 +9,16 @@ type ThreadFilters = {
   to?: string;
   search?: string;
   is_active?: boolean;
+  need_escalation?: boolean;
   user_type?: string;
   has_ticket?: boolean;
   has_feedback?: boolean;
   feedback_rating?: string;
   tags?: (string | ThreadTagData)[];
   handled_by?: string;
+  channel?: string | string[];
+  assignee?: string[];
+  before_thread_id?: string;
 };
 
 /**
@@ -47,11 +51,20 @@ type GetThreadsArgs = {
   page?: number;
   limit?: number;
   filters?: ThreadFilters;
+  skipListStateUpdate?: boolean;
 };
 
 export type Customer = {
   // Null for a guest — decides which tickets endpoint the UI calls.
   id: number | null;
+  name: string;
+  email: string;
+  phone?: string | null;
+  past_threads_count?: number;
+};
+
+export type ThreadHandlerUser = {
+  id: number;
   name: string;
   email: string;
 };
@@ -60,6 +73,12 @@ export type Thread = {
   id: string;
   name: string | null;
   customer: Customer | null;
+  source?: "native" | "webhook" | "whatsapp" | null;
+  chat_handler?: "ai" | "human";
+  chat_handler_user?: ThreadHandlerUser | null;
+  ai_responding: boolean;
+  need_escalation: boolean;
+  escalation_time: string | null;
   is_active: boolean;
   total_messages: number;
   created_at: string;
@@ -120,29 +139,51 @@ export type ThreadJsonContent = {
   order_id?: string;
   order_verification_step?: string;
   suggestions?: string[];
+  /** Mirrors ChatHistory.confidence for resilient session reloads. */
+  confidence?: number | null;
+  /** Mirrors ChatHistory.source_used for resilient session reloads. */
+  source_used?: string;
 };
 
 export type ThreadMessage = {
   id: string | number;
   role: string;
   message: string;
+  message_type?: "user_message" | "reply" | "internal" | "ai_action" | string;
+  agent_name?: string | null;
+  confidence?: number | null;
+  source_used?: string;
   json_content?: ThreadJsonContent;
   image_url?: string | string[] | null;
   created_at: string;
   messaged_by: string;
+  /** Sender's email, to show "You" for the signed-in agent. */
+  messaged_by_email?: string | null;
+};
+
+/** One handover of a chat; a null agent name means the AI. */
+export type HandlerEvent = {
+  id: number | string;
+  action: string;
+  from_agent_name: string | null;
+  to_agent_name: string | null;
+  assigned_by_name: string | null;
+  /** Emails, so the UI can show "You" for the signed-in user. */
+  from_agent_email?: string | null;
+  to_agent_email?: string | null;
+  assigned_by_email?: string | null;
+  after_message_id?: number | null;
+  created_at: string;
 };
 
 export type ProductVariant = {
-  variant_id: string;
-  title: string;
-  price: {
-    amount: string;
-    currency: string;
-  };
-  options: { name: string; value: string }[];
-  available_for_sale: boolean;
+  variant_id: number;
+  variant_name: string;
+  variant_price: string | null;
   compare_at_price: string | null;
-  discount: string | null;
+  available_for_sale: boolean;
+  discount_percentage: number | null;
+  options: { name: string; value: string }[];
 };
 
 export type ProductData = {
@@ -153,7 +194,40 @@ export type ProductData = {
   price: string;
   product_url: string;
   available_for_sale: boolean;
+  discount_percentage?: number | null;
   variants?: ProductVariant[];
+};
+
+/** One row of the paginated `/products/` list, picked in Attach Products. */
+export type ProductListItem = {
+  id: string;
+  name: string;
+  external_id: number;
+  price: string | null;
+  sale_price: string | null;
+  /** These are absent on an older backend, like `variants`. */
+  currency?: string;
+  discount_percentage?: number | null;
+  description?: string;
+  url: string;
+  images: { url: string; alt?: string; position?: number }[];
+  variants?: {
+    id: string;
+    external_id: number;
+    name: string;
+    price: string | null;
+    sale_price: string | null;
+    discount_percentage?: number | null;
+    stock_quantity: number | null;
+    options: Record<string, string>;
+  }[];
+};
+
+export type ProductListResponse = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: ProductListItem[];
 };
 
 export type ThreadVerdict = {
@@ -173,13 +247,14 @@ export type ThreadDetails = {
   store: number;
   customer_name: string | null;
   customer_email: string | null;
-  /** Identity only — enough to link the thread to its Catalog record. */
-  customer: { id: number } | null;
+  /** Identity, plus the phone and past-thread count the side panel shows. */
+  customer: { id: number; phone: string; past_threads_count: number } | null;
   is_active: boolean;
   total_messages: number;
   created_at: string;
   ended_at: string | null;
   messages: ThreadMessage[];
+  handler_events?: HandlerEvent[];
   verdict: ThreadVerdict;
   followup_level: number;
 };
@@ -237,14 +312,32 @@ export type UserMetadata = {
   device_type: string;
   browser: string;
   os: string;
+  /** Product pages the shopper opened, in viewing order. */
+  viewed_products: ViewedProduct[];
+};
+
+export type ViewedProduct = {
+  id: string;
+  name: string;
+  url: string;
+  image: string;
+  /** Sale price when there is one, in the store's `currency`. */
+  price: string | null;
+  currency: string;
 };
 
 /** Normalised slugs, never the helpdesk provider's numeric codes. */
-export type TicketStatus = "open" | "pending" | "resolved" | "closed";
+export type TicketStatus =
+  | "open"
+  | "snoozed"
+  | "resolved"
+  | "closed"
+  | "reopen";
 export type TicketPriority = "low" | "normal" | "high" | "urgent";
 
 export type ThreadTicketData = {
   id: number;
+  ticket_id: string;
   subject: string;
   description: string;
   status: TicketStatus;
@@ -311,6 +404,8 @@ export type OrderData = {
   gateway: string;
   shipping_method: string | null;
   shipping_address: OrderShippingAddress;
+  /** Phone on the order itself, when its shipping address has none. */
+  customer_phone?: string | null;
   items: OrderItemData[];
   /**
    * Deep link to this order in the store's own admin, for the actions we
@@ -325,6 +420,26 @@ export type OrderData = {
   admin_url?: string | null;
 };
 
+export type ThreadCounts = {
+  active: number;
+  needsHuman: number;
+};
+
+export const FetchThreadCounts = createAsyncThunk<
+  ThreadCounts,
+  { store_code: string }
+>("ThreadCounts", async ({ store_code }, thunkAPI) => {
+  try {
+    const response = await axiosInstance.get(
+      `${ENDPOINTS.fetchThreadCounts()}?store_code=${encodeURIComponent(store_code)}`,
+    );
+    return response.data.data;
+  } catch (error) {
+    const data = isAxiosError(error) ? error.response?.data : undefined;
+    return thunkAPI.rejectWithValue(data || "Unable to fetch thread counts.");
+  }
+});
+
 export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
   "Threads",
   async (
@@ -337,10 +452,18 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
     thunkAPI,
   ) => {
     try {
+      // Values are URI-encoded (a tag like "Return & Refund" would otherwise
+      // split the query at the "&"); arrays repeat the key so a value that
+      // contains a comma survives too.
       const filteration =
         "&" +
         Object.entries(filters)
-          .map(([key, value]) => `${key}=${value}`)
+          .flatMap(([key, value]) =>
+            (Array.isArray(value) ? value : [value]).map(
+              (item) =>
+                `${encodeURIComponent(key)}=${encodeURIComponent(String(item))}`,
+            ),
+          )
           .join("&");
 
       const response = await axiosInstance.get(
@@ -382,6 +505,37 @@ export const FetchThreadDetails = createAsyncThunk(
         description:
           data?.message ||
           "Unable to fetch the thread details, please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const CreateInternalNote = createAsyncThunk(
+  "CreateInternalNote",
+  async (
+    { threadId, message }: { threadId: string; message: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.createInternalNote(),
+        {
+          thread_id: threadId,
+          message,
+        },
+      );
+
+      return response.data.data as ThreadMessage;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to save the internal note. Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -691,9 +845,44 @@ export const FetchOrders = createAsyncThunk(
   },
 );
 
+export const FetchProducts = createAsyncThunk(
+  "FetchProducts",
+  async (
+    {
+      storeCode,
+      search = "",
+      page = 1,
+    }: { storeCode: string; search?: string; page?: number },
+    thunkAPI,
+  ) => {
+    try {
+      const params = new URLSearchParams({
+        store_code: storeCode,
+        page: String(page),
+      });
+      if (search.trim()) params.set("search", search.trim());
+
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchProducts()}?${params.toString()}`,
+        { useBackend: true },
+      );
+      return (response.data?.data ?? null) as ProductListResponse | null;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+    }
+  },
+);
+
 const ThreadSlice = createSlice({
   name: "Thread",
   initialState: {
+    FetchThreadCountsState: {
+      FetchThreadCountsIsLoading: false,
+      FetchThreadCountsIsSuccess: false,
+      FetchThreadCountsIsError: null as null | string | object | unknown,
+      FetchThreadCountsData: { active: 0, needsHuman: 0 } as ThreadCounts,
+    },
     FetchThreadsState: {
       FetchThreadsIsLoading: false,
       FetchThreadsIsSuccess: false,
@@ -710,6 +899,11 @@ const ThreadSlice = createSlice({
       FetchThreadDetailsIsSuccess: false,
       FetchThreadDetailsIsError: null as null | string | object | unknown,
       FetchThreadDetailsData: {} as ThreadDetails,
+    },
+    CreateInternalNoteState: {
+      CreateInternalNoteIsLoading: false,
+      CreateInternalNoteIsSuccess: false,
+      CreateInternalNoteIsError: null as null | string | object | unknown,
     },
     FetchUserMetadataState: {
       FetchUserMetadataIsLoading: false,
@@ -770,21 +964,45 @@ const ThreadSlice = createSlice({
       FetchOrderDataIsError: null as null | string | object | unknown,
       FetchOrderData: [] as OrderData[],
     },
+    FetchProductsState: {
+      FetchProductsIsLoading: false,
+      FetchProductsIsSuccess: false,
+      FetchProductsIsError: null as null | string | object | unknown,
+      FetchProductsData: null as ProductListResponse | null,
+    },
   },
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(FetchThreads.pending, (state) => {
+      .addCase(FetchThreadCounts.pending, (state) => {
+        state.FetchThreadCountsState.FetchThreadCountsIsLoading = true;
+        state.FetchThreadCountsState.FetchThreadCountsIsError = null;
+        state.FetchThreadCountsState.FetchThreadCountsIsSuccess = false;
+      })
+      .addCase(FetchThreadCounts.fulfilled, (state, action) => {
+        state.FetchThreadCountsState.FetchThreadCountsIsLoading = false;
+        state.FetchThreadCountsState.FetchThreadCountsData = action.payload;
+        state.FetchThreadCountsState.FetchThreadCountsIsSuccess = true;
+      })
+      .addCase(FetchThreadCounts.rejected, (state, action) => {
+        state.FetchThreadCountsState.FetchThreadCountsIsLoading = false;
+        state.FetchThreadCountsState.FetchThreadCountsIsError = action.payload;
+        state.FetchThreadCountsState.FetchThreadCountsIsSuccess = false;
+      })
+      .addCase(FetchThreads.pending, (state, action) => {
+        if (action.meta.arg?.skipListStateUpdate) return;
         state.FetchThreadsState.FetchThreadsIsLoading = true;
         state.FetchThreadsState.FetchThreadsIsError = null;
         state.FetchThreadsState.FetchThreadsIsSuccess = false;
       })
       .addCase(FetchThreads.fulfilled, (state, action) => {
+        if (action.meta.arg?.skipListStateUpdate) return;
         state.FetchThreadsState.FetchThreadsIsLoading = false;
         state.FetchThreadsState.FetchThreadsListData = action.payload;
         state.FetchThreadsState.FetchThreadsIsSuccess = true;
       })
       .addCase(FetchThreads.rejected, (state, action) => {
+        if (action.meta.arg?.skipListStateUpdate) return;
         state.FetchThreadsState.FetchThreadsIsLoading = false;
         state.FetchThreadsState.FetchThreadsIsError = action.payload;
         state.FetchThreadsState.FetchThreadsIsSuccess = false;
@@ -804,6 +1022,21 @@ const ThreadSlice = createSlice({
         state.FetchThreadDetailsState.FetchThreadDetailsIsError =
           action.payload;
         state.FetchThreadDetailsState.FetchThreadDetailsIsSuccess = false;
+      })
+      .addCase(CreateInternalNote.pending, (state) => {
+        state.CreateInternalNoteState.CreateInternalNoteIsLoading = true;
+        state.CreateInternalNoteState.CreateInternalNoteIsError = null;
+        state.CreateInternalNoteState.CreateInternalNoteIsSuccess = false;
+      })
+      .addCase(CreateInternalNote.fulfilled, (state) => {
+        state.CreateInternalNoteState.CreateInternalNoteIsLoading = false;
+        state.CreateInternalNoteState.CreateInternalNoteIsSuccess = true;
+      })
+      .addCase(CreateInternalNote.rejected, (state, action) => {
+        state.CreateInternalNoteState.CreateInternalNoteIsLoading = false;
+        state.CreateInternalNoteState.CreateInternalNoteIsError =
+          action.payload;
+        state.CreateInternalNoteState.CreateInternalNoteIsSuccess = false;
       })
       .addCase(FetchUserMetadata.pending, (state) => {
         state.FetchUserMetadataState.FetchUserMetadataIsLoading = true;
@@ -964,6 +1197,21 @@ const ThreadSlice = createSlice({
         state.FetchOrderDataState.FetchOrderDataIsLoading = false;
         state.FetchOrderDataState.FetchOrderDataIsError = action.payload;
         state.FetchOrderDataState.FetchOrderDataIsSuccess = false;
+      })
+      .addCase(FetchProducts.pending, (state) => {
+        state.FetchProductsState.FetchProductsIsLoading = true;
+        state.FetchProductsState.FetchProductsIsError = null;
+        state.FetchProductsState.FetchProductsIsSuccess = false;
+      })
+      .addCase(FetchProducts.fulfilled, (state, action) => {
+        state.FetchProductsState.FetchProductsIsLoading = false;
+        state.FetchProductsState.FetchProductsData = action.payload;
+        state.FetchProductsState.FetchProductsIsSuccess = true;
+      })
+      .addCase(FetchProducts.rejected, (state, action) => {
+        state.FetchProductsState.FetchProductsIsLoading = false;
+        state.FetchProductsState.FetchProductsIsError = action.payload;
+        state.FetchProductsState.FetchProductsIsSuccess = false;
       });
   },
 });

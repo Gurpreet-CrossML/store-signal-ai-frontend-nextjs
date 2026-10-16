@@ -22,6 +22,7 @@ import {
   activeNavUrl,
   flattenMenuItems,
   isBranchActive,
+  isNavItemVisible,
   sidebarMenus,
   SubSidebarMenuItem,
 } from "@/lib/sidebar-navs";
@@ -36,6 +37,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { FetchThreadCounts } from "@/redux/api-slice/thread-slice";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useSupportDashboardEvents } from "@/hooks/use-support-dashboard-events";
 
 export function AppSidebar({
   className,
@@ -64,12 +68,38 @@ export function AppSidebar({
     subNavSearch,
   );
   const { data: session } = useSession();
-  // Company admins (is_staff) get the admin nav (company settings + staff mgmt).
+  const dispatch = useAppDispatch();
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
+  const { FetchThreadCountsData } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchThreadCountsState,
+  );
 
-  // One ordered list, filtered rather than concatenated — an admin-only
-  // entry keeps its place in the order instead of being pushed to the end.
-  const isStaff = Boolean(session?.user?.is_staff);
-  const navMain = sidebarMenus.nav.filter((item) => !item.adminOnly || isStaff);
+  const refreshNeedsHumanBadge = React.useCallback(() => {
+    if (!storeCode) {
+      return;
+    }
+
+    void dispatch(
+      FetchThreadCounts({
+        store_code: storeCode,
+      }),
+    );
+  }, [dispatch, storeCode]);
+
+  React.useEffect(() => refreshNeedsHumanBadge(), [refreshNeedsHumanBadge]);
+
+  useSupportDashboardEvents(() => {
+    refreshNeedsHumanBadge();
+  });
+
+  // One ordered list, filtered rather than concatenated — a hidden entry
+  // leaves the rest in their order. Admins see everything; staff see what
+  // their role allows.
+  const navMain = sidebarMenus.nav.filter((item) =>
+    isNavItemVisible(item, session?.user),
+  );
 
   return (
     <Sidebar
@@ -133,7 +163,10 @@ export function AppSidebar({
           <StoreSwitcher />
         </SidebarHeader>
         <SidebarContent>
-          <NavMain items={navMain} />
+          <NavMain
+            items={navMain}
+            liveSupportBadgeCount={FetchThreadCountsData.needsHuman}
+          />
           {sidebarMenus.navSecondary && (
             <NavSecondary
               items={sidebarMenus.navSecondary}

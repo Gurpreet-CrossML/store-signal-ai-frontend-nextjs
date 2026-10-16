@@ -17,7 +17,7 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  * Both branches return a generic 500 on error (the raw cause is logged
  * server-side, never sent to the client — see handleApiError).
  */
-export default withTenantRoute(handler);
+export default withTenantRoute(handler, "conversations");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {
@@ -34,6 +34,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
     try {
       const data = await get_chat_history_aggregated({
         store_code: req.query.store_code as string | undefined,
+        channel: req.query.channel as string | undefined,
         from: req.query.from as string | undefined,
         to: req.query.to as string | undefined,
         granularity: req.query.granularity as string | undefined,

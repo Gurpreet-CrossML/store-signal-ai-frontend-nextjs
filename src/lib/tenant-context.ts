@@ -11,7 +11,6 @@ import {
 
 // Re-export so existing importers (with-tenant-route, etc.) are unaffected.
 export type { RequestAccess };
-export { requiredLevel } from "@/lib/access-rules";
 
 /**
  * Request-scoped tenant context.

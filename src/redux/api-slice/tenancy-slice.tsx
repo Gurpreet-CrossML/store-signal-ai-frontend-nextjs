@@ -3,6 +3,7 @@ import { axiosInstance } from "@/redux/axios-config";
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
+import type { StaffRole } from "@/lib/tenant-types";
 
 /**
  * Company & staff management (Django `/api/tenancy/`). These are Django-owned
@@ -17,17 +18,19 @@ export type CompanyProfile = {
   email: string | null;
   phone: string | null;
   street: string | null;
-  city: string | null;
-  state: string | null;
-  country: string | null;
+  city: { id: number; name: string } | null;
+  state: { id: number; name: string } | null;
+  country: { id: number; name: string } | null;
   is_active: boolean;
 };
 
+/** A plain staff user; company admins are not listed or managed here. */
 export type StaffMember = {
   id: number;
   email: string;
   first_name: string;
   last_name: string;
+  role: StaffRole;
   is_active: boolean;
   is_staff: boolean;
 };
@@ -37,10 +40,15 @@ export type CompanyProfileUpdate = {
   email?: string;
   phone?: string;
   street?: string;
-  city?: string;
-  state?: string;
-  country?: string;
+  city?: number | null;
+  state?: number | null;
+  country?: number | null;
   logo?: File | null;
+};
+
+export type LocationOption = {
+  id: number;
+  name: string;
 };
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -107,6 +115,48 @@ export const UpdateCompanyProfile = createAsyncThunk(
   },
 );
 
+export const FetchCountries = createAsyncThunk(
+  "tenancy/FetchCountries",
+  async (_: void, thunkAPI) => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.fetchCountries(), {
+        useBackend: true,
+      });
+      return res.data.data as LocationOption[];
+    } catch (error) {
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
+export const FetchStates = createAsyncThunk(
+  "tenancy/FetchStates",
+  async (countryId: number, thunkAPI) => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.fetchStates(countryId), {
+        useBackend: true,
+      });
+      return res.data.data as LocationOption[];
+    } catch (error) {
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
+export const FetchCities = createAsyncThunk(
+  "tenancy/FetchCities",
+  async (stateId: number, thunkAPI) => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.fetchCities(stateId), {
+        useBackend: true,
+      });
+      return res.data.data as LocationOption[];
+    } catch (error) {
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
 export const FetchStaff = createAsyncThunk(
   "tenancy/FetchStaff",
   async (_: void, thunkAPI) => {
@@ -127,7 +177,12 @@ export const FetchStaff = createAsyncThunk(
 export const CreateStaff = createAsyncThunk(
   "tenancy/CreateStaff",
   async (
-    payload: { first_name: string; last_name: string; email: string },
+    payload: {
+      first_name: string;
+      last_name: string;
+      email: string;
+      role: StaffRole;
+    },
     thunkAPI,
   ) => {
     try {
@@ -147,20 +202,29 @@ export const CreateStaff = createAsyncThunk(
       toast.error("Uh oh! Something went wrong.", {
         description: errorMessage(error, "Unable to create staff user."),
       });
-      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+      // The whole body, so the form can put field errors (e.g. a taken
+      // email) under the field that caused them.
+      const body = isAxiosError(error) ? error.response?.data : undefined;
+      return thunkAPI.rejectWithValue(body ?? errorMessage(error, "Failed"));
     }
   },
 );
 
-export const SetStaffActive = createAsyncThunk(
-  "tenancy/SetStaffActive",
-  async (payload: { id: number; is_active: boolean }, thunkAPI) => {
+export const UpdateStaff = createAsyncThunk(
+  "tenancy/UpdateStaff",
+  async (
+    payload: { id: number; is_active?: boolean; role?: StaffRole },
+    thunkAPI,
+  ) => {
+    const { id, ...changes } = payload;
     try {
-      const res = await axiosInstance.patch(ENDPOINTS.updateStaff(payload.id), {
-        is_active: payload.is_active,
-      });
+      const res = await axiosInstance.patch(ENDPOINTS.updateStaff(id), changes);
       toast.success(
-        payload.is_active ? "Staff user activated." : "Staff user deactivated.",
+        changes.role
+          ? "Role updated."
+          : changes.is_active
+            ? "Staff user activated."
+            : "Staff user deactivated.",
       );
       return res.data.data as StaffMember;
     } catch (error) {
@@ -196,81 +260,58 @@ export const ResetStaffPassword = createAsyncThunk(
   },
 );
 
-export type StoreAccessLevel = "no_access" | "view" | "manage";
-
-export type StoreAccessEntry = {
-  store_code: string;
-  store_name: string;
-  level: StoreAccessLevel;
-};
-
-export type StoreAccessData = {
-  user_id: number;
-  email: string;
-  is_staff: boolean;
-  stores: StoreAccessEntry[];
-};
-
-export const FetchStoreAccess = createAsyncThunk(
-  "tenancy/FetchStoreAccess",
-  async (userId: number, thunkAPI) => {
-    try {
-      const res = await axiosInstance.get(ENDPOINTS.fetchStoreAccess(userId), {
-        useBackend: true,
-      });
-      return res.data.data as StoreAccessData;
-    } catch (error) {
-      toast.error("Uh oh! Something went wrong.", {
-        description: errorMessage(error, "Unable to load store access."),
-      });
-      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
-    }
-  },
-);
-
-export const SetStoreAccess = createAsyncThunk(
-  "tenancy/SetStoreAccess",
-  async (
-    payload: { userId: number; storeCode: string; level: StoreAccessLevel },
-    thunkAPI,
-  ) => {
-    try {
-      const res = await axiosInstance.put(
-        ENDPOINTS.updateStoreAccess(payload.userId, payload.storeCode),
-        { level: payload.level },
-      );
-      return res.data.data as { store_code: string; level: StoreAccessLevel };
-    } catch (error) {
-      toast.error("Uh oh! Something went wrong.", {
-        description: errorMessage(error, "Unable to update store access."),
-      });
-      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
-    }
-  },
-);
-
 type TenancyState = {
   companyProfile: CompanyProfile | null;
   companyLoading: boolean;
   companySaving: boolean;
+  FetchCountriesState: {
+    FetchCountriesIsLoading: boolean;
+    FetchCountriesIsSuccess: boolean;
+    FetchCountriesIsError: null | string | object;
+    FetchCountriesData: LocationOption[];
+  };
+  FetchStatesState: {
+    FetchStatesIsLoading: boolean;
+    FetchStatesIsSuccess: boolean;
+    FetchStatesIsError: null | string | object;
+    FetchStatesData: LocationOption[];
+  };
+  FetchCitiesState: {
+    FetchCitiesIsLoading: boolean;
+    FetchCitiesIsSuccess: boolean;
+    FetchCitiesIsError: null | string | object;
+    FetchCitiesData: LocationOption[];
+  };
   staff: StaffMember[];
   staffLoading: boolean;
   staffSaving: boolean;
-  storeAccess: StoreAccessData | null;
-  storeAccessLoading: boolean;
-  storeAccessSavingCode: string | null;
 };
 
 const initialState: TenancyState = {
   companyProfile: null,
   companyLoading: false,
   companySaving: false,
+  FetchCountriesState: {
+    FetchCountriesIsLoading: false,
+    FetchCountriesIsSuccess: false,
+    FetchCountriesIsError: null,
+    FetchCountriesData: [] as LocationOption[],
+  },
+  FetchStatesState: {
+    FetchStatesIsLoading: false,
+    FetchStatesIsSuccess: false,
+    FetchStatesIsError: null,
+    FetchStatesData: [] as LocationOption[],
+  },
+  FetchCitiesState: {
+    FetchCitiesIsLoading: false,
+    FetchCitiesIsSuccess: false,
+    FetchCitiesIsError: null,
+    FetchCitiesData: [] as LocationOption[],
+  },
   staff: [],
   staffLoading: false,
   staffSaving: false,
-  storeAccess: null,
-  storeAccessLoading: false,
-  storeAccessSavingCode: null,
 };
 
 const TenancySlice = createSlice({
@@ -299,6 +340,56 @@ const TenancySlice = createSlice({
       .addCase(UpdateCompanyProfile.rejected, (state) => {
         state.companySaving = false;
       })
+      .addCase(FetchCountries.pending, (state) => {
+        state.FetchCountriesState.FetchCountriesIsLoading = true;
+        state.FetchCountriesState.FetchCountriesIsSuccess = false;
+        state.FetchCountriesState.FetchCountriesIsError = null;
+      })
+      .addCase(FetchCountries.fulfilled, (state, action) => {
+        state.FetchCountriesState.FetchCountriesIsLoading = false;
+        state.FetchCountriesState.FetchCountriesIsSuccess = true;
+        state.FetchCountriesState.FetchCountriesData = action.payload;
+      })
+      .addCase(FetchCountries.rejected, (state, action) => {
+        state.FetchCountriesState.FetchCountriesIsLoading = false;
+        state.FetchCountriesState.FetchCountriesIsSuccess = false;
+        state.FetchCountriesState.FetchCountriesIsError =
+          action.payload ?? "Failed to fetch countries.";
+      })
+      .addCase(FetchStates.pending, (state) => {
+        state.FetchStatesState.FetchStatesIsLoading = true;
+        state.FetchStatesState.FetchStatesIsSuccess = false;
+        state.FetchStatesState.FetchStatesIsError = null;
+        state.FetchStatesState.FetchStatesData = [];
+      })
+      .addCase(FetchStates.fulfilled, (state, action) => {
+        state.FetchStatesState.FetchStatesIsLoading = false;
+        state.FetchStatesState.FetchStatesIsSuccess = true;
+        state.FetchStatesState.FetchStatesData = action.payload;
+      })
+      .addCase(FetchStates.rejected, (state, action) => {
+        state.FetchStatesState.FetchStatesIsLoading = false;
+        state.FetchStatesState.FetchStatesIsSuccess = false;
+        state.FetchStatesState.FetchStatesIsError =
+          action.payload ?? "Failed to fetch states.";
+      })
+      .addCase(FetchCities.pending, (state) => {
+        state.FetchCitiesState.FetchCitiesIsLoading = true;
+        state.FetchCitiesState.FetchCitiesIsSuccess = false;
+        state.FetchCitiesState.FetchCitiesIsError = null;
+        state.FetchCitiesState.FetchCitiesData = [];
+      })
+      .addCase(FetchCities.fulfilled, (state, action) => {
+        state.FetchCitiesState.FetchCitiesIsLoading = false;
+        state.FetchCitiesState.FetchCitiesIsSuccess = true;
+        state.FetchCitiesState.FetchCitiesData = action.payload;
+      })
+      .addCase(FetchCities.rejected, (state, action) => {
+        state.FetchCitiesState.FetchCitiesIsLoading = false;
+        state.FetchCitiesState.FetchCitiesIsSuccess = false;
+        state.FetchCitiesState.FetchCitiesIsError =
+          action.payload ?? "Failed to fetch cities.";
+      })
       .addCase(FetchStaff.pending, (state) => {
         state.staffLoading = true;
       })
@@ -309,7 +400,7 @@ const TenancySlice = createSlice({
       .addCase(FetchStaff.rejected, (state) => {
         state.staffLoading = false;
       })
-      .addCase(SetStaffActive.fulfilled, (state, action) => {
+      .addCase(UpdateStaff.fulfilled, (state, action) => {
         const idx = state.staff.findIndex((s) => s.id === action.payload.id);
         if (idx !== -1) state.staff[idx] = action.payload;
       })
@@ -321,30 +412,6 @@ const TenancySlice = createSlice({
       })
       .addCase(CreateStaff.rejected, (state) => {
         state.staffSaving = false;
-      })
-      .addCase(FetchStoreAccess.pending, (state) => {
-        state.storeAccessLoading = true;
-        state.storeAccess = null;
-      })
-      .addCase(FetchStoreAccess.fulfilled, (state, action) => {
-        state.storeAccessLoading = false;
-        state.storeAccess = action.payload;
-      })
-      .addCase(FetchStoreAccess.rejected, (state) => {
-        state.storeAccessLoading = false;
-      })
-      .addCase(SetStoreAccess.pending, (state, action) => {
-        state.storeAccessSavingCode = action.meta.arg.storeCode;
-      })
-      .addCase(SetStoreAccess.fulfilled, (state, action) => {
-        state.storeAccessSavingCode = null;
-        const entry = state.storeAccess?.stores.find(
-          (s) => s.store_code === action.payload.store_code,
-        );
-        if (entry) entry.level = action.payload.level;
-      })
-      .addCase(SetStoreAccess.rejected, (state) => {
-        state.storeAccessSavingCode = null;
       });
   },
 });

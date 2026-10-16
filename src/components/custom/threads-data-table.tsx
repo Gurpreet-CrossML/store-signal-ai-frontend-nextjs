@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import {
   type ColumnDef,
   type OnChangeFn,
@@ -32,6 +33,34 @@ interface ThreadsDataTableProps<TData, TValue> {
   isLoading?: boolean;
   /** Navigate to a thread's detail page. */
   onSelectThread: (threadId: string, isActive: boolean) => void;
+}
+
+// "Today · Sep 29, 2026" / "Yesterday · …" / "Mon · …", in the viewer's timezone.
+function dateKey(value: string): string {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function dateGroupLabel(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "Unknown date";
+  const full = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(d);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  const key = dateKey(value);
+  if (key === dateKey(today.toISOString())) return `Today · ${full}`;
+  if (key === dateKey(yesterday.toISOString())) return `Yesterday · ${full}`;
+  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(
+    d,
+  );
+  return `${weekday} · ${full}`;
 }
 
 export function ThreadsDataTable<TData, TValue>({
@@ -81,34 +110,51 @@ export function ThreadsDataTable<TData, TValue>({
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  onClick={() =>
-                    onSelectThread(
-                      (row.original as Thread).id,
-                      (row.original as Thread).is_active,
-                    )
-                  }
-                  className="cursor-pointer hover:bg-accent/50 data-[state=selected]:bg-accent"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={
-                        cell.column.id === "last_message"
-                          ? "max-w-[180px] truncate"
-                          : ""
+              table.getRowModel().rows.map((row, index, rows) => {
+                const created = (row.original as Thread).created_at;
+                const previous = rows[index - 1]?.original as
+                  | Thread
+                  | undefined;
+                const startsGroup =
+                  !previous ||
+                  dateKey(previous.created_at) !== dateKey(created);
+                return (
+                  <Fragment key={row.id}>
+                    {startsGroup && (
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell
+                          colSpan={columns.length}
+                          className="bg-muted/40 py-2 text-xs font-medium text-muted-foreground"
+                        >
+                          {dateGroupLabel(created)}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    <TableRow
+                      onClick={() =>
+                        onSelectThread(
+                          (row.original as Thread).id,
+                          (row.original as Thread).is_active,
+                        )
                       }
+                      className={`cursor-pointer hover:bg-accent/50 data-[state=selected]:bg-accent ${
+                        (row.original as Thread).is_active
+                          ? "bg-primary/[0.025]"
+                          : ""
+                      }`}
                     >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </Fragment>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell

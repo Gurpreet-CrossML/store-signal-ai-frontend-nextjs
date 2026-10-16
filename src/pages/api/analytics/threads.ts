@@ -9,14 +9,14 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  *
  * Query params: store_code, page, page_size, from, to, search, is_active,
  * user_type, has_ticket, has_feedback, feedback_rating, tags (comma-separated
- * or repeated), handled_by (ai | human).
+ * or repeated), handled_by (ai | human), channel (whatsapp | web).
  *
  * Paginated (DRF PageNumberPagination, default page_size=15). When there are no
  * results, Django sets response_data=None which create_api_response renders as
  * [] for a list GET path; we mirror that by returning [] (not the paginated
  * envelope) in the empty case.
  */
-export default withTenantRoute(handler);
+export default withTenantRoute(handler, "conversations");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {
@@ -42,6 +42,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
     from: getStr(q.from),
     to: getStr(q.to),
     is_active: getStr(q.is_active),
+    need_escalation: getStr(q.need_escalation),
     search: getStr(q.search),
     user_type: getStr(q.user_type),
     has_ticket: getStr(q.has_ticket),
@@ -49,6 +50,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
     feedback_rating: getStr(q.feedback_rating),
     tags: getList(q.tags),
     handled_by: getStr(q.handled_by),
+    channel: getList(q.channel),
+    assignee: getList(q.assignee),
+    before_thread_id: getStr(q.before_thread_id),
   };
 
   const pageParam = getStr(q.page);

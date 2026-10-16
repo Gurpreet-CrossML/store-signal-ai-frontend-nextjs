@@ -14,20 +14,14 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
+  SelectSeparator,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { CommentTopic } from "@/redux/api-slice/social-ai-slice";
 import { IconChevronDown } from "@tabler/icons-react";
-
-/** Mirrors the backend's CommentIntent / CommentSentiment choices. */
-const INTENT_OPTIONS = [
-  { value: "question", label: "Question" },
-  { value: "complaint", label: "Complaint" },
-  { value: "praise", label: "Praise" },
-  { value: "feedback", label: "Feedback" },
-  { value: "purchase_intent", label: "Purchase Intent" },
-  { value: "other", label: "Other" },
-];
+import { DEFAULT_INTENTS, INTENT_GROUPS } from "@/lib/comment-handling-data";
 
 const SENTIMENT_OPTIONS = [
   { value: "positive", label: "Positive" },
@@ -115,13 +109,25 @@ export function CommentFiltersBar({
         <SelectTrigger size="sm" className="w-40">
           <SelectValue placeholder="Any intent" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent position="popper" className="max-h-72">
           <SelectItem value={ANY}>Any intent</SelectItem>
-          {INTENT_OPTIONS.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
+          {INTENT_GROUPS.map((group, index) => {
+            const intentsInGroup = DEFAULT_INTENTS.filter(
+              (intent) => intent.group === group,
+            );
+            if (intentsInGroup.length === 0) return null;
+            return (
+              <SelectGroup key={group}>
+                {index > 0 && <SelectSeparator />}
+                <SelectLabel>{group}</SelectLabel>
+                {intentsInGroup.map((intent) => (
+                  <SelectItem key={intent.id} value={intent.id}>
+                    {intent.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            );
+          })}
         </SelectContent>
       </Select>
 

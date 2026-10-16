@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   IconCheck,
   IconDeviceFloppy,
+  IconEyeOff,
   IconMessageCircle,
   IconPencil,
   IconSend,
@@ -129,6 +130,15 @@ export function DraftBubble({
           >
             <IconSend className="size-3" />
             Private Reply
+          </Badge>
+        )}
+        {draft.actions?.includes("hide") && (
+          <Badge
+            variant="outline"
+            className={cn("gap-1", BADGE_TONE_STYLES.danger)}
+          >
+            <IconEyeOff className="size-3" />
+            Hide Comment
           </Badge>
         )}
         <Typography variant="caption" as="span" className="ml-auto">

@@ -7,6 +7,7 @@ import {
   useState,
   useRef,
   startTransition,
+  type ChangeEvent,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -34,14 +35,28 @@ import {
   IconLock,
   IconNote,
   IconPencil,
+  IconBolt,
   IconPlus,
+  IconArrowsSort,
   IconReload,
   IconSend,
   IconSparkles,
+  IconUser,
+  IconX,
 } from "@tabler/icons-react";
 import ReactMarkdown from "react-markdown";
 
 import { useFormik } from "formik";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -95,6 +110,7 @@ import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel
 import { CrmLinkButton } from "@/components/custom/customer-header";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { MessageAttachments } from "@/components/custom/helpdesk/message-attachments";
 import {
   HiddenTagsBadge,
   TagBadge,
@@ -104,6 +120,18 @@ import { LoadingState } from "@/components/custom/loading-state";
 import { SearchInput } from "@/components/custom/search-input";
 
 import { ENDPOINTS } from "@/lib/config";
+import {
+  SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS,
+  prepareSupportAttachments,
+} from "@/lib/support-attachment-constants";
+import {
+  DEFAULT_TICKET_LANGUAGE,
+  DEFAULT_TICKET_SENTIMENT,
+  SUPPORTED_LANGUAGES,
+  TICKET_SENTIMENTS,
+  type TicketLanguage,
+  type TicketSentiment,
+} from "@/lib/ticket-options";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   FetchSupportTickets,
@@ -114,21 +142,24 @@ import {
   SupportTicketAgentDraftSave,
   SupportTicketTagAssign,
   SupportTicketTagRemove,
-  SupportMessageImprove,
+  // SupportMessageImprove,
   SupportTicketSnooze,
   SupportTicketMarkRead,
   SupportTicketAIMessageDraftGenerate,
   SupportTicketCustomerLink,
   SupportTicketStatusUpdate,
   SupportTicketPriorityUpdate,
+  SupportTicketLanguageSentimentUpdate,
   SupportTicketMessagesTranslate,
   type SupportTicket,
   type SupportTicketChannel,
+  type SupportTicketCreatedBy,
   type SupportTicketPriority,
   type SupportTicketTagData,
   type SupportTicketMessage,
   type SupportTicketDraftMessage,
   type SupportTicketCustomer,
+  type SupportTicketOrdering,
   type SupportTicketStatus,
   type SupportTicketFilters,
   type SupportTicketStatusCounts,
@@ -167,29 +198,6 @@ const SNOOZE_PRESETS = [
   { label: "1 month", ms: 30 * 24 * 60 * 60 * 1000 },
 ];
 
-// Message transalte languages
-const translationLanguages = [
-  { code: "en", name: "English" },
-  { code: "es", name: "Spanish" },
-  { code: "fr", name: "French" },
-  { code: "de", name: "German" },
-  { code: "it", name: "Italian" },
-  { code: "ru", name: "Russian" },
-  { code: "uk", name: "Ukrainian" },
-  { code: "tr", name: "Turkish" },
-  { code: "ar", name: "Arabic" },
-  { code: "hi", name: "Hindi" },
-  { code: "bn", name: "Bengali" },
-  { code: "ur", name: "Urdu" },
-  { code: "ta", name: "Tamil" },
-  { code: "te", name: "Telugu" },
-  { code: "mr", name: "Marathi" },
-  { code: "gu", name: "Gujarati" },
-  { code: "kn", name: "Kannada" },
-  { code: "ml", name: "Malayalam" },
-  { code: "pa", name: "Punjabi" },
-];
-
 /**
  * Priority reuses the shared badge palette rather than its own greens and
  * ambers, so "urgent" here reads the same as any other alarming badge in
@@ -197,7 +205,8 @@ const translationLanguages = [
  */
 const STATUS_TONE: Record<SupportTicketStatus, BadgeTone> = {
   open: "info",
-  pending: "warning",
+  reopen: "danger",
+  snoozed: "warning",
   resolved: "success",
   closed: "neutral",
 };
@@ -234,6 +243,11 @@ function TicketRow({
   const visibleTags = ticket.tags?.slice(0, MAX_VISIBLE_TKT_ROW_TAGS) ?? [];
   const hiddenTags = ticket.tags?.slice(MAX_VISIBLE_TKT_ROW_TAGS) ?? [];
   const customerName = customerLabel(ticket.customer);
+  // Falls back like the ticket header does, for a channel the backend adds
+  // before CHANNEL_META hears about it.
+  const ChannelIcon = CHANNEL_META[ticket.channel]?.icon ?? IconInbox;
+  const channelLabel =
+    CHANNEL_META[ticket.channel]?.label ?? capitalizeText(ticket.channel);
 
   return (
     <ConversationRow
@@ -256,7 +270,23 @@ function TicketRow({
       // what the ticket is about, so a teaser of the latest message only
       // competed with it — and trailing off mid-sentence after an email
       // address read as one run-on string.
-      preview={<span className="text-foreground/70">{customerName}</span>}
+      preview={
+        <span className="flex items-center gap-1.5 text-foreground/70">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                role="img"
+                aria-label={channelLabel}
+                className="flex shrink-0 items-center"
+              >
+                <ChannelIcon className="size-3.5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{channelLabel}</TooltipContent>
+          </Tooltip>
+          <span className="truncate">{customerName}</span>
+        </span>
+      }
       footer={
         visibleTags.length > 0 ? (
           <div className="flex flex-wrap items-center gap-1">
@@ -278,10 +308,34 @@ function TicketRow({
 
 const queues = [
   { key: "open", label: "Open" },
-  { key: "pending", label: "Pending" },
+  { key: "reopen", label: "Reopen" },
+  // Hidden for now: snoozing is not available from the UI yet.
+  // { key: "snoozed", label: "Snoozed" },
   { key: "resolved", label: "Resolved" },
   { key: "closed", label: "Closed" },
 ] as const;
+
+const SORT_OPTIONS: { key: SupportTicketOrdering; label: string }[] = [
+  { key: "last_updated", label: "Last updated" },
+  { key: "newest", label: "Newest" },
+  { key: "oldest", label: "Oldest" },
+];
+
+/**
+ * Where an agent can move a ticket from the status menu. Mirrors the API:
+ * a resolved ticket can only be opened or closed and a closed one only
+ * reopened, and snoozed is set from the snooze control, never from here.
+ */
+const STATUS_TRANSITIONS: Record<SupportTicketStatus, SupportTicketStatus[]> = {
+  open: ["resolved", "closed"],
+  reopen: ["resolved", "closed"],
+  snoozed: ["resolved", "closed"],
+  resolved: ["open", "closed"],
+  closed: ["reopen"],
+};
+
+/** Negative so an optimistic message can never collide with a server id. */
+const createTempMessageId = () => -Date.now();
 
 type TicketFilterSelection = {
   channels: SupportTicketChannel[];
@@ -325,6 +379,22 @@ const channelOptions: { value: SupportTicketChannel; label: string }[] =
     label: CHANNEL_META[value].label,
   }));
 
+/** Who opened a ticket, as the header shows it. */
+const CREATED_BY_META: Record<
+  SupportTicketCreatedBy,
+  { label: string; icon: Icon }
+> = {
+  ai: { label: "AI", icon: IconSparkles },
+  agent: { label: "Agent", icon: IconUser },
+  rule: { label: "Rule", icon: IconBolt },
+};
+
+const SENTIMENT_TONE: Record<TicketSentiment, BadgeTone> = {
+  positive: "success",
+  neutral: "neutral",
+  negative: "danger",
+};
+
 const priorityOptions: { value: SupportTicketPriority; label: string }[] = [
   { value: "low", label: "Low" },
   { value: "normal", label: "Normal" },
@@ -338,6 +408,8 @@ function TicketListPanel({
   activeQueue,
   queueLabel,
   onQueueChange,
+  sortOrder,
+  onSortChange,
   onSelectTicket,
   isLoading,
   isLoadingMore,
@@ -365,6 +437,8 @@ function TicketListPanel({
   activeQueue: SupportTicketStatus;
   queueLabel: string;
   onQueueChange: (queue: SupportTicketStatus) => void;
+  sortOrder: SupportTicketOrdering;
+  onSortChange: (order: SupportTicketOrdering) => void;
   onSelectTicket: (ticketId: number) => void;
   isLoading: boolean;
   isLoadingMore: boolean;
@@ -438,134 +512,172 @@ function TicketListPanel({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Popover open={isFilterOpen} onOpenChange={onFilterOpenChange}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              className="relative"
-              aria-label="Filter Tickets"
-            >
-              <IconFilter className="size-4" />
-              {activeFilterCount > 0 ? (
-                <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                  {activeFilterCount}
-                </span>
-              ) : null}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-80 p-0">
-            <div className="border-b px-4 py-3">
-              <CardTitle>Filter Tickets</CardTitle>
-            </div>
-            <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4">
-              <fieldset>
-                <legend className="mb-2">
-                  <Typography variant="small" as="span">
-                    Channel
-                  </Typography>
-                </legend>
-                <MultiSelectCombobox
-                  options={channelOptions}
-                  value={filters.channels}
-                  onValueChange={(channels) =>
-                    onFiltersChange({
-                      ...filters,
-                      channels: channels as SupportTicketChannel[],
-                    })
-                  }
-                  placeholder="Search channels…"
-                  emptyMessage="No channels found."
-                />
-              </fieldset>
+        <div className="flex items-center gap-2">
+          <Popover open={isFilterOpen} onOpenChange={onFilterOpenChange}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="relative"
+                aria-label="Filter Tickets"
+              >
+                <IconFilter className="size-4" />
+                {activeFilterCount > 0 ? (
+                  <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 p-0">
+              <div className="border-b px-4 py-3">
+                <CardTitle>Filter Tickets</CardTitle>
+              </div>
+              <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4">
+                <fieldset>
+                  <legend className="mb-2">
+                    <Typography variant="small" as="span">
+                      Channel
+                    </Typography>
+                  </legend>
+                  <MultiSelectCombobox
+                    options={channelOptions}
+                    value={filters.channels}
+                    onValueChange={(channels) =>
+                      onFiltersChange({
+                        ...filters,
+                        channels: channels as SupportTicketChannel[],
+                      })
+                    }
+                    placeholder="Search channels…"
+                    emptyMessage="No channels found."
+                  />
+                </fieldset>
 
-              <fieldset>
-                <legend className="mb-2">
-                  <Typography variant="small" as="span">
-                    Tags
-                  </Typography>
-                </legend>
-                <MultiSelectCombobox
-                  options={availableTags.map((tag) => ({
-                    value: tag.name,
-                    label: tag.name,
-                  }))}
-                  value={filters.tags}
-                  onValueChange={(tags) =>
-                    onFiltersChange({ ...filters, tags })
-                  }
-                  placeholder="Search tags…"
-                  emptyMessage="No tags found."
-                  onSearchChange={onTagSearchChange}
-                  hasMore={hasMoreTags}
-                  isLoading={isTagListLoading}
-                  onLoadMore={onLoadMoreTags}
-                />
-              </fieldset>
+                <fieldset>
+                  <legend className="mb-2">
+                    <Typography variant="small" as="span">
+                      Tags
+                    </Typography>
+                  </legend>
+                  <MultiSelectCombobox
+                    options={availableTags.map((tag) => ({
+                      value: tag.name,
+                      label: tag.name,
+                    }))}
+                    value={filters.tags}
+                    onValueChange={(tags) =>
+                      onFiltersChange({ ...filters, tags })
+                    }
+                    placeholder="Search tags…"
+                    emptyMessage="No tags found."
+                    onSearchChange={onTagSearchChange}
+                    hasMore={hasMoreTags}
+                    isLoading={isTagListLoading}
+                    onLoadMore={onLoadMoreTags}
+                  />
+                </fieldset>
 
-              <fieldset>
-                <legend className="mb-2">
-                  <Typography variant="small" as="span">
-                    Last message date
-                  </Typography>
-                </legend>
-                {/* One range, picked on a calendar. Two datetime-local
+                <fieldset>
+                  <legend className="mb-2">
+                    <Typography variant="small" as="span">
+                      Last message date
+                    </Typography>
+                  </legend>
+                  {/* One range, picked on a calendar. Two datetime-local
                     boxes made the reader assemble the range themselves and
                     let them pick a "to" before the "from"; the calendar
                     can't express either mistake. */}
-                <DateRangePicker
-                  from={filters.fromDate}
-                  to={filters.toDate}
-                  disabled={{ after: new Date() }}
-                  onRangeChange={(fromDate, toDate) =>
-                    onFiltersChange({ ...filters, fromDate, toDate })
-                  }
-                />
-                {dateError ? (
-                  <Typography
-                    variant="caption"
-                    as="p"
-                    className="mt-2 text-destructive"
-                  >
-                    {dateError}
-                  </Typography>
-                ) : null}
-              </fieldset>
+                  <DateRangePicker
+                    from={filters.fromDate}
+                    to={filters.toDate}
+                    disabled={{ after: new Date() }}
+                    onRangeChange={(fromDate, toDate) =>
+                      onFiltersChange({ ...filters, fromDate, toDate })
+                    }
+                  />
+                  {dateError ? (
+                    <Typography
+                      variant="caption"
+                      as="p"
+                      className="mt-2 text-destructive"
+                    >
+                      {dateError}
+                    </Typography>
+                  ) : null}
+                </fieldset>
 
-              <fieldset>
-                <legend className="mb-2">
-                  <Typography variant="small" as="span">
-                    Priority
-                  </Typography>
-                </legend>
-                <MultiSelectCombobox
-                  options={priorityOptions}
-                  value={filters.priorities}
-                  onValueChange={(priorities) =>
-                    onFiltersChange({
-                      ...filters,
-                      priorities: priorities as SupportTicketPriority[],
-                    })
-                  }
-                  placeholder="Search priorities…"
-                  emptyMessage="No priorities found."
-                />
-              </fieldset>
-            </div>
-            <div className="flex justify-between border-t p-3">
-              {activeFilterCount > 0 ? (
-                <Button variant="ghost" size="sm" onClick={onClearFilters}>
-                  Clear
+                <fieldset>
+                  <legend className="mb-2">
+                    <Typography variant="small" as="span">
+                      Priority
+                    </Typography>
+                  </legend>
+                  <MultiSelectCombobox
+                    options={priorityOptions}
+                    value={filters.priorities}
+                    onValueChange={(priorities) =>
+                      onFiltersChange({
+                        ...filters,
+                        priorities: priorities as SupportTicketPriority[],
+                      })
+                    }
+                    placeholder="Search priorities…"
+                    emptyMessage="No priorities found."
+                  />
+                </fieldset>
+              </div>
+              <div className="flex justify-between border-t p-3">
+                {activeFilterCount > 0 ? (
+                  <Button variant="ghost" size="sm" onClick={onClearFilters}>
+                    Clear
+                  </Button>
+                ) : (
+                  <span />
+                )}
+                <Button size="sm" onClick={onApplyFilters}>
+                  Apply Filters
                 </Button>
-              ) : (
-                <span />
-              )}
-              <Button size="sm" onClick={onApplyFilters}>
-                Apply Filters
-              </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label="Sort tickets"
+                  >
+                    <IconArrowsSort className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                Sort: {SORT_OPTIONS.find((o) => o.key === sortOrder)?.label}
+              </TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {SORT_OPTIONS.map((option) => (
+                <DropdownMenuItem
+                  key={option.key}
+                  onClick={() =>
+                    option.key !== sortOrder && onSortChange(option.key)
+                  }
+                  className={cn(
+                    option.key === sortOrder && "font-medium text-primary",
+                  )}
+                >
+                  {option.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </header>
 
       {/* h-20, matching the two-row ticket strip opposite so the second
@@ -616,9 +728,12 @@ function TicketListPanel({
 }
 
 function ConversationPanel({
+  storeCode,
   ticket,
   messages,
   reply,
+  attachments,
+  onAttachmentsChange,
   isSending,
   onReplyChange,
   onSend,
@@ -634,11 +749,12 @@ function ConversationPanel({
   onRemoveTag,
   availableStaff,
   onAssignStaff,
-  onMessageImprove,
-  isMessageImproving,
+  // onMessageImprove,
+  // isMessageImproving,
   onTicketSnooze,
   onTicketStatusUpdate,
   onTicketPriorityUpdate,
+  onTicketLanguageSentimentUpdate,
   onAIDraftGenerate,
   isAIDraftLoading,
   aiDraft,
@@ -648,13 +764,18 @@ function ConversationPanel({
   translatedLanguage,
   onLinkCustomer,
 }: {
+  storeCode: string;
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
   reply: string;
+  attachments: File[];
+  onAttachmentsChange: (files: File[]) => void;
   isSending: boolean;
   onReplyChange: (value: string) => void;
   /** Reply is the default; internal note and translated reply are deliberate choices. */
-  onSend: (mode: "reply" | "note" | "customer_language") => void;
+  onSend: (
+    mode: "reply" | "note" | "customer_language" | "reply_and_resolve",
+  ) => void;
   onAcceptDraft: () => void;
   onSaveDraft: () => void;
   availableTags: SupportTicketTagData[];
@@ -667,11 +788,15 @@ function ConversationPanel({
   onRemoveTag: (tagId: number) => void;
   availableStaff: StaffMember[];
   onAssignStaff: (staffId: number | null) => void;
-  onMessageImprove: (action: string) => void;
-  isMessageImproving: boolean;
+  // onMessageImprove: (action: string) => void;
+  // isMessageImproving: boolean;
   onTicketSnooze: (snoozeTime: number | null) => void;
   onTicketStatusUpdate: (status: SupportTicketStatus) => void;
   onTicketPriorityUpdate: (priority: SupportTicketPriority) => void;
+  onTicketLanguageSentimentUpdate: (payload: {
+    language?: TicketLanguage;
+    sentiment?: TicketSentiment;
+  }) => void;
   onAIDraftGenerate: () => void;
   isAIDraftLoading: boolean;
   aiDraft: SupportTicketDraftMessage | null;
@@ -684,14 +809,39 @@ function ConversationPanel({
   onLinkCustomer: () => void;
 }) {
   const [tagSearch, setTagSearch] = useState("");
+  // Resolving and closing end a conversation, so they wait for a yes.
+  const [pendingEndStatus, setPendingEndStatus] = useState<
+    "resolved" | "closed" | null
+  >(null);
   const [selectedSendMode, setSelectedSendMode] = useState<
-    "reply" | "customer_language"
+    "reply" | "customer_language" | "reply_and_resolve"
   >("reply");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  // Only offered while resolving is a legal move for the ticket's status.
+  const canResolve = (STATUS_TRANSITIONS[ticket.status] ?? []).includes(
+    "resolved",
+  );
+  // The ticket may have moved on since "send and resolve" was picked.
+  const effectiveSendMode =
+    selectedSendMode === "reply_and_resolve" && !canResolve
+      ? "reply"
+      : selectedSendMode;
+  const attachmentInputRef = useRef<HTMLInputElement | null>(null);
+  const handleAttachmentChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const result = prepareSupportAttachments(
+      Array.from(event.target.files ?? []),
+      attachments,
+    );
+    result.errors.forEach((error) => toast.error(error));
+    onAttachmentsChange(result.files);
+    event.target.value = "";
+  };
   const selectedSendLabel =
-    selectedSendMode === "customer_language"
+    effectiveSendMode === "customer_language"
       ? "Send in Customer Language"
-      : "Send";
+      : effectiveSendMode === "reply_and_resolve"
+        ? "Send and Mark Resolved"
+        : "Send";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
@@ -701,7 +851,17 @@ function ConversationPanel({
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
   );
 
+  // Tickets from before these fields existed come back without them.
+  const ticketLanguage = ticket.language ?? DEFAULT_TICKET_LANGUAGE;
+  const ticketSentiment = ticket.sentiment ?? DEFAULT_TICKET_SENTIMENT;
+  const languageName =
+    SUPPORTED_LANGUAGES.find((language) => language.code === ticketLanguage)
+      ?.name ?? ticketLanguage;
+
   const customerName = customerLabel(ticket.customer);
+  // Shown in brackets beside the status — only worth the width once the
+  // ticket has actually been reopened.
+  const reopenCount = ticket.reopen_count ?? 0;
   const customerEmail =
     ticket.customer && typeof ticket.customer === "object"
       ? ticket.customer.email
@@ -729,6 +889,26 @@ function ConversationPanel({
       label: "Created",
       value: `Created ${formatDateTime(ticket.created_at)}`,
     },
+    ...(ticket.created_by_type
+      ? [
+          {
+            icon: CREATED_BY_META[ticket.created_by_type]?.icon ?? IconUser,
+            label: "Created by",
+            value: `Created by ${
+              ticket.created_by?.name ||
+              ticket.created_by?.email ||
+              CREATED_BY_META[ticket.created_by_type]?.label ||
+              capitalizeText(ticket.created_by_type)
+            }`,
+            // Two agents can share a name, so the tooltip adds the email.
+            detail: ticket.created_by
+              ? [ticket.created_by.name, ticket.created_by.email]
+                  .filter(Boolean)
+                  .join(" · ")
+              : undefined,
+          },
+        ]
+      : []),
     ...(totalAttachments > 0
       ? [
           {
@@ -854,37 +1034,29 @@ function ConversationPanel({
 
           {/* The two endings a ticket actually has, one click away —
               they were buried in the status Select behind the ⋮ menu. */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Mark as resolved"
-                className={ACTION_TONE_STYLES.success}
-                onClick={() => onTicketStatusUpdate("resolved")}
-                disabled={isClosed}
-              >
-                <IconCircleCheck className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Mark as resolved</TooltipContent>
-          </Tooltip>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label="Mark as resolved"
+            className={ACTION_TONE_STYLES.success}
+            onClick={() => setPendingEndStatus("resolved")}
+            disabled={isClosed}
+          >
+            <IconCircleCheck className="size-4" />
+            Resolve
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Close ticket"
-                className={ACTION_TONE_STYLES.danger}
-                onClick={() => onTicketStatusUpdate("closed")}
-                disabled={ticket.status === "closed"}
-              >
-                <IconCircleX className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Close ticket</TooltipContent>
-          </Tooltip>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label="Close ticket"
+            className={ACTION_TONE_STYLES.danger}
+            onClick={() => setPendingEndStatus("closed")}
+            disabled={ticket.status === "closed"}
+          >
+            <IconCircleX className="size-4" />
+            Close
+          </Button>
 
           {/* <DropdownMenu>
             <Tooltip>
@@ -951,7 +1123,7 @@ function ConversationPanel({
               </TooltipContent>
             </Tooltip>
             <Typography variant="caption" className="shrink-0">
-              {ticketRef(ticket.id)}
+              {ticketRef(ticket.ticket_id)}
             </Typography>
             {ticket.order_id ? (
               <Typography variant="caption" className="shrink-0">
@@ -979,30 +1151,49 @@ function ConversationPanel({
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Change status"
+                title={
+                  reopenCount > 0
+                    ? `Reopened ${pluralize(reopenCount, "time")}`
+                    : undefined
+                }
+                disabled={!(STATUS_TRANSITIONS[ticket.status] ?? []).length}
                 className={cn(
                   badgeVariants({ variant: "outline" }),
-                  "cursor-pointer capitalize",
+                  "cursor-pointer capitalize disabled:cursor-default",
                   BADGE_TONE_STYLES[STATUS_TONE[ticket.status]],
                 )}
               >
                 {capitalizeText(ticket.status)}
-                <IconChevronDown />
+                {reopenCount > 0 ? ` (${reopenCount})` : null}
+                {(STATUS_TRANSITIONS[ticket.status] ?? []).length ? (
+                  <IconChevronDown />
+                ) : null}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuLabel>Status</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {queues.map((queue) => (
-                  <DropdownMenuItem
-                    key={queue.key}
-                    onClick={() =>
-                      queue.key !== ticket.status &&
-                      onTicketStatusUpdate(queue.key)
-                    }
-                    className={cn(queue.key === ticket.status && "font-medium")}
-                  >
-                    {queue.label}
-                  </DropdownMenuItem>
-                ))}
+                {queues
+                  .filter(
+                    (queue) =>
+                      queue.key === ticket.status ||
+                      (STATUS_TRANSITIONS[ticket.status] ?? []).includes(
+                        queue.key,
+                      ),
+                  )
+                  .map((queue) => (
+                    <DropdownMenuItem
+                      key={queue.key}
+                      onClick={() =>
+                        queue.key !== ticket.status &&
+                        onTicketStatusUpdate(queue.key)
+                      }
+                      className={cn(
+                        queue.key === ticket.status && "font-medium",
+                      )}
+                    >
+                      {queue.label}
+                    </DropdownMenuItem>
+                  ))}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -1031,6 +1222,48 @@ function ConversationPanel({
                     }
                     className={cn(
                       option.value === ticket.priority && "font-medium",
+                    )}
+                  >
+                    {option.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* The language is detected from the conversation, so it is
+                only shown here, not set. */}
+            <Badge variant="outline" aria-label="Ticket language">
+              <IconLanguage />
+              {languageName}
+            </Badge>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Change sentiment"
+                disabled={isClosed}
+                className={cn(
+                  badgeVariants({ variant: "outline" }),
+                  "cursor-pointer capitalize disabled:cursor-default disabled:opacity-60",
+                  BADGE_TONE_STYLES[SENTIMENT_TONE[ticketSentiment]],
+                )}
+              >
+                {capitalizeText(ticketSentiment)}
+                {!isClosed ? <IconChevronDown /> : null}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Sentiment</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {TICKET_SENTIMENTS.map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    onClick={() =>
+                      option.value !== ticketSentiment &&
+                      onTicketLanguageSentimentUpdate({
+                        sentiment: option.value,
+                      })
+                    }
+                    className={cn(
+                      option.value === ticketSentiment && "font-medium",
                     )}
                   >
                     {option.label}
@@ -1248,6 +1481,10 @@ function ConversationPanel({
                         Internal note
                       </Typography>
                     ) : null}
+                    <MessageAttachments
+                      attachments={message.attachments}
+                      pendingFiles={message.pendingFiles}
+                    />
                     <div className="text-sm leading-6 text-foreground [&_p]:mb-2 [&_p:last-child]:mb-0">
                       <ReactMarkdown>{message.message}</ReactMarkdown>
                     </div>
@@ -1256,7 +1493,9 @@ function ConversationPanel({
                       as="div"
                       className="mt-1 text-right"
                     >
-                      {formatDateTime(message.created_at)}
+                      {message.id < 0
+                        ? "Sending..."
+                        : formatDateTime(message.created_at)}
                     </Typography>
                   </div>
                 </div>
@@ -1268,19 +1507,74 @@ function ConversationPanel({
       </ScrollArea>
 
       <div className="shrink-0 border-t p-4">
+        {attachments.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {attachments.map((file, index) => (
+              <div
+                key={`${file.name}-${index}`}
+                className="flex max-w-full items-center gap-2 rounded-md border px-2 py-1 text-sm"
+              >
+                <IconPaperclip className="size-4 shrink-0" />
+                <span className="max-w-48 truncate" title={file.name}>
+                  {file.name}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Remove ${file.name}`}
+                  title="Remove attachment"
+                  disabled={isSending}
+                  onClick={() =>
+                    onAttachmentsChange(
+                      attachments.filter((_, fileIndex) => fileIndex !== index),
+                    )
+                  }
+                >
+                  <IconX className="size-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
         <CKEditorTextArea
           id="ticket-reply-editor"
           value={reply}
           onChange={onReplyChange}
           useMarkdown
-          disabled={isMessageImproving || isClosed || isTranslating}
-          placeholder="Write a reply, or use the AI draft…"
+          disabled={
+            // isMessageImproving ||
+            isSending || isClosed || isTranslating
+          }
+          placeholder="Write a reply…"
           minHeight="6rem"
         />
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          {/* AI tools stay icons — the two sends are what need words. */}
           <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label="Attach files"
+                disabled={isSending || isClosed || isTranslating}
+                onClick={() => attachmentInputRef.current?.click()}
+              >
+                <IconPaperclip className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Attach files</TooltipContent>
+          </Tooltip>
+          <input
+            ref={attachmentInputRef}
+            type="file"
+            multiple
+            accept={SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS.join(",")}
+            className="hidden"
+            aria-label="Choose attachments"
+            onChange={handleAttachmentChange}
+          />
+          {/* AI tools stay icons — the two sends are what need words. */}
+          {/* <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="outline"
@@ -1293,7 +1587,7 @@ function ConversationPanel({
                 }
                 disabled={
                   isAIDraftLoading ||
-                  isMessageImproving ||
+                  // isMessageImproving ||
                   isClosed ||
                   isTranslating
                 }
@@ -1312,8 +1606,9 @@ function ConversationPanel({
                   ? "Use AI draft"
                   : "Generate AI draft"}
             </TooltipContent>
-          </Tooltip>
+          </Tooltip> */}
 
+          {/*
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1349,6 +1644,7 @@ function ConversationPanel({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          */}
 
           <DropdownMenu>
             <Tooltip>
@@ -1388,7 +1684,7 @@ function ConversationPanel({
             >
               <DropdownMenuLabel>Translate to</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {translationLanguages.map((language) => (
+              {SUPPORTED_LANGUAGES.map((language) => (
                 <DropdownMenuItem
                   key={language.code}
                   onClick={() => onTranslate(language.code)}
@@ -1427,7 +1723,10 @@ function ConversationPanel({
                   size="sm"
                   onClick={() => onSend("note")}
                   disabled={
-                    isSending || isMessageImproving || isClosed || isTranslating
+                    isSending ||
+                    // isMessageImproving ||
+                    isClosed ||
+                    isTranslating
                   }
                   aria-label="Send as Internal Note"
                 >
@@ -1442,9 +1741,12 @@ function ConversationPanel({
             <ButtonGroup>
               <Button
                 size="sm"
-                onClick={() => onSend(selectedSendMode)}
+                onClick={() => onSend(effectiveSendMode)}
                 disabled={
-                  isSending || isMessageImproving || isClosed || isTranslating
+                  isSending ||
+                  // isMessageImproving ||
+                  isClosed ||
+                  isTranslating
                 }
               >
                 {isSending ? (
@@ -1460,7 +1762,7 @@ function ConversationPanel({
                     size="sm"
                     disabled={
                       isSending ||
-                      isMessageImproving ||
+                      // isMessageImproving ||
                       isClosed ||
                       isTranslating
                     }
@@ -1483,12 +1785,55 @@ function ConversationPanel({
                     <IconLanguage className="size-4" />
                     Send in Customer Language
                   </DropdownMenuItem>
+                  {canResolve ? (
+                    <DropdownMenuItem
+                      onClick={() => setSelectedSendMode("reply_and_resolve")}
+                    >
+                      <IconCircleCheck className="size-4" />
+                      Send and Mark Resolved
+                    </DropdownMenuItem>
+                  ) : null}
                 </DropdownMenuContent>
               </DropdownMenu>
             </ButtonGroup>
           </div>
         </div>
       </div>
+
+      <AlertDialog
+        open={pendingEndStatus !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingEndStatus(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingEndStatus === "closed"
+                ? "Close ticket"
+                : "Mark ticket as resolved"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingEndStatus === "closed"
+                ? "Are you sure you want to close this ticket? This will mark the ticket as closed."
+                : "Are you sure this issue has been resolved? This will mark the ticket as resolved."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant={
+                pendingEndStatus === "closed" ? "destructive" : "default"
+              }
+              onClick={() => {
+                if (pendingEndStatus) onTicketStatusUpdate(pendingEndStatus);
+              }}
+            >
+              {pendingEndStatus === "closed" ? "Close ticket" : "Mark resolved"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
@@ -1498,12 +1843,15 @@ function TicketFact({
   icon: Icon,
   label,
   value,
+  detail,
 }: {
   // The shared tabler type rather than one specific icon's: the channel
   // fact now picks its icon from a map, and every entry has to fit.
   icon: Icon;
   label: string;
   value: string;
+  /** What the tooltip says when it should say more than the value does. */
+  detail?: string;
 }) {
   return (
     <Tooltip>
@@ -1516,7 +1864,7 @@ function TicketFact({
         </div>
       </TooltipTrigger>
       <TooltipContent>
-        {label}: {value}
+        {label}: {detail ?? value}
       </TooltipContent>
     </Tooltip>
   );
@@ -1576,9 +1924,9 @@ export default function HelpDesk() {
     useAppSelector(
       (state) => state.GetSupportTicketsReducer.FetchSupportTicketTagsState,
     );
-  const { SupportMessageImproveIsLoading } = useAppSelector(
-    (state) => state.GetSupportTicketsReducer.SupportMessageImproveState,
-  );
+  //  const { SupportMessageImproveIsLoading } = useAppSelector(
+  //   (state) => state.GetSupportTicketsReducer.SupportMessageImproveState,
+  // );
   const { SupportTicketAIMessageDraftGenerateIsLoading } = useAppSelector(
     (state) =>
       state.GetSupportTicketsReducer.SupportTicketAIMessageDraftGenerateState,
@@ -1601,6 +1949,8 @@ export default function HelpDesk() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
   const [activeQueue, setActiveQueue] = useState<SupportTicketStatus>("open");
+  const [sortOrder, setSortOrder] =
+    useState<SupportTicketOrdering>("last_updated");
   const [supportTikcetMessages, setSupportTicketMessages] = useState<
     SupportTicketMessage[]
   >([]);
@@ -1621,6 +1971,14 @@ export default function HelpDesk() {
   } | null>(null);
 
   const [reply, setReply] = useState("");
+  const [attachmentSelection, setAttachmentSelection] = useState<{
+    ticketId: number | null;
+    files: File[];
+  }>({ ticketId: null, files: [] });
+  const attachments =
+    attachmentSelection.ticketId === activeTicketId
+      ? attachmentSelection.files
+      : [];
 
   // Support Ticket Search Filters
   const [searchValue, setSearchValue] = useState("");
@@ -1735,6 +2093,12 @@ export default function HelpDesk() {
               incomingTicket.created_at,
           };
 
+          // A status that changed on its own (a customer reply reopening a
+          // closed ticket) takes the ticket out of the queue being viewed.
+          if (updatedTicket.status !== activeQueue) {
+            return currentRows.filter((row) => row.id !== incomingTicket.id);
+          }
+
           return currentRows.map((row) =>
             row.id === incomingTicket.id ? updatedTicket : row,
           );
@@ -1789,10 +2153,13 @@ export default function HelpDesk() {
         return;
       }
 
-      setSupportTicketMessages((currentMessages) => [
-        ...currentMessages,
-        incomingMessage,
-      ]);
+      setSupportTicketMessages((currentMessages) =>
+        currentMessages.some((message) => message.id === incomingMessage.id)
+          ? currentMessages.map((message) =>
+              message.id === incomingMessage.id ? incomingMessage : message,
+            )
+          : [...currentMessages, incomingMessage],
+      );
 
       setActiveSupportTicket((current) => {
         if (!current || current.id !== ticketId) {
@@ -1939,6 +2306,12 @@ export default function HelpDesk() {
                 (row) => row.id !== incomingTicket.id,
               );
 
+              // The reply may have reopened the ticket, moving it to
+              // another queue.
+              if (updatedTicket.status !== activeQueue) {
+                return rowsWithoutTicket;
+              }
+
               if (incomingTicket.is_snoozed) {
                 return currentRows.map((row) =>
                   row.id === incomingTicket.id ? updatedTicket : row,
@@ -2019,17 +2392,21 @@ export default function HelpDesk() {
     upsertSocketTicket,
   ]);
 
+  // The staff list (for assigning tickets) is a company-admin endpoint;
+  // fetching it as staff would only fail with an error toast.
+  const isCompanyAdmin = Boolean(session?.user?.is_staff);
   useEffect(() => {
-    if (!storeCode) return;
+    if (!storeCode || !isCompanyAdmin) return;
 
     dispatch(FetchStaff());
-  }, [dispatch, storeCode]);
+  }, [dispatch, storeCode, isCompanyAdmin]);
 
   useEffect(() => {
     if (!storeCode) return;
 
     const filters: SupportTicketFilters = {
       status: activeQueue,
+      ordering: sortOrder,
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
       ...(appliedFilters.channels.length
         ? { channel: appliedFilters.channels }
@@ -2118,6 +2495,7 @@ export default function HelpDesk() {
     activeFilter,
     debouncedSearch,
     appliedFilters,
+    sortOrder,
   ]);
 
   useEffect(() => {
@@ -2286,16 +2664,24 @@ export default function HelpDesk() {
     setActiveTicketId(ticketId);
     setReply("");
     setTranslatedLanguage(null);
+    setAttachmentSelection({ ticketId: null, files: [] });
   };
 
   const handleQueueChange = (queue: SupportTicketStatus) => {
     setActiveQueue(queue);
     setPage(1);
     setActiveTicketId(null);
+    setAttachmentSelection({ ticketId: null, files: [] });
     setTicketRows([]);
     toast.info(`${queue[0].toUpperCase()}${queue.slice(1)} tickets loaded`, {
       description: "Fetching support tickets for the selected queue.",
     });
+  };
+
+  const handleSortChange = (order: SupportTicketOrdering) => {
+    setSortOrder(order);
+    setPage(1);
+    setTicketRows([]);
   };
 
   const handleAiDraftGenerate = async () => {
@@ -2581,24 +2967,31 @@ export default function HelpDesk() {
   };
 
   const handleSend = async (
-    mode: "reply" | "note" | "customer_language" = "reply",
+    mode:
+      | "reply"
+      | "note"
+      | "customer_language"
+      | "reply_and_resolve" = "reply",
   ) => {
-    if (!storeCode) return;
+    if (!storeCode || SupportTicketMessageSendIsLoading) return;
 
     const trimmedReply = reply.trim();
     if (!trimmedReply) {
       toast.error("Write a reply first", {
-        description: "Or accept the AI draft to populate the composer.",
+        description: "Type your reply in the composer before sending.",
       });
       return;
     }
 
-    if (!currentActiveSupportTicketIdRef.current) {
+    const ticketId = currentActiveSupportTicketIdRef.current;
+    if (!ticketId) {
       toast.error("No ticket selected to send a reply.");
       return;
     }
 
-    const tempId = -Date.now();
+    const tempId = createTempMessageId();
+    const selectedFiles = attachments;
+    const draftReply = reply;
     const optimisticMessage: SupportTicketMessage = {
       id: tempId,
       sender_type: "agent",
@@ -2608,18 +3001,20 @@ export default function HelpDesk() {
       message_direction: "outgoing",
       platform: "internal",
       channel: "web",
-      content_type: "text/plain",
+      content_type: selectedFiles.length ? "multipart" : "text/plain",
       metadata: {},
       attachments: [],
+      pendingFiles: selectedFiles,
       created_at: new Date().toISOString(),
     };
-
-    setReply("");
     setSupportTicketMessages((current) => [...current, optimisticMessage]);
+    setReply("");
+    setAttachmentSelection({ ticketId: null, files: [] });
 
     try {
       const formData = new FormData();
       formData.append("message", trimmedReply);
+      selectedFiles.forEach((file) => formData.append("attachments", file));
 
       if (mode === "note") {
         formData.append("message_type", "internal");
@@ -2631,26 +3026,41 @@ export default function HelpDesk() {
       const sentMessage = await dispatch(
         SupportTicketMessageSend({
           storeCode,
-          ticketId: currentActiveSupportTicketIdRef.current,
+          ticketId,
           formData,
         }),
       ).unwrap();
 
-      setSupportTicketMessages((current) =>
-        current.map((message) =>
-          message.id === tempId ? sentMessage : message,
-        ),
-      );
+      if (currentActiveSupportTicketIdRef.current !== ticketId) return;
+      setSupportTicketMessages((current) => {
+        const messages = current.filter(
+          (message) => message.id !== sentMessage.id,
+        );
+        return messages.some((message) => message.id === tempId)
+          ? messages.map((message) =>
+              message.id === tempId ? sentMessage : message,
+            )
+          : [...messages, sentMessage];
+      });
 
       toast.success(mode === "note" ? "Internal note added" : "Reply sent");
     } catch {
+      if (currentActiveSupportTicketIdRef.current !== ticketId) return;
       setSupportTicketMessages((current) =>
         current.filter((message) => message.id !== tempId),
       );
-      setReply(trimmedReply);
+      setReply(draftReply);
+      setAttachmentSelection({ ticketId, files: selectedFiles });
+      return;
+    }
+
+    // Only reached once the reply is out: a failed send leaves the ticket as is.
+    if (mode === "reply_and_resolve") {
+      await handleSupportTicketStatusUpdate("resolved", ticketId);
     }
   };
 
+  /*
   const handleMessageImprove = async (action: string) => {
     if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
 
@@ -2688,6 +3098,7 @@ export default function HelpDesk() {
       //
     }
   };
+  */
 
   const handleTicketSnooze = async (snoozeTime: number | null) => {
     if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
@@ -2798,21 +3209,29 @@ export default function HelpDesk() {
 
   const handleSupportTicketStatusUpdate = async (
     status: SupportTicketStatus,
+    // Passed by callers that act on a ticket that may no longer be the
+    // active one by the time they get here.
+    targetTicketId?: number,
   ) => {
-    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+    const ticketId = targetTicketId ?? currentActiveSupportTicketIdRef.current;
+    if (!storeCode || !ticketId) return;
 
     try {
       const payload = {
         status: status,
       };
 
-      const ticketId = currentActiveSupportTicketIdRef.current;
+      // Read before the update: the queue counts move from this status.
+      const previousStatus =
+        ticketRows.find((ticket) => ticket.id === ticketId)?.status ??
+        activeSupportTicket?.status;
 
       const updatedStatus = await dispatch(
         SupportTicketStatusUpdate({
           storeCode,
           ticketId,
           payload,
+          previousStatus,
         }),
       ).unwrap();
 
@@ -2901,6 +3320,43 @@ export default function HelpDesk() {
     }
   };
 
+  const handleSupportTicketLanguageSentimentUpdate = async (payload: {
+    language?: TicketLanguage;
+    sentiment?: TicketSentiment;
+  }) => {
+    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+
+    try {
+      const updated = await dispatch(
+        SupportTicketLanguageSentimentUpdate({
+          storeCode,
+          ticketId: currentActiveSupportTicketIdRef.current,
+          payload,
+        }),
+      ).unwrap();
+
+      if (updated) {
+        setTicketRows((current) =>
+          current.map((ticket) =>
+            ticket.id === currentActiveSupportTicketIdRef.current
+              ? { ...ticket, ...updated }
+              : ticket,
+          ),
+        );
+
+        setActiveSupportTicket((current) =>
+          current ? { ...current, ...updated } : current,
+        );
+
+        toast.success("Ticket updated", {
+          description: "Ticket language and sentiment saved.",
+        });
+      }
+    } catch {
+      //
+    }
+  };
+
   const handleSupportTicketMessagesTranslate = async (code: string) => {
     if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
 
@@ -2911,7 +3367,7 @@ export default function HelpDesk() {
       return;
     }
 
-    const language = translationLanguages.find(
+    const language = SUPPORTED_LANGUAGES.find(
       (language) => language.code === code,
     );
 
@@ -3008,6 +3464,8 @@ export default function HelpDesk() {
           activeQueue={activeQueue}
           queueLabel={activeQueueLabel}
           onQueueChange={handleQueueChange}
+          sortOrder={sortOrder}
+          onSortChange={handleSortChange}
           onSelectTicket={handleSelectTicket}
           isLoading={FetchSupportTicketsLoading}
           isLoadingMore={isLoadingMore}
@@ -3049,8 +3507,8 @@ export default function HelpDesk() {
               Ticket Not Found
             </Typography>
             <Typography variant="muted">
-              {ticketRef(activeTicketId ?? "")} could not be opened. It may
-              belong to another store, or have been removed.
+              This ticket could not be opened. It may belong to another store,
+              or have been removed.
             </Typography>
             <Button
               variant="outline"
@@ -3073,9 +3531,14 @@ export default function HelpDesk() {
           </div>
         ) : (
           <ConversationPanel
+            storeCode={storeCode}
             ticket={activeSupportTicket}
             messages={supportTikcetMessages}
             reply={reply}
+            attachments={attachments}
+            onAttachmentsChange={(files) =>
+              setAttachmentSelection({ ticketId: activeTicketId, files })
+            }
             isSending={SupportTicketMessageSendIsLoading}
             onReplyChange={setReply}
             onSend={handleSend}
@@ -3095,11 +3558,14 @@ export default function HelpDesk() {
             onRemoveTag={handleRemoveTag}
             availableStaff={staff}
             onAssignStaff={handleStaffAssign}
-            onMessageImprove={handleMessageImprove}
-            isMessageImproving={SupportMessageImproveIsLoading}
+            // onMessageImprove={handleMessageImprove}
+            // isMessageImproving={SupportMessageImproveIsLoading}
             onTicketSnooze={handleTicketSnooze}
             onTicketStatusUpdate={handleSupportTicketStatusUpdate}
             onTicketPriorityUpdate={handleSupportTicketPriorityUpdate}
+            onTicketLanguageSentimentUpdate={
+              handleSupportTicketLanguageSentimentUpdate
+            }
             onAIDraftGenerate={handleAiDraftGenerate}
             isAIDraftLoading={SupportTicketAIMessageDraftGenerateIsLoading}
             aiDraft={

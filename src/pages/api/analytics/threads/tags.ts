@@ -8,7 +8,7 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  * GET /analytics/threads/tags  -> distinct AiInsights.tags for a store's
  * threads, used to populate the Threads page's tags filter.
  */
-export default withTenantRoute(handler);
+export default withTenantRoute(handler, "conversations");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {

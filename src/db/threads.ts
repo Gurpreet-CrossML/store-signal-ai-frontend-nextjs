@@ -12,6 +12,9 @@ import {
   userMetadata,
   sessionResolutionVerdict,
   chatCustomerorder,
+  chatThreadAssignment,
+  authUser,
+  product,
 } from "@/lib/drizzle/schema";
 import {
   and,
@@ -20,6 +23,7 @@ import {
   desc,
   eq,
   ilike,
+  inArray,
   isNull,
   isNotNull,
   max,
@@ -31,6 +35,7 @@ import {
   OrderData,
   OrderItemData,
   OrderShippingAddress,
+  ViewedProduct,
 } from "@/redux/api-slice/thread-slice";
 
 /**
@@ -49,7 +54,34 @@ export type ListThreadsFilters = {
   feedback_rating?: string; // very_bad | bad | neutral | good | excellent
   tags?: string[]; // matches threads tagged with ANY of the given tags
   handled_by?: string; // ai | human
+  channel?: string[]; // whatsapp | web (native/webhook)
+  assignee?: string[]; // auth.User email values
+  need_escalation?: string;
+  before_thread_id?: string; // only threads started before this one
 };
+
+/**
+ * Channel condition on chat_thread, mirroring the UI's derivation: WhatsApp,
+ * or Web for everything else. Unknown values are ignored; `undefined` when no
+ * channel is selected, so callers add no filter.
+ */
+export function threadChannelScope(
+  channels: string | string[] = [],
+): SQL | undefined {
+  return or(
+    ...[channels].flat().flatMap((channel) => {
+      if (channel === "whatsapp") {
+        return [eq(chatThread.source, "whatsapp")];
+      }
+      if (channel === "web") {
+        return [
+          sql`(${chatThread.source} IS NULL OR ${chatThread.source} <> 'whatsapp')`,
+        ];
+      }
+      return [];
+    }),
+  );
+}
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -82,8 +114,12 @@ function parseDateTimeFilter(
 type ThreadListRow = {
   id: string;
   name: string | null;
+  source: string | null;
   followup_level: number;
   is_active: boolean;
+  ai_responding: boolean;
+  need_escalation: boolean;
+  escalation_time: string | null;
   total_messages: number;
   created_at: string;
   last_message_at: string | null;
@@ -93,14 +129,33 @@ type ThreadListRow = {
   customer_first_name: string | null;
   customer_last_name: string | null;
   customer_email: string | null;
+  customer_phone: string | null;
+  customer_past_threads_count: number;
+  chat_handler: string;
+  chat_handler_user_id: number | null;
+  chat_handler_user_first_name: string | null;
+  chat_handler_user_last_name: string | null;
+  chat_handler_user_email: string | null;
 };
 
 export type ThreadListItem = {
   id: string;
   name: string | null;
-  customer: { id: number | null; name: string | null; email: string | null };
+  source: string | null;
+  chat_handler: string;
+  chat_handler_user: { id: number; name: string; email: string } | null;
+  need_escalation: boolean;
+  escalation_time: string | null;
+  customer: {
+    id: number | null;
+    name: string | null;
+    email: string | null;
+    phone: string;
+    past_threads_count: number;
+  };
   followup_level: number;
   is_active: boolean;
+  ai_responding: boolean;
   total_messages: number;
   created_at: string;
   last_message_at: string | null;
@@ -109,6 +164,29 @@ export type ThreadListItem = {
   tags: string[];
   last_message: string;
 };
+
+/** Count active chats and active chats waiting for human support. */
+export async function get_thread_counts(storeCode?: string) {
+  const conditions = [eq(chatThread.isActive, true)];
+  const storeScope = storeIdScope(chatThread.storeId, storeCode);
+  if (storeScope) conditions.push(storeScope);
+
+  const [counts] = await getDb()
+    .select({
+      active: count(),
+      needsHuman:
+        sql<number>`count(*) filter (where ${chatThread.needEscalation} = true)`.mapWith(
+          Number,
+        ),
+    })
+    .from(chatThread)
+    .where(and(...conditions));
+
+  return counts;
+}
+
+/** Threads the customer started in this store before this one. */
+const pastThreadsCount = sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id} AND ct.store_id = ${chatThread.storeId} AND ct.created_at < ${chatThread.createdAt}) ELSE 0 END`;
 
 /**
  * Port of ThreadListAPIView.get_queryset + ThreadListSerializer
@@ -139,6 +217,15 @@ export async function list_threads(
   if (filters.is_active) {
     conditions.push(
       eq(chatThread.isActive, filters.is_active.toLowerCase() === "true"),
+    );
+  }
+
+  if (filters.need_escalation) {
+    conditions.push(
+      eq(
+        chatThread.needEscalation,
+        filters.need_escalation.toLowerCase() === "true",
+      ),
     );
   }
 
@@ -204,8 +291,21 @@ export async function list_threads(
     conditions.push(isNotNull(chatThread.customerId));
   }
 
+  if (filters.before_thread_id && isValidUuid(filters.before_thread_id)) {
+    conditions.push(
+      sql`${chatThread.createdAt} < (SELECT created_at FROM ${chatThread} WHERE id = ${filters.before_thread_id})`,
+    );
+  }
+
   if (filters.handled_by === "ai" || filters.handled_by === "human") {
     conditions.push(eq(chatThread.chatHandler, filters.handled_by));
+  }
+
+  const channelCondition = threadChannelScope(filters.channel);
+  if (channelCondition) conditions.push(channelCondition);
+
+  if (filters.assignee?.length) {
+    conditions.push(inArray(authUser.email, filters.assignee));
   }
 
   // has_ticket / has_feedback are correlated EXISTS subqueries (Django uses
@@ -259,6 +359,7 @@ export async function list_threads(
     .select({ value: sql<number>`count(DISTINCT ${chatThread.id})` })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
+    .leftJoin(authUser, eq(chatThread.chatHandlerUserId, authUser.id))
     .innerJoin(store, eq(chatThread.storeId, store.id))
     .where(whereClause);
 
@@ -274,8 +375,12 @@ export async function list_threads(
     .select({
       id: chatThread.id,
       name: chatThread.name,
+      source: chatThread.source,
       followup_level: chatThread.followupLevel,
       is_active: chatThread.isActive,
+      ai_responding: chatThread.aiResponding,
+      need_escalation: chatThread.needEscalation,
+      escalation_time: chatThread.escalationTime,
       total_messages: count(chatHistory.id),
       created_at: chatThread.createdAt,
       last_message_at: max(chatHistory.createdAt),
@@ -287,9 +392,17 @@ export async function list_threads(
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
+      customer_phone: chatCustomer.phone,
+      customer_past_threads_count: pastThreadsCount,
+      chat_handler: chatThread.chatHandler,
+      chat_handler_user_id: authUser.id,
+      chat_handler_user_first_name: authUser.firstName,
+      chat_handler_user_last_name: authUser.lastName,
+      chat_handler_user_email: authUser.email,
     })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
+    .leftJoin(authUser, eq(chatThread.chatHandlerUserId, authUser.id))
     .innerJoin(store, eq(chatThread.storeId, store.id))
     .leftJoin(chatHistory, eq(chatHistory.threadId, chatThread.id))
     .where(whereClause)
@@ -299,6 +412,11 @@ export async function list_threads(
       chatCustomer.firstName,
       chatCustomer.lastName,
       chatCustomer.email,
+      chatCustomer.phone,
+      authUser.id,
+      authUser.firstName,
+      authUser.lastName,
+      authUser.email,
     )
     .orderBy(desc(chatThread.createdAt))
     .limit(pageSize)
@@ -357,17 +475,38 @@ export async function list_threads(
     const customerName = hasCustomer
       ? `${row.customer_first_name ?? ""} ${row.customer_last_name ?? ""}`.trim()
       : null;
+    const handlerName =
+      row.chat_handler_user_id != null
+        ? `${row.chat_handler_user_first_name ?? ""} ${row.chat_handler_user_last_name ?? ""}`.trim() ||
+          row.chat_handler_user_email ||
+          "Agent"
+        : "";
     return {
       id: row.id,
       name: row.name,
+      source: row.source,
+      chat_handler: row.chat_handler,
+      chat_handler_user:
+        row.chat_handler_user_id != null
+          ? {
+              id: row.chat_handler_user_id,
+              name: handlerName,
+              email: row.chat_handler_user_email ?? "",
+            }
+          : null,
+      need_escalation: row.need_escalation,
+      escalation_time: row.escalation_time,
       customer: {
         // Null for a guest — the UI keys its tickets lookup off this.
         id: row.customer_id ?? null,
         name: hasCustomer ? customerName : null,
         email: row.customer_email,
+        phone: row.customer_phone || "",
+        past_threads_count: Number(row.customer_past_threads_count ?? 0),
       },
       followup_level: row.followup_level,
       is_active: row.is_active,
+      ai_responding: row.ai_responding,
       total_messages: Number(row.total_messages),
       created_at: row.created_at,
       last_message_at: row.last_message_at,
@@ -410,6 +549,26 @@ type ThreadMessage = {
   message: string;
   json_content: unknown;
   image_url: unknown;
+  message_type: string;
+  agent_name: string | null;
+  confidence: number | null;
+  source_used: string;
+  created_at: string;
+  messaged_by: string;
+  messaged_by_email: string | null;
+};
+
+/** One handover of a chat; a null agent name means the AI. */
+export type HandlerEvent = {
+  id: number;
+  action: string;
+  from_agent_name: string | null;
+  to_agent_name: string | null;
+  assigned_by_name: string | null;
+  from_agent_email: string | null;
+  to_agent_email: string | null;
+  assigned_by_email: string | null;
+  after_message_id: number | null;
   created_at: string;
 };
 
@@ -419,13 +578,18 @@ export type ThreadDetail =
       store: number;
       name: string | null;
       is_active: boolean;
+      ai_responding: boolean;
       followup_level: number;
       total_messages: number;
       last_message_at: string | null;
       customer_name: string | null;
       customer_email: string | null;
-      /** Identity only — enough to link the thread to its Catalog record. */
-      customer: { id: number } | null;
+      /** Identity, plus the phone and past-thread count the side panel shows. */
+      customer: {
+        id: number;
+        phone: string;
+        past_threads_count: number;
+      } | null;
       verdict: {
         verdict: string;
         reason: string | null;
@@ -439,6 +603,7 @@ export type ThreadDetail =
       created_at: string;
       ended_at: string | null;
       messages: ThreadMessage[];
+      handler_events: HandlerEvent[];
     }
   | Record<string, never>;
 
@@ -469,6 +634,7 @@ export async function get_thread_details(
       storeId: chatThread.storeId,
       name: chatThread.name,
       is_active: chatThread.isActive,
+      ai_responding: chatThread.aiResponding,
       followup_level: chatThread.followupLevel,
       created_at: chatThread.createdAt,
       ended_at: chatThread.endedAt,
@@ -476,6 +642,8 @@ export async function get_thread_details(
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
+      customer_phone: chatCustomer.phone,
+      customer_past_threads_count: pastThreadsCount,
     })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
@@ -506,10 +674,22 @@ export async function get_thread_details(
       message: chatHistory.message,
       json_content: chatHistory.jsonContent,
       image_url: chatHistory.imageUrl,
+      message_type: chatHistory.messageType,
+      agent_name: sql<string | null>`case
+        when nullif(concat_ws(' ', ${authUser.firstName}, ${authUser.lastName}), '') is not null
+          then concat(concat_ws(' ', ${authUser.firstName}, ${authUser.lastName}), ' (', ${authUser.email}, ')')
+        else nullif(${authUser.email}, '')
+      end`,
+      confidence: chatHistory.confidence,
+      source_used: chatHistory.sourceUsed,
       created_at: chatHistory.createdAt,
-      messaged_by: chatHistory.messagedById,
+      messaged_by_first_name: authUser.firstName,
+      messaged_by_last_name: authUser.lastName,
+      messaged_by_username: authUser.username,
+      messaged_by_email: authUser.email,
     })
     .from(chatHistory)
+    .leftJoin(authUser, eq(chatHistory.messagedById, authUser.id))
     .where(eq(chatHistory.threadId, thread_id))
     .orderBy(
       limit != null ? desc(chatHistory.createdAt) : asc(chatHistory.createdAt),
@@ -522,9 +702,58 @@ export async function get_thread_details(
     message: m.message,
     json_content: m.json_content,
     image_url: m.image_url,
+    message_type: m.message_type,
+    agent_name: m.agent_name,
+    confidence: m.confidence,
+    source_used: m.source_used,
     created_at: m.created_at,
-    messaged_by: m.messaged_by,
+    messaged_by:
+      [m.messaged_by_first_name, m.messaged_by_last_name]
+        .filter(Boolean)
+        .join(" ") ||
+      m.messaged_by_username ||
+      "",
+    messaged_by_email: m.messaged_by_email,
   }));
+
+  const assignmentRows = await db
+    .select({
+      id: chatThreadAssignment.id,
+      action: chatThreadAssignment.action,
+      metadata: chatThreadAssignment.metadata,
+      after_message_id: chatThreadAssignment.afterMessageId,
+      created_at: chatThreadAssignment.assignedAt,
+    })
+    .from(chatThreadAssignment)
+    .where(eq(chatThreadAssignment.threadId, thread_id))
+    .orderBy(
+      asc(chatThreadAssignment.assignedAt),
+      asc(chatThreadAssignment.id),
+    );
+
+  // The Django side stores a snapshot of each user in `metadata`; show the
+  // name, falling back to the email, and null for the AI.
+  const snapshotName = (snapshot: unknown): string | null => {
+    const user = snapshot as { name?: string; email?: string } | null;
+    return user ? user.name?.trim() || user.email || null : null;
+  };
+  const snapshotEmail = (snapshot: unknown): string | null =>
+    (snapshot as { email?: string } | null)?.email ?? null;
+  const handler_events: HandlerEvent[] = assignmentRows.map((a) => {
+    const meta = (a.metadata ?? {}) as Record<string, unknown>;
+    return {
+      id: a.id,
+      action: a.action,
+      from_agent_name: snapshotName(meta.from_agent),
+      to_agent_name: snapshotName(meta.to_agent),
+      assigned_by_name: snapshotName(meta.assigned_by),
+      from_agent_email: snapshotEmail(meta.from_agent),
+      to_agent_email: snapshotEmail(meta.to_agent),
+      assigned_by_email: snapshotEmail(meta.assigned_by),
+      after_message_id: a.after_message_id,
+      created_at: a.created_at,
+    };
+  });
 
   const verdictRows = await db
     .select({
@@ -565,6 +794,7 @@ export async function get_thread_details(
     store: Number(t.storeId),
     name: t.name,
     is_active: t.is_active,
+    ai_responding: t.ai_responding,
     followup_level: t.followup_level,
     total_messages,
     last_message_at,
@@ -572,11 +802,19 @@ export async function get_thread_details(
     customer_email: t.customer_email,
     // The id was always selected by the join but never returned, so the
     // client's `customer?.id` reads were silently undefined.
-    customer: t.customer_id != null ? { id: Number(t.customer_id) } : null,
+    customer:
+      t.customer_id != null
+        ? {
+            id: Number(t.customer_id),
+            phone: t.customer_phone || "",
+            past_threads_count: Number(t.customer_past_threads_count ?? 0),
+          }
+        : null,
     verdict,
     created_at: t.created_at,
     ended_at: t.ended_at,
     messages,
+    handler_events,
   };
 }
 
@@ -745,6 +983,7 @@ export type UserMetadataData = {
   device_type: string | null;
   browser: string | null;
   os: string | null;
+  viewed_products: ViewedProduct[];
 };
 
 /**
@@ -752,7 +991,9 @@ export type UserMetadataData = {
  * Returns the latest UserMetadata row (order_by -created_at) for the thread.
  * thread_id is write_only on the serializer, so it is NOT in the read output;
  * read fields are: id, customer_name, geo_location, ip_address, device_type,
- * browser, os.
+ * browser, os, viewed_products — the last resolved here from the platform
+ * ids the widget stores to the products they are, in viewing order; ids
+ * not in the store's catalog are dropped.
  * Returns null when none -> route serializes a None instance (empty object).
  */
 export async function get_user_metadata(
@@ -768,6 +1009,7 @@ export async function get_user_metadata(
       device_type: userMetadata.deviceType,
       browser: userMetadata.browser,
       os: userMetadata.os,
+      viewed_products: userMetadata.viewedProducts,
     })
     .from(userMetadata)
     .where(scopedThreadFilter(userMetadata.threadId, thread_id))
@@ -775,7 +1017,54 @@ export async function get_user_metadata(
     .limit(1);
 
   if (rows.length === 0) return null;
-  return { ...rows[0], id: Number(rows[0].id) };
+
+  // The widget posts whatever the storefront left in localStorage, so drop
+  // repeats and anything that is not a bigint id before it reaches SQL.
+  const viewedIds = [
+    ...new Set((rows[0].viewed_products as string[]).map(Number)),
+  ].filter(Number.isSafeInteger);
+  const viewed = viewedIds.length
+    ? await db
+        .select({
+          external_id: product.externalId,
+          name: product.name,
+          url: product.url,
+          images: product.images,
+          price: product.price,
+          sale_price: product.salePrice,
+          currency: store.currency,
+        })
+        .from(product)
+        .innerJoin(chatThread, eq(chatThread.storeId, product.storeId))
+        .innerJoin(store, eq(store.id, chatThread.storeId))
+        .where(
+          and(
+            eq(chatThread.id, thread_id),
+            inArray(product.externalId, viewedIds),
+          ),
+        )
+    : [];
+  const byId = new Map(viewed.map((row) => [row.external_id, row]));
+
+  return {
+    ...rows[0],
+    id: Number(rows[0].id),
+    viewed_products: viewedIds.flatMap((viewedId) => {
+      const row = byId.get(viewedId);
+      if (!row) return [];
+      const images = row.images as { url: string }[];
+      return [
+        {
+          id: String(row.external_id),
+          name: row.name,
+          url: row.url,
+          image: images[0]?.url ?? "",
+          price: row.sale_price ?? row.price,
+          currency: row.currency,
+        },
+      ];
+    }),
+  };
 }
 
 export async function get_order_data(thread_id: string): Promise<OrderData[]> {
@@ -802,6 +1091,7 @@ export async function get_order_data(thread_id: string): Promise<OrderData[]> {
       fulfillment_status: chatCustomerorder.fulfillmentStatus,
       gateway: chatCustomerorder.gateway,
       shipping_address: chatCustomerorder.shippingAddress,
+      customer_phone: chatCustomerorder.customerPhone,
       currency: chatCustomerorder.currency,
       items: chatCustomerorder.items,
       subtotal_price: chatCustomerorder.subtotalPrice,
