@@ -1875,6 +1875,10 @@ export default function Support() {
 
   useSupportDashboardEvents((event) => {
     if (event.action_type === "message") {
+      if (!event.data.is_active) {
+        removeClosedThread(event.data.thread_id);
+        return;
+      }
       upsertThreadFromMessage(event.data);
       return;
     }
