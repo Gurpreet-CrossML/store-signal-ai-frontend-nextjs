@@ -503,7 +503,7 @@ export default function Customization() {
   };
 
   return (
-    <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
+    <div className="grid w-full grid-cols-1 gap-6 desktop:grid-cols-[minmax(0,1fr)_400px]">
       <div className="flex flex-col gap-6">
         <CustomizationTheme
           fieldErrors={fieldErrors}
@@ -577,7 +577,7 @@ export default function Customization() {
       {/* Docked beside the form from `lg`; below that it opens in a modal
           from the Preview button instead of sitting at the bottom of the
           page. */}
-      <div className="relative hidden lg:block">
+      <div className="relative hidden desktop:block">
         <CustomizationLivePreview {...previewProps} />
       </div>
       <PreviewModalButton title="Widget preview">

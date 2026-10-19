@@ -85,14 +85,6 @@ export function TagsCell({ tags }: { tags: ThreadTag[] }) {
   );
 }
 
-/**
- * Classes the table applies to a column's header and cells. Columns that
- * can be spared on a narrow screen opt out below a breakpoint, so the ones
- * that identify a thread (customer, topic, status, count, start time) stay
- * on screen instead of pushing half the table off to the right.
- */
-export type ThreadColumnMeta = { className?: string };
-
 export const threadsColumns: ColumnDef<Thread>[] = [
   // Customer — name as primary text, email as sub-text.
   {
@@ -101,17 +93,12 @@ export const threadsColumns: ColumnDef<Thread>[] = [
     cell: ({ row }) => {
       const customer = row.original.customer;
       return (
-        <div className="flex min-w-0 max-w-44 flex-col gap-0.5 lg:max-w-none">
-          <Typography variant="small" as="span" className="truncate">
+        <div className="flex flex-col gap-0.5">
+          <Typography variant="small" as="span">
             {customer?.name || customer?.email || "Guest"}
           </Typography>
           {customer?.email && (
-            <Typography
-              variant="muted"
-              as="span"
-              className="truncate text-xs"
-              title={customer.email}
-            >
+            <Typography variant="muted" as="span" className="text-xs">
               {customer.email}
             </Typography>
           )}
@@ -125,7 +112,6 @@ export const threadsColumns: ColumnDef<Thread>[] = [
   {
     accessorKey: "source",
     header: "Channel",
-    meta: { className: "hidden lg:table-cell" } satisfies ThreadColumnMeta,
     cell: ({ row }) => {
       const source = row.original.source;
       if (!source) return <span className="text-muted-foreground">—</span>;
@@ -156,7 +142,7 @@ export const threadsColumns: ColumnDef<Thread>[] = [
       const firstLine = last_message?.split("\n")[0];
 
       return (
-        <div className="flex max-w-44 flex-col gap-0.5 lg:max-w-64">
+        <div className="flex max-w-64 flex-col gap-0.5">
           <Typography
             variant="small"
             as="span"
@@ -180,7 +166,6 @@ export const threadsColumns: ColumnDef<Thread>[] = [
   {
     accessorKey: "tags",
     header: "Tags",
-    meta: { className: "hidden xl:table-cell" } satisfies ThreadColumnMeta,
     enableSorting: false,
     cell: ({ row }) => <TagsCell tags={row.original.tags ?? []} />,
   },
@@ -226,7 +211,6 @@ export const threadsColumns: ColumnDef<Thread>[] = [
   {
     accessorKey: "ended_at",
     header: "Duration",
-    meta: { className: "hidden lg:table-cell" } satisfies ThreadColumnMeta,
     cell: ({ row }) => (
       <Typography
         variant="muted"

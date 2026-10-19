@@ -1,10 +1,14 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * Below Tailwind's `lg` (1024px): iPad portrait and narrower. Screens that
- * show a list and a detail pane side by side show only one of them here.
+ * The tablet layout: below 1024px, or a portrait screen up to 1100px (an iPad
+ * Pro 12.9" held upright is exactly 1024px wide). Screens that show a list
+ * and a detail pane side by side show only one of them here. The exact
+ * complement of Tailwind's `desktop:` variant in globals.css — keep the two
+ * in step.
  */
-export const BELOW_LG_QUERY = "(max-width: 1023px)";
+export const BELOW_LG_QUERY =
+  "(max-width: 1023px), (max-width: 1100px) and (orientation: portrait)";
 
 /** One-off read, for event handlers and effects that should not subscribe. */
 export function isBelowLg() {

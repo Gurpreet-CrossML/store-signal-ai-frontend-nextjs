@@ -29,7 +29,7 @@ export function PreviewModalButton({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="lg:hidden">
+    <div className="desktop:hidden">
       <Button
         type="button"
         size="lg"
