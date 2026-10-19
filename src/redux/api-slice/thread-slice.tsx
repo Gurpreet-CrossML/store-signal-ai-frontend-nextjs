@@ -132,8 +132,15 @@ export type CartDetails = {
   sub_total: string;
 };
 
+export type ProductComparisonBlock = {
+  product_id: string;
+  comparison_message: string;
+};
+
 export type ThreadJsonContent = {
   products?: ProductData[];
+  related_products?: ProductData[];
+  comparison_block?: ProductComparisonBlock[] | null;
   order_details?: OrderDetail;
   cart_details?: CartDetails;
   order_id?: string;
