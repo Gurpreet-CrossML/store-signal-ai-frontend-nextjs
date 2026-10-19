@@ -272,6 +272,11 @@ export default function MessagePan({
                 <div
                   className={`flex min-w-0 gap-2.5 max-w-[82%] ${
                     isCustomer ? "flex-row-reverse" : "flex-row"
+                  } ${
+                    message.json_content?.products?.length ||
+                    message.json_content?.related_products?.length
+                      ? "w-full"
+                      : ""
                   }`}
                 >
                   <Avatar className="h-7 w-7 shrink-0 mt-1">
@@ -288,7 +293,7 @@ export default function MessagePan({
                   {/* min-w-0: a flex child will not shrink below its content
                       (a product carousel, a long URL) unless told it may,
                       which pushed the whole pane into sideways scrolling. */}
-                  <div className="flex min-w-0 flex-col">
+                  <div className="flex min-w-0 flex-1 flex-col">
                     <div
                       className={`flex flex-wrap items-center gap-x-2 mb-1 ${isCustomer ? "justify-end" : "justify-start"}`}
                     >
@@ -397,7 +402,23 @@ export default function MessagePan({
                       message.json_content.products.length > 0 && (
                         <ProductCarousel
                           products={message.json_content.products}
+                          comparisonBlock={
+                            message.json_content.comparison_block
+                          }
                         />
+                      )}
+
+                    {message.role === "assistant" &&
+                      message?.json_content?.related_products &&
+                      message.json_content.related_products.length > 0 && (
+                        <div className="mt-2">
+                          <h4 className="text-xs font-semibold text-muted-foreground">
+                            Related Products
+                          </h4>
+                          <ProductCarousel
+                            products={message.json_content.related_products}
+                          />
+                        </div>
                       )}
 
                     {message.role === "assistant" &&
