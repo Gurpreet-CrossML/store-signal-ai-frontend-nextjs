@@ -66,12 +66,13 @@ export function PolicyTypeBadge({ policyType }: { policyType: PolicyType }) {
   );
 }
 
-function AIScopeBadge({ entry }: { entry: AIScope }) {
+function AIScopeBadge({ entry, nowrap }: { entry: AIScope; nowrap: boolean }) {
   return (
     <Badge
       variant="outline"
       className={cn(
         "font-normal",
+        nowrap && "shrink-0 whitespace-nowrap",
         BADGE_TONE_STYLES[AI_SCOPE_META[entry].tone],
       )}
     >
@@ -80,41 +81,21 @@ function AIScopeBadge({ entry }: { entry: AIScope }) {
   );
 }
 
-/**
- * `compact` collapses the list to its first chip plus a "+N" count, for
- * columns that cannot afford a stack of chips. The full list stays in the
- * tooltip, so nothing is lost — only folded.
- */
+/** `nowrap` keeps every chip on one line, for a table cell that scrolls sideways. */
 export function AIScopeBadges({
   scope,
-  compact = false,
+  nowrap = false,
 }: {
   scope: AIScope[];
-  compact?: boolean;
+  nowrap?: boolean;
 }) {
   if (scope.length === 0) {
     return <span className="text-xs text-muted-foreground">No AI scope</span>;
   }
-  if (compact) {
-    const [first, ...rest] = scope;
-    return (
-      <div
-        className="flex flex-nowrap items-center gap-1"
-        title={scope.map((entry) => AI_SCOPE_META[entry].label).join(", ")}
-      >
-        <AIScopeBadge entry={first} />
-        {rest.length > 0 && (
-          <Badge variant="outline" className="font-normal">
-            +{rest.length}
-          </Badge>
-        )}
-      </div>
-    );
-  }
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className={cn("flex gap-1", nowrap ? "flex-nowrap" : "flex-wrap")}>
       {scope.map((entry) => (
-        <AIScopeBadge key={entry} entry={entry} />
+        <AIScopeBadge key={entry} entry={entry} nowrap={nowrap} />
       ))}
     </div>
   );

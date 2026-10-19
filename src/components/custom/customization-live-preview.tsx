@@ -60,7 +60,7 @@ export default function CustomizationLivePreview({
   const [inputMessage, setInputMessage] = useState("");
 
   return (
-    <div className="lg:sticky lg:top-6">
+    <div className="desktop:sticky desktop:top-6">
       <Card className="overflow-hidden shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

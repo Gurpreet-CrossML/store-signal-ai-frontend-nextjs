@@ -4,6 +4,19 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* "Desktop layout": from 1024px up, except a portrait screen up to 1100px.
+   An iPad Pro 12.9" held upright is exactly 1024px wide — the same as a
+   small laptop or an iPad on its side — but with a tall, narrow canvas where
+   a docked sidebar and a side-by-side list/detail leave each pane cramped.
+   Those get the tablet layout, like the iPad Pro 11" (834px), while a 1024px
+   landscape screen keeps the desktop one. Mirrors BELOW_LG_QUERY in
+   src/hooks/use-narrow-viewport.ts — keep the two in step. */
+@custom-variant desktop {
+  @media (min-width: 1101px), (min-width: 1024px) and (orientation: landscape) {
+    @slot;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

@@ -19,7 +19,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LoadingState } from "@/components/custom/loading-state";
-import type { ThreadColumnMeta } from "@/components/custom/threads-columns";
 import { DataTablePagination } from "@/components/custom/threads-data-table-pagination";
 import { Thread } from "@/redux/api-slice/thread-slice";
 
@@ -86,21 +85,15 @@ export function ThreadsDataTable<TData, TValue>({
   return (
     <div className="space-y-2">
       <div className="overflow-hidden rounded-xl border border-border/50">
-        <Table>
+        {/* A floor on the table: below it the container scrolls sideways
+            (like Catalog → Customers) so every column stays reachable on a
+            tablet, rather than columns being hidden or squeezed. */}
+        <Table className="min-w-4xl">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className={
-                      (
-                        header.column.columnDef.meta as
-                          | ThreadColumnMeta
-                          | undefined
-                      )?.className
-                    }
-                  >
+                  <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -154,16 +147,7 @@ export function ThreadsDataTable<TData, TValue>({
                       }`}
                     >
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell
-                          key={cell.id}
-                          className={
-                            (
-                              cell.column.columnDef.meta as
-                                | ThreadColumnMeta
-                                | undefined
-                            )?.className
-                          }
-                        >
+                        <TableCell key={cell.id}>
                           {flexRender(
                             cell.column.columnDef.cell,
                             cell.getContext(),

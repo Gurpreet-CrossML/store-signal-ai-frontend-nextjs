@@ -485,7 +485,7 @@ function TicketListPanel({
   return (
     <section
       className={cn(
-        "h-full min-h-0 w-full min-w-0 flex-col border-r lg:flex lg:w-72 lg:shrink-0 2xl:w-84",
+        "h-full min-h-0 w-full min-w-0 flex-col border-r desktop:flex desktop:w-72 desktop:shrink-0 2xl:w-84",
         className,
       )}
     >
@@ -988,7 +988,7 @@ function ConversationPanel({
     // leave over, which on a wide monitor can still be narrow.
     <main
       className={cn(
-        "@container/conv min-w-0 flex-1 flex-col lg:flex",
+        "@container/conv min-w-0 flex-1 flex-col desktop:flex",
         className,
       )}
     >
@@ -1001,7 +1001,7 @@ function ConversationPanel({
             variant="ghost"
             size="icon-sm"
             aria-label="Back to ticket list"
-            className="-ml-2 shrink-0 lg:hidden"
+            className="-ml-2 shrink-0 desktop:hidden"
             onClick={onBack}
           >
             <IconArrowLeft />
@@ -1144,13 +1144,13 @@ function ConversationPanel({
         </div>
       </header>
 
-      {/* Two rows, at a fixed h-20 that cannot grow. The subject needs a
-          line of its own — sharing one with the status chips left it
-          truncated to a few words. Height stays independent of the data:
-          neither row wraps, the subject truncates, and the tag list is
-          capped with a +N, so a ticket with nine tags sits at exactly the
-          same height as one with none. */}
-      <div className="flex h-28 shrink-0 flex-col justify-center gap-2 overflow-hidden border-b px-4 lg:h-20">
+      {/* The subject needs a line of its own — sharing one with the status
+          chips left it truncated to a few words. The height follows the
+          layout, not the data: the subject truncates, the tag list is
+          capped with a +N, and the only thing that adds a row is the pane's
+          width (the tags wrap to their own row when it runs short), so a
+          ticket with nine tags is exactly as tall as one with none. */}
+      <div className="flex min-h-20 shrink-0 flex-col justify-center gap-2 overflow-hidden border-b px-4 py-3">
         <div className="flex items-baseline gap-3">
           <div className="flex min-w-0 flex-1 items-baseline gap-2 overflow-hidden">
             <Tooltip>
@@ -1178,7 +1178,7 @@ function ConversationPanel({
               their values out only when the pane is wide enough (64rem);
               narrower, they collapse to their icons (the tooltip carries
               the value), so the subject keeps the line. */}
-          <div className="hidden shrink-0 items-center gap-3 lg:flex 2xl:gap-4">
+          <div className="hidden shrink-0 items-center gap-3 desktop:flex 2xl:gap-4">
             {facts.map((fact) => (
               <TicketFact key={fact.label} {...fact} />
             ))}
@@ -1189,13 +1189,13 @@ function ConversationPanel({
             hover tooltips do not exist on a touch screen — so they get a row
             of their own with the values written out. Scrolls sideways
             rather than wrapping, to keep the header's height fixed. */}
-        <div className="scrollbar-none flex items-center gap-4 overflow-x-auto *:shrink-0 lg:hidden">
+        <div className="scrollbar-none flex items-center gap-4 overflow-x-auto *:shrink-0 desktop:hidden">
           {facts.map((fact) => (
             <TicketFact key={fact.label} {...fact} showValue />
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
           <div className="flex shrink-0 items-center gap-2">
             {/* Status and priority are set on the badges that report them,
               rather than in a menu behind a ⋮ that showed the same two
@@ -1331,121 +1331,126 @@ function ConversationPanel({
             ) : null} */}
           </div>
 
-          {/* Tags live in their own scrollable strip, so however many
-              there are they can never push the +N chip or the add button
-              out of the pane on a narrow screen. */}
-          <div className="scrollbar-none flex min-w-0 flex-1 items-center gap-2 overflow-x-auto *:shrink-0">
-            {visibleTags?.map((tag) => {
-              const tagId = tag.id;
-              return (
-                <TagBadge
-                  key={tagId}
-                  tag={tag}
-                  onRemove={
-                    tagId && !isClosed ? () => onRemoveTag(tagId) : undefined
-                  }
+          {/* Tags and the add button share a group that sits beside the
+              status chips while there is room for it, and wraps onto its own
+              row the moment there is not — so it follows the pane's real
+              width (sidebar open or closed, ticket list shown or hidden)
+              rather than a breakpoint. Beside four chips, a narrow pane left
+              the tags a sliver, and they showed half-cut. */}
+          <div className="flex min-w-64 flex-1 items-center gap-2">
+            <div className="scrollbar-none flex min-w-0 flex-1 items-center gap-2 overflow-x-auto *:shrink-0">
+              {visibleTags?.map((tag) => {
+                const tagId = tag.id;
+                return (
+                  <TagBadge
+                    key={tagId}
+                    tag={tag}
+                    onRemove={
+                      tagId && !isClosed ? () => onRemoveTag(tagId) : undefined
+                    }
+                  />
+                );
+              })}
+              {hiddenTags?.length > 0 ? (
+                <HiddenTagsBadge
+                  tags={hiddenTags}
+                  label={`+${hiddenTags.length} more`}
+                  onRemoveTag={isClosed ? undefined : onRemoveTag}
                 />
-              );
-            })}
-            {hiddenTags?.length > 0 ? (
-              <HiddenTagsBadge
-                tags={hiddenTags}
-                label={`+${hiddenTags.length} more`}
-                onRemoveTag={isClosed ? undefined : onRemoveTag}
-              />
-            ) : null}
-          </div>
+              ) : null}
+            </div>
 
-          <Popover
-            open={isTagPickerOpen}
-            onOpenChange={() => onToggleTagPicker()}
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    disabled={isClosed}
-                    aria-label="Add Tag"
-                    className="shrink-0"
-                  >
-                    <IconPlus className="size-4" />
-                  </Button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent>Add tag</TooltipContent>
-            </Tooltip>
-            <PopoverContent align="start" className="w-65 p-0">
-              <div className="border-b px-3 py-2.5">
-                <CardTitle>Add tag</CardTitle>
-                <Typography variant="muted">
-                  Label this ticket so it is easy to find.
-                </Typography>
-              </div>
-              <div className="p-2">
-                <SearchInput
-                  value={tagSearch}
-                  onChange={setTagSearch}
-                  placeholder="Search tags…"
-                  label="Search tags"
-                />
-              </div>
-              {isTagPickerLoading && availableTags.length === 0 ? (
-                <LoadingState label="Loading tags…" className="py-6" />
-              ) : filteredTags.length === 0 ? (
-                <div className="px-3 pb-4 text-center">
+            <Popover
+              open={isTagPickerOpen}
+              onOpenChange={() => onToggleTagPicker()}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      disabled={isClosed}
+                      aria-label="Add Tag"
+                      className="shrink-0"
+                    >
+                      <IconPlus className="size-4" />
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Add tag</TooltipContent>
+              </Tooltip>
+              <PopoverContent align="start" className="w-65 p-0">
+                <div className="border-b px-3 py-2.5">
+                  <CardTitle>Add tag</CardTitle>
                   <Typography variant="muted">
-                    {availableTags.length === 0
-                      ? "No tags available."
-                      : "No matching tags."}
+                    Label this ticket so it is easy to find.
                   </Typography>
                 </div>
-              ) : (
-                <div className="max-h-56 space-y-1 overflow-y-auto p-2 pt-0">
-                  {filteredTags.map((tag) => {
-                    const alreadyAdded = ticket.tags.some(
-                      (existingTag) => existingTag.id === tag.id,
-                    );
-                    return (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        className={cn(
-                          "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors",
-                          alreadyAdded
-                            ? "text-muted-foreground line-through"
-                            : "text-foreground hover:bg-muted",
-                        )}
-                        onClick={() =>
-                          !alreadyAdded && tag.id && onAddTag(tag.id)
-                        }
-                        disabled={alreadyAdded}
-                      >
-                        <span className="truncate">{tag.name}</span>
-                        <span
-                          className="size-2.5 shrink-0 rounded-full"
-                          style={{ backgroundColor: tag.color }}
-                        />
-                      </button>
-                    );
-                  })}
-                  {hasMoreTags && !tagSearch ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={onLoadMoreTags}
-                      disabled={isTagPickerLoading}
-                    >
-                      {isTagPickerLoading ? "Loading…" : "Load More"}
-                    </Button>
-                  ) : null}
+                <div className="p-2">
+                  <SearchInput
+                    value={tagSearch}
+                    onChange={setTagSearch}
+                    placeholder="Search tags…"
+                    label="Search tags"
+                  />
                 </div>
-              )}
-            </PopoverContent>
-          </Popover>
+                {isTagPickerLoading && availableTags.length === 0 ? (
+                  <LoadingState label="Loading tags…" className="py-6" />
+                ) : filteredTags.length === 0 ? (
+                  <div className="px-3 pb-4 text-center">
+                    <Typography variant="muted">
+                      {availableTags.length === 0
+                        ? "No tags available."
+                        : "No matching tags."}
+                    </Typography>
+                  </div>
+                ) : (
+                  <div className="max-h-56 space-y-1 overflow-y-auto p-2 pt-0">
+                    {filteredTags.map((tag) => {
+                      const alreadyAdded = ticket.tags.some(
+                        (existingTag) => existingTag.id === tag.id,
+                      );
+                      return (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          className={cn(
+                            "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors",
+                            alreadyAdded
+                              ? "text-muted-foreground line-through"
+                              : "text-foreground hover:bg-muted",
+                          )}
+                          onClick={() =>
+                            !alreadyAdded && tag.id && onAddTag(tag.id)
+                          }
+                          disabled={alreadyAdded}
+                        >
+                          <span className="truncate">{tag.name}</span>
+                          <span
+                            className="size-2.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                        </button>
+                      );
+                    })}
+                    {hasMoreTags && !tagSearch ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={onLoadMoreTags}
+                        disabled={isTagPickerLoading}
+                      >
+                        {isTagPickerLoading ? "Loading…" : "Load More"}
+                      </Button>
+                    ) : null}
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
       </div>
 
@@ -3602,7 +3607,7 @@ export default function HelpDesk() {
         activeSupportTicket?.id !== activeTicketId ? (
           <div
             className={cn(
-              "min-w-0 flex-1 items-center justify-center lg:flex",
+              "min-w-0 flex-1 items-center justify-center desktop:flex",
               conversationPaneClass,
             )}
           >
@@ -3611,7 +3616,7 @@ export default function HelpDesk() {
         ) : linkedTicketMissing ? (
           <div
             className={cn(
-              "min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center lg:flex",
+              "min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center desktop:flex",
               conversationPaneClass,
             )}
           >
@@ -3635,7 +3640,7 @@ export default function HelpDesk() {
         ) : !activeSupportTicket ? (
           <div
             className={cn(
-              "min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center lg:flex",
+              "min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center desktop:flex",
               conversationPaneClass,
             )}
           >

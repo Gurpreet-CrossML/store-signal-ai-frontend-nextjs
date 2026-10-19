@@ -2287,7 +2287,7 @@ export default function Support() {
       <Sidebar
         collapsible="none"
         className={cn(
-          "w-full border-r bg-background lg:flex lg:w-(--sidebar-width)",
+          "w-full border-r bg-background desktop:flex desktop:w-(--sidebar-width)",
           showConversationBelowLg ? "hidden" : "flex",
         )}
       >
@@ -2607,7 +2607,7 @@ export default function Support() {
       {/* Conversation + thread details. */}
       <SidebarInset
         className={cn(
-          "min-h-0 min-w-0 overflow-hidden lg:flex",
+          "min-h-0 min-w-0 overflow-hidden desktop:flex",
           showConversationBelowLg ? "flex" : "hidden",
         )}
       >
@@ -2621,7 +2621,7 @@ export default function Support() {
                       variant="ghost"
                       size="icon-sm"
                       aria-label="Back to chat list"
-                      className="-ml-2 shrink-0 lg:hidden"
+                      className="-ml-2 shrink-0 desktop:hidden"
                       onClick={() => {
                         // Closes the chat, not just the pane: its id would
                         // otherwise stay in the URL and a refresh would

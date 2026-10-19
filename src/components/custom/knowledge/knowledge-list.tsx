@@ -118,24 +118,26 @@ export function KnowledgeList({
 
   return (
     <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
-      {/* A floor on the table: below it the container scrolls sideways
-          instead of squeezing the Name column down to its icon. */}
-      <Table className="min-w-xl">
+      {/* Every column is always shown. A floor on the table makes the
+          container scroll sideways on a narrow screen (like Catalog →
+          Customers) instead of hiding columns or squeezing the Name column
+          down to its icon. */}
+      <Table className="min-w-4xl">
         <TableHeader className="bg-muted/40">
           <TableRow className="hover:bg-transparent">
             <TableHead className="h-10 px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Name
             </TableHead>
-            <TableHead className="hidden h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground md:table-cell">
+            <TableHead className="h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Type
             </TableHead>
-            <TableHead className="hidden h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground lg:table-cell">
+            <TableHead className="h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Used by
             </TableHead>
             <TableHead className="h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Status
             </TableHead>
-            <TableHead className="hidden h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:table-cell">
+            <TableHead className="h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Updated
             </TableHead>
             <TableHead className="h-10 w-12 px-4">
@@ -189,7 +191,6 @@ export function KnowledgeList({
                         {counts.length > 0 && (
                           <ProductTag name={counts.join(" · ")} />
                         )}
-                        <span className="md:hidden">· {meta.label}</span>
                       </div>
                       {item.status === "failed" && item.processingError && (
                         <p
@@ -203,28 +204,22 @@ export function KnowledgeList({
                   </div>
                 </TableCell>
 
-                <TableCell className="hidden text-muted-foreground md:table-cell">
+                <TableCell className="text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs">
                     <meta.icon className="size-4" />
                     {meta.label}
                   </span>
                 </TableCell>
 
-                <TableCell className="hidden lg:table-cell">
-                  {/* One chip + "+N" until there is room for the stack. */}
-                  <div className="xl:hidden">
-                    <AIScopeBadges scope={item.aiScope} compact />
-                  </div>
-                  <div className="hidden xl:block">
-                    <AIScopeBadges scope={item.aiScope} />
-                  </div>
+                <TableCell>
+                  <AIScopeBadges scope={item.aiScope} nowrap />
                 </TableCell>
 
                 <TableCell>
                   <KnowledgeStatusBadge status={item.status} />
                 </TableCell>
 
-                <TableCell className="hidden whitespace-nowrap text-xs text-muted-foreground sm:table-cell">
+                <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                   {formatRelativeTime(item.updatedAt)} ago
                 </TableCell>
 
