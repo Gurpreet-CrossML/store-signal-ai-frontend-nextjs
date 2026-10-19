@@ -270,7 +270,7 @@ export default function MessagePan({
                 className={`flex ${isCustomer ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`flex gap-2.5 max-w-[82%] ${
+                  className={`flex min-w-0 gap-2.5 max-w-[82%] ${
                     isCustomer ? "flex-row-reverse" : "flex-row"
                   } ${
                     message.json_content?.products?.length ||
@@ -290,9 +290,12 @@ export default function MessagePan({
                       {avatarLabel}
                     </AvatarFallback>
                   </Avatar>
+                  {/* min-w-0: a flex child will not shrink below its content
+                      (a product carousel, a long URL) unless told it may,
+                      which pushed the whole pane into sideways scrolling. */}
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div
-                      className={`flex items-center gap-2 mb-1 ${isCustomer ? "justify-end" : "justify-start"}`}
+                      className={`flex flex-wrap items-center gap-x-2 mb-1 ${isCustomer ? "justify-end" : "justify-start"}`}
                     >
                       <span className="text-xs font-medium text-foreground capitalize">
                         {message.messaged_by_email &&
@@ -319,7 +322,7 @@ export default function MessagePan({
                       <div
                         id="markdown-message-bubble"
                         style={{ borderRadius: "0.7rem" }}
-                        className={`p-3 text-sm wrap-break-word ${isCustomer ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-secondary border border-border rounded-tl-none"}`}
+                        className={`min-w-0 max-w-full p-3 text-sm wrap-anywhere ${isCustomer ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-secondary border border-border rounded-tl-none"}`}
                       >
                         {message.role === "assistant" ? (
                           (() => {

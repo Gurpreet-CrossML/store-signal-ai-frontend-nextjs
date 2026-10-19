@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   IconCopy,
   IconFileText,
@@ -87,7 +87,6 @@ export default function KnowledgeLibraryTabContent() {
 
   // All list filters live in the URL (?q=&type=&source=&status=&page=&pageSize=)
   // so a reload, back/forward or a shared link restores the same view.
-  const router = useRouter();
   const pathname = usePathname() ?? "/knowledge/library";
   const searchParams = useSearchParams();
 
@@ -121,11 +120,17 @@ export default function KnowledgeLibraryTabContent() {
         else next.set(key, String(value));
       }
       const query = next.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, {
-        scroll: false,
-      });
+      // Native history API instead of router.replace: Next syncs it into
+      // useSearchParams without an RSC round-trip to the server, which is
+      // what stalled the tab switch on production after a reload with
+      // ?source= in the URL.
+      window.history.replaceState(
+        null,
+        "",
+        query ? `${pathname}?${query}` : pathname,
+      );
     },
-    [router, pathname, searchParams],
+    [pathname, searchParams],
   );
 
   const [searchInput, setSearchInput] = useState(debouncedSearch);

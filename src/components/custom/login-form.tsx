@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { formikErrorsFromZod } from "@/lib/form-errors";
+import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
@@ -32,7 +32,6 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"form">) {
   const router = useRouter();
-  const [authError, setAuthError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -53,7 +52,6 @@ export function LoginForm({
     },
     onSubmit: async (values) => {
       setIsLoading(true);
-      setAuthError("");
 
       const res = await signIn("credentials", {
         redirect: false,
@@ -67,23 +65,30 @@ export function LoginForm({
         router.push("/");
         router.refresh();
       } else {
-        let message = "Invalid email or password";
-        if (res?.error) {
-          try {
-            const responseErrors = JSON.parse(res.error);
-            message = responseErrors?.message ?? message;
-            toast.error("Log in Failed!", {
-              description:
-                message +
-                (responseErrors?.data?.non_field_errors
-                  ? `: ${responseErrors.data.non_field_errors}`
-                  : ""),
-            });
-          } catch {
-            message = res.error;
-            setAuthError(message);
-          }
+        // The backend's error body, passed through next-auth as the error
+        // string: { message, data: { email?, password?, non_field_errors? } }.
+        let payload: {
+          message?: string;
+          data?: { non_field_errors?: string };
+        } | null = null;
+        try {
+          payload = res?.error ? JSON.parse(res.error) : null;
+        } catch {
+          payload = null;
         }
+        // Field errors go under their fields, like the other forms. A wrong
+        // email or password comes back as one non-field message (the backend
+        // never says which, so an email's account isn't revealed): it goes
+        // under both fields.
+        const nonField = payload?.data?.non_field_errors;
+        if (!applyServerFieldErrors(formik, payload) && nonField) {
+          formik.setErrors({ email: nonField, password: nonField });
+          formik.setTouched({ email: true, password: true }, false);
+        }
+        toast.error("Log in failed", {
+          description:
+            nonField || payload?.message || "Invalid email or password",
+        });
       }
 
       setIsLoading(false);
@@ -96,9 +101,11 @@ export function LoginForm({
       {...props}
       onSubmit={formik.handleSubmit}
     >
-      <FieldGroup>
+      <FieldGroup className="gap-5">
         <div className="flex flex-col gap-2">
-          <Typography variant="h1">Welcome back 👋</Typography>
+          <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
+            Welcome back 👋
+          </Typography>
           <Typography variant="p" className="text-muted-foreground">
             Log in to your StoreSignal account to continue
           </Typography>
@@ -171,17 +178,12 @@ export function LoginForm({
             </Typography>
           )}
         </Field>
-        <Field orientation="horizontal">
+        {/* <Field orientation="horizontal">
           <Checkbox id="remember-me" name="rememberMe" />
           <FieldLabel htmlFor="remember-me" className="font-normal">
             Remember me
           </FieldLabel>
-        </Field>
-        {authError && (
-          <Typography variant="small" className="text-center text-destructive">
-            {authError}
-          </Typography>
-        )}
+        </Field> */}
         <Field>
           <Button
             disabled={isLoading}

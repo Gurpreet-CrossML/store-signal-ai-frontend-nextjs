@@ -140,7 +140,7 @@ export const FetchCustomers = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchCustomers()}?${toQueryParams(storeCode, page, limit, filters)}`,
+        `${ENDPOINTS.fetchCustomerList()}?${toQueryParams(storeCode, page, limit, filters)}`,
         { useBackend: true },
       );
       // Accepts the payload wrapped in `data` or returned bare, so a
@@ -195,7 +195,7 @@ export const SearchCustomers = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchCustomers()}?store_code=${storeCode}&limit=10&search=${encodeURIComponent(search)}`,
+        `${ENDPOINTS.fetchCustomerList()}?store_code=${storeCode}&limit=10&search=${encodeURIComponent(search)}`,
         { useBackend: true },
       );
       return toPaginatedList<CustomerRecord>(

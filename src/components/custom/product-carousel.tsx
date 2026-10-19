@@ -55,7 +55,7 @@ export function ProductCarousel({
   const lastVisible = inView.length ? Math.max(...inView) + 1 : 1;
 
   return (
-    <div className="mt-2 w-full">
+    <div className="mt-2 w-full min-w-0 max-w-full">
       <Carousel
         setApi={setApi}
         opts={{

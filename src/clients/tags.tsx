@@ -70,10 +70,32 @@ const HEX_REGEX = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
 // so the rows-per-page dropdown always shows a real option.
 const DEFAULT_PER_PAGE = 25;
 
+// Limits shared by the schema and the inputs, so the fields stop accepting
+// text at the same point validation would reject it.
+const TAG_NAME_MAX = 30;
+const TAG_DESCRIPTION_MAX = 120;
+
+const TAG_MIN = 3;
+
+// Rules run in order and the first failure is the one shown, so an empty
+// field says it is required rather than that it is too short.
 const tagSchema = z.object({
-  name: z.string().trim().min(3, "Too short").max(30, "Too long"),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Tag name is required")
+    .min(TAG_MIN, `Tag name must be at least ${TAG_MIN} characters`)
+    .max(TAG_NAME_MAX, `Tag name must be ${TAG_NAME_MAX} characters or fewer`),
   color: z.string().regex(HEX_REGEX, "Enter a valid hex color"),
-  description: z.string().trim().min(3, "Too short").max(120, "Too long"),
+  description: z
+    .string()
+    .trim()
+    .min(1, "Description is required")
+    .min(TAG_MIN, `Description must be at least ${TAG_MIN} characters`)
+    .max(
+      TAG_DESCRIPTION_MAX,
+      `Description must be ${TAG_DESCRIPTION_MAX} characters or fewer`,
+    ),
 });
 
 type TagFormValues = z.infer<typeof tagSchema>;
@@ -354,7 +376,12 @@ export default function Tags() {
                   </Label>
                   <Field name="name">
                     {({ field }: FieldProps) => (
-                      <Input id="name" placeholder="e.g. Shipping" {...field} />
+                      <Input
+                        id="name"
+                        placeholder="e.g. Shipping"
+                        maxLength={TAG_NAME_MAX}
+                        {...field}
+                      />
                     )}
                   </Field>
                   {errors.name && touched.name && (
@@ -413,15 +440,25 @@ export default function Tags() {
                         placeholder="When should agents use this tag?"
                         className="resize-none"
                         rows={3}
+                        maxLength={TAG_DESCRIPTION_MAX}
                         {...field}
                       />
                     )}
                   </Field>
-                  {errors.description && touched.description && (
-                    <p className="text-xs text-destructive">
-                      {errors.description}
+                  {/* Error and counter share one row, so the message sits
+                      right under the field instead of below a gap. */}
+                  <div className="flex items-start justify-between gap-3">
+                    {errors.description && touched.description ? (
+                      <p className="text-xs text-destructive">
+                        {errors.description}
+                      </p>
+                    ) : (
+                      <span />
+                    )}
+                    <p className="shrink-0 text-xs text-muted-foreground">
+                      {values.description.length}/{TAG_DESCRIPTION_MAX}
                     </p>
-                  )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">

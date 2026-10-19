@@ -66,23 +66,55 @@ export function PolicyTypeBadge({ policyType }: { policyType: PolicyType }) {
   );
 }
 
-export function AIScopeBadges({ scope }: { scope: AIScope[] }) {
+function AIScopeBadge({ entry }: { entry: AIScope }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "font-normal",
+        BADGE_TONE_STYLES[AI_SCOPE_META[entry].tone],
+      )}
+    >
+      {AI_SCOPE_META[entry].label}
+    </Badge>
+  );
+}
+
+/**
+ * `compact` collapses the list to its first chip plus a "+N" count, for
+ * columns that cannot afford a stack of chips. The full list stays in the
+ * tooltip, so nothing is lost — only folded.
+ */
+export function AIScopeBadges({
+  scope,
+  compact = false,
+}: {
+  scope: AIScope[];
+  compact?: boolean;
+}) {
   if (scope.length === 0) {
     return <span className="text-xs text-muted-foreground">No AI scope</span>;
+  }
+  if (compact) {
+    const [first, ...rest] = scope;
+    return (
+      <div
+        className="flex flex-nowrap items-center gap-1"
+        title={scope.map((entry) => AI_SCOPE_META[entry].label).join(", ")}
+      >
+        <AIScopeBadge entry={first} />
+        {rest.length > 0 && (
+          <Badge variant="outline" className="font-normal">
+            +{rest.length}
+          </Badge>
+        )}
+      </div>
+    );
   }
   return (
     <div className="flex flex-wrap gap-1">
       {scope.map((entry) => (
-        <Badge
-          key={entry}
-          variant="outline"
-          className={cn(
-            "font-normal",
-            BADGE_TONE_STYLES[AI_SCOPE_META[entry].tone],
-          )}
-        >
-          {AI_SCOPE_META[entry].label}
-        </Badge>
+        <AIScopeBadge key={entry} entry={entry} />
       ))}
     </div>
   );
