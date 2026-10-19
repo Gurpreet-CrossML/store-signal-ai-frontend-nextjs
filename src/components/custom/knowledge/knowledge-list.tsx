@@ -118,7 +118,9 @@ export function KnowledgeList({
 
   return (
     <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
-      <Table>
+      {/* A floor on the table: below it the container scrolls sideways
+          instead of squeezing the Name column down to its icon. */}
+      <Table className="min-w-xl">
         <TableHeader className="bg-muted/40">
           <TableRow className="hover:bg-transparent">
             <TableHead className="h-10 px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -161,7 +163,7 @@ export function KnowledgeList({
                 }}
                 className="cursor-pointer"
               >
-                <TableCell className="w-full max-w-0 px-4 py-3 sm:w-[40%]">
+                <TableCell className="w-full max-w-0 min-w-52 px-4 py-3 sm:w-[40%] lg:min-w-64">
                   <div className="flex items-center gap-3">
                     <KnowledgeItemIcon item={item} />
                     <div className="min-w-0 flex-1">
@@ -209,7 +211,13 @@ export function KnowledgeList({
                 </TableCell>
 
                 <TableCell className="hidden lg:table-cell">
-                  <AIScopeBadges scope={item.aiScope} />
+                  {/* One chip + "+N" until there is room for the stack. */}
+                  <div className="xl:hidden">
+                    <AIScopeBadges scope={item.aiScope} compact />
+                  </div>
+                  <div className="hidden xl:block">
+                    <AIScopeBadges scope={item.aiScope} />
+                  </div>
                 </TableCell>
 
                 <TableCell>

@@ -111,7 +111,11 @@ export function SignupForm({
             <IconMailCheck />
           </EmptyMedia>
           <EmptyTitle>
-            <Typography variant="h1" as="span">
+            <Typography
+              variant="h1"
+              as="span"
+              className="text-2xl font-bold sm:text-3xl"
+            >
               Your account has been created
             </Typography>
           </EmptyTitle>
@@ -167,9 +171,11 @@ export function SignupForm({
       {...props}
       onSubmit={formik.handleSubmit}
     >
-      <FieldGroup>
+      <FieldGroup className="gap-5">
         <div className="flex flex-col gap-2">
-          <Typography variant="h1">Create an account</Typography>
+          <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
+            Create an account
+          </Typography>
           <Typography variant="p" className="text-muted-foreground">
             Set up your StoreSignal workspace. We&apos;ll email you a password
             to log in with.

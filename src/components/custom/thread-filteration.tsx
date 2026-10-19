@@ -197,7 +197,7 @@ export default function ThreadFilteration({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="relative min-w-56 flex-1">
+      <div className="relative min-w-64 flex-1">
         <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={filters.search}

@@ -39,7 +39,7 @@ export function ProductCarousel({ products }: { products: ProductData[] }) {
   const canScrollNext = selectedIndex < snapCount - 1;
 
   return (
-    <div className="mt-2 w-full">
+    <div className="mt-2 w-full min-w-0 max-w-full">
       <Carousel
         setApi={setApi}
         opts={{ align: "start", containScroll: "trimSnaps" }}

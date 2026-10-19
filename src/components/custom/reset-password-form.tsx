@@ -181,7 +181,9 @@ export function ResetPasswordForm({
           <IconLinkOff className="size-6" />
         </div>
         <div className="flex flex-col gap-2">
-          <Typography variant="h1">This link no longer works</Typography>
+          <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
+            This link no longer works
+          </Typography>
           <Typography variant="p" className="text-muted-foreground">
             Reset links can be opened only once and expire after a while. This
             one is invalid, expired, or has already been used.
@@ -201,7 +203,9 @@ export function ResetPasswordForm({
           <IconCircleCheck className="size-6" />
         </div>
         <div className="flex flex-col gap-2">
-          <Typography variant="h1">Password changed</Typography>
+          <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
+            Password changed
+          </Typography>
           <Typography variant="p" className="text-muted-foreground">
             You have been signed out on every device. Log in with your new
             password.
@@ -219,9 +223,11 @@ export function ResetPasswordForm({
 
   return (
     <form className="flex flex-col gap-6" onSubmit={formik.handleSubmit}>
-      <FieldGroup>
+      <FieldGroup className="gap-5">
         <div className="flex flex-col gap-2">
-          <Typography variant="h1">Set a new password</Typography>
+          <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
+            Set a new password
+          </Typography>
           <Typography variant="p" className="text-muted-foreground">
             Finish now: this link has been used and won&apos;t open again. After
             the change you&apos;ll be signed out everywhere.
