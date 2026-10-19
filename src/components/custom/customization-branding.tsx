@@ -31,8 +31,8 @@ import { Separator } from "@/components/ui/separator";
 import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
-const CKEditorTextArea = dynamic(
-  () => import("@/components/custom/ckeditor-text-area"),
+const RichTextArea = dynamic(
+  () => import("@/components/custom/rich-text-area"),
   {
     ssr: false,
   },
@@ -191,7 +191,7 @@ export default function CustomizationBranding({
               The first message the chatbot sends when the chat opens.
             </FieldDescription>
           </div>
-          <CKEditorTextArea
+          <RichTextArea
             id="greeting-message"
             placeholder="Hi there! How can I help you today?"
             value={greetingMessage}
