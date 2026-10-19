@@ -24,7 +24,7 @@ export function PageHeading({
   return (
     <div
       className={cn(
-        "flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between",
+        "flex flex-col gap-4 desktop:flex-row desktop:items-center desktop:justify-between",
         className,
       )}
     >

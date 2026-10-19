@@ -4,12 +4,8 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { IconPencil, IconTrash } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
+import { ExpandableText } from "@/components/custom/expandable-text";
 import { TagBadge } from "@/components/custom/helpdesk/tag-badge";
 import type { SupportTicketTagData } from "@/redux/api-slice/support-ticket-slice";
 
@@ -35,16 +31,7 @@ export function getTagColumns({
           return <Typography variant="muted">—</Typography>;
         }
 
-        return (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <p className="max-w-xs cursor-default truncate">{description}</p>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-sm">
-              <p className="wrap-break-word whitespace-normal">{description}</p>
-            </TooltipContent>
-          </Tooltip>
-        );
+        return <ExpandableText text={description} />;
       },
     },
     {
