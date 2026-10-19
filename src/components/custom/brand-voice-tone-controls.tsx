@@ -136,13 +136,13 @@ function ToneRadioField({
 
 type BrandVoiceToneControlsProps = {
   formik: ReturnType<typeof useFormik<ToneStylePayload>>;
-  bulletPointsDescription: string;
+  // bulletPointsDescription: string;
   onSliderChange: (key: keyof ToneStylePayload, value: number) => void;
 };
 
 export default function BrandVoiceToneControls({
   formik,
-  bulletPointsDescription,
+  // bulletPointsDescription,
   onSliderChange,
 }: BrandVoiceToneControlsProps) {
   const values = formik.values;
@@ -241,6 +241,8 @@ export default function BrandVoiceToneControls({
             />
           </div>
 
+          {/* Bullet-point controls are temporarily disabled. */}
+          {/*
           <Separator />
 
           <div
@@ -267,6 +269,7 @@ export default function BrandVoiceToneControls({
               aria-label="Use bullet points"
             />
           </div>
+          */}
         </CardContent>
       </Card>
     </div>
