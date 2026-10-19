@@ -37,6 +37,7 @@ import {
   IconPencil,
   IconBolt,
   IconPlus,
+  IconArrowLeft,
   IconArrowsSort,
   IconReload,
   IconSend,
@@ -92,6 +93,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Typography } from "@/components/ui/typography";
 import { CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { isBelowLg } from "@/hooks/use-narrow-viewport";
 import {
   ACTION_TONE_STYLES,
   BADGE_TONE_STYLES,
@@ -106,7 +108,10 @@ import {
   TICKET_PRIORITY_TONES,
   ticketRef,
 } from "@/components/custom/ticket-priority-bar";
-import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
+import {
+  CustomerDetailsButton,
+  CustomerDetailsPanel,
+} from "@/components/custom/customer-details-panel";
 import { CrmLinkButton } from "@/components/custom/customer-header";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
@@ -430,7 +435,10 @@ function TicketListPanel({
   onTagSearchChange,
   onLoadMoreTags,
   supportTicketStatusCount,
+  className,
 }: {
+  /** Visibility below `lg`, where list and conversation take turns. */
+  className?: string;
   // ...same prop types as before, unchanged
   rows: SupportTicket[];
   activeTicketId: number | null;
@@ -475,42 +483,49 @@ function TicketListPanel({
   };
 
   return (
-    <section className="hidden h-full min-h-0 w-72 shrink-0 flex-col border-r md:flex 2xl:w-84">
+    <section
+      className={cn(
+        "h-full min-h-0 w-full min-w-0 flex-col border-r lg:flex lg:w-72 lg:shrink-0 2xl:w-84",
+        className,
+      )}
+    >
       {/* One header, not two: the queue switcher is the inbox's title, so a
           separate "Your inbox" line above it said nothing extra. */}
       <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="-ml-2 gap-1">
-              <CardTitle>
-                {queueLabel}
-                <span className="ml-1.5 font-normal text-muted-foreground">
-                  {supportTicketStatusCount?.[activeQueue] ?? 0}
-                </span>
-              </CardTitle>
-              <IconChevronDown className="size-3.5 text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-40">
-            {queues.map((queue) => (
-              <DropdownMenuItem
-                key={queue.key}
-                onClick={() =>
-                  queue.key !== activeQueue && onQueueChange(queue.key)
-                }
-                className={cn(
-                  "justify-between",
-                  activeQueue === queue.key && "font-medium text-primary",
-                )}
-              >
-                {queue.label}
-                <span className="text-muted-foreground">
-                  {supportTicketStatusCount?.[queue.key] ?? 0}
-                </span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex min-w-0 items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="-ml-2 gap-1">
+                <CardTitle>
+                  {queueLabel}
+                  <span className="ml-1.5 font-normal text-muted-foreground">
+                    {supportTicketStatusCount?.[activeQueue] ?? 0}
+                  </span>
+                </CardTitle>
+                <IconChevronDown className="size-3.5 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-40">
+              {queues.map((queue) => (
+                <DropdownMenuItem
+                  key={queue.key}
+                  onClick={() =>
+                    queue.key !== activeQueue && onQueueChange(queue.key)
+                  }
+                  className={cn(
+                    "justify-between",
+                    activeQueue === queue.key && "font-medium text-primary",
+                  )}
+                >
+                  {queue.label}
+                  <span className="text-muted-foreground">
+                    {supportTicketStatusCount?.[queue.key] ?? 0}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
         <div className="flex items-center gap-2">
           <Popover open={isFilterOpen} onOpenChange={onFilterOpenChange}>
@@ -763,7 +778,15 @@ function ConversationPanel({
   isTranslating,
   translatedLanguage,
   onLinkCustomer,
+  onBack,
+  onShowDetails,
+  className,
 }: {
+  /** Opens the customer details sheet, for widths where the pane is not docked. */
+  onShowDetails: () => void;
+  /** Returns to the ticket list. Only offered below `lg`, where the two panes take turns. */
+  onBack: () => void;
+  className?: string;
   storeCode: string;
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
@@ -960,12 +983,29 @@ function ConversationPanel({
   })();
 
   return (
-    <main className="flex min-w-0 flex-1 flex-col">
+    // `@container/conv`: the facts below size themselves to this pane, not
+    // the viewport — the pane is what the ticket list and the details panel
+    // leave over, which on a wide monitor can still be narrow.
+    <main
+      className={cn(
+        "@container/conv min-w-0 flex-1 flex-col lg:flex",
+        className,
+      )}
+    >
       {/* Same 4rem header as the two side panels, so all three borders line
           up across the screen. The customer leads — who you are talking to
           is the first thing you need — and the subject follows below. */}
       <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Back to ticket list"
+            className="-ml-2 shrink-0 lg:hidden"
+            onClick={onBack}
+          >
+            <IconArrowLeft />
+          </Button>
           <CustomerAvatar name={customerName} />
           <div className="min-w-0">
             <div className="flex items-center gap-1">
@@ -993,6 +1033,7 @@ function ConversationPanel({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <CustomerDetailsButton onClick={onShowDetails} />
           {/* <Combobox items={availableStaff}>
             <ComboboxInput
               className="h-8 w-28 2xl:w-40"
@@ -1109,9 +1150,9 @@ function ConversationPanel({
           neither row wraps, the subject truncates, and the tag list is
           capped with a +N, so a ticket with nine tags sits at exactly the
           same height as one with none. */}
-      <div className="flex h-20 shrink-0 flex-col justify-center gap-2 overflow-hidden border-b px-4">
+      <div className="flex h-28 shrink-0 flex-col justify-center gap-2 overflow-hidden border-b px-4 lg:h-20">
         <div className="flex items-baseline gap-3">
-          <div className="flex min-w-0 flex-1 items-baseline gap-2">
+          <div className="flex min-w-0 flex-1 items-baseline gap-2 overflow-hidden">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Typography variant="small" as="h3" className="truncate">
@@ -1133,14 +1174,25 @@ function ConversationPanel({
           </div>
 
           {/* Facts close the subject line, and say what each date is — two
-              bare timestamps side by side told you nothing. Below 2xl they
-              collapse to their icons (the tooltip carries the value), so
-              the subject keeps the line on a laptop screen. */}
+              bare timestamps side by side told you nothing. They write
+              their values out only when the pane is wide enough (64rem);
+              narrower, they collapse to their icons (the tooltip carries
+              the value), so the subject keeps the line. */}
           <div className="hidden shrink-0 items-center gap-3 lg:flex 2xl:gap-4">
             {facts.map((fact) => (
               <TicketFact key={fact.label} {...fact} />
             ))}
           </div>
+        </div>
+
+        {/* Below `lg` there is no room for the facts on the subject line, and
+            hover tooltips do not exist on a touch screen — so they get a row
+            of their own with the values written out. Scrolls sideways
+            rather than wrapping, to keep the header's height fixed. */}
+        <div className="scrollbar-none flex items-center gap-4 overflow-x-auto *:shrink-0 lg:hidden">
+          {facts.map((fact) => (
+            <TicketFact key={fact.label} {...fact} showValue />
+          ))}
         </div>
 
         <div className="flex items-center gap-2">
@@ -1844,7 +1896,10 @@ function TicketFact({
   label,
   value,
   detail,
+  showValue = false,
 }: {
+  /** Write the value out beside the icon at every width, instead of only from `2xl`. */
+  showValue?: boolean;
   // The shared tabler type rather than one specific icon's: the channel
   // fact now picks its icon from a map, and every entry has to fit.
   icon: Icon;
@@ -1858,7 +1913,13 @@ function TicketFact({
       <TooltipTrigger asChild>
         <div className="flex min-w-0 items-center gap-1.5">
           <Icon className="size-4 shrink-0 text-muted-foreground" />
-          <Typography variant="caption" className="hidden truncate 2xl:inline">
+          <Typography
+            variant="caption"
+            className={cn(
+              "truncate",
+              showValue ? "whitespace-nowrap" : "hidden @5xl/conv:inline",
+            )}
+          >
             {value}
           </Typography>
         </div>
@@ -1882,7 +1943,7 @@ function TicketInsightsPlaceholder({
   label: string;
 }) {
   return (
-    <aside className="hidden w-80 shrink-0 flex-col items-center justify-center border-l px-6 text-center xl:flex 2xl:w-95">
+    <aside className="hidden w-72 shrink-0 flex-col items-center justify-center border-l px-6 text-center xl:flex 2xl:w-95">
       {loading ? (
         <LoadingState label={label} />
       ) : (
@@ -1948,6 +2009,19 @@ export default function HelpDesk() {
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
+  // Below `lg` there is room for one of the list and the conversation, not
+  // both. This only decides which one shows there; it never touches the
+  // open ticket, so the first ticket still opens on load and every
+  // handler behaves exactly as it does on a wide screen. A ticket id in the
+  // URL (a deep link, or a refresh after the user opened one) shows the
+  // conversation; with none, it shows the list. That only holds because
+  // narrow screens never open a ticket on their own — see the first-ticket
+  // default in the list fetch — so an id in the URL means the user chose it.
+  const [portraitView, setPortraitView] = useState<"list" | "conversation">(
+    Number.isInteger(linkedTicketId) && linkedTicketId > 0
+      ? "conversation"
+      : "list",
+  );
   const [activeQueue, setActiveQueue] = useState<SupportTicketStatus>("open");
   const [sortOrder, setSortOrder] =
     useState<SupportTicketOrdering>("last_updated");
@@ -2013,6 +2087,7 @@ export default function HelpDesk() {
     setLastStoreCode(storeCode);
     if (lastStoreCode) {
       setActiveTicketId(null);
+      setPortraitView("list");
       setActiveSupportTicket(null);
       setTicketRows([]);
       setPage(1);
@@ -2029,6 +2104,7 @@ export default function HelpDesk() {
     setPage(1);
     setTicketRows([]);
     setActiveTicketId(null);
+    setPortraitView("list");
   }
 
   const filterFormik = useFormik<TicketFilterSelection>({
@@ -2474,7 +2550,15 @@ export default function HelpDesk() {
         // link to a ticket sitting under another filter, or past the first
         // page, silently landed on a different ticket instead. The list is
         // a view of the queue; it does not get to decide what is open.
-        if (page === 1 && !currentActiveSupportTicketIdRef.current) {
+        //
+        // Not on a narrow screen: there the list is the landing view and a
+        // ticket opens only when tapped, so defaulting one would put its id
+        // in the URL and open it on the next refresh.
+        if (
+          page === 1 &&
+          !currentActiveSupportTicketIdRef.current &&
+          !isBelowLg()
+        ) {
           const first = data.results[0] ?? null;
           setActiveTicketId(first?.id ?? null);
           setActiveSupportTicket(first);
@@ -2635,6 +2719,8 @@ export default function HelpDesk() {
   // Linking a customer to a guest ticket. Offered only when there is none
   // attached — once linked, the panel shows the record instead.
   const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
+  // Below `xl` the customer details open as a sheet from the header.
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const { SupportTicketCustomerLinkIsLoading } = useAppSelector(
     (state) => state.GetSupportTicketsReducer.SupportTicketCustomerLinkState,
   );
@@ -2662,6 +2748,7 @@ export default function HelpDesk() {
     const nextTicket = ticketRows.find((ticket) => ticket.id === ticketId);
     if (!nextTicket) return;
     setActiveTicketId(ticketId);
+    setPortraitView("conversation");
     setReply("");
     setTranslatedLanguage(null);
     setAttachmentSelection({ ticketId: null, files: [] });
@@ -2671,6 +2758,7 @@ export default function HelpDesk() {
     setActiveQueue(queue);
     setPage(1);
     setActiveTicketId(null);
+    setPortraitView("list");
     setAttachmentSelection({ ticketId: null, files: [] });
     setTicketRows([]);
     toast.info(`${queue[0].toUpperCase()}${queue.slice(1)} tickets loaded`, {
@@ -3241,9 +3329,17 @@ export default function HelpDesk() {
             (ticket) => ticket.id !== ticketId,
           );
 
+          // Narrow screens go back to the list rather than opening the
+          // next ticket unasked.
+          const narrow = isBelowLg();
+          if (narrow && ticketId === currentActiveSupportTicketIdRef.current) {
+            setPortraitView("list");
+          }
           const nextTicket =
             ticketId === currentActiveSupportTicketIdRef.current
-              ? (remainingRows[0] ?? null)
+              ? narrow
+                ? null
+                : (remainingRows[0] ?? null)
               : undefined;
 
           if (nextTicket !== undefined) {
@@ -3455,10 +3551,17 @@ export default function HelpDesk() {
     setIsFilterOpen(false);
   };
 
+  // Below `lg` the conversation pane (and its placeholders) show only when
+  // a ticket is open and the user has chosen it; otherwise the list does.
+  const showConversationBelowLg =
+    portraitView === "conversation" && activeTicketId !== null;
+  const conversationPaneClass = showConversationBelowLg ? "flex" : "hidden";
+
   return (
     <div className="flex h-svh min-h-0 flex-col overflow-hidden border-y">
       <div className="flex min-h-0 flex-1">
         <TicketListPanel
+          className={showConversationBelowLg ? "hidden" : "flex"}
           rows={ticketRows}
           activeTicketId={activeSupportTicket?.id ?? null}
           activeQueue={activeQueue}
@@ -3497,11 +3600,21 @@ export default function HelpDesk() {
         />
         {(FetchSupportTicketsLoading || FetchSupportTicketDetailsIsLoading) &&
         activeSupportTicket?.id !== activeTicketId ? (
-          <div className="flex min-w-0 flex-1 items-center justify-center">
+          <div
+            className={cn(
+              "min-w-0 flex-1 items-center justify-center lg:flex",
+              conversationPaneClass,
+            )}
+          >
             <LoadingState label="Loading conversation…" />
           </div>
         ) : linkedTicketMissing ? (
-          <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
+          <div
+            className={cn(
+              "min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center lg:flex",
+              conversationPaneClass,
+            )}
+          >
             <IconInbox className="mb-1 size-6 text-muted-foreground opacity-40" />
             <Typography variant="small" as="p">
               Ticket Not Found
@@ -3520,7 +3633,12 @@ export default function HelpDesk() {
             </Button>
           </div>
         ) : !activeSupportTicket ? (
-          <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
+          <div
+            className={cn(
+              "min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center lg:flex",
+              conversationPaneClass,
+            )}
+          >
             <IconInbox className="mb-1 size-6 text-muted-foreground opacity-40" />
             <Typography variant="small" as="p">
               No ticket selected
@@ -3531,6 +3649,14 @@ export default function HelpDesk() {
           </div>
         ) : (
           <ConversationPanel
+            className={conversationPaneClass}
+            onBack={() => {
+              // Closes the ticket, not just the pane: leaving it open would
+              // keep its id in the URL, and a refresh would reopen it.
+              setPortraitView("list");
+              setActiveTicketId(null);
+            }}
+            onShowDetails={() => setIsDetailsOpen(true)}
             storeCode={storeCode}
             ticket={activeSupportTicket}
             messages={supportTikcetMessages}
@@ -3593,6 +3719,8 @@ export default function HelpDesk() {
           <TicketInsightsPlaceholder label="Select a ticket to see the customer's details." />
         ) : (
           <CustomerDetailsPanel
+            open={isDetailsOpen}
+            onOpenChange={setIsDetailsOpen}
             customerData={ticketCustomer}
             orders={ticketCustomer?.orders}
             ordersLoading={FetchSupportTicketDetailsIsLoading}

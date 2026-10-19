@@ -24,11 +24,15 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
 import { ConversationRow } from "@/components/custom/conversation-row";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
-import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
+import {
+  CustomerDetailsButton,
+  CustomerDetailsPanel,
+} from "@/components/custom/customer-details-panel";
 import {
   CrmLinkButton,
   CustomerContact,
@@ -82,6 +86,7 @@ import {
 import { type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import {
   IconAlertTriangle,
+  IconArrowLeft,
   IconFilter,
   IconHeadset,
   IconLock,
@@ -971,6 +976,16 @@ export default function Support() {
     normalizeThreads(FetchThreadsListData?.results),
   );
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  // Below `lg` there is room for the chat list or the conversation, not
+  // both. This only picks which one shows there. A chat id in the URL (a
+  // deep link, or a refresh after the user opened one) shows the
+  // conversation; with none, it shows the list. That only holds because
+  // narrow screens never open a chat on their own — see `fallbackThreadId`
+  // — so an id in the URL means the user chose it.
+  const isBelowLg = useIsBelowLg();
+  const [portraitView, setPortraitView] = useState<"list" | "conversation">(
+    chatParam ? "conversation" : "list",
+  );
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
   const [handlerEvents, setHandlerEvents] = useState<HandlerEvent[]>([]);
   const [connectedAgent, setConnectedAgent] = useState<string | null>(null);
@@ -989,6 +1004,8 @@ export default function Support() {
   // Attaching a real customer to a chat a guest started, offered from the
   // conversation header where the guest's name sits.
   const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
+  // Below `xl` the customer details open as a sheet from the header.
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
@@ -1147,7 +1164,11 @@ export default function Support() {
   const urlThreadExists =
     !!chatParam &&
     filterScopedThreads.some((thread) => thread.id === chatParam);
-  const fallbackThreadId = filterScopedThreads[0]?.id ?? null;
+  // No first-chat default on a narrow screen: there the list is the landing
+  // view and a chat opens only when tapped.
+  const fallbackThreadId = isBelowLg
+    ? null
+    : (filterScopedThreads[0]?.id ?? null);
   const desiredThreadId =
     threadsReady && (urlThreadExists || fallbackThreadId)
       ? urlThreadExists
@@ -1296,6 +1317,9 @@ export default function Support() {
     : connectedAgentName;
   const showAiResponding = selectedThread?.ai_responding === true;
 
+  useEffect(() => {
+    console.log("selectedThread>>>", selectedThread);
+  }, [selectedThread]);
   const threadTabCounts = useMemo(
     () => ({
       needs_human: visibleThreads.filter((thread) => thread.need_escalation)
@@ -1749,6 +1773,7 @@ export default function Support() {
         ),
       );
       setSelectedThreadId(threadId);
+      setPortraitView("conversation");
       setAttachments([]);
       setAppliedChatParam(threadId);
       router.replace(`${pathname}?chat=${encodeURIComponent(threadId)}`, {
@@ -2224,9 +2249,19 @@ export default function Support() {
     }
   };
 
+  // Below `lg` the conversation shows only when a chat is open and chosen;
+  // otherwise the list does.
+  const showConversationBelowLg =
+    portraitView === "conversation" && activeThreadId !== null;
+
   return (
     <SidebarProvider
-      style={{ "--sidebar-width": "350px" } as CSSProperties}
+      // The chat list scales with the screen: 350px on a large monitor, but
+      // about 280px at a 1280px laptop width, where a fixed 350px left the
+      // conversation squeezed between the list and the details panel.
+      style={
+        { "--sidebar-width": "clamp(17rem, 22vw, 350px)" } as CSSProperties
+      }
       className="h-svh min-h-0 w-full overflow-hidden"
     >
       {/* Conversations list — the nested sidebar from the sidebar-09 block. */}
@@ -2235,7 +2270,10 @@ export default function Support() {
           the app's own navigation stays on the grey sidebar surface. */}
       <Sidebar
         collapsible="none"
-        className="hidden border-r bg-background md:flex"
+        className={cn(
+          "w-full border-r bg-background lg:flex lg:w-(--sidebar-width)",
+          showConversationBelowLg ? "hidden" : "flex",
+        )}
       >
         <SidebarHeader className="gap-0 p-0">
           <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
@@ -2551,13 +2589,41 @@ export default function Support() {
       </Sidebar>
 
       {/* Conversation + thread details. */}
-      <SidebarInset className="min-h-0 overflow-hidden">
+      <SidebarInset
+        className={cn(
+          "min-h-0 min-w-0 overflow-hidden lg:flex",
+          showConversationBelowLg ? "flex" : "hidden",
+        )}
+      >
         {activeThreadId ? (
           <div className="flex h-full min-h-0">
             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
               <header className="flex h-16 shrink-0 items-center border-b bg-background px-4">
                 <div className="flex w-full items-center justify-between gap-3">
                   <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Back to chat list"
+                      className="-ml-2 shrink-0 lg:hidden"
+                      onClick={() => {
+                        // Closes the chat, not just the pane: its id would
+                        // otherwise stay in the URL and a refresh would
+                        // reopen it.
+                        setPortraitView("list");
+                        const params = new URLSearchParams(
+                          searchParams?.toString() ?? "",
+                        );
+                        params.delete("chat");
+                        const query = params.toString();
+                        router.replace(
+                          query ? `${pathname}?${query}` : (pathname ?? "/"),
+                          { scroll: false },
+                        );
+                      }}
+                    >
+                      <IconArrowLeft />
+                    </Button>
                     <CustomerAvatar
                       name={
                         selectedThread?.customer?.name ||
@@ -2597,6 +2663,9 @@ export default function Support() {
                   </div>
 
                   <div className="flex shrink-0 items-center gap-3">
+                    <CustomerDetailsButton
+                      onClick={() => setIsDetailsOpen(true)}
+                    />
                     <Button
                       variant="outline"
                       size="sm"
@@ -2711,6 +2780,8 @@ export default function Support() {
             </div>
 
             <CustomerDetailsPanel
+              open={isDetailsOpen}
+              onOpenChange={setIsDetailsOpen}
               currentThreadId={activeThreadId}
               customerData={selectedThread?.customer || null}
               userMetadata={FetchUserMetadataData}

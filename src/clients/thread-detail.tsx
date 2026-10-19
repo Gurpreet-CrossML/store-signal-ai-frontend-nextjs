@@ -23,7 +23,10 @@ import {
 
 import MessagePan from "@/components/custom/message-pan";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
-import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
+import {
+  CustomerDetailsButton,
+  CustomerDetailsPanel,
+} from "@/components/custom/customer-details-panel";
 import {
   CrmLinkButton,
   CustomerContact,
@@ -392,6 +395,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
 
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
   const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
+  // Below `xl` the customer details open as a sheet from the header.
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
 
   useEffect(() => {
@@ -586,6 +591,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             </>
           )}
         </div>
+        <CustomerDetailsButton onClick={() => setIsDetailsOpen(true)} />
       </header>
 
       <div className="flex min-h-0 flex-1">
@@ -708,6 +714,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         </div>
 
         <CustomerDetailsPanel
+          open={isDetailsOpen}
+          onOpenChange={setIsDetailsOpen}
           currentThreadId={threadId}
           // The detail response carries the customer's id and their name
           // and email as separate fields; the panel wants them together.
