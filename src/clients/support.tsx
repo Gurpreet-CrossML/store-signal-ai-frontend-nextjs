@@ -1366,6 +1366,16 @@ export default function Support() {
           if (activeThreadIdRef.current === activeThreadId) {
             setThreadMessages(result.messages ?? []);
             setHandlerEvents(result.handler_events ?? []);
+            // Refresh the typing state from the thread details. The list can
+            // still contain `true` when the AI finished while this thread was
+            // not open and therefore had no active chat socket.
+            setLocalThreads((prev) =>
+              prev.map((thread) =>
+                thread.id === activeThreadId
+                  ? { ...thread, ai_responding: result.ai_responding }
+                  : thread,
+              ),
+            );
             // Threads added over the socket have no phone or past-chat
             // count; fill them in from this thread's details.
             if (result.customer) {
