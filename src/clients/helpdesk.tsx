@@ -180,8 +180,8 @@ import {
   startOfDay,
 } from "@/lib/helpers";
 
-const CKEditorTextArea = dynamic(
-  () => import("@/components/custom/ckeditor-text-area"),
+const RichTextArea = dynamic(
+  () => import("@/components/custom/rich-text-area"),
   {
     ssr: false,
   },
@@ -1537,7 +1537,7 @@ function ConversationPanel({
                       attachments={message.attachments}
                       pendingFiles={message.pendingFiles}
                     />
-                    <div className="text-sm leading-6 text-foreground [&_p]:mb-2 [&_p:last-child]:mb-0">
+                    <div className="rich-text-render text-sm leading-6 [overflow-wrap:anywhere] text-foreground">
                       <ReactMarkdown>{message.message}</ReactMarkdown>
                     </div>
                     <Typography
@@ -1588,7 +1588,7 @@ function ConversationPanel({
             ))}
           </div>
         )}
-        <CKEditorTextArea
+        <RichTextArea
           id="ticket-reply-editor"
           value={reply}
           onChange={onReplyChange}
