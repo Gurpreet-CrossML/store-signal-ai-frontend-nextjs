@@ -77,6 +77,9 @@ const TAG_DESCRIPTION_MAX = 120;
 
 const TAG_MIN = 3;
 
+const NAME_MAX_MESSAGE = `Tag name must be ${TAG_NAME_MAX} characters or fewer`;
+const DESCRIPTION_MAX_MESSAGE = `Description must be ${TAG_DESCRIPTION_MAX} characters or fewer`;
+
 // Rules run in order and the first failure is the one shown, so an empty
 // field says it is required rather than that it is too short.
 const tagSchema = z.object({
@@ -85,17 +88,14 @@ const tagSchema = z.object({
     .trim()
     .min(1, "Tag name is required")
     .min(TAG_MIN, `Tag name must be at least ${TAG_MIN} characters`)
-    .max(TAG_NAME_MAX, `Tag name must be ${TAG_NAME_MAX} characters or fewer`),
+    .max(TAG_NAME_MAX, NAME_MAX_MESSAGE),
   color: z.string().regex(HEX_REGEX, "Enter a valid hex color"),
   description: z
     .string()
     .trim()
     .min(1, "Description is required")
     .min(TAG_MIN, `Description must be at least ${TAG_MIN} characters`)
-    .max(
-      TAG_DESCRIPTION_MAX,
-      `Description must be ${TAG_DESCRIPTION_MAX} characters or fewer`,
-    ),
+    .max(TAG_DESCRIPTION_MAX, DESCRIPTION_MAX_MESSAGE),
 });
 
 type TagFormValues = z.infer<typeof tagSchema>;
@@ -384,8 +384,17 @@ export default function Tags() {
                       />
                     )}
                   </Field>
-                  {errors.name && touched.name && (
-                    <p className="text-xs text-destructive">{errors.name}</p>
+                  {/* The input stops accepting text at the limit, so the
+                      schema's length error can never fire; say so here. */}
+                  {values.name.length >= TAG_NAME_MAX ? (
+                    <p className="text-xs text-destructive">
+                      {NAME_MAX_MESSAGE}
+                    </p>
+                  ) : (
+                    errors.name &&
+                    touched.name && (
+                      <p className="text-xs text-destructive">{errors.name}</p>
+                    )
                   )}
                 </div>
 
@@ -448,14 +457,24 @@ export default function Tags() {
                   {/* Error and counter share one row, so the message sits
                       right under the field instead of below a gap. */}
                   <div className="flex items-start justify-between gap-3">
-                    {errors.description && touched.description ? (
+                    {values.description.length >= TAG_DESCRIPTION_MAX ? (
+                      <p className="text-xs text-destructive">
+                        {DESCRIPTION_MAX_MESSAGE}
+                      </p>
+                    ) : errors.description && touched.description ? (
                       <p className="text-xs text-destructive">
                         {errors.description}
                       </p>
                     ) : (
                       <span />
                     )}
-                    <p className="shrink-0 text-xs text-muted-foreground">
+                    <p
+                      className={cn(
+                        "shrink-0 text-xs text-muted-foreground",
+                        values.description.length >= TAG_DESCRIPTION_MAX &&
+                          "text-destructive",
+                      )}
+                    >
                       {values.description.length}/{TAG_DESCRIPTION_MAX}
                     </p>
                   </div>
