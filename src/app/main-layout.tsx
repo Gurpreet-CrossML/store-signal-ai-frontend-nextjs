@@ -19,7 +19,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
-import { SubSidebarControlContext } from "@/components/custom/sub-sidebar-context";
 import { isAuthPage } from "@/lib/auth-routes";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/hooks";
@@ -138,33 +137,24 @@ export default function MainLayout({
           className={subSidebarOverlays ? "shadow-2xl" : undefined}
         />
       </Suspense>
-      <SubSidebarControlContext.Provider
-        value={{
-          available: hasSubSidebar,
-          hidden: subSidebarHidden,
-          toggle: toggleSubSidebar,
-          items: subSidebarItems?.items ?? [],
-        }}
-      >
-        <SidebarInset>
-          {/* Reads Shopify's OAuth return params from the query string. */}
-          <Suspense fallback={null}>
-            <ShopifyOauthReturn />
-            <OnboardingDrawer />
-          </Suspense>
-          <div className="flex flex-1 flex-col">
-            <div className="@container/main flex flex-1 flex-col gap-2">
-              {/* No vertical padding here: each page owns its spacing with a
+      <SidebarInset>
+        {/* Reads Shopify's OAuth return params from the query string. */}
+        <Suspense fallback={null}>
+          <ShopifyOauthReturn />
+          <OnboardingDrawer />
+        </Suspense>
+        <div className="flex flex-1 flex-col">
+          <div className="@container/main flex flex-1 flex-col gap-2">
+            {/* No vertical padding here: each page owns its spacing with a
                 uniform p-4 container, and the full-bleed screens (help desk,
                 live support, social inbox/feed) fill the viewport edge to
                 edge. Padding added here would double up on every page. */}
-              <div className={cn("flex flex-col", "h-full")}>
-                {GetStoresIsLoading ? <StoreLoading /> : children}
-              </div>
+            <div className={cn("flex flex-col", "h-full")}>
+              {GetStoresIsLoading ? <StoreLoading /> : children}
             </div>
           </div>
-        </SidebarInset>
-      </SubSidebarControlContext.Provider>
+        </div>
+      </SidebarInset>
     </SidebarProvider>
   );
 }
