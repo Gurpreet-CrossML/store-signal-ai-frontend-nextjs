@@ -1943,7 +1943,7 @@ function TicketInsightsPlaceholder({
   label: string;
 }) {
   return (
-    <aside className="hidden w-80 shrink-0 flex-col items-center justify-center border-l px-6 text-center xl:flex 2xl:w-95">
+    <aside className="hidden w-72 shrink-0 flex-col items-center justify-center border-l px-6 text-center xl:flex 2xl:w-95">
       {loading ? (
         <LoadingState label={label} />
       ) : (

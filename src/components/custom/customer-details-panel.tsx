@@ -136,7 +136,7 @@ export function CustomerDetailsPanel({
 
   return (
     <>
-      <aside className="hidden min-h-0 w-80 shrink-0 flex-col border-l xl:flex 2xl:w-95">
+      <aside className="hidden min-h-0 w-72 shrink-0 flex-col border-l xl:flex 2xl:w-95">
         {content}
       </aside>
       {onOpenChange ? (

@@ -2256,7 +2256,12 @@ export default function Support() {
 
   return (
     <SidebarProvider
-      style={{ "--sidebar-width": "350px" } as CSSProperties}
+      // The chat list scales with the screen: 350px on a large monitor, but
+      // about 280px at a 1280px laptop width, where a fixed 350px left the
+      // conversation squeezed between the list and the details panel.
+      style={
+        { "--sidebar-width": "clamp(17rem, 22vw, 350px)" } as CSSProperties
+      }
       className="h-svh min-h-0 w-full overflow-hidden"
     >
       {/* Conversations list — the nested sidebar from the sidebar-09 block. */}
