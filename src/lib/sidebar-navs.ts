@@ -305,11 +305,10 @@ export const sidebarMenus: SideBarMenus = {
       permission: "conversations",
     },
     areaMenuItem("helpdesk", { permission: "conversations" }),
-    // Social AI and Campaign are disabled for now (their layouts redirect to "/").
-    // // Social AI is admin-only until its roles are decided.
-    // areaMenuItem("socialAI", { adminOnly: true }),
+    // Social AI is admin-only until its roles are decided.
+    areaMenuItem("socialAI", { adminOnly: true }),
     areaMenuItem("crm", { permission: "conversations" }),
-    // areaMenuItem("campaign"),
+    areaMenuItem("campaign"),
     areaMenuItem("brandVoice", { adminOnly: true }),
     areaMenuItem("settings", { adminOnly: true }),
     areaMenuItem("knowledge", { permission: "knowledge" }),
