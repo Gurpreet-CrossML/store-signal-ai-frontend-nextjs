@@ -13,30 +13,30 @@ import {
   IconBrandMeta,
   IconBuildingSkyscraper,
   IconChecklist,
-  // IconClockShield, // used by a disabled screen
+  IconClockShield,
   IconCreditCardOff,
   IconImageGeneration,
   IconHeadset,
   IconInbox,
-  // IconMessageCircle, // used by a disabled screen
+  IconMessageCircle,
   IconLibrary,
-  // IconMessages, // used by a disabled screen
-  // IconSocial, // used by a disabled screen
+  IconMessages,
+  IconSocial,
   IconPackageOff,
   IconSend,
   IconSettings,
-  // IconShield, // used by a disabled screen
+  IconShield,
   IconBuildingStore,
   IconSpeakerphone,
   IconTags,
   IconUserHexagon,
-  // IconUsers, // used by a disabled screen
-  // IconUser, // used by a disabled screen
+  IconUsers,
+  IconUser,
   IconUsersGroup,
   IconShoppingBag,
   IconVolume,
   type Icon,
-  // IconChartBar, // used by a disabled screen
+  IconChartBar,
   IconPackage,
 } from "@tabler/icons-react";
 
@@ -169,15 +169,14 @@ export const NAV_AREAS = {
           "Your company's contact details, logo, and address. The name and code are managed by the platform operator.",
         icon: IconBuildingSkyscraper,
       },
-      // Disabled for now: Staff Management is not available.
-      // {
-      //   href: "/settings/staff-management",
-      //   title: "Staff Management",
-      //   description: "Invite teammates and choose what each one can do.",
-      //   pageDescription:
-      //     "Manage your company's users and their roles. New staff receive an emailed temporary password.",
-      //   icon: IconUsers,
-      // },
+      {
+        href: "/settings/staff-management",
+        title: "Staff Management",
+        description: "Invite teammates and choose what each one can do.",
+        pageDescription:
+          "Manage your company's users and their roles. New staff receive an emailed temporary password.",
+        icon: IconUsers,
+      },
       {
         href: "/settings/store",
         title: "Stores",
@@ -200,69 +199,68 @@ export const NAV_AREAS = {
       //   description: "Connect your store and third-party platforms.",
       //   icon: IconPlugConnected,
       // },
-      // Disabled for now: AI Usage and Social AI (settings) are not available.
-      // {
-      //   href: "/settings/ai-usage",
-      //   title: "AI Usage",
-      //   description: "What the assistant costs to run, and how hard it works.",
-      //   pageDescription:
-      //     "Token spend, workflow costs and response latency for this store's assistant.",
-      //   icon: IconChartBar,
-      // },
-      // {
-      //   href: "/settings/social-ai",
-      //   title: "Social AI",
-      //   description:
-      //     "Connected accounts, and how the AI answers comments and DMs.",
-      //   pageDescription:
-      //     "The Facebook and Instagram accounts connected to Store Signal AI, and the rules the AI follows when it answers on them.",
-      //   icon: IconBrandMeta,
-      //   items: [
-      //     {
-      //       href: "/settings/social-ai/accounts",
-      //       title: "Connected Accounts",
-      //       description:
-      //         "Facebook and Instagram accounts connected to Store Signal AI.",
-      //       pageDescription:
-      //         "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
-      //       icon: IconSocial,
-      //     },
-      //     {
-      //       href: "/settings/social-ai/comment-handling",
-      //       title: "Comment Handling",
-      //       description: "How the AI reads, classifies and acts on comments.",
-      //       pageDescription:
-      //         "How the AI reads, classifies and acts on every comment on your posts and ads. Each comment is tagged by intent, then handled by the rule you set for that intent.",
-      //       icon: IconMessageCircle,
-      //     },
-      //     {
-      //       href: "/settings/social-ai/dm-automation",
-      //       title: "DM Automation",
-      //       description: "How the AI handles direct messages.",
-      //       pageDescription:
-      //         "How the AI handles direct messages — the private, higher-trust channel where orders, support and conversions happen. Meta's messaging rules are applied on top of everything set here.",
-      //       icon: IconMessages,
-      //     },
-      //     {
-      //       href: "/settings/social-ai/guardrails",
-      //       title: "Guardrails & Limits",
-      //       description:
-      //         "Rate and pacing ceilings that keep every account safe.",
-      //       pageDescription:
-      //         "Rate and pacing ceilings, set per connected account, that keep automation well inside spam-safe territory.",
-      //       icon: IconClockShield,
-      //     },
-      //     {
-      //       href: "/settings/social-ai/meta-compliance",
-      //       title: "Meta Compliance",
-      //       description:
-      //         "The platform rails enforced on every connected account.",
-      //       pageDescription:
-      //         "The Meta rules enforced automatically on every connected account, so nothing you configure can put your accounts at risk.",
-      //       icon: IconShield,
-      //     },
-      //   ],
-      // },
+      {
+        href: "/settings/ai-usage",
+        title: "AI Usage",
+        description: "What the assistant costs to run, and how hard it works.",
+        pageDescription:
+          "Token spend, workflow costs and response latency for this store's assistant.",
+        icon: IconChartBar,
+      },
+      {
+        href: "/settings/social-ai",
+        title: "Social AI",
+        description:
+          "Connected accounts, and how the AI answers comments and DMs.",
+        pageDescription:
+          "The Facebook and Instagram accounts connected to Store Signal AI, and the rules the AI follows when it answers on them.",
+        icon: IconBrandMeta,
+        items: [
+          {
+            href: "/settings/social-ai/accounts",
+            title: "Connected Accounts",
+            description:
+              "Facebook and Instagram accounts connected to Store Signal AI.",
+            pageDescription:
+              "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
+            icon: IconSocial,
+          },
+          {
+            href: "/settings/social-ai/comment-handling",
+            title: "Comment Handling",
+            description: "How the AI reads, classifies and acts on comments.",
+            pageDescription:
+              "How the AI reads, classifies and acts on every comment on your posts and ads. Each comment is tagged by intent, then handled by the rule you set for that intent.",
+            icon: IconMessageCircle,
+          },
+          {
+            href: "/settings/social-ai/dm-automation",
+            title: "DM Automation",
+            description: "How the AI handles direct messages.",
+            pageDescription:
+              "How the AI handles direct messages — the private, higher-trust channel where orders, support and conversions happen. Meta's messaging rules are applied on top of everything set here.",
+            icon: IconMessages,
+          },
+          {
+            href: "/settings/social-ai/guardrails",
+            title: "Guardrails & Limits",
+            description:
+              "Rate and pacing ceilings that keep every account safe.",
+            pageDescription:
+              "Rate and pacing ceilings, set per connected account, that keep automation well inside spam-safe territory.",
+            icon: IconClockShield,
+          },
+          {
+            href: "/settings/social-ai/meta-compliance",
+            title: "Meta Compliance",
+            description:
+              "The platform rails enforced on every connected account.",
+            pageDescription:
+              "The Meta rules enforced automatically on every connected account, so nothing you configure can put your accounts at risk.",
+            icon: IconShield,
+          },
+        ],
+      },
       // {
       //   href: "/settings/workflows",
       //   title: "Workflows",

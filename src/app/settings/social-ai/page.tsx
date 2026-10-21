@@ -10,6 +10,5 @@ import { redirect } from "next/navigation";
  * a blank page.
  */
 export default function Page() {
-  // redirect("/settings/social-ai/accounts"); // Social AI settings disabled for now
-  redirect("/");
+  redirect("/settings/social-ai/accounts");
 }
