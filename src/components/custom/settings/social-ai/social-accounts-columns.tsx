@@ -163,6 +163,51 @@ export const SocialAccountsColumns: ColumnDef<ConnectedAccount>[] = [
     },
   },
 
+  // Token — a short status word, with the detail in a hover tooltip.
+  {
+    accessorKey: "token_status",
+    header: "Token",
+    cell: ({ row }) => {
+      const { token_status, days_until_expiry } = row.original;
+      if (token_status === "expired" || token_status === "revoked") {
+        return (
+          <Badge
+            variant="secondary"
+            title="Reconnect this account under Connected Accounts to restore it."
+            className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+          >
+            {token_status === "revoked" ? "Revoked" : "Expired"}
+          </Badge>
+        );
+      }
+      if (days_until_expiry == null) {
+        return (
+          <Badge
+            variant="secondary"
+            title="This connection does not expire."
+            className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+          >
+            Connected
+          </Badge>
+        );
+      }
+      const dueForRefresh = days_until_expiry <= 7;
+      return (
+        <Badge
+          variant="secondary"
+          title={`Expires in ${days_until_expiry} ${days_until_expiry === 1 ? "day" : "days"}.`}
+          className={cn(
+            dueForRefresh
+              ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+              : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+          )}
+        >
+          {dueForRefresh ? "Expiring soon" : "Connected"}
+        </Badge>
+      );
+    },
+  },
+
   {
     accessorKey: "allow_ai_auto_respond",
     header: "AI Auto-Reply",

@@ -59,6 +59,12 @@ export type ConnectedAccount = {
   is_active: boolean;
   // Whether the AI answers this account's comments and DMs on its own.
   allow_ai_auto_respond: boolean;
+  // Token lifecycle — lives on the OAuth subscription, not
+  // this account, but flattened in here by the backend serializer.
+  token_status: "pending" | "in_progress" | "active" | "failed" | "expired" | "revoked";
+  token_expires_at: string | null;
+  // null = never expires; negative = already expired.
+  days_until_expiry: number | null;
   last_event_at: string | null;
   created_at: string;
   updated_at: string;
