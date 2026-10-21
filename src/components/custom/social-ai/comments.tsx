@@ -132,6 +132,7 @@ function CommentItem({
   onHiddenChange,
   disableReply = false,
   disableLike = false,
+  ancestorHidden = false,
 }: {
   comment: SocialComment;
   // The post's external Graph id — the URL scope for comment actions.
@@ -145,7 +146,11 @@ function CommentItem({
   // True when an ancestor comment is deleted or hidden — same cascade,
   // for liking instead of replying.
   disableLike?: boolean;
+  // True when an ancestor comment is hidden — the provider hides the whole
+  // thread under it, but keeps each reply's own is_hidden false.
+  ancestorHidden?: boolean;
 }) {
+  const hidden = comment.is_hidden || ancestorHidden;
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -269,6 +274,14 @@ function CommentItem({
       const created = event.data;
       if (created.parent_message !== comment.id) return;
       if (created.sender_type === "user") return;
+      if (created.sender_type === "ai") {
+        // An approved draft or auto-reply has no pending row here — count
+        // it and open the thread so it shows without a refresh.
+        setLocalReplyCount((count) => count + 1);
+        setRepliesOpened(true);
+        setShowReplies(true);
+        return;
+      }
 
       setPendingReplies((prev) => {
         const match = prev.find((item) => item.content === created.content);
@@ -355,18 +368,20 @@ function CommentItem({
             "inline-block max-w-full rounded-lg px-3 py-2",
             comment.is_deleted
               ? "bg-destructive/10 opacity-70"
-              : comment.is_hidden
+              : hidden
                 ? "bg-muted opacity-60"
                 : "bg-muted",
           )}
         >
           <p className="flex items-center gap-1.5 text-sm leading-tight font-semibold">
-            {(comment.is_deleted || comment.is_hidden) && (
+            {(comment.is_deleted || hidden) && (
               <InfoIcon
                 text={
                   comment.is_deleted
                     ? `This comment was deleted on ${channel.label}. It can't be replied to, liked, or changed.`
-                    : `This comment is hidden on ${channel.label}, so customers can't see it. Unhide it to restore replies and likes.`
+                    : comment.is_hidden
+                      ? `This comment is hidden on ${channel.label}, so customers can't see it. Unhide it to restore replies and likes.`
+                      : `A comment above this reply is hidden on ${channel.label}, so customers can't see it either.`
                 }
               />
             )}
@@ -380,7 +395,7 @@ function CommentItem({
                 AI
               </Badge>
             )}
-            {comment.is_hidden && <Badge variant="outline">Hidden</Badge>}
+            {hidden && <Badge variant="outline">Hidden</Badge>}
             {comment.is_deleted && (
               <Badge variant="secondary" className="text-muted-foreground">
                 Deleted
@@ -425,7 +440,7 @@ function CommentItem({
               )}
             </button>
           )}
-          {!comment.is_deleted && !comment.is_hidden && !disableReply && (
+          {!comment.is_deleted && !hidden && !disableReply && (
             <button
               type="button"
               onClick={() => setShowReplyBox((open) => !open)}
@@ -538,6 +553,7 @@ function CommentItem({
                   disableLike={
                     comment.is_deleted || comment.is_hidden || disableLike
                   }
+                  ancestorHidden={hidden}
                 />
               </div>
             )}
@@ -579,6 +595,7 @@ function CommentsList({
   filters,
   disableReply = false,
   disableLike = false,
+  ancestorHidden = false,
 }: {
   // The post's external Graph id (SocialPost.external_id).
   postId: string;
@@ -588,6 +605,7 @@ function CommentsList({
   filters?: CommentFilters;
   disableReply?: boolean;
   disableLike?: boolean;
+  ancestorHidden?: boolean;
 }) {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
@@ -677,6 +695,8 @@ function CommentsList({
                 comment.id === draftCommentId
                   ? {
                       ...comment,
+                      // The draft is regenerated when its comment is edited.
+                      content: incoming.message.content,
                       has_pending_draft: stillPending,
                       pending_draft: stillPending ? incoming : null,
                     }
@@ -706,6 +726,18 @@ function CommentsList({
           prev.some((comment) => comment.id === message_id)
             ? prev.map((comment) =>
                 comment.id === message_id ? { ...comment, analysis } : comment,
+              )
+            : prev,
+        );
+        return;
+      }
+
+      if (event.action_type === "comment_hidden") {
+        const { message_id, is_hidden } = event.data;
+        setComments((prev) =>
+          prev.some((comment) => comment.id === message_id)
+            ? prev.map((comment) =>
+                comment.id === message_id ? { ...comment, is_hidden } : comment,
               )
             : prev,
         );
@@ -798,6 +830,7 @@ function CommentsList({
               onHiddenChange={handleCommentHiddenChange}
               disableReply={disableReply}
               disableLike={disableLike}
+              ancestorHidden={ancestorHidden}
             />
           </MessageAppear>
         ))}

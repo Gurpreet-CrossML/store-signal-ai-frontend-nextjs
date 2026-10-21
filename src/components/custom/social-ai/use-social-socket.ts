@@ -32,6 +32,14 @@ export type SocialCommentTaggedEvent = {
   analysis: SocialCommentAnalysis;
 };
 
+/** A comment was hidden/unhidden (on Facebook or from the dashboard). */
+export type SocialCommentHiddenEvent = {
+  message_id: number;
+  post_external_id: string | null;
+  account_external_id: string;
+  is_hidden: boolean;
+};
+
 /** A comment's AI reply landed (or was regenerated on a re-tag). */
 export type SocialCommentAiResponseEvent = {
   message_id: number;
@@ -57,6 +65,7 @@ export type SocialSocketEvent =
   | { action_type: "dm_created"; data: SocialDmEvent }
   | { action_type: "comment_created"; data: SocialCommentEvent }
   | { action_type: "comment_tagged"; data: SocialCommentTaggedEvent }
+  | { action_type: "comment_hidden"; data: SocialCommentHiddenEvent }
   | {
       action_type: "comment_ai_response";
       data: SocialCommentAiResponseEvent;
