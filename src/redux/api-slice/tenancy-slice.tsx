@@ -18,9 +18,10 @@ export type CompanyProfile = {
   email: string | null;
   phone: string | null;
   street: string | null;
-  city: { id: number; name: string } | null;
-  state: { id: number; name: string } | null;
-  country: { id: number; name: string } | null;
+  // The API returns location primary keys, not nested objects.
+  city: number | null;
+  state: number | null;
+  country: number | null;
   is_active: boolean;
 };
 
@@ -89,8 +90,10 @@ export const UpdateCompanyProfile = createAsyncThunk(
         logo === null
       ) {
         const fd = new FormData();
+        // null clears a location (DRF reads "" as null); skipping it would leave
+        // the old state/city saved and fail the server's country/state check.
         Object.entries(fields).forEach(([k, v]) => {
-          if (v !== undefined && v !== null) fd.append(k, String(v));
+          if (v !== undefined) fd.append(k, v === null ? "" : String(v));
         });
         fd.append("logo", logo ?? "");
         body = fd;
