@@ -601,7 +601,7 @@ export default function DmsInbox({
 
   useEffect(() => {
     if (storeCode) {
-      dispatch(fetchSocialAccountsSubscriptions(storeCode));
+      dispatch(fetchSocialAccountsSubscriptions({ storeCode }));
     }
   }, [storeCode, dispatch]);
 

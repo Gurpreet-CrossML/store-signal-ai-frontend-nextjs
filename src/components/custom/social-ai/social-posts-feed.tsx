@@ -165,7 +165,7 @@ export default function SocialPostsFeed({
   useEffect(() => {
     if (storeCode) {
       // Fetch the store's connected accounts (client-side channel filter).
-      dispatch(fetchSocialAccountsSubscriptions(storeCode));
+      dispatch(fetchSocialAccountsSubscriptions({ storeCode }));
     }
   }, [storeCode, dispatch]);
 
