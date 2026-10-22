@@ -54,6 +54,8 @@ export const KNOWLEDGE_SOURCE_LABEL: Record<KnowledgeSource, string> = {
   offer: "Offers",
 };
 
+export const FAQ_ANSWER_MAX_LENGTH = 10_000;
+
 export const KNOWLEDGE_SOURCE_ICON: Record<KnowledgeSource, Icon> = {
   text: IconNotes,
   file: IconCloudUpload,

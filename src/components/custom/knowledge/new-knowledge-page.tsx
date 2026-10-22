@@ -43,7 +43,10 @@ import { isValidUrl as isValidSharedUrl, normalizeUrl } from "@/lib/url";
 import { AIScopeField } from "@/components/custom/knowledge/ai-scope-field";
 import { MultiFileUploadDropzone } from "@/components/custom/knowledge/file-upload-dropzone";
 import { MultiSelectCombobox } from "@/components/custom/knowledge/multi-select-combobox";
-import { POLICY_TYPE_OPTIONS } from "@/components/custom/knowledge/knowledge-meta";
+import {
+  FAQ_ANSWER_MAX_LENGTH,
+  POLICY_TYPE_OPTIONS,
+} from "@/components/custom/knowledge/knowledge-meta";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   CreateKnowledgeItemsBulk,
@@ -671,75 +674,83 @@ export function NewKnowledgePage() {
               </div>
 
               {values.source === "faq" &&
-                values.faqRows.map((row, index) => (
-                  <div
-                    key={row.localId}
-                    className="flex flex-col gap-3 rounded-lg border border-border/60 p-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        Item {index + 1}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => removeFaqRow(index)}
-                        aria-label="Remove item"
-                      >
-                        <IconTrash className="size-4" />
-                      </Button>
+                values.faqRows.map((row, index) => {
+                  const serverErrors = rowErrors?.[index];
+                  const questionError =
+                    (showErrors ? faqRowErrors[index]?.question : undefined) ??
+                    firstErrorMessage(serverErrors?.question);
+                  const answerError =
+                    (showErrors ? faqRowErrors[index]?.answer : undefined) ??
+                    firstErrorMessage(serverErrors?.answer);
+
+                  return (
+                    <div
+                      key={row.localId}
+                      className="flex flex-col gap-3 rounded-lg border border-border/60 p-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Item {index + 1}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => removeFaqRow(index)}
+                          aria-label="Remove item"
+                        >
+                          <IconTrash className="size-4" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-col gap-3">
+                        <Field>
+                          <FieldLabel>Question</FieldLabel>
+                          <Input
+                            placeholder="Do you offer free shipping?"
+                            autoComplete="off"
+                            value={row.question}
+                            onChange={(event) =>
+                              updateFaqRow(index, {
+                                question: event.target.value,
+                              })
+                            }
+                            aria-invalid={Boolean(questionError)}
+                          />
+                          {questionError && (
+                            <p className="text-xs text-destructive">
+                              {questionError}
+                            </p>
+                          )}
+                        </Field>
+                        <Field>
+                          <FieldLabel>Answer</FieldLabel>
+                          <Textarea
+                            className="max-h-96 resize-none overflow-y-auto"
+                            rows={1}
+                            placeholder="Yes, orders above ₹999 qualify for free shipping."
+                            maxLength={FAQ_ANSWER_MAX_LENGTH}
+                            value={row.answer}
+                            onChange={(event) =>
+                              updateFaqRow(index, {
+                                answer: event.target.value,
+                              })
+                            }
+                            aria-invalid={Boolean(answerError)}
+                          />
+                          <FieldDescription>
+                            {row.answer.length.toLocaleString()} /{" "}
+                            {FAQ_ANSWER_MAX_LENGTH.toLocaleString()} characters
+                          </FieldDescription>
+                          {answerError && (
+                            <p className="text-xs text-destructive">
+                              {answerError}
+                            </p>
+                          )}
+                        </Field>
+                      </div>
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field>
-                        <FieldLabel>Question</FieldLabel>
-                        <Input
-                          placeholder="Do you offer free shipping?"
-                          autoComplete="off"
-                          value={row.question}
-                          onChange={(event) =>
-                            updateFaqRow(index, {
-                              question: event.target.value,
-                            })
-                          }
-                          aria-invalid={
-                            showErrors && Boolean(faqRowErrors[index]?.question)
-                          }
-                        />
-                        {showErrors && faqRowErrors[index]?.question && (
-                          <p className="text-xs text-destructive">
-                            {faqRowErrors[index]?.question}
-                          </p>
-                        )}
-                      </Field>
-                      <Field>
-                        <FieldLabel>Answer</FieldLabel>
-                        <Textarea
-                          rows={1}
-                          placeholder="Yes, orders above ₹999 qualify for free shipping."
-                          value={row.answer}
-                          onChange={(event) =>
-                            updateFaqRow(index, { answer: event.target.value })
-                          }
-                          aria-invalid={
-                            showErrors && Boolean(faqRowErrors[index]?.answer)
-                          }
-                        />
-                        {showErrors && faqRowErrors[index]?.answer && (
-                          <p className="text-xs text-destructive">
-                            {faqRowErrors[index]?.answer}
-                          </p>
-                        )}
-                      </Field>
-                    </div>
-                    {rowErrors?.[index] &&
-                      Object.keys(rowErrors[index]).length > 0 && (
-                        <p className="text-xs text-destructive">
-                          {firstErrorMessage(rowErrors[index])}
-                        </p>
-                      )}
-                  </div>
-                ))}
+                  );
+                })}
 
               {values.source === "faq" && (
                 <Button
