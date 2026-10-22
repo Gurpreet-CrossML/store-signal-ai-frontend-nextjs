@@ -1951,7 +1951,13 @@ const SocialAISlice = createSlice({
       const index = drafts.results.findIndex(
         (row) => row.id === action.payload.id,
       );
-      if (index === -1) return;
+      if (index === -1) {
+        // A discarded draft reopened (its comment was edited while hidden).
+        if (action.payload.status !== "pending") return;
+        drafts.results.unshift(action.payload);
+        drafts.count = (drafts.count ?? drafts.results.length - 1) + 1;
+        return;
+      }
       if (action.payload.status === "pending") {
         drafts.results[index] = action.payload;
         return;
