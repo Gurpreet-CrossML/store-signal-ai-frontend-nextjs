@@ -2448,7 +2448,7 @@ export default function Support() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="flex items-end gap-3 border-b border-border/70">
+            <div className="flex flex-wrap items-end gap-x-2 gap-y-1 border-b border-border/80">
               {(
                 [
                   { key: "needs_human", label: "Needs human" },
@@ -2485,7 +2485,7 @@ export default function Support() {
                     });
                   }}
                   className={cn(
-                    "-mb-px flex shrink-0 items-center gap-1 border-b-2 px-0.5 pb-2 pt-1 text-xs font-medium transition-colors",
+                    "-mb-px flex min-w-max grow basis-auto items-center justify-center gap-1 border-b-2 px-0.5 pb-2 pt-1 text-xs font-medium whitespace-nowrap transition-colors",
                     activeReadFilter === option.key
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground",
