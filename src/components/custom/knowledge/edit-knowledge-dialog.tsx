@@ -27,7 +27,10 @@ import {
   type AIScope,
   type KnowledgeItem,
 } from "@/redux/api-slice/knowledge-rag-slice";
-import { KNOWLEDGE_TYPE_META } from "@/components/custom/knowledge/knowledge-meta";
+import {
+  FAQ_ANSWER_MAX_LENGTH,
+  KNOWLEDGE_TYPE_META,
+} from "@/components/custom/knowledge/knowledge-meta";
 import { AIScopeField } from "@/components/custom/knowledge/ai-scope-field";
 import {
   formatBytes,
@@ -194,7 +197,9 @@ export function EditKnowledgeDialog({
                   <FieldLabel htmlFor="edit-faq-answer">Answer</FieldLabel>
                   <Textarea
                     id="edit-faq-answer"
+                    className="max-h-96 resize-none overflow-y-auto"
                     rows={3}
+                    maxLength={FAQ_ANSWER_MAX_LENGTH}
                     value={answer}
                     onChange={(event) => {
                       setAnswer(event.target.value);
@@ -207,6 +212,10 @@ export function EditKnowledgeDialog({
                     }}
                     aria-invalid={Boolean(faqErrors.answer)}
                   />
+                  <FieldDescription>
+                    {answer.length.toLocaleString()} /{" "}
+                    {FAQ_ANSWER_MAX_LENGTH.toLocaleString()} characters
+                  </FieldDescription>
                   {faqErrors.answer && (
                     <p className="text-sm text-destructive">
                       {faqErrors.answer}
