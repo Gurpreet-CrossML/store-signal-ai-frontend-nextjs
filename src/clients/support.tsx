@@ -2168,7 +2168,7 @@ export default function Support() {
 
       if (
         data?.success &&
-         data?.action_type === "cart_action_result" &&
+        data?.action_type === "cart_action_result" &&
         data?.final_update
       ) {
         const result = data.final_update;
