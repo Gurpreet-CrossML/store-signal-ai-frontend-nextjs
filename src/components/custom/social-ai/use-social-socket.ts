@@ -32,12 +32,16 @@ export type SocialCommentTaggedEvent = {
   analysis: SocialCommentAnalysis;
 };
 
-/** A comment was hidden/unhidden or edited (on Facebook or the dashboard). */
+/**
+ * A comment was hidden/unhidden, edited or deleted (on Facebook or the
+ * dashboard) — a deleted comment's replies arrive as their own events.
+ */
 export type SocialCommentUpdatedEvent = {
   message_id: number;
   post_external_id: string | null;
   account_external_id: string;
   is_hidden: boolean;
+  is_deleted: boolean;
   content: string;
 };
 

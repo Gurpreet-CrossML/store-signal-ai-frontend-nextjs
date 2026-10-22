@@ -740,12 +740,12 @@ function CommentsList({
       }
 
       if (event.action_type === "comment_updated") {
-        const { message_id, is_hidden, content } = event.data;
+        const { message_id, is_hidden, is_deleted, content } = event.data;
         setComments((prev) =>
           prev.some((comment) => comment.id === message_id)
             ? prev.map((comment) =>
                 comment.id === message_id
-                  ? { ...comment, is_hidden, content }
+                  ? { ...comment, is_hidden, is_deleted, content }
                   : comment,
               )
             : prev,
