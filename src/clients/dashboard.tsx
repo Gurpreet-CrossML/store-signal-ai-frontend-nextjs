@@ -25,7 +25,8 @@ import {
 } from "@/components/custom/dashboard-filters";
 import { InfoIcon } from "@/components/custom/info-icon";
 import { PageHeading } from "@/components/custom/page-heading";
-import { TrendBadge } from "@/components/custom/trend-badge";
+import { Badge } from "@/components/ui/badge";
+import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import { Typography } from "@/components/ui/typography";
 import { custructTimeInHumanReadableFormat } from "@/lib/helpers";
 import { buildDashboardReportHtml } from "@/lib/dashboard-report";
@@ -627,7 +628,14 @@ export default function Dashboard() {
                   ) : (
                     statusBadge
                   )}
-                  <TrendBadge trend={metric.trend} />
+                  {metric.trend && (
+                    <Badge
+                      variant="outline"
+                      className={BADGE_TONE_STYLES[metric.trend.variant]}
+                    >
+                      {metric.trend.label}
+                    </Badge>
+                  )}
                 </CardFooter>
               </Card>
             );
