@@ -18,7 +18,10 @@ export type SocialDmEvent = SocialDm & {
   account_external_id: string;
 };
 
-/** A new comment — the payload adds the post's and account's Graph ids. */
+/**
+ * A new comment, or one hidden/unhidden, edited or deleted since — the
+ * payload adds the post's and account's Graph ids.
+ */
 export type SocialCommentEvent = SocialComment & {
   post_external_id: string | null;
   account_external_id: string;
@@ -57,6 +60,7 @@ export type SocialSocketEvent =
   | { action_type: "dm_created"; data: SocialDmEvent }
   | { action_type: "comment_created"; data: SocialCommentEvent }
   | { action_type: "comment_tagged"; data: SocialCommentTaggedEvent }
+  | { action_type: "comment_updated"; data: SocialCommentEvent }
   | {
       action_type: "comment_ai_response";
       data: SocialCommentAiResponseEvent;
