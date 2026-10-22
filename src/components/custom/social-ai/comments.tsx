@@ -178,15 +178,6 @@ function CommentItem({
   // The pending-draft flag is a snapshot from the list fetch; once the
   // draft is handled here, this hides the chip and bubble without a refetch.
   const [draftResolved, setDraftResolved] = useState(false);
-  // A fresh pending draft broadcast (regenerated, or reopened after an
-  // edit while hidden) shows again even if an earlier one was handled.
-  const [seenPendingDraft, setSeenPendingDraft] = useState(
-    comment.pending_draft,
-  );
-  if (comment.pending_draft !== seenPendingDraft) {
-    setSeenPendingDraft(comment.pending_draft);
-    if (comment.pending_draft) setDraftResolved(false);
-  }
   // The drafts queue is the proven source of every pending draft (texts
   // included) — read this comment's straight from its slot, so the bubble
   // never depends on the per-contact draft route alone.
@@ -740,11 +731,12 @@ function CommentsList({
       }
 
       if (event.action_type === "comment_updated") {
-        const { message_id, is_hidden, is_deleted, content } = event.data;
+        // Only the changed state — the event's list annotations are static.
+        const { id, is_hidden, is_deleted, content } = event.data;
         setComments((prev) =>
-          prev.some((comment) => comment.id === message_id)
+          prev.some((comment) => comment.id === id)
             ? prev.map((comment) =>
-                comment.id === message_id
+                comment.id === id
                   ? { ...comment, is_hidden, is_deleted, content }
                   : comment,
               )
