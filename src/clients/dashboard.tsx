@@ -141,6 +141,16 @@ export default function Dashboard() {
 
   const { range, from, to, channel } = filters;
   const periodLabel = dashboardRangeLabel(filters);
+  // Use the resolved dates (rather than a preset such as "Last 30 days") so
+  // a drill-down remains an exact snapshot of the dashboard metric.
+  const selectedDashboardRange = resolveDashboardRange(filters);
+  const escalationThreadsHref = `/threads?${new URLSearchParams({
+    from: selectedDashboardRange.from,
+    to: selectedDashboardRange.to,
+    is_active: "false",
+    handled_by: "ai_to_agent",
+    ...(channel ? { channel } : {}),
+  }).toString()}`;
 
   useEffect(() => {
     if (!storeCode) return;
@@ -291,11 +301,12 @@ export default function Dashboard() {
         "Shows the share of conversations that needed to be escalated to a human agent, which can highlight where the bot needs support.",
       status: "Escalation Metric",
       statusVariant: "info" as const,
+      href: escalationThreadsHref,
     },
   ];
 
   // Presets keep no dates of their own, so export the range actually on screen.
-  const exportRange = resolveDashboardRange(filters);
+  const exportRange = selectedDashboardRange;
   const exportFileStem = `dashboard_${storeCode || "all-stores"}_${exportRange.from}_to_${exportRange.to}`;
 
   const exportCsv = () => {
