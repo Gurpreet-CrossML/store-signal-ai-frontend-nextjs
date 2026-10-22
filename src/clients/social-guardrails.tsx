@@ -128,7 +128,7 @@ export default function SocialGuardrails() {
     pickedAccountId || (accounts.length ? String(accounts[0].id) : "");
 
   useEffect(() => {
-    if (storeCode) dispatch(fetchSocialAccountsSubscriptions(storeCode));
+    if (storeCode) dispatch(fetchSocialAccountsSubscriptions({ storeCode }));
   }, [dispatch, storeCode]);
 
   return (

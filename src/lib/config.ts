@@ -322,7 +322,8 @@ export const ENDPOINTS = {
   createMetaOAuthUrl: () => `/social/meta/oauth/`,
   fetchSocialAccountsSubscriptions: () =>
     `/social/subscriptions/connected-accounts/`,
-  // PATCH — per-account settings (currently the AI auto-reply toggle).
+  // PATCH — per-account settings (currently the AI auto-reply toggle);
+  // DELETE — disconnect the account (its history is kept).
   updateConnectedAccount: ({ accountId }: { accountId: string }) =>
     `/social/subscriptions/connected-accounts/${accountId}/`,
   fetchSocialPosts: ({ accountId }: { accountId: string }) =>

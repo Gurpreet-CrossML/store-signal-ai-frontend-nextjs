@@ -42,6 +42,9 @@ type MetaOAuthUrlResponse = {
   authorize_url: string;
 };
 
+// What the accounts screen offers for a row — derived by the backend.
+export type ConnectionState = "active" | "needs_reauth" | "disconnected";
+
 export type ConnectedAccount = {
   id: string;
   channel_type: string;
@@ -57,6 +60,11 @@ export type ConnectedAccount = {
   follows_count: number | null;
   webhook_status: string;
   is_active: boolean;
+  // When the account was (last) connected — moves on every reconnect.
+  connected_at: string;
+  // Set once the user disconnects the account; its history is kept.
+  disconnected_at: string | null;
+  connection_state: ConnectionState;
   // Whether the AI answers this account's comments and DMs on its own.
   allow_ai_auto_respond: boolean;
   last_event_at: string | null;
@@ -484,10 +492,20 @@ export type WhatsAppTemplateLibraryResponse = WhatsAppTemplateLibraryItem[];
 
 export const fetchSocialAccountsSubscriptions = createAsyncThunk(
   "fetchSocialAccountsSubscriptions",
-  async (storeCode: string, thunkAPI) => {
+  async (
+    {
+      storeCode,
+      includeDisconnected = false,
+    }: { storeCode: string; includeDisconnected?: boolean },
+    thunkAPI,
+  ) => {
     try {
+      // Disconnected accounts are hidden everywhere except the accounts
+      // screen, which needs them to offer "Reconnect".
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchSocialAccountsSubscriptions()}?store_code=${storeCode}`,
+        `${ENDPOINTS.fetchSocialAccountsSubscriptions()}?store_code=${storeCode}${
+          includeDisconnected ? "&include_disconnected=true" : ""
+        }`,
         {
           useBackend: true,
         },
@@ -787,12 +805,45 @@ export const updateAccountAutoRespond = createAsyncThunk(
   },
 );
 
+export const disconnectSocialAccount = createAsyncThunk(
+  "disconnectSocialAccount",
+  async (
+    { storeCode, accountId }: { storeCode: string; accountId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.delete(
+        `${ENDPOINTS.updateConnectedAccount({ accountId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      toast.success(response.data?.message ?? "Account disconnected.");
+      return response.data.data as ConnectedAccount;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Uh oh! Something went wrong.", {
+        description: bestErrorMessage(
+          data,
+          "Unable to disconnect the account.",
+        ),
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+// `accountId` makes the flow reconnect that one disconnected account;
+// leave it out to connect, or to reauthorize an expired login.
 export const createMetaOAuthUrl = createAsyncThunk(
   "createMetaOAuthUrl",
-  async (storeCode: string, thunkAPI) => {
+  async (
+    { storeCode, accountId }: { storeCode: string; accountId?: string },
+    thunkAPI,
+  ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.createMetaOAuthUrl()}?store_code=${storeCode}`,
+        `${ENDPOINTS.createMetaOAuthUrl()}?store_code=${storeCode}${
+          accountId ? `&account_id=${accountId}` : ""
+        }`,
         {
           useBackend: true,
         },

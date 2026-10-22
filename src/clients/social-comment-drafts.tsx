@@ -180,7 +180,7 @@ export default function SocialCommentDrafts() {
   const pageRef = useRef(1);
 
   useEffect(() => {
-    if (storeCode) dispatch(fetchSocialAccountsSubscriptions(storeCode));
+    if (storeCode) dispatch(fetchSocialAccountsSubscriptions({ storeCode }));
   }, [dispatch, storeCode]);
 
   const loadPageOne = useCallback(() => {
