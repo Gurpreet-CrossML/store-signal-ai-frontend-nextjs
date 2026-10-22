@@ -2136,8 +2136,15 @@ export default function Support() {
         data?.action_type === "message" &&
         data?.final_update
       ) {
+        const isCartAction = Boolean(
+          data.sender === "assistant" &&
+          data.final_update.json_content?.cart_action &&
+          !data.final_update.json_content?.needs_clarification,
+        );
         handleThreadMessageAdded({
-          id: data?.final_update?.id,
+          id: isCartAction
+            ? `cart-action-${activeThreadIdRef.current}`
+            : data?.final_update?.id,
           role: data?.final_update?.role,
           message: data?.final_update?.message,
           json_content: data?.final_update?.json_content || {},
@@ -2154,6 +2161,29 @@ export default function Support() {
                 "Agent")
               : "",
           image_url: data?.final_update?.image_url || null,
+        });
+        setReplyWithAILoadingId(null);
+        return;
+      }
+
+      if (
+        data?.success &&
+        data?.action_type === "cart_action_result" &&
+        data?.final_update
+      ) {
+        const result = data.final_update;
+        setThreadMessages((current) => {
+          const pendingIndex = current.findLastIndex(
+            (message) =>
+              String(message.id).startsWith("cart-action-") &&
+              message.json_content?.cart_action,
+          );
+
+          if (pendingIndex === -1) return [...current, result];
+
+          const updated = [...current];
+          updated[pendingIndex] = { ...updated[pendingIndex], ...result };
+          return updated;
         });
         setReplyWithAILoadingId(null);
         return;

@@ -143,6 +143,7 @@ export type ThreadJsonContent = {
   comparison_block?: ProductComparisonBlock[] | null;
   order_details?: OrderDetail;
   cart_details?: CartDetails;
+  cart_action?: string;
   order_id?: string;
   order_verification_step?: string;
   suggestions?: string[];
