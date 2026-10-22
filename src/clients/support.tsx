@@ -2137,6 +2137,7 @@ export default function Support() {
         data?.final_update
       ) {
         const isCartAction = Boolean(
+          data.sender === "assistant" &&
           data.final_update.json_content?.cart_action &&
           !data.final_update.json_content?.needs_clarification,
         );
