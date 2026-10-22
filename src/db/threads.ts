@@ -53,7 +53,7 @@ export type ListThreadsFilters = {
   has_feedback?: string;
   feedback_rating?: string; // very_bad | bad | neutral | good | excellent
   tags?: string[]; // matches threads tagged with ANY of the given tags
-  handled_by?: string; // ai | human
+  handled_by?: string; // ai | human | ai_to_agent
   channel?: string[]; // whatsapp | web (native/webhook)
   assignee?: string[]; // auth.User email values
   need_escalation?: string;
@@ -257,8 +257,19 @@ export async function list_threads(
     startDate = new Date(todayUtc.getTime() - 30 * 24 * 60 * 60 * 1000);
   }
 
+  // The dashboard's AI-to-agent metric groups date-only ranges in IST. Use
+  // that same boundary for its drill-down, so conversations around midnight
+  // cannot make the two displayed counts diverge.
+  const isDashboardEscalationDrillDown =
+    filters.handled_by === "ai_to_agent" &&
+    !!filters.from &&
+    !!filters.to &&
+    DATE_ONLY_RE.test(filters.from) &&
+    DATE_ONLY_RE.test(filters.to);
   conditions.push(
-    sql`${chatThread.createdAt} BETWEEN ${startDate} AND ${endDate}`,
+    isDashboardEscalationDrillDown
+      ? sql`(${chatThread.createdAt} AT TIME ZONE 'Asia/Kolkata')::date BETWEEN ${filters.from}::date AND ${filters.to}::date`
+      : sql`${chatThread.createdAt} BETWEEN ${startDate} AND ${endDate}`,
   );
 
   if (filters.search) {
@@ -299,6 +310,12 @@ export async function list_threads(
 
   if (filters.handled_by === "ai" || filters.handled_by === "human") {
     conditions.push(eq(chatThread.chatHandler, filters.handled_by));
+  } else if (filters.handled_by === "ai_to_agent") {
+    // An AI-to-agent handoff is represented by a support ticket, which is the
+    // same definition used by the dashboard's Escalation Rate metric.
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM ${supportTicket} WHERE ${supportTicket.threadId} = ${chatThread.id})`,
+    );
   }
 
   const channelCondition = threadChannelScope(filters.channel);

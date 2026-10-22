@@ -36,7 +36,7 @@ export type ThreadFilterState = {
   has_feedback: "" | "true" | "false";
   feedback_rating: FeedbackRating;
   tags: string[];
-  handled_by: "" | "ai" | "human";
+  handled_by: "" | "ai" | "human" | "ai_to_agent";
   channel: "" | "whatsapp" | "web";
   from: string;
   to: string;
@@ -261,6 +261,7 @@ export default function ThreadFilteration({
           { value: "", label: "All Handlers" },
           { value: "ai", label: "AI" },
           { value: "human", label: "Agent" },
+          { value: "ai_to_agent", label: "AI to agent" },
         ]}
       />
 
