@@ -33,6 +33,7 @@ export type ThreadFilterState = {
   is_active: "" | "true" | "false";
   user_type: "" | "guest" | "logged_in";
   has_ticket: "" | "true" | "false";
+  has_order: "" | "true" | "false";
   has_feedback: "" | "true" | "false";
   feedback_rating: FeedbackRating;
   tags: string[];
@@ -47,6 +48,7 @@ export const DEFAULT_THREAD_FILTERS: ThreadFilterState = {
   is_active: "",
   user_type: "",
   has_ticket: "",
+  has_order: "",
   has_feedback: "",
   feedback_rating: "",
   tags: [],
@@ -187,6 +189,7 @@ export default function ThreadFilteration({
     filters.is_active !== "" ||
     filters.user_type !== "" ||
     filters.has_ticket !== "" ||
+    filters.has_order !== "" ||
     filters.has_feedback !== "" ||
     filters.feedback_rating !== "" ||
     filters.tags.length > 0 ||
@@ -245,6 +248,22 @@ export default function ThreadFilteration({
           { value: "", label: "All Tickets" },
           { value: "true", label: "With Ticket" },
           { value: "false", label: "Without Ticket" },
+        ]}
+      />
+
+      <FilterSelect
+        ariaLabel="Filter by order"
+        value={filters.has_order}
+        onChange={(has_order) =>
+          onChange({
+            ...filters,
+            has_order: has_order as ThreadFilterState["has_order"],
+          })
+        }
+        options={[
+          { value: "", label: "All Orders" },
+          { value: "true", label: "With Order" },
+          { value: "false", label: "Without Order" },
         ]}
       />
 

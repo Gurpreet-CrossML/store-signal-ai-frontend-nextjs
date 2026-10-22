@@ -50,6 +50,7 @@ export type ListThreadsFilters = {
   search?: string;
   user_type?: string;
   has_ticket?: string;
+  has_order?: string; // thread has a real order attributed to it (Thread.orders)
   has_feedback?: string;
   feedback_rating?: string; // very_bad | bad | neutral | good | excellent
   tags?: string[]; // matches threads tagged with ANY of the given tags
@@ -101,9 +102,11 @@ function parseDateTimeFilter(
   value: string,
   edge: "start" | "end",
 ): Date | undefined {
+  // A bare date is an IST calendar day, like Django's created_at__date__range
+  // (TIME_ZONE = "Asia/Kolkata") and the dashboard's localDateRange.
   if (DATE_ONLY_RE.test(value)) {
     return new Date(
-      `${value}T${edge === "start" ? "00:00:00.000Z" : "23:59:59.999Z"}`,
+      `${value}T${edge === "start" ? "00:00:00.000" : "23:59:59.999"}+05:30`,
     );
   }
 
@@ -317,6 +320,18 @@ export async function list_threads(
   } else if (filters.has_ticket === "false") {
     conditions.push(
       sql`NOT EXISTS (SELECT 1 FROM ${supportTicket} WHERE ${supportTicket.threadId} = ${chatThread.id})`,
+    );
+  }
+
+  // has_order: thread has a real order attributed to it via the Thread.orders
+  // M2M through-table (set at ingestion by chat.utils.find_linked_thread).
+  if (filters.has_order === "true") {
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM chat_thread_orders cto WHERE cto.thread_id = ${chatThread.id})`,
+    );
+  } else if (filters.has_order === "false") {
+    conditions.push(
+      sql`NOT EXISTS (SELECT 1 FROM chat_thread_orders cto WHERE cto.thread_id = ${chatThread.id})`,
     );
   }
 

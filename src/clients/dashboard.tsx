@@ -25,6 +25,7 @@ import {
 } from "@/components/custom/dashboard-filters";
 import { InfoIcon } from "@/components/custom/info-icon";
 import { PageHeading } from "@/components/custom/page-heading";
+import { TrendBadge } from "@/components/custom/trend-badge";
 import { Typography } from "@/components/ui/typography";
 import { custructTimeInHumanReadableFormat } from "@/lib/helpers";
 import { buildDashboardReportHtml } from "@/lib/dashboard-report";
@@ -32,6 +33,7 @@ import {
   FetchDashboard,
   FetchChatOrderFunnel,
   FetchConversationHistory,
+  type MetricTrend,
 } from "@/redux/api-slice/dashboard-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { subMonths } from "date-fns";
@@ -52,6 +54,8 @@ type SummaryMetric = {
   status: string;
   statusVariant: "success" | "warning" | "neutral" | "info" | "danger";
   href?: string;
+  statusHref?: string;
+  trend?: MetricTrend;
 };
 
 const displayMetricName = (metric: string) =>
@@ -226,76 +230,118 @@ export default function Dashboard() {
     chartTo,
   ]);
 
+  // Presets keep no dates of their own, so resolve the range actually on screen.
+  const exportRange = resolveDashboardRange(filters);
+
+  // Drill-through link to the Threads list, pre-filtered to match a card.
+  // `withDateRange: false` is for live/point-in-time cards (e.g. Active Now),
+  // which aren't tied to the selected period.
+  const threadsHref = (
+    extraParams: Record<string, string>,
+    withDateRange = true,
+  ) => {
+    const params = new URLSearchParams(extraParams);
+    if (withDateRange) {
+      params.set("from", exportRange.from);
+      params.set("to", exportRange.to);
+    }
+    if (channel) params.set("channel", channel);
+    return `/threads?${params.toString()}`;
+  };
+
   const performanceSummaryMetrics: SummaryMetric[] = [
     {
       label: "CSAT Score",
       value: `${FetchFeedbackInsightsData?.csat_score?.percentage || 0}%`,
-      infoText:
-        "Shows how satisfied customers were after interacting with the chatbot, based on submitted feedback and ratings.",
+      infoText: "Formula: (good + excellent ratings ÷ all ratings) × 100.",
       status: "Customer Satisfaction",
       statusVariant: "info" as const,
+      trend: FetchFeedbackInsightsData?.csat_score?.trend,
     },
     {
       label: "Conversion Rate",
       value: `${FetchConversionRateData?.percentage || 0}%`,
       infoText:
-        "Percentage of chatbot sessions where the user clicked a checkout link, out of all sessions in the selected period.",
+        "Formula: (sessions with a real order attributed to them ÷ total sessions) × 100.",
       status: `${FetchConversionRateData?.converted_count || 0} of ${FetchConversionRateData?.total_count || 0} sessions`,
       statusVariant: "info" as const,
+      trend: FetchConversionRateData?.trend,
+      href: threadsHref({ has_order: "true" }),
+      statusHref: threadsHref({ has_order: "true" }),
     },
     {
       label: "Total Sessions",
       value: FetchEngagementData?.total_threads?.toLocaleString() || "0",
       infoText:
-        "Shows how many chatbot sessions happened in the selected time range, so you can quickly understand overall traffic volume.",
+        "Formula: count of chat sessions started in the selected date range.",
       status: "All Sessions",
       statusVariant: "neutral" as const,
+      trend: FetchEngagementData?.total_threads_trend,
+      href: threadsHref({}),
     },
     {
-      label: "Active Sessions",
+      label: "Active Now",
       value: FetchThreadCountsData?.active.toLocaleString() || "0",
       infoText:
-        "Shows the number of sessions currently marked as active in the analytics data, helping you gauge current engagement.",
+        "Formula: count of sessions currently open (not yet closed), right now. A live count, so there's no previous period to compare it to.",
       status: `${FetchThreadCountsData.needsHuman || 0} need a human`,
       statusVariant: "danger" as const,
-      href: "/support?filter=needs_human",
+      // The count is every active chat; only the "needs a human" sub-line
+      // goes to the filtered queue.
+      href: "/support?filter=all",
+      statusHref: "/support?filter=needs_human",
+      // No trend: this is a point-in-time gauge, not a period total.
     },
     {
       label: "Avg Response Time",
       value: `${FetchEngagementData?.avg_response_time_seconds?.toFixed(2) || "0.00"}s`,
       infoText:
-        "Shows how quickly the chatbot usually replies after a customer message. Lower response times generally mean a smoother experience.",
+        "Formula: average response time across every AI reply in a session, averaged across sessions.",
       status: "Response Metric",
       statusVariant: "info" as const,
+      trend: FetchEngagementData?.avg_response_time_trend,
     },
     {
       label: "Avg Handle Time",
       value: `${custructTimeInHumanReadableFormat(FetchFeedbackInsightsData?.avg_handle_time?.value || 0, FetchFeedbackInsightsData?.avg_handle_time?.unit)}`,
       infoText:
-        "Shows the average time taken to handle a conversation from start to finish, including resolution.",
+        "Formula: average of (last message time − first message time), per session.",
       status: "Per Session",
       statusVariant: "info" as const,
+      trend: FetchFeedbackInsightsData?.avg_handle_time?.trend,
     },
     {
-      label: "Resolution Rate",
+      label: "AI Resolution Rate",
       value: `${FetchOperationalEfficiencyData?.bot_resolution_rate?.percentage || 0}%`,
       infoText:
-        "Shows the share of conversations that were fully resolved by the chatbot without needing handoff to a human agent.",
-      status: "Resolution Metric",
+        "Formula: (closed chats still handled by AI, with no support ticket raised ÷ total closed chats) × 100.",
+      status: `${FetchOperationalEfficiencyData?.bot_resolution_rate?.count || 0} of ${FetchOperationalEfficiencyData?.bot_resolution_rate?.total || 0} chats`,
       statusVariant: "info" as const,
+      trend: FetchOperationalEfficiencyData?.bot_resolution_rate?.trend,
+      href: threadsHref({
+        is_active: "false",
+        handled_by: "ai",
+        has_ticket: "false",
+      }),
+      statusHref: threadsHref({
+        is_active: "false",
+        handled_by: "ai",
+        has_ticket: "false",
+      }),
     },
     {
       label: "Escalation Rate",
       value: `${FetchOperationalEfficiencyData?.escalation_rate?.percentage || 0}%`,
       infoText:
-        "Shows the share of conversations that needed to be escalated to a human agent, which can highlight where the bot needs support.",
-      status: "Escalation Metric",
+        "Formula: (chats with a support ticket ÷ all chats the AI started) × 100.",
+      status: `${FetchOperationalEfficiencyData?.escalation_rate?.count || 0} of ${FetchOperationalEfficiencyData?.escalation_rate?.total || 0} chats`,
       statusVariant: "info" as const,
+      trend: FetchOperationalEfficiencyData?.escalation_rate?.trend,
+      href: threadsHref({ has_ticket: "true" }),
+      statusHref: threadsHref({ has_ticket: "true" }),
     },
   ];
 
-  // Presets keep no dates of their own, so export the range actually on screen.
-  const exportRange = resolveDashboardRange(filters);
   const exportFileStem = `dashboard_${storeCode || "all-stores"}_${exportRange.from}_to_${exportRange.to}`;
 
   const exportCsv = () => {
@@ -539,7 +585,24 @@ export default function Dashboard() {
               info: "bg-primary/10 text-primary",
               danger: "bg-red-100 text-red-600",
             };
-            const card = (
+            const value = (
+              <Typography variant="h3" as="p">
+                {metric.value}
+              </Typography>
+            );
+            const statusBadge = (
+              <span
+                className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${statusColors[metric.statusVariant]}`}
+              >
+                {metric.status}
+              </span>
+            );
+
+            // The value and the status pill link independently (e.g. Active
+            // Now's count goes to all active chats, its "needs a human"
+            // sub-line to a different, filtered queue) — never one link
+            // wrapping the whole card, which would force both to agree.
+            return (
               <Card key={metric.label} size="sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-1.5">
@@ -550,26 +613,23 @@ export default function Dashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Typography variant="h3" as="p">
-                    {metric.value}
-                  </Typography>
+                  {metric.href ? (
+                    <Link href={metric.href} className="block">
+                      {value}
+                    </Link>
+                  ) : (
+                    value
+                  )}
                 </CardContent>
-                <CardFooter>
-                  <span
-                    className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${statusColors[metric.statusVariant]}`}
-                  >
-                    {metric.status}
-                  </span>
+                <CardFooter className="justify-between gap-1.5">
+                  {metric.statusHref ? (
+                    <Link href={metric.statusHref}>{statusBadge}</Link>
+                  ) : (
+                    statusBadge
+                  )}
+                  <TrendBadge trend={metric.trend} />
                 </CardFooter>
               </Card>
-            );
-
-            return metric.href ? (
-              <Link key={metric.label} href={metric.href} className="block">
-                {card}
-              </Link>
-            ) : (
-              card
             );
           })}
         </div>

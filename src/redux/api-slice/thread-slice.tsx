@@ -12,6 +12,7 @@ type ThreadFilters = {
   need_escalation?: boolean;
   user_type?: string;
   has_ticket?: boolean;
+  has_order?: boolean;
   has_feedback?: boolean;
   feedback_rating?: string;
   tags?: (string | ThreadTagData)[];

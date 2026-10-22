@@ -15,17 +15,7 @@ import {
   sentimentAnalysis,
   supportTicket,
 } from "@/lib/drizzle/schema";
-import {
-  and,
-  eq,
-  gt,
-  gte,
-  lte,
-  inArray,
-  notInArray,
-  isNotNull,
-  sql,
-} from "drizzle-orm";
+import { and, eq, gt, gte, lte, inArray, isNotNull, sql } from "drizzle-orm";
 
 /**
  * Port of the Django analytics "dashboard" serializers (analytics/serializers.py)
@@ -112,6 +102,39 @@ function pyRound(value: number, digits = 0): number {
 }
 
 const round2 = (v: number) => pyRound(v, 2);
+
+// ===========================================================================
+// Trend/change-badge helpers — shared across every KPI card on the dashboard.
+// ===========================================================================
+
+export type MetricTrend = {
+  delta: number;
+  direction: "up" | "down" | "flat";
+  variant: "success" | "warning" | "danger" | "neutral";
+  label: string;
+};
+
+/** The same-length period immediately before [from, to]. */
+function previousPeriodRange(from: string, to: string) {
+  // Inclusive day count: localDateRange is `BETWEEN from AND to`.
+  const length = daysBetween(from, to) + 1;
+  return { from: addDays(from, -length), to: addDays(from, -1) };
+}
+
+function buildTrend(
+  current: number,
+  previous: number,
+  higherIsBetter: boolean,
+  unit: "pts" | "s" | "min" | "",
+): MetricTrend {
+  const delta = round2(current - previous);
+  const direction = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+  const better = higherIsBetter ? delta > 0 : delta < 0;
+  const variant = delta === 0 ? "neutral" : better ? "success" : "danger";
+  const arrow = direction === "up" ? "▲" : direction === "down" ? "▼" : "–";
+  const label = `${arrow} ${Math.abs(delta)}${unit ? ` ${unit}` : ""}`;
+  return { delta, direction, variant, label };
+}
 
 // ===========================================================================
 // 1. ConversionAnalyticsSerializer  →  /analytics/conversion/
@@ -558,13 +581,18 @@ export async function get_conversion_rate(params: {
     .where(threadWhere);
   const totalCount = Number(total);
 
+  // Converted = thread has a real order attributed to it via Thread.orders
+  // (chat_thread_orders through-table), set at ingestion by
+  // chat.utils.find_linked_thread — not just "reached the checkout link".
   const [{ converted }] = await db
-    .select({
-      converted: sql<number>`count(distinct ${chatThread.id})::int`,
-    })
+    .select({ converted: sql<number>`count(*)::int` })
     .from(chatThread)
-    .innerJoin(chatBotevent, eq(chatBotevent.threadId, chatThread.id))
-    .where(and(threadWhere, eq(chatBotevent.eventType, "checkout_link")));
+    .where(
+      and(
+        threadWhere,
+        sql`EXISTS (SELECT 1 FROM chat_thread_orders cto WHERE cto.thread_id = ${chatThread.id})`,
+      ),
+    );
   const convertedCount = Number(converted);
 
   return {
@@ -1017,7 +1045,6 @@ export async function get_operational_efficiency(params: {
   };
 
   const threadWhere = baseFilters(startDate, endDate);
-  const threadSubquery = sql`(SELECT id FROM chat_thread WHERE ${threadWhere})`;
 
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })
@@ -1025,38 +1052,48 @@ export async function get_operational_efficiency(params: {
     .where(threadWhere);
   const totalThreads = Number(total);
 
+  // Escalation is over every chat the AI started — all in-range threads, not
+  // only closed ones (every Thread defaults to AI-handled at creation).
+  const allThreadWhere = and(
+    localDateRange(sql`${chatThread.createdAt}`, startDate, endDate),
+    storeIdScope(chatThread.storeId, params.store_code) ?? undefined,
+    threadChannelScope(params.channel),
+  )!;
+
+  const [{ allTotal }] = await db
+    .select({ allTotal: sql<number>`count(*)::int` })
+    .from(chatThread)
+    .where(allThreadWhere);
+  const allThreads = Number(allTotal);
+
   // Escalated thread ids (distinct) from SupportTicket for in-range threads.
   const escalatedRows = await db
     .selectDistinct({ threadId: supportTicket.threadId })
     .from(supportTicket)
-    .where(sql`${supportTicket.threadId} IN ${threadSubquery}`);
-  const escalatedCount = escalatedRows.length;
-  const escalatedThreadIds = escalatedRows
-    .map((r) => r.threadId)
-    .filter((id): id is string => id !== null);
-
-  // Bot-resolved: SentimentAnalysis for in-range threads, excluding escalated,
-  // resolved_queries > 0.
-  const botResolvedConds = [
-    sql`${sentimentAnalysis.threadId} IN ${threadSubquery}`,
-    gt(sentimentAnalysis.resolvedQueries, 0),
-  ];
-  if (escalatedThreadIds.length > 0) {
-    botResolvedConds.push(
-      notInArray(sentimentAnalysis.threadId, escalatedThreadIds),
+    .where(
+      sql`${supportTicket.threadId} IN (SELECT id FROM chat_thread WHERE ${allThreadWhere})`,
     );
-  }
+  const escalatedCount = escalatedRows.length;
+
+  // AI resolved: closed chats still held by the AI (never handed to an
+  // agent) with no support ticket raised at all.
   const [{ botResolved }] = await db
     .select({ botResolved: sql<number>`count(*)::int` })
-    .from(sentimentAnalysis)
-    .where(and(...botResolvedConds));
+    .from(chatThread)
+    .where(
+      and(
+        threadWhere,
+        eq(chatThread.chatHandler, "ai"),
+        sql`NOT EXISTS (SELECT 1 FROM support_ticket st WHERE st.thread_id = ${chatThread.id})`,
+      ),
+    );
   const botResolvedCount = Number(botResolved);
 
   const botResolutionPercentage = totalThreads
     ? round2((botResolvedCount / totalThreads) * 100)
     : 0;
-  const escalationPercentage = totalThreads
-    ? round2((escalatedCount / totalThreads) * 100)
+  const escalationPercentage = allThreads
+    ? round2((escalatedCount / allThreads) * 100)
     : 0;
 
   let selfServiceSuccess: string;
@@ -1252,24 +1289,15 @@ export async function get_operational_efficiency(params: {
     });
   }
 
-  // NOTE: Django reuses the loop variables `escalated_count` / `bot_resolved_count`
-  // inside the trend loop, so the top-level escalation_rate/bot_resolution_rate
-  // `count` reflect the LAST trend period's values (a Django quirk we replicate).
-  let finalBotResolvedCount = botResolvedCount;
-  let finalEscalatedCount = escalatedCount;
-  if (resolutionTrend.length > 0) {
-    const last = resolutionTrend[resolutionTrend.length - 1];
-    finalBotResolvedCount = last.bot_resolved.count;
-    finalEscalatedCount = last.escalated.count;
-  }
-
   return {
     bot_resolution_rate: {
-      count: finalBotResolvedCount,
+      count: botResolvedCount,
+      total: totalThreads,
       percentage: botResolutionPercentage,
     },
     escalation_rate: {
-      count: finalEscalatedCount,
+      count: escalatedCount,
+      total: allThreads,
       percentage: escalationPercentage,
     },
     self_service_success: selfServiceSuccess,
@@ -1677,13 +1705,30 @@ function parseLegacyDaterange(raw: string): { start: Date; end: Date } {
 // ===========================================================================
 
 export type DashboardSummary = {
-  feedback_insights: Awaited<ReturnType<typeof get_feedback_insights>> | null;
-  engagements: Awaited<ReturnType<typeof get_engagements>> | null;
-  operational_efficiency: Awaited<
-    ReturnType<typeof get_operational_efficiency>
-  > | null;
+  feedback_insights:
+    | (Awaited<ReturnType<typeof get_feedback_insights>> & {
+        csat_score: { trend: MetricTrend };
+        avg_handle_time: { trend: MetricTrend };
+      })
+    | null;
+  engagements:
+    | (Awaited<ReturnType<typeof get_engagements>> & {
+        total_threads_trend: MetricTrend;
+        avg_response_time_trend: MetricTrend;
+      })
+    | null;
+  operational_efficiency:
+    | (Awaited<ReturnType<typeof get_operational_efficiency>> & {
+        bot_resolution_rate: { trend: MetricTrend };
+        escalation_rate: { trend: MetricTrend };
+      })
+    | null;
   user_matrix: Awaited<ReturnType<typeof get_user_matrix>> | null;
-  conversion_rate: Awaited<ReturnType<typeof get_conversion_rate>> | null;
+  conversion_rate:
+    | (Awaited<ReturnType<typeof get_conversion_rate>> & {
+        trend: MetricTrend;
+      })
+    | null;
 };
 
 const EMPTY_DASHBOARD: DashboardSummary = {
@@ -1711,13 +1756,92 @@ export async function get_dashboard_summary(params: {
   const cached = getCached<DashboardSummary>(key);
   if (cached) return cached;
 
+  const endDate = parseQueryDate(params.to, istToday());
+  const startDate = parseQueryDate(params.from, addDays(endDate, -30));
+  const prevRange = previousPeriodRange(startDate, endDate);
+  const prevParams = { ...params, from: prevRange.from, to: prevRange.to };
+
   // One connection, sequential (single tenant transaction — see tenant-context).
+  const feedbackInsights = await get_feedback_insights(params);
+  const engagements = await get_engagements(params);
+  const operationalEfficiency = await get_operational_efficiency(params);
+  const userMatrix = await get_user_matrix(params);
+  const conversionRate = await get_conversion_rate(params);
+
+  const prevFeedbackInsights = await get_feedback_insights(prevParams);
+  const prevEngagements = await get_engagements(prevParams);
+  const prevOperationalEfficiency =
+    await get_operational_efficiency(prevParams);
+  const prevConversionRate = await get_conversion_rate(prevParams);
+
   const result: DashboardSummary = {
-    feedback_insights: await get_feedback_insights(params),
-    engagements: await get_engagements(params),
-    operational_efficiency: await get_operational_efficiency(params),
-    user_matrix: await get_user_matrix(params),
-    conversion_rate: await get_conversion_rate(params),
+    feedback_insights: {
+      ...feedbackInsights,
+      csat_score: {
+        ...feedbackInsights.csat_score,
+        trend: buildTrend(
+          feedbackInsights.csat_score.percentage,
+          prevFeedbackInsights.csat_score.percentage,
+          true,
+          "pts",
+        ),
+      },
+      avg_handle_time: {
+        ...feedbackInsights.avg_handle_time,
+        trend: buildTrend(
+          feedbackInsights.avg_handle_time.value,
+          prevFeedbackInsights.avg_handle_time.value,
+          false,
+          "min",
+        ),
+      },
+    },
+    engagements: {
+      ...engagements,
+      total_threads_trend: buildTrend(
+        engagements.total_threads,
+        prevEngagements.total_threads,
+        true,
+        "",
+      ),
+      avg_response_time_trend: buildTrend(
+        engagements.avg_response_time_seconds,
+        prevEngagements.avg_response_time_seconds,
+        false,
+        "s",
+      ),
+    },
+    operational_efficiency: {
+      ...operationalEfficiency,
+      bot_resolution_rate: {
+        ...operationalEfficiency.bot_resolution_rate,
+        trend: buildTrend(
+          operationalEfficiency.bot_resolution_rate.percentage,
+          prevOperationalEfficiency.bot_resolution_rate.percentage,
+          true,
+          "pts",
+        ),
+      },
+      escalation_rate: {
+        ...operationalEfficiency.escalation_rate,
+        trend: buildTrend(
+          operationalEfficiency.escalation_rate.percentage,
+          prevOperationalEfficiency.escalation_rate.percentage,
+          false,
+          "pts",
+        ),
+      },
+    },
+    user_matrix: userMatrix,
+    conversion_rate: {
+      ...conversionRate,
+      trend: buildTrend(
+        conversionRate.percentage,
+        prevConversionRate.percentage,
+        true,
+        "pts",
+      ),
+    },
   };
   setCached(key, result);
   return result;
