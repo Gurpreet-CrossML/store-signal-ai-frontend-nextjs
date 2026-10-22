@@ -43,7 +43,10 @@ import { isValidUrl as isValidSharedUrl, normalizeUrl } from "@/lib/url";
 import { AIScopeField } from "@/components/custom/knowledge/ai-scope-field";
 import { MultiFileUploadDropzone } from "@/components/custom/knowledge/file-upload-dropzone";
 import { MultiSelectCombobox } from "@/components/custom/knowledge/multi-select-combobox";
-import { POLICY_TYPE_OPTIONS } from "@/components/custom/knowledge/knowledge-meta";
+import {
+  FAQ_ANSWER_MAX_LENGTH,
+  POLICY_TYPE_OPTIONS,
+} from "@/components/custom/knowledge/knowledge-meta";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   CreateKnowledgeItemsBulk,
@@ -121,7 +124,6 @@ const URL_TYPE_OPTIONS: { value: LocalUrlType; label: string }[] = [
 ];
 
 const FAQ_CAP = 20;
-const FAQ_ANSWER_MAX_LENGTH = 10_000;
 const URL_CAP = 20;
 const FILE_CAP = 15;
 
@@ -716,6 +718,7 @@ export function NewKnowledgePage() {
                       <Field>
                         <FieldLabel>Answer</FieldLabel>
                         <Textarea
+                          className="max-h-96 resize-none overflow-y-auto"
                           rows={1}
                           placeholder="Yes, orders above ₹999 qualify for free shipping."
                           maxLength={FAQ_ANSWER_MAX_LENGTH}
@@ -728,7 +731,7 @@ export function NewKnowledgePage() {
                           }
                         />
                         <FieldDescription>
-                          {Array.from(row.answer).length.toLocaleString()} /{" "}
+                          {row.answer.length.toLocaleString()} /{" "}
                           {FAQ_ANSWER_MAX_LENGTH.toLocaleString()} characters
                         </FieldDescription>
                         {showErrors && faqRowErrors[index]?.answer && (

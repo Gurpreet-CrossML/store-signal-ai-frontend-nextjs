@@ -27,15 +27,16 @@ import {
   type AIScope,
   type KnowledgeItem,
 } from "@/redux/api-slice/knowledge-rag-slice";
-import { KNOWLEDGE_TYPE_META } from "@/components/custom/knowledge/knowledge-meta";
+import {
+  FAQ_ANSWER_MAX_LENGTH,
+  KNOWLEDGE_TYPE_META,
+} from "@/components/custom/knowledge/knowledge-meta";
 import { AIScopeField } from "@/components/custom/knowledge/ai-scope-field";
 import {
   formatBytes,
   MultiFileUploadDropzone,
 } from "@/components/custom/knowledge/file-upload-dropzone";
 import { isValidUrl, normalizeUrl } from "@/lib/url";
-
-const FAQ_ANSWER_MAX_LENGTH = 10_000;
 
 /**
  * Edit is content-only, scoped to what's safe to change without a full
@@ -196,6 +197,7 @@ export function EditKnowledgeDialog({
                   <FieldLabel htmlFor="edit-faq-answer">Answer</FieldLabel>
                   <Textarea
                     id="edit-faq-answer"
+                    className="max-h-96 resize-none overflow-y-auto"
                     rows={3}
                     maxLength={FAQ_ANSWER_MAX_LENGTH}
                     value={answer}
@@ -211,7 +213,7 @@ export function EditKnowledgeDialog({
                     aria-invalid={Boolean(faqErrors.answer)}
                   />
                   <FieldDescription>
-                    {Array.from(answer).length.toLocaleString()} /{" "}
+                    {answer.length.toLocaleString()} /{" "}
                     {FAQ_ANSWER_MAX_LENGTH.toLocaleString()} characters
                   </FieldDescription>
                   {faqErrors.answer && (
