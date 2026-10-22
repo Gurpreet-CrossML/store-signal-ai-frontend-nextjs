@@ -35,6 +35,8 @@ import {
 } from "@/components/custom/knowledge/file-upload-dropzone";
 import { isValidUrl, normalizeUrl } from "@/lib/url";
 
+const FAQ_ANSWER_MAX_LENGTH = 10_000;
+
 /**
  * Edit is content-only, scoped to what's safe to change without a full
  * reprocess: AI scope always, plus source-specific content — FAQ
@@ -207,6 +209,10 @@ export function EditKnowledgeDialog({
                     }}
                     aria-invalid={Boolean(faqErrors.answer)}
                   />
+                  <FieldDescription>
+                    {Array.from(answer).length.toLocaleString()} /{" "}
+                    {FAQ_ANSWER_MAX_LENGTH.toLocaleString()} characters
+                  </FieldDescription>
                   {faqErrors.answer && (
                     <p className="text-sm text-destructive">
                       {faqErrors.answer}

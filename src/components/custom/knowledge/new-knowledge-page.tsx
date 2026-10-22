@@ -121,6 +121,7 @@ const URL_TYPE_OPTIONS: { value: LocalUrlType; label: string }[] = [
 ];
 
 const FAQ_CAP = 20;
+const FAQ_ANSWER_MAX_LENGTH = 10_000;
 const URL_CAP = 20;
 const FILE_CAP = 15;
 
@@ -725,6 +726,10 @@ export function NewKnowledgePage() {
                             showErrors && Boolean(faqRowErrors[index]?.answer)
                           }
                         />
+                        <FieldDescription>
+                          {Array.from(row.answer).length.toLocaleString()} /{" "}
+                          {FAQ_ANSWER_MAX_LENGTH.toLocaleString()} characters
+                        </FieldDescription>
                         {showErrors && faqRowErrors[index]?.answer && (
                           <p className="text-xs text-destructive">
                             {faqRowErrors[index]?.answer}
