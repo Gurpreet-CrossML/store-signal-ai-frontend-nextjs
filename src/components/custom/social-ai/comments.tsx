@@ -130,7 +130,7 @@ function CommentItem({
   nested = false,
   onDeleted,
   onHiddenChange,
-  disableReply = false,
+  ancestorDeleted = false,
   disableLike = false,
   ancestorHidden = false,
 }: {
@@ -140,17 +140,19 @@ function CommentItem({
   nested?: boolean;
   onDeleted: (commentId: number) => void;
   onHiddenChange: (commentId: number, isHidden: boolean) => void;
-  // True when an ancestor comment is deleted — once a thread's origin is
-  // gone, replying anywhere under it (however deep) is disallowed too.
-  disableReply?: boolean;
-  // True when an ancestor comment is deleted or hidden — same cascade,
-  // for liking instead of replying.
+  // True when an ancestor comment is deleted — the provider deletes the
+  // whole thread with it, and the backend marks the replies in one bulk
+  // update that isn't broadcast, so they're shown deleted from here.
+  ancestorDeleted?: boolean;
+  // True when an ancestor comment is deleted or hidden — no liking
+  // anywhere under it.
   disableLike?: boolean;
   // True when an ancestor comment is hidden — the provider hides the whole
   // thread under it, but keeps each reply's own is_hidden false.
   ancestorHidden?: boolean;
 }) {
   const hidden = comment.is_hidden || ancestorHidden;
+  const deleted = comment.is_deleted || ancestorDeleted;
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -196,8 +198,7 @@ function CommentItem({
   const [likeOverride, setLikeOverride] = useState<boolean | null>(null);
   const [likeBusy, setLikeBusy] = useState(false);
   const isLiked = likeOverride ?? comment.owner_liked;
-  const likeDisabled =
-    likeBusy || comment.is_deleted || comment.is_hidden || disableLike;
+  const likeDisabled = likeBusy || deleted || comment.is_hidden || disableLike;
   // Reconcile the server's count with a like we've toggled but not yet
   // confirmed, so the number moves with the icon.
   const likeCount =
@@ -366,7 +367,7 @@ function CommentItem({
         <div
           className={cn(
             "inline-block max-w-full rounded-lg px-3 py-2",
-            comment.is_deleted
+            deleted
               ? "bg-destructive/10 opacity-70"
               : hidden
                 ? "bg-muted opacity-60"
@@ -374,14 +375,16 @@ function CommentItem({
           )}
         >
           <p className="flex items-center gap-1.5 text-sm leading-tight font-semibold">
-            {(comment.is_deleted || hidden) && (
+            {(deleted || hidden) && (
               <InfoIcon
                 text={
                   comment.is_deleted
                     ? `This comment was deleted on ${channel.label}. It can't be replied to, liked, or changed.`
-                    : comment.is_hidden
-                      ? `This comment is hidden on ${channel.label}, so customers can't see it. Unhide it to restore replies and likes.`
-                      : `A comment above this reply is hidden on ${channel.label}, so customers can't see it either.`
+                    : deleted
+                      ? `A comment above this reply was deleted on ${channel.label}, which removed this reply too.`
+                      : comment.is_hidden
+                        ? `This comment is hidden on ${channel.label}, so customers can't see it. Unhide it to restore replies and likes.`
+                        : `A comment above this reply is hidden on ${channel.label}, so customers can't see it either.`
                 }
               />
             )}
@@ -396,7 +399,7 @@ function CommentItem({
               </Badge>
             )}
             {hidden && <Badge variant="outline">Hidden</Badge>}
-            {comment.is_deleted && (
+            {deleted && (
               <Badge variant="secondary" className="text-muted-foreground">
                 Deleted
               </Badge>
@@ -411,9 +414,7 @@ function CommentItem({
           </p>
           <ExpandableText
             text={comment.content}
-            textClassName={
-              comment.is_deleted ? "text-muted-foreground italic" : undefined
-            }
+            textClassName={deleted ? "text-muted-foreground italic" : undefined}
           />
         </div>
         <div className="mt-1 flex items-center gap-3 px-3 text-xs text-muted-foreground">
@@ -423,7 +424,7 @@ function CommentItem({
           {/* Both channels put the like here, before Reply. Instagram's
               used to hang off the far right of the row, level with the
               comment body, which read as belonging to nothing. */}
-          {!comment.is_deleted && (
+          {!deleted && (
             <button
               type="button"
               onClick={handleToggleLike}
@@ -440,7 +441,7 @@ function CommentItem({
               )}
             </button>
           )}
-          {!comment.is_deleted && !hidden && !disableReply && (
+          {!deleted && !hidden && (
             <button
               type="button"
               onClick={() => setShowReplyBox((open) => !open)}
@@ -457,7 +458,7 @@ function CommentItem({
           )}
           {/* Nothing can be done to a deleted comment, so it gets no menu
               at all rather than a disabled one. */}
-          {!comment.is_deleted && (
+          {!deleted && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -495,7 +496,7 @@ function CommentItem({
         {/* The AI's pending draft for this comment, reviewable in place.
             Fetched lazily, only for comments the backend flags; a deleted
             comment can't be replied to, so its draft isn't offered. */}
-        {showsDraft && !comment.is_deleted && author && (
+        {showsDraft && !deleted && author && (
           <div className="mt-2">
             <CommentDraftSlot
               storeCode={storeCode}
@@ -549,10 +550,8 @@ function CommentItem({
                   key={repliesRefreshKey}
                   postId={postId}
                   parentId={comment.id}
-                  disableReply={comment.is_deleted || disableReply}
-                  disableLike={
-                    comment.is_deleted || comment.is_hidden || disableLike
-                  }
+                  ancestorDeleted={deleted}
+                  disableLike={deleted || comment.is_hidden || disableLike}
                   ancestorHidden={hidden}
                 />
               </div>
@@ -593,7 +592,7 @@ function CommentsList({
   postId,
   parentId,
   filters,
-  disableReply = false,
+  ancestorDeleted = false,
   disableLike = false,
   ancestorHidden = false,
 }: {
@@ -603,7 +602,7 @@ function CommentsList({
   // AI-tag filters. These have no backend equivalent, so they narrow the
   // comments already fetched rather than re-querying.
   filters?: CommentFilters;
-  disableReply?: boolean;
+  ancestorDeleted?: boolean;
   disableLike?: boolean;
   ancestorHidden?: boolean;
 }) {
@@ -829,7 +828,7 @@ function CommentsList({
               nested={Boolean(parentId)}
               onDeleted={handleCommentDeleted}
               onHiddenChange={handleCommentHiddenChange}
-              disableReply={disableReply}
+              ancestorDeleted={ancestorDeleted}
               disableLike={disableLike}
               ancestorHidden={ancestorHidden}
             />
