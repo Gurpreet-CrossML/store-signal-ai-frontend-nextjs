@@ -718,6 +718,7 @@ export function NewKnowledgePage() {
                         <Textarea
                           rows={1}
                           placeholder="Yes, orders above ₹999 qualify for free shipping."
+                          maxLength={FAQ_ANSWER_MAX_LENGTH}
                           value={row.answer}
                           onChange={(event) =>
                             updateFaqRow(index, { answer: event.target.value })

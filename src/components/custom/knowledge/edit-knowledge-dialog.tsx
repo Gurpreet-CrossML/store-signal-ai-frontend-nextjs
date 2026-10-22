@@ -197,6 +197,7 @@ export function EditKnowledgeDialog({
                   <Textarea
                     id="edit-faq-answer"
                     rows={3}
+                    maxLength={FAQ_ANSWER_MAX_LENGTH}
                     value={answer}
                     onChange={(event) => {
                       setAnswer(event.target.value);
