@@ -25,8 +25,8 @@ export type EngagementResponse = {
 };
 
 export type OperationalEfficiencyResponse = {
-  bot_resolution_rate: { percentage: number };
-  escalation_rate: { percentage: number };
+  bot_resolution_rate: { count: number; total: number; percentage: number };
+  escalation_rate: { count: number; total: number; percentage: number };
 };
 
 export type ConversionRateResponse = {

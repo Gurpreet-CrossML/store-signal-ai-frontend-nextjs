@@ -52,6 +52,7 @@ type SummaryMetric = {
   status: string;
   statusVariant: "success" | "warning" | "neutral" | "info" | "danger";
   href?: string;
+  statusHref?: string;
 };
 
 const displayMetricName = (metric: string) =>
@@ -226,6 +227,18 @@ export default function Dashboard() {
     chartTo,
   ]);
 
+  // Presets keep no dates of their own, so resolve the range actually on screen.
+  const exportRange = resolveDashboardRange(filters);
+
+  // Drill-through link to the Threads list, pre-filtered to match a card.
+  const threadsHref = (extraParams: Record<string, string>) => {
+    const params = new URLSearchParams(extraParams);
+    params.set("from", exportRange.from);
+    params.set("to", exportRange.to);
+    if (channel) params.set("channel", channel);
+    return `/threads?${params.toString()}`;
+  };
+
   const performanceSummaryMetrics: SummaryMetric[] = [
     {
       label: "CSAT Score",
@@ -239,9 +252,11 @@ export default function Dashboard() {
       label: "Conversion Rate",
       value: `${FetchConversionRateData?.percentage || 0}%`,
       infoText:
-        "Percentage of chatbot sessions where the user clicked a checkout link, out of all sessions in the selected period.",
+        "Percentage of chatbot sessions that led to an order, where the customer added a product to cart in the chat and ordered it within 24 hours, out of all sessions in the selected period.",
       status: `${FetchConversionRateData?.converted_count || 0} of ${FetchConversionRateData?.total_count || 0} sessions`,
       statusVariant: "info" as const,
+      href: threadsHref({ has_order: "true" }),
+      statusHref: threadsHref({ has_order: "true" }),
     },
     {
       label: "Total Sessions",
@@ -250,6 +265,7 @@ export default function Dashboard() {
         "Shows how many chatbot sessions happened in the selected time range, so you can quickly understand overall traffic volume.",
       status: "All Sessions",
       statusVariant: "neutral" as const,
+      href: threadsHref({}),
     },
     {
       label: "Active Sessions",
@@ -258,7 +274,10 @@ export default function Dashboard() {
         "Shows the number of sessions currently marked as active in the analytics data, helping you gauge current engagement.",
       status: `${FetchThreadCountsData.needsHuman || 0} need a human`,
       statusVariant: "danger" as const,
-      href: "/support?filter=needs_human",
+      // The count is every active chat; only the "needs a human" sub-line
+      // goes to the filtered queue.
+      href: "/support?filter=all",
+      statusHref: "/support?filter=needs_human",
     },
     {
       label: "Avg Response Time",
@@ -277,25 +296,37 @@ export default function Dashboard() {
       statusVariant: "info" as const,
     },
     {
-      label: "Resolution Rate",
+      label: "AI Resolution Rate",
       value: `${FetchOperationalEfficiencyData?.bot_resolution_rate?.percentage || 0}%`,
       infoText:
-        "Shows the share of conversations that were fully resolved by the chatbot without needing handoff to a human agent.",
-      status: "Resolution Metric",
+        "Shows the share of closed conversations the chatbot resolved on its own, without a human agent taking over or a support ticket being raised.",
+      status: `${FetchOperationalEfficiencyData?.bot_resolution_rate?.count || 0} of ${FetchOperationalEfficiencyData?.bot_resolution_rate?.total || 0} chats`,
       statusVariant: "info" as const,
+      href: threadsHref({
+        is_active: "false",
+        handled_by: "ai",
+        has_ticket: "false",
+        has_agent: "false",
+      }),
+      statusHref: threadsHref({
+        is_active: "false",
+        handled_by: "ai",
+        has_ticket: "false",
+        has_agent: "false",
+      }),
     },
     {
       label: "Escalation Rate",
       value: `${FetchOperationalEfficiencyData?.escalation_rate?.percentage || 0}%`,
       infoText:
-        "Shows the share of conversations that needed to be escalated to a human agent, which can highlight where the bot needs support.",
-      status: "Escalation Metric",
+        "Shows the share of all conversations in the selected period that were escalated to a human agent through a support ticket, which can highlight where the bot needs support.",
+      status: `${FetchOperationalEfficiencyData?.escalation_rate?.count || 0} of ${FetchOperationalEfficiencyData?.escalation_rate?.total || 0} chats`,
       statusVariant: "info" as const,
+      href: threadsHref({ has_ticket: "true" }),
+      statusHref: threadsHref({ has_ticket: "true" }),
     },
   ];
 
-  // Presets keep no dates of their own, so export the range actually on screen.
-  const exportRange = resolveDashboardRange(filters);
   const exportFileStem = `dashboard_${storeCode || "all-stores"}_${exportRange.from}_to_${exportRange.to}`;
 
   const exportCsv = () => {
@@ -539,7 +570,24 @@ export default function Dashboard() {
               info: "bg-primary/10 text-primary",
               danger: "bg-red-100 text-red-600",
             };
-            const card = (
+            const value = (
+              <Typography variant="h3" as="p">
+                {metric.value}
+              </Typography>
+            );
+            const statusBadge = (
+              <span
+                className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${statusColors[metric.statusVariant]}`}
+              >
+                {metric.status}
+              </span>
+            );
+
+            // The value and the status pill link independently (e.g. Active
+            // Now's count goes to all active chats, its "needs a human"
+            // sub-line to a different, filtered queue) — never one link
+            // wrapping the whole card, which would force both to agree.
+            return (
               <Card key={metric.label} size="sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-1.5">
@@ -550,26 +598,22 @@ export default function Dashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Typography variant="h3" as="p">
-                    {metric.value}
-                  </Typography>
+                  {metric.href ? (
+                    <Link href={metric.href} className="block">
+                      {value}
+                    </Link>
+                  ) : (
+                    value
+                  )}
                 </CardContent>
                 <CardFooter>
-                  <span
-                    className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${statusColors[metric.statusVariant]}`}
-                  >
-                    {metric.status}
-                  </span>
+                  {metric.statusHref ? (
+                    <Link href={metric.statusHref}>{statusBadge}</Link>
+                  ) : (
+                    statusBadge
+                  )}
                 </CardFooter>
               </Card>
-            );
-
-            return metric.href ? (
-              <Link key={metric.label} href={metric.href} className="block">
-                {card}
-              </Link>
-            ) : (
-              card
             );
           })}
         </div>

@@ -15,17 +15,7 @@ import {
   sentimentAnalysis,
   supportTicket,
 } from "@/lib/drizzle/schema";
-import {
-  and,
-  eq,
-  gt,
-  gte,
-  lte,
-  inArray,
-  notInArray,
-  isNotNull,
-  sql,
-} from "drizzle-orm";
+import { and, eq, gt, gte, lte, inArray, isNotNull, sql } from "drizzle-orm";
 
 /**
  * Port of the Django analytics "dashboard" serializers (analytics/serializers.py)
@@ -558,13 +548,18 @@ export async function get_conversion_rate(params: {
     .where(threadWhere);
   const totalCount = Number(total);
 
+  // Converted = thread has a real order attributed to it via Thread.orders
+  // (chat_thread_orders through-table), set at ingestion by
+  // chat.utils.find_linked_thread — not just "reached the checkout link".
   const [{ converted }] = await db
-    .select({
-      converted: sql<number>`count(distinct ${chatThread.id})::int`,
-    })
+    .select({ converted: sql<number>`count(*)::int` })
     .from(chatThread)
-    .innerJoin(chatBotevent, eq(chatBotevent.threadId, chatThread.id))
-    .where(and(threadWhere, eq(chatBotevent.eventType, "checkout_link")));
+    .where(
+      and(
+        threadWhere,
+        sql`EXISTS (SELECT 1 FROM chat_thread_orders cto WHERE cto.thread_id = ${chatThread.id})`,
+      ),
+    );
   const convertedCount = Number(converted);
 
   return {
@@ -1017,7 +1012,6 @@ export async function get_operational_efficiency(params: {
   };
 
   const threadWhere = baseFilters(startDate, endDate);
-  const threadSubquery = sql`(SELECT id FROM chat_thread WHERE ${threadWhere})`;
 
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })
@@ -1025,38 +1019,49 @@ export async function get_operational_efficiency(params: {
     .where(threadWhere);
   const totalThreads = Number(total);
 
+  // Escalation is over every chat the AI started — all in-range threads, not
+  // only closed ones (every Thread defaults to AI-handled at creation).
+  const allThreadWhere = and(
+    localDateRange(sql`${chatThread.createdAt}`, startDate, endDate),
+    storeIdScope(chatThread.storeId, params.store_code) ?? undefined,
+    threadChannelScope(params.channel),
+  )!;
+
+  const [{ allTotal }] = await db
+    .select({ allTotal: sql<number>`count(*)::int` })
+    .from(chatThread)
+    .where(allThreadWhere);
+  const allThreads = Number(allTotal);
+
   // Escalated thread ids (distinct) from SupportTicket for in-range threads.
   const escalatedRows = await db
     .selectDistinct({ threadId: supportTicket.threadId })
     .from(supportTicket)
-    .where(sql`${supportTicket.threadId} IN ${threadSubquery}`);
-  const escalatedCount = escalatedRows.length;
-  const escalatedThreadIds = escalatedRows
-    .map((r) => r.threadId)
-    .filter((id): id is string => id !== null);
-
-  // Bot-resolved: SentimentAnalysis for in-range threads, excluding escalated,
-  // resolved_queries > 0.
-  const botResolvedConds = [
-    sql`${sentimentAnalysis.threadId} IN ${threadSubquery}`,
-    gt(sentimentAnalysis.resolvedQueries, 0),
-  ];
-  if (escalatedThreadIds.length > 0) {
-    botResolvedConds.push(
-      notInArray(sentimentAnalysis.threadId, escalatedThreadIds),
+    .where(
+      sql`${supportTicket.threadId} IN (SELECT id FROM chat_thread WHERE ${allThreadWhere})`,
     );
-  }
+  const escalatedCount = escalatedRows.length;
+
+  // AI resolved: handled by the AI start to finish — no agent ever took it
+  // over (a takeover records to_agent_id, even if later handed back to the
+  // AI) and no support ticket was raised. Shared by every count below.
+  const aiResolvedOnly = and(
+    eq(chatThread.chatHandler, "ai"),
+    sql`NOT EXISTS (SELECT 1 FROM support_ticket st WHERE st.thread_id = ${chatThread.id})`,
+    sql`NOT EXISTS (SELECT 1 FROM chat_thread_assignment cta WHERE cta.thread_id = ${chatThread.id} AND cta.to_agent_id IS NOT NULL)`,
+  )!;
+
   const [{ botResolved }] = await db
     .select({ botResolved: sql<number>`count(*)::int` })
-    .from(sentimentAnalysis)
-    .where(and(...botResolvedConds));
+    .from(chatThread)
+    .where(and(threadWhere, aiResolvedOnly));
   const botResolvedCount = Number(botResolved);
 
   const botResolutionPercentage = totalThreads
     ? round2((botResolvedCount / totalThreads) * 100)
     : 0;
-  const escalationPercentage = totalThreads
-    ? round2((escalatedCount / totalThreads) * 100)
+  const escalationPercentage = allThreads
+    ? round2((escalatedCount / allThreads) * 100)
     : 0;
 
   let selfServiceSuccess: string;
@@ -1070,25 +1075,16 @@ export async function get_operational_efficiency(params: {
   const prevPeriodEnd = addDays(startDate, -1);
 
   const prevWhere = baseFilters(prevPeriodStart, prevPeriodEnd);
-  const prevSubquery = sql`(SELECT id FROM chat_thread WHERE ${prevWhere})`;
 
   const [{ prevTotal }] = await db
     .select({ prevTotal: sql<number>`count(*)::int` })
     .from(chatThread)
     .where(prevWhere);
 
-  // prev_bot_resolved: SentimentAnalysis for prev threads, exclude any thread that
-  // has a support ticket (thread__support_tickets__isnull=False), resolved>0.
   const [{ prevBotResolved }] = await db
     .select({ prevBotResolved: sql<number>`count(*)::int` })
-    .from(sentimentAnalysis)
-    .where(
-      and(
-        sql`${sentimentAnalysis.threadId} IN ${prevSubquery}`,
-        gt(sentimentAnalysis.resolvedQueries, 0),
-        sql`${sentimentAnalysis.threadId} NOT IN (SELECT thread_id FROM support_ticket)`,
-      ),
-    );
+    .from(chatThread)
+    .where(and(prevWhere, aiResolvedOnly));
   const prevPercentage = Number(prevTotal)
     ? round2((Number(prevBotResolved) / Number(prevTotal)) * 100)
     : 0;
@@ -1134,7 +1130,7 @@ export async function get_operational_efficiency(params: {
       period: sql<string>`date_trunc(${truncUnitSql}, ${chatThread.createdAt} AT TIME ZONE ${APP_TZ_SQL})`,
     })
     .from(chatThread)
-    .where(threadWhere)
+    .where(allThreadWhere)
     .groupBy(
       sql`date_trunc(${truncUnitSql}, ${chatThread.createdAt} AT TIME ZONE ${APP_TZ_SQL})`,
     )
@@ -1201,13 +1197,14 @@ export async function get_operational_efficiency(params: {
     }
 
     // period_threads: in-range threads with created_at in [periodStart, periodEnd)
-    // compared in current tz local time.
-    const periodThreadWhere = and(
-      threadWhere,
+    // compared in current tz local time. Escalation counts every chat in the
+    // period; AI resolution only the closed ones — same scopes as the headline.
+    const periodBounds = and(
       sql`(${chatThread.createdAt} AT TIME ZONE ${APP_TZ_SQL}) >= ${periodStartDate}::timestamp`,
       sql`(${chatThread.createdAt} AT TIME ZONE ${APP_TZ_SQL}) < ${periodEndDate}::timestamp`,
     )!;
-    const periodThreadSubquery = sql`(SELECT id FROM chat_thread WHERE ${periodThreadWhere})`;
+    const periodThreadWhere = and(allThreadWhere, periodBounds)!;
+    const periodClosedWhere = and(threadWhere, periodBounds)!;
 
     const [{ totPeriod }] = await db
       .select({ totPeriod: sql<number>`count(*)::int` })
@@ -1215,28 +1212,30 @@ export async function get_operational_efficiency(params: {
       .where(periodThreadWhere);
     const totalPeriodThreads = Number(totPeriod);
 
+    const [{ closedPeriod }] = await db
+      .select({ closedPeriod: sql<number>`count(*)::int` })
+      .from(chatThread)
+      .where(periodClosedWhere);
+    const closedPeriodThreads = Number(closedPeriod);
+
     const [{ esc }] = await db
       .select({
         esc: sql<number>`count(distinct ${supportTicket.threadId})::int`,
       })
       .from(supportTicket)
-      .where(sql`${supportTicket.threadId} IN ${periodThreadSubquery}`);
+      .where(
+        sql`${supportTicket.threadId} IN (SELECT id FROM chat_thread WHERE ${periodThreadWhere})`,
+      );
     const periodEscalated = Number(esc);
 
     const [{ botRes }] = await db
       .select({ botRes: sql<number>`count(*)::int` })
-      .from(sentimentAnalysis)
-      .where(
-        and(
-          sql`${sentimentAnalysis.threadId} IN ${periodThreadSubquery}`,
-          gt(sentimentAnalysis.resolvedQueries, 0),
-          sql`${sentimentAnalysis.threadId} NOT IN (SELECT thread_id FROM support_ticket)`,
-        ),
-      );
+      .from(chatThread)
+      .where(and(periodClosedWhere, aiResolvedOnly));
     const periodBotResolved = Number(botRes);
 
-    const botResolvedPercentage = totalPeriodThreads
-      ? round2((periodBotResolved / totalPeriodThreads) * 100)
+    const botResolvedPercentage = closedPeriodThreads
+      ? round2((periodBotResolved / closedPeriodThreads) * 100)
       : 0;
     const escalatedPercentage = totalPeriodThreads
       ? round2((periodEscalated / totalPeriodThreads) * 100)
@@ -1252,24 +1251,15 @@ export async function get_operational_efficiency(params: {
     });
   }
 
-  // NOTE: Django reuses the loop variables `escalated_count` / `bot_resolved_count`
-  // inside the trend loop, so the top-level escalation_rate/bot_resolution_rate
-  // `count` reflect the LAST trend period's values (a Django quirk we replicate).
-  let finalBotResolvedCount = botResolvedCount;
-  let finalEscalatedCount = escalatedCount;
-  if (resolutionTrend.length > 0) {
-    const last = resolutionTrend[resolutionTrend.length - 1];
-    finalBotResolvedCount = last.bot_resolved.count;
-    finalEscalatedCount = last.escalated.count;
-  }
-
   return {
     bot_resolution_rate: {
-      count: finalBotResolvedCount,
+      count: botResolvedCount,
+      total: totalThreads,
       percentage: botResolutionPercentage,
     },
     escalation_rate: {
-      count: finalEscalatedCount,
+      count: escalatedCount,
+      total: allThreads,
       percentage: escalationPercentage,
     },
     self_service_success: selfServiceSuccess,

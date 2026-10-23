@@ -33,6 +33,8 @@ export type ThreadFilterState = {
   is_active: "" | "true" | "false";
   user_type: "" | "guest" | "logged_in";
   has_ticket: "" | "true" | "false";
+  has_order: "" | "true" | "false";
+  has_agent: "" | "true" | "false";
   has_feedback: "" | "true" | "false";
   feedback_rating: FeedbackRating;
   tags: string[];
@@ -47,6 +49,8 @@ export const DEFAULT_THREAD_FILTERS: ThreadFilterState = {
   is_active: "",
   user_type: "",
   has_ticket: "",
+  has_order: "",
+  has_agent: "",
   has_feedback: "",
   feedback_rating: "",
   tags: [],
@@ -187,6 +191,8 @@ export default function ThreadFilteration({
     filters.is_active !== "" ||
     filters.user_type !== "" ||
     filters.has_ticket !== "" ||
+    filters.has_order !== "" ||
+    filters.has_agent !== "" ||
     filters.has_feedback !== "" ||
     filters.feedback_rating !== "" ||
     filters.tags.length > 0 ||
@@ -245,6 +251,38 @@ export default function ThreadFilteration({
           { value: "", label: "All Tickets" },
           { value: "true", label: "With Ticket" },
           { value: "false", label: "Without Ticket" },
+        ]}
+      />
+
+      <FilterSelect
+        ariaLabel="Filter by order"
+        value={filters.has_order}
+        onChange={(has_order) =>
+          onChange({
+            ...filters,
+            has_order: has_order as ThreadFilterState["has_order"],
+          })
+        }
+        options={[
+          { value: "", label: "All" },
+          { value: "true", label: "With Order" },
+          { value: "false", label: "Without Order" },
+        ]}
+      />
+
+      <FilterSelect
+        ariaLabel="Filter by agent takeover"
+        value={filters.has_agent}
+        onChange={(has_agent) =>
+          onChange({
+            ...filters,
+            has_agent: has_agent as ThreadFilterState["has_agent"],
+          })
+        }
+        options={[
+          { value: "", label: "All" },
+          { value: "true", label: "With Agent" },
+          { value: "false", label: "Without Agent" },
         ]}
       />
 
