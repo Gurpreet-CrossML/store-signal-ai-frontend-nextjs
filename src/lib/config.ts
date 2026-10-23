@@ -314,6 +314,17 @@ export const ENDPOINTS = {
   supportSocket: (store_code: string, token: string) =>
     createWebSocketUrl(`/support/${store_code}/?token=${token}`),
 
+  // Notifications (Django) — always the logged-in agent's own. New ones
+  // arrive live on the dashboard socket as `notification` events.
+  notifications: () => createAPIUrl("/support/notifications/", "django"),
+  notificationUnreadCount: () =>
+    createAPIUrl("/support/notifications/unread-count/", "django"),
+  notificationMarkRead: (notification_id: number) =>
+    createAPIUrl(
+      `/support/notifications/${notification_id}/mark/read/`,
+      "django",
+    ),
+
   // Social AI (Django via useBackend — keep trailing slash). Nested by
   // resource so a response can only carry the relevant scope's data:
   // pages/posts are addressed by their EXTERNAL Graph id; users, comments
