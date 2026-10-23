@@ -4,30 +4,30 @@ import {
   IconAdjustmentsSpark,
   IconBooks,
   IconArrowsExchange,
-  IconBrandFacebook,
-  IconBrandInstagram,
-  IconBrandMessenger,
-  IconBrandWhatsapp,
-  IconMail,
+  // IconBrandFacebook,
+  // IconBrandInstagram,
+  // IconBrandMessenger,
+  // IconBrandWhatsapp,
+  // IconMail,
   IconAddressBook,
-  IconBrandMeta,
+  // IconBrandMeta,
   IconBuildingSkyscraper,
-  IconChecklist,
-  IconClockShield,
+  // IconChecklist,
+  // IconClockShield,
   IconCreditCardOff,
   IconImageGeneration,
   IconHeadset,
   IconInbox,
-  IconMessageCircle,
+  // IconMessageCircle,
   IconLibrary,
-  IconMessages,
-  IconSocial,
+  // IconMessages,
+  // IconSocial,
   IconPackageOff,
-  IconSend,
+  // IconSend,
   IconSettings,
-  IconShield,
+  // IconShield,
   IconBuildingStore,
-  IconSpeakerphone,
+  // IconSpeakerphone,
   IconTags,
   IconUserHexagon,
   IconUsers,
@@ -36,8 +36,8 @@ import {
   IconShoppingBag,
   IconVolume,
   type Icon,
-  IconChartBar,
-  IconPackage,
+  // IconChartBar,
+  // IconPackage,
 } from "@tabler/icons-react";
 
 import { CreateTicketAction } from "@/components/custom/helpdesk/create-ticket-action";
@@ -199,68 +199,68 @@ export const NAV_AREAS = {
       //   description: "Connect your store and third-party platforms.",
       //   icon: IconPlugConnected,
       // },
-      {
-        href: "/settings/ai-usage",
-        title: "AI Usage",
-        description: "What the assistant costs to run, and how hard it works.",
-        pageDescription:
-          "Token spend, workflow costs and response latency for this store's assistant.",
-        icon: IconChartBar,
-      },
-      {
-        href: "/settings/social-ai",
-        title: "Social AI",
-        description:
-          "Connected accounts, and how the AI answers comments and DMs.",
-        pageDescription:
-          "The Facebook and Instagram accounts connected to Store Signal AI, and the rules the AI follows when it answers on them.",
-        icon: IconBrandMeta,
-        items: [
-          {
-            href: "/settings/social-ai/accounts",
-            title: "Connected Accounts",
-            description:
-              "Facebook and Instagram accounts connected to Store Signal AI.",
-            pageDescription:
-              "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
-            icon: IconSocial,
-          },
-          {
-            href: "/settings/social-ai/comment-handling",
-            title: "Comment Handling",
-            description: "How the AI reads, classifies and acts on comments.",
-            pageDescription:
-              "How the AI reads, classifies and acts on every comment on your posts and ads. Each comment is tagged by intent, then handled by the rule you set for that intent.",
-            icon: IconMessageCircle,
-          },
-          {
-            href: "/settings/social-ai/dm-automation",
-            title: "DM Automation",
-            description: "How the AI handles direct messages.",
-            pageDescription:
-              "How the AI handles direct messages — the private, higher-trust channel where orders, support and conversions happen. Meta's messaging rules are applied on top of everything set here.",
-            icon: IconMessages,
-          },
-          {
-            href: "/settings/social-ai/guardrails",
-            title: "Guardrails & Limits",
-            description:
-              "Rate and pacing ceilings that keep every account safe.",
-            pageDescription:
-              "Rate and pacing ceilings, set per connected account, that keep automation well inside spam-safe territory.",
-            icon: IconClockShield,
-          },
-          {
-            href: "/settings/social-ai/meta-compliance",
-            title: "Meta Compliance",
-            description:
-              "The platform rails enforced on every connected account.",
-            pageDescription:
-              "The Meta rules enforced automatically on every connected account, so nothing you configure can put your accounts at risk.",
-            icon: IconShield,
-          },
-        ],
-      },
+      // {
+      // href: "/settings/ai-usage",
+      // title: "AI Usage",
+      // description: "What the assistant costs to run, and how hard it works.",
+      // pageDescription:
+      // "Token spend, workflow costs and response latency for this store's assistant.",
+      // icon: IconChartBar,
+      // },
+      // {
+      // href: "/settings/social-ai",
+      // title: "Social AI",
+      // description:
+      // "Connected accounts, and how the AI answers comments and DMs.",
+      // pageDescription:
+      // "The Facebook and Instagram accounts connected to Store Signal AI, and the rules the AI follows when it answers on them.",
+      // icon: IconBrandMeta,
+      // items: [
+      // {
+      // href: "/settings/social-ai/accounts",
+      // title: "Connected Accounts",
+      // description:
+      // "Facebook and Instagram accounts connected to Store Signal AI.",
+      // pageDescription:
+      // "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
+      // icon: IconSocial,
+      // },
+      // {
+      // href: "/settings/social-ai/comment-handling",
+      // title: "Comment Handling",
+      // description: "How the AI reads, classifies and acts on comments.",
+      // pageDescription:
+      // "How the AI reads, classifies and acts on every comment on your posts and ads. Each comment is tagged by intent, then handled by the rule you set for that intent.",
+      // icon: IconMessageCircle,
+      // },
+      // {
+      // href: "/settings/social-ai/dm-automation",
+      // title: "DM Automation",
+      // description: "How the AI handles direct messages.",
+      // pageDescription:
+      // "How the AI handles direct messages — the private, higher-trust channel where orders, support and conversions happen. Meta's messaging rules are applied on top of everything set here.",
+      // icon: IconMessages,
+      // },
+      // {
+      // href: "/settings/social-ai/guardrails",
+      // title: "Guardrails & Limits",
+      // description:
+      // "Rate and pacing ceilings that keep every account safe.",
+      // pageDescription:
+      // "Rate and pacing ceilings, set per connected account, that keep automation well inside spam-safe territory.",
+      // icon: IconClockShield,
+      // },
+      // {
+      // href: "/settings/social-ai/meta-compliance",
+      // title: "Meta Compliance",
+      // description:
+      // "The platform rails enforced on every connected account.",
+      // pageDescription:
+      // "The Meta rules enforced automatically on every connected account, so nothing you configure can put your accounts at risk.",
+      // icon: IconShield,
+      // },
+      // ],
+      // },
       // {
       //   href: "/settings/workflows",
       //   title: "Workflows",
@@ -373,99 +373,99 @@ export const NAV_AREAS = {
     ],
   },
 
-  socialAI: {
-    href: "/social-ai",
-    title: "Social AI",
-    description:
-      "AI-handled comments and messages across your connected social accounts.",
-    icon: IconBrandMeta,
-    sections: [
-      {
-        href: "/social-ai/facebook-post",
-        title: "Facebook Posts",
-        description: "AI replies to comments on your Facebook posts.",
-        icon: IconBrandFacebook,
-      },
-      {
-        href: "/social-ai/facebook-messages",
-        title: "Facebook Messages",
-        description: "AI conversations in your Facebook page inbox.",
-        icon: IconBrandMessenger,
-      },
-      {
-        href: "/social-ai/instagram-post",
-        title: "Instagram Posts",
-        description: "AI replies to comments on your Instagram posts.",
-        icon: IconBrandInstagram,
-      },
-      {
-        href: "/social-ai/instagram-messages",
-        title: "Instagram Messages",
-        description: "AI conversations in your Instagram direct messages.",
-        icon: IconSend,
-      },
-      {
-        href: "/social-ai/comment-drafts",
-        title: "Draft Review",
-        description: "Review AI-drafted comment replies before they go out.",
-        pageDescription:
-          "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
-        icon: IconChecklist,
-      },
-    ],
-  },
-
-  campaign: {
-    href: "/campaign",
-    title: "Campaign",
-    description: "WhatsApp templates and campaigns for reaching customers.",
-    icon: IconSpeakerphone,
-    sections: [
-      {
-        href: "/campaign/post-sale",
-        title: "Post Sale Templates",
-        description:
-          "Import ready-made templates for order placed, shipped, delivered, and review requests.",
-        pageDescription:
-          "Import Meta-ready WhatsApp templates for your order lifecycle — placed, shipped, delivered, and review requests. Once imported, they go through the same review process as any other template and show up in WhatsApp Templates.",
-        icon: IconPackage,
-      },
-      {
-        href: "/campaign/whatsapp-templates",
-        title: "WhatsApp Templates",
-        description: "Message templates approved for sending on WhatsApp.",
-        pageDescription:
-          "Manage the message templates Meta has approved — or is reviewing — for your connected WhatsApp number.",
-        icon: IconBrandWhatsapp,
-      },
-      {
-        href: "/campaign/email-templates",
-        title: "Email Templates",
-        description:
-          "Transactional email templates rendered through a shared HTML shell.",
-        pageDescription:
-          "Create and manage email templates for your store — offers, order updates and support notifications rendered through a branded HTML shell.",
-        icon: IconMail,
-      },
-      {
-        href: "/campaign/segments",
-        title: "Segments",
-        description: "Saved, reusable audiences a campaign can target.",
-        pageDescription:
-          "Saved, reusable audiences. Each segment narrows a platform-wide category (Abandoned Checkout, Total Spent, Last Order Date) with a time window and an optional cart-value floor.",
-        icon: IconUsersGroup,
-      },
-      {
-        href: "/campaign/campaigns",
-        title: "Campaigns",
-        description:
-          "Multi-step journeys — sends, waits and channel splits — targeting a segment.",
-        pageDescription:
-          "Multi-step outbound journeys targeting a saved segment. Each step sends one WhatsApp or email template, and the whole sequence must fit within a 24-hour span.",
-        icon: IconSpeakerphone,
-      },
-    ],
-  },
+  // socialAI: {
+  // href: "/social-ai",
+  // title: "Social AI",
+  // description:
+  // "AI-handled comments and messages across your connected social accounts.",
+  // icon: IconBrandMeta,
+  // sections: [
+  // {
+  // href: "/social-ai/facebook-post",
+  // title: "Facebook Posts",
+  // description: "AI replies to comments on your Facebook posts.",
+  // icon: IconBrandFacebook,
+  // },
+  // {
+  // href: "/social-ai/facebook-messages",
+  // title: "Facebook Messages",
+  // description: "AI conversations in your Facebook page inbox.",
+  // icon: IconBrandMessenger,
+  // },
+  // {
+  // href: "/social-ai/instagram-post",
+  // title: "Instagram Posts",
+  // description: "AI replies to comments on your Instagram posts.",
+  // icon: IconBrandInstagram,
+  // },
+  // {
+  // href: "/social-ai/instagram-messages",
+  // title: "Instagram Messages",
+  // description: "AI conversations in your Instagram direct messages.",
+  // icon: IconSend,
+  // },
+  // {
+  // href: "/social-ai/comment-drafts",
+  // title: "Draft Review",
+  // description: "Review AI-drafted comment replies before they go out.",
+  // pageDescription:
+  // "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
+  // icon: IconChecklist,
+  // },
+  // ],
+  // },
+  //
+  // campaign: {
+  // href: "/campaign",
+  // title: "Campaign",
+  // description: "WhatsApp templates and campaigns for reaching customers.",
+  // icon: IconSpeakerphone,
+  // sections: [
+  // {
+  // href: "/campaign/post-sale",
+  // title: "Post Sale Templates",
+  // description:
+  // "Import ready-made templates for order placed, shipped, delivered, and review requests.",
+  // pageDescription:
+  // "Import Meta-ready WhatsApp templates for your order lifecycle — placed, shipped, delivered, and review requests. Once imported, they go through the same review process as any other template and show up in WhatsApp Templates.",
+  // icon: IconPackage,
+  // },
+  // {
+  // href: "/campaign/whatsapp-templates",
+  // title: "WhatsApp Templates",
+  // description: "Message templates approved for sending on WhatsApp.",
+  // pageDescription:
+  // "Manage the message templates Meta has approved — or is reviewing — for your connected WhatsApp number.",
+  // icon: IconBrandWhatsapp,
+  // },
+  // {
+  // href: "/campaign/email-templates",
+  // title: "Email Templates",
+  // description:
+  // "Transactional email templates rendered through a shared HTML shell.",
+  // pageDescription:
+  // "Create and manage email templates for your store — offers, order updates and support notifications rendered through a branded HTML shell.",
+  // icon: IconMail,
+  // },
+  // {
+  // href: "/campaign/segments",
+  // title: "Segments",
+  // description: "Saved, reusable audiences a campaign can target.",
+  // pageDescription:
+  // "Saved, reusable audiences. Each segment narrows a platform-wide category (Abandoned Checkout, Total Spent, Last Order Date) with a time window and an optional cart-value floor.",
+  // icon: IconUsersGroup,
+  // },
+  // {
+  // href: "/campaign/campaigns",
+  // title: "Campaigns",
+  // description:
+  // "Multi-step journeys — sends, waits and channel splits — targeting a segment.",
+  // pageDescription:
+  // "Multi-step outbound journeys targeting a saved segment. Each step sends one WhatsApp or email template, and the whole sequence must fit within a 24-hour span.",
+  // icon: IconSpeakerphone,
+  // },
+  // ],
+  // },
 } as const satisfies Record<string, NavArea>;
 
 export type NavAreaKey = keyof typeof NAV_AREAS;
