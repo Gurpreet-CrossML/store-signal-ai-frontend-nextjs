@@ -264,25 +264,9 @@ export default function ThreadFilteration({
           })
         }
         options={[
-          { value: "", label: "All" },
+          { value: "", label: "Orders" },
           { value: "true", label: "With Order" },
           { value: "false", label: "Without Order" },
-        ]}
-      />
-
-      <FilterSelect
-        ariaLabel="Filter by agent takeover"
-        value={filters.has_agent}
-        onChange={(has_agent) =>
-          onChange({
-            ...filters,
-            has_agent: has_agent as ThreadFilterState["has_agent"],
-          })
-        }
-        options={[
-          { value: "", label: "All" },
-          { value: "true", label: "With Agent" },
-          { value: "false", label: "Without Agent" },
         ]}
       />
 
