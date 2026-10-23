@@ -1034,7 +1034,7 @@ function ConversationPanel({
 
         <div className="flex shrink-0 items-center gap-2">
           <CustomerDetailsButton onClick={onShowDetails} />
-          {/* <Combobox items={availableStaff}>
+          <Combobox items={availableStaff}>
             <ComboboxInput
               className="h-8 w-28 2xl:w-40"
               placeholder={
@@ -1071,7 +1071,7 @@ function ConversationPanel({
                 )}
               </ComboboxList>
             </ComboboxContent>
-          </Combobox> */}
+          </Combobox>
 
           {/* The two endings a ticket actually has, one click away —
               they were buried in the status Select behind the ⋮ menu. */}
