@@ -1,3 +1,4 @@
+import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/lib/tenant-context";
 import { storeIdScope, scopedThreadFilter } from "@/db/access";
 import { FEEDBACK_RATING_VALUES } from "@/lib/config";
@@ -37,6 +38,25 @@ import {
   OrderShippingAddress,
   ViewedProduct,
 } from "@/redux/api-slice/thread-slice";
+
+/** The agent who closed a thread — a second join of auth_user. */
+const closedByUser = alias(authUser, "closed_by_user");
+
+/**
+ * Name of the agent who closed a thread: their full name, else their email,
+ * else null when no agent closed it (mirrors get_user_display_name).
+ */
+function closedByName(user: {
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+}): string | null {
+  return (
+    `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() ||
+    user.email ||
+    null
+  );
+}
 
 /**
  * Filters accepted by the thread list endpoint, mirroring
@@ -606,6 +626,9 @@ export type ThreadDetail =
       store: number;
       name: string | null;
       is_active: boolean;
+      close_reason: string | null;
+      closed_by_type: string | null;
+      closed_by_name: string | null;
       ai_responding: boolean;
       followup_level: number;
       total_messages: number;
@@ -662,6 +685,11 @@ export async function get_thread_details(
       storeId: chatThread.storeId,
       name: chatThread.name,
       is_active: chatThread.isActive,
+      close_reason: chatThread.closeReason,
+      closed_by_type: chatThread.closedByType,
+      closed_by_first_name: closedByUser.firstName,
+      closed_by_last_name: closedByUser.lastName,
+      closed_by_email: closedByUser.email,
       ai_responding: chatThread.aiResponding,
       followup_level: chatThread.followupLevel,
       created_at: chatThread.createdAt,
@@ -675,6 +703,7 @@ export async function get_thread_details(
     })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
+    .leftJoin(closedByUser, eq(chatThread.closedById, closedByUser.id))
     .where(scopedThreadFilter(chatThread.id, thread_id))
     .limit(1);
 
@@ -822,6 +851,13 @@ export async function get_thread_details(
     store: Number(t.storeId),
     name: t.name,
     is_active: t.is_active,
+    close_reason: t.close_reason,
+    closed_by_type: t.closed_by_type,
+    closed_by_name: closedByName({
+      firstName: t.closed_by_first_name,
+      lastName: t.closed_by_last_name,
+      email: t.closed_by_email,
+    }),
     ai_responding: t.ai_responding,
     followup_level: t.followup_level,
     total_messages,
