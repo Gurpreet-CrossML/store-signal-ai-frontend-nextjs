@@ -30,13 +30,15 @@ import { CreateStaff } from "@/redux/api-slice/tenancy-slice";
 import { ASSIGNABLE_ROLES, ROLE_LABELS } from "@/lib/staff-roles";
 import { InfoIcon } from "@/components/custom/info-icon";
 
+const PERSON_NAME_PATTERN = /^(?=.*\p{L})[\p{L}\p{M}\s.'’-]+$/u;
+
 const personName = z
   .string()
   .trim()
   .min(1, "This is required")
-  .max(150, "Use 150 characters or fewer")
-  .regex(
-    /^(?=.*\p{L})[\p{L}\p{M}\s.'’-]+$/u,
+  .max(150, "Only 150 characters are allowed")
+  .refine(
+    (value) => value.length === 0 || PERSON_NAME_PATTERN.test(value),
     "Use letters, spaces, hyphens, apostrophes, or periods only",
   );
 
