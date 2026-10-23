@@ -7,6 +7,7 @@ import { CollapsibleMenuItem } from "@/components/custom/sub-sidebar-menu";
 import { StoreSwitcher } from "@/components/custom/store-switcher";
 import { NavSecondary } from "@/components/custom/nav-secondary";
 import { NavUser } from "@/components/custom/nav-user";
+import { NotificationBell } from "@/components/custom/notification-bell";
 import {
   Sidebar,
   SidebarContent,
@@ -93,8 +94,9 @@ export function AppSidebar({
 
   React.useEffect(() => refreshNeedsHumanBadge(), [refreshNeedsHumanBadge]);
 
-  useSupportDashboardEvents(() => {
-    refreshNeedsHumanBadge();
+  useSupportDashboardEvents((event) => {
+    // A personal notification says nothing about the store's chat counts.
+    if (event.action_type !== "notification") refreshNeedsHumanBadge();
   });
 
   // One ordered list, filtered rather than concatenated — a hidden entry
@@ -178,6 +180,13 @@ export function AppSidebar({
           )}
         </SidebarContent>
         <SidebarFooter>
+          {/* Notifications sit with the user's own controls, on every page
+              and for every role (agents cannot open the Dashboard). */}
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <NotificationBell />
+            </SidebarMenuItem>
+          </SidebarMenu>
           <NavUser />
         </SidebarFooter>
       </Sidebar>
