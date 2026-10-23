@@ -1,8 +1,4 @@
-import {
-  createAsyncThunk,
-  createSlice,
-  type PayloadAction,
-} from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 
@@ -45,8 +41,6 @@ export type NotificationListResponse = {
   results: AgentNotification[];
 };
 
-const TABS: NotificationTab[] = ["all", "unread", "tickets", "messages"];
-
 // The list API's filter for each tab.
 const TAB_FILTERS: Record<NotificationTab, Record<string, string>> = {
   all: {},
@@ -55,60 +49,71 @@ const TAB_FILTERS: Record<NotificationTab, Record<string, string>> = {
   messages: { thread__isnull: "false" },
 };
 
-/** Whether a notification belongs in a tab — the same rule as TAB_FILTERS. */
-function isInTab(notification: AgentNotification, tab: NotificationTab) {
-  if (tab === "unread") return !notification.is_read;
-  if (tab === "tickets") return notification.ticket !== null;
-  if (tab === "messages") return notification.thread !== null;
-  return true;
-}
+/** One page of the store's notifications in a tab. */
+async function getNotificationPage(
+  storeCode: string,
+  tab: NotificationTab,
+  page: number,
+): Promise<NotificationListResponse> {
+  const params = new URLSearchParams({
+    store_code: storeCode,
+    page: String(page),
+    ...TAB_FILTERS[tab],
+  });
 
-function emptyNotificationList(): NotificationListResponse {
-  return { count: 0, next: null, previous: null, results: [] };
-}
-
-function emptyNotificationCounts(): NotificationCounts {
-  return { all: 0, unread: 0, tickets: 0, messages: 0 };
+  const response = await axiosInstance.get(
+    `${ENDPOINTS.notifications()}?${params.toString()}`,
+    { useBackend: true },
+  );
+  return response.data.data;
 }
 
 // --- Thunks -------------------------------------------------------------
 // Notifications are store-scoped: every call names the store with
 // `?store_code=`, and the backend returns only the logged-in agent's own
-// notifications whose ticket or live chat belongs to that store.
+// notifications of that store.
 
+/** The first page of a tab; replaces the list. */
 export const FetchNotifications = createAsyncThunk(
   "FetchNotifications",
   async (
-    {
-      storeCode,
-      tab = "all",
-      page = 1,
-    }: {
-      storeCode: string;
-      tab?: NotificationTab;
-      page?: number;
-    },
+    { storeCode, tab = "all" }: { storeCode: string; tab?: NotificationTab },
     thunkAPI,
   ) => {
     try {
-      const params = new URLSearchParams({
-        store_code: storeCode,
-        page: String(page),
-        ...TAB_FILTERS[tab],
-      });
-
-      const response = await axiosInstance.get(
-        `${ENDPOINTS.notifications()}?${params.toString()}`,
-        { useBackend: true },
-      );
-      const data: NotificationListResponse = response.data.data;
-      return data;
+      return await getNotificationPage(storeCode, tab, 1);
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Uh oh! Something went wrong.", {
         description:
           data?.message || "Unable to load notifications, please try again.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+/** A later page of a tab, as the agent scrolls; added to the list. */
+export const FetchMoreNotifications = createAsyncThunk(
+  "FetchMoreNotifications",
+  async (
+    {
+      storeCode,
+      tab = "all",
+      page,
+    }: { storeCode: string; tab?: NotificationTab; page: number },
+    thunkAPI,
+  ) => {
+    try {
+      return await getNotificationPage(storeCode, tab, page);
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          data?.message ||
+          "Unable to load more notifications, please try again.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
@@ -136,23 +141,12 @@ export const FetchNotificationCounts = createAsyncThunk(
   },
 );
 
-// Takes the whole notification: whether it was unread decides if the
-// counts drop, and that is applied as soon as the agent clicks.
 export const MarkNotificationRead = createAsyncThunk(
   "MarkNotificationRead",
-  async (
-    {
-      storeCode,
-      notification,
-    }: {
-      storeCode: string;
-      notification: AgentNotification;
-    },
-    thunkAPI,
-  ) => {
+  async ({ storeCode, id }: { storeCode: string; id: number }, thunkAPI) => {
     try {
       const response = await axiosInstance.put(
-        `${ENDPOINTS.notificationMarkRead(notification.id)}?store_code=${storeCode}`,
+        `${ENDPOINTS.notificationMarkRead(id)}?store_code=${storeCode}`,
       );
       const data: AgentNotification = response.data.data;
       return data;
@@ -178,20 +172,28 @@ const NotificationSlice = createSlice({
       FetchNotificationsIsLoading: false,
       FetchNotificationsIsSuccess: false,
       FetchNotificationsIsError: null as null | string | object,
-      FetchNotificationsListData: emptyNotificationList(),
-      FetchNotificationsLatestRequestId: null as string | null,
-      // Which list is loaded: its store and tab, and the last page fetched
-      // (0 while nothing is).
-      FetchNotificationsStoreCode: "",
-      FetchNotificationsTab: "all" as NotificationTab,
-      FetchNotificationsPage: 0,
+      FetchNotificationsListData: {
+        count: 0,
+        next: null,
+        previous: null,
+        results: [],
+      } as NotificationListResponse,
+    },
+    FetchMoreNotificationsState: {
+      FetchMoreNotificationsIsLoading: false,
+      FetchMoreNotificationsIsSuccess: false,
+      FetchMoreNotificationsIsError: null as null | string | object,
     },
     FetchNotificationCountsState: {
       FetchNotificationCountsIsLoading: false,
       FetchNotificationCountsIsSuccess: false,
       FetchNotificationCountsIsError: null as null | string | object,
-      FetchNotificationCountsData: emptyNotificationCounts(),
-      FetchNotificationCountsLatestRequestId: null as string | null,
+      FetchNotificationCountsData: {
+        all: 0,
+        unread: 0,
+        tickets: 0,
+        messages: 0,
+      } as NotificationCounts,
     },
     MarkNotificationReadState: {
       MarkNotificationReadIsLoading: false,
@@ -199,157 +201,70 @@ const NotificationSlice = createSlice({
       MarkNotificationReadIsError: null as null | string | object,
     },
   },
-  reducers: {
-    // A notification pushed over the dashboard socket. The backend pushes
-    // only the selected store's (the socket's group is per store), so it is
-    // counted and listed as it is.
-    notificationReceived: (state, action: PayloadAction<AgentNotification>) => {
-      TABS.forEach((tab) => {
-        if (isInTab(action.payload, tab)) {
-          state.FetchNotificationCountsState.FetchNotificationCountsData[tab] +=
-            1;
-        }
-      });
-
-      if (
-        state.FetchNotificationsState.FetchNotificationsPage > 0 &&
-        isInTab(
-          action.payload,
-          state.FetchNotificationsState.FetchNotificationsTab,
-        )
-      ) {
-        state.FetchNotificationsState.FetchNotificationsListData.results.unshift(
-          action.payload,
-        );
-      }
-    },
-  },
+  reducers: {},
   extraReducers: (builder) => {
     builder
-      // FetchNotifications
-      .addCase(FetchNotifications.pending, (state, action) => {
-        const { storeCode, tab = "all" } = action.meta.arg;
-
+      .addCase(FetchNotifications.pending, (state) => {
         state.FetchNotificationsState.FetchNotificationsIsLoading = true;
         state.FetchNotificationsState.FetchNotificationsIsSuccess = false;
         state.FetchNotificationsState.FetchNotificationsIsError = null;
-        state.FetchNotificationsState.FetchNotificationsLatestRequestId =
-          action.meta.requestId;
-
-        // Another store or tab is another list: drop the old one at once.
-        if (
-          storeCode !==
-            state.FetchNotificationsState.FetchNotificationsStoreCode ||
-          tab !== state.FetchNotificationsState.FetchNotificationsTab
-        ) {
-          state.FetchNotificationsState.FetchNotificationsStoreCode = storeCode;
-          state.FetchNotificationsState.FetchNotificationsTab = tab;
-          state.FetchNotificationsState.FetchNotificationsPage = 0;
-          state.FetchNotificationsState.FetchNotificationsListData =
-            emptyNotificationList();
-        }
       })
       .addCase(FetchNotifications.fulfilled, (state, action) => {
-        if (
-          action.meta.requestId !==
-          state.FetchNotificationsState.FetchNotificationsLatestRequestId
-        ) {
-          return;
-        }
-
-        const page = action.meta.arg.page ?? 1;
-        const loadedIds = new Set(
-          state.FetchNotificationsState.FetchNotificationsListData.results.map(
-            (item) => item.id,
-          ),
-        );
-
         state.FetchNotificationsState.FetchNotificationsIsLoading = false;
         state.FetchNotificationsState.FetchNotificationsIsSuccess = true;
-        // A later page can repeat rows that slid down when new ones arrived
-        // at the top in between, so those are skipped.
-        state.FetchNotificationsState.FetchNotificationsListData = {
-          ...action.payload,
-          results:
-            page === 1
-              ? action.payload.results
-              : [
-                  ...state.FetchNotificationsState.FetchNotificationsListData
-                    .results,
-                  ...action.payload.results.filter(
-                    (item) => !loadedIds.has(item.id),
-                  ),
-                ],
-        };
-        state.FetchNotificationsState.FetchNotificationsPage = page;
+        state.FetchNotificationsState.FetchNotificationsListData =
+          action.payload;
       })
       .addCase(FetchNotifications.rejected, (state, action) => {
-        if (
-          action.meta.requestId !==
-          state.FetchNotificationsState.FetchNotificationsLatestRequestId
-        ) {
-          return;
-        }
         state.FetchNotificationsState.FetchNotificationsIsLoading = false;
         state.FetchNotificationsState.FetchNotificationsIsSuccess = false;
         state.FetchNotificationsState.FetchNotificationsIsError =
-          "Something went wrong";
+          action.payload || "Something went wrong";
       })
-      // FetchNotificationCounts
-      .addCase(FetchNotificationCounts.pending, (state, action) => {
+      .addCase(FetchMoreNotifications.pending, (state) => {
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsLoading = true;
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsSuccess = false;
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsError = null;
+      })
+      .addCase(FetchMoreNotifications.fulfilled, (state, action) => {
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsLoading = false;
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsSuccess = true;
+        state.FetchNotificationsState.FetchNotificationsListData = {
+          ...action.payload,
+          results: [
+            ...state.FetchNotificationsState.FetchNotificationsListData.results,
+            ...action.payload.results,
+          ],
+        };
+      })
+      .addCase(FetchMoreNotifications.rejected, (state, action) => {
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsLoading = false;
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsSuccess = false;
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsError =
+          action.payload || "Something went wrong";
+      })
+      .addCase(FetchNotificationCounts.pending, (state) => {
         state.FetchNotificationCountsState.FetchNotificationCountsIsLoading = true;
         state.FetchNotificationCountsState.FetchNotificationCountsIsSuccess = false;
         state.FetchNotificationCountsState.FetchNotificationCountsIsError =
           null;
-        state.FetchNotificationCountsState.FetchNotificationCountsLatestRequestId =
-          action.meta.requestId;
       })
       .addCase(FetchNotificationCounts.fulfilled, (state, action) => {
-        if (
-          action.meta.requestId !==
-          state.FetchNotificationCountsState
-            .FetchNotificationCountsLatestRequestId
-        ) {
-          return;
-        }
         state.FetchNotificationCountsState.FetchNotificationCountsIsLoading = false;
         state.FetchNotificationCountsState.FetchNotificationCountsIsSuccess = true;
         state.FetchNotificationCountsState.FetchNotificationCountsData =
           action.payload;
       })
       .addCase(FetchNotificationCounts.rejected, (state, action) => {
-        if (
-          action.meta.requestId !==
-          state.FetchNotificationCountsState
-            .FetchNotificationCountsLatestRequestId
-        ) {
-          return;
-        }
         state.FetchNotificationCountsState.FetchNotificationCountsIsLoading = false;
         state.FetchNotificationCountsState.FetchNotificationCountsIsSuccess = false;
         state.FetchNotificationCountsState.FetchNotificationCountsIsError =
-          "Something went wrong";
+          action.payload || "Something went wrong";
       })
-      // MarkNotificationRead
-      .addCase(MarkNotificationRead.pending, (state, action) => {
+      .addCase(MarkNotificationRead.pending, (state) => {
         state.MarkNotificationReadState.MarkNotificationReadIsLoading = true;
         state.MarkNotificationReadState.MarkNotificationReadIsSuccess = false;
         state.MarkNotificationReadState.MarkNotificationReadIsError = null;
-
-        if (action.meta.arg.notification.is_read) return;
-
-        // Shown as read at once; undone if the request fails.
-        const row =
-          state.FetchNotificationsState.FetchNotificationsListData.results.find(
-            (item) => item.id === action.meta.arg.notification.id,
-          );
-        if (row) row.is_read = true;
-        state.FetchNotificationCountsState.FetchNotificationCountsData.unread =
-          Math.max(
-            0,
-            state.FetchNotificationCountsState.FetchNotificationCountsData
-              .unread - 1,
-          );
       })
       .addCase(MarkNotificationRead.fulfilled, (state) => {
         state.MarkNotificationReadState.MarkNotificationReadIsLoading = false;
@@ -359,21 +274,9 @@ const NotificationSlice = createSlice({
         state.MarkNotificationReadState.MarkNotificationReadIsLoading = false;
         state.MarkNotificationReadState.MarkNotificationReadIsSuccess = false;
         state.MarkNotificationReadState.MarkNotificationReadIsError =
-          "Something went wrong";
-
-        if (action.meta.arg.notification.is_read) return;
-
-        // Undo the optimistic update made when the request started.
-        const row =
-          state.FetchNotificationsState.FetchNotificationsListData.results.find(
-            (item) => item.id === action.meta.arg.notification.id,
-          );
-        if (row) row.is_read = false;
-        state.FetchNotificationCountsState.FetchNotificationCountsData.unread += 1;
+          action.payload || "Something went wrong";
       });
   },
 });
-
-export const { notificationReceived } = NotificationSlice.actions;
 
 export default NotificationSlice.reducer;

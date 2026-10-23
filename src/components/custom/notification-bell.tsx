@@ -37,10 +37,10 @@ import { useSupportDashboardEvents } from "@/hooks/use-support-dashboard-events"
 import { formatRelativeTime } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import {
+  FetchMoreNotifications,
   FetchNotifications,
   FetchNotificationCounts,
   MarkNotificationRead,
-  notificationReceived,
   type AgentNotification,
   type NotificationTab,
   type NotificationType,
@@ -205,6 +205,9 @@ export function NotificationBell() {
   const router = useRouter();
   const { status } = useSession();
   const [open, setOpen] = useState(false);
+  // The open tab and the last page loaded in it.
+  const [tab, setTab] = useState<NotificationTab>("all");
+  const [page, setPage] = useState(1);
   // Ids pushed live this session; only these rows animate in.
   const [liveIds, setLiveIds] = useState<ReadonlySet<number>>(new Set());
 
@@ -214,33 +217,39 @@ export function NotificationBell() {
         .FetchNotificationCountsData,
   );
   const unreadCount = counts.unread;
-  const {
-    FetchNotificationsIsLoading,
-    FetchNotificationsListData,
-    FetchNotificationsTab: tab,
-    FetchNotificationsPage: page,
-  } = useAppSelector(
-    (state) => state.GetNotificationReducer.FetchNotificationsState,
+  const { FetchNotificationsIsLoading, FetchNotificationsListData } =
+    useAppSelector(
+      (state) => state.GetNotificationReducer.FetchNotificationsState,
+    );
+  const { FetchMoreNotificationsIsLoading } = useAppSelector(
+    (state) => state.GetNotificationReducer.FetchMoreNotificationsState,
   );
   const { next, results } = FetchNotificationsListData;
   const selectedStore = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
 
+  const loadCounts = () => {
+    if (selectedStore) {
+      void dispatch(FetchNotificationCounts({ storeCode: selectedStore }));
+    }
+  };
+
   // Notifications are per store: the counts (badge and tabs) are the
   // selected store's, loaded once the agent is logged in and again whenever
-  // the store changes; the socket keeps them current in between.
+  // the store changes.
   useEffect(() => {
     if (status === "authenticated" && selectedStore) {
       void dispatch(FetchNotificationCounts({ storeCode: selectedStore }));
     }
   }, [dispatch, status, selectedStore]);
 
+  /** Shows the first page of a tab. */
   const loadTab = (value: NotificationTab) => {
     if (!selectedStore) return;
-    void dispatch(
-      FetchNotifications({ storeCode: selectedStore, tab: value, page: 1 }),
-    );
+    setTab(value);
+    setPage(1);
+    void dispatch(FetchNotifications({ storeCode: selectedStore, tab: value }));
   };
 
   const handleOpenChange = (value: boolean) => {
@@ -250,22 +259,19 @@ export function NotificationBell() {
     // rows do not slide in again next time.
     if (value) {
       loadTab(tab);
-      if (selectedStore) {
-        void dispatch(FetchNotificationCounts({ storeCode: selectedStore }));
-      }
+      loadCounts();
     } else {
       setLiveIds(new Set());
     }
   };
 
   const openNotification = (notification: AgentNotification) => {
-    if (!notification.is_read)
+    if (!notification.is_read) {
+      // The badge drops once the backend has it as read.
       void dispatch(
-        MarkNotificationRead({
-          storeCode: selectedStore,
-          notification,
-        }),
-      );
+        MarkNotificationRead({ storeCode: selectedStore, id: notification.id }),
+      ).then(loadCounts);
+    }
     router.push(
       notification.ticket !== null
         ? `/helpdesk?ticket=${notification.ticket}`
@@ -274,12 +280,16 @@ export function NotificationBell() {
     handleOpenChange(false);
   };
 
+  // The backend pushes only the selected store's notifications. Each one
+  // refreshes the counts and, with the drawer open, its first page, where
+  // the new row slides in at the top.
   useSupportDashboardEvents((event) => {
     if (event.action_type !== "notification") return;
 
     const notification = event.data;
     setLiveIds((ids) => new Set(ids).add(notification.id));
-    dispatch(notificationReceived(notification));
+    loadCounts();
+    if (open) loadTab(tab);
     toast.custom(
       (id) => (
         <NotificationToast
@@ -297,11 +307,18 @@ export function NotificationBell() {
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
-    if (!next || FetchNotificationsIsLoading) return;
+    if (!next || FetchNotificationsIsLoading || FetchMoreNotificationsIsLoading)
+      return;
     if (target.scrollHeight - target.scrollTop <= target.clientHeight + 120) {
       void dispatch(
-        FetchNotifications({ storeCode: selectedStore, tab, page: page + 1 }),
-      );
+        FetchMoreNotifications({
+          storeCode: selectedStore,
+          tab,
+          page: page + 1,
+        }),
+      ).then((result) => {
+        if (FetchMoreNotifications.fulfilled.match(result)) setPage(page + 1);
+      });
     }
   };
 
@@ -405,7 +422,7 @@ export function NotificationBell() {
                 ))}
               </ul>
             )}
-            {FetchNotificationsIsLoading && results.length > 0 && (
+            {FetchMoreNotificationsIsLoading && (
               <div className="flex justify-center py-3">
                 <Spinner />
               </div>
