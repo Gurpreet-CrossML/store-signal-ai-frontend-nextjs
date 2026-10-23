@@ -43,7 +43,6 @@ export type NotificationListResponse = {
   next: string | null;
   previous: string | null;
   results: AgentNotification[];
-  counts: NotificationCounts;
 };
 
 const TABS: NotificationTab[] = ["all", "unread", "tickets", "messages"];
@@ -65,13 +64,11 @@ function isInTab(notification: AgentNotification, tab: NotificationTab) {
 }
 
 function emptyNotificationList(): NotificationListResponse {
-  return {
-    count: 0,
-    next: null,
-    previous: null,
-    results: [],
-    counts: { all: 0, unread: 0, tickets: 0, messages: 0 },
-  };
+  return { count: 0, next: null, previous: null, results: [] };
+}
+
+function emptyNotificationCounts(): NotificationCounts {
+  return { all: 0, unread: 0, tickets: 0, messages: 0 };
 }
 
 // --- Thunks -------------------------------------------------------------
@@ -118,18 +115,19 @@ export const FetchNotifications = createAsyncThunk(
   },
 );
 
-// No error toast: this runs in the background for the bell's badge.
-export const FetchNotificationUnreadCount = createAsyncThunk(
-  "FetchNotificationUnreadCount",
+// The bell's badge (`unread`) and the drawer's tab sizes, in one request.
+// No error toast: this runs in the background.
+export const FetchNotificationCounts = createAsyncThunk(
+  "FetchNotificationCounts",
   async ({ storeCode }: { storeCode: string }, thunkAPI) => {
     try {
       const params = new URLSearchParams({ store_code: storeCode });
 
       const response = await axiosInstance.get(
-        `${ENDPOINTS.notificationUnreadCount()}?${params.toString()}`,
+        `${ENDPOINTS.notificationCounts()}?${params.toString()}`,
         { useBackend: true },
       );
-      const data: number = response.data.data.unread_count;
+      const data: NotificationCounts = response.data.data;
       return data;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -189,13 +187,13 @@ const NotificationSlice = createSlice({
       FetchNotificationsTab: "all" as NotificationTab,
       FetchNotificationsPage: 0,
     },
-    FetchNotificationUnreadCountState: {
-      FetchNotificationUnreadCountIsLoading: false,
-      FetchNotificationUnreadCountIsSuccess: false,
-      FetchNotificationUnreadCountIsError: null as null | string | object,
-      FetchNotificationUnreadCountData: 0,
-      // The store the badge's count belongs to.
-      FetchNotificationUnreadCountStoreCode: "",
+    FetchNotificationCountsState: {
+      FetchNotificationCountsIsLoading: false,
+      FetchNotificationCountsIsSuccess: false,
+      FetchNotificationCountsIsError: null as null | string | object,
+      FetchNotificationCountsData: emptyNotificationCounts(),
+      // The store the counts belong to.
+      FetchNotificationCountsStoreCode: "",
     },
     MarkNotificationReadState: {
       MarkNotificationReadIsLoading: false,
@@ -205,31 +203,44 @@ const NotificationSlice = createSlice({
   },
   reducers: {
     // A notification pushed over the dashboard socket. Pushes arrive for
-    // every store, so the count and list change only for their own store.
+    // every store, so the counts and list change only for their own store.
     notificationReceived: (state, action: PayloadAction<AgentNotification>) => {
-      const list = state.FetchNotificationsState;
-      const unread = state.FetchNotificationUnreadCountState;
       const notification = action.payload;
-      const data = list.FetchNotificationsListData;
 
       // Already counted: a refetch returned it before the socket did.
-      if (data.results.some((item) => item.id === notification.id)) return;
-
       if (
-        notification.store_code === unread.FetchNotificationUnreadCountStoreCode
+        state.FetchNotificationsState.FetchNotificationsListData.results.some(
+          (item) => item.id === notification.id,
+        )
       ) {
-        unread.FetchNotificationUnreadCountData += 1;
+        return;
       }
-      if (notification.store_code !== list.FetchNotificationsStoreCode) return;
 
-      TABS.forEach((tab) => {
-        if (isInTab(notification, tab)) data.counts[tab] += 1;
-      });
       if (
-        list.FetchNotificationsPage > 0 &&
-        isInTab(notification, list.FetchNotificationsTab)
+        notification.store_code ===
+        state.FetchNotificationCountsState.FetchNotificationCountsStoreCode
       ) {
-        data.results.unshift(notification);
+        TABS.forEach((tab) => {
+          if (isInTab(notification, tab)) {
+            state.FetchNotificationCountsState.FetchNotificationCountsData[
+              tab
+            ] += 1;
+          }
+        });
+      }
+
+      if (
+        notification.store_code ===
+          state.FetchNotificationsState.FetchNotificationsStoreCode &&
+        state.FetchNotificationsState.FetchNotificationsPage > 0 &&
+        isInTab(
+          notification,
+          state.FetchNotificationsState.FetchNotificationsTab,
+        )
+      ) {
+        state.FetchNotificationsState.FetchNotificationsListData.results.unshift(
+          notification,
+        );
       }
     },
   },
@@ -237,104 +248,103 @@ const NotificationSlice = createSlice({
     builder
       // FetchNotifications
       .addCase(FetchNotifications.pending, (state, action) => {
-        const list = state.FetchNotificationsState;
         const { storeCode, tab = "all" } = action.meta.arg;
 
-        list.FetchNotificationsIsLoading = true;
-        list.FetchNotificationsIsSuccess = false;
-        list.FetchNotificationsIsError = null;
-        list.FetchNotificationsLatestRequestId = action.meta.requestId;
+        state.FetchNotificationsState.FetchNotificationsIsLoading = true;
+        state.FetchNotificationsState.FetchNotificationsIsSuccess = false;
+        state.FetchNotificationsState.FetchNotificationsIsError = null;
+        state.FetchNotificationsState.FetchNotificationsLatestRequestId =
+          action.meta.requestId;
 
         // Another store or tab is another list: drop the old one at once.
         if (
-          storeCode !== list.FetchNotificationsStoreCode ||
-          tab !== list.FetchNotificationsTab
+          storeCode !==
+            state.FetchNotificationsState.FetchNotificationsStoreCode ||
+          tab !== state.FetchNotificationsState.FetchNotificationsTab
         ) {
-          list.FetchNotificationsStoreCode = storeCode;
-          list.FetchNotificationsTab = tab;
-          list.FetchNotificationsPage = 0;
-          list.FetchNotificationsListData = emptyNotificationList();
+          state.FetchNotificationsState.FetchNotificationsStoreCode = storeCode;
+          state.FetchNotificationsState.FetchNotificationsTab = tab;
+          state.FetchNotificationsState.FetchNotificationsPage = 0;
+          state.FetchNotificationsState.FetchNotificationsListData =
+            emptyNotificationList();
         }
       })
       .addCase(FetchNotifications.fulfilled, (state, action) => {
-        const list = state.FetchNotificationsState;
-        const unread = state.FetchNotificationUnreadCountState;
-        if (action.meta.requestId !== list.FetchNotificationsLatestRequestId) {
+        if (
+          action.meta.requestId !==
+          state.FetchNotificationsState.FetchNotificationsLatestRequestId
+        ) {
           return;
         }
 
         const page = action.meta.arg.page ?? 1;
-        const loaded = new Set(
-          list.FetchNotificationsListData.results.map((item) => item.id),
+        const loadedIds = new Set(
+          state.FetchNotificationsState.FetchNotificationsListData.results.map(
+            (item) => item.id,
+          ),
         );
 
-        list.FetchNotificationsIsLoading = false;
-        list.FetchNotificationsIsSuccess = true;
+        state.FetchNotificationsState.FetchNotificationsIsLoading = false;
+        state.FetchNotificationsState.FetchNotificationsIsSuccess = true;
         // A later page can repeat rows that slid down when new ones arrived
         // at the top in between, so those are skipped.
-        list.FetchNotificationsListData = {
+        state.FetchNotificationsState.FetchNotificationsListData = {
           ...action.payload,
           results:
             page === 1
               ? action.payload.results
               : [
-                  ...list.FetchNotificationsListData.results,
+                  ...state.FetchNotificationsState.FetchNotificationsListData
+                    .results,
                   ...action.payload.results.filter(
-                    (item) => !loaded.has(item.id),
+                    (item) => !loadedIds.has(item.id),
                   ),
                 ],
         };
-        list.FetchNotificationsPage = page;
-
-        if (
-          action.meta.arg.storeCode ===
-          unread.FetchNotificationUnreadCountStoreCode
-        ) {
-          unread.FetchNotificationUnreadCountData =
-            action.payload.counts.unread;
-        }
+        state.FetchNotificationsState.FetchNotificationsPage = page;
       })
       .addCase(FetchNotifications.rejected, (state, action) => {
-        const list = state.FetchNotificationsState;
-        if (action.meta.requestId !== list.FetchNotificationsLatestRequestId) {
+        if (
+          action.meta.requestId !==
+          state.FetchNotificationsState.FetchNotificationsLatestRequestId
+        ) {
           return;
         }
-        list.FetchNotificationsIsLoading = false;
-        list.FetchNotificationsIsSuccess = false;
-        list.FetchNotificationsIsError = "Something went wrong";
+        state.FetchNotificationsState.FetchNotificationsIsLoading = false;
+        state.FetchNotificationsState.FetchNotificationsIsSuccess = false;
+        state.FetchNotificationsState.FetchNotificationsIsError =
+          "Something went wrong";
       })
-      // FetchNotificationUnreadCount
-      .addCase(FetchNotificationUnreadCount.pending, (state, action) => {
-        const unread = state.FetchNotificationUnreadCountState;
-        unread.FetchNotificationUnreadCountIsLoading = true;
-        unread.FetchNotificationUnreadCountIsSuccess = false;
-        unread.FetchNotificationUnreadCountIsError = null;
-        unread.FetchNotificationUnreadCountStoreCode =
+      // FetchNotificationCounts
+      .addCase(FetchNotificationCounts.pending, (state, action) => {
+        state.FetchNotificationCountsState.FetchNotificationCountsIsLoading = true;
+        state.FetchNotificationCountsState.FetchNotificationCountsIsSuccess = false;
+        state.FetchNotificationCountsState.FetchNotificationCountsIsError =
+          null;
+        state.FetchNotificationCountsState.FetchNotificationCountsStoreCode =
           action.meta.arg.storeCode;
       })
-      .addCase(FetchNotificationUnreadCount.fulfilled, (state, action) => {
-        const unread = state.FetchNotificationUnreadCountState;
+      .addCase(FetchNotificationCounts.fulfilled, (state, action) => {
         // A slow answer for a store the agent already left is dropped.
         if (
           action.meta.arg.storeCode !==
-          unread.FetchNotificationUnreadCountStoreCode
+          state.FetchNotificationCountsState.FetchNotificationCountsStoreCode
         ) {
           return;
         }
-        unread.FetchNotificationUnreadCountIsLoading = false;
-        unread.FetchNotificationUnreadCountIsSuccess = true;
-        unread.FetchNotificationUnreadCountData = action.payload;
+        state.FetchNotificationCountsState.FetchNotificationCountsIsLoading = false;
+        state.FetchNotificationCountsState.FetchNotificationCountsIsSuccess = true;
+        state.FetchNotificationCountsState.FetchNotificationCountsData =
+          action.payload;
       })
-      .addCase(FetchNotificationUnreadCount.rejected, (state) => {
-        const unread = state.FetchNotificationUnreadCountState;
-        unread.FetchNotificationUnreadCountIsLoading = false;
-        unread.FetchNotificationUnreadCountIsSuccess = false;
-        unread.FetchNotificationUnreadCountIsError = "Something went wrong";
+      .addCase(FetchNotificationCounts.rejected, (state) => {
+        state.FetchNotificationCountsState.FetchNotificationCountsIsLoading = false;
+        state.FetchNotificationCountsState.FetchNotificationCountsIsSuccess = false;
+        state.FetchNotificationCountsState.FetchNotificationCountsIsError =
+          "Something went wrong";
       })
       // MarkNotificationRead
       .addCase(MarkNotificationRead.pending, (state, action) => {
-        const list = state.FetchNotificationsState;
-        const unread = state.FetchNotificationUnreadCountState;
         const { notification } = action.meta.arg;
 
         state.MarkNotificationReadState.MarkNotificationReadIsLoading = true;
@@ -343,22 +353,22 @@ const NotificationSlice = createSlice({
 
         if (notification.is_read) return;
 
-        const item = list.FetchNotificationsListData.results.find(
-          (row) => row.id === notification.id,
-        );
-        if (item) item.is_read = true;
+        // Shown as read at once; undone if the request fails.
+        const row =
+          state.FetchNotificationsState.FetchNotificationsListData.results.find(
+            (item) => item.id === notification.id,
+          );
+        if (row) row.is_read = true;
         if (
           notification.store_code ===
-          unread.FetchNotificationUnreadCountStoreCode
+          state.FetchNotificationCountsState.FetchNotificationCountsStoreCode
         ) {
-          unread.FetchNotificationUnreadCountData = Math.max(
-            0,
-            unread.FetchNotificationUnreadCountData - 1,
-          );
-        }
-        if (notification.store_code === list.FetchNotificationsStoreCode) {
-          const counts = list.FetchNotificationsListData.counts;
-          counts.unread = Math.max(0, counts.unread - 1);
+          state.FetchNotificationCountsState.FetchNotificationCountsData.unread =
+            Math.max(
+              0,
+              state.FetchNotificationCountsState.FetchNotificationCountsData
+                .unread - 1,
+            );
         }
       })
       .addCase(MarkNotificationRead.fulfilled, (state) => {
@@ -366,8 +376,6 @@ const NotificationSlice = createSlice({
         state.MarkNotificationReadState.MarkNotificationReadIsSuccess = true;
       })
       .addCase(MarkNotificationRead.rejected, (state, action) => {
-        const list = state.FetchNotificationsState;
-        const unread = state.FetchNotificationUnreadCountState;
         const { notification } = action.meta.arg;
 
         state.MarkNotificationReadState.MarkNotificationReadIsLoading = false;
@@ -378,18 +386,16 @@ const NotificationSlice = createSlice({
         if (notification.is_read) return;
 
         // Undo the optimistic update made when the request started.
-        const item = list.FetchNotificationsListData.results.find(
-          (row) => row.id === notification.id,
-        );
-        if (item) item.is_read = false;
+        const row =
+          state.FetchNotificationsState.FetchNotificationsListData.results.find(
+            (item) => item.id === notification.id,
+          );
+        if (row) row.is_read = false;
         if (
           notification.store_code ===
-          unread.FetchNotificationUnreadCountStoreCode
+          state.FetchNotificationCountsState.FetchNotificationCountsStoreCode
         ) {
-          unread.FetchNotificationUnreadCountData += 1;
-        }
-        if (notification.store_code === list.FetchNotificationsStoreCode) {
-          list.FetchNotificationsListData.counts.unread += 1;
+          state.FetchNotificationCountsState.FetchNotificationCountsData.unread += 1;
         }
       });
   },

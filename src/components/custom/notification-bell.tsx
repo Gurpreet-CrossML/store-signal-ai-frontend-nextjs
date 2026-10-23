@@ -38,7 +38,7 @@ import { formatRelativeTime } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import {
   FetchNotifications,
-  FetchNotificationUnreadCount,
+  FetchNotificationCounts,
   MarkNotificationRead,
   notificationReceived,
   type AgentNotification,
@@ -209,11 +209,12 @@ export function NotificationBell() {
   // Ids pushed live this session; only these rows animate in.
   const [liveIds, setLiveIds] = useState<ReadonlySet<number>>(new Set());
 
-  const unreadCount = useAppSelector(
+  const counts = useAppSelector(
     (state) =>
-      state.GetNotificationReducer.FetchNotificationUnreadCountState
-        .FetchNotificationUnreadCountData,
+      state.GetNotificationReducer.FetchNotificationCountsState
+        .FetchNotificationCountsData,
   );
+  const unreadCount = counts.unread;
   const {
     FetchNotificationsIsLoading,
     FetchNotificationsListData,
@@ -222,17 +223,17 @@ export function NotificationBell() {
   } = useAppSelector(
     (state) => state.GetNotificationReducer.FetchNotificationsState,
   );
-  const { next, results, counts } = FetchNotificationsListData;
+  const { next, results } = FetchNotificationsListData;
   const selectedStore = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
 
-  // Notifications are per store: the badge counts the selected store's,
-  // loaded once the agent is logged in and again whenever the store changes;
-  // the socket keeps it current in between.
+  // Notifications are per store: the counts (badge and tabs) are the
+  // selected store's, loaded once the agent is logged in and again whenever
+  // the store changes; the socket keeps them current in between.
   useEffect(() => {
     if (status === "authenticated" && selectedStore) {
-      void dispatch(FetchNotificationUnreadCount({ storeCode: selectedStore }));
+      void dispatch(FetchNotificationCounts({ storeCode: selectedStore }));
     }
   }, [dispatch, status, selectedStore]);
 
@@ -248,8 +249,14 @@ export function NotificationBell() {
     // A fresh first page on every open also brings in anything missed while
     // the socket was down. Closing ends the "just arrived" state, so those
     // rows do not slide in again next time.
-    if (value) loadTab(tab);
-    else setLiveIds(new Set());
+    if (value) {
+      loadTab(tab);
+      if (selectedStore) {
+        void dispatch(FetchNotificationCounts({ storeCode: selectedStore }));
+      }
+    } else {
+      setLiveIds(new Set());
+    }
   };
 
   const openNotification = (notification: AgentNotification) => {

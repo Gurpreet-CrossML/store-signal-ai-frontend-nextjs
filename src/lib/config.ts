@@ -317,8 +317,8 @@ export const ENDPOINTS = {
   // Notifications (Django) — always the logged-in agent's own. New ones
   // arrive live on the dashboard socket as `notification` events.
   notifications: () => createAPIUrl("/support/notifications/", "django"),
-  notificationUnreadCount: () =>
-    createAPIUrl("/support/notifications/unread-count/", "django"),
+  notificationCounts: () =>
+    createAPIUrl("/support/notifications/counts/", "django"),
   notificationMarkRead: (notification_id: number) =>
     createAPIUrl(
       `/support/notifications/${notification_id}/mark/read/`,
