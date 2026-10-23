@@ -1,4 +1,7 @@
+import { notFound } from "next/navigation";
+
 import SubPageShell from "@/components/custom/sub-page-shell";
+import { isDisabledRoute } from "@/lib/disabled-routes";
 import { findAreaSection } from "@/lib/nav-areas";
 
 /**
@@ -15,6 +18,9 @@ export function AreaSubPage({
 }) {
   const found = findAreaSection(href);
   if (!found) {
+    // Switched off on purpose (see lib/disabled-routes): not a missing
+    // registration, and the build still prerenders these pages.
+    if (isDisabledRoute(href)) notFound();
     throw new Error(
       `No NAV_AREAS section registered for "${href}" — add it there so the page, its menu card and the sub-sidebar stay in step.`,
     );

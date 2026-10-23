@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 import { isPublicRoute, isSignedOutRoute } from "@/lib/auth-routes";
+import { isDisabledRoute } from "@/lib/disabled-routes";
 
 // Next.js 16 renamed Middleware → Proxy (see node_modules/next/dist/docs/.../proxy.md).
 // Proxy runs on the Node.js runtime and is meant for FAST, optimistic checks —
@@ -58,6 +59,11 @@ export async function proxy(req: NextRequest) {
     const url = req.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
+  }
+
+  // Switched-off screens can't be opened by typing the URL either.
+  if (isDisabledRoute(pathname)) {
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
   // Otherwise, allow the request to continue
