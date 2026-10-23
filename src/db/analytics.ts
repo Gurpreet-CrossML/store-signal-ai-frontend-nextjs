@@ -103,6 +103,35 @@ function pyRound(value: number, digits = 0): number {
 
 const round2 = (v: number) => pyRound(v, 2);
 
+// A KPI card's change vs. the previous period, e.g. "▲ 3.2 pts".
+export type MetricTrend = {
+  delta: number;
+  direction: "up" | "down" | "flat";
+  variant: "success" | "danger" | "neutral";
+  label: string;
+};
+
+/** The same-length period just before [from, to] (both ends inclusive). */
+function previousPeriodRange(from: string, to: string) {
+  const length = daysBetween(from, to) + 1;
+  return { from: addDays(from, -length), to: addDays(from, -1) };
+}
+
+function buildTrend(
+  current: number,
+  previous: number,
+  higherIsBetter: boolean,
+  unit: "pts" | "s" | "min" | "",
+): MetricTrend {
+  const delta = pyRound(current - previous, 1);
+  const direction = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+  const better = higherIsBetter ? delta > 0 : delta < 0;
+  const variant = delta === 0 ? "neutral" : better ? "success" : "danger";
+  const arrow = direction === "up" ? "▲" : direction === "down" ? "▼" : "–";
+  const label = `${arrow} ${Math.abs(delta)}${unit ? ` ${unit}` : ""}`;
+  return { delta, direction, variant, label };
+}
+
 // ===========================================================================
 // 1. ConversionAnalyticsSerializer  →  /analytics/conversion/
 // ===========================================================================
@@ -1667,13 +1696,30 @@ function parseLegacyDaterange(raw: string): { start: Date; end: Date } {
 // ===========================================================================
 
 export type DashboardSummary = {
-  feedback_insights: Awaited<ReturnType<typeof get_feedback_insights>> | null;
-  engagements: Awaited<ReturnType<typeof get_engagements>> | null;
-  operational_efficiency: Awaited<
-    ReturnType<typeof get_operational_efficiency>
-  > | null;
+  feedback_insights:
+    | (Awaited<ReturnType<typeof get_feedback_insights>> & {
+        csat_score: { trend: MetricTrend };
+        avg_handle_time: { trend: MetricTrend };
+      })
+    | null;
+  engagements:
+    | (Awaited<ReturnType<typeof get_engagements>> & {
+        total_threads_trend: MetricTrend;
+        avg_response_time_trend: MetricTrend;
+      })
+    | null;
+  operational_efficiency:
+    | (Awaited<ReturnType<typeof get_operational_efficiency>> & {
+        bot_resolution_rate: { trend: MetricTrend };
+        escalation_rate: { trend: MetricTrend };
+      })
+    | null;
   user_matrix: Awaited<ReturnType<typeof get_user_matrix>> | null;
-  conversion_rate: Awaited<ReturnType<typeof get_conversion_rate>> | null;
+  conversion_rate:
+    | (Awaited<ReturnType<typeof get_conversion_rate>> & {
+        trend: MetricTrend;
+      })
+    | null;
 };
 
 const EMPTY_DASHBOARD: DashboardSummary = {
@@ -1701,13 +1747,92 @@ export async function get_dashboard_summary(params: {
   const cached = getCached<DashboardSummary>(key);
   if (cached) return cached;
 
+  // Each card is also computed for the same-length period just before the
+  // selected one, to show its change ("▲ 3.2 pts").
+  const endDate = parseQueryDate(params.to, istToday());
+  const startDate = parseQueryDate(params.from, addDays(endDate, -30));
+  const prevParams = { ...params, ...previousPeriodRange(startDate, endDate) };
+
   // One connection, sequential (single tenant transaction — see tenant-context).
+  const feedback = await get_feedback_insights(params);
+  const engagements = await get_engagements(params);
+  const efficiency = await get_operational_efficiency(params);
+  const userMatrix = await get_user_matrix(params);
+  const conversion = await get_conversion_rate(params);
+
+  const prevFeedback = await get_feedback_insights(prevParams);
+  const prevEngagements = await get_engagements(prevParams);
+  const prevEfficiency = await get_operational_efficiency(prevParams);
+  const prevConversion = await get_conversion_rate(prevParams);
+
   const result: DashboardSummary = {
-    feedback_insights: await get_feedback_insights(params),
-    engagements: await get_engagements(params),
-    operational_efficiency: await get_operational_efficiency(params),
-    user_matrix: await get_user_matrix(params),
-    conversion_rate: await get_conversion_rate(params),
+    feedback_insights: {
+      ...feedback,
+      csat_score: {
+        ...feedback.csat_score,
+        trend: buildTrend(
+          feedback.csat_score.percentage,
+          prevFeedback.csat_score.percentage,
+          true,
+          "pts",
+        ),
+      },
+      avg_handle_time: {
+        ...feedback.avg_handle_time,
+        trend: buildTrend(
+          feedback.avg_handle_time.value,
+          prevFeedback.avg_handle_time.value,
+          false,
+          "min",
+        ),
+      },
+    },
+    engagements: {
+      ...engagements,
+      total_threads_trend: buildTrend(
+        engagements.total_threads,
+        prevEngagements.total_threads,
+        true,
+        "",
+      ),
+      avg_response_time_trend: buildTrend(
+        engagements.avg_response_time_seconds,
+        prevEngagements.avg_response_time_seconds,
+        false,
+        "s",
+      ),
+    },
+    operational_efficiency: {
+      ...efficiency,
+      bot_resolution_rate: {
+        ...efficiency.bot_resolution_rate,
+        trend: buildTrend(
+          efficiency.bot_resolution_rate.percentage,
+          prevEfficiency.bot_resolution_rate.percentage,
+          true,
+          "pts",
+        ),
+      },
+      escalation_rate: {
+        ...efficiency.escalation_rate,
+        trend: buildTrend(
+          efficiency.escalation_rate.percentage,
+          prevEfficiency.escalation_rate.percentage,
+          false,
+          "pts",
+        ),
+      },
+    },
+    user_matrix: userMatrix,
+    conversion_rate: {
+      ...conversion,
+      trend: buildTrend(
+        conversion.percentage,
+        prevConversion.percentage,
+        true,
+        "pts",
+      ),
+    },
   };
   setCached(key, result);
   return result;
