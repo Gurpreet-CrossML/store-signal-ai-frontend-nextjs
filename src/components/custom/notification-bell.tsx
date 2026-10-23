@@ -210,25 +210,38 @@ export function NotificationBell() {
   const [liveIds, setLiveIds] = useState<ReadonlySet<number>>(new Set());
 
   const unreadCount = useAppSelector(
-    (state) => state.GetNotificationReducer.unreadCount,
+    (state) =>
+      state.GetNotificationReducer.FetchNotificationUnreadCountState
+        .FetchNotificationUnreadCountData,
   );
-  const { FetchNotificationsLoading, tab, page, next, results, counts } =
-    useAppSelector(
-      (state) => state.GetNotificationReducer.FetchNotificationsState,
-    );
+  const {
+    FetchNotificationsIsLoading,
+    FetchNotificationsListData,
+    FetchNotificationsTab: tab,
+    FetchNotificationsPage: page,
+  } = useAppSelector(
+    (state) => state.GetNotificationReducer.FetchNotificationsState,
+  );
+  const { next, results, counts } = FetchNotificationsListData;
   const selectedStore = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
 
-  // The badge is right as soon as the agent is logged in; the socket keeps
-  // it current from there.
+  // Notifications are per store: the badge counts the selected store's,
+  // loaded once the agent is logged in and again whenever the store changes;
+  // the socket keeps it current in between.
   useEffect(() => {
-    if (status === "authenticated")
-      void dispatch(FetchNotificationUnreadCount());
-  }, [dispatch, status]);
+    if (status === "authenticated" && selectedStore) {
+      void dispatch(FetchNotificationUnreadCount({ storeCode: selectedStore }));
+    }
+  }, [dispatch, status, selectedStore]);
 
-  const loadTab = (value: NotificationTab) =>
-    void dispatch(FetchNotifications({ tab: value, page: 1 }));
+  const loadTab = (value: NotificationTab) => {
+    if (!selectedStore) return;
+    void dispatch(
+      FetchNotifications({ storeCode: selectedStore, tab: value, page: 1 }),
+    );
+  };
 
   const handleOpenChange = (value: boolean) => {
     setOpen(value);
@@ -241,7 +254,12 @@ export function NotificationBell() {
 
   const openNotification = (notification: AgentNotification) => {
     if (!notification.is_read)
-      void dispatch(MarkNotificationRead(notification));
+      void dispatch(
+        MarkNotificationRead({
+          storeCode: notification.store_code,
+          notification,
+        }),
+      );
     // The ticket or chat lives in its own store, which may not be the one
     // on screen.
     if (notification.store_code && notification.store_code !== selectedStore) {
@@ -278,13 +296,15 @@ export function NotificationBell() {
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
-    if (!next || FetchNotificationsLoading) return;
+    if (!next || FetchNotificationsIsLoading) return;
     if (target.scrollHeight - target.scrollTop <= target.clientHeight + 120) {
-      void dispatch(FetchNotifications({ tab, page: page + 1 }));
+      void dispatch(
+        FetchNotifications({ storeCode: selectedStore, tab, page: page + 1 }),
+      );
     }
   };
 
-  const isFirstLoad = FetchNotificationsLoading && results.length === 0;
+  const isFirstLoad = FetchNotificationsIsLoading && results.length === 0;
 
   return (
     <>
@@ -384,7 +404,7 @@ export function NotificationBell() {
                 ))}
               </ul>
             )}
-            {FetchNotificationsLoading && results.length > 0 && (
+            {FetchNotificationsIsLoading && results.length > 0 && (
               <div className="flex justify-center py-3">
                 <Spinner />
               </div>
