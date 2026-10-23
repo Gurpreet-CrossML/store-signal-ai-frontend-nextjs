@@ -25,8 +25,6 @@ import {
 } from "@/components/custom/dashboard-filters";
 import { InfoIcon } from "@/components/custom/info-icon";
 import { PageHeading } from "@/components/custom/page-heading";
-import { Badge } from "@/components/ui/badge";
-import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import { Typography } from "@/components/ui/typography";
 import { custructTimeInHumanReadableFormat } from "@/lib/helpers";
 import { buildDashboardReportHtml } from "@/lib/dashboard-report";
@@ -34,7 +32,6 @@ import {
   FetchDashboard,
   FetchChatOrderFunnel,
   FetchConversationHistory,
-  type MetricTrend,
 } from "@/redux/api-slice/dashboard-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { subMonths } from "date-fns";
@@ -56,7 +53,6 @@ type SummaryMetric = {
   statusVariant: "success" | "warning" | "neutral" | "info" | "danger";
   href?: string;
   statusHref?: string;
-  trend?: MetricTrend;
 };
 
 const displayMetricName = (metric: string) =>
@@ -247,19 +243,18 @@ export default function Dashboard() {
     {
       label: "CSAT Score",
       value: `${FetchFeedbackInsightsData?.csat_score?.percentage || 0}%`,
-      infoText: "Formula: (good + excellent ratings ÷ all ratings) × 100.",
+      infoText:
+        "Shows how satisfied customers were after interacting with the chatbot, based on submitted feedback and ratings.",
       status: "Customer Satisfaction",
       statusVariant: "info" as const,
-      trend: FetchFeedbackInsightsData?.csat_score?.trend,
     },
     {
       label: "Conversion Rate",
       value: `${FetchConversionRateData?.percentage || 0}%`,
       infoText:
-        "Formula: (sessions with a real order attributed to them ÷ total sessions) × 100.",
+        "Percentage of chatbot sessions that led to an order, where the customer added a product to cart in the chat and ordered it within 24 hours, out of all sessions in the selected period.",
       status: `${FetchConversionRateData?.converted_count || 0} of ${FetchConversionRateData?.total_count || 0} sessions`,
       statusVariant: "info" as const,
-      trend: FetchConversionRateData?.trend,
       href: threadsHref({ has_order: "true" }),
       statusHref: threadsHref({ has_order: "true" }),
     },
@@ -267,51 +262,46 @@ export default function Dashboard() {
       label: "Total Sessions",
       value: FetchEngagementData?.total_threads?.toLocaleString() || "0",
       infoText:
-        "Formula: count of chat sessions started in the selected date range.",
+        "Shows how many chatbot sessions happened in the selected time range, so you can quickly understand overall traffic volume.",
       status: "All Sessions",
       statusVariant: "neutral" as const,
-      trend: FetchEngagementData?.total_threads_trend,
       href: threadsHref({}),
     },
     {
       label: "Active Sessions",
       value: FetchThreadCountsData?.active.toLocaleString() || "0",
       infoText:
-        "Formula: count of sessions currently open (not yet closed), right now. A live count, so there's no previous period to compare it to.",
+        "Shows the number of sessions currently marked as active in the analytics data, helping you gauge current engagement.",
       status: `${FetchThreadCountsData.needsHuman || 0} need a human`,
       statusVariant: "danger" as const,
       // The count is every active chat; only the "needs a human" sub-line
       // goes to the filtered queue.
       href: "/support?filter=all",
       statusHref: "/support?filter=needs_human",
-      // No trend: this is a point-in-time gauge, not a period total.
     },
     {
       label: "Avg Response Time",
       value: `${FetchEngagementData?.avg_response_time_seconds?.toFixed(2) || "0.00"}s`,
       infoText:
-        "Formula: average response time across every AI reply in a session, averaged across sessions.",
+        "Shows how quickly the chatbot usually replies after a customer message. Lower response times generally mean a smoother experience.",
       status: "Response Metric",
       statusVariant: "info" as const,
-      trend: FetchEngagementData?.avg_response_time_trend,
     },
     {
       label: "Avg Handle Time",
       value: `${custructTimeInHumanReadableFormat(FetchFeedbackInsightsData?.avg_handle_time?.value || 0, FetchFeedbackInsightsData?.avg_handle_time?.unit)}`,
       infoText:
-        "Formula: average of (last message time − first message time), per session.",
+        "Shows the average time taken to handle a conversation from start to finish, including resolution.",
       status: "Per Session",
       statusVariant: "info" as const,
-      trend: FetchFeedbackInsightsData?.avg_handle_time?.trend,
     },
     {
       label: "AI Resolution Rate",
       value: `${FetchOperationalEfficiencyData?.bot_resolution_rate?.percentage || 0}%`,
       infoText:
-        "Formula: (closed chats still handled by AI, with no support ticket raised ÷ total closed chats) × 100.",
+        "Shows the share of closed conversations the chatbot resolved on its own, without a human agent taking over or a support ticket being raised.",
       status: `${FetchOperationalEfficiencyData?.bot_resolution_rate?.count || 0} of ${FetchOperationalEfficiencyData?.bot_resolution_rate?.total || 0} chats`,
       statusVariant: "info" as const,
-      trend: FetchOperationalEfficiencyData?.bot_resolution_rate?.trend,
       href: threadsHref({
         is_active: "false",
         handled_by: "ai",
@@ -327,10 +317,9 @@ export default function Dashboard() {
       label: "Escalation Rate",
       value: `${FetchOperationalEfficiencyData?.escalation_rate?.percentage || 0}%`,
       infoText:
-        "Formula: (chats with a support ticket ÷ all chats the AI started) × 100.",
+        "Shows the share of all conversations in the selected period that were escalated to a human agent through a support ticket, which can highlight where the bot needs support.",
       status: `${FetchOperationalEfficiencyData?.escalation_rate?.count || 0} of ${FetchOperationalEfficiencyData?.escalation_rate?.total || 0} chats`,
       statusVariant: "info" as const,
-      trend: FetchOperationalEfficiencyData?.escalation_rate?.trend,
       href: threadsHref({ has_ticket: "true" }),
       statusHref: threadsHref({ has_ticket: "true" }),
     },
@@ -615,19 +604,11 @@ export default function Dashboard() {
                     value
                   )}
                 </CardContent>
-                <CardFooter className="justify-between gap-1.5">
+                <CardFooter>
                   {metric.statusHref ? (
                     <Link href={metric.statusHref}>{statusBadge}</Link>
                   ) : (
                     statusBadge
-                  )}
-                  {metric.trend && (
-                    <Badge
-                      variant="outline"
-                      className={BADGE_TONE_STYLES[metric.trend.variant]}
-                    >
-                      {metric.trend.label}
-                    </Badge>
                   )}
                 </CardFooter>
               </Card>
