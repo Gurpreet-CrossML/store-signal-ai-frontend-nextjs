@@ -4,9 +4,21 @@ import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
 
+// A KPI card's change vs. the previous period, e.g. "▲ 3.2 pts".
+export type MetricTrend = {
+  delta: number;
+  direction: "up" | "down" | "flat";
+  variant: "success" | "danger" | "neutral";
+  label: string;
+};
+
 export type FeedbackInsightsResponse = {
-  avg_handle_time: { value: number; unit: "seconds" | "minutes" };
-  csat_score: { percentage: number };
+  avg_handle_time: {
+    value: number;
+    unit: "seconds" | "minutes";
+    trend: MetricTrend;
+  };
+  csat_score: { percentage: number; trend: MetricTrend };
   feedback_distribution: {
     positive: { value: number };
     neutral: { value: number };
@@ -20,19 +32,29 @@ export type FeedbackInsightsResponse = {
 
 export type EngagementResponse = {
   total_threads: number;
+  total_threads_trend: MetricTrend;
   sessions_resolved: number;
   avg_response_time_seconds: number;
+  avg_response_time_trend: MetricTrend;
+};
+
+type RateWithTrend = {
+  count: number;
+  total: number;
+  percentage: number;
+  trend: MetricTrend;
 };
 
 export type OperationalEfficiencyResponse = {
-  bot_resolution_rate: { count: number; total: number; percentage: number };
-  escalation_rate: { count: number; total: number; percentage: number };
+  bot_resolution_rate: RateWithTrend;
+  escalation_rate: RateWithTrend;
 };
 
 export type ConversionRateResponse = {
   percentage: number;
   converted_count: number;
   total_count: number;
+  trend: MetricTrend;
 };
 
 export type UserMatrixResponse = {
