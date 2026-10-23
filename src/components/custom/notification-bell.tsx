@@ -73,7 +73,7 @@ function badgeText(count: number) {
 /** A message notification quotes the customer; the others read as is. */
 function previewText(notification: AgentNotification) {
   return notification.notification_type.endsWith("_message")
-    ? `Customer: “${notification.message}”`
+    ? `“${notification.message}”`
     : notification.message;
 }
 
@@ -83,16 +83,6 @@ function NotificationIcon({ type }: { type: NotificationType }) {
     <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
       <Icon className="size-5" />
     </span>
-  );
-}
-
-/** Green dot on the top-left corner of an unread notification. */
-function UnreadDot() {
-  return (
-    <span
-      aria-hidden
-      className="absolute -top-1 -left-1 size-2.5 rounded-full bg-emerald-500 ring-2 ring-background"
-    />
   );
 }
 
@@ -107,8 +97,7 @@ function NotificationToast({
   onDismiss: () => void;
 }) {
   return (
-    <div className="relative flex w-(--width) items-center gap-3 rounded-xl border bg-popover p-3 text-popover-foreground shadow-lg">
-      <UnreadDot />
+    <div className="flex w-(--width) items-center gap-3 rounded-xl border bg-popover p-3 text-popover-foreground shadow-lg">
       <button
         type="button"
         onClick={onOpen}
@@ -166,23 +155,21 @@ function NotificationRow({
       className="overflow-hidden"
     >
       {/* Padding, not a list gap: the gap would jump in at the end of the
-          height animation. The top and left padding keep the unread dot
-          inside the clipped area. */}
+          height animation. */}
       <motion.div
         initial={live && !reduceMotion ? { y: -16 } : false}
         animate={{ y: 0 }}
         transition={{ duration: 0.4, ease: EASE_OUT }}
-        className="pt-1 pb-2 pl-1"
+        className="pb-2"
       >
         <button
           type="button"
           onClick={() => onOpen(notification)}
           className={cn(
-            "relative flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors hover:bg-primary/5 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+            "flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors hover:bg-primary/5 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
             !notification.is_read && "border-primary/15 bg-primary/5",
           )}
         >
-          {!notification.is_read && <UnreadDot />}
           <NotificationIcon type={notification.notification_type} />
           <span className="min-w-0 flex-1">
             <span className="flex items-baseline justify-between gap-2">
