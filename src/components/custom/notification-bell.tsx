@@ -45,7 +45,6 @@ import {
   type NotificationTab,
   type NotificationType,
 } from "@/redux/api-slice/notification-slice";
-import { setSelectedStore } from "@/redux/api-slice/stores-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 const TYPE_ICONS: Record<NotificationType, typeof IconBell> = {
@@ -199,7 +198,7 @@ function NotificationRow({
  * the backend sends them to that agent's group alone): each one raises a
  * toast, bumps the counts and, when the drawer is open, slides in at the
  * top of the list. Opening one marks it read and goes to its ticket or
- * live chat, switching store first when it belongs to another one.
+ * live chat.
  */
 export function NotificationBell() {
   const dispatch = useAppDispatch();
@@ -263,15 +262,10 @@ export function NotificationBell() {
     if (!notification.is_read)
       void dispatch(
         MarkNotificationRead({
-          storeCode: notification.store_code,
+          storeCode: selectedStore,
           notification,
         }),
       );
-    // The ticket or chat lives in its own store, which may not be the one
-    // on screen.
-    if (notification.store_code && notification.store_code !== selectedStore) {
-      dispatch(setSelectedStore(notification.store_code));
-    }
     router.push(
       notification.ticket !== null
         ? `/helpdesk?ticket=${notification.ticket}`
