@@ -20,6 +20,7 @@ import {
   type AnyPgColumn,
   date,
   time,
+  type PgTableExtraConfigValue,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -1995,7 +1996,7 @@ export const ticketMessage = pgTable(
     parentId: bigint("parent_id", { mode: "number" }),
     parentExternalId: varchar("parent_external_id", { length: 255 }),
   },
-  (table) => [
+  (table): PgTableExtraConfigValue[] => [
     index("ticket_mess_platfor_f4aaf8_idx").using(
       "btree",
       table.platform.asc().nullsLast().op("text_ops"),
@@ -2107,7 +2108,7 @@ export const supportTicket = pgTable(
     }),
     reopenCount: integer("reopen_count").notNull(),
   },
-  (table) => [
+  (table): PgTableExtraConfigValue[] => [
     index("support_tic_custome_b1ab40_idx").using(
       "btree",
       table.customerId.asc().nullsLast().op("int8_ops"),
