@@ -2009,7 +2009,9 @@ export default function Support() {
       return;
     }
 
-    removeClosedThread(event.data.thread_id);
+    if (event.action_type === "thread_closed") {
+      removeClosedThread(event.data.thread_id);
+    }
   });
 
   // ---- Per-thread chat socket: opens/closes as the selected thread changes. ----
