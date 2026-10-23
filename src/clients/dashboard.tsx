@@ -235,17 +235,10 @@ export default function Dashboard() {
   const exportRange = resolveDashboardRange(filters);
 
   // Drill-through link to the Threads list, pre-filtered to match a card.
-  // `withDateRange: false` is for live/point-in-time cards (e.g. Active Now),
-  // which aren't tied to the selected period.
-  const threadsHref = (
-    extraParams: Record<string, string>,
-    withDateRange = true,
-  ) => {
+  const threadsHref = (extraParams: Record<string, string>) => {
     const params = new URLSearchParams(extraParams);
-    if (withDateRange) {
-      params.set("from", exportRange.from);
-      params.set("to", exportRange.to);
-    }
+    params.set("from", exportRange.from);
+    params.set("to", exportRange.to);
     if (channel) params.set("channel", channel);
     return `/threads?${params.toString()}`;
   };
@@ -281,7 +274,7 @@ export default function Dashboard() {
       href: threadsHref({}),
     },
     {
-      label: "Active Now",
+      label: "Active Sessions",
       value: FetchThreadCountsData?.active.toLocaleString() || "0",
       infoText:
         "Formula: count of sessions currently open (not yet closed), right now. A live count, so there's no previous period to compare it to.",
