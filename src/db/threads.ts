@@ -51,6 +51,7 @@ export type ListThreadsFilters = {
   user_type?: string;
   has_ticket?: string;
   has_order?: string; // thread has a real order attributed to it (Thread.orders)
+  has_agent?: string; // a human agent took the thread over at any point
   has_feedback?: string;
   feedback_rating?: string; // very_bad | bad | neutral | good | excellent
   tags?: string[]; // matches threads tagged with ANY of the given tags
@@ -332,6 +333,18 @@ export async function list_threads(
   } else if (filters.has_order === "false") {
     conditions.push(
       sql`NOT EXISTS (SELECT 1 FROM chat_thread_orders cto WHERE cto.thread_id = ${chatThread.id})`,
+    );
+  }
+
+  // has_agent: a takeover records to_agent_id, so this still finds threads
+  // later handed back to the AI (unlike handled_by, the current handler).
+  if (filters.has_agent === "true") {
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM chat_thread_assignment cta WHERE cta.thread_id = ${chatThread.id} AND cta.to_agent_id IS NOT NULL)`,
+    );
+  } else if (filters.has_agent === "false") {
+    conditions.push(
+      sql`NOT EXISTS (SELECT 1 FROM chat_thread_assignment cta WHERE cta.thread_id = ${chatThread.id} AND cta.to_agent_id IS NOT NULL)`,
     );
   }
 

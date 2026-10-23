@@ -23,6 +23,7 @@ const THREAD_FILTER_KEYS = [
   "is_active",
   "has_ticket",
   "has_order",
+  "has_agent",
   "handled_by",
   "channel",
   "from",
@@ -121,6 +122,7 @@ export default function Threads() {
 
     filters.has_ticket,
     filters.has_order,
+    filters.has_agent,
     filters.has_feedback,
     filters.feedback_rating,
     filters.tags,
@@ -152,6 +154,7 @@ export default function Threads() {
         ? { has_ticket: filters.has_ticket === "true" }
         : {}),
       ...(filters.has_order ? { has_order: filters.has_order === "true" } : {}),
+      ...(filters.has_agent ? { has_agent: filters.has_agent === "true" } : {}),
       ...(filters.has_feedback
         ? { has_feedback: filters.has_feedback === "true" }
         : {}),
@@ -183,6 +186,7 @@ export default function Threads() {
     filters.user_type,
     filters.has_ticket,
     filters.has_order,
+    filters.has_agent,
     filters.has_feedback,
     filters.feedback_rating,
     filters.tags,

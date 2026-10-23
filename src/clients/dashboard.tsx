@@ -306,11 +306,13 @@ export default function Dashboard() {
         is_active: "false",
         handled_by: "ai",
         has_ticket: "false",
+        has_agent: "false",
       }),
       statusHref: threadsHref({
         is_active: "false",
         handled_by: "ai",
         has_ticket: "false",
+        has_agent: "false",
       }),
     },
     {
