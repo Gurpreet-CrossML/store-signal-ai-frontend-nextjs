@@ -41,6 +41,7 @@ import {
   CreateTicketDialog,
   type TicketCustomer,
 } from "@/components/custom/create-ticket-dialog";
+import { CloseChatDialog } from "@/components/custom/close-chat-dialog";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
 import { SearchInput } from "@/components/custom/search-input";
@@ -98,6 +99,7 @@ import {
   IconSend,
   IconShieldCheck,
   IconShoppingBag,
+  IconMessageOff,
   IconTicket,
   IconX,
 } from "@tabler/icons-react";
@@ -108,6 +110,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
 import { can } from "@/lib/access-rules";
+import type { ThreadCloseReason } from "@/lib/thread-options";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { formatRelativeDateTime } from "@/lib/helpers";
 import {
@@ -1001,6 +1004,7 @@ export default function Support() {
   // Below `xl` the customer details open as a sheet from the header.
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
+  const [isCloseChatOpen, setIsCloseChatOpen] = useState(false);
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
@@ -1111,6 +1115,11 @@ export default function Support() {
   }, [sessionStatus, session?.user, dispatch]);
 
   const wsRef = useRef<WebSocket | null>(null);
+  // Settles the close request in flight: "sent" once the server echoes it,
+  // "refused" when it is rejected. See handleCloseChat.
+  const closeAckRef = useRef<((result: "sent" | "refused") => void) | null>(
+    null,
+  );
   const connectedAgentRef = useRef<string | null>(null);
   const connectedAgentNameRef = useRef<string | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
@@ -1787,6 +1796,57 @@ export default function Support() {
     [router, pathname],
   );
 
+  // Closing is the customer's call: this only asks their widget for feedback.
+  // The chat closes with this reason when they submit it, and goes back to the
+  // AI if they skip. Either way the agent is done with it, so move on to the
+  // next chat — but only once the server confirmed the request: leaving sooner
+  // closes this chat's socket while the server is still saving it.
+  const handleCloseChat = useCallback(
+    async (reason: ThreadCloseReason) => {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        toast.error("Not connected", {
+          description: "Reconnecting to the chat. Please try again.",
+        });
+        return;
+      }
+
+      const outcome = new Promise<"sent" | "refused" | "timeout">((resolve) => {
+        const timer = setTimeout(() => resolve("timeout"), 8_000);
+        closeAckRef.current = (result) => {
+          clearTimeout(timer);
+          resolve(result);
+        };
+      });
+      wsRef.current.send(
+        JSON.stringify({ action_type: "request_close", reason }),
+      );
+      setIsCloseChatOpen(false);
+
+      const result = await outcome;
+      closeAckRef.current = null;
+      if (result === "timeout") {
+        toast.error("Couldn't request feedback", {
+          description: "The server did not respond. Please try again.",
+        });
+        return;
+      }
+      // A refusal was already explained by the socket handler.
+      if (result === "refused") return;
+
+      toast.success("Feedback requested", {
+        description:
+          "The chat closes once the customer submits their feedback.",
+      });
+
+      const index = visibleThreads.findIndex(
+        (thread) => thread.id === activeThreadId,
+      );
+      const nextThread = visibleThreads[index + 1] ?? visibleThreads[index - 1];
+      if (nextThread) handleSelectThread(nextThread.id);
+    },
+    [activeThreadId, handleSelectThread, visibleThreads],
+  );
+
   // Insert or patch a thread in localThreads based on an incoming dashboard
   // "message" event. Existing threads keep their position; brand-new
   // threads are prepended. Marks the thread unread unless it's the one
@@ -2030,6 +2090,21 @@ export default function Support() {
         return;
       }
 
+      if (!data?.success && data?.action_type === "request_close") {
+        closeAckRef.current?.("refused");
+        toast.error("Couldn't close the chat", {
+          description: data?.message || "Please try again.",
+        });
+        return;
+      }
+
+      if (data?.success && data?.action_type === "close_feedback_skipped") {
+        toast.info("Customer skipped the feedback", {
+          description: "The chat stays open and was handed back to the AI.",
+        });
+        return;
+      }
+
       // Refusals with no action_type (e.g. a read-only role) would otherwise
       // be dropped below, leaving Take Over stuck on "Connecting…".
       if (!data?.success && data?.message) {
@@ -2131,9 +2206,12 @@ export default function Support() {
         return;
       }
 
+      // The close-feedback request is saved as a message too, so it shows in the
+      // transcript live as it does after a reload.
       if (
         data?.success &&
-        data?.action_type === "message" &&
+        (data?.action_type === "message" ||
+          data?.action_type === "close_feedback_request") &&
         data?.final_update
       ) {
         const isCartAction = Boolean(
@@ -2141,6 +2219,9 @@ export default function Support() {
           data.final_update.json_content?.cart_action &&
           !data.final_update.json_content?.needs_clarification,
         );
+        if (data?.action_type === "close_feedback_request") {
+          closeAckRef.current?.("sent");
+        }
         handleThreadMessageAdded({
           id: isCartAction
             ? `cart-action-${activeThreadIdRef.current}`
@@ -2710,6 +2791,26 @@ export default function Support() {
                       <IconTicket className="size-4" />
                       Create Ticket
                     </Button>
+                    {selectedThread?.is_active && canHandleChats && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        // Only the agent the chat is assigned to may close it.
+                        disabled={
+                          !session?.user?.email ||
+                          displayedConnectedAgent !== session.user.email
+                        }
+                        title={
+                          displayedConnectedAgent === session?.user?.email
+                            ? "Close this chat"
+                            : "Only the assigned agent can close this chat"
+                        }
+                        onClick={() => setIsCloseChatOpen(true)}
+                      >
+                        <IconMessageOff className="size-4" />
+                        Close Chat
+                      </Button>
+                    )}
                   </div>
                 </div>
               </header>
@@ -2845,6 +2946,13 @@ export default function Support() {
           </div>
         )}
       </SidebarInset>
+      <CloseChatDialog
+        // Keyed by thread so a reason picked for one chat never carries to the next.
+        key={activeThreadId}
+        open={isCloseChatOpen}
+        onOpenChange={setIsCloseChatOpen}
+        onConfirm={handleCloseChat}
+      />
       {storeCode ? (
         <CreateTicketDialog
           open={isCreateTicketOpen}

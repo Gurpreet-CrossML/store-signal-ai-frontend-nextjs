@@ -17,6 +17,7 @@ import {
   IconSparkles,
   IconTargetArrow,
   IconThumbUp,
+  IconUserCheck,
   IconX,
   type Icon,
 } from "@tabler/icons-react";
@@ -33,6 +34,12 @@ import {
 } from "@/components/custom/customer-header";
 import { TagsCell } from "@/components/custom/threads-columns";
 import { InfoIcon } from "@/components/custom/info-icon";
+import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
+import {
+  closedByLabel,
+  closeReasonLabel,
+  closeReasonTone,
+} from "@/lib/thread-options";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { LoadingState } from "@/components/custom/loading-state";
 import {
@@ -465,6 +472,14 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   // answer. Each section then falls back to its own request's flag.
   const detailsLoading = !isThisThread;
   const isResolved = details?.verdict?.verdict === "resolved";
+  // A close reason on an active chat is only an agent's pending request, so
+  // the closure badges wait for the chat to close. The verdict badge only adds
+  // something when it is not a second "Resolved" beside the close reason: show it when no reason was recorded or when the
+  // verdict is unresolved. No verdict yet (open, empty or unanalysed thread)
+  // means nothing to show, rather than a misleading "Unresolved".
+  const showVerdict =
+    !!details?.verdict &&
+    (details.is_active || !details.close_reason || !isResolved);
   const customerName =
     details?.customer_name || details?.customer_email || "Guest";
   const feedback = FetchFeedbackSequenceData?.feedback;
@@ -549,27 +564,58 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        {/* Its own full row below xl, so the badges never squeeze the name and
+            the Details button; beside them from xl up. */}
+        <div className="order-last flex min-w-0 basis-full flex-wrap items-center gap-2 xl:order-none xl:flex-1 xl:basis-auto">
           {details && (
             <>
               <Badge variant={details.is_active ? "default" : "secondary"}>
                 {details.is_active ? "Active" : "Closed"}
               </Badge>
-              <Badge
-                className={cn(
-                  "font-normal",
-                  isResolved
-                    ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
-                    : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+              {!details.is_active && closeReasonLabel(details.close_reason) && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "font-normal",
+                    BADGE_TONE_STYLES[
+                      closeReasonTone(details.close_reason) ?? "neutral"
+                    ],
+                  )}
+                >
+                  Reason: {closeReasonLabel(details.close_reason)}
+                </Badge>
+              )}
+              {!details.is_active &&
+                closedByLabel(
+                  details.closed_by_type,
+                  details.closed_by_name,
+                ) && (
+                  <Badge variant="outline" className="font-normal">
+                    <IconUserCheck data-icon="inline-start" />
+                    Closed by:{" "}
+                    {closedByLabel(
+                      details.closed_by_type,
+                      details.closed_by_name,
+                    )}
+                  </Badge>
                 )}
-              >
-                {isResolved ? (
-                  <IconCheck data-icon="inline-start" />
-                ) : (
-                  <IconX data-icon="inline-start" />
-                )}
-                {isResolved ? "Resolved" : "Unresolved"}
-              </Badge>
+              {showVerdict && (
+                <Badge
+                  className={cn(
+                    "font-normal",
+                    isResolved
+                      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+                  )}
+                >
+                  {isResolved ? (
+                    <IconCheck data-icon="inline-start" />
+                  ) : (
+                    <IconX data-icon="inline-start" />
+                  )}
+                  {isResolved ? "Resolved" : "Unresolved"}
+                </Badge>
+              )}
               {!FetchFeedbackSequenceIsLoading && feedbackLabel && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -591,7 +637,10 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             </>
           )}
         </div>
-        <CustomerDetailsButton onClick={() => setIsDetailsOpen(true)} />
+        <CustomerDetailsButton
+          className="ml-auto xl:ml-0"
+          onClick={() => setIsDetailsOpen(true)}
+        />
       </header>
 
       <div className="flex min-h-0 flex-1">
@@ -599,7 +648,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           {/* When and how long, on one muted line. The device and location
               half of this strip now sits in the header beside the name, so
               what is left is the session's own timing. */}
-          <div className="flex shrink-0 items-center gap-4 overflow-x-auto border-b px-4 py-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b px-4 py-2">
             <MetaCell
               icon={<IconHash className="size-3.5" />}
               label="Session ID"

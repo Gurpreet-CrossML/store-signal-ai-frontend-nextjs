@@ -3,6 +3,10 @@ import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
+import type {
+  ThreadCloseReason,
+  ThreadClosedByType,
+} from "@/lib/thread-options";
 
 type ThreadFilters = {
   from?: string;
@@ -260,6 +264,9 @@ export type ThreadDetails = {
   /** Identity, plus the phone and past-thread count the side panel shows. */
   customer: { id: number; phone: string; past_threads_count: number } | null;
   is_active: boolean;
+  close_reason?: ThreadCloseReason | null;
+  closed_by_type?: ThreadClosedByType | null;
+  closed_by_name?: string | null;
   total_messages: number;
   created_at: string;
   ended_at: string | null;
