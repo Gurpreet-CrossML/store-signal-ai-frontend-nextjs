@@ -15,7 +15,7 @@ import {
   sentimentAnalysis,
   supportTicket,
 } from "@/lib/drizzle/schema";
-import { and, eq, gt, gte, lte, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, gt, gte, lte, inArray, isNotNull, or, sql } from "drizzle-orm";
 
 /**
  * Port of the Django analytics "dashboard" serializers (analytics/serializers.py)
@@ -1063,13 +1063,21 @@ export async function get_operational_efficiency(params: {
   const allThreads = Number(allTotal);
 
   // Escalated thread ids (distinct) from SupportTicket for in-range threads.
-  const escalatedRows = await db
-    .selectDistinct({ threadId: supportTicket.threadId })
-    .from(supportTicket)
+  // Also count chats that asked for a human (need_escalation) or are handled by one.
+  const [{ escalated }] = await db
+    .select({ escalated: sql<number>`count(*)::int` })
+    .from(chatThread)
     .where(
-      sql`${supportTicket.threadId} IN (SELECT id FROM chat_thread WHERE ${allThreadWhere})`,
+      and(
+        allThreadWhere,
+        or(
+          eq(chatThread.needEscalation, true),
+          sql`${chatThread.chatHandler} <> 'ai'`,
+          sql`EXISTS (SELECT 1 FROM support_ticket st WHERE st.thread_id = ${chatThread.id})`,
+        ),
+      ),
     );
-  const escalatedCount = escalatedRows.length;
+  const escalatedCount = Number(escalated);
 
   // AI resolved: handled by the AI start to finish — no agent ever took it
   // over (a takeover records to_agent_id, even if later handed back to the
