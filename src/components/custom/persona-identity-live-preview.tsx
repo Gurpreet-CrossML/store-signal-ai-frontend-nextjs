@@ -45,7 +45,7 @@ export default function PersonaIdentityLivePreview({
   ];
 
   return (
-    <Card className="sticky top-4">
+    <Card className="desktop:sticky desktop:top-4">
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
           Persona summary

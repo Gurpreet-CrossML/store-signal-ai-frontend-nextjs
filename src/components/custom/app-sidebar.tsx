@@ -7,6 +7,7 @@ import { CollapsibleMenuItem } from "@/components/custom/sub-sidebar-menu";
 import { StoreSwitcher } from "@/components/custom/store-switcher";
 import { NavSecondary } from "@/components/custom/nav-secondary";
 import { NavUser } from "@/components/custom/nav-user";
+import { NotificationBell } from "@/components/custom/notification-bell";
 import {
   Sidebar,
   SidebarContent,
@@ -46,12 +47,15 @@ export function AppSidebar({
   subSidebarItems,
   subSidebarHidden = false,
   onToggleSubSidebar,
+  onSubSidebarNavigate,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   subSidebarItems: SubSidebarMenuItem | null;
   /** Whether the sub-sidebar is currently collapsed away. */
   subSidebarHidden?: boolean;
   onToggleSubSidebar: () => void;
+  /** Called when a link inside the sub-sidebar is followed. */
+  onSubSidebarNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -90,8 +94,9 @@ export function AppSidebar({
 
   React.useEffect(() => refreshNeedsHumanBadge(), [refreshNeedsHumanBadge]);
 
-  useSupportDashboardEvents(() => {
-    refreshNeedsHumanBadge();
+  useSupportDashboardEvents((event) => {
+    // A personal notification says nothing about the store's chat counts.
+    if (event.action_type !== "notification") refreshNeedsHumanBadge();
   });
 
   // One ordered list, filtered rather than concatenated — a hidden entry
@@ -175,6 +180,13 @@ export function AppSidebar({
           )}
         </SidebarContent>
         <SidebarFooter>
+          {/* Notifications sit with the user's own controls, on every page
+              and for every role (agents cannot open the Dashboard). */}
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <NotificationBell />
+            </SidebarMenuItem>
+          </SidebarMenu>
           <NavUser />
         </SidebarFooter>
       </Sidebar>
@@ -182,7 +194,19 @@ export function AppSidebar({
       {/* This is the second sidebar */}
       {/* We disable collapsible and let it fill remaining space */}
       {subSidebarItems && !subSidebarHidden && (
-        <Sidebar collapsible="none" className="min-w-0 flex-1">
+        <Sidebar
+          collapsible="none"
+          className="min-w-0 flex-1"
+          // Bubble phase, deliberately — not `onClickCapture`. A capture
+          // handler runs before the link's own onClick, and closing the menu
+          // there unmounts the link first: its client-side navigation never
+          // runs and the browser follows the href as a full page load.
+          onClick={(event) => {
+            if ((event.target as HTMLElement).closest("a")) {
+              onSubSidebarNavigate?.();
+            }
+          }}
+        >
           {/* h-16, matching every panel header to its right, so the rules
               across the top of the app are one continuous line. */}
           <SidebarHeader className="h-16 shrink-0 justify-center border-b px-4 py-0">

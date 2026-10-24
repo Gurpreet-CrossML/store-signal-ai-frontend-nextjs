@@ -101,9 +101,11 @@ export function LoginForm({
       {...props}
       onSubmit={formik.handleSubmit}
     >
-      <FieldGroup>
+      <FieldGroup className="gap-5">
         <div className="flex flex-col gap-2">
-          <Typography variant="h1">Welcome back 👋</Typography>
+          <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
+            Welcome back 👋
+          </Typography>
           <Typography variant="p" className="text-muted-foreground">
             Log in to your StoreSignal account to continue
           </Typography>

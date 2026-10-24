@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 
 import { ENDPOINTS } from "@/lib/config";
 import { useAppSelector } from "@/redux/hooks";
+import type { AgentNotification } from "@/redux/api-slice/notification-slice";
 import type {
   Customer,
   Thread,
@@ -52,6 +53,12 @@ export type SupportDashboardEvent =
       success: true;
       action_type: "thread_closed";
       data: { thread_id: string };
+    }
+  | {
+      // Sent to the connected agent alone, never to the whole store.
+      success: true;
+      action_type: "notification";
+      data: AgentNotification;
     };
 
 type DashboardSocketPayload =
@@ -76,7 +83,9 @@ function isDashboardEvent(
 ): data is SupportDashboardEvent {
   return (
     data.success === true &&
-    ["message", "thread_updated", "thread_closed"].includes(data.action_type)
+    ["message", "thread_updated", "thread_closed", "notification"].includes(
+      data.action_type,
+    )
   );
 }
 

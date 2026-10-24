@@ -186,7 +186,7 @@ export default function BrandVoiceToneStyleEditor() {
 
             <BrandVoiceToneControls
               formik={formik}
-              bulletPointsDescription="Bullet points help organize longer answers."
+              // bulletPointsDescription="Bullet points help organize longer answers."
               onSliderChange={handleSliderChange}
             />
 

@@ -35,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/custom/loading-state";
 import { Spinner } from "@/components/ui/spinner";
 
+import { PreviewModalButton } from "@/components/custom/preview-modal-button";
 import PersonaIdentityLivePreview from "@/components/custom/persona-identity-live-preview";
 
 import {
@@ -140,7 +141,7 @@ export default function PersonaIdentity() {
       ) : (
         <form
           onSubmit={formik.handleSubmit}
-          className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_400px]"
+          className="grid grid-cols-1 gap-6 desktop:grid-cols-[minmax(0,1fr)_400px] desktop:items-start"
         >
           <div className="flex flex-col gap-6">
             <Card>
@@ -352,11 +353,23 @@ export default function PersonaIdentity() {
               </Button>
             </div>
           </div>
-          <PersonaIdentityLivePreview
-            name={formik.values.name}
-            roleDescription={formik.values.role_description}
-            selfReference={formik.values.self_reference}
-          />
+          {/* Docked beside the form from `lg`; below that it opens in a
+              modal from the Preview button instead of sitting at the bottom
+              of the page. */}
+          <div className="hidden desktop:block">
+            <PersonaIdentityLivePreview
+              name={formik.values.name}
+              roleDescription={formik.values.role_description}
+              selfReference={formik.values.self_reference}
+            />
+          </div>
+          <PreviewModalButton title="Persona summary">
+            <PersonaIdentityLivePreview
+              name={formik.values.name}
+              roleDescription={formik.values.role_description}
+              selfReference={formik.values.self_reference}
+            />
+          </PreviewModalButton>
         </form>
       )}
     </div>

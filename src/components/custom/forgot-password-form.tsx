@@ -54,7 +54,9 @@ export function ForgotPasswordForm() {
           <IconMailCheck className="size-6" />
         </div>
         <div className="flex flex-col gap-2">
-          <Typography variant="h1">Check your email</Typography>
+          <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
+            Check your email
+          </Typography>
           <Typography variant="p" className="text-muted-foreground">
             If an account exists for <strong>{sentTo}</strong>, we have sent a
             link to reset its password.
@@ -77,9 +79,11 @@ export function ForgotPasswordForm() {
 
   return (
     <form className="flex flex-col gap-6" onSubmit={formik.handleSubmit}>
-      <FieldGroup>
+      <FieldGroup className="gap-5">
         <div className="flex flex-col gap-2">
-          <Typography variant="h1">Forgot your password?</Typography>
+          <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
+            Forgot your password?
+          </Typography>
           <Typography variant="p" className="text-muted-foreground">
             Enter the email you log in with and we&apos;ll send you a link to
             set a new password.
