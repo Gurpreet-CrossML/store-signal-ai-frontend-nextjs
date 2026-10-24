@@ -43,7 +43,7 @@ const subtitleMap: Record<Granularity, string> = {
 };
 
 const autoRangeLabel: Record<Granularity, string> = {
-  hourly: "Hour of day · last 7 days",
+  hourly: "Last 24 hours",
   weekly: "Last 4 weeks",
   monthly: "Custom range",
 };
