@@ -264,7 +264,7 @@ export default function ThreadFilteration({
           })
         }
         options={[
-          { value: "", label: "Orders" },
+          { value: "", label: "All Orders" },
           { value: "true", label: "With Order" },
           { value: "false", label: "Without Order" },
         ]}
