@@ -67,6 +67,16 @@ const AUTO_REFRESH_MS = 30_000;
 
 const toISODate = (date: Date) => date.toISOString().slice(0, 10);
 
+// A browser reload asks for fresh dashboard numbers once (skipping the
+// server's short cache); moving around inside the app keeps the cache.
+let reloadPending =
+  typeof window !== "undefined" &&
+  (
+    performance.getEntriesByType("navigation")[0] as
+      | PerformanceNavigationTiming
+      | undefined
+  )?.type === "reload";
+
 // Default date range per granularity, anchored to today.
 const defaultRange = (granularity: Granularity) => {
   const to = new Date();
@@ -153,7 +163,8 @@ export default function Dashboard() {
 
     // Load the dashboard data using the currently selected filters.
     // When silent is true, keep the existing data visible while refreshing it.
-    const load = async (silent: boolean) => {
+    // When fresh is true, the summary skips the server cache (Refresh button).
+    const load = async (silent: boolean, fresh = false) => {
       inFlight.forEach((request) => request.abort());
 
       const args = {
@@ -165,7 +176,7 @@ export default function Dashboard() {
 
       const batch = [
         // Fetch the data for all five dashboard summary widgets.
-        dispatch(FetchDashboard(args)),
+        dispatch(FetchDashboard({ ...args, fresh })),
 
         // Fetch the funnel data showing how chats lead to orders.
         dispatch(FetchChatOrderFunnel(args)),
@@ -204,8 +215,9 @@ export default function Dashboard() {
       }
     };
 
-    load(false);
-    refreshRef.current = () => load(true);
+    load(false, reloadPending);
+    reloadPending = false;
+    refreshRef.current = () => load(true, true);
     // A custom range is a fixed past window, so only presets auto-refresh.
     const timer =
       range === "custom"

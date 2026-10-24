@@ -110,6 +110,8 @@ export type DashboardFilterArgs = {
   to?: string;
   channel?: string;
   silent?: boolean;
+  // Skip the server's short dashboard cache (the Refresh button).
+  fresh?: boolean;
 };
 
 // axios drops undefined values, so unset filters fall back to server defaults.
@@ -377,7 +379,7 @@ export const FetchDashboard = createAsyncThunk(
   async (args: DashboardFilterArgs, thunkAPI) => {
     try {
       const response = await axiosInstance.get(ENDPOINTS.fetchDashboard(), {
-        params: dashboardParams(args),
+        params: { ...dashboardParams(args), fresh: args.fresh ? 1 : undefined },
       });
       return response.data.data as DashboardSummaryResponse;
     } catch (error) {
