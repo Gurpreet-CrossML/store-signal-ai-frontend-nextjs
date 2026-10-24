@@ -1034,7 +1034,20 @@ function ConversationPanel({
 
         <div className="flex shrink-0 items-center gap-2">
           <CustomerDetailsButton onClick={onShowDetails} />
-          <Combobox items={availableStaff}>
+          {/* Staff are matched by id, not name: several people can share
+              a name, and only the assigned one should carry the check. */}
+          <Combobox
+            items={availableStaff}
+            value={
+              availableStaff.find(
+                (member) => member.id === ticket?.internal_assignee?.id,
+              ) ?? null
+            }
+            isItemEqualToValue={(item, value) => item?.id === value?.id}
+            itemToStringLabel={(member) =>
+              `${member.first_name} ${member.last_name}`
+            }
+          >
             <ComboboxInput
               className="h-8 w-28 2xl:w-40"
               placeholder={
@@ -1057,17 +1070,23 @@ function ConversationPanel({
                 )}
               </div>
               <ComboboxList>
-                {(staff) => (
-                  <ComboboxItem
-                    key={staff.id}
-                    value={`${staff.first_name} ${staff.last_name}`}
-                    onClick={() =>
-                      staff.id !== ticket?.internal_assignee?.id &&
-                      onAssignStaff(staff.id)
-                    }
-                  >
-                    {staff.first_name} {staff.last_name}
-                  </ComboboxItem>
+                {(staff: StaffMember) => (
+                  // The email tells same-name staff apart, on hover only so
+                  // the list keeps its width.
+                  <Tooltip key={staff.id}>
+                    <TooltipTrigger asChild>
+                      <ComboboxItem
+                        value={staff}
+                        onClick={() =>
+                          staff.id !== ticket?.internal_assignee?.id &&
+                          onAssignStaff(staff.id)
+                        }
+                      >
+                        {staff.first_name} {staff.last_name}
+                      </ComboboxItem>
+                    </TooltipTrigger>
+                    <TooltipContent side="left">{staff.email}</TooltipContent>
+                  </Tooltip>
                 )}
               </ComboboxList>
             </ComboboxContent>
