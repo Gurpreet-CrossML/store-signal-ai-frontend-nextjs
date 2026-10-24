@@ -171,6 +171,7 @@ import {
   type SupportSocketPayload,
 } from "@/redux/api-slice/support-ticket-slice";
 import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
+import { can } from "@/lib/access-rules";
 import { FetchFreshdeskTicketId } from "@/redux/api-slice/thread-slice";
 import {
   capitalizeText,
@@ -763,6 +764,7 @@ function ConversationPanel({
   onAddTag,
   onRemoveTag,
   availableStaff,
+  canAssign,
   onAssignStaff,
   // onMessageImprove,
   // isMessageImproving,
@@ -810,6 +812,8 @@ function ConversationPanel({
   onAddTag: (tagId: number) => void;
   onRemoveTag: (tagId: number) => void;
   availableStaff: StaffMember[];
+  // Admins and supervisors assign tickets; others only see the assignee.
+  canAssign: boolean;
   onAssignStaff: (staffId: number | null) => void;
   // onMessageImprove: (action: string) => void;
   // isMessageImproving: boolean;
@@ -1055,7 +1059,7 @@ function ConversationPanel({
                   ? ticket?.internal_assignee?.name
                   : "Assign to…"
               }
-              disabled={isClosed}
+              disabled={isClosed || !canAssign}
             />
             <ComboboxContent>
               <ComboboxEmpty>No staff found.</ComboboxEmpty>
@@ -2492,14 +2496,14 @@ export default function HelpDesk() {
     upsertSocketTicket,
   ]);
 
-  // The staff list (for assigning tickets) is a company-admin endpoint;
-  // fetching it as staff would only fail with an error toast.
-  const isCompanyAdmin = Boolean(session?.user?.is_staff);
+  // Only admins and supervisors assign tickets, and only they may read the
+  // staff list; fetching it as anyone else would only fail with an error toast.
+  const canAssign = can(session?.user, "reassignment", { write: true });
   useEffect(() => {
-    if (!storeCode || !isCompanyAdmin) return;
+    if (!storeCode || !canAssign) return;
 
     dispatch(FetchStaff());
-  }, [dispatch, storeCode, isCompanyAdmin]);
+  }, [dispatch, storeCode, canAssign]);
 
   useEffect(() => {
     if (!storeCode) return;
@@ -3707,6 +3711,7 @@ export default function HelpDesk() {
             onAddTag={handleAddTag}
             onRemoveTag={handleRemoveTag}
             availableStaff={staff}
+            canAssign={canAssign}
             onAssignStaff={handleStaffAssign}
             // onMessageImprove={handleMessageImprove}
             // isMessageImproving={SupportMessageImproveIsLoading}

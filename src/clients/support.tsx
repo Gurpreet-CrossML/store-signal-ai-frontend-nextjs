@@ -1028,7 +1028,7 @@ export default function Support() {
     string | number | null
   >(null);
 
-  const { data: session, status: sessionStatus } = useSession();
+  const { data: session } = useSession();
   // Same rules as the nav (see `can`): admins always may; everyone else needs
   // the permission from their role. The backend enforces this too — checking
   // here spares a round trip and says why.
@@ -1105,14 +1105,15 @@ export default function Support() {
     connectedAgentNameRef.current = connectedAgentName;
   }, [connectedAgentName]);
 
-  // Only admins and supervisors can reassign, and only they need the agent list.
-  // Fetch the shared company staff roster from Redux so the assignee filter and
-  // reassignment controls use the same source of truth.
+  // Only admins and supervisors can reassign, and only they need the agent list
+  // (the staff API refuses everyone else). Fetch the shared company staff roster
+  // from Redux so the assignee filter and reassignment controls use the same
+  // source of truth. Keyed on the boolean, not the session object, so a session
+  // refresh doesn't fetch it again.
   useEffect(() => {
-    if (sessionStatus !== "authenticated") return;
-    if (!session?.user) return;
+    if (!canReassign) return;
     void dispatch(FetchStaff());
-  }, [sessionStatus, session?.user, dispatch]);
+  }, [canReassign, dispatch]);
 
   const wsRef = useRef<WebSocket | null>(null);
   // Settles the close request in flight: "sent" once the server echoes it,
