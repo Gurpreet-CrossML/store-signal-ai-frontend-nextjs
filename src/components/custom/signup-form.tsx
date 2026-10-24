@@ -38,7 +38,7 @@ const personName = z
   .string()
   .trim()
   .min(1, "This is required")
-  .max(72, "Use 72 characters or fewer")
+  .max(100, "Use 100 characters or fewer")
   .regex(/^[\p{L} ]+$/u, "Use letters and spaces only");
 
 const validationSchema = z.object({

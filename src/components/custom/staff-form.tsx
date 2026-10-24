@@ -30,17 +30,13 @@ import { CreateStaff } from "@/redux/api-slice/tenancy-slice";
 import { ASSIGNABLE_ROLES, ROLE_LABELS } from "@/lib/staff-roles";
 import { InfoIcon } from "@/components/custom/info-icon";
 
-const PERSON_NAME_PATTERN = /^(?=.*\p{L})[\p{L}\p{M}\s.'’-]+$/u;
-
+// Mirrors the server's rule for staff names: letters and spaces only.
 const personName = z
   .string()
   .trim()
   .min(1, "This is required")
-  .max(150, "Only 150 characters are allowed")
-  .refine(
-    (value) => value.length === 0 || PERSON_NAME_PATTERN.test(value),
-    "Use letters, spaces, hyphens, apostrophes, or periods only",
-  );
+  .max(100, "Use 100 characters or fewer")
+  .regex(/^[\p{L} ]+$/u, "Use letters and spaces only");
 
 const validationSchema = z.object({
   first_name: personName,
