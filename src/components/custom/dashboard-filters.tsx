@@ -19,7 +19,7 @@ export type DashboardFilterState = {
 };
 
 export const DEFAULT_DASHBOARD_FILTERS: DashboardFilterState = {
-  range: "30d",
+  range: "7d",
   from: "",
   to: "",
   channel: "",

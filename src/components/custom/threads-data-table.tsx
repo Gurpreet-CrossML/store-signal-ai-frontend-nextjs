@@ -85,7 +85,10 @@ export function ThreadsDataTable<TData, TValue>({
   return (
     <div className="space-y-2">
       <div className="overflow-hidden rounded-xl border border-border/50">
-        <Table>
+        {/* A floor on the table: below it the container scrolls sideways
+            (like Catalog → Customers) so every column stays reachable on a
+            tablet, rather than columns being hidden or squeezed. */}
+        <Table className="min-w-4xl">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

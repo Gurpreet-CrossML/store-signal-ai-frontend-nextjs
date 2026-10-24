@@ -3,6 +3,10 @@ import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
+import type {
+  ThreadCloseReason,
+  ThreadClosedByType,
+} from "@/lib/thread-options";
 
 type ThreadFilters = {
   from?: string;
@@ -12,6 +16,8 @@ type ThreadFilters = {
   need_escalation?: boolean;
   user_type?: string;
   has_ticket?: boolean;
+  has_order?: boolean;
+  has_agent?: boolean;
   has_feedback?: boolean;
   feedback_rating?: string;
   tags?: (string | ThreadTagData)[];
@@ -132,10 +138,18 @@ export type CartDetails = {
   sub_total: string;
 };
 
+export type ProductComparisonBlock = {
+  product_id: string;
+  comparison_message: string;
+};
+
 export type ThreadJsonContent = {
   products?: ProductData[];
+  related_products?: ProductData[];
+  comparison_block?: ProductComparisonBlock[] | null;
   order_details?: OrderDetail;
   cart_details?: CartDetails;
+  cart_action?: string;
   order_id?: string;
   order_verification_step?: string;
   suggestions?: string[];
@@ -250,6 +264,9 @@ export type ThreadDetails = {
   /** Identity, plus the phone and past-thread count the side panel shows. */
   customer: { id: number; phone: string; past_threads_count: number } | null;
   is_active: boolean;
+  close_reason?: ThreadCloseReason | null;
+  closed_by_type?: ThreadClosedByType | null;
+  closed_by_name?: string | null;
   total_messages: number;
   created_at: string;
   ended_at: string | null;

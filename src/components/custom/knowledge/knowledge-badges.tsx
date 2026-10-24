@@ -66,23 +66,36 @@ export function PolicyTypeBadge({ policyType }: { policyType: PolicyType }) {
   );
 }
 
-export function AIScopeBadges({ scope }: { scope: AIScope[] }) {
+function AIScopeBadge({ entry, nowrap }: { entry: AIScope; nowrap: boolean }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "font-normal",
+        nowrap && "shrink-0 whitespace-nowrap",
+        BADGE_TONE_STYLES[AI_SCOPE_META[entry].tone],
+      )}
+    >
+      {AI_SCOPE_META[entry].label}
+    </Badge>
+  );
+}
+
+/** `nowrap` keeps every chip on one line, for a table cell that scrolls sideways. */
+export function AIScopeBadges({
+  scope,
+  nowrap = false,
+}: {
+  scope: AIScope[];
+  nowrap?: boolean;
+}) {
   if (scope.length === 0) {
     return <span className="text-xs text-muted-foreground">No AI scope</span>;
   }
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className={cn("flex gap-1", nowrap ? "flex-nowrap" : "flex-wrap")}>
       {scope.map((entry) => (
-        <Badge
-          key={entry}
-          variant="outline"
-          className={cn(
-            "font-normal",
-            BADGE_TONE_STYLES[AI_SCOPE_META[entry].tone],
-          )}
-        >
-          {AI_SCOPE_META[entry].label}
-        </Badge>
+        <AIScopeBadge key={entry} entry={entry} nowrap={nowrap} />
       ))}
     </div>
   );

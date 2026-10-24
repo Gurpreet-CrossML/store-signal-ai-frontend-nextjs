@@ -30,9 +30,17 @@ import { CreateStaff } from "@/redux/api-slice/tenancy-slice";
 import { ASSIGNABLE_ROLES, ROLE_LABELS } from "@/lib/staff-roles";
 import { InfoIcon } from "@/components/custom/info-icon";
 
+// Mirrors the server's rule for staff names: letters and spaces only.
+const personName = z
+  .string()
+  .trim()
+  .min(1, "This is required")
+  .max(100, "Use 100 characters or fewer")
+  .regex(/^[\p{L} ]+$/u, "Use letters and spaces only");
+
 const validationSchema = z.object({
-  first_name: z.string().trim().min(1, "First name is required"),
-  last_name: z.string().trim().min(1, "Last name is required"),
+  first_name: personName,
+  last_name: personName,
   email: z.string().trim().email("Enter a valid email"),
   // The select offers only valid roles, and the server checks it again.
   role: z.string().min(1, "Choose a role"),

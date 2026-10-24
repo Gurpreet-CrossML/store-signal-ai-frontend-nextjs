@@ -24,11 +24,15 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
 import { ConversationRow } from "@/components/custom/conversation-row";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
-import { CustomerDetailsPanel } from "@/components/custom/customer-details-panel";
+import {
+  CustomerDetailsButton,
+  CustomerDetailsPanel,
+} from "@/components/custom/customer-details-panel";
 import {
   CrmLinkButton,
   CustomerContact,
@@ -37,6 +41,7 @@ import {
   CreateTicketDialog,
   type TicketCustomer,
 } from "@/components/custom/create-ticket-dialog";
+import { CloseChatDialog } from "@/components/custom/close-chat-dialog";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
 import { SearchInput } from "@/components/custom/search-input";
@@ -70,18 +75,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-// Only used by the multi-agent reassign control, currently disabled.
-// import {
-//   Select,
-//   SelectContent,
-//   SelectItem,
-//   SelectTrigger,
-//   SelectValue,
-// } from "@/components/ui/select";
-// import { FetchStaff } from "@/redux/api-slice/tenancy-slice"; // multi-agent disabled
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FetchStaff } from "@/redux/api-slice/tenancy-slice";
 import { type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import {
   IconAlertTriangle,
+  IconArrowLeft,
   IconFilter,
   IconHeadset,
   IconLock,
@@ -94,6 +99,7 @@ import {
   IconSend,
   IconShieldCheck,
   IconShoppingBag,
+  IconMessageOff,
   IconTicket,
   IconX,
 } from "@tabler/icons-react";
@@ -104,6 +110,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
 import { can } from "@/lib/access-rules";
+import type { ThreadCloseReason } from "@/lib/thread-options";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { formatRelativeDateTime } from "@/lib/helpers";
 import {
@@ -256,52 +263,50 @@ function AdminBadge() {
 // permission). Viewers and content managers can't be assigned a chat.
 const CHAT_HANDLER_ROLES = ["supervisor", "agent"];
 
-// TODO(multi-agent): re-enable when chats can be assigned to several agents.
-// Support runs as a single agent for now, so Take Over is the only handover.
 // /** Admin and supervisor control to hand a taken chat to another agent. */
-// function ReassignAgentSelect({
-//   agents,
-//   currentAgent,
-//   disabled,
-//   onReassign,
-// }: {
-//   agents: AgentOption[];
-//   currentAgent: string | null;
-//   disabled: boolean;
-//   onReassign: (email: string) => void;
-// }) {
-//   if (agents.length === 0) return null;
-//
-//   return (
-//     // Shows who the chat is assigned to ("Unassigned" while the AI has it);
-//     // picking an agent assigns or reassigns it.
-//     <Select
-//       value={currentAgent ?? ""}
-//       onValueChange={(email) => {
-//         if (email !== currentAgent) onReassign(email);
-//       }}
-//       disabled={disabled}
-//     >
-//       <SelectTrigger size="sm" aria-label="Reassign chat" className="w-fit">
-//         <SelectValue placeholder="Unassigned" />
-//       </SelectTrigger>
-//       <SelectContent>
-//         {agents.map((agent) => (
-//           <SelectItem
-//             key={agent.email}
-//             value={agent.email}
-//             disabled={agent.disabled}
-//           >
-//             <span className="flex items-center gap-2">
-//               {agent.name}
-//               {agent.isAdmin && <AdminBadge />}
-//             </span>
-//           </SelectItem>
-//         ))}
-//       </SelectContent>
-//     </Select>
-//   );
-// }
+function ReassignAgentSelect({
+  agents,
+  currentAgent,
+  disabled,
+  onReassign,
+}: {
+  agents: AgentOption[];
+  currentAgent: string | null;
+  disabled: boolean;
+  onReassign: (email: string) => void;
+}) {
+  if (agents.length === 0) return null;
+
+  return (
+    // Shows who the chat is assigned to ("Unassigned" while the AI has it);
+    // picking an agent assigns or reassigns it.
+    <Select
+      value={currentAgent ?? ""}
+      onValueChange={(email) => {
+        if (email !== currentAgent) onReassign(email);
+      }}
+      disabled={disabled}
+    >
+      <SelectTrigger size="sm" aria-label="Reassign chat" className="w-fit">
+        <SelectValue placeholder="Unassigned" />
+      </SelectTrigger>
+      <SelectContent>
+        {agents.map((agent) => (
+          <SelectItem
+            key={agent.email}
+            value={agent.email}
+            disabled={agent.disabled}
+          >
+            <span className="flex items-center gap-2">
+              {agent.name}
+              {agent.isAdmin && <AdminBadge />}
+            </span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 function ThreadChatControls({
   activeThreadId,
@@ -310,7 +315,7 @@ function ThreadChatControls({
   connectedAgent,
   connectedAgentName,
   user,
-  // canReassign = false, // multi-agent assign disabled
+  canReassign = false,
   agents = [],
   chatSocketReady,
   transitionState,
@@ -321,7 +326,7 @@ function ThreadChatControls({
   isEmojiPickerOpen,
   setIsEmojiPickerOpen,
   onTakeOver,
-  // onReassign, // multi-agent assign disabled
+  onReassign,
   onReturnToAI,
   onSendAgentMessage,
   onSendInternalNote,
@@ -339,7 +344,7 @@ function ThreadChatControls({
   connectedAgent: string | null;
   connectedAgentName?: string | null;
   user: string | null;
-  // canReassign?: boolean; // multi-agent assign disabled
+  canReassign?: boolean;
   agents?: AgentOption[];
   chatSocketReady: boolean;
   transitionState: "idle" | "taking_over" | "returning_to_ai";
@@ -350,7 +355,7 @@ function ThreadChatControls({
   isEmojiPickerOpen: boolean;
   setIsEmojiPickerOpen: (value: boolean) => void;
   onTakeOver: () => void;
-  // onReassign: (email: string) => void; // multi-agent assign disabled
+  onReassign: (email: string) => void;
   onReturnToAI: () => void;
   onSendAgentMessage: () => void;
   onSendInternalNote: () => void;
@@ -440,7 +445,6 @@ function ThreadChatControls({
                   </Typography>
                 </div>
               </div>
-              {/* Multi-agent assign disabled — Take Over is the only handover.
               {canReassign && (
                 <ReassignAgentSelect
                   agents={agents}
@@ -448,8 +452,8 @@ function ThreadChatControls({
                   disabled={transitionState !== "idle" || !chatSocketReady}
                   onReassign={onReassign}
                 />
-              )} */}
-              {activeThreadId && connectedAgent !== user && (
+              )}
+              {activeThreadId && !canReassign && connectedAgent !== user && (
                 // Same layoutId as Return to AI: framer treats the two as one
                 // element and slides it from here into the composer, so the
                 // control an agent just pressed is visibly where it went.
@@ -487,7 +491,7 @@ function ThreadChatControls({
             <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm">
               <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-3 py-1.5 text-xs font-bold text-muted-foreground">
                 <IconLock className="size-3.5 text-primary" />
-                Internal note only — never visible to the customer
+                Internal note only — visible to your team, never to the customer
               </div>
               <div className="px-3 pt-1">
                 <textarea
@@ -566,7 +570,6 @@ function ThreadChatControls({
                 </Typography>
               </div>
             </div>
-            {/* Multi-agent assign disabled.
             {canReassign && (
               <ReassignAgentSelect
                 agents={agents}
@@ -578,7 +581,7 @@ function ThreadChatControls({
                 }
                 onReassign={onReassign}
               />
-            )} */}
+            )}
           </motion.div>
         )}
 
@@ -824,7 +827,6 @@ function ThreadChatControls({
                     {attachments.length} attached
                   </Typography>
                 )}
-                {/* Multi-agent assign disabled.
                 {canReassign && connectedAgent && (
                   <ReassignAgentSelect
                     agents={agents}
@@ -832,7 +834,7 @@ function ThreadChatControls({
                     disabled={transitionState !== "idle" || !chatSocketReady}
                     onReassign={onReassign}
                   />
-                )} */}
+                )}
                 {/* Sits beside Send because it's the other thing an agent can
                   do from here: hand the conversation back instead of
                   replying. Outline keeps Send the primary action. */}
@@ -971,6 +973,16 @@ export default function Support() {
     normalizeThreads(FetchThreadsListData?.results),
   );
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  // Below `lg` there is room for the chat list or the conversation, not
+  // both. This only picks which one shows there. A chat id in the URL (a
+  // deep link, or a refresh after the user opened one) shows the
+  // conversation; with none, it shows the list. That only holds because
+  // narrow screens never open a chat on their own — see `fallbackThreadId`
+  // — so an id in the URL means the user chose it.
+  const isBelowLg = useIsBelowLg();
+  const [portraitView, setPortraitView] = useState<"list" | "conversation">(
+    chatParam ? "conversation" : "list",
+  );
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
   const [handlerEvents, setHandlerEvents] = useState<HandlerEvent[]>([]);
   const [connectedAgent, setConnectedAgent] = useState<string | null>(null);
@@ -989,7 +1001,10 @@ export default function Support() {
   // Attaching a real customer to a chat a guest started, offered from the
   // conversation header where the guest's name sits.
   const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
+  // Below `xl` the customer details open as a sheet from the header.
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
+  const [isCloseChatOpen, setIsCloseChatOpen] = useState(false);
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
@@ -1090,18 +1105,22 @@ export default function Support() {
     connectedAgentNameRef.current = connectedAgentName;
   }, [connectedAgentName]);
 
-  // Multi-agent assign/view disabled — the staff roster was only needed for the
-  // reassign dropdown and the assignee filter. Re-enable with those.
-  // // Only admins and supervisors can reassign, and only they need the agent list.
-  // // Fetch the shared company staff roster from Redux so the assignee filter and
-  // // reassignment controls use the same source of truth.
-  // useEffect(() => {
-  //   if (sessionStatus !== "authenticated") return;
-  //   if (!session?.user) return;
-  //   void dispatch(FetchStaff());
-  // }, [sessionStatus, session?.user, dispatch]);
+  // Only admins and supervisors can reassign, and only they need the agent list
+  // (the staff API refuses everyone else). Fetch the shared company staff roster
+  // from Redux so the assignee filter and reassignment controls use the same
+  // source of truth. Keyed on the boolean, not the session object, so a session
+  // refresh doesn't fetch it again.
+  useEffect(() => {
+    if (!canReassign) return;
+    void dispatch(FetchStaff());
+  }, [canReassign, dispatch]);
 
   const wsRef = useRef<WebSocket | null>(null);
+  // Settles the close request in flight: "sent" once the server echoes it,
+  // "refused" when it is rejected. See handleCloseChat.
+  const closeAckRef = useRef<((result: "sent" | "refused") => void) | null>(
+    null,
+  );
   const connectedAgentRef = useRef<string | null>(null);
   const connectedAgentNameRef = useRef<string | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
@@ -1147,7 +1166,11 @@ export default function Support() {
   const urlThreadExists =
     !!chatParam &&
     filterScopedThreads.some((thread) => thread.id === chatParam);
-  const fallbackThreadId = filterScopedThreads[0]?.id ?? null;
+  // No first-chat default on a narrow screen: there the list is the landing
+  // view and a chat opens only when tapped.
+  const fallbackThreadId = isBelowLg
+    ? null
+    : (filterScopedThreads[0]?.id ?? null);
   const desiredThreadId =
     threadsReady && (urlThreadExists || fallbackThreadId)
       ? urlThreadExists
@@ -1296,6 +1319,9 @@ export default function Support() {
     : connectedAgentName;
   const showAiResponding = selectedThread?.ai_responding === true;
 
+  useEffect(() => {
+    console.log("selectedThread>>>", selectedThread);
+  }, [selectedThread]);
   const threadTabCounts = useMemo(
     () => ({
       needs_human: visibleThreads.filter((thread) => thread.need_escalation)
@@ -1366,6 +1392,16 @@ export default function Support() {
           if (activeThreadIdRef.current === activeThreadId) {
             setThreadMessages(result.messages ?? []);
             setHandlerEvents(result.handler_events ?? []);
+            // Refresh the typing state from the thread details. The list can
+            // still contain `true` when the AI finished while this thread was
+            // not open and therefore had no active chat socket.
+            setLocalThreads((prev) =>
+              prev.map((thread) =>
+                thread.id === activeThreadId
+                  ? { ...thread, ai_responding: result.ai_responding }
+                  : thread,
+              ),
+            );
             // Threads added over the socket have no phone or past-chat
             // count; fill them in from this thread's details.
             if (result.customer) {
@@ -1444,42 +1480,42 @@ export default function Support() {
     }
   }, [activeThreadId, canHandleChats]);
 
-  // // Admin and supervisor: hands the chat to another agent. Sent over the same
-  // // handler_change channel as Take Over, naming the agent to assign.
-  // const handleReassign = useCallback(
-  //   (email: string) => {
-  //     if (!canReassign) {
-  //       toast.error("Permission Issue!", {
-  //         description: "You do not have permission to perform this action.",
-  //       });
-  //       return;
-  //     }
-  //
-  //     if (
-  //       !activeThreadId ||
-  //       !wsRef.current ||
-  //       wsRef.current.readyState !== WebSocket.OPEN
-  //     ) {
-  //       setTransitionState("idle");
-  //       return;
-  //     }
-  //
-  //     try {
-  //       setTransitionState("taking_over");
-  //       wsRef.current.send(
-  //         JSON.stringify({
-  //           action_type: "handler_change",
-  //           chat_handler: "human",
-  //           chat_handler_user: email,
-  //         }),
-  //       );
-  //     } catch (error) {
-  //       console.error(error);
-  //       setTransitionState("idle");
-  //     }
-  //   },
-  //   [activeThreadId, canReassign],
-  // );
+  // Admin and supervisor: hands the chat to another agent. Sent over the same
+  // handler_change channel as Take Over, naming the agent to assign.
+  const handleReassign = useCallback(
+    (email: string) => {
+      if (!canReassign) {
+        toast.error("Permission Issue!", {
+          description: "You do not have permission to perform this action.",
+        });
+        return;
+      }
+
+      if (
+        !activeThreadId ||
+        !wsRef.current ||
+        wsRef.current.readyState !== WebSocket.OPEN
+      ) {
+        setTransitionState("idle");
+        return;
+      }
+
+      try {
+        setTransitionState("taking_over");
+        wsRef.current.send(
+          JSON.stringify({
+            action_type: "handler_change",
+            chat_handler: "human",
+            chat_handler_user: email,
+          }),
+        );
+      } catch (error) {
+        console.error(error);
+        setTransitionState("idle");
+      }
+    },
+    [activeThreadId, canReassign],
+  );
 
   const handleReturnToAI = useCallback(async () => {
     if (!canHandleChats) {
@@ -1739,8 +1775,10 @@ export default function Support() {
     (threadId: string) => {
       // Close the previously open thread's chat socket immediately on click,
       // rather than waiting for the effect below to notice the id changed.
-      wsRef.current?.close();
-      wsRef.current = null;
+      if (threadId !== activeThreadIdRef.current) {
+        wsRef.current?.close();
+        wsRef.current = null;
+      }
       setLocalThreads((prev) =>
         prev.map((thread) =>
           thread.id === threadId && thread.is_read === false
@@ -1749,6 +1787,7 @@ export default function Support() {
         ),
       );
       setSelectedThreadId(threadId);
+      setPortraitView("conversation");
       setAttachments([]);
       setAppliedChatParam(threadId);
       router.replace(`${pathname}?chat=${encodeURIComponent(threadId)}`, {
@@ -1756,6 +1795,57 @@ export default function Support() {
       });
     },
     [router, pathname],
+  );
+
+  // Closing is the customer's call: this only asks their widget for feedback.
+  // The chat closes with this reason when they submit it, and goes back to the
+  // AI if they skip. Either way the agent is done with it, so move on to the
+  // next chat — but only once the server confirmed the request: leaving sooner
+  // closes this chat's socket while the server is still saving it.
+  const handleCloseChat = useCallback(
+    async (reason: ThreadCloseReason) => {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        toast.error("Not connected", {
+          description: "Reconnecting to the chat. Please try again.",
+        });
+        return;
+      }
+
+      const outcome = new Promise<"sent" | "refused" | "timeout">((resolve) => {
+        const timer = setTimeout(() => resolve("timeout"), 8_000);
+        closeAckRef.current = (result) => {
+          clearTimeout(timer);
+          resolve(result);
+        };
+      });
+      wsRef.current.send(
+        JSON.stringify({ action_type: "request_close", reason }),
+      );
+      setIsCloseChatOpen(false);
+
+      const result = await outcome;
+      closeAckRef.current = null;
+      if (result === "timeout") {
+        toast.error("Couldn't request feedback", {
+          description: "The server did not respond. Please try again.",
+        });
+        return;
+      }
+      // A refusal was already explained by the socket handler.
+      if (result === "refused") return;
+
+      toast.success("Feedback requested", {
+        description:
+          "The chat closes once the customer submits their feedback.",
+      });
+
+      const index = visibleThreads.findIndex(
+        (thread) => thread.id === activeThreadId,
+      );
+      const nextThread = visibleThreads[index + 1] ?? visibleThreads[index - 1];
+      if (nextThread) handleSelectThread(nextThread.id);
+    },
+    [activeThreadId, handleSelectThread, visibleThreads],
   );
 
   // Insert or patch a thread in localThreads based on an incoming dashboard
@@ -1865,6 +1955,10 @@ export default function Support() {
 
   useSupportDashboardEvents((event) => {
     if (event.action_type === "message") {
+      if (!event.data.is_active) {
+        removeClosedThread(event.data.thread_id);
+        return;
+      }
       upsertThreadFromMessage(event.data);
       return;
     }
@@ -1916,7 +2010,9 @@ export default function Support() {
       return;
     }
 
-    removeClosedThread(event.data.thread_id);
+    if (event.action_type === "thread_closed") {
+      removeClosedThread(event.data.thread_id);
+    }
   });
 
   // ---- Per-thread chat socket: opens/closes as the selected thread changes. ----
@@ -1994,6 +2090,21 @@ export default function Support() {
           connectedAgentRef.current = data.chat_handler_user;
         }
         setTransitionState("idle");
+        return;
+      }
+
+      if (!data?.success && data?.action_type === "request_close") {
+        closeAckRef.current?.("refused");
+        toast.error("Couldn't close the chat", {
+          description: data?.message || "Please try again.",
+        });
+        return;
+      }
+
+      if (data?.success && data?.action_type === "close_feedback_skipped") {
+        toast.info("Customer skipped the feedback", {
+          description: "The chat stays open and was handed back to the AI.",
+        });
         return;
       }
 
@@ -2098,13 +2209,26 @@ export default function Support() {
         return;
       }
 
+      // The close-feedback request is saved as a message too, so it shows in the
+      // transcript live as it does after a reload.
       if (
         data?.success &&
-        data?.action_type === "message" &&
+        (data?.action_type === "message" ||
+          data?.action_type === "close_feedback_request") &&
         data?.final_update
       ) {
+        const isCartAction = Boolean(
+          data.sender === "assistant" &&
+          data.final_update.json_content?.cart_action &&
+          !data.final_update.json_content?.needs_clarification,
+        );
+        if (data?.action_type === "close_feedback_request") {
+          closeAckRef.current?.("sent");
+        }
         handleThreadMessageAdded({
-          id: data?.final_update?.id,
+          id: isCartAction
+            ? `cart-action-${activeThreadIdRef.current}`
+            : data?.final_update?.id,
           role: data?.final_update?.role,
           message: data?.final_update?.message,
           json_content: data?.final_update?.json_content || {},
@@ -2121,6 +2245,29 @@ export default function Support() {
                 "Agent")
               : "",
           image_url: data?.final_update?.image_url || null,
+        });
+        setReplyWithAILoadingId(null);
+        return;
+      }
+
+      if (
+        data?.success &&
+        data?.action_type === "cart_action_result" &&
+        data?.final_update
+      ) {
+        const result = data.final_update;
+        setThreadMessages((current) => {
+          const pendingIndex = current.findLastIndex(
+            (message) =>
+              String(message.id).startsWith("cart-action-") &&
+              message.json_content?.cart_action,
+          );
+
+          if (pendingIndex === -1) return [...current, result];
+
+          const updated = [...current];
+          updated[pendingIndex] = { ...updated[pendingIndex], ...result };
+          return updated;
         });
         setReplyWithAILoadingId(null);
         return;
@@ -2224,9 +2371,19 @@ export default function Support() {
     }
   };
 
+  // Below `lg` the conversation shows only when a chat is open and chosen;
+  // otherwise the list does.
+  const showConversationBelowLg =
+    portraitView === "conversation" && activeThreadId !== null;
+
   return (
     <SidebarProvider
-      style={{ "--sidebar-width": "350px" } as CSSProperties}
+      // The chat list scales with the screen: 350px on a large monitor, but
+      // about 280px at a 1280px laptop width, where a fixed 350px left the
+      // conversation squeezed between the list and the details panel.
+      style={
+        { "--sidebar-width": "clamp(17rem, 22vw, 350px)" } as CSSProperties
+      }
       className="h-svh min-h-0 w-full overflow-hidden"
     >
       {/* Conversations list — the nested sidebar from the sidebar-09 block. */}
@@ -2235,7 +2392,10 @@ export default function Support() {
           the app's own navigation stays on the grey sidebar surface. */}
       <Sidebar
         collapsible="none"
-        className="hidden border-r bg-background md:flex"
+        className={cn(
+          "w-full border-r bg-background desktop:flex desktop:w-(--sidebar-width)",
+          showConversationBelowLg ? "hidden" : "flex",
+        )}
       >
         <SidebarHeader className="gap-0 p-0">
           <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
@@ -2313,7 +2473,6 @@ export default function Support() {
                       />
                     </fieldset>
 
-                    {/* Multi-agent view disabled — single agent for now.
                     <fieldset>
                       <legend className="mb-2">
                         <Typography variant="small" as="span">
@@ -2336,7 +2495,6 @@ export default function Support() {
                         emptyMessage="No assignees found."
                       />
                     </fieldset>
-                    */}
                   </div>
                   <div className="flex justify-between border-t p-3">
                     {appliedThreadFilters.channels.length +
@@ -2374,7 +2532,7 @@ export default function Support() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="flex items-end gap-3 border-b border-border/70">
+            <div className="flex flex-wrap items-end gap-x-2 gap-y-1 border-b border-border/80">
               {(
                 [
                   { key: "needs_human", label: "Needs human" },
@@ -2411,7 +2569,7 @@ export default function Support() {
                     });
                   }}
                   className={cn(
-                    "-mb-px flex shrink-0 items-center gap-1 border-b-2 px-0.5 pb-2 pt-1 text-xs font-medium transition-colors",
+                    "-mb-px flex min-w-max grow basis-auto items-center justify-center gap-1 border-b-2 px-0.5 pb-2 pt-1 text-xs font-medium whitespace-nowrap transition-colors",
                     activeReadFilter === option.key
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground",
@@ -2551,13 +2709,41 @@ export default function Support() {
       </Sidebar>
 
       {/* Conversation + thread details. */}
-      <SidebarInset className="min-h-0 overflow-hidden">
+      <SidebarInset
+        className={cn(
+          "min-h-0 min-w-0 overflow-hidden desktop:flex",
+          showConversationBelowLg ? "flex" : "hidden",
+        )}
+      >
         {activeThreadId ? (
           <div className="flex h-full min-h-0">
             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
               <header className="flex h-16 shrink-0 items-center border-b bg-background px-4">
                 <div className="flex w-full items-center justify-between gap-3">
                   <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Back to chat list"
+                      className="-ml-2 shrink-0 desktop:hidden"
+                      onClick={() => {
+                        // Closes the chat, not just the pane: its id would
+                        // otherwise stay in the URL and a refresh would
+                        // reopen it.
+                        setPortraitView("list");
+                        const params = new URLSearchParams(
+                          searchParams?.toString() ?? "",
+                        );
+                        params.delete("chat");
+                        const query = params.toString();
+                        router.replace(
+                          query ? `${pathname}?${query}` : (pathname ?? "/"),
+                          { scroll: false },
+                        );
+                      }}
+                    >
+                      <IconArrowLeft />
+                    </Button>
                     <CustomerAvatar
                       name={
                         selectedThread?.customer?.name ||
@@ -2597,6 +2783,9 @@ export default function Support() {
                   </div>
 
                   <div className="flex shrink-0 items-center gap-3">
+                    <CustomerDetailsButton
+                      onClick={() => setIsDetailsOpen(true)}
+                    />
                     <Button
                       variant="outline"
                       size="sm"
@@ -2605,6 +2794,26 @@ export default function Support() {
                       <IconTicket className="size-4" />
                       Create Ticket
                     </Button>
+                    {selectedThread?.is_active && canHandleChats && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        // Only the agent the chat is assigned to may close it.
+                        disabled={
+                          !session?.user?.email ||
+                          displayedConnectedAgent !== session.user.email
+                        }
+                        title={
+                          displayedConnectedAgent === session?.user?.email
+                            ? "Close this chat"
+                            : "Only the assigned agent can close this chat"
+                        }
+                        onClick={() => setIsCloseChatOpen(true)}
+                      >
+                        <IconMessageOff className="size-4" />
+                        Close Chat
+                      </Button>
+                    )}
                   </div>
                 </div>
               </header>
@@ -2681,10 +2890,10 @@ export default function Support() {
                         connectedAgent={displayedConnectedAgent}
                         connectedAgentName={displayedConnectedAgentName}
                         user={session?.user?.email || null}
-                        // canReassign={canReassign}
+                        canReassign={canReassign}
                         agents={agents}
                         chatSocketReady={chatSocketReady}
-                        // onReassign={handleReassign}
+                        onReassign={handleReassign}
                         transitionState={transitionState}
                         composerMessage={composerMessage}
                         setComposerMessage={setComposerMessage}
@@ -2711,6 +2920,8 @@ export default function Support() {
             </div>
 
             <CustomerDetailsPanel
+              open={isDetailsOpen}
+              onOpenChange={setIsDetailsOpen}
               currentThreadId={activeThreadId}
               customerData={selectedThread?.customer || null}
               userMetadata={FetchUserMetadataData}
@@ -2738,6 +2949,13 @@ export default function Support() {
           </div>
         )}
       </SidebarInset>
+      <CloseChatDialog
+        // Keyed by thread so a reason picked for one chat never carries to the next.
+        key={activeThreadId}
+        open={isCloseChatOpen}
+        onOpenChange={setIsCloseChatOpen}
+        onConfirm={handleCloseChat}
+      />
       {storeCode ? (
         <CreateTicketDialog
           open={isCreateTicketOpen}

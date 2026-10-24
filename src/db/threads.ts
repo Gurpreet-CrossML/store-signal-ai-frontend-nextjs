@@ -1,3 +1,4 @@
+import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/lib/tenant-context";
 import { storeIdScope, scopedThreadFilter } from "@/db/access";
 import { FEEDBACK_RATING_VALUES } from "@/lib/config";
@@ -38,6 +39,25 @@ import {
   ViewedProduct,
 } from "@/redux/api-slice/thread-slice";
 
+/** The agent who closed a thread — a second join of auth_user. */
+const closedByUser = alias(authUser, "closed_by_user");
+
+/**
+ * Name of the agent who closed a thread: their full name, else their email,
+ * else null when no agent closed it (mirrors get_user_display_name).
+ */
+function closedByName(user: {
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+}): string | null {
+  return (
+    `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() ||
+    user.email ||
+    null
+  );
+}
+
 /**
  * Filters accepted by the thread list endpoint, mirroring
  * ThreadListAPIView.get_queryset (analytics/views.py).
@@ -50,6 +70,8 @@ export type ListThreadsFilters = {
   search?: string;
   user_type?: string;
   has_ticket?: string;
+  has_order?: string; // thread has a real order attributed to it (Thread.orders)
+  has_agent?: string; // a human agent took the thread over at any point
   has_feedback?: string;
   feedback_rating?: string; // very_bad | bad | neutral | good | excellent
   tags?: string[]; // matches threads tagged with ANY of the given tags
@@ -101,9 +123,11 @@ function parseDateTimeFilter(
   value: string,
   edge: "start" | "end",
 ): Date | undefined {
+  // A bare date is an IST calendar day, like Django's created_at__date__range
+  // (TIME_ZONE = "Asia/Kolkata") and the dashboard's localDateRange.
   if (DATE_ONLY_RE.test(value)) {
     return new Date(
-      `${value}T${edge === "start" ? "00:00:00.000Z" : "23:59:59.999Z"}`,
+      `${value}T${edge === "start" ? "00:00:00.000" : "23:59:59.999"}+05:30`,
     );
   }
 
@@ -317,6 +341,30 @@ export async function list_threads(
   } else if (filters.has_ticket === "false") {
     conditions.push(
       sql`NOT EXISTS (SELECT 1 FROM ${supportTicket} WHERE ${supportTicket.threadId} = ${chatThread.id})`,
+    );
+  }
+
+  // has_order: thread has a real order attributed to it via the Thread.orders
+  // M2M through-table (set at ingestion by chat.utils.find_linked_thread).
+  if (filters.has_order === "true") {
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM chat_thread_orders cto WHERE cto.thread_id = ${chatThread.id})`,
+    );
+  } else if (filters.has_order === "false") {
+    conditions.push(
+      sql`NOT EXISTS (SELECT 1 FROM chat_thread_orders cto WHERE cto.thread_id = ${chatThread.id})`,
+    );
+  }
+
+  // has_agent: a takeover records to_agent_id, so this still finds threads
+  // later handed back to the AI (unlike handled_by, the current handler).
+  if (filters.has_agent === "true") {
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM chat_thread_assignment cta WHERE cta.thread_id = ${chatThread.id} AND cta.to_agent_id IS NOT NULL)`,
+    );
+  } else if (filters.has_agent === "false") {
+    conditions.push(
+      sql`NOT EXISTS (SELECT 1 FROM chat_thread_assignment cta WHERE cta.thread_id = ${chatThread.id} AND cta.to_agent_id IS NOT NULL)`,
     );
   }
 
@@ -578,6 +626,9 @@ export type ThreadDetail =
       store: number;
       name: string | null;
       is_active: boolean;
+      close_reason: string | null;
+      closed_by_type: string | null;
+      closed_by_name: string | null;
       ai_responding: boolean;
       followup_level: number;
       total_messages: number;
@@ -634,6 +685,11 @@ export async function get_thread_details(
       storeId: chatThread.storeId,
       name: chatThread.name,
       is_active: chatThread.isActive,
+      close_reason: chatThread.closeReason,
+      closed_by_type: chatThread.closedByType,
+      closed_by_first_name: closedByUser.firstName,
+      closed_by_last_name: closedByUser.lastName,
+      closed_by_email: closedByUser.email,
       ai_responding: chatThread.aiResponding,
       followup_level: chatThread.followupLevel,
       created_at: chatThread.createdAt,
@@ -647,6 +703,7 @@ export async function get_thread_details(
     })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
+    .leftJoin(closedByUser, eq(chatThread.closedById, closedByUser.id))
     .where(scopedThreadFilter(chatThread.id, thread_id))
     .limit(1);
 
@@ -794,6 +851,13 @@ export async function get_thread_details(
     store: Number(t.storeId),
     name: t.name,
     is_active: t.is_active,
+    close_reason: t.close_reason,
+    closed_by_type: t.closed_by_type,
+    closed_by_name: closedByName({
+      firstName: t.closed_by_first_name,
+      lastName: t.closed_by_last_name,
+      email: t.closed_by_email,
+    }),
     ai_responding: t.ai_responding,
     followup_level: t.followup_level,
     total_messages,

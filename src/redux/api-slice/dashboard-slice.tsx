@@ -4,9 +4,21 @@ import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
 
+// A KPI card's change vs. the previous period, e.g. "▲ 3.2 pts".
+export type MetricTrend = {
+  delta: number;
+  direction: "up" | "down" | "flat";
+  variant: "success" | "danger" | "neutral";
+  label: string;
+};
+
 export type FeedbackInsightsResponse = {
-  avg_handle_time: { value: number; unit: "seconds" | "minutes" };
-  csat_score: { percentage: number };
+  avg_handle_time: {
+    value: number;
+    unit: "seconds" | "minutes";
+    trend: MetricTrend;
+  };
+  csat_score: { percentage: number; trend: MetricTrend };
   feedback_distribution: {
     positive: { value: number };
     neutral: { value: number };
@@ -20,19 +32,29 @@ export type FeedbackInsightsResponse = {
 
 export type EngagementResponse = {
   total_threads: number;
+  total_threads_trend: MetricTrend;
   sessions_resolved: number;
   avg_response_time_seconds: number;
+  avg_response_time_trend: MetricTrend;
+};
+
+type RateWithTrend = {
+  count: number;
+  total: number;
+  percentage: number;
+  trend: MetricTrend;
 };
 
 export type OperationalEfficiencyResponse = {
-  bot_resolution_rate: { percentage: number };
-  escalation_rate: { percentage: number };
+  bot_resolution_rate: RateWithTrend;
+  escalation_rate: RateWithTrend;
 };
 
 export type ConversionRateResponse = {
   percentage: number;
   converted_count: number;
   total_count: number;
+  trend: MetricTrend;
 };
 
 export type UserMatrixResponse = {
@@ -88,6 +110,8 @@ export type DashboardFilterArgs = {
   to?: string;
   channel?: string;
   silent?: boolean;
+  // Skip the server's short dashboard cache (the Refresh button).
+  fresh?: boolean;
 };
 
 // axios drops undefined values, so unset filters fall back to server defaults.
@@ -355,7 +379,7 @@ export const FetchDashboard = createAsyncThunk(
   async (args: DashboardFilterArgs, thunkAPI) => {
     try {
       const response = await axiosInstance.get(ENDPOINTS.fetchDashboard(), {
-        params: dashboardParams(args),
+        params: { ...dashboardParams(args), fresh: args.fresh ? 1 : undefined },
       });
       return response.data.data as DashboardSummaryResponse;
     } catch (error) {

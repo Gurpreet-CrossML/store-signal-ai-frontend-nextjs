@@ -60,7 +60,7 @@ export default function CustomizationLivePreview({
   const [inputMessage, setInputMessage] = useState("");
 
   return (
-    <div className="lg:sticky lg:top-6">
+    <div className="desktop:sticky desktop:top-6">
       <Card className="overflow-hidden shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -190,7 +190,7 @@ export default function CustomizationLivePreview({
                   <div className="flex max-h-[65vh] h-[60vh]! flex-col overflow-hidden">
                     <div className="flex-1 overflow-y-auto bg-white p-4">
                       <div
-                        className="w-fit max-w-[86%] rounded-2xl px-4 py-2 text-sm text-slate-900"
+                        className="rich-text-render w-fit max-w-[86%] rounded-2xl px-4 py-2 text-sm text-slate-900"
                         style={{ backgroundColor: secondaryColor }}
                       >
                         <ReactMarkdown>{greetingMessage}</ReactMarkdown>
