@@ -1735,6 +1735,8 @@ export async function get_dashboard_summary(params: {
   channel?: string;
   from?: string;
   to?: string;
+  // Recompute and re-cache instead of reading the cache (Refresh button).
+  fresh?: boolean;
 }): Promise<DashboardSummary> {
   // Per-store access gate (F3). A denied store returns the empty payload and is
   // NOT cached, so an allowed user can never be served a denied user's slot.
@@ -1744,7 +1746,7 @@ export async function get_dashboard_summary(params: {
 
   // Tenant-prefixed cache key — never crosses companies.
   const key = `${currentCompany()}:${params.store_code ?? ""}:${params.channel ?? ""}:${params.from ?? ""}:${params.to ?? ""}`;
-  const cached = getCached<DashboardSummary>(key);
+  const cached = params.fresh ? null : getCached<DashboardSummary>(key);
   if (cached) return cached;
 
   // Each card is also computed for the same-length period just before the
