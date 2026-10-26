@@ -1412,6 +1412,7 @@ export async function get_chat_history_aggregated(params: {
     label: string;
     value: number | null;
     previous: number | null;
+    previous_label: string | null;
   }>;
 }> {
   const db = getDb();
@@ -1471,11 +1472,12 @@ export async function get_chat_history_aggregated(params: {
     granularity,
     from_dt: isoformatIst(start),
     to_dt: isoformatIst(end),
-    // Paired by position: the same hour yesterday, day last week, or dates a
-    // month back.
+    // Paired by position: the same hour yesterday, the same day a week back,
+    // or the same dates a month back.
     points: points.map((p, i) => ({
       ...p,
       previous: prevPoints[i]?.value ?? null,
+      previous_label: prevPoints[i]?.label ?? null,
     })),
   };
 }
@@ -1483,19 +1485,28 @@ export async function get_chat_history_aggregated(params: {
 const HOUR_MS = 3600 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const IST_OFFSET_MS = 5.5 * HOUR_MS;
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+// e.g. "Tue 20 Oct"
+const dayLabel = new Intl.DateTimeFormat("en-GB", {
+  timeZone: APP_TZ,
+  weekday: "short",
+  day: "2-digit",
+  month: "short",
+});
 
-/** Start (epoch ms) of the IST day (hourly) or Mon–Sun week (weekly) holding `d`. */
+/**
+ * Start (epoch ms) of the chart's window ending with `d`'s IST day: that day
+ * itself (hourly), or the 7 days up to and including it (weekly).
+ */
 function periodStart(granularity: string, d: Date): number {
   const days = Math.floor((d.getTime() + IST_OFFSET_MS) / DAY_MS);
-  // 1970-01-01 was a Thursday, so (days + 3) % 7 is days since Monday.
-  const back = granularity === "weekly" ? (days + 3) % 7 : 0;
+  const back = granularity === "weekly" ? 6 : 0;
   return (days - back) * DAY_MS - IST_OFFSET_MS;
 }
 
 /**
  * The period the chart compares against: hourly → all of yesterday,
- * weekly → all of last week, monthly → the same dates one month back.
+ * weekly → the 7 days before the last 7, monthly → the same dates one month
+ * back.
  */
 function previousRange(
   granularity: string,
@@ -1551,7 +1562,7 @@ function aggregateChatMessages(
   ];
 
   if (granularity === "hourly" || granularity === "weekly") {
-    // The 24 hours of endDt's IST day, or the 7 days of its Mon–Sun week.
+    // The 24 hours of endDt's IST day, or the 7 days ending with it.
     // Buckets not reached yet are null so the chart line stops at now.
     const hourly = granularity === "hourly";
     const first = periodStart(granularity, endDt);
@@ -1559,7 +1570,7 @@ function aggregateChatMessages(
     const points: Array<{ label: string; value: number | null }> = Array.from(
       { length: hourly ? 24 : 7 },
       (_, i) => ({
-        label: hourly ? hourLabel(i) : WEEKDAYS[i],
+        label: hourly ? hourLabel(i) : dayLabel.format(first + i * step),
         value: first + i * step <= endDt.getTime() ? 0 : null,
       }),
     );

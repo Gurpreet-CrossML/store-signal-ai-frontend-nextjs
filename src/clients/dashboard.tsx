@@ -85,8 +85,8 @@ const defaultRange = (granularity: Granularity) => {
     return { from: toISODate(subMonths(to, 1)), to: toISODate(to) };
   }
   // Full timestamps: plain dates get widened to whole days by the API. A day
-  // (or week) back always covers today's midnight (or this Monday), where the
-  // chart starts.
+  // (or 7 days) back always covers today's midnight (or that of 6 days ago),
+  // where the chart starts.
   const days = granularity === "hourly" ? 1 : 7;
   const from = new Date(to.getTime() - days * 24 * 3600 * 1000);
   return { from: from.toISOString(), to: to.toISOString() };

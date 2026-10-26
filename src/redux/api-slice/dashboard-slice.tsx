@@ -66,6 +66,7 @@ export type ConversationHistoryPoint = {
   label: string;
   value: number | null;
   previous: number | null;
+  previous_label: string | null;
 };
 
 export type ConversationHistoryResponse = {

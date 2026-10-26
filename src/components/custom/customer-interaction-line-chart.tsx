@@ -35,11 +35,12 @@ export type ChartPoint = {
   label: string;
   value: number | null;
   previous?: number | null;
+  previous_label?: string | null;
 };
 
 const seriesLabels: Record<Granularity, [string, string]> = {
   hourly: ["Today", "Yesterday"],
-  weekly: ["This week", "Last week"],
+  weekly: ["Last 7 days", "Previous 7 days"],
   monthly: ["Selected months", "Previous months"],
 };
 
@@ -51,7 +52,7 @@ const subtitleMap: Record<Granularity, string> = {
 
 const autoRangeLabel: Record<Granularity, string> = {
   hourly: "Today",
-  weekly: "This week",
+  weekly: "Last 7 days",
   monthly: "Custom range",
 };
 
@@ -100,7 +101,8 @@ export function CustomerInteractionLineChart({
     value: { label: seriesLabels[granularity][0], color: "var(--chart-1)" },
     previous: {
       label: seriesLabels[granularity][1],
-      color: "var(--muted-foreground)",
+      // The current series' purple, lighter, so the comparison recedes.
+      color: "color-mix(in oklch, var(--chart-1) 45%, transparent)",
     },
   } satisfies ChartConfig;
 
@@ -171,6 +173,7 @@ export function CustomerInteractionLineChart({
               />
               <XAxis
                 dataKey="label"
+                padding={{ left: 12, right: 12 }}
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
@@ -191,8 +194,34 @@ export function CustomerInteractionLineChart({
                 cursor={false}
                 content={
                   <ChartTooltipContent
-                    // "01 PM" covers 1:00–1:59, so show it as a range.
+                    // Hourly: "2 pm–3 pm" over Today / Yesterday rows (both
+                    // share the hour). Weekly/monthly: each row names its own
+                    // date, so no header is needed.
+                    hideLabel={granularity !== "hourly"}
                     labelFormatter={(label) => formatPeakHour(String(label))}
+                    formatter={(value, _name, item) => (
+                      <>
+                        <div
+                          className="size-2.5 shrink-0 rounded-[2px]"
+                          style={{ background: item.color }}
+                        />
+                        <div className="flex flex-1 justify-between gap-4 leading-none">
+                          <span className="text-muted-foreground">
+                            {granularity === "hourly"
+                              ? chartConfig[item.dataKey as keyof typeof chartConfig]
+                                  ?.label
+                              : item.dataKey === "previous"
+                                ? item.payload.previous_label
+                                : item.payload.label}
+                          </span>
+                          {value != null && (
+                            <span className="font-mono font-medium text-foreground tabular-nums">
+                              {Number(value).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    )}
                   />
                 }
               />
@@ -205,7 +234,6 @@ export function CustomerInteractionLineChart({
                 dataKey="previous"
                 type="monotone"
                 stroke="var(--color-previous)"
-                strokeOpacity={0.45}
                 strokeWidth={1.5}
                 strokeDasharray="4 4"
                 dot={false}
@@ -216,7 +244,13 @@ export function CustomerInteractionLineChart({
                 type="monotone"
                 stroke="var(--color-value)"
                 strokeWidth={2}
-                dot={granularity !== "hourly"}
+                // Filled, so a lone point stays visible.
+                dot={
+                  granularity !== "hourly" && {
+                    r: 4,
+                    fill: "var(--color-value)",
+                  }
+                }
                 activeDot={{ r: 5 }}
               />
             </LineChart>
