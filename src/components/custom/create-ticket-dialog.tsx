@@ -518,6 +518,9 @@ export function CreateTicketDialog({
                   Reads the recent messages and fills in the subject,
                   description, priority and tags. Everything stays editable.
                 </Typography>
+                <p className="mt-1.5 text-xs text-muted-foreground/80">
+                  AI credits will be used for this action.
+                </p>
               </div>
               <Button
                 type="button"

@@ -1760,9 +1760,12 @@ function ConversationPanel({
             </Tooltip>
             <DropdownMenuContent
               align="start"
-              className="max-h-72 overflow-y-auto"
+              className="max-h-72 w-64 overflow-y-auto"
             >
               <DropdownMenuLabel>Translate to</DropdownMenuLabel>
+              <p className="px-2 pb-1.5 text-xs text-muted-foreground/80">
+                AI credits will be used for this action.
+              </p>
               <DropdownMenuSeparator />
               {SUPPORTED_LANGUAGES.map((language) => (
                 <DropdownMenuItem
@@ -1863,7 +1866,12 @@ function ConversationPanel({
                     onClick={() => setSelectedSendMode("customer_language")}
                   >
                     <IconLanguage className="size-4" />
-                    Send in Customer Language
+                    <div className="flex flex-col">
+                      Send in Customer Language
+                      <span className="mt-0.5 text-xs text-muted-foreground/80">
+                        AI credits will be used for this action.
+                      </span>
+                    </div>
                   </DropdownMenuItem>
                   {canResolve ? (
                     <DropdownMenuItem
