@@ -251,7 +251,7 @@ export default function SocialCommentHandling() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (storeCode) dispatch(fetchSocialAccountsSubscriptions(storeCode));
+    if (storeCode) dispatch(fetchSocialAccountsSubscriptions({ storeCode }));
   }, [dispatch, storeCode]);
 
   useEffect(() => {
