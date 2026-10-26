@@ -35,6 +35,11 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
 import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import { formatDate, formatPrice } from "@/lib/helpers";
@@ -519,21 +524,28 @@ export function CreateTicketDialog({
                   description, priority and tags. Everything stays editable.
                 </Typography>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="shrink-0"
-                disabled={drafting || busy}
-                onClick={handleDraft}
-              >
-                {drafting ? (
-                  <Spinner className="size-4" />
-                ) : (
-                  <IconSparkles className="size-4" />
-                )}
-                {drafting ? "Drafting…" : "Draft with AI"}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    disabled={drafting || busy}
+                    onClick={handleDraft}
+                  >
+                    {drafting ? (
+                      <Spinner className="size-4" />
+                    ) : (
+                      <IconSparkles className="size-4" />
+                    )}
+                    {drafting ? "Drafting…" : "Draft with AI"}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  AI credits will be used for this action.
+                </TooltipContent>
+              </Tooltip>
             </div>
           ) : null}
 
