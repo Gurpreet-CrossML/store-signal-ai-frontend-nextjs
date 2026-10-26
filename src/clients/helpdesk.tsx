@@ -1762,9 +1762,7 @@ function ConversationPanel({
               <TooltipContent>
                 {isTranslating
                   ? "Translating…"
-                  : translatedLanguage
-                    ? `Translated to ${translatedLanguage.name}`
-                    : "Translate"}
+                  : `${translatedLanguage ? `Translated to ${translatedLanguage.name}` : "Translate"} · AI credits will be used for this action.`}
               </TooltipContent>
             </Tooltip>
             <DropdownMenuContent
@@ -1868,12 +1866,19 @@ function ConversationPanel({
                     <IconSend className="size-4" />
                     Send
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setSelectedSendMode("customer_language")}
-                  >
-                    <IconLanguage className="size-4" />
-                    Send in Customer Language
-                  </DropdownMenuItem>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuItem
+                        onClick={() => setSelectedSendMode("customer_language")}
+                      >
+                        <IconLanguage className="size-4" />
+                        Send in Customer Language
+                      </DropdownMenuItem>
+                    </TooltipTrigger>
+                    <TooltipContent side="left">
+                      AI credits will be used for this action.
+                    </TooltipContent>
+                  </Tooltip>
                   {canResolve ? (
                     <DropdownMenuItem
                       onClick={() => setSelectedSendMode("reply_and_resolve")}
