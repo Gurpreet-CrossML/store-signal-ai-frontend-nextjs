@@ -36,6 +36,8 @@ export type ChartPoint = {
   value: number | null;
   previous?: number | null;
   previous_label?: string | null;
+  // Monthly only: the days the point covers, e.g. "26–30 Sep".
+  range_label?: string;
 };
 
 const seriesLabels: Record<Granularity, [string, string]> = {
@@ -213,7 +215,8 @@ export function CustomerInteractionLineChart({
                                 ]?.label
                               : item.dataKey === "previous"
                                 ? item.payload.previous_label
-                                : item.payload.label}
+                                : (item.payload.range_label ??
+                                  item.payload.label)}
                           </span>
                           {value != null && (
                             <span className="font-mono font-medium text-foreground tabular-nums">

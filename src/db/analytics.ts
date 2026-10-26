@@ -1411,6 +1411,7 @@ export async function get_chat_history_aggregated(params: {
   points: Array<{
     label: string;
     value: number | null;
+    range_label?: string;
     previous: number | null;
     previous_label: string | null;
   }>;
@@ -1477,7 +1478,8 @@ export async function get_chat_history_aggregated(params: {
     points: points.map((p, i) => ({
       ...p,
       previous: prevPoints[i]?.value ?? null,
-      previous_label: prevPoints[i]?.label ?? null,
+      previous_label:
+        prevPoints[i]?.range_label ?? prevPoints[i]?.label ?? null,
     })),
   };
 }
@@ -1545,7 +1547,7 @@ function aggregateChatMessages(
   granularity: string,
   startDt: Date,
   endDt: Date,
-): Array<{ label: string; value: number | null }> {
+): Array<{ label: string; value: number | null; range_label?: string }> {
   const monthAbbr = [
     "Jan",
     "Feb",
@@ -1596,12 +1598,25 @@ function aggregateChatMessages(
   };
   // monthly
   const buckets = new Map<string, number>();
+  // The days of each month inside the range, e.g. "26–30 Sep", since the
+  // first and last months are usually partial.
+  const ranges = new Map<string, string>();
   const sp = istParts(startDt);
   const ep = istParts(endDt);
   let y = sp.y;
   let m = sp.mo;
   while (y < ep.y || (y === ep.y && m <= ep.mo)) {
-    buckets.set(`${monthAbbr[m - 1]} ${y}`, 0);
+    const label = `${monthAbbr[m - 1]} ${y}`;
+    buckets.set(label, 0);
+    const firstDay = y === sp.y && m === sp.mo ? sp.d : 1;
+    const lastDay =
+      y === ep.y && m === ep.mo
+        ? ep.d
+        : new Date(Date.UTC(y, m, 0)).getUTCDate();
+    ranges.set(
+      label,
+      `${firstDay === lastDay ? firstDay : `${firstDay}–${lastDay}`} ${monthAbbr[m - 1]}`,
+    );
     m += 1;
     if (m > 12) {
       m = 1;
@@ -1616,6 +1631,7 @@ function aggregateChatMessages(
   return Array.from(buckets.entries()).map(([label, value]) => ({
     label,
     value,
+    range_label: ranges.get(label),
   }));
 }
 
