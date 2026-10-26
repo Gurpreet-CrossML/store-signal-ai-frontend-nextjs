@@ -999,8 +999,8 @@ function ConversationPanel({
       {/* Same 4rem header as the two side panels, so all three borders line
           up across the screen. The customer leads — who you are talking to
           is the first thing you need — and the subject follows below. */}
-      <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+      <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b px-4 py-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 @3xl/conv:order-1">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -1036,8 +1036,7 @@ function ConversationPanel({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <CustomerDetailsButton onClick={onShowDetails} />
+        <div className="shrink-0 @3xl/conv:order-3">
           {/* Staff are matched by id, not name: several people can share
               a name, and only the assigned one should carry the check. */}
           <Combobox
@@ -1095,6 +1094,16 @@ function ConversationPanel({
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
+        </div>
+
+        {/* Narrow panes: the assignee stays on the customer row and the
+            rest wraps onto a row of its own, right-aligned. Wide panes
+            (`contents`) put everything back on one row, via `order`. */}
+        <div className="flex basis-full items-center justify-end gap-2 @3xl/conv:contents">
+          <CustomerDetailsButton
+            className="@3xl/conv:order-2"
+            onClick={onShowDetails}
+          />
 
           {/* The two endings a ticket actually has, one click away —
               they were buried in the status Select behind the ⋮ menu. */}
@@ -1102,7 +1111,7 @@ function ConversationPanel({
             variant="outline"
             size="sm"
             aria-label="Mark as resolved"
-            className={ACTION_TONE_STYLES.success}
+            className={cn(ACTION_TONE_STYLES.success, "@3xl/conv:order-4")}
             onClick={() => setPendingEndStatus("resolved")}
             disabled={isClosed}
           >
@@ -1114,7 +1123,7 @@ function ConversationPanel({
             variant="outline"
             size="sm"
             aria-label="Close ticket"
-            className={ACTION_TONE_STYLES.danger}
+            className={cn(ACTION_TONE_STYLES.danger, "@3xl/conv:order-5")}
             onClick={() => setPendingEndStatus("closed")}
             disabled={ticket.status === "closed"}
           >
