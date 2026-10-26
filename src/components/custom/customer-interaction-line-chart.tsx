@@ -208,8 +208,9 @@ export function CustomerInteractionLineChart({
                         <div className="flex flex-1 justify-between gap-4 leading-none">
                           <span className="text-muted-foreground">
                             {granularity === "hourly"
-                              ? chartConfig[item.dataKey as keyof typeof chartConfig]
-                                  ?.label
+                              ? chartConfig[
+                                  item.dataKey as keyof typeof chartConfig
+                                ]?.label
                               : item.dataKey === "previous"
                                 ? item.payload.previous_label
                                 : item.payload.label}
