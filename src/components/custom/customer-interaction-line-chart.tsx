@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/card";
 import {
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
@@ -27,24 +29,29 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 
 export type Granularity = "hourly" | "weekly" | "monthly";
-export type ChartPoint = { label: string; value: number };
+// value is null for hours that haven't happened yet; previous is the same
+// bucket one period back.
+export type ChartPoint = {
+  label: string;
+  value: number | null;
+  previous?: number | null;
+};
 
-const chartConfig = {
-  value: {
-    label: "User Queries",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig;
+const seriesLabels: Record<Granularity, [string, string]> = {
+  hourly: ["Today", "Yesterday"],
+  weekly: ["This week", "Last week"],
+  monthly: ["Selected months", "Previous months"],
+};
 
 const subtitleMap: Record<Granularity, string> = {
-  hourly: "User queries by hour of day",
-  weekly: "User queries by calendar week",
+  hourly: "User queries per hour",
+  weekly: "User queries per day",
   monthly: "User queries by month",
 };
 
 const autoRangeLabel: Record<Granularity, string> = {
-  hourly: "Last 24 hours",
-  weekly: "Last 4 weeks",
+  hourly: "Today",
+  weekly: "This week",
   monthly: "Custom range",
 };
 
@@ -83,10 +90,19 @@ export function CustomerInteractionLineChart({
     granularity === "hourly"
       ? chartData.reduce<ChartPoint | null>(
           (peak, point) =>
-            peak === null || point.value > peak.value ? point : peak,
+            peak === null || (point.value ?? 0) > (peak.value ?? 0)
+              ? point
+              : peak,
           null,
         )
       : null;
+  const chartConfig = {
+    value: { label: seriesLabels[granularity][0], color: "var(--chart-1)" },
+    previous: {
+      label: seriesLabels[granularity][1],
+      color: "var(--muted-foreground)",
+    },
+  } satisfies ChartConfig;
 
   return (
     <Card className="flex flex-col">
@@ -97,7 +113,7 @@ export function CustomerInteractionLineChart({
             <InfoIcon text="Tracks how many customer conversations happened over time for the selected date range and granularity, so you can spot trends and peak periods." />
           </CardTitle>
           <CardDescription>
-            {peakPoint && peakPoint.value > 0
+            {(peakPoint?.value ?? 0) > 0 && peakPoint
               ? `Peak at ${formatPeakHour(peakPoint.label)}, plan agent shifts around it`
               : subtitleMap[granularity]}
           </CardDescription>
@@ -159,26 +175,9 @@ export function CustomerInteractionLineChart({
                 axisLine={false}
                 tickMargin={8}
                 fontSize={11}
-                interval={
-                  granularity === "hourly"
-                    ? "preserveStartEnd"
-                    : granularity === "weekly"
-                      ? Math.max(0, Math.ceil(chartData.length / 6) - 1)
-                      : "preserveStartEnd"
-                }
+                interval={granularity === "weekly" ? 0 : "preserveStartEnd"}
                 tickFormatter={(label, i) =>
                   granularity === "hourly" && i % 3 !== 0 ? "" : label
-                }
-                angle={
-                  granularity === "weekly" && chartData.length > 8 ? -35 : 0
-                }
-                textAnchor={
-                  granularity === "weekly" && chartData.length > 8
-                    ? "end"
-                    : "middle"
-                }
-                height={
-                  granularity === "weekly" && chartData.length > 8 ? 50 : 30
                 }
               />
               <YAxis
@@ -188,7 +187,30 @@ export function CustomerInteractionLineChart({
                 fontSize={11}
                 width={32}
               />
-              <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    // "01 PM" covers 1:00–1:59, so show it as a range.
+                    labelFormatter={(label) => formatPeakHour(String(label))}
+                  />
+                }
+              />
+              <ChartLegend
+                verticalAlign="top"
+                align="right"
+                content={<ChartLegendContent />}
+              />
+              <Line
+                dataKey="previous"
+                type="monotone"
+                stroke="var(--color-previous)"
+                strokeOpacity={0.45}
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+                dot={false}
+                activeDot={{ r: 4 }}
+              />
               <Line
                 dataKey="value"
                 type="monotone"

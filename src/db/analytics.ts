@@ -1397,17 +1397,6 @@ function isoformatIst(d: Date): string {
   return `${get("year")}-${get("month")}-${get("day")}T${hour}:${get("minute")}:${get("second")}${micro}+05:30`;
 }
 
-/** IST local hour-of-day (0-23) of a Date. */
-function istHour(d: Date): number {
-  const h = new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TZ,
-    hour: "2-digit",
-    hour12: false,
-  }).format(d);
-  const n = parseInt(h, 10);
-  return n === 24 ? 0 : n;
-}
-
 export async function get_chat_history_aggregated(params: {
   store_code?: string;
   channel?: string;
@@ -1419,7 +1408,11 @@ export async function get_chat_history_aggregated(params: {
   granularity: string;
   from_dt: string;
   to_dt: string;
-  points: Array<{ label: string; value: number }>;
+  points: Array<{
+    label: string;
+    value: number | null;
+    previous: number | null;
+  }>;
 }> {
   const db = getDb();
   const granularity = params.granularity ?? "hourly";
@@ -1433,44 +1426,106 @@ export async function get_chat_history_aggregated(params: {
     granularity,
   );
 
-  const conds = [
-    gte(chatHistory.createdAt, start.toISOString()),
-    lte(chatHistory.createdAt, end.toISOString()),
-    eq(chatHistory.role, "user"),
-  ];
-  const storeScope = threadIdScope(chatHistory.threadId, params.store_code);
-  if (storeScope) conds.push(storeScope);
-  const channelScope = threadChannelScope(params.channel);
-  if (channelScope) {
-    conds.push(
-      inArray(
-        chatHistory.threadId,
-        db.select({ id: chatThread.id }).from(chatThread).where(channelScope),
-      ),
-    );
-  }
-  if (params.query) {
-    conds.push(sql`${chatHistory.message} ILIKE ${"%" + params.query + "%"}`);
-  }
-
-  const rows = await db
-    .select({ createdAt: chatHistory.createdAt })
-    .from(chatHistory)
-    .where(and(...conds));
+  const timestampsIn = async (from: Date, to: Date) => {
+    const conds = [
+      gte(chatHistory.createdAt, from.toISOString()),
+      lte(chatHistory.createdAt, to.toISOString()),
+      eq(chatHistory.role, "user"),
+    ];
+    const storeScope = threadIdScope(chatHistory.threadId, params.store_code);
+    if (storeScope) conds.push(storeScope);
+    const channelScope = threadChannelScope(params.channel);
+    if (channelScope) {
+      conds.push(
+        inArray(
+          chatHistory.threadId,
+          db.select({ id: chatThread.id }).from(chatThread).where(channelScope),
+        ),
+      );
+    }
+    if (params.query) {
+      conds.push(sql`${chatHistory.message} ILIKE ${"%" + params.query + "%"}`);
+    }
+    const rows = await db
+      .select({ createdAt: chatHistory.createdAt })
+      .from(chatHistory)
+      .where(and(...conds));
+    return rows.map((r) => new Date(r.createdAt));
+  };
 
   const points = aggregateChatMessages(
-    rows.map((r) => new Date(r.createdAt)),
+    await timestampsIn(start, end),
     granularity,
     start,
     end,
+  );
+  const prev = previousRange(granularity, start, end);
+  const prevPoints = aggregateChatMessages(
+    await timestampsIn(prev.start, prev.end),
+    granularity,
+    prev.start,
+    prev.end,
   );
 
   return {
     granularity,
     from_dt: isoformatIst(start),
     to_dt: isoformatIst(end),
-    points,
+    // Paired by position: the same hour yesterday, day last week, or dates a
+    // month back.
+    points: points.map((p, i) => ({
+      ...p,
+      previous: prevPoints[i]?.value ?? null,
+    })),
   };
+}
+
+const HOUR_MS = 3600 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+const IST_OFFSET_MS = 5.5 * HOUR_MS;
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** Start (epoch ms) of the IST day (hourly) or Mon–Sun week (weekly) holding `d`. */
+function periodStart(granularity: string, d: Date): number {
+  const days = Math.floor((d.getTime() + IST_OFFSET_MS) / DAY_MS);
+  // 1970-01-01 was a Thursday, so (days + 3) % 7 is days since Monday.
+  const back = granularity === "weekly" ? (days + 3) % 7 : 0;
+  return (days - back) * DAY_MS - IST_OFFSET_MS;
+}
+
+/**
+ * The period the chart compares against: hourly → all of yesterday,
+ * weekly → all of last week, monthly → the same dates one month back.
+ */
+function previousRange(
+  granularity: string,
+  start: Date,
+  end: Date,
+): { start: Date; end: Date } {
+  if (granularity === "hourly" || granularity === "weekly") {
+    const first = periodStart(granularity, end);
+    const length = granularity === "hourly" ? DAY_MS : 7 * DAY_MS;
+    return { start: new Date(first - length), end: new Date(first - 1) };
+  }
+  // Month over month: each bucket against the same days of the month before
+  // it, so the whole range moves back one month. Same IST date and time; the
+  // day clamps to the month's last (Mar 31 → Feb 28).
+  const monthBack = (d: Date) => {
+    const iso = isoformatIst(d); // YYYY-MM-DDTHH:mm:ss+05:30
+    const index = Number(iso.slice(0, 4)) * 12 + Number(iso.slice(5, 7)) - 2;
+    const y = Math.floor(index / 12);
+    const m = (index % 12) + 1;
+    const day = Math.min(
+      Number(iso.slice(8, 10)),
+      new Date(Date.UTC(y, m, 0)).getUTCDate(),
+    );
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const ms = String(d.getUTCMilliseconds()).padStart(3, "0");
+    return new Date(
+      `${y}-${pad(m)}-${pad(day)}T${iso.slice(11, 19)}.${ms}+05:30`,
+    );
+  };
+  return { start: monthBack(start), end: monthBack(end) };
 }
 
 /** Port of analytics.helpers.aggregate_chat_messages (timestamps in IST local). */
@@ -1479,7 +1534,7 @@ function aggregateChatMessages(
   granularity: string,
   startDt: Date,
   endDt: Date,
-): Array<{ label: string; value: number }> {
+): Array<{ label: string; value: number | null }> {
   const monthAbbr = [
     "Jan",
     "Feb",
@@ -1495,17 +1550,25 @@ function aggregateChatMessages(
     "Dec",
   ];
 
-  if (granularity === "hourly") {
-    const buckets = new Map<string, number>();
-    for (let h = 0; h < 24; h++) buckets.set(hourLabel(h), 0);
+  if (granularity === "hourly" || granularity === "weekly") {
+    // The 24 hours of endDt's IST day, or the 7 days of its Mon–Sun week.
+    // Buckets not reached yet are null so the chart line stops at now.
+    const hourly = granularity === "hourly";
+    const first = periodStart(granularity, endDt);
+    const step = hourly ? HOUR_MS : DAY_MS;
+    const points: Array<{ label: string; value: number | null }> = Array.from(
+      { length: hourly ? 24 : 7 },
+      (_, i) => ({
+        label: hourly ? hourLabel(i) : WEEKDAYS[i],
+        value: first + i * step <= endDt.getTime() ? 0 : null,
+      }),
+    );
     for (const ts of timestamps) {
-      const label = hourLabel(istHour(ts));
-      buckets.set(label, (buckets.get(label) ?? 0) + 1);
+      const i = Math.floor((ts.getTime() - first) / step);
+      const current = points[i]?.value;
+      if (current != null) points[i].value = current + 1;
     }
-    return Array.from(buckets.entries()).map(([label, value]) => ({
-      label,
-      value,
-    }));
+    return points;
   }
 
   // IST local date parts of a Date
@@ -1520,45 +1583,6 @@ function aggregateChatMessages(
       parseInt(parts.find((p) => p.type === t)!.value, 10);
     return { y: get("year"), mo: get("month"), d: get("day") };
   };
-  // day-of-week (Mon=0..Sun=6) for an IST date
-  const istWeekday = (y: number, mo: number, d: number) => {
-    // Use UTC date to avoid local tz drift; weekday of calendar date is tz-independent.
-    const dow = new Date(Date.UTC(y, mo - 1, d)).getUTCDay(); // 0=Sun..6=Sat
-    return (dow + 6) % 7; // Mon=0..Sun=6
-  };
-  const fmtDdMmm = (y: number, mo: number, d: number) =>
-    `${String(d).padStart(2, "0")} ${monthAbbr[mo - 1]}`;
-
-  if (granularity === "weekly") {
-    const buckets = new Map<string, number>();
-    const sp = istParts(startDt);
-    // cursor = start.date(); rewind to Monday
-    const cursor = new Date(Date.UTC(sp.y, sp.mo - 1, sp.d));
-    const wd = istWeekday(sp.y, sp.mo - 1 + 1, sp.d);
-    cursor.setUTCDate(cursor.getUTCDate() - wd);
-    const ep = istParts(endDt);
-    const endDate = new Date(Date.UTC(ep.y, ep.mo - 1, ep.d));
-    while (cursor.getTime() <= endDate.getTime()) {
-      const cy = cursor.getUTCFullYear();
-      const cmo = cursor.getUTCMonth() + 1;
-      const cd = cursor.getUTCDate();
-      buckets.set(`W ${fmtDdMmm(cy, cmo, cd)}`, 0);
-      cursor.setUTCDate(cursor.getUTCDate() + 7);
-    }
-    for (const ts of timestamps) {
-      const p = istParts(ts);
-      const w = istWeekday(p.y, p.mo, p.d);
-      const ws = new Date(Date.UTC(p.y, p.mo - 1, p.d));
-      ws.setUTCDate(ws.getUTCDate() - w);
-      const label = `W ${fmtDdMmm(ws.getUTCFullYear(), ws.getUTCMonth() + 1, ws.getUTCDate())}`;
-      if (buckets.has(label)) buckets.set(label, (buckets.get(label) ?? 0) + 1);
-    }
-    return Array.from(buckets.entries()).map(([label, value]) => ({
-      label,
-      value,
-    }));
-  }
-
   // monthly
   const buckets = new Map<string, number>();
   const sp = istParts(startDt);

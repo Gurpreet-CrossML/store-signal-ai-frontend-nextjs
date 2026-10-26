@@ -64,7 +64,8 @@ export type UserMatrixResponse = {
 
 export type ConversationHistoryPoint = {
   label: string;
-  value: number;
+  value: number | null;
+  previous: number | null;
 };
 
 export type ConversationHistoryResponse = {

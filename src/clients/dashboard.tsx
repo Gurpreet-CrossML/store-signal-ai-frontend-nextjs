@@ -80,16 +80,16 @@ let reloadPending =
 // Default date range per granularity, anchored to today.
 const defaultRange = (granularity: Granularity) => {
   const to = new Date();
-  const from = new Date();
-  if (granularity === "hourly") {
-    from.setDate(to.getDate() - 7);
-  } else if (granularity === "weekly") {
-    from.setDate(to.getDate() - 28);
-  } else {
+  if (granularity === "monthly") {
     // subMonths clamps month-end overflow (e.g. Mar 31 -> Feb 28).
     return { from: toISODate(subMonths(to, 1)), to: toISODate(to) };
   }
-  return { from: toISODate(from), to: toISODate(to) };
+  // Full timestamps: plain dates get widened to whole days by the API. A day
+  // (or week) back always covers today's midnight (or this Monday), where the
+  // chart starts.
+  const days = granularity === "hourly" ? 1 : 7;
+  const from = new Date(to.getTime() - days * 24 * 3600 * 1000);
+  return { from: from.toISOString(), to: to.toISOString() };
 };
 
 export default function Dashboard() {
@@ -167,6 +167,13 @@ export default function Dashboard() {
     const load = async (silent: boolean, fresh = false) => {
       inFlight.forEach((request) => request.abort());
 
+      // Hourly and weekly run up to "now", so recompute it on every load;
+      // monthly keeps the dates picked in the chart.
+      const chartRange =
+        granularity === "monthly"
+          ? { from: chartFrom, to: chartTo }
+          : defaultRange(granularity);
+
       const args = {
         storeCode,
         ...resolveDashboardRange({ range, from, to, channel }),
@@ -185,8 +192,7 @@ export default function Dashboard() {
         dispatch(
           FetchConversationHistory({
             ...args,
-            from: chartFrom,
-            to: chartTo,
+            ...chartRange,
             granularity,
             aggregated: true,
           }),
@@ -388,7 +394,7 @@ export default function Dashboard() {
       ...conversationHistoryChartData.map((point) => [
         "Customer interaction analytics",
         point.label,
-        String(point.value),
+        String(point.value ?? ""),
         `${granularity} user queries`,
       ]),
     ];
@@ -458,7 +464,7 @@ export default function Dashboard() {
         ],
         interactions: conversationHistoryChartData.map((point) => [
           point.label,
-          String(point.value),
+          String(point.value ?? ""),
         ]),
         charts: {
           sentiment: renderedChart("sentiment"),
