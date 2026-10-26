@@ -1751,18 +1751,9 @@ function ConversationPanel({
                 </DropdownMenuTrigger>
               </TooltipTrigger>
               <TooltipContent>
-                {isTranslating ? (
-                  "Translating…"
-                ) : (
-                  <>
-                    {translatedLanguage
-                      ? `Translated to ${translatedLanguage.name}`
-                      : "Translate"}
-                    <span className="text-[10px] opacity-75">
-                      · AI credits will be used for this action.
-                    </span>
-                  </>
-                )}
+                {isTranslating
+                  ? "Translating…"
+                  : `${translatedLanguage ? `Translated to ${translatedLanguage.name}` : "Translate"} · AI credits will be used for this action.`}
               </TooltipContent>
             </Tooltip>
             <DropdownMenuContent
