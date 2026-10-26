@@ -98,7 +98,7 @@ export const ENDPOINTS = {
   shopifyOauthCallback: () => "/store/shopify/oauth/callback/",
   // Company onboarding (Django, company admin). GET (needs useBackend) is the
   // step + connected stores with their widget keys; PATCH sets
-  // `onboarding_step` to "completed" or "skipped".
+  // `onboarding_step` to "brand_voice", "completed" or "skipped".
   companyOnboarding: () => "/tenancy/company/onboarding/",
   // Per-store settings (Django) — currently the widget's allowed-IP list.
   // GET returns the settings, PATCH updates them.
@@ -687,6 +687,7 @@ export const REGIONAL_SPELLING_CHOICES: readonly DescribedOption[] = [
 export const ONBOARDING_STEPS = [
   { value: "store_setup", label: "Connect the store" },
   { value: "go_live", label: "Go live on store" },
+  { value: "brand_voice", label: "Set up brand voice" },
 ] as const;
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]["value"];

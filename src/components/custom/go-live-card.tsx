@@ -2,18 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { IconCheck, IconCopy } from "@tabler/icons-react";
 
 import { STORE_PLATFORMS, WIDGET_INSTALL_STEPS } from "@/lib/config";
 import { widgetSnippet } from "@/lib/helpers";
+import { useAdvanceOnboarding } from "@/hooks/use-advance-onboarding";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { GetStores } from "@/redux/api-slice/stores-slice";
 import {
   FetchOnboardingStatus,
-  UpdateOnboardingStep,
-  type OnboardingOutcome,
   type OnboardingStore,
 } from "@/redux/api-slice/onboarding-slice";
 import { Button } from "@/components/ui/button";
@@ -31,12 +28,11 @@ import { Typography } from "@/components/ui/typography";
 
 /**
  * Go-live step: the widget embed tag for every connected store, copied and
- * pasted by the merchant. Finishing (or skipping) PATCHes the company's
- * onboarding step; the session refresh then closes the drawer.
+ * pasted by the merchant. Either button moves onboarding on to brand voice.
  */
 export function GoLiveCard() {
   const dispatch = useAppDispatch();
-  const { update } = useSession();
+  const advance = useAdvanceOnboarding();
   const { FetchOnboardingStatusData: status, FetchOnboardingStatusIsLoading } =
     useAppSelector(
       (state) => state.GetOnboardingReducer.FetchOnboardingStatusState,
@@ -44,7 +40,7 @@ export function GoLiveCard() {
   const { UpdateOnboardingStepIsLoading } = useAppSelector(
     (state) => state.GetOnboardingReducer.UpdateOnboardingStepState,
   );
-  const [outcome, setOutcome] = useState<OnboardingOutcome | null>(null);
+  const [pressed, setPressed] = useState<"added" | "skip" | null>(null);
 
   useEffect(() => {
     dispatch(FetchOnboardingStatus());
@@ -52,19 +48,10 @@ export function GoLiveCard() {
 
   const stores = status?.stores ?? [];
 
-  const finish = async (chosen: OnboardingOutcome) => {
-    setOutcome(chosen);
-    const result = await dispatch(UpdateOnboardingStep(chosen));
-    if (UpdateOnboardingStep.fulfilled.match(result)) {
-      // The proxy pins onboarding users to "/" from the JWT, so the session
-      // has to be re-read from the backend before the drawer can go away.
-      await update();
-      // The store list was fetched (empty) before any store existed and is
-      // only requested once; refilling it hydrates `selectedStore`, and every
-      // screen refetches on that change — no page reload needed.
-      dispatch(GetStores({}));
-    }
-    setOutcome(null);
+  const next = async (button: "added" | "skip") => {
+    setPressed(button);
+    await advance("brand_voice");
+    setPressed(null);
   };
 
   return (
@@ -73,7 +60,7 @@ export function GoLiveCard() {
         <CardTitle>Install the widget</CardTitle>
         <CardDescription>
           Paste each store&apos;s snippet before &lt;/body&gt; on every page of
-          that storefront, then finish setup.
+          that storefront, then continue.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
@@ -90,21 +77,21 @@ export function GoLiveCard() {
       <CardFooter className="flex shrink-0 flex-wrap items-center gap-2 border-t bg-background">
         <Button
           disabled={stores.length === 0 || UpdateOnboardingStepIsLoading}
-          onClick={() => finish("completed")}
+          onClick={() => next("added")}
         >
-          {outcome === "completed" ? (
+          {pressed === "added" ? (
             <Spinner data-icon="inline-start" />
           ) : (
             <IconCheck data-icon="inline-start" />
           )}
-          I&apos;ve added it — finish setup
+          I&apos;ve added it — continue
         </Button>
         <Button
           variant="ghost"
           disabled={UpdateOnboardingStepIsLoading}
-          onClick={() => finish("skipped")}
+          onClick={() => next("skip")}
         >
-          {outcome === "skipped" && <Spinner data-icon="inline-start" />}
+          {pressed === "skip" && <Spinner data-icon="inline-start" />}
           Skip for now
         </Button>
       </CardFooter>
