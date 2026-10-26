@@ -96,6 +96,10 @@ export const ENDPOINTS = {
   // (the HMAC covers every param) — no auth header, tenant comes from `state`.
   shopifyOauthStart: () => "/store/shopify/oauth/start/",
   shopifyOauthCallback: () => "/store/shopify/oauth/callback/",
+  // Go-live (Django, company admin): POST adds the chat widget to the
+  // store's live Shopify theme; safe to repeat.
+  shopifyWidgetInstall: (storeCode: string) =>
+    `/store/shopify/widget/${storeCode}/`,
   // Company onboarding (Django, company admin). GET (needs useBackend) is the
   // step + connected stores with their widget keys; PATCH sets
   // `onboarding_step` to "completed" or "skipped".

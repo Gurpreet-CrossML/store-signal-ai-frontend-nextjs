@@ -77,6 +77,30 @@ export const UpdateOnboardingStep = createAsyncThunk(
   },
 );
 
+/** Adds the chat widget to a Shopify store's live theme, so the merchant has
+ * nothing to paste. The caller keeps the per-store result. */
+export const InstallShopifyWidget = createAsyncThunk(
+  "InstallShopifyWidget",
+  async (storeCode: string, thunkAPI) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.shopifyWidgetInstall(storeCode),
+      );
+      return response.data.data as { theme: string };
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.warning("Couldn't add the widget automatically", {
+        // One toast per store: the go-live card can retry while it loads.
+        id: `widget-install-${storeCode}`,
+        description:
+          data?.message || "Paste the snippet into your theme instead.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 export const StartShopifyOauth = createAsyncThunk(
   "StartShopifyOauth",
   async (

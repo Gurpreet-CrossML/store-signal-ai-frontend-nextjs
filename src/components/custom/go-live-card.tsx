@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { IconCheck, IconCopy } from "@tabler/icons-react";
+import { IconCheck, IconCircleCheck, IconCopy } from "@tabler/icons-react";
 
 import { STORE_PLATFORMS, WIDGET_INSTALL_STEPS } from "@/lib/config";
 import { widgetSnippet } from "@/lib/helpers";
@@ -12,6 +12,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { GetStores } from "@/redux/api-slice/stores-slice";
 import {
   FetchOnboardingStatus,
+  InstallShopifyWidget,
   UpdateOnboardingStep,
   type OnboardingOutcome,
   type OnboardingStore,
@@ -30,9 +31,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 
 /**
- * Go-live step: the widget embed tag for every connected store, copied and
- * pasted by the merchant. Finishing (or skipping) PATCHes the company's
- * onboarding step; the session refresh then closes the drawer.
+ * Go-live step: a Shopify store gets the widget added to its live theme
+ * automatically; any other store (or a Shopify one where that fails) shows
+ * the embed tag for the merchant to copy and paste. Finishing (or skipping)
+ * PATCHes the company's onboarding step; the session refresh then closes
+ * the drawer.
  */
 export function GoLiveCard() {
   const dispatch = useAppDispatch();
@@ -45,12 +48,33 @@ export function GoLiveCard() {
     (state) => state.GetOnboardingReducer.UpdateOnboardingStepState,
   );
   const [outcome, setOutcome] = useState<OnboardingOutcome | null>(null);
+  // Shopify store code → the live theme its widget was added to, or null when
+  // that failed (the store falls back to the snippet). Absent = installing.
+  const [themes, setThemes] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     dispatch(FetchOnboardingStatus());
   }, [dispatch]);
 
+  useEffect(() => {
+    status?.stores
+      .filter((store) => store.platform === "shopify")
+      .forEach(async (store) => {
+        const result = await dispatch(InstallShopifyWidget(store.code));
+        setThemes((prev) => ({
+          ...prev,
+          [store.code]: InstallShopifyWidget.fulfilled.match(result)
+            ? result.payload.theme
+            : null,
+        }));
+      });
+  }, [dispatch, status?.stores]);
+
   const stores = status?.stores ?? [];
+  const installing = stores.some(
+    (store) => store.platform === "shopify" && !(store.code in themes),
+  );
+  const live = stores.length > 0 && stores.every((store) => themes[store.code]);
 
   const finish = async (chosen: OnboardingOutcome) => {
     setOutcome(chosen);
@@ -70,10 +94,18 @@ export function GoLiveCard() {
   return (
     <Card className="flex max-h-[calc(100svh-12rem)] flex-col overflow-hidden">
       <CardHeader className="shrink-0">
-        <CardTitle>Install the widget</CardTitle>
+        <CardTitle>
+          {live ? "Your chatbot is live" : "Install the widget"}
+        </CardTitle>
         <CardDescription>
-          Paste each store&apos;s snippet before &lt;/body&gt; on every page of
-          that storefront, then finish setup.
+          {live ? (
+            "StoreSignal added the widget to every page of your storefront — nothing to paste."
+          ) : (
+            <>
+              Paste each store&apos;s snippet before &lt;/body&gt; on every page
+              of that storefront, then finish setup.
+            </>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
@@ -84,12 +116,21 @@ export function GoLiveCard() {
             No connected store yet. Refresh in a moment.
           </Typography>
         ) : (
-          stores.map((store) => <StoreSnippet key={store.code} store={store} />)
+          stores.map((store) => {
+            const theme = themes[store.code];
+            return store.platform === "shopify" && theme !== null ? (
+              <StoreLive key={store.code} store={store} theme={theme} />
+            ) : (
+              <StoreSnippet key={store.code} store={store} />
+            );
+          })
         )}
       </CardContent>
       <CardFooter className="flex shrink-0 flex-wrap items-center gap-2 border-t bg-background">
         <Button
-          disabled={stores.length === 0 || UpdateOnboardingStepIsLoading}
+          disabled={
+            stores.length === 0 || installing || UpdateOnboardingStepIsLoading
+          }
           onClick={() => finish("completed")}
         >
           {outcome === "completed" ? (
@@ -97,7 +138,7 @@ export function GoLiveCard() {
           ) : (
             <IconCheck data-icon="inline-start" />
           )}
-          I&apos;ve added it — finish setup
+          {live ? "Finish setup" : "I've added it — finish setup"}
         </Button>
         <Button
           variant="ghost"
@@ -112,11 +153,69 @@ export function GoLiveCard() {
   );
 }
 
+/** A store's icon, name and platform · code, with `children` on the right. */
+function StoreHeading({
+  store,
+  children,
+}: {
+  store: OnboardingStore;
+  children?: ReactNode;
+}) {
+  const platform = STORE_PLATFORMS.find((p) => p.value === store.platform);
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        {platform && (
+          <Image
+            src={platform.icon}
+            alt=""
+            width={20}
+            height={20}
+            className="size-5 object-contain"
+          />
+        )}
+        <Typography variant="small">{store.name}</Typography>
+        <Typography variant="muted" className="text-xs">
+          {platform?.label ?? store.platform} · {store.code}
+        </Typography>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** A Shopify store whose widget go-live adds to the live theme itself;
+    `theme` is unset while that is still running. */
+function StoreLive({
+  store,
+  theme,
+}: {
+  store: OnboardingStore;
+  theme?: string;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      <StoreHeading store={store} />
+      <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 p-3">
+        {theme ? (
+          <IconCircleCheck className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        ) : (
+          <Spinner />
+        )}
+        <Typography variant="muted" className="text-sm">
+          {theme
+            ? `Your chatbot is live — we added it to your “${theme}” theme.`
+            : "Adding the chatbot to your live theme…"}
+        </Typography>
+      </div>
+    </div>
+  );
+}
+
 /** One store's embed tag with a copy button — shared with Settings → Stores'
     "Get widget script" dialog. */
 export function StoreSnippet({ store }: { store: OnboardingStore }) {
   const [copied, setCopied] = useState(false);
-  const platform = STORE_PLATFORMS.find((p) => p.value === store.platform);
   const isShopify = store.platform === "shopify";
   const snippet = widgetSnippet(store.widget_key, store.platform);
 
@@ -137,27 +236,12 @@ export function StoreSnippet({ store }: { store: OnboardingStore }) {
     // full width, which blows the dialog open instead of letting the <pre>
     // scroll.
     <div className="flex min-w-0 flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          {platform && (
-            <Image
-              src={platform.icon}
-              alt=""
-              width={20}
-              height={20}
-              className="size-5 object-contain"
-            />
-          )}
-          <Typography variant="small">{store.name}</Typography>
-          <Typography variant="muted" className="text-xs">
-            {platform?.label ?? store.platform} · {store.code}
-          </Typography>
-        </div>
+      <StoreHeading store={store}>
         <Button variant="outline" size="sm" onClick={copy}>
           <IconCopy data-icon="inline-start" />
           {copied ? "Copied" : "Copy snippet"}
         </Button>
-      </div>
+      </StoreHeading>
       <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/50 p-3">
         <Typography variant="small">How to install</Typography>
         <ol className="flex flex-col gap-1.5">
