@@ -25,7 +25,7 @@ export function useWhatsAppAccount() {
   );
 
   useEffect(() => {
-    if (storeCode) dispatch(fetchSocialAccountsSubscriptions(storeCode));
+    if (storeCode) dispatch(fetchSocialAccountsSubscriptions({ storeCode }));
   }, [storeCode, dispatch]);
 
   const account = useMemo(
