@@ -74,7 +74,8 @@ type ThreadFilterationProps = {
 const ALL = "all";
 const ALL_TAGS = "__all_tags__";
 
-const ACTIVE_FILTER_STYLE = "border-primary/40 bg-primary/10 text-primary";
+export const ACTIVE_FILTER_STYLE =
+  "border-primary/40 bg-primary/10 text-primary";
 
 // Shared with the dashboard filters, so both screens offer the same channels.
 export const CHANNEL_OPTIONS = [

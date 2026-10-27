@@ -359,6 +359,11 @@ const emptyTicketFilters: TicketFilterSelection = {
   toDate: "",
 };
 
+const ACTIVE_QUEUE_STYLE =
+  "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary";
+const ACTIVE_ASSIGNEE_STYLE =
+  "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-300 dark:hover:bg-sky-950/50";
+
 /**
  * How each channel is named and drawn.
  *
@@ -496,7 +501,14 @@ function TicketListPanel({
         <div className="flex min-w-0 items-center gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="-ml-2 gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "-ml-2 gap-1",
+                  activeQueue !== "open" && ACTIVE_QUEUE_STYLE,
+                )}
+              >
                 <CardTitle>
                   {queueLabel}
                   <span className="ml-1.5 font-normal text-muted-foreground">
@@ -1052,7 +1064,10 @@ function ConversationPanel({
             }
           >
             <ComboboxInput
-              className="h-8 w-28 2xl:w-40"
+              className={cn(
+                "h-8 w-28 2xl:w-40",
+                ticket?.internal_assignee?.id && ACTIVE_ASSIGNEE_STYLE,
+              )}
               placeholder={
                 ticket?.internal_assignee?.id
                   ? ticket?.internal_assignee?.name

@@ -5,6 +5,7 @@ import { format, parseISO, subDays } from "date-fns";
 
 import { DateRangePicker } from "@/components/custom/date-range-picker";
 import {
+  ACTIVE_FILTER_STYLE,
   CHANNEL_OPTIONS,
   FilterSelect,
 } from "@/components/custom/thread-filteration";
@@ -85,6 +86,11 @@ export function DashboardFilters({
           })
         }
         options={RANGE_OPTIONS}
+        activeClassName={
+          filters.range !== DEFAULT_DASHBOARD_FILTERS.range
+            ? ACTIVE_FILTER_STYLE
+            : undefined
+        }
       />
       {filters.range === "custom" && (
         <DateRangePicker
@@ -92,6 +98,7 @@ export function DashboardFilters({
           to={filters.to}
           onRangeChange={(from, to) => onChange({ ...filters, from, to })}
           disabled={{ after: new Date() }}
+          className={ACTIVE_FILTER_STYLE}
         />
       )}
       <FilterSelect
@@ -104,6 +111,7 @@ export function DashboardFilters({
           })
         }
         options={CHANNEL_OPTIONS}
+        activeClassName={ACTIVE_FILTER_STYLE}
       />
       {(filters.range !== DEFAULT_DASHBOARD_FILTERS.range ||
         filters.channel !== DEFAULT_DASHBOARD_FILTERS.channel) && (
