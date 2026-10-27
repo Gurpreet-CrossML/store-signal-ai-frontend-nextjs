@@ -124,7 +124,12 @@ export function StoreSetupForm({
             onValueChange={(value) =>
               formik.setFieldValue("platform", value as StorePlatform)
             }
-            className="grid-cols-1 sm:grid-cols-2"
+            // A lone platform (Magento is commented out) takes the full width.
+            className={
+              STORE_PLATFORMS.length > 1
+                ? "grid-cols-1 sm:grid-cols-2"
+                : "grid-cols-1"
+            }
           >
             {STORE_PLATFORMS.map((platform) => (
               <FieldLabel
