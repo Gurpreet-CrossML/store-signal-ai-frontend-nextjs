@@ -104,6 +104,9 @@ export const ENDPOINTS = {
   // GET returns the settings, PATCH updates them.
   storeAllowedIPsSettings: () =>
     createAPIUrl("/store/settings/allowed-ips/", "django"),
+  // Workflows for a store (Django). GET lists every platform workflow with
+  // the store's on/off state; POST turns one on or off.
+  storeWorkflows: () => createAPIUrl("/chat/workflows/", "django"),
 
   // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
   // Next.js issues a 308 redirect (an extra round-trip) before each call.
