@@ -62,7 +62,9 @@ export default function SettingsWorkflows() {
         UpdateStoreWorkflow({ storeCode, code: workflow.code, isEnabled }),
       ).unwrap();
       toast.success(
-        isEnabled ? `${workflow.name} turned on` : `${workflow.name} turned off`,
+        isEnabled
+          ? `${workflow.name} turned on`
+          : `${workflow.name} turned off`,
       );
     } catch {
       // The thunk already showed the error toast.
@@ -133,11 +135,7 @@ function WorkflowCard({
           {workflow.icon ? (
             // Plain <img>: the icon is a temporary S3 URL, not a static asset.
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={workflow.icon}
-              alt=""
-              className="size-6 object-contain"
-            />
+            <img src={workflow.icon} alt="" className="size-6 object-contain" />
           ) : (
             <IconAutomaticGearbox className="size-5" />
           )}

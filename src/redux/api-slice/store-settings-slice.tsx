@@ -220,9 +220,10 @@ const StoreSettingsSlice = createSlice({
       .addCase(UpdateStoreWorkflow.fulfilled, (state, action) => {
         state.UpdateStoreWorkflowState.UpdateStoreWorkflowPendingCode = null;
         // Keep the list in step with what was saved, without a refetch.
-        const saved = state.FetchStoreWorkflowsState.FetchStoreWorkflowsData.find(
-          (workflow) => workflow.code === action.payload.workflow,
-        );
+        const saved =
+          state.FetchStoreWorkflowsState.FetchStoreWorkflowsData.find(
+            (workflow) => workflow.code === action.payload.workflow,
+          );
         if (saved) saved.is_enabled = action.payload.is_enabled;
       })
       .addCase(UpdateStoreWorkflow.rejected, (state, action) => {
