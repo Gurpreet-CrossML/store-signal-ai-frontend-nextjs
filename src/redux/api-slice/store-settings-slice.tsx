@@ -58,6 +58,75 @@ export const UpdateStoreAllowedIpsSettings = createAsyncThunk(
   },
 );
 
+/** One platform workflow as the selected store sees it. */
+export type StoreWorkflow = {
+  code: string;
+  name: string;
+  description: string;
+  /** Temporary download URL of the workflow's icon, or null for none. */
+  icon: string | null;
+  /** Short grouping labels, e.g. ["sales", "offers"]. */
+  tags: string[];
+  /** Whether the workflow needs a Shopify / Magento connection to work. */
+  shopify_supported: boolean;
+  magento_supported: boolean;
+  /** Whether the workflow needs the store's knowledge base. */
+  kb_supported: boolean;
+  /** Position in the list; the API already returns workflows in this order. */
+  order: number;
+  /** False when the platform has locked the workflow on. */
+  can_disable: boolean;
+  is_enabled: boolean;
+};
+
+export const FetchStoreWorkflows = createAsyncThunk(
+  "FetchStoreWorkflows",
+  async (storeCode: string, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.storeWorkflows()}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as StoreWorkflow[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to load workflows.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const UpdateStoreWorkflow = createAsyncThunk(
+  "UpdateStoreWorkflow",
+  async (
+    {
+      storeCode,
+      code,
+      isEnabled,
+    }: { storeCode: string; code: string; isEnabled: boolean },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.storeWorkflows()}?store_code=${storeCode}`,
+        { workflow: code, is_enabled: isEnabled },
+        { useBackend: true },
+      );
+      return response.data.data as { workflow: string; is_enabled: boolean };
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to update this workflow.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 const StoreSettingsSlice = createSlice({
   name: "StoreSettings",
   initialState: {
@@ -71,6 +140,17 @@ const StoreSettingsSlice = createSlice({
       UpdateStoreAllowedIpsSettingsIsLoading: false,
       UpdateStoreAllowedIpsSettingsIsSuccess: false,
       UpdateStoreAllowedIpsSettingsIsError: null as null | string | object,
+    },
+    FetchStoreWorkflowsState: {
+      FetchStoreWorkflowsIsLoading: false,
+      FetchStoreWorkflowsIsSuccess: false,
+      FetchStoreWorkflowsIsError: null as null | string | object,
+      FetchStoreWorkflowsData: [] as StoreWorkflow[],
+    },
+    UpdateStoreWorkflowState: {
+      // Code of the workflow being saved, so only its switch waits.
+      UpdateStoreWorkflowPendingCode: null as null | string,
+      UpdateStoreWorkflowIsError: null as null | string | object,
     },
   },
   reducers: {},
@@ -114,6 +194,40 @@ const StoreSettingsSlice = createSlice({
       .addCase(UpdateStoreAllowedIpsSettings.rejected, (state, action) => {
         state.UpdateStoreAllowedIpsSettingsState.UpdateStoreAllowedIpsSettingsIsLoading = false;
         state.UpdateStoreAllowedIpsSettingsState.UpdateStoreAllowedIpsSettingsIsError =
+          action.payload as string | object;
+      })
+      .addCase(FetchStoreWorkflows.pending, (state) => {
+        state.FetchStoreWorkflowsState.FetchStoreWorkflowsIsLoading = true;
+        state.FetchStoreWorkflowsState.FetchStoreWorkflowsIsSuccess = false;
+        state.FetchStoreWorkflowsState.FetchStoreWorkflowsIsError = null;
+      })
+      .addCase(FetchStoreWorkflows.fulfilled, (state, action) => {
+        state.FetchStoreWorkflowsState.FetchStoreWorkflowsIsLoading = false;
+        state.FetchStoreWorkflowsState.FetchStoreWorkflowsIsSuccess = true;
+        state.FetchStoreWorkflowsState.FetchStoreWorkflowsData =
+          action.payload ?? [];
+      })
+      .addCase(FetchStoreWorkflows.rejected, (state, action) => {
+        state.FetchStoreWorkflowsState.FetchStoreWorkflowsIsLoading = false;
+        state.FetchStoreWorkflowsState.FetchStoreWorkflowsIsError =
+          action.payload as string | object;
+      })
+      .addCase(UpdateStoreWorkflow.pending, (state, action) => {
+        state.UpdateStoreWorkflowState.UpdateStoreWorkflowPendingCode =
+          action.meta.arg.code;
+        state.UpdateStoreWorkflowState.UpdateStoreWorkflowIsError = null;
+      })
+      .addCase(UpdateStoreWorkflow.fulfilled, (state, action) => {
+        state.UpdateStoreWorkflowState.UpdateStoreWorkflowPendingCode = null;
+        // Keep the list in step with what was saved, without a refetch.
+        const saved = state.FetchStoreWorkflowsState.FetchStoreWorkflowsData.find(
+          (workflow) => workflow.code === action.payload.workflow,
+        );
+        if (saved) saved.is_enabled = action.payload.is_enabled;
+      })
+      .addCase(UpdateStoreWorkflow.rejected, (state, action) => {
+        state.UpdateStoreWorkflowState.UpdateStoreWorkflowPendingCode = null;
+        state.UpdateStoreWorkflowState.UpdateStoreWorkflowIsError =
           action.payload as string | object;
       });
   },

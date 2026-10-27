@@ -4,6 +4,7 @@ import {
   IconAdjustmentsSpark,
   IconBooks,
   IconArrowsExchange,
+  IconAutomaticGearbox,
   IconBrandFacebook,
   IconBrandInstagram,
   IconBrandMessenger,
@@ -261,15 +262,15 @@ export const NAV_AREAS = {
           },
         ],
       },
-      // {
-      //   href: "/settings/workflows",
-      //   title: "Workflows",
-      //   description:
-      //     "The rules the AI follows for order cancellation, modification, and returns.",
-      //   pageDescription:
-      //     "The rules and guardrails the AI follows when it cancels, modifies, or refunds an order on your behalf.",
-      //   icon: IconAutomaticGearbox,
-      //   items: [
+      {
+        href: "/settings/workflows",
+        title: "Workflows",
+        description: "Turn the AI's workflows on or off for this store.",
+        pageDescription:
+          "Everything the AI can do for your customers, one card per workflow. Turn one off and the AI stops using it for this store only. Locked workflows are core to Store Signal and always stay on.",
+        icon: IconAutomaticGearbox,
+        // Order rule screens, switched off for now:
+        // items: [
       //     {
       //       href: "/settings/workflows/order-cancellation",
       //       title: "Order Cancellation",
@@ -298,7 +299,7 @@ export const NAV_AREAS = {
       //       icon: IconPackageImport,
       //     },
       //   ],
-      // },
+      },
     ],
   },
 
