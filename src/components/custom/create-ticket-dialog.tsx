@@ -638,27 +638,29 @@ export function CreateTicketDialog({
             </Select>
           </Field>
 
-          <Field>
-            <FieldLabel htmlFor="ticket-priority">Priority</FieldLabel>
-            <Select
-              value={formik.values.priority}
-              onValueChange={(value) => formik.setFieldValue("priority", value)}
-              disabled={busy}
-            >
-              <SelectTrigger id="ticket-priority" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PRIORITIES.map((priority) => (
-                  <SelectItem key={priority.value} value={priority.value}>
-                    {priority.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
           <div className="grid grid-cols-2 gap-4">
+            <Field>
+              <FieldLabel htmlFor="ticket-priority">Priority</FieldLabel>
+              <Select
+                value={formik.values.priority}
+                onValueChange={(value) =>
+                  formik.setFieldValue("priority", value)
+                }
+                disabled={busy}
+              >
+                <SelectTrigger id="ticket-priority" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIORITIES.map((priority) => (
+                    <SelectItem key={priority.value} value={priority.value}>
+                      {priority.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
             <Field>
               <FieldLabel htmlFor="ticket-language">Language</FieldLabel>
               <Select
