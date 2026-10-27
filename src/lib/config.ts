@@ -729,13 +729,14 @@ export const STORE_PLATFORMS = [
     description:
       "Connect with your store alias. We'll send you to Shopify to authorize access.",
   },
-  {
-    value: "magento",
-    label: "Magento",
-    icon: "/magento-2.svg",
-    description:
-      "Connect with your store URL. We'll send you to Magento to authorize access.",
-  },
+  // Magento is commented out until its connect flow ships.
+  // {
+  //   value: "magento",
+  //   label: "Magento",
+  //   icon: "/magento-2.svg",
+  //   description:
+  //     "Connect with your store URL. We'll send you to Magento to authorize access.",
+  // },
 ] as const;
 
 export type StorePlatform = (typeof STORE_PLATFORMS)[number]["value"];
