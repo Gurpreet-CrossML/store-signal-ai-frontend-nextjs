@@ -120,11 +120,11 @@ export const ENDPOINTS = {
   // Chat-to-order funnel + AI-assisted revenue (Django; GET needs useBackend).
   fetchChatOrderFunnel: () => "/analytics/chat-order-funnel/",
   // AI Usage analytics (Django; GET requests require useBackend: true).
-  fetchAIUsageSummary: () => "/chat/ai-usage/summary/",
-  fetchAIUsageDaily: () => "/chat/ai-usage/daily/",
-  fetchAIUsageTokenSplit: () => "/chat/ai-usage/token-split/",
-  fetchAIUsageWorkflowCosts: () => "/chat/ai-usage/workflow-costs/",
-  fetchAIUsageLatencyTrend: () => "/chat/ai-usage/latency-trend/",
+  fetchAIUsageSummary: () => "/usage/ai-usage/summary/",
+  fetchAIUsageDaily: () => "/usage/ai-usage/daily/",
+  fetchAIUsageByFeature: () => "/usage/ai-usage/by-feature/",
+  fetchAIUsageByChannel: () => "/usage/ai-usage/by-channel/",
+  fetchCreditStatus: () => "/billing/credits/",
 
   // Geography (Django Cities Light). Countries is intentionally limited to
   // India by the backend; states and cities are dependent lists.

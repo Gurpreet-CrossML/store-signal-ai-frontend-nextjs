@@ -13,168 +13,84 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Typography } from "@/components/ui/typography";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import type { AIUsageResponse } from "@/redux/api-slice/ai-usage-slice";
+import type { DailyUsagePoint } from "@/redux/api-slice/ai-usage-slice";
 
 const chartConfig = {
-  usage: {
-    label: "Agent Calls",
-    color: "var(--chart-3)",
-  },
-  input_tokens: {
-    label: "Input Tokens",
-    color: "var(--chart-2)",
-  },
-  output_tokens: {
-    label: "Output Tokens",
-    color: "var(--chart-1)",
-  },
+  credits_charged: { label: "Credits", color: "var(--chart-3)" },
 } satisfies ChartConfig;
 
-type ActiveChart = keyof typeof chartConfig;
-
-/**
- * Renders daily agent usage and input/output token totals.
- */
+/** Credits charged per day across the selected range, empty days included. */
 export default function DailyUsageChart({
   data,
   from,
   to,
 }: {
-  data: AIUsageResponse["charts"]["daily_usage"];
-  from?: string;
-  to?: string;
+  data: DailyUsagePoint[];
+  from: string;
+  to: string;
 }) {
-  const [activeChart, setActiveChart] = React.useState<ActiveChart>("usage");
   const chartData = React.useMemo(() => {
-    if (!from || !to) return data;
-
-    const pointsByDate = new Map(data.map((item) => [item.date, item]));
+    const creditsByDate = new Map(
+      data.map((item) => [item.date, Number(item.credits_charged) || 0]),
+    );
     return eachDayOfInterval({ start: parseISO(from), end: parseISO(to) }).map(
       (date) => {
-        const dateKey = format(date, "yyyy-MM-dd");
-        return (
-          pointsByDate.get(dateKey) ?? {
-            date: dateKey,
-            usage: 0,
-            input_tokens: 0,
-            output_tokens: 0,
-          }
-        );
+        const key = format(date, "yyyy-MM-dd");
+        return { date: key, credits_charged: creditsByDate.get(key) ?? 0 };
       },
     );
   }, [data, from, to]);
-  const totals = React.useMemo(
-    () => ({
-      // Numeric database fields can be serialized as strings by the API.
-      usage: data.reduce((sum, item) => sum + Number(item.usage || 0), 0),
-      input_tokens: data.reduce(
-        (sum, item) => sum + Number(item.input_tokens || 0),
-        0,
-      ),
-      output_tokens: data.reduce(
-        (sum, item) => sum + Number(item.output_tokens || 0),
-        0,
-      ),
-    }),
-    [data],
-  );
+  const days = chartData.length;
+  const total = chartData.reduce((sum, item) => sum + item.credits_charged, 0);
 
   return (
-    <Card className="py-0 lg:col-span-2">
-      <CardHeader className="flex flex-col items-stretch border-b p-0! sm:flex-row">
-        <div className="flex flex-1 flex-col justify-center gap-1 px-6 pt-4 pb-3 sm:py-0!">
-          <CardTitle className="flex items-center gap-1.5">
-            Daily Agent Activity
-            <InfoIcon text="Daily view of agent activity. Toggle between agent calls, input tokens, and output tokens to see how usage changes day by day." />
-          </CardTitle>
-          <CardDescription>
-            Agent calls and input/output token volume for each day
-          </CardDescription>
-        </div>
-        <div className="flex">
-          {(["usage", "input_tokens", "output_tokens"] as ActiveChart[]).map(
-            (chart) => (
-              <button
-                key={chart}
-                type="button"
-                data-active={activeChart === chart}
-                className="relative z-30 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l data-[active=true]:bg-muted/50 sm:border-t-0 sm:border-l sm:px-8 sm:py-6"
-                onClick={() => setActiveChart(chart)}
-              >
-                <Typography
-                  variant="muted"
-                  as="span"
-                  className="text-xs whitespace-nowrap"
-                >
-                  {chartConfig[chart].label}
-                </Typography>
-                <Typography
-                  variant="h3"
-                  as="span"
-                  className="text-lg leading-none tabular-nums sm:text-2xl"
-                >
-                  {totals[chart].toLocaleString()}
-                </Typography>
-              </button>
-            ),
-          )}
-        </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-1.5">
+          Day by day
+          <InfoIcon text="Credits charged on each day of the selected period." />
+        </CardTitle>
+        <CardDescription>
+          {days > 1
+            ? `About ${Math.round(total / days).toLocaleString()} credits a day on average.`
+            : `${total.toLocaleString()} credits on this day.`}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="px-2 sm:p-6">
-        {chartData.length ? (
+      <CardContent>
+        {total ? (
           <ChartContainer
             config={chartConfig}
-            className="aspect-auto h-[280px] w-full"
+            className="aspect-auto h-[240px] w-full"
           >
-            <BarChart
-              accessibilityLayer
-              data={chartData}
-              margin={{ left: 12, right: 12 }}
-            >
+            <BarChart accessibilityLayer data={chartData}>
               <CartesianGrid vertical={false} />
               <XAxis
                 dataKey="date"
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                interval={0}
-                tickFormatter={(value) =>
-                  new Date(`${value}T00:00:00Z`).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    timeZone: "UTC",
-                  })
-                }
+                minTickGap={16}
+                tickFormatter={(value) => format(parseISO(value), "MMM d")}
               />
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    className="w-[180px]"
                     labelFormatter={(value) =>
-                      new Date(`${value}T00:00:00Z`).toLocaleDateString(
-                        "en-US",
-                        {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                          timeZone: "UTC",
-                        },
-                      )
+                      format(parseISO(String(value)), "MMM d, yyyy")
                     }
                   />
                 }
               />
               <Bar
-                dataKey={activeChart}
-                fill={`var(--color-${activeChart})`}
-                maxBarSize={96}
+                dataKey="credits_charged"
+                fill="var(--color-credits_charged)"
+                maxBarSize={48}
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
