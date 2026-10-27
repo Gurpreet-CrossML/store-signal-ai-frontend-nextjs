@@ -126,7 +126,6 @@ export const ENDPOINTS = {
   fetchAIUsageSummary: () => "/usage/ai-usage/summary/",
   fetchAIUsageDaily: () => "/usage/ai-usage/daily/",
   fetchAIUsageByFeature: () => "/usage/ai-usage/by-feature/",
-  fetchAIUsageByChannel: () => "/usage/ai-usage/by-channel/",
   fetchCreditStatus: () => "/billing/credits/",
 
   // Geography (Django Cities Light). Countries is intentionally limited to

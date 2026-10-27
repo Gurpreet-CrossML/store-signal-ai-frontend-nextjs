@@ -25,15 +25,6 @@ import { Typography } from "@/components/ui/typography";
 import { fetchAIUsage } from "@/redux/api-slice/ai-usage-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
-const CHANNEL_LABELS: Record<string, string> = {
-  web: "Web chat",
-  whatsapp: "WhatsApp",
-  helpdesk: "Helpdesk",
-  instagram: "Instagram",
-  facebook: "Facebook",
-  other: "Other",
-};
-
 // Billed features, grouped the way the store owner thinks about them.
 const FEATURE_GROUPS: { title: string; features: Record<string, string> }[] = [
   { title: "Chat AI", features: { chat_turn: "Chat replies" } },
@@ -80,7 +71,7 @@ export default function AIUsage() {
     dispatch(fetchAIUsage({ storeCode, from, to }));
   }, [dispatch, storeCode, from, to]);
 
-  const { credits, summary, daily, byFeature, byChannel } = FetchAIUsageData;
+  const { credits, summary, daily, byFeature } = FetchAIUsageData;
   const used = Number(summary.credits_charged) || 0;
   // Share of the period's credits, e.g. "50.0%".
   const share = (part: number) =>
@@ -88,19 +79,6 @@ export default function AIUsage() {
   const daysLeft = credits?.end_date
     ? differenceInCalendarDays(parseISO(credits.end_date), new Date())
     : null;
-
-  // Every channel is listed, so a quiet one reads as 0 rather than missing;
-  // "other" only appears when something landed there.
-  const channelRows = Object.keys(CHANNEL_LABELS)
-    .map(
-      (channel) =>
-        byChannel.find((row) => row.channel === channel) ?? {
-          channel,
-          credits: 0,
-        },
-    )
-    .filter((row) => row.channel !== "other" || row.credits)
-    .sort((a, b) => b.credits - a.credits);
 
   const featureCredits = new Map(byFeature.map((row) => [row.feature, row]));
   const featureGroups = FEATURE_GROUPS.map((group) => {
@@ -191,24 +169,7 @@ export default function AIUsage() {
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>By channel</CardTitle>
-            <CardDescription>Credits used on each channel.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CreditBars
-              nameLabel="Channel"
-              rows={channelRows.map((row) => ({
-                label: CHANNEL_LABELS[row.channel],
-                credits: row.credits,
-              }))}
-            />
-          </CardContent>
-        </Card>
-        {from && to && <DailyUsageChart data={daily} from={from} to={to} />}
-      </div>
+      {from && to && <DailyUsageChart data={daily} from={from} to={to} />}
 
       <Card>
         <CardHeader>

@@ -2,7 +2,7 @@ export type CreditBarRow = {
   label: string;
   note?: string;
   credits: number;
-  // Shown in the right-hand column, e.g. "8.7" per chat or "20.7%".
+  // Shown in the right-hand column, e.g. "20.7%".
   extra?: string;
   // A group sub-heading spanning the row, e.g. "Social AI · 37 credits".
   heading?: boolean;

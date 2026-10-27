@@ -29,18 +29,11 @@ export type FeatureUsage = {
   credits_charged: number;
 };
 
-/** Credits charged on one channel. */
-export type ChannelUsage = {
-  channel: string;
-  credits: number;
-};
-
 export type AIUsageData = {
   credits: CreditStatus | null;
   summary: AIUsageSummary;
   daily: DailyUsagePoint[];
   byFeature: FeatureUsage[];
-  byChannel: ChannelUsage[];
 };
 
 /** Filters accepted by every AI usage report. */
@@ -51,7 +44,6 @@ const emptyData: AIUsageData = {
   summary: { total_calls: 0, credits_charged: 0 },
   daily: [],
   byFeature: [],
-  byChannel: [],
 };
 
 /** Fetches the credit status and every usage report for the selected range. */
@@ -66,16 +58,13 @@ export const fetchAIUsage = createAsyncThunk(
         })
       ).data.data;
     try {
-      const [credits, summary, daily, byFeature, byChannel] = await Promise.all(
-        [
-          get(ENDPOINTS.fetchCreditStatus()),
-          get(ENDPOINTS.fetchAIUsageSummary()),
-          get(ENDPOINTS.fetchAIUsageDaily()),
-          get(ENDPOINTS.fetchAIUsageByFeature(), "&customer_facing=true"),
-          get(ENDPOINTS.fetchAIUsageByChannel()),
-        ],
-      );
-      return { credits, summary, daily, byFeature, byChannel } as AIUsageData;
+      const [credits, summary, daily, byFeature] = await Promise.all([
+        get(ENDPOINTS.fetchCreditStatus()),
+        get(ENDPOINTS.fetchAIUsageSummary()),
+        get(ENDPOINTS.fetchAIUsageDaily()),
+        get(ENDPOINTS.fetchAIUsageByFeature(), "&customer_facing=true"),
+      ]);
+      return { credits, summary, daily, byFeature } as AIUsageData;
     } catch (error) {
       const data = isAxiosError(error) ? error.response?.data : undefined;
 
