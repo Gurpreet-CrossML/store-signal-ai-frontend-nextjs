@@ -14,7 +14,12 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { StartShopifyOauth } from "@/redux/api-slice/onboarding-slice";
 
-import { STORE_PLATFORMS, type StorePlatform } from "@/lib/config";
+import {
+  SHOPIFY_CLIENT_ID_RE,
+  SHOPIFY_CLIENT_SECRET_RE,
+  STORE_PLATFORMS,
+  type StorePlatform,
+} from "@/lib/config";
 import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,30 +39,36 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 
-const validationSchema = z
-  .object({
-    // Magento is commented out until its connect flow ships.
-    platform: z.enum(["shopify" /* , "magento" */]),
-    store_url: z.string().trim(),
-    client_id: z.string().trim(),
-    client_secret: z.string().trim(),
-  })
-  .superRefine((values, ctx) => {
-    if (!/^https:\/\/[^\s/]+\.[^\s/]+/i.test(values.store_url)) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["store_url"],
-        message: "Enter the full store URL, starting with https://",
-      });
-    }
-    if (values.platform === "shopify") {
-      for (const field of ["client_id", "client_secret"] as const) {
-        if (!values[field]) {
-          ctx.addIssue({ code: "custom", path: [field], message: "Required" });
-        }
-      }
-    }
-  });
+const validationSchema = z.object({
+  // Magento is commented out until its connect flow ships.
+  platform: z.enum(["shopify" /* , "magento" */]),
+  store_url: z
+    .string()
+    .trim()
+    .pipe(
+      z.url({
+        protocol: /^https$/,
+        hostname: z.regexes.domain,
+        error: "Enter the full store URL, starting with https://",
+      }),
+    ),
+  // shortcut: always required since Shopify is the only platform; make them
+  // Shopify-only again when Magento (which hides these fields) comes back.
+  client_id: z
+    .string()
+    .trim()
+    .regex(
+      SHOPIFY_CLIENT_ID_RE,
+      "Enter the 32-character client ID from your Shopify app",
+    ),
+  client_secret: z
+    .string()
+    .trim()
+    .regex(
+      SHOPIFY_CLIENT_SECRET_RE,
+      "Enter the client secret from your Shopify app (it starts with shpss_)",
+    ),
+});
 
 type StoreSetupValues = z.infer<typeof validationSchema>;
 
