@@ -1554,7 +1554,7 @@ function ConversationPanel({
                           // to be unmistakable at a glance. The old
                           // border-on-background was so faint it read as a
                           // rendering fault.
-                          "rounded-br-md border border-dashed border-primary/40 bg-primary/5"
+                          "rounded-br-md border border-dashed border-amber-500/60 bg-amber-50 dark:bg-amber-500/10"
                         : isOutgoing
                           ? "rounded-br-md bg-primary/10"
                           : "rounded-bl-md bg-muted",
