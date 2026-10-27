@@ -5,7 +5,7 @@ import { differenceInCalendarDays, format, parseISO } from "date-fns";
 
 import CreditBars from "@/components/custom/ai-usage/credit-bars";
 import ChartEmptyState from "@/components/custom/ai-usage/chart-empty-state";
-import DailyUsageChart from "@/components/custom/ai-usage/daily-usage-chart";
+import CreditDailyChart from "@/components/custom/ai-usage/credit-daily-chart";
 import {
   DEFAULT_DASHBOARD_FILTERS,
   DashboardRangeFilter,
@@ -169,7 +169,7 @@ export default function AIUsage() {
         ))}
       </div>
 
-      {from && to && <DailyUsageChart data={daily} from={from} to={to} />}
+      {from && to && <CreditDailyChart data={daily} from={from} to={to} />}
 
       <Card>
         <CardHeader>

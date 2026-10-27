@@ -123,8 +123,14 @@ export const ENDPOINTS = {
   // Chat-to-order funnel + AI-assisted revenue (Django; GET needs useBackend).
   fetchChatOrderFunnel: () => "/analytics/chat-order-funnel/",
   // AI Usage analytics (Django; GET requests require useBackend: true).
-  fetchAIUsageSummary: () => "/usage/ai-usage/summary/",
-  fetchAIUsageDaily: () => "/usage/ai-usage/daily/",
+  fetchAIUsageSummary: () => "/chat/ai-usage/summary/",
+  fetchAIUsageDaily: () => "/chat/ai-usage/daily/",
+  fetchAIUsageTokenSplit: () => "/chat/ai-usage/token-split/",
+  fetchAIUsageWorkflowCosts: () => "/chat/ai-usage/workflow-costs/",
+  fetchAIUsageLatencyTrend: () => "/chat/ai-usage/latency-trend/",
+  // AI credit usage (Django usage + billing apps; GET needs useBackend).
+  fetchAIUsageCreditSummary: () => "/usage/ai-usage/summary/",
+  fetchAIUsageCreditDaily: () => "/usage/ai-usage/daily/",
   fetchAIUsageByFeature: () => "/usage/ai-usage/by-feature/",
   fetchCreditStatus: () => "/billing/credits/",
 
