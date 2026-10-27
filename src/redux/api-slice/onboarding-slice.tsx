@@ -31,7 +31,7 @@ export type OnboardingStore = {
 };
 
 /** What the dashboard may set the step to; the backend owns the rest. */
-export type OnboardingOutcome = "completed" | "skipped";
+export type OnboardingOutcome = "brand_voice" | "completed" | "skipped";
 
 export const FetchOnboardingStatus = createAsyncThunk(
   "FetchOnboardingStatus",
@@ -60,11 +60,12 @@ export const UpdateOnboardingStep = createAsyncThunk(
         ENDPOINTS.companyOnboarding(),
         { onboarding_step: onboardingStep },
       );
-      toast.success(
-        onboardingStep === "completed"
-          ? "You're live"
-          : "Setup skipped — you can install the widget later",
-      );
+      // Moving between steps is silent; only the end of setup is announced.
+      if (onboardingStep === "completed") {
+        toast.success("You're all set");
+      } else if (onboardingStep === "skipped") {
+        toast.success("Setup finished — you can finish the rest later");
+      }
       return response.data.data as Partial<OnboardingStatus>;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
