@@ -128,6 +128,11 @@ export const ENDPOINTS = {
   fetchAIUsageTokenSplit: () => "/chat/ai-usage/token-split/",
   fetchAIUsageWorkflowCosts: () => "/chat/ai-usage/workflow-costs/",
   fetchAIUsageLatencyTrend: () => "/chat/ai-usage/latency-trend/",
+  // AI credit usage (Django usage + billing apps; GET needs useBackend).
+  fetchAIUsageCreditSummary: () => "/usage/ai-usage/summary/",
+  fetchAIUsageCreditDaily: () => "/usage/ai-usage/daily/",
+  fetchAIUsageByFeature: () => "/usage/ai-usage/by-feature/",
+  fetchCreditStatus: () => "/billing/credits/",
 
   // Geography (Django Cities Light). Countries is intentionally limited to
   // India by the backend; states and cities are dependent lists.

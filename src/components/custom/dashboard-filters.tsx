@@ -57,22 +57,16 @@ export function dashboardRangeLabel(filters: DashboardFilterState) {
   return RANGE_OPTIONS.find((option) => option.value === filters.range)!.label;
 }
 
-/** Date and channel filters for the whole dashboard, with refresh status. */
-export function DashboardFilters({
+/** The date range select, plus the picker when the range is custom. */
+export function DashboardRangeFilter({
   filters,
   onChange,
-  lastUpdated,
-  refreshing,
-  onRefresh,
 }: {
   filters: DashboardFilterState;
   onChange: (filters: DashboardFilterState) => void;
-  lastUpdated: Date | null;
-  refreshing: boolean;
-  onRefresh: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <>
       <FilterSelect
         ariaLabel="Filter by date range"
         value={filters.range}
@@ -94,6 +88,27 @@ export function DashboardFilters({
           disabled={{ after: new Date() }}
         />
       )}
+    </>
+  );
+}
+
+/** Date and channel filters for the whole dashboard, with refresh status. */
+export function DashboardFilters({
+  filters,
+  onChange,
+  lastUpdated,
+  refreshing,
+  onRefresh,
+}: {
+  filters: DashboardFilterState;
+  onChange: (filters: DashboardFilterState) => void;
+  lastUpdated: Date | null;
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <DashboardRangeFilter filters={filters} onChange={onChange} />
       <FilterSelect
         ariaLabel="Filter by channel"
         value={filters.channel}
