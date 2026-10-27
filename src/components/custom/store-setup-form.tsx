@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import { useFormik } from "formik";
-import { toast } from "sonner";
+// Magento is commented out until its connect flow ships.
+// import { toast } from "sonner";
 import z from "zod";
 import {
   IconArrowRight,
@@ -36,7 +37,8 @@ import { Typography } from "@/components/ui/typography";
 
 const validationSchema = z
   .object({
-    platform: z.enum(["shopify", "magento"]),
+    // Magento is commented out until its connect flow ships.
+    platform: z.enum(["shopify" /* , "magento" */]),
     store_url: z.string().trim(),
     client_id: z.string().trim(),
     client_secret: z.string().trim(),
@@ -85,11 +87,12 @@ export function StoreSetupForm({
       return formikErrorsFromZod(result.error.issues);
     },
     onSubmit: async (values) => {
-      if (values.platform !== "shopify") {
-        // TODO: Magento connect once the backend shares its contract.
-        toast.info("Connecting Magento stores isn't available yet");
-        return;
-      }
+      // Magento is commented out until its connect flow ships.
+      // if (values.platform !== "shopify") {
+      //   // TODO: Magento connect once the backend shares its contract.
+      //   toast.info("Connecting Magento stores isn't available yet");
+      //   return;
+      // }
       const result = await dispatch(
         StartShopifyOauth({
           storeUrl: values.store_url.trim(),
@@ -180,7 +183,9 @@ export function StoreSetupForm({
             <FieldDescription>
               {isShopify
                 ? "Your store's address, e.g. https://www.your-store.com, including https://."
-                : "The full address of your Magento storefront, including https://."}
+                : // Magento is commented out until its connect flow ships.
+                  // "The full address of your Magento storefront, including https://."
+                  null}
             </FieldDescription>
           )}
         </Field>
