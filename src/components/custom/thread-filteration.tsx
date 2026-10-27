@@ -74,16 +74,7 @@ type ThreadFilterationProps = {
 const ALL = "all";
 const ALL_TAGS = "__all_tags__";
 
-const ACTIVE_FILTER_STYLES = {
-  status: "border-blue-300 bg-blue-50 text-blue-700",
-  ticket: "border-emerald-300 bg-emerald-50 text-emerald-700",
-  order: "border-amber-300 bg-amber-50 text-amber-700",
-  handledBy: "border-violet-300 bg-violet-50 text-violet-700",
-  channel: "border-cyan-300 bg-cyan-50 text-cyan-700",
-  tags: "border-rose-300 bg-rose-50 text-rose-700",
-  feedback: "border-pink-300 bg-pink-50 text-pink-700",
-  date: "border-indigo-300 bg-indigo-50 text-indigo-700",
-} as const;
+const ACTIVE_FILTER_STYLE = "border-primary/40 bg-primary/10 text-primary";
 
 // Shared with the dashboard filters, so both screens offer the same channels.
 export const CHANNEL_OPTIONS = [
@@ -243,15 +234,13 @@ export default function ThreadFilteration({
         to={filters.to}
         onRangeChange={(from, to) => onChange({ ...filters, from, to })}
         disabled={{ after: new Date() }}
-        className={
-          filters.from || filters.to ? ACTIVE_FILTER_STYLES.date : undefined
-        }
+        className={filters.from || filters.to ? ACTIVE_FILTER_STYLE : undefined}
       />
 
       <FilterSelect
         ariaLabel="Filter by status"
         value={filters.is_active}
-        activeClassName={ACTIVE_FILTER_STYLES.status}
+        activeClassName={ACTIVE_FILTER_STYLE}
         onChange={(is_active) =>
           onChange({
             ...filters,
@@ -268,7 +257,7 @@ export default function ThreadFilteration({
       <FilterSelect
         ariaLabel="Filter by support ticket"
         value={filters.has_ticket}
-        activeClassName={ACTIVE_FILTER_STYLES.ticket}
+        activeClassName={ACTIVE_FILTER_STYLE}
         onChange={(has_ticket) =>
           onChange({
             ...filters,
@@ -285,7 +274,7 @@ export default function ThreadFilteration({
       <FilterSelect
         ariaLabel="Filter by order"
         value={filters.has_order}
-        activeClassName={ACTIVE_FILTER_STYLES.order}
+        activeClassName={ACTIVE_FILTER_STYLE}
         onChange={(has_order) =>
           onChange({
             ...filters,
@@ -302,7 +291,7 @@ export default function ThreadFilteration({
       <FilterSelect
         ariaLabel="Filter by handled by"
         value={filters.handled_by}
-        activeClassName={ACTIVE_FILTER_STYLES.handledBy}
+        activeClassName={ACTIVE_FILTER_STYLE}
         onChange={(handled_by) =>
           onChange({
             ...filters,
@@ -319,7 +308,7 @@ export default function ThreadFilteration({
       <FilterSelect
         ariaLabel="Filter by channel"
         value={filters.channel}
-        activeClassName={ACTIVE_FILTER_STYLES.channel}
+        activeClassName={ACTIVE_FILTER_STYLE}
         onChange={(channel) =>
           onChange({
             ...filters,
@@ -332,7 +321,7 @@ export default function ThreadFilteration({
       <MultiSelectFilter
         options={tagOptions}
         value={filters.tags}
-        activeClassName={ACTIVE_FILTER_STYLES.tags}
+        activeClassName={ACTIVE_FILTER_STYLE}
         onChange={(tags) => onChange({ ...filters, tags })}
         placeholder="All Tags"
         emptyText="No tags found."
@@ -343,7 +332,7 @@ export default function ThreadFilteration({
         <FilterSelect
           ariaLabel="Filter by feedback rating"
           value={filters.feedback_rating}
-          activeClassName={ACTIVE_FILTER_STYLES.feedback}
+          activeClassName={ACTIVE_FILTER_STYLE}
           onChange={(feedback_rating) =>
             onChange({
               ...filters,
