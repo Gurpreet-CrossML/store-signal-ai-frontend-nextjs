@@ -11,16 +11,14 @@ import {
   check,
   text,
   smallint,
-  jsonb,
   uuid,
   uniqueIndex,
-  doublePrecision,
   numeric,
-  inet,
-  type AnyPgColumn,
+  doublePrecision,
+  jsonb,
   date,
+  inet,
   time,
-  type PgTableExtraConfigValue,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -257,6 +255,86 @@ export const authUserUserPermissions = pgTable(
   ],
 );
 
+export const userAuthState = pgTable(
+  "user_auth_state",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "user_auth_state_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    tokenVersion: integer("token_version").notNull(),
+    resetLinkVersion: integer("reset_link_version").notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    userId: integer("user_id").notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.userId],
+      foreignColumns: [authUser.id],
+      name: "user_auth_state_user_id_9adf108d_fk_auth_user_id",
+    }),
+    unique("user_auth_state_user_id_key").on(table.userId),
+    check(
+      "user_auth_state_reset_link_version_check",
+      sql`reset_link_version >= 0`,
+    ),
+    check("user_auth_state_token_version_check", sql`token_version >= 0`),
+  ],
+);
+
+export const revokedToken = pgTable(
+  "revoked_token",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "revoked_token_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    jti: varchar({ length: 255 }).notNull(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    userId: integer("user_id").notNull(),
+  },
+  (table) => [
+    index("revoked_token_expires_at_a7f23f4d").using(
+      "btree",
+      table.expiresAt.asc().nullsLast().op("timestamptz_ops"),
+    ),
+    index("revoked_token_jti_85422f2f_like").using(
+      "btree",
+      table.jti.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("revoked_token_user_id_c552fc68").using(
+      "btree",
+      table.userId.asc().nullsLast().op("int4_ops"),
+    ),
+    foreignKey({
+      columns: [table.userId],
+      foreignColumns: [authUser.id],
+      name: "revoked_token_user_id_c552fc68_fk_auth_user_id",
+    }),
+    unique("revoked_token_jti_key").on(table.jti),
+  ],
+);
+
 export const djangoAdminLog = pgTable(
   "django_admin_log",
   {
@@ -299,6 +377,386 @@ export const djangoAdminLog = pgTable(
       name: "django_admin_log_user_id_c564eba6_fk_auth_user_id",
     }),
     check("django_admin_log_action_flag_check", sql`action_flag >= 0`),
+  ],
+);
+
+export const companyDomain = pgTable(
+  "company_domain",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "company_domain_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    domain: varchar({ length: 253 }).notNull(),
+    isPrimary: boolean("is_primary").notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    tenantId: bigint("tenant_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("company_domain_domain_a41c83b2_like").using(
+      "btree",
+      table.domain.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("company_domain_is_primary_5a4983ec").using(
+      "btree",
+      table.isPrimary.asc().nullsLast().op("bool_ops"),
+    ),
+    index("company_domain_tenant_id_7b933fbc").using(
+      "btree",
+      table.tenantId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.tenantId],
+      foreignColumns: [company.id],
+      name: "company_domain_tenant_id_7b933fbc_fk_company_id",
+    }),
+    unique("company_domain_domain_key").on(table.domain),
+  ],
+);
+
+export const company = pgTable(
+  "company",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "company_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    schemaName: varchar("schema_name", { length: 63 }).notNull(),
+    name: varchar({ length: 255 }).notNull(),
+    logo: varchar({ length: 255 }),
+    email: varchar({ length: 254 }),
+    phone: varchar({ length: 20 }),
+    street: varchar({ length: 255 }),
+    isActive: boolean("is_active").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    onboardingPending: boolean("onboarding_pending").notNull(),
+    onboardingStep: varchar("onboarding_step", { length: 32 }).notNull(),
+    countryId: integer("country_id"),
+    stateId: integer("state_id"),
+    cityId: integer("city_id"),
+  },
+  (table) => [
+    index("company_city_id_bf231d2e").using(
+      "btree",
+      table.cityId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("company_country_id_3fe7e9da").using(
+      "btree",
+      table.countryId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("company_name_5abe57d9_like").using(
+      "btree",
+      table.name.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("company_schema_name_09f104c8_like").using(
+      "btree",
+      table.schemaName.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("company_state_id_b89c18c4").using(
+      "btree",
+      table.stateId.asc().nullsLast().op("int4_ops"),
+    ),
+    unique("company_schema_name_key").on(table.schemaName),
+    unique("company_name_key").on(table.name),
+  ],
+);
+
+export const companyMembership = pgTable(
+  "company_membership",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "company_membership_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    isActive: boolean("is_active").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    companyId: bigint("company_id", { mode: "number" }).notNull(),
+    userId: integer("user_id").notNull(),
+    role: varchar({ length: 32 }).notNull(),
+  },
+  (table) => [
+    index("company_membership_company_id_9840e603").using(
+      "btree",
+      table.companyId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("company_membership_user_id_21a9cb1c").using(
+      "btree",
+      table.userId.asc().nullsLast().op("int4_ops"),
+    ),
+    foreignKey({
+      columns: [table.companyId],
+      foreignColumns: [company.id],
+      name: "company_membership_company_id_9840e603_fk_company_id",
+    }),
+    foreignKey({
+      columns: [table.userId],
+      foreignColumns: [authUser.id],
+      name: "company_membership_user_id_21a9cb1c_fk_auth_user_id",
+    }),
+    unique("unique_user_company_membership").on(table.companyId, table.userId),
+  ],
+);
+
+export const threadRegistry = pgTable(
+  "thread_registry",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "thread_registry_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    threadId: uuid("thread_id").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    companyId: bigint("company_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("thread_registry_company_id_7576e8a9").using(
+      "btree",
+      table.companyId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.companyId],
+      foreignColumns: [company.id],
+      name: "thread_registry_company_id_7576e8a9_fk_company_id",
+    }),
+    unique("thread_registry_thread_id_key").on(table.threadId),
+  ],
+);
+
+export const storeRegistry = pgTable(
+  "store_registry",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "store_registry_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    code: varchar({ length: 255 }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storePk: bigint("store_pk", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    companyId: bigint("company_id", { mode: "number" }).notNull(),
+    baseUrl: varchar("base_url", { length: 200 }).notNull(),
+  },
+  (table) => [
+    index("store_registry_code_63f1a96a_like").using(
+      "btree",
+      table.code.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("store_registry_company_id_8c6eaa64").using(
+      "btree",
+      table.companyId.asc().nullsLast().op("int8_ops"),
+    ),
+    uniqueIndex("unique_store_registry_base_url")
+      .using("btree", table.baseUrl.asc().nullsLast().op("text_ops"))
+      .where(sql`(NOT ((base_url)::text = ''::text))`),
+    foreignKey({
+      columns: [table.companyId],
+      foreignColumns: [company.id],
+      name: "store_registry_company_id_8c6eaa64_fk_company_id",
+    }),
+    unique("store_registry_code_key").on(table.code),
+    check("store_registry_store_pk_check", sql`store_pk >= 0`),
+  ],
+);
+
+export const aiUsage = pgTable(
+  "ai_usage",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "ai_usage_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    feature: varchar({ length: 50 }).notNull(),
+    isCustomerFacing: boolean("is_customer_facing").notNull(),
+    status: varchar({ length: 20 }).notNull(),
+    creditsCharged: smallint("credits_charged").notNull(),
+    storeCode: varchar("store_code", { length: 100 }).notNull(),
+    workflowId: varchar("workflow_id", { length: 100 }).notNull(),
+    referenceType: varchar("reference_type", { length: 50 }).notNull(),
+    referenceId: varchar("reference_id", { length: 64 }).notNull(),
+    inputTokens: integer("input_tokens").notNull(),
+    outputTokens: integer("output_tokens").notNull(),
+    totalTokens: integer("total_tokens").notNull(),
+    cachedInputTokens: integer("cached_input_tokens").notNull(),
+    cacheWriteTokens: integer("cache_write_tokens").notNull(),
+    reasoningTokens: integer("reasoning_tokens").notNull(),
+    cost: numeric({ precision: 12, scale: 8 }).notNull(),
+    latencyMs: doublePrecision("latency_ms").notNull(),
+    metadata: jsonb().notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    companyId: bigint("company_id", { mode: "number" }).notNull(),
+    performedById: integer("performed_by_id"),
+  },
+  (table) => [
+    index("ai_usage_company_a9d196_idx").using(
+      "btree",
+      table.companyId.asc().nullsLast().op("int8_ops"),
+      table.createdAt.asc().nullsLast().op("int8_ops"),
+    ),
+    index("ai_usage_company_id_f69f5479").using(
+      "btree",
+      table.companyId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("ai_usage_feature_a01508_idx").using(
+      "btree",
+      table.feature.asc().nullsLast().op("text_ops"),
+    ),
+    index("ai_usage_performed_by_id_c8d0734d").using(
+      "btree",
+      table.performedById.asc().nullsLast().op("int4_ops"),
+    ),
+    index("ai_usage_referen_74deb0_idx").using(
+      "btree",
+      table.referenceType.asc().nullsLast().op("text_ops"),
+      table.referenceId.asc().nullsLast().op("text_ops"),
+    ),
+    index("ai_usage_store_c_d83866_idx").using(
+      "btree",
+      table.storeCode.asc().nullsLast().op("text_ops"),
+    ),
+    foreignKey({
+      columns: [table.companyId],
+      foreignColumns: [company.id],
+      name: "ai_usage_company_id_f69f5479_fk_company_id",
+    }),
+    foreignKey({
+      columns: [table.performedById],
+      foreignColumns: [authUser.id],
+      name: "ai_usage_performed_by_id_c8d0734d_fk_auth_user_id",
+    }),
+    check("ai_usage_cache_write_tokens_check", sql`cache_write_tokens >= 0`),
+    check("ai_usage_cached_input_tokens_check", sql`cached_input_tokens >= 0`),
+    check("ai_usage_credits_charged_check", sql`credits_charged >= 0`),
+    check("ai_usage_input_tokens_check", sql`input_tokens >= 0`),
+    check("ai_usage_output_tokens_check", sql`output_tokens >= 0`),
+    check("ai_usage_reasoning_tokens_check", sql`reasoning_tokens >= 0`),
+    check("ai_usage_total_tokens_check", sql`total_tokens >= 0`),
+  ],
+);
+
+export const aiAgentUsage = pgTable(
+  "ai_agent_usage",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "ai_agent_usage_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    agentId: varchar("agent_id", { length: 100 }).notNull(),
+    model: varchar({ length: 255 }).notNull(),
+    inputTokens: integer("input_tokens").notNull(),
+    outputTokens: integer("output_tokens").notNull(),
+    totalTokens: integer("total_tokens").notNull(),
+    cachedInputTokens: integer("cached_input_tokens").notNull(),
+    cacheWriteTokens: integer("cache_write_tokens").notNull(),
+    reasoningTokens: integer("reasoning_tokens").notNull(),
+    cost: numeric({ precision: 12, scale: 8 }).notNull(),
+    latencyMs: doublePrecision("latency_ms").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    usageId: bigint("usage_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("ai_agent_us_agent_i_e44df3_idx").using(
+      "btree",
+      table.agentId.asc().nullsLast().op("text_ops"),
+    ),
+    index("ai_agent_us_model_713043_idx").using(
+      "btree",
+      table.model.asc().nullsLast().op("text_ops"),
+    ),
+    index("ai_agent_usage_usage_id_485f78da").using(
+      "btree",
+      table.usageId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.usageId],
+      foreignColumns: [aiUsage.id],
+      name: "ai_agent_usage_usage_id_485f78da_fk_ai_usage_id",
+    }),
+    check(
+      "ai_agent_usage_cache_write_tokens_check",
+      sql`cache_write_tokens >= 0`,
+    ),
+    check(
+      "ai_agent_usage_cached_input_tokens_check",
+      sql`cached_input_tokens >= 0`,
+    ),
+    check("ai_agent_usage_input_tokens_check", sql`input_tokens >= 0`),
+    check("ai_agent_usage_output_tokens_check", sql`output_tokens >= 0`),
+    check("ai_agent_usage_reasoning_tokens_check", sql`reasoning_tokens >= 0`),
+    check("ai_agent_usage_total_tokens_check", sql`total_tokens >= 0`),
   ],
 );
 
@@ -491,6 +949,23 @@ export const integrationAttribute = pgTable(
   ],
 );
 
+export const neverSayRulesPreset = pgTable("never_say_rules_preset", {
+  // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+  id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+    name: "never_say_rules_preset_id_seq",
+    startWith: 1,
+    increment: 1,
+    minValue: 1,
+    maxValue: 9223372036854775807,
+    cache: 1,
+  }),
+  doNotSayPhrases: jsonb("do_not_say_phrases").notNull(),
+  forbiddenClaims: jsonb("forbidden_claims").notNull(),
+  requiredLegalPhrases: jsonb("required_legal_phrases").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }),
+});
+
 export const tonePreset = pgTable(
   "tone_preset",
   {
@@ -524,193 +999,6 @@ export const tonePreset = pgTable(
     check("tone_preset_warmth_check", sql`warmth >= 0`),
   ],
 );
-
-export const companyDomain = pgTable(
-  "company_domain",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "company_domain_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    domain: varchar({ length: 253 }).notNull(),
-    isPrimary: boolean("is_primary").notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    tenantId: bigint("tenant_id", { mode: "number" }).notNull(),
-  },
-  (table) => [
-    index("company_domain_domain_a41c83b2_like").using(
-      "btree",
-      table.domain.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("company_domain_is_primary_5a4983ec").using(
-      "btree",
-      table.isPrimary.asc().nullsLast().op("bool_ops"),
-    ),
-    index("company_domain_tenant_id_7b933fbc").using(
-      "btree",
-      table.tenantId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.tenantId],
-      foreignColumns: [company.id],
-      name: "company_domain_tenant_id_7b933fbc_fk_company_id",
-    }),
-    unique("company_domain_domain_key").on(table.domain),
-  ],
-);
-
-export const companyMembership = pgTable(
-  "company_membership",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "company_membership_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    isActive: boolean("is_active").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    companyId: bigint("company_id", { mode: "number" }).notNull(),
-    userId: integer("user_id").notNull(),
-    role: varchar({ length: 32 }).notNull(),
-  },
-  (table) => [
-    index("company_membership_company_id_9840e603").using(
-      "btree",
-      table.companyId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("company_membership_user_id_21a9cb1c").using(
-      "btree",
-      table.userId.asc().nullsLast().op("int4_ops"),
-    ),
-    foreignKey({
-      columns: [table.companyId],
-      foreignColumns: [company.id],
-      name: "company_membership_company_id_9840e603_fk_company_id",
-    }),
-    foreignKey({
-      columns: [table.userId],
-      foreignColumns: [authUser.id],
-      name: "company_membership_user_id_21a9cb1c_fk_auth_user_id",
-    }),
-    unique("unique_user_company_membership").on(table.companyId, table.userId),
-  ],
-);
-
-export const threadRegistry = pgTable(
-  "thread_registry",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "thread_registry_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    threadId: uuid("thread_id").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    companyId: bigint("company_id", { mode: "number" }).notNull(),
-  },
-  (table) => [
-    index("thread_registry_company_id_7576e8a9").using(
-      "btree",
-      table.companyId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.companyId],
-      foreignColumns: [company.id],
-      name: "thread_registry_company_id_7576e8a9_fk_company_id",
-    }),
-    unique("thread_registry_thread_id_key").on(table.threadId),
-  ],
-);
-
-export const whatsappTemplateLibrary = pgTable(
-  "whatsapp_template_library",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "whatsapp_template_library_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    name: varchar({ length: 512 }).notNull(),
-    description: text().notNull(),
-    category: varchar({ length: 50 }).notNull(),
-    language: varchar({ length: 35 }).notNull(),
-    parameterFormat: varchar("parameter_format", { length: 20 }).notNull(),
-    headerFormat: varchar("header_format", { length: 20 }).notNull(),
-    headerText: varchar("header_text", { length: 60 }).notNull(),
-    headerTextExample: jsonb("header_text_example").notNull(),
-    bodyText: text("body_text").notNull(),
-    bodyTextExample: jsonb("body_text_example").notNull(),
-    footerText: varchar("footer_text", { length: 60 }).notNull(),
-    buttonType: varchar("button_type", { length: 20 }).notNull(),
-    buttonText: varchar("button_text", { length: 25 }).notNull(),
-    buttonUrl: varchar("button_url", { length: 2000 }).notNull(),
-    buttonUrlExample: varchar("button_url_example", { length: 2000 }).notNull(),
-    buttonPhoneNumber: varchar("button_phone_number", { length: 20 }).notNull(),
-    buttonCouponCode: varchar("button_coupon_code", { length: 15 }).notNull(),
-    isActive: boolean("is_active").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-  },
-  (table) => [
-    index("idx_wa_library_active").using(
-      "btree",
-      table.isActive.asc().nullsLast().op("text_ops"),
-      table.category.asc().nullsLast().op("text_ops"),
-    ),
-  ],
-);
-
-export const neverSayRulesPreset = pgTable("never_say_rules_preset", {
-  // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-  id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-    name: "never_say_rules_preset_id_seq",
-    startWith: 1,
-    increment: 1,
-    minValue: 1,
-    maxValue: 9223372036854775807,
-    cache: 1,
-  }),
-  doNotSayPhrases: jsonb("do_not_say_phrases").notNull(),
-  forbiddenClaims: jsonb("forbidden_claims").notNull(),
-  requiredLegalPhrases: jsonb("required_legal_phrases").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }),
-  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }),
-});
 
 export const vocabularyPreset = pgTable("vocabulary_preset", {
   // You can use { mode: "bigint" } if numbers are exceeding js number limitations
@@ -763,8 +1051,8 @@ export const socialAccountRegistry = pgTable(
   (table) => [
     index("idx_registry_webhook_lookup").using(
       "btree",
-      table.channelType.asc().nullsLast().op("text_ops"),
-      table.externalId.asc().nullsLast().op("bool_ops"),
+      table.channelType.asc().nullsLast().op("bool_ops"),
+      table.externalId.asc().nullsLast().op("text_ops"),
       table.isActive.asc().nullsLast().op("bool_ops"),
     ),
     index("social_account_registry_company_id_6e862e9a").using(
@@ -782,6 +1070,711 @@ export const socialAccountRegistry = pgTable(
       table.externalId,
     ),
     check("social_account_registry_account_pk_check", sql`account_pk >= 0`),
+  ],
+);
+
+export const whatsappTemplateLibrary = pgTable(
+  "whatsapp_template_library",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "whatsapp_template_library_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    name: varchar({ length: 512 }).notNull(),
+    description: text().notNull(),
+    category: varchar({ length: 50 }).notNull(),
+    language: varchar({ length: 35 }).notNull(),
+    parameterFormat: varchar("parameter_format", { length: 20 }).notNull(),
+    headerFormat: varchar("header_format", { length: 20 }).notNull(),
+    headerText: varchar("header_text", { length: 60 }).notNull(),
+    headerTextExample: jsonb("header_text_example").notNull(),
+    bodyText: text("body_text").notNull(),
+    bodyTextExample: jsonb("body_text_example").notNull(),
+    footerText: varchar("footer_text", { length: 60 }).notNull(),
+    buttonType: varchar("button_type", { length: 20 }).notNull(),
+    buttonText: varchar("button_text", { length: 25 }).notNull(),
+    buttonUrl: varchar("button_url", { length: 2000 }).notNull(),
+    buttonUrlExample: varchar("button_url_example", { length: 2000 }).notNull(),
+    buttonPhoneNumber: varchar("button_phone_number", { length: 20 }).notNull(),
+    buttonCouponCode: varchar("button_coupon_code", { length: 15 }).notNull(),
+    isActive: boolean("is_active").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+  },
+  (table) => [
+    index("idx_wa_library_active").using(
+      "btree",
+      table.isActive.asc().nullsLast().op("text_ops"),
+      table.category.asc().nullsLast().op("text_ops"),
+    ),
+  ],
+);
+
+export const billingSubscription = pgTable(
+  "billing_subscription",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "billing_subscription_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    status: varchar({ length: 20 }).notNull(),
+    billingCycle: varchar("billing_cycle", { length: 10 }).notNull(),
+    monthlyCredits: integer("monthly_credits").notNull(),
+    price: numeric({ precision: 10, scale: 2 }).notNull(),
+    currency: varchar({ length: 3 }).notNull(),
+    isFree: boolean("is_free").notNull(),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date").notNull(),
+    isRecurring: boolean("is_recurring").notNull(),
+    recurringDate: date("recurring_date"),
+    recurringEndDate: date("recurring_end_date"),
+    cancelledAt: timestamp("cancelled_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    companyId: bigint("company_id", { mode: "number" }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    planId: bigint("plan_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("billing_sub_company_aa8708_idx").using(
+      "btree",
+      table.companyId.asc().nullsLast().op("date_ops"),
+      table.startDate.asc().nullsLast().op("date_ops"),
+    ),
+    index("billing_sub_status_948046_idx").using(
+      "btree",
+      table.status.asc().nullsLast().op("text_ops"),
+    ),
+    index("billing_subscription_company_id_252addf5").using(
+      "btree",
+      table.companyId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("billing_subscription_plan_id_4e20d4ad").using(
+      "btree",
+      table.planId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.companyId],
+      foreignColumns: [company.id],
+      name: "billing_subscription_company_id_252addf5_fk_company_id",
+    }),
+    foreignKey({
+      columns: [table.planId],
+      foreignColumns: [subscriptionPlan.id],
+      name: "billing_subscription_plan_id_4e20d4ad_fk_subscription_plan_id",
+    }),
+    check(
+      "billing_subscription_monthly_credits_check",
+      sql`monthly_credits >= 0`,
+    ),
+  ],
+);
+
+export const subscriptionPlan = pgTable(
+  "subscription_plan",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "subscription_plan_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    name: varchar({ length: 100 }).notNull(),
+    code: varchar({ length: 50 }).notNull(),
+    description: varchar({ length: 255 }).notNull(),
+    monthlyCredits: integer("monthly_credits").notNull(),
+    monthlyPrice: numeric("monthly_price", {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+    yearlyPrice: numeric("yearly_price", { precision: 10, scale: 2 }),
+    currency: varchar({ length: 3 }).notNull(),
+    isFreePlan: boolean("is_free_plan").notNull(),
+    isActive: boolean("is_active").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+  },
+  (table) => [
+    index("subscription_plan_code_f80cd818_like").using(
+      "btree",
+      table.code.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    uniqueIndex("unique_active_free_plan")
+      .using("btree", table.isFreePlan.asc().nullsLast().op("bool_ops"))
+      .where(sql`(is_active AND is_free_plan)`),
+    unique("subscription_plan_code_key").on(table.code),
+    check("subscription_plan_monthly_credits_check", sql`monthly_credits >= 0`),
+  ],
+);
+
+export const billingTopUp = pgTable(
+  "billing_top_up",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "billing_top_up_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    credits: integer().notNull(),
+    price: numeric({ precision: 10, scale: 2 }).notNull(),
+    currency: varchar({ length: 3 }).notNull(),
+    reference: varchar({ length: 100 }).notNull(),
+    purchasedAt: timestamp("purchased_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    companyId: bigint("company_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("billing_top_up_company_id_e337971d").using(
+      "btree",
+      table.companyId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.companyId],
+      foreignColumns: [company.id],
+      name: "billing_top_up_company_id_e337971d_fk_company_id",
+    }),
+    check("billing_top_up_credits_check", sql`credits >= 0`),
+  ],
+);
+
+export const billingCreditTransaction = pgTable(
+  "billing_credit_transaction",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "billing_credit_transaction_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    transactionType: varchar("transaction_type", { length: 20 }).notNull(),
+    credits: integer().notNull(),
+    description: varchar({ length: 255 }).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    companyId: bigint("company_id", { mode: "number" }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    usageId: bigint("usage_id", { mode: "number" }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    subscriptionId: bigint("subscription_id", { mode: "number" }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    topUpId: bigint("top_up_id", { mode: "number" }),
+  },
+  (table) => [
+    index("billing_cre_company_f4f989_idx").using(
+      "btree",
+      table.companyId.asc().nullsLast().op("int8_ops"),
+      table.createdAt.asc().nullsLast().op("int8_ops"),
+    ),
+    index("billing_cre_transac_24f076_idx").using(
+      "btree",
+      table.transactionType.asc().nullsLast().op("text_ops"),
+    ),
+    index("billing_credit_transaction_company_id_651f71e9").using(
+      "btree",
+      table.companyId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("billing_credit_transaction_subscription_id_4715f0f6").using(
+      "btree",
+      table.subscriptionId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("billing_credit_transaction_top_up_id_a7bb0e04").using(
+      "btree",
+      table.topUpId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("billing_credit_transaction_usage_id_c481a920").using(
+      "btree",
+      table.usageId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.subscriptionId],
+      foreignColumns: [billingSubscription.id],
+      name: "billing_credit_trans_subscription_id_4715f0f6_fk_billing_s",
+    }),
+    foreignKey({
+      columns: [table.topUpId],
+      foreignColumns: [billingTopUp.id],
+      name: "billing_credit_trans_top_up_id_a7bb0e04_fk_billing_t",
+    }),
+    foreignKey({
+      columns: [table.companyId],
+      foreignColumns: [company.id],
+      name: "billing_credit_transaction_company_id_651f71e9_fk_company_id",
+    }),
+    foreignKey({
+      columns: [table.usageId],
+      foreignColumns: [aiUsage.id],
+      name: "billing_credit_transaction_usage_id_c481a920_fk_ai_usage_id",
+    }),
+  ],
+);
+
+export const coreAutoSendRule = pgTable(
+  "core_auto_send_rule",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "core_auto_send_rule_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    templateName: varchar("template_name", { length: 512 }).notNull(),
+    eventType: varchar("event_type", { length: 30 }).notNull(),
+    isActive: boolean("is_active").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+  },
+  (table) => [
+    unique("uniq_auto_send_rule_name_event").on(
+      table.templateName,
+      table.eventType,
+    ),
+  ],
+);
+
+export const segmentsCategory = pgTable(
+  "segments_category",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "segments_category_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    name: varchar({ length: 255 }).notNull(),
+    slug: varchar({ length: 255 }).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+  },
+  (table) => [
+    index("segments_category_name_e3b6faf1_like").using(
+      "btree",
+      table.name.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("segments_category_slug_d9b5b3a7_like").using(
+      "btree",
+      table.slug.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    unique("segments_category_name_key").on(table.name),
+    unique("segments_category_slug_key").on(table.slug),
+  ],
+);
+
+export const citiesLightCity = pgTable(
+  "cities_light_city",
+  {
+    id: integer().primaryKey().generatedByDefaultAsIdentity({
+      name: "cities_light_city_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 2147483647,
+      cache: 1,
+    }),
+    nameAscii: varchar("name_ascii", { length: 200 }).notNull(),
+    slug: varchar({ length: 50 }).notNull(),
+    geonameId: integer("geoname_id"),
+    alternateNames: text("alternate_names"),
+    name: varchar({ length: 200 }).notNull(),
+    displayName: varchar("display_name", { length: 200 }).notNull(),
+    searchNames: text("search_names").notNull(),
+    latitude: numeric({ precision: 8, scale: 5 }),
+    longitude: numeric({ precision: 8, scale: 5 }),
+    regionId: integer("region_id"),
+    countryId: integer("country_id").notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    population: bigint({ mode: "number" }),
+    featureCode: varchar("feature_code", { length: 10 }),
+    timezone: varchar({ length: 40 }),
+    subregionId: integer("subregion_id"),
+    translations: jsonb().notNull(),
+  },
+  (table) => [
+    index("cities_light_city_country_id_cf310fd2").using(
+      "btree",
+      table.countryId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("cities_light_city_feature_code_d43c9217").using(
+      "btree",
+      table.featureCode.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_city_feature_code_d43c9217_like").using(
+      "btree",
+      table.featureCode.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_city_name_4859e2a5").using(
+      "btree",
+      table.name.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_city_name_4859e2a5_like").using(
+      "btree",
+      table.name.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_city_name_ascii_1e56323b").using(
+      "btree",
+      table.nameAscii.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_city_name_ascii_1e56323b_like").using(
+      "btree",
+      table.nameAscii.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_city_population_d597eeb6").using(
+      "btree",
+      table.population.asc().nullsLast().op("int8_ops"),
+    ),
+    index("cities_light_city_region_id_f7ab977b").using(
+      "btree",
+      table.regionId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("cities_light_city_slug_cb2251f8").using(
+      "btree",
+      table.slug.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_city_slug_cb2251f8_like").using(
+      "btree",
+      table.slug.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_city_subregion_id_0926d2ad").using(
+      "btree",
+      table.subregionId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("cities_light_city_timezone_0fb51b1e").using(
+      "btree",
+      table.timezone.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_city_timezone_0fb51b1e_like").using(
+      "btree",
+      table.timezone.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    foreignKey({
+      columns: [table.countryId],
+      foreignColumns: [citiesLightCountry.id],
+      name: "cities_light_city_country_id_cf310fd2_fk_cities_li",
+    }),
+    foreignKey({
+      columns: [table.regionId],
+      foreignColumns: [citiesLightRegion.id],
+      name: "cities_light_city_region_id_f7ab977b_fk_cities_light_region_id",
+    }),
+    foreignKey({
+      columns: [table.subregionId],
+      foreignColumns: [citiesLightSubregion.id],
+      name: "cities_light_city_subregion_id_0926d2ad_fk_cities_li",
+    }),
+    unique("cities_light_city_region_id_subregion_id_slug_efb2e768_uniq").on(
+      table.slug,
+      table.regionId,
+      table.subregionId,
+    ),
+    unique("cities_light_city_geoname_id_key").on(table.geonameId),
+    unique("cities_light_city_region_id_subregion_id_name_cdfc77ea_uniq").on(
+      table.name,
+      table.regionId,
+      table.subregionId,
+    ),
+  ],
+);
+
+export const citiesLightCountry = pgTable(
+  "cities_light_country",
+  {
+    id: integer().primaryKey().generatedByDefaultAsIdentity({
+      name: "cities_light_country_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 2147483647,
+      cache: 1,
+    }),
+    nameAscii: varchar("name_ascii", { length: 200 }).notNull(),
+    slug: varchar({ length: 50 }).notNull(),
+    geonameId: integer("geoname_id"),
+    alternateNames: text("alternate_names"),
+    name: varchar({ length: 200 }).notNull(),
+    code2: varchar({ length: 2 }),
+    code3: varchar({ length: 3 }),
+    continent: varchar({ length: 2 }).notNull(),
+    tld: varchar({ length: 5 }).notNull(),
+    phone: varchar({ length: 20 }),
+    translations: jsonb().notNull(),
+  },
+  (table) => [
+    index("cities_light_country_code2_69c32e9a_like").using(
+      "btree",
+      table.code2.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_country_code3_89d251fa_like").using(
+      "btree",
+      table.code3.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_country_continent_e2c412a4").using(
+      "btree",
+      table.continent.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_country_continent_e2c412a4_like").using(
+      "btree",
+      table.continent.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_country_name_1d61d0d2").using(
+      "btree",
+      table.name.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_country_name_1d61d0d2_like").using(
+      "btree",
+      table.name.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_country_name_ascii_648cc5e3").using(
+      "btree",
+      table.nameAscii.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_country_name_ascii_648cc5e3_like").using(
+      "btree",
+      table.nameAscii.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_country_slug_3707a22c").using(
+      "btree",
+      table.slug.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_country_slug_3707a22c_like").using(
+      "btree",
+      table.slug.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_country_tld_1fb2faaa").using(
+      "btree",
+      table.tld.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_country_tld_1fb2faaa_like").using(
+      "btree",
+      table.tld.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    unique("cities_light_country_geoname_id_key").on(table.geonameId),
+    unique("cities_light_country_code2_key").on(table.code2),
+    unique("cities_light_country_code3_key").on(table.code3),
+  ],
+);
+
+export const citiesLightRegion = pgTable(
+  "cities_light_region",
+  {
+    id: integer().primaryKey().generatedByDefaultAsIdentity({
+      name: "cities_light_region_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 2147483647,
+      cache: 1,
+    }),
+    nameAscii: varchar("name_ascii", { length: 200 }).notNull(),
+    slug: varchar({ length: 50 }).notNull(),
+    geonameId: integer("geoname_id"),
+    alternateNames: text("alternate_names"),
+    name: varchar({ length: 200 }).notNull(),
+    displayName: varchar("display_name", { length: 200 }).notNull(),
+    geonameCode: varchar("geoname_code", { length: 50 }),
+    countryId: integer("country_id").notNull(),
+    translations: jsonb().notNull(),
+  },
+  (table) => [
+    index("cities_light_region_country_id_b2782d49").using(
+      "btree",
+      table.countryId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("cities_light_region_geoname_code_1b0d4e58").using(
+      "btree",
+      table.geonameCode.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_region_geoname_code_1b0d4e58_like").using(
+      "btree",
+      table.geonameCode.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_region_name_775f9496").using(
+      "btree",
+      table.name.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_region_name_775f9496_like").using(
+      "btree",
+      table.name.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_region_name_ascii_f085cb82").using(
+      "btree",
+      table.nameAscii.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_region_name_ascii_f085cb82_like").using(
+      "btree",
+      table.nameAscii.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_region_slug_1653969f").using(
+      "btree",
+      table.slug.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_region_slug_1653969f_like").using(
+      "btree",
+      table.slug.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    foreignKey({
+      columns: [table.countryId],
+      foreignColumns: [citiesLightCountry.id],
+      name: "cities_light_region_country_id_b2782d49_fk_cities_li",
+    }),
+    unique("cities_light_region_country_id_slug_3dd02103_uniq").on(
+      table.slug,
+      table.countryId,
+    ),
+    unique("cities_light_region_geoname_id_key").on(table.geonameId),
+    unique("cities_light_region_country_id_name_6e5b3799_uniq").on(
+      table.name,
+      table.countryId,
+    ),
+  ],
+);
+
+export const citiesLightSubregion = pgTable(
+  "cities_light_subregion",
+  {
+    id: integer().primaryKey().generatedByDefaultAsIdentity({
+      name: "cities_light_subregion_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 2147483647,
+      cache: 1,
+    }),
+    name: varchar({ length: 200 }).notNull(),
+    nameAscii: varchar("name_ascii", { length: 200 }).notNull(),
+    slug: varchar({ length: 50 }).notNull(),
+    geonameId: integer("geoname_id"),
+    alternateNames: text("alternate_names"),
+    displayName: varchar("display_name", { length: 200 }).notNull(),
+    geonameCode: varchar("geoname_code", { length: 50 }),
+    countryId: integer("country_id").notNull(),
+    regionId: integer("region_id"),
+    translations: jsonb().notNull(),
+  },
+  (table) => [
+    index("cities_light_subregion_country_id_9b32b484").using(
+      "btree",
+      table.countryId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("cities_light_subregion_geoname_code_843acdc3").using(
+      "btree",
+      table.geonameCode.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_subregion_geoname_code_843acdc3_like").using(
+      "btree",
+      table.geonameCode.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_subregion_name_2882337e").using(
+      "btree",
+      table.name.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_subregion_name_2882337e_like").using(
+      "btree",
+      table.name.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_subregion_name_ascii_ecf9a336").using(
+      "btree",
+      table.nameAscii.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_subregion_name_ascii_ecf9a336_like").using(
+      "btree",
+      table.nameAscii.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("cities_light_subregion_region_id_c6e0b71f").using(
+      "btree",
+      table.regionId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("cities_light_subregion_slug_43494546").using(
+      "btree",
+      table.slug.asc().nullsLast().op("text_ops"),
+    ),
+    index("cities_light_subregion_slug_43494546_like").using(
+      "btree",
+      table.slug.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    foreignKey({
+      columns: [table.countryId],
+      foreignColumns: [citiesLightCountry.id],
+      name: "cities_light_subregi_country_id_9b32b484_fk_cities_li",
+    }),
+    foreignKey({
+      columns: [table.regionId],
+      foreignColumns: [citiesLightRegion.id],
+      name: "cities_light_subregi_region_id_c6e0b71f_fk_cities_li",
+    }),
+    unique("cities_light_subregion_geoname_id_key").on(table.geonameId),
   ],
 );
 
@@ -804,55 +1797,6 @@ export const djangoSession = pgTable(
       "btree",
       table.sessionKey.asc().nullsLast().op("varchar_pattern_ops"),
     ),
-  ],
-);
-
-export const storeRegistry = pgTable(
-  "store_registry",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "store_registry_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    code: varchar({ length: 255 }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    storePk: bigint("store_pk", { mode: "number" }).notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    companyId: bigint("company_id", { mode: "number" }).notNull(),
-    baseUrl: varchar("base_url", { length: 200 }).notNull(),
-  },
-  (table) => [
-    index("store_registry_code_63f1a96a_like").using(
-      "btree",
-      table.code.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("store_registry_company_id_8c6eaa64").using(
-      "btree",
-      table.companyId.asc().nullsLast().op("int8_ops"),
-    ),
-    uniqueIndex("unique_store_registry_base_url")
-      .using("btree", table.baseUrl.asc().nullsLast().op("text_ops"))
-      .where(sql`(NOT ((base_url)::text = ''::text))`),
-    foreignKey({
-      columns: [table.companyId],
-      foreignColumns: [company.id],
-      name: "store_registry_company_id_8c6eaa64_fk_company_id",
-    }),
-    unique("store_registry_code_key").on(table.code),
-    check("store_registry_store_pk_check", sql`store_pk >= 0`),
   ],
 );
 
@@ -965,6 +1909,34 @@ export const quickLink = pgTable(
   ],
 );
 
+export const otpStore = pgTable("otp_store", {
+  // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+  id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+    name: "otp_store_id_seq",
+    startWith: 1,
+    increment: 1,
+    minValue: 1,
+    maxValue: 9223372036854775807,
+    cache: 1,
+  }),
+  threadId: varchar("thread_id", { length: 150 }),
+  email: varchar({ length: 254 }).notNull(),
+  otp: varchar({ length: 6 }).notNull(),
+  isVerified: boolean("is_verified").notNull(),
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+  expiresAt: timestamp("expires_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+});
+
 export const chatbotWidgetCustomization = pgTable(
   "chatbot_widget_customization",
   {
@@ -1001,81 +1973,6 @@ export const chatbotWidgetCustomization = pgTable(
       name: "chatbot_widget_customization_store_id_c92a0380_fk_store_id",
     }),
     unique("chatbot_widget_customization_store_id_key").on(table.storeId),
-  ],
-);
-
-export const otpStore = pgTable("otp_store", {
-  // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-  id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-    name: "otp_store_id_seq",
-    startWith: 1,
-    increment: 1,
-    minValue: 1,
-    maxValue: 9223372036854775807,
-    cache: 1,
-  }),
-  threadId: varchar("thread_id", { length: 150 }),
-  email: varchar({ length: 254 }).notNull(),
-  otp: varchar({ length: 6 }).notNull(),
-  isVerified: boolean("is_verified").notNull(),
-  createdAt: timestamp("created_at", {
-    withTimezone: true,
-    mode: "string",
-  }).notNull(),
-  updatedAt: timestamp("updated_at", {
-    withTimezone: true,
-    mode: "string",
-  }).notNull(),
-  expiresAt: timestamp("expires_at", {
-    withTimezone: true,
-    mode: "string",
-  }).notNull(),
-});
-
-export const storeCredentials = pgTable(
-  "store_credentials",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "store_credentials_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    baseUrl: varchar("base_url", { length: 200 }).notNull(),
-    storefrontToken: text("storefront_token"),
-    adminAccessToken: text("admin_access_token"),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    storeId: bigint("store_id", { mode: "number" }).notNull(),
-    adminTokenExpiresAt: timestamp("admin_token_expires_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    refreshToken: text("refresh_token"),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    clientId: text("client_id"),
-    clientSecret: text("client_secret"),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.storeId],
-      foreignColumns: [store.id],
-      name: "store_credentials_store_id_3c6945c8_fk_store_id",
-    }),
-    unique("store_credentials_store_id_key").on(table.storeId),
   ],
 );
 
@@ -1116,6 +2013,7 @@ export const store = pgTable(
       length: 10,
     }).notNull(),
     offersEnabled: boolean("offers_enabled").notNull(),
+    threadInactivityTimeout: integer("thread_inactivity_timeout").notNull(),
   },
   (table) => [
     index("store_code_5512d74c_like").using(
@@ -1128,83 +2026,52 @@ export const store = pgTable(
     ),
     unique("store_name_key").on(table.name),
     unique("store_code_key").on(table.code),
+    check(
+      "store_thread_inactivity_timeout_check",
+      sql`thread_inactivity_timeout >= 0`,
+    ),
     check("store_vector_storage_used_check", sql`vector_storage_used >= 0`),
   ],
 );
 
-export const chatHistory = pgTable(
-  "chat_history",
+export const chatBotevent = pgTable(
+  "chat_botevent",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "chat_history_id_seq",
+      name: "chat_botevent_id_seq",
       startWith: 1,
       increment: 1,
       minValue: 1,
       maxValue: 9223372036854775807,
       cache: 1,
     }),
-    role: varchar({ length: 20 }).notNull(),
-    jsonContent: jsonb("json_content").notNull(),
-    messageType: varchar("message_type", { length: 30 }).notNull(),
-    responseTime: doublePrecision("response_time").notNull(),
+    eventType: varchar("event_type", { length: 50 }).notNull(),
+    productId: varchar("product_id", { length: 100 }),
+    productName: varchar("product_name", { length: 255 }),
+    category: varchar({ length: 255 }),
     createdAt: timestamp("created_at", {
       withTimezone: true,
       mode: "string",
     }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
     threadId: uuid("thread_id").notNull(),
-    workflow: varchar({ length: 100 }),
-    message: text().notNull(),
-    imageUrl: jsonb("image_url"),
-    messagedById: integer("messaged_by_id"),
-    totalCost: numeric("total_cost", { precision: 12, scale: 8 }).notNull(),
-    totalInputTokens: integer("total_input_tokens").notNull(),
-    totalOutputTokens: integer("total_output_tokens").notNull(),
-    confidence: doublePrecision(),
-    sourceUsed: varchar("source_used", { length: 255 }).notNull(),
+    products: jsonb(),
   },
   (table) => [
-    index("chat_histor_created_2850f7_idx").using(
+    index("botevent_thread_type_idx").using(
       "btree",
-      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
+      table.threadId.asc().nullsLast().op("text_ops"),
+      table.eventType.asc().nullsLast().op("text_ops"),
     ),
-    index("chat_histor_message_aee83b_idx").using(
-      "btree",
-      table.messageType.asc().nullsLast().op("text_ops"),
-    ),
-    index("chat_histor_role_2d2777_idx").using(
-      "btree",
-      table.role.asc().nullsLast().op("text_ops"),
-    ),
-    index("chat_histor_thread__381e32_idx").using(
-      "btree",
-      table.threadId.asc().nullsLast().op("uuid_ops"),
-    ),
-    index("chat_history_messaged_by_id_3c647c76").using(
-      "btree",
-      table.messagedById.asc().nullsLast().op("int4_ops"),
-    ),
-    index("chat_history_thread_id_4bac8b19").using(
+    index("chat_botevent_thread_id_aad111f3").using(
       "btree",
       table.threadId.asc().nullsLast().op("uuid_ops"),
     ),
     foreignKey({
       columns: [table.threadId],
       foreignColumns: [chatThread.id],
-      name: "chat_history_thread_id_4bac8b19_fk_chat_thread_id",
+      name: "chat_botevent_thread_id_aad111f3_fk_chat_thread_id",
     }),
-    check(
-      "chat_history_total_input_tokens_check",
-      sql`total_input_tokens >= 0`,
-    ),
-    check(
-      "chat_history_total_output_tokens_check",
-      sql`total_output_tokens >= 0`,
-    ),
   ],
 );
 
@@ -1360,47 +2227,6 @@ export const chatThread = pgTable(
       columns: [table.storeId],
       foreignColumns: [store.id],
       name: "chat_thread_store_id_b856f451_fk_store_id",
-    }),
-  ],
-);
-
-export const chatBotevent = pgTable(
-  "chat_botevent",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "chat_botevent_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    eventType: varchar("event_type", { length: 50 }).notNull(),
-    productId: varchar("product_id", { length: 100 }),
-    productName: varchar("product_name", { length: 255 }),
-    category: varchar({ length: 255 }),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    threadId: uuid("thread_id").notNull(),
-    products: jsonb(),
-  },
-  (table) => [
-    index("botevent_thread_type_idx").using(
-      "btree",
-      table.threadId.asc().nullsLast().op("text_ops"),
-      table.eventType.asc().nullsLast().op("text_ops"),
-    ),
-    index("chat_botevent_thread_id_aad111f3").using(
-      "btree",
-      table.threadId.asc().nullsLast().op("uuid_ops"),
-    ),
-    foreignKey({
-      columns: [table.threadId],
-      foreignColumns: [chatThread.id],
-      name: "chat_botevent_thread_id_aad111f3_fk_chat_thread_id",
     }),
   ],
 );
@@ -1643,62 +2469,142 @@ export const userMetadata = pgTable(
   ],
 );
 
-export const fraudFlag = pgTable(
-  "fraud_flag",
+export const supportTicket = pgTable(
+  "support_ticket",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "fraud_flag_id_seq",
+      name: "support_ticket_id_seq",
       startWith: 1,
       increment: 1,
       minValue: 1,
       maxValue: 9223372036854775807,
       cache: 1,
     }),
-    flagType: varchar("flag_type", { length: 30 }).notNull(),
-    severity: varchar({ length: 10 }).notNull(),
-    userMessage: text("user_message").notNull(),
-    reason: varchar({ length: 500 }).notNull(),
+    status: varchar({ length: 20 }).notNull(),
+    subject: varchar({ length: 500 }).notNull(),
+    description: text().notNull(),
+    closedAt: timestamp("closed_at", { withTimezone: true, mode: "string" }),
+    resolvedAt: timestamp("resolved_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
     createdAt: timestamp("created_at", {
       withTimezone: true,
       mode: "string",
     }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    chatMessageId: bigint("chat_message_id", { mode: "number" }),
-    threadId: uuid("thread_id").notNull(),
+    customerId: bigint("customer_id", { mode: "number" }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+    threadId: uuid("thread_id"),
+    priority: varchar({ length: 10 }).notNull(),
+    channel: varchar({ length: 30 }).notNull(),
+    closedById: integer("closed_by_id"),
+    closedSource: varchar("closed_source", { length: 30 }),
+    isRead: boolean("is_read").notNull(),
+    resolvedById: integer("resolved_by_id"),
+    resolvedSource: varchar("resolved_source", { length: 30 }),
+    internalAssigneeId: integer("internal_assignee_id"),
+    snoozedAt: timestamp("snoozed_at", { withTimezone: true, mode: "string" }),
+    snoozedById: integer("snoozed_by_id"),
+    snoozedUntil: timestamp("snoozed_until", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    orderId: bigint("order_id", { mode: "number" }),
+    createdByType: varchar("created_by_type", { length: 20 }).notNull(),
+    language: varchar({ length: 10 }).notNull(),
+    sentiment: varchar({ length: 20 }).notNull(),
+    ticketId: varchar("ticket_id", { length: 50 }),
+    createdById: integer("created_by_id"),
+    reopenCount: integer("reopen_count").notNull(),
   },
   (table) => [
-    index("fraud_flag_chat_message_id_454a6d33").using(
+    index("support_tic_custome_b1ab40_idx").using(
       "btree",
-      table.chatMessageId.asc().nullsLast().op("int8_ops"),
+      table.customerId.asc().nullsLast().op("int8_ops"),
     ),
-    index("fraud_flag_flag_ty_bf4569_idx").using(
+    index("support_tic_status_363e60_idx").using(
       "btree",
-      table.flagType.asc().nullsLast().op("text_ops"),
+      table.status.asc().nullsLast().op("text_ops"),
     ),
-    index("fraud_flag_severit_271a2c_idx").using(
+    index("support_tic_store_i_9bc370_idx").using(
       "btree",
-      table.severity.asc().nullsLast().op("text_ops"),
+      table.storeId.asc().nullsLast().op("int8_ops"),
     ),
-    index("fraud_flag_thread__f0e650_idx").using(
+    index("support_tic_thread__d6c413_idx").using(
+      "btree",
+      table.threadId.asc().nullsLast().op("timestamptz_ops"),
+      table.createdAt.asc().nullsLast().op("uuid_ops"),
+    ),
+    index("support_ticket_closed_by_id_14e6833c").using(
+      "btree",
+      table.closedById.asc().nullsLast().op("int4_ops"),
+    ),
+    index("support_ticket_created_by_id_3fc59c9f").using(
+      "btree",
+      table.createdById.asc().nullsLast().op("int4_ops"),
+    ),
+    index("support_ticket_customer_id_21b0e471").using(
+      "btree",
+      table.customerId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("support_ticket_internal_assignee_id_195405d8").using(
+      "btree",
+      table.internalAssigneeId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("support_ticket_order_id_478cd7c5").using(
+      "btree",
+      table.orderId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("support_ticket_resolved_by_id_9fd48976").using(
+      "btree",
+      table.resolvedById.asc().nullsLast().op("int4_ops"),
+    ),
+    index("support_ticket_snoozed_by_id_0409463f").using(
+      "btree",
+      table.snoozedById.asc().nullsLast().op("int4_ops"),
+    ),
+    index("support_ticket_store_id_e4602dd4").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("support_ticket_thread_id_2978cb77").using(
       "btree",
       table.threadId.asc().nullsLast().op("uuid_ops"),
-      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
     ),
-    index("fraud_flag_thread_id_f2c39240").using(
+    index("support_ticket_ticket_id_1a256933_like").using(
       "btree",
-      table.threadId.asc().nullsLast().op("uuid_ops"),
+      table.ticketId.asc().nullsLast().op("varchar_pattern_ops"),
     ),
     foreignKey({
-      columns: [table.chatMessageId],
-      foreignColumns: [chatHistory.id],
-      name: "fraud_flag_chat_message_id_454a6d33_fk_chat_history_id",
+      columns: [table.customerId],
+      foreignColumns: [chatCustomer.id],
+      name: "support_ticket_customer_id_21b0e471_fk_chat_customer_id",
+    }),
+    foreignKey({
+      columns: [table.orderId],
+      foreignColumns: [chatCustomerorder.id],
+      name: "support_ticket_order_id_478cd7c5_fk_chat_customerorder_id",
+    }),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "support_ticket_store_id_e4602dd4_fk_store_id",
     }),
     foreignKey({
       columns: [table.threadId],
       foreignColumns: [chatThread.id],
-      name: "fraud_flag_thread_id_f2c39240_fk_chat_thread_id",
+      name: "support_ticket_thread_id_2978cb77_fk_chat_thread_id",
     }),
+    unique("support_ticket_ticket_id_key").on(table.ticketId),
+    check("support_ticket_reopen_count_check", sql`reopen_count >= 0`),
   ],
 );
 
@@ -1854,6 +2760,112 @@ export const chatCustomerorder = pgTable(
   ],
 );
 
+export const fraudFlag = pgTable(
+  "fraud_flag",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "fraud_flag_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    flagType: varchar("flag_type", { length: 30 }).notNull(),
+    severity: varchar({ length: 10 }).notNull(),
+    userMessage: text("user_message").notNull(),
+    reason: varchar({ length: 500 }).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    chatMessageId: bigint("chat_message_id", { mode: "number" }),
+    threadId: uuid("thread_id").notNull(),
+  },
+  (table) => [
+    index("fraud_flag_chat_message_id_454a6d33").using(
+      "btree",
+      table.chatMessageId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("fraud_flag_flag_ty_bf4569_idx").using(
+      "btree",
+      table.flagType.asc().nullsLast().op("text_ops"),
+    ),
+    index("fraud_flag_severit_271a2c_idx").using(
+      "btree",
+      table.severity.asc().nullsLast().op("text_ops"),
+    ),
+    index("fraud_flag_thread__f0e650_idx").using(
+      "btree",
+      table.threadId.asc().nullsLast().op("uuid_ops"),
+      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
+    ),
+    index("fraud_flag_thread_id_f2c39240").using(
+      "btree",
+      table.threadId.asc().nullsLast().op("uuid_ops"),
+    ),
+    foreignKey({
+      columns: [table.chatMessageId],
+      foreignColumns: [chatHistory.id],
+      name: "fraud_flag_chat_message_id_454a6d33_fk_chat_history_id",
+    }),
+    foreignKey({
+      columns: [table.threadId],
+      foreignColumns: [chatThread.id],
+      name: "fraud_flag_thread_id_f2c39240_fk_chat_thread_id",
+    }),
+  ],
+);
+
+export const storeCredentials = pgTable(
+  "store_credentials",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "store_credentials_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    baseUrl: varchar("base_url", { length: 200 }).notNull(),
+    storefrontToken: text("storefront_token"),
+    adminAccessToken: text("admin_access_token"),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+    adminTokenExpiresAt: timestamp("admin_token_expires_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    refreshToken: text("refresh_token"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    clientId: text("client_id"),
+    clientSecret: text("client_secret"),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "store_credentials_store_id_3c6945c8_fk_store_id",
+    }),
+    unique("store_credentials_store_id_key").on(table.storeId),
+  ],
+);
+
 export const ticketAttachment = pgTable(
   "ticket_attachment",
   {
@@ -1900,6 +2912,89 @@ export const ticketAttachment = pgTable(
       columns: [table.ticketId],
       foreignColumns: [supportTicket.id],
       name: "ticket_attachment_ticket_id_7b8af783_fk_support_ticket_id",
+    }),
+  ],
+);
+
+export const ticketMessage = pgTable(
+  "ticket_message",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "ticket_message_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    subject: varchar({ length: 500 }).notNull(),
+    message: text().notNull(),
+    senderType: varchar("sender_type", { length: 20 }).notNull(),
+    messageDirection: varchar("message_direction", { length: 30 }).notNull(),
+    messageType: varchar("message_type", { length: 30 }).notNull(),
+    platform: varchar({ length: 30 }).notNull(),
+    channel: varchar({ length: 30 }).notNull(),
+    contentType: varchar("content_type", { length: 30 }).notNull(),
+    metadata: jsonb().notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    agentId: integer("agent_id"),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    customerId: bigint("customer_id", { mode: "number" }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    ticketId: bigint("ticket_id", { mode: "number" }).notNull(),
+    externalId: varchar("external_id", { length: 255 }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    parentId: bigint("parent_id", { mode: "number" }),
+    parentExternalId: varchar("parent_external_id", { length: 255 }),
+  },
+  (table) => [
+    index("ticket_mess_platfor_f4aaf8_idx").using(
+      "btree",
+      table.platform.asc().nullsLast().op("text_ops"),
+    ),
+    index("ticket_mess_ticket__114d11_idx").using(
+      "btree",
+      table.ticketId.asc().nullsLast().op("int8_ops"),
+      table.createdAt.asc().nullsLast().op("int8_ops"),
+    ),
+    index("ticket_message_agent_id_ffbf1b97").using(
+      "btree",
+      table.agentId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("ticket_message_customer_id_9215514f").using(
+      "btree",
+      table.customerId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("ticket_message_parent_id_06b85df4").using(
+      "btree",
+      table.parentId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("ticket_message_ticket_id_16aa0082").using(
+      "btree",
+      table.ticketId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.customerId],
+      foreignColumns: [chatCustomer.id],
+      name: "ticket_message_customer_id_9215514f_fk_chat_customer_id",
+    }),
+    foreignKey({
+      columns: [table.parentId],
+      foreignColumns: [table.id],
+      name: "ticket_message_parent_id_06b85df4_fk_ticket_message_id",
+    }),
+    foreignKey({
+      columns: [table.ticketId],
+      foreignColumns: [supportTicket.id],
+      name: "ticket_message_ticket_id_16aa0082_fk_support_ticket_id",
     }),
   ],
 );
@@ -1954,276 +3049,6 @@ export const supportTicketChannel = pgTable(
       foreignColumns: [supportTicket.id],
       name: "support_ticket_channel_ticket_id_6d89b145_fk_support_ticket_id",
     }),
-  ],
-);
-
-export const ticketMessage = pgTable(
-  "ticket_message",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "ticket_message_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    subject: varchar({ length: 500 }).notNull(),
-    message: text().notNull(),
-    senderType: varchar("sender_type", { length: 20 }).notNull(),
-    messageDirection: varchar("message_direction", { length: 30 }).notNull(),
-    messageType: varchar("message_type", { length: 30 }).notNull(),
-    platform: varchar({ length: 30 }).notNull(),
-    channel: varchar({ length: 30 }).notNull(),
-    contentType: varchar("content_type", { length: 30 }).notNull(),
-    metadata: jsonb().notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    agentId: integer("agent_id"),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    customerId: bigint("customer_id", { mode: "number" }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    ticketId: bigint("ticket_id", { mode: "number" }).notNull(),
-    externalId: varchar("external_id", { length: 255 }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    parentId: bigint("parent_id", { mode: "number" }),
-    parentExternalId: varchar("parent_external_id", { length: 255 }),
-  },
-  (table): PgTableExtraConfigValue[] => [
-    index("ticket_mess_platfor_f4aaf8_idx").using(
-      "btree",
-      table.platform.asc().nullsLast().op("text_ops"),
-    ),
-    index("ticket_mess_ticket__114d11_idx").using(
-      "btree",
-      table.ticketId.asc().nullsLast().op("int8_ops"),
-      table.createdAt.asc().nullsLast().op("int8_ops"),
-    ),
-    index("ticket_message_agent_id_ffbf1b97").using(
-      "btree",
-      table.agentId.asc().nullsLast().op("int4_ops"),
-    ),
-    index("ticket_message_customer_id_9215514f").using(
-      "btree",
-      table.customerId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("ticket_message_parent_id_06b85df4").using(
-      "btree",
-      table.parentId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("ticket_message_ticket_id_16aa0082").using(
-      "btree",
-      table.ticketId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.customerId],
-      foreignColumns: [chatCustomer.id],
-      name: "ticket_message_customer_id_9215514f_fk_chat_customer_id",
-    }),
-    foreignKey({
-      columns: [table.parentId],
-      foreignColumns: [table.id],
-      name: "ticket_message_parent_id_06b85df4_fk_ticket_message_id",
-    }),
-    foreignKey({
-      columns: [table.ticketId],
-      foreignColumns: [supportTicket.id],
-      name: "ticket_message_ticket_id_16aa0082_fk_support_ticket_id",
-    }),
-  ],
-);
-
-export const supportTicket = pgTable(
-  "support_ticket",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "support_ticket_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    status: varchar({ length: 20 }).notNull(),
-    subject: varchar({ length: 500 }).notNull(),
-    description: text().notNull(),
-    closedAt: timestamp("closed_at", { withTimezone: true, mode: "string" }),
-    resolvedAt: timestamp("resolved_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    customerId: bigint("customer_id", { mode: "number" }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    storeId: bigint("store_id", { mode: "number" }).notNull(),
-    threadId: uuid("thread_id"),
-    priority: varchar({ length: 10 }).notNull(),
-    channel: varchar({ length: 30 }).notNull(),
-    closedById: integer("closed_by_id"),
-    closedSource: varchar("closed_source", { length: 30 }),
-    isRead: boolean("is_read").notNull(),
-    resolvedById: integer("resolved_by_id"),
-    resolvedSource: varchar("resolved_source", { length: 30 }),
-    internalAssigneeId: integer("internal_assignee_id"),
-    snoozedAt: timestamp("snoozed_at", { withTimezone: true, mode: "string" }),
-    snoozedById: integer("snoozed_by_id"),
-    snoozedUntil: timestamp("snoozed_until", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    orderId: bigint("order_id", { mode: "number" }),
-    createdByType: varchar("created_by_type", { length: 20 }).notNull(),
-    language: varchar({ length: 10 }).notNull(),
-    sentiment: varchar({ length: 20 }).notNull(),
-    ticketId: varchar("ticket_id", { length: 50 }),
-    createdById: integer("created_by_id"),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    firstAgentMessageId: bigint("first_agent_message_id", { mode: "number" }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    firstCustomerMessageId: bigint("first_customer_message_id", {
-      mode: "number",
-    }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    latestAgentMessageId: bigint("latest_agent_message_id", { mode: "number" }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    latestCustomerMessageId: bigint("latest_customer_message_id", {
-      mode: "number",
-    }),
-    reopenCount: integer("reopen_count").notNull(),
-  },
-  (table): PgTableExtraConfigValue[] => [
-    index("support_tic_custome_b1ab40_idx").using(
-      "btree",
-      table.customerId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("support_tic_status_363e60_idx").using(
-      "btree",
-      table.status.asc().nullsLast().op("text_ops"),
-    ),
-    index("support_tic_store_i_9bc370_idx").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("support_tic_thread__d6c413_idx").using(
-      "btree",
-      table.threadId.asc().nullsLast().op("timestamptz_ops"),
-      table.createdAt.asc().nullsLast().op("uuid_ops"),
-    ),
-    index("support_ticket_closed_by_id_14e6833c").using(
-      "btree",
-      table.closedById.asc().nullsLast().op("int4_ops"),
-    ),
-    index("support_ticket_created_by_id_3fc59c9f").using(
-      "btree",
-      table.createdById.asc().nullsLast().op("int4_ops"),
-    ),
-    index("support_ticket_customer_id_21b0e471").using(
-      "btree",
-      table.customerId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("support_ticket_first_agent_message_id_6cc7c9f4").using(
-      "btree",
-      table.firstAgentMessageId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("support_ticket_first_customer_message_id_d1c386dd").using(
-      "btree",
-      table.firstCustomerMessageId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("support_ticket_internal_assignee_id_195405d8").using(
-      "btree",
-      table.internalAssigneeId.asc().nullsLast().op("int4_ops"),
-    ),
-    index("support_ticket_latest_agent_message_id_f23f0fc1").using(
-      "btree",
-      table.latestAgentMessageId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("support_ticket_latest_customer_message_id_aceb02e4").using(
-      "btree",
-      table.latestCustomerMessageId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("support_ticket_order_id_478cd7c5").using(
-      "btree",
-      table.orderId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("support_ticket_resolved_by_id_9fd48976").using(
-      "btree",
-      table.resolvedById.asc().nullsLast().op("int4_ops"),
-    ),
-    index("support_ticket_snoozed_by_id_0409463f").using(
-      "btree",
-      table.snoozedById.asc().nullsLast().op("int4_ops"),
-    ),
-    index("support_ticket_store_id_e4602dd4").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("support_ticket_thread_id_2978cb77").using(
-      "btree",
-      table.threadId.asc().nullsLast().op("uuid_ops"),
-    ),
-    index("support_ticket_ticket_id_1a256933_like").using(
-      "btree",
-      table.ticketId.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    foreignKey({
-      columns: [table.customerId],
-      foreignColumns: [chatCustomer.id],
-      name: "support_ticket_customer_id_21b0e471_fk_chat_customer_id",
-    }),
-    foreignKey({
-      columns: [table.firstAgentMessageId],
-      foreignColumns: [ticketMessage.id],
-      name: "support_ticket_first_agent_message__6cc7c9f4_fk_ticket_me",
-    }),
-    foreignKey({
-      columns: [table.firstCustomerMessageId],
-      foreignColumns: [ticketMessage.id],
-      name: "support_ticket_first_customer_messa_d1c386dd_fk_ticket_me",
-    }),
-    foreignKey({
-      columns: [table.latestAgentMessageId],
-      foreignColumns: [ticketMessage.id],
-      name: "support_ticket_latest_agent_message_f23f0fc1_fk_ticket_me",
-    }),
-    foreignKey({
-      columns: [table.latestCustomerMessageId],
-      foreignColumns: [ticketMessage.id],
-      name: "support_ticket_latest_customer_mess_aceb02e4_fk_ticket_me",
-    }),
-    foreignKey({
-      columns: [table.orderId],
-      foreignColumns: [chatCustomerorder.id],
-      name: "support_ticket_order_id_478cd7c5_fk_chat_customerorder_id",
-    }),
-    foreignKey({
-      columns: [table.storeId],
-      foreignColumns: [store.id],
-      name: "support_ticket_store_id_e4602dd4_fk_store_id",
-    }),
-    foreignKey({
-      columns: [table.threadId],
-      foreignColumns: [chatThread.id],
-      name: "support_ticket_thread_id_2978cb77_fk_chat_thread_id",
-    }),
-    unique("support_ticket_ticket_id_key").on(table.ticketId),
-    check("support_ticket_reopen_count_check", sql`reopen_count >= 0`),
   ],
 );
 
@@ -2690,6 +3515,62 @@ export const personaIdentity = pgTable(
   ],
 );
 
+export const toneStyle = pgTable(
+  "tone_style",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "tone_style_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    presetId: bigint("preset_id", { mode: "number" }).notNull(),
+    warmth: smallint().notNull(),
+    formality: smallint().notNull(),
+    energy: smallint().notNull(),
+    playfulness: smallint().notNull(),
+    directness: smallint().notNull(),
+    answerLength: varchar("answer_length", { length: 10 }).notNull(),
+    regionalSpelling: varchar("regional_spelling", { length: 5 }).notNull(),
+    useBulletPoints: boolean("use_bullet_points").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+    emojiPolicy: varchar("emoji_policy", { length: 10 }).notNull(),
+    exclamationMarksPolicy: varchar("exclamation_marks_policy", {
+      length: 10,
+    }).notNull(),
+  },
+  (table) => [
+    index("tone_style_preset_id_4a487003").using(
+      "btree",
+      table.presetId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "tone_style_store_id_b6e0aeaf_fk_store_id",
+    }),
+    unique("tone_style_store_id_key").on(table.storeId),
+    check("tone_style_directness_check", sql`directness >= 0`),
+    check("tone_style_energy_check", sql`energy >= 0`),
+    check("tone_style_formality_check", sql`formality >= 0`),
+    check("tone_style_playfulness_check", sql`playfulness >= 0`),
+    check("tone_style_warmth_check", sql`warmth >= 0`),
+  ],
+);
+
 export const vocabularyWordReplacements = pgTable(
   "vocabulary_word_replacements",
   {
@@ -2757,28 +3638,22 @@ export const wordReplacement = pgTable("word_replacement", {
   }).notNull(),
 });
 
-export const toneStyle = pgTable(
-  "tone_style",
+export const chatHistory = pgTable(
+  "chat_history",
   {
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "tone_style_id_seq",
+      name: "chat_history_id_seq",
       startWith: 1,
       increment: 1,
       minValue: 1,
       maxValue: 9223372036854775807,
       cache: 1,
     }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    presetId: bigint("preset_id", { mode: "number" }).notNull(),
-    warmth: smallint().notNull(),
-    formality: smallint().notNull(),
-    energy: smallint().notNull(),
-    playfulness: smallint().notNull(),
-    directness: smallint().notNull(),
-    answerLength: varchar("answer_length", { length: 10 }).notNull(),
-    regionalSpelling: varchar("regional_spelling", { length: 5 }).notNull(),
-    useBulletPoints: boolean("use_bullet_points").notNull(),
+    role: varchar({ length: 20 }).notNull(),
+    jsonContent: jsonb("json_content").notNull(),
+    messageType: varchar("message_type", { length: 30 }).notNull(),
+    responseTime: doublePrecision("response_time").notNull(),
     createdAt: timestamp("created_at", {
       withTimezone: true,
       mode: "string",
@@ -2787,92 +3662,55 @@ export const toneStyle = pgTable(
       withTimezone: true,
       mode: "string",
     }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    storeId: bigint("store_id", { mode: "number" }).notNull(),
-    emojiPolicy: varchar("emoji_policy", { length: 10 }).notNull(),
-    exclamationMarksPolicy: varchar("exclamation_marks_policy", {
-      length: 10,
-    }).notNull(),
+    threadId: uuid("thread_id").notNull(),
+    workflow: varchar({ length: 100 }),
+    message: text().notNull(),
+    imageUrl: jsonb("image_url"),
+    messagedById: integer("messaged_by_id"),
+    totalCost: numeric("total_cost", { precision: 12, scale: 8 }).notNull(),
+    totalInputTokens: integer("total_input_tokens").notNull(),
+    totalOutputTokens: integer("total_output_tokens").notNull(),
+    confidence: doublePrecision(),
+    sourceUsed: varchar("source_used", { length: 255 }).notNull(),
   },
   (table) => [
-    index("tone_style_preset_id_4a487003").using(
+    index("chat_histor_created_2850f7_idx").using(
       "btree",
-      table.presetId.asc().nullsLast().op("int8_ops"),
+      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
+    ),
+    index("chat_histor_message_aee83b_idx").using(
+      "btree",
+      table.messageType.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_histor_role_2d2777_idx").using(
+      "btree",
+      table.role.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_histor_thread__381e32_idx").using(
+      "btree",
+      table.threadId.asc().nullsLast().op("uuid_ops"),
+    ),
+    index("chat_history_messaged_by_id_3c647c76").using(
+      "btree",
+      table.messagedById.asc().nullsLast().op("int4_ops"),
+    ),
+    index("chat_history_thread_id_4bac8b19").using(
+      "btree",
+      table.threadId.asc().nullsLast().op("uuid_ops"),
     ),
     foreignKey({
-      columns: [table.storeId],
-      foreignColumns: [store.id],
-      name: "tone_style_store_id_b6e0aeaf_fk_store_id",
+      columns: [table.threadId],
+      foreignColumns: [chatThread.id],
+      name: "chat_history_thread_id_4bac8b19_fk_chat_thread_id",
     }),
-    unique("tone_style_store_id_key").on(table.storeId),
-    check("tone_style_directness_check", sql`directness >= 0`),
-    check("tone_style_energy_check", sql`energy >= 0`),
-    check("tone_style_formality_check", sql`formality >= 0`),
-    check("tone_style_playfulness_check", sql`playfulness >= 0`),
-    check("tone_style_warmth_check", sql`warmth >= 0`),
-  ],
-);
-
-export const chatCustomer = pgTable(
-  "chat_customer",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "chat_customer_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    firstName: varchar("first_name", { length: 100 }).notNull(),
-    lastName: varchar("last_name", { length: 100 }).notNull(),
-    email: varchar({ length: 254 }).notNull(),
-    store: varchar({ length: 255 }),
-    customerId: varchar("customer_id", { length: 50 }).notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    acceptsEmailMarketing: boolean("accepts_email_marketing").notNull(),
-    acceptsSmsMarketing: boolean("accepts_sms_marketing").notNull(),
-    isEmailVerified: boolean("is_email_verified").notNull(),
-    metadata: jsonb().notNull(),
-    modifiedAt: timestamp("modified_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    ordersCount: integer("orders_count").notNull(),
-    phone: varchar({ length: 20 }).notNull(),
-    registeredAt: timestamp("registered_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    totalSpent: numeric("total_spent", { precision: 12, scale: 4 }).notNull(),
-  },
-  (table) => [
-    index("chat_customer_phone_aa304e3d").using(
-      "btree",
-      table.phone.asc().nullsLast().op("text_ops"),
+    check(
+      "chat_history_total_input_tokens_check",
+      sql`total_input_tokens >= 0`,
     ),
-    index("chat_customer_phone_aa304e3d_like").using(
-      "btree",
-      table.phone.asc().nullsLast().op("varchar_pattern_ops"),
+    check(
+      "chat_history_total_output_tokens_check",
+      sql`total_output_tokens >= 0`,
     ),
-    uniqueIndex("unique_customer_email_per_store")
-      .using(
-        "btree",
-        table.store.asc().nullsLast().op("text_ops"),
-        table.email.asc().nullsLast().op("text_ops"),
-      )
-      .where(
-        sql`((store IS NOT NULL) AND (NOT (((store)::text = ''::text) AND (store IS NOT NULL))) AND (NOT ((email)::text = ''::text)))`,
-      ),
-    check("chat_customer_orders_count_check", sql`orders_count >= 0`),
   ],
 );
 
@@ -3039,6 +3877,69 @@ export const socialConnectedAccount = pgTable(
       "social_connected_account_follows_count_check",
       sql`follows_count >= 0`,
     ),
+  ],
+);
+
+export const chatCustomer = pgTable(
+  "chat_customer",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "chat_customer_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    firstName: varchar("first_name", { length: 100 }).notNull(),
+    lastName: varchar("last_name", { length: 100 }).notNull(),
+    email: varchar({ length: 254 }).notNull(),
+    store: varchar({ length: 255 }),
+    customerId: varchar("customer_id", { length: 50 }).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    acceptsEmailMarketing: boolean("accepts_email_marketing").notNull(),
+    acceptsSmsMarketing: boolean("accepts_sms_marketing").notNull(),
+    isEmailVerified: boolean("is_email_verified").notNull(),
+    metadata: jsonb().notNull(),
+    modifiedAt: timestamp("modified_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    ordersCount: integer("orders_count").notNull(),
+    phone: varchar({ length: 20 }).notNull(),
+    registeredAt: timestamp("registered_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    totalSpent: numeric("total_spent", { precision: 12, scale: 4 }).notNull(),
+  },
+  (table) => [
+    index("chat_customer_phone_aa304e3d").using(
+      "btree",
+      table.phone.asc().nullsLast().op("text_ops"),
+    ),
+    index("chat_customer_phone_aa304e3d_like").using(
+      "btree",
+      table.phone.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    uniqueIndex("unique_customer_email_per_store")
+      .using(
+        "btree",
+        table.store.asc().nullsLast().op("text_ops"),
+        table.email.asc().nullsLast().op("text_ops"),
+      )
+      .where(
+        sql`((store IS NOT NULL) AND (NOT (((store)::text = ''::text) AND (store IS NOT NULL))) AND (NOT ((email)::text = ''::text)))`,
+      ),
+    check("chat_customer_orders_count_check", sql`orders_count >= 0`),
   ],
 );
 
@@ -3270,12 +4171,12 @@ export const socialMessage = pgTable(
     index("idx_msg_conversation").using(
       "btree",
       table.accountId.asc().nullsLast().op("int8_ops"),
-      table.socialUserId.asc().nullsLast().op("timestamptz_ops"),
+      table.socialUserId.asc().nullsLast().op("int8_ops"),
       table.externalCreatedAt.desc().nullsFirst().op("int8_ops"),
     ),
     index("idx_msg_post_created").using(
       "btree",
-      table.postId.asc().nullsLast().op("timestamptz_ops"),
+      table.postId.asc().nullsLast().op("int8_ops"),
       table.externalCreatedAt.desc().nullsFirst().op("int8_ops"),
     ),
     index("social_message_account_id_ded70efc").using(
@@ -3301,8 +4202,8 @@ export const socialMessage = pgTable(
     uniqueIndex("uniq_message_account_external")
       .using(
         "btree",
-        table.accountId.asc().nullsLast().op("text_ops"),
-        table.externalMessageId.asc().nullsLast().op("text_ops"),
+        table.accountId.asc().nullsLast().op("int8_ops"),
+        table.externalMessageId.asc().nullsLast().op("int8_ops"),
       )
       .where(sql`(NOT ((external_message_id)::text = ''::text))`),
     foreignKey({
@@ -3370,7 +4271,7 @@ export const socialWebhookEvent = pgTable(
     index("idx_webhook_event_status").using(
       "btree",
       table.status.asc().nullsLast().op("text_ops"),
-      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
+      table.createdAt.asc().nullsLast().op("text_ops"),
     ),
     index("social_webhook_event_account_id_619677e6").using(
       "btree",
@@ -3649,6 +4550,135 @@ export const socialCommentSetting = pgTable(
   ],
 );
 
+export const emailTemplate = pgTable(
+  "email_template",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "email_template_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    name: varchar({ length: 512 }).notNull(),
+    channelType: varchar("channel_type", { length: 20 }).notNull(),
+    heading: varchar({ length: 255 }).notNull(),
+    bodyText: text("body_text").notNull(),
+    footerText: varchar("footer_text", { length: 255 }).notNull(),
+    isActive: boolean("is_active").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    subject: varchar({ length: 255 }).notNull(),
+    preheader: varchar({ length: 255 }).notNull(),
+    accentColor: varchar("accent_color", { length: 7 }).notNull(),
+    icon: varchar({ length: 16 }).notNull(),
+    detailRows: jsonb("detail_rows").notNull(),
+    buttonLabel: varchar("button_label", { length: 40 }).notNull(),
+    buttonUrl: varchar("button_url", { length: 255 }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("email_template_store_id_c9101be2").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("idx_email_template_active").using(
+      "btree",
+      table.isActive.asc().nullsLast().op("bool_ops"),
+      table.updatedAt.desc().nullsFirst().op("timestamptz_ops"),
+    ),
+    index("idx_emailtemplate_store_act").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+      table.isActive.asc().nullsLast().op("int8_ops"),
+    ),
+    index("idx_emailtemplate_store_upd").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+      table.updatedAt.desc().nullsFirst().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "email_template_store_id_c9101be2_fk_store_id",
+    }),
+  ],
+);
+
+export const campaignSequence = pgTable(
+  "campaign_sequence",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "campaign_sequence_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    startTime: time("start_time").notNull(),
+    delayValue: integer("delay_value"),
+    stepOrder: integer("step_order").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    campaignId: bigint("campaign_id", { mode: "number" }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    emailTemplateId: bigint("email_template_id", { mode: "number" }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    whatsappTemplateId: bigint("whatsapp_template_id", { mode: "number" }),
+    scheduleName: varchar("schedule_name", { length: 255 }).notNull(),
+  },
+  (table) => [
+    index("campaign_sequence_campaign_id_888f18e2").using(
+      "btree",
+      table.campaignId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("campaign_sequence_email_template_id_b08912d0").using(
+      "btree",
+      table.emailTemplateId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("campaign_sequence_whatsapp_template_id_34ad576c").using(
+      "btree",
+      table.whatsappTemplateId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.campaignId],
+      foreignColumns: [campaign.id],
+      name: "campaign_sequence_campaign_id_888f18e2_fk_campaign_id",
+    }),
+    foreignKey({
+      columns: [table.emailTemplateId],
+      foreignColumns: [emailTemplate.id],
+      name: "campaign_sequence_email_template_id_b08912d0_fk_email_tem",
+    }),
+    foreignKey({
+      columns: [table.whatsappTemplateId],
+      foreignColumns: [whatsappTemplate.id],
+      name: "campaign_sequence_whatsapp_template_id_34ad576c_fk_whatsapp_",
+    }),
+    unique("uniq_campaign_step_order").on(table.stepOrder, table.campaignId),
+    check("campaign_sequence_delay_value_check", sql`delay_value >= 0`),
+    check("campaign_sequence_step_order_check", sql`step_order >= 0`),
+  ],
+);
+
 export const campaignSendLog = pgTable(
   "campaign_send_log",
   {
@@ -3727,7 +4757,7 @@ export const campaignSendLog = pgTable(
     ),
     index("idx_send_log_template").using(
       "btree",
-      table.metaTemplateId.asc().nullsLast().op("text_ops"),
+      table.metaTemplateId.asc().nullsLast().op("timestamptz_ops"),
       table.createdAt.asc().nullsLast().op("text_ops"),
     ),
     index("idx_send_log_trigger").using(
@@ -3765,6 +4795,342 @@ export const campaignSendLog = pgTable(
       foreignColumns: [supportTicket.id],
       name: "campaign_send_log_ticket_id_e6be29d1_fk_support_ticket_id",
     }),
+  ],
+);
+
+export const whatsappTemplate = pgTable(
+  "whatsapp_template",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "whatsapp_template_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    name: varchar({ length: 512 }).notNull(),
+    channelType: varchar("channel_type", { length: 20 }).notNull(),
+    heading: varchar({ length: 255 }).notNull(),
+    bodyText: text("body_text").notNull(),
+    footerText: varchar("footer_text", { length: 255 }).notNull(),
+    isActive: boolean("is_active").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    metaTemplateId: varchar("meta_template_id", { length: 64 }),
+    language: varchar({ length: 35 }).notNull(),
+    category: varchar({ length: 50 }).notNull(),
+    parameterFormat: varchar("parameter_format", { length: 20 }).notNull(),
+    headerFormat: varchar("header_format", { length: 20 }).notNull(),
+    headerText: varchar("header_text", { length: 60 }).notNull(),
+    buttonType: varchar("button_type", { length: 20 }).notNull(),
+    buttonText: varchar("button_text", { length: 25 }).notNull(),
+    buttonUrl: varchar("button_url", { length: 2000 }).notNull(),
+    buttonPhoneNumber: varchar("button_phone_number", { length: 20 }).notNull(),
+    status: varchar({ length: 30 }).notNull(),
+    rejectedReason: varchar("rejected_reason", { length: 255 }).notNull(),
+    lastSyncedAt: timestamp("last_synced_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    accountId: bigint("account_id", { mode: "number" }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("idx_wa_template_status").using(
+      "btree",
+      table.accountId.asc().nullsLast().op("int8_ops"),
+      table.status.asc().nullsLast().op("text_ops"),
+    ),
+    index("idx_whatsapptemplate_store_act").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+      table.isActive.asc().nullsLast().op("bool_ops"),
+    ),
+    index("idx_whatsapptemplate_store_upd").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("timestamptz_ops"),
+      table.updatedAt.desc().nullsFirst().op("timestamptz_ops"),
+    ),
+    uniqueIndex("uniq_whatsapp_template_account_name_language")
+      .using(
+        "btree",
+        table.accountId.asc().nullsLast().op("text_ops"),
+        table.name.asc().nullsLast().op("text_ops"),
+        table.language.asc().nullsLast().op("text_ops"),
+      )
+      .where(sql`(NOT ((status)::text = 'DRAFT'::text))`),
+    index("whatsapp_template_account_id_e77ee092").using(
+      "btree",
+      table.accountId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("whatsapp_template_meta_template_id_8a233f8e_like").using(
+      "btree",
+      table.metaTemplateId.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    index("whatsapp_template_store_id_141d171f").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.accountId],
+      foreignColumns: [socialConnectedAccount.id],
+      name: "whatsapp_template_account_id_e77ee092_fk_social_co",
+    }),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "whatsapp_template_store_id_141d171f_fk_store_id",
+    }),
+    unique("whatsapp_template_meta_template_id_key").on(table.metaTemplateId),
+  ],
+);
+
+export const segments = pgTable(
+  "segments",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "segments_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    name: varchar({ length: 255 }).notNull(),
+    timePeriod: integer("time_period").notNull(),
+    minPrice: numeric("min_price", { precision: 12, scale: 2 }).notNull(),
+    isActive: boolean("is_active").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    categoryId: bigint("category_id", { mode: "number" }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("idx_segment_detail_range").using(
+      "btree",
+      table.categoryId.asc().nullsLast().op("int4_ops"),
+      table.timePeriod.asc().nullsLast().op("int8_ops"),
+      table.minPrice.asc().nullsLast().op("numeric_ops"),
+    ),
+    index("idx_segment_detail_store").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("segments_category_id_bbd8a55b").using(
+      "btree",
+      table.categoryId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("segments_store_id_883580b3").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.categoryId],
+      foreignColumns: [segmentsCategory.id],
+      name: "segments_category_id_bbd8a55b_fk_segments_category_id",
+    }),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "segments_store_id_883580b3_fk_store_id",
+    }),
+    unique("uniq_segment_store_name").on(table.name, table.storeId),
+    check("segments_time_period_check", sql`time_period >= 0`),
+  ],
+);
+
+export const campaign = pgTable(
+  "campaign",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "campaign_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    name: varchar({ length: 255 }).notNull(),
+    status: varchar({ length: 20 }).notNull(),
+    isActive: boolean("is_active").notNull(),
+    startTime: time("start_time").notNull(),
+    continuousEntry: boolean("continuous_entry").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    segmentId: bigint("segment_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("campaign_segment_id_ae1b38ee").using(
+      "btree",
+      table.segmentId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("campaign_store_id_fa0bc8bb").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("idx_campaign_active").using(
+      "btree",
+      table.isActive.asc().nullsLast().op("bool_ops"),
+    ),
+    index("idx_campaign_status").using(
+      "btree",
+      table.status.asc().nullsLast().op("text_ops"),
+    ),
+    index("idx_campaign_store").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.segmentId],
+      foreignColumns: [segments.id],
+      name: "campaign_segment_id_ae1b38ee_fk_segments_id",
+    }),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "campaign_store_id_fa0bc8bb_fk_store_id",
+    }),
+    unique("uniq_campaign_store_name").on(table.name, table.storeId),
+  ],
+);
+
+export const templateAttachment = pgTable(
+  "template_attachment",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "template_attachment_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    file: varchar({ length: 255 }),
+    fileName: varchar("file_name", { length: 255 }).notNull(),
+    fileType: varchar("file_type", { length: 100 }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    fileSize: bigint("file_size", { mode: "number" }),
+    headerHandle: text("header_handle").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    templateId: bigint("template_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.templateId],
+      foreignColumns: [whatsappTemplate.id],
+      name: "template_attachment_template_id_2986255b_fk_whatsapp_",
+    }),
+    unique("template_attachment_template_id_key").on(table.templateId),
+    check("template_attachment_file_size_check", sql`file_size >= 0`),
+  ],
+);
+
+export const campaignStepRun = pgTable(
+  "campaign_step_run",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "campaign_step_run_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    jobId: uuid("job_id").notNull(),
+    runAt: timestamp("run_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    status: varchar({ length: 20 }).notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true, mode: "string" }),
+    completedAt: timestamp("completed_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    campaignId: bigint("campaign_id", { mode: "number" }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    sequenceStepId: bigint("sequence_step_id", { mode: "number" }).notNull(),
+    runDate: date("run_date").notNull(),
+  },
+  (table) => [
+    index("campaign_step_run_campaign_id_d7d63c67").using(
+      "btree",
+      table.campaignId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("campaign_step_run_sequence_step_id_f61a1032").using(
+      "btree",
+      table.sequenceStepId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("idx_step_run_status_time").using(
+      "btree",
+      table.status.asc().nullsLast().op("text_ops"),
+      table.runAt.asc().nullsLast().op("timestamptz_ops"),
+    ),
+    foreignKey({
+      columns: [table.campaignId],
+      foreignColumns: [campaign.id],
+      name: "campaign_step_run_campaign_id_d7d63c67_fk_campaign_id",
+    }),
+    foreignKey({
+      columns: [table.sequenceStepId],
+      foreignColumns: [campaignSequence.id],
+      name: "campaign_step_run_sequence_step_id_f61a1032_fk_campaign_",
+    }),
+    unique("campaign_step_run_job_id_key").on(table.jobId),
+    unique("uniq_campaign_step_day_run").on(
+      table.campaignId,
+      table.sequenceStepId,
+      table.runDate,
+    ),
   ],
 );
 
@@ -4052,6 +5418,88 @@ export const productVariant = pgTable(
   ],
 );
 
+export const productCategories = pgTable(
+  "product_categories",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "product_categories_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    productId: uuid("product_id").notNull(),
+    categoryId: uuid("category_id").notNull(),
+  },
+  (table) => [
+    index("product_categories_category_id_127e9bb3").using(
+      "btree",
+      table.categoryId.asc().nullsLast().op("uuid_ops"),
+    ),
+    index("product_categories_product_id_8862397f").using(
+      "btree",
+      table.productId.asc().nullsLast().op("uuid_ops"),
+    ),
+    foreignKey({
+      columns: [table.categoryId],
+      foreignColumns: [category.id],
+      name: "product_categories_category_id_127e9bb3_fk_category_id",
+    }),
+    foreignKey({
+      columns: [table.productId],
+      foreignColumns: [product.id],
+      name: "product_categories_product_id_8862397f_fk_product_id",
+    }),
+    unique("product_categories_product_id_category_id_7f37747d_uniq").on(
+      table.productId,
+      table.categoryId,
+    ),
+  ],
+);
+
+export const productCollections = pgTable(
+  "product_collections",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "product_collections_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    productId: uuid("product_id").notNull(),
+    collectionId: uuid("collection_id").notNull(),
+  },
+  (table) => [
+    index("product_collections_collection_id_14d63e2c").using(
+      "btree",
+      table.collectionId.asc().nullsLast().op("uuid_ops"),
+    ),
+    index("product_collections_product_id_44247de1").using(
+      "btree",
+      table.productId.asc().nullsLast().op("uuid_ops"),
+    ),
+    foreignKey({
+      columns: [table.collectionId],
+      foreignColumns: [collection.id],
+      name: "product_collections_collection_id_14d63e2c_fk_collection_id",
+    }),
+    foreignKey({
+      columns: [table.productId],
+      foreignColumns: [product.id],
+      name: "product_collections_product_id_44247de1_fk_product_id",
+    }),
+    unique("product_collections_product_id_collection_id_2a34cfcf_uniq").on(
+      table.productId,
+      table.collectionId,
+    ),
+  ],
+);
+
 export const knowledgeItemCategories = pgTable(
   "knowledge_item_categories",
   {
@@ -4278,1499 +5726,6 @@ export const knowledgeItem = pgTable(
   ],
 );
 
-export const aiUsage = pgTable(
-  "ai_usage",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "ai_usage_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    feature: varchar({ length: 50 }).notNull(),
-    isCustomerFacing: boolean("is_customer_facing").notNull(),
-    status: varchar({ length: 20 }).notNull(),
-    creditsCharged: smallint("credits_charged").notNull(),
-    storeCode: varchar("store_code", { length: 100 }).notNull(),
-    workflowId: varchar("workflow_id", { length: 100 }).notNull(),
-    referenceType: varchar("reference_type", { length: 50 }).notNull(),
-    referenceId: varchar("reference_id", { length: 64 }).notNull(),
-    inputTokens: integer("input_tokens").notNull(),
-    outputTokens: integer("output_tokens").notNull(),
-    totalTokens: integer("total_tokens").notNull(),
-    cachedInputTokens: integer("cached_input_tokens").notNull(),
-    cacheWriteTokens: integer("cache_write_tokens").notNull(),
-    reasoningTokens: integer("reasoning_tokens").notNull(),
-    cost: numeric({ precision: 12, scale: 8 }).notNull(),
-    latencyMs: doublePrecision("latency_ms").notNull(),
-    metadata: jsonb().notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    companyId: bigint("company_id", { mode: "number" }).notNull(),
-    performedById: integer("performed_by_id"),
-  },
-  (table) => [
-    index("ai_usage_company_a9d196_idx").using(
-      "btree",
-      table.companyId.asc().nullsLast().op("timestamptz_ops"),
-      table.createdAt.asc().nullsLast().op("int8_ops"),
-    ),
-    index("ai_usage_company_id_f69f5479").using(
-      "btree",
-      table.companyId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("ai_usage_feature_a01508_idx").using(
-      "btree",
-      table.feature.asc().nullsLast().op("text_ops"),
-    ),
-    index("ai_usage_performed_by_id_c8d0734d").using(
-      "btree",
-      table.performedById.asc().nullsLast().op("int4_ops"),
-    ),
-    index("ai_usage_referen_74deb0_idx").using(
-      "btree",
-      table.referenceType.asc().nullsLast().op("text_ops"),
-      table.referenceId.asc().nullsLast().op("text_ops"),
-    ),
-    index("ai_usage_store_c_d83866_idx").using(
-      "btree",
-      table.storeCode.asc().nullsLast().op("text_ops"),
-    ),
-    foreignKey({
-      columns: [table.companyId],
-      foreignColumns: [company.id],
-      name: "ai_usage_company_id_f69f5479_fk_company_id",
-    }),
-    foreignKey({
-      columns: [table.performedById],
-      foreignColumns: [authUser.id],
-      name: "ai_usage_performed_by_id_c8d0734d_fk_auth_user_id",
-    }),
-    check("ai_usage_cache_write_tokens_check", sql`cache_write_tokens >= 0`),
-    check("ai_usage_cached_input_tokens_check", sql`cached_input_tokens >= 0`),
-    check("ai_usage_credits_charged_check", sql`credits_charged >= 0`),
-    check("ai_usage_input_tokens_check", sql`input_tokens >= 0`),
-    check("ai_usage_output_tokens_check", sql`output_tokens >= 0`),
-    check("ai_usage_reasoning_tokens_check", sql`reasoning_tokens >= 0`),
-    check("ai_usage_total_tokens_check", sql`total_tokens >= 0`),
-  ],
-);
-
-export const aiAgentUsage = pgTable(
-  "ai_agent_usage",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "ai_agent_usage_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    agentId: varchar("agent_id", { length: 100 }).notNull(),
-    model: varchar({ length: 255 }).notNull(),
-    inputTokens: integer("input_tokens").notNull(),
-    outputTokens: integer("output_tokens").notNull(),
-    totalTokens: integer("total_tokens").notNull(),
-    cachedInputTokens: integer("cached_input_tokens").notNull(),
-    cacheWriteTokens: integer("cache_write_tokens").notNull(),
-    reasoningTokens: integer("reasoning_tokens").notNull(),
-    cost: numeric({ precision: 12, scale: 8 }).notNull(),
-    latencyMs: doublePrecision("latency_ms").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    usageId: bigint("usage_id", { mode: "number" }).notNull(),
-  },
-  (table) => [
-    index("ai_agent_us_agent_i_e44df3_idx").using(
-      "btree",
-      table.agentId.asc().nullsLast().op("text_ops"),
-    ),
-    index("ai_agent_us_model_713043_idx").using(
-      "btree",
-      table.model.asc().nullsLast().op("text_ops"),
-    ),
-    index("ai_agent_usage_usage_id_485f78da").using(
-      "btree",
-      table.usageId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.usageId],
-      foreignColumns: [aiUsage.id],
-      name: "ai_agent_usage_usage_id_485f78da_fk_ai_usage_id",
-    }),
-    check(
-      "ai_agent_usage_cache_write_tokens_check",
-      sql`cache_write_tokens >= 0`,
-    ),
-    check(
-      "ai_agent_usage_cached_input_tokens_check",
-      sql`cached_input_tokens >= 0`,
-    ),
-    check("ai_agent_usage_input_tokens_check", sql`input_tokens >= 0`),
-    check("ai_agent_usage_output_tokens_check", sql`output_tokens >= 0`),
-    check("ai_agent_usage_reasoning_tokens_check", sql`reasoning_tokens >= 0`),
-    check("ai_agent_usage_total_tokens_check", sql`total_tokens >= 0`),
-  ],
-);
-
-export const billingSubscription = pgTable(
-  "billing_subscription",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "billing_subscription_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    status: varchar({ length: 20 }).notNull(),
-    billingCycle: varchar("billing_cycle", { length: 10 }).notNull(),
-    monthlyCredits: integer("monthly_credits").notNull(),
-    price: numeric({ precision: 10, scale: 2 }).notNull(),
-    currency: varchar({ length: 3 }).notNull(),
-    isFree: boolean("is_free").notNull(),
-    startDate: date("start_date").notNull(),
-    endDate: date("end_date").notNull(),
-    isRecurring: boolean("is_recurring").notNull(),
-    recurringDate: date("recurring_date"),
-    recurringEndDate: date("recurring_end_date"),
-    cancelledAt: timestamp("cancelled_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    companyId: bigint("company_id", { mode: "number" }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    planId: bigint("plan_id", { mode: "number" }).notNull(),
-  },
-  (table) => [
-    index("billing_sub_company_aa8708_idx").using(
-      "btree",
-      table.companyId.asc().nullsLast().op("date_ops"),
-      table.startDate.asc().nullsLast().op("date_ops"),
-    ),
-    index("billing_sub_status_948046_idx").using(
-      "btree",
-      table.status.asc().nullsLast().op("text_ops"),
-    ),
-    index("billing_subscription_company_id_252addf5").using(
-      "btree",
-      table.companyId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("billing_subscription_plan_id_4e20d4ad").using(
-      "btree",
-      table.planId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.companyId],
-      foreignColumns: [company.id],
-      name: "billing_subscription_company_id_252addf5_fk_company_id",
-    }),
-    foreignKey({
-      columns: [table.planId],
-      foreignColumns: [subscriptionPlan.id],
-      name: "billing_subscription_plan_id_4e20d4ad_fk_subscription_plan_id",
-    }),
-    check(
-      "billing_subscription_monthly_credits_check",
-      sql`monthly_credits >= 0`,
-    ),
-  ],
-);
-
-export const subscriptionPlan = pgTable(
-  "subscription_plan",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "subscription_plan_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    name: varchar({ length: 100 }).notNull(),
-    code: varchar({ length: 50 }).notNull(),
-    description: varchar({ length: 255 }).notNull(),
-    monthlyCredits: integer("monthly_credits").notNull(),
-    monthlyPrice: numeric("monthly_price", {
-      precision: 10,
-      scale: 2,
-    }).notNull(),
-    yearlyPrice: numeric("yearly_price", { precision: 10, scale: 2 }),
-    currency: varchar({ length: 3 }).notNull(),
-    isFreePlan: boolean("is_free_plan").notNull(),
-    isActive: boolean("is_active").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-  },
-  (table) => [
-    index("subscription_plan_code_f80cd818_like").using(
-      "btree",
-      table.code.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    uniqueIndex("unique_active_free_plan")
-      .using("btree", table.isFreePlan.asc().nullsLast().op("bool_ops"))
-      .where(sql`(is_active AND is_free_plan)`),
-    unique("subscription_plan_code_key").on(table.code),
-    check("subscription_plan_monthly_credits_check", sql`monthly_credits >= 0`),
-  ],
-);
-
-export const billingTopUp = pgTable(
-  "billing_top_up",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "billing_top_up_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    credits: integer().notNull(),
-    price: numeric({ precision: 10, scale: 2 }).notNull(),
-    currency: varchar({ length: 3 }).notNull(),
-    reference: varchar({ length: 100 }).notNull(),
-    purchasedAt: timestamp("purchased_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    companyId: bigint("company_id", { mode: "number" }).notNull(),
-  },
-  (table) => [
-    index("billing_top_up_company_id_e337971d").using(
-      "btree",
-      table.companyId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.companyId],
-      foreignColumns: [company.id],
-      name: "billing_top_up_company_id_e337971d_fk_company_id",
-    }),
-    check("billing_top_up_credits_check", sql`credits >= 0`),
-  ],
-);
-
-export const billingCreditTransaction = pgTable(
-  "billing_credit_transaction",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "billing_credit_transaction_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    transactionType: varchar("transaction_type", { length: 20 }).notNull(),
-    credits: integer().notNull(),
-    description: varchar({ length: 255 }).notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    companyId: bigint("company_id", { mode: "number" }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    usageId: bigint("usage_id", { mode: "number" }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    subscriptionId: bigint("subscription_id", { mode: "number" }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    topUpId: bigint("top_up_id", { mode: "number" }),
-  },
-  (table) => [
-    index("billing_cre_company_f4f989_idx").using(
-      "btree",
-      table.companyId.asc().nullsLast().op("int8_ops"),
-      table.createdAt.asc().nullsLast().op("int8_ops"),
-    ),
-    index("billing_cre_transac_24f076_idx").using(
-      "btree",
-      table.transactionType.asc().nullsLast().op("text_ops"),
-    ),
-    index("billing_credit_transaction_company_id_651f71e9").using(
-      "btree",
-      table.companyId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("billing_credit_transaction_subscription_id_4715f0f6").using(
-      "btree",
-      table.subscriptionId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("billing_credit_transaction_top_up_id_a7bb0e04").using(
-      "btree",
-      table.topUpId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("billing_credit_transaction_usage_id_c481a920").using(
-      "btree",
-      table.usageId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.subscriptionId],
-      foreignColumns: [billingSubscription.id],
-      name: "billing_credit_trans_subscription_id_4715f0f6_fk_billing_s",
-    }),
-    foreignKey({
-      columns: [table.topUpId],
-      foreignColumns: [billingTopUp.id],
-      name: "billing_credit_trans_top_up_id_a7bb0e04_fk_billing_t",
-    }),
-    foreignKey({
-      columns: [table.companyId],
-      foreignColumns: [company.id],
-      name: "billing_credit_transaction_company_id_651f71e9_fk_company_id",
-    }),
-    foreignKey({
-      columns: [table.usageId],
-      foreignColumns: [aiUsage.id],
-      name: "billing_credit_transaction_usage_id_c481a920_fk_ai_usage_id",
-    }),
-  ],
-);
-
-export const productCategories = pgTable(
-  "product_categories",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "product_categories_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    productId: uuid("product_id").notNull(),
-    categoryId: uuid("category_id").notNull(),
-  },
-  (table) => [
-    index("product_categories_category_id_127e9bb3").using(
-      "btree",
-      table.categoryId.asc().nullsLast().op("uuid_ops"),
-    ),
-    index("product_categories_product_id_8862397f").using(
-      "btree",
-      table.productId.asc().nullsLast().op("uuid_ops"),
-    ),
-    foreignKey({
-      columns: [table.categoryId],
-      foreignColumns: [category.id],
-      name: "product_categories_category_id_127e9bb3_fk_category_id",
-    }),
-    foreignKey({
-      columns: [table.productId],
-      foreignColumns: [product.id],
-      name: "product_categories_product_id_8862397f_fk_product_id",
-    }),
-    unique("product_categories_product_id_category_id_7f37747d_uniq").on(
-      table.productId,
-      table.categoryId,
-    ),
-  ],
-);
-
-export const productCollections = pgTable(
-  "product_collections",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "product_collections_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    productId: uuid("product_id").notNull(),
-    collectionId: uuid("collection_id").notNull(),
-  },
-  (table) => [
-    index("product_collections_collection_id_14d63e2c").using(
-      "btree",
-      table.collectionId.asc().nullsLast().op("uuid_ops"),
-    ),
-    index("product_collections_product_id_44247de1").using(
-      "btree",
-      table.productId.asc().nullsLast().op("uuid_ops"),
-    ),
-    foreignKey({
-      columns: [table.collectionId],
-      foreignColumns: [collection.id],
-      name: "product_collections_collection_id_14d63e2c_fk_collection_id",
-    }),
-    foreignKey({
-      columns: [table.productId],
-      foreignColumns: [product.id],
-      name: "product_collections_product_id_44247de1_fk_product_id",
-    }),
-    unique("product_collections_product_id_collection_id_2a34cfcf_uniq").on(
-      table.productId,
-      table.collectionId,
-    ),
-  ],
-);
-
-export const citiesLightCountry = pgTable(
-  "cities_light_country",
-  {
-    id: integer().primaryKey().generatedByDefaultAsIdentity({
-      name: "cities_light_country_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 2147483647,
-      cache: 1,
-    }),
-    nameAscii: varchar("name_ascii", { length: 200 }).notNull(),
-    slug: varchar({ length: 50 }).notNull(),
-    geonameId: integer("geoname_id"),
-    alternateNames: text("alternate_names"),
-    name: varchar({ length: 200 }).notNull(),
-    code2: varchar({ length: 2 }),
-    code3: varchar({ length: 3 }),
-    continent: varchar({ length: 2 }).notNull(),
-    tld: varchar({ length: 5 }).notNull(),
-    phone: varchar({ length: 20 }),
-    translations: jsonb().notNull(),
-  },
-  (table) => [
-    index("cities_light_country_code2_69c32e9a_like").using(
-      "btree",
-      table.code2.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_country_code3_89d251fa_like").using(
-      "btree",
-      table.code3.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_country_continent_e2c412a4").using(
-      "btree",
-      table.continent.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_country_continent_e2c412a4_like").using(
-      "btree",
-      table.continent.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_country_name_1d61d0d2").using(
-      "btree",
-      table.name.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_country_name_1d61d0d2_like").using(
-      "btree",
-      table.name.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_country_name_ascii_648cc5e3").using(
-      "btree",
-      table.nameAscii.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_country_name_ascii_648cc5e3_like").using(
-      "btree",
-      table.nameAscii.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_country_slug_3707a22c").using(
-      "btree",
-      table.slug.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_country_slug_3707a22c_like").using(
-      "btree",
-      table.slug.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_country_tld_1fb2faaa").using(
-      "btree",
-      table.tld.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_country_tld_1fb2faaa_like").using(
-      "btree",
-      table.tld.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    unique("cities_light_country_geoname_id_key").on(table.geonameId),
-    unique("cities_light_country_code2_key").on(table.code2),
-    unique("cities_light_country_code3_key").on(table.code3),
-  ],
-);
-
-export const citiesLightRegion = pgTable(
-  "cities_light_region",
-  {
-    id: integer().primaryKey().generatedByDefaultAsIdentity({
-      name: "cities_light_region_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 2147483647,
-      cache: 1,
-    }),
-    nameAscii: varchar("name_ascii", { length: 200 }).notNull(),
-    slug: varchar({ length: 50 }).notNull(),
-    geonameId: integer("geoname_id"),
-    alternateNames: text("alternate_names"),
-    name: varchar({ length: 200 }).notNull(),
-    displayName: varchar("display_name", { length: 200 }).notNull(),
-    geonameCode: varchar("geoname_code", { length: 50 }),
-    countryId: integer("country_id").notNull(),
-    translations: jsonb().notNull(),
-  },
-  (table) => [
-    index("cities_light_region_country_id_b2782d49").using(
-      "btree",
-      table.countryId.asc().nullsLast().op("int4_ops"),
-    ),
-    index("cities_light_region_geoname_code_1b0d4e58").using(
-      "btree",
-      table.geonameCode.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_region_geoname_code_1b0d4e58_like").using(
-      "btree",
-      table.geonameCode.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_region_name_775f9496").using(
-      "btree",
-      table.name.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_region_name_775f9496_like").using(
-      "btree",
-      table.name.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_region_name_ascii_f085cb82").using(
-      "btree",
-      table.nameAscii.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_region_name_ascii_f085cb82_like").using(
-      "btree",
-      table.nameAscii.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_region_slug_1653969f").using(
-      "btree",
-      table.slug.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_region_slug_1653969f_like").using(
-      "btree",
-      table.slug.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    foreignKey({
-      columns: [table.countryId],
-      foreignColumns: [citiesLightCountry.id],
-      name: "cities_light_region_country_id_b2782d49_fk_cities_li",
-    }),
-    unique("cities_light_region_country_id_slug_3dd02103_uniq").on(
-      table.slug,
-      table.countryId,
-    ),
-    unique("cities_light_region_geoname_id_key").on(table.geonameId),
-    unique("cities_light_region_country_id_name_6e5b3799_uniq").on(
-      table.name,
-      table.countryId,
-    ),
-  ],
-);
-
-export const citiesLightCity = pgTable(
-  "cities_light_city",
-  {
-    id: integer().primaryKey().generatedByDefaultAsIdentity({
-      name: "cities_light_city_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 2147483647,
-      cache: 1,
-    }),
-    nameAscii: varchar("name_ascii", { length: 200 }).notNull(),
-    slug: varchar({ length: 50 }).notNull(),
-    geonameId: integer("geoname_id"),
-    alternateNames: text("alternate_names"),
-    name: varchar({ length: 200 }).notNull(),
-    displayName: varchar("display_name", { length: 200 }).notNull(),
-    searchNames: text("search_names").notNull(),
-    latitude: numeric({ precision: 8, scale: 5 }),
-    longitude: numeric({ precision: 8, scale: 5 }),
-    regionId: integer("region_id"),
-    countryId: integer("country_id").notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    population: bigint({ mode: "number" }),
-    featureCode: varchar("feature_code", { length: 10 }),
-    timezone: varchar({ length: 40 }),
-    subregionId: integer("subregion_id"),
-    translations: jsonb().notNull(),
-  },
-  (table) => [
-    index("cities_light_city_country_id_cf310fd2").using(
-      "btree",
-      table.countryId.asc().nullsLast().op("int4_ops"),
-    ),
-    index("cities_light_city_feature_code_d43c9217").using(
-      "btree",
-      table.featureCode.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_city_feature_code_d43c9217_like").using(
-      "btree",
-      table.featureCode.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_city_name_4859e2a5").using(
-      "btree",
-      table.name.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_city_name_4859e2a5_like").using(
-      "btree",
-      table.name.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_city_name_ascii_1e56323b").using(
-      "btree",
-      table.nameAscii.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_city_name_ascii_1e56323b_like").using(
-      "btree",
-      table.nameAscii.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_city_population_d597eeb6").using(
-      "btree",
-      table.population.asc().nullsLast().op("int8_ops"),
-    ),
-    index("cities_light_city_region_id_f7ab977b").using(
-      "btree",
-      table.regionId.asc().nullsLast().op("int4_ops"),
-    ),
-    index("cities_light_city_slug_cb2251f8").using(
-      "btree",
-      table.slug.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_city_slug_cb2251f8_like").using(
-      "btree",
-      table.slug.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_city_subregion_id_0926d2ad").using(
-      "btree",
-      table.subregionId.asc().nullsLast().op("int4_ops"),
-    ),
-    index("cities_light_city_timezone_0fb51b1e").using(
-      "btree",
-      table.timezone.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_city_timezone_0fb51b1e_like").using(
-      "btree",
-      table.timezone.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    foreignKey({
-      columns: [table.countryId],
-      foreignColumns: [citiesLightCountry.id],
-      name: "cities_light_city_country_id_cf310fd2_fk_cities_li",
-    }),
-    foreignKey({
-      columns: [table.regionId],
-      foreignColumns: [citiesLightRegion.id],
-      name: "cities_light_city_region_id_f7ab977b_fk_cities_light_region_id",
-    }),
-    foreignKey({
-      columns: [table.subregionId],
-      foreignColumns: [citiesLightSubregion.id],
-      name: "cities_light_city_subregion_id_0926d2ad_fk_cities_li",
-    }),
-    unique("cities_light_city_region_id_subregion_id_slug_efb2e768_uniq").on(
-      table.slug,
-      table.regionId,
-      table.subregionId,
-    ),
-    unique("cities_light_city_geoname_id_key").on(table.geonameId),
-    unique("cities_light_city_region_id_subregion_id_name_cdfc77ea_uniq").on(
-      table.name,
-      table.regionId,
-      table.subregionId,
-    ),
-  ],
-);
-
-export const citiesLightSubregion = pgTable(
-  "cities_light_subregion",
-  {
-    id: integer().primaryKey().generatedByDefaultAsIdentity({
-      name: "cities_light_subregion_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 2147483647,
-      cache: 1,
-    }),
-    name: varchar({ length: 200 }).notNull(),
-    nameAscii: varchar("name_ascii", { length: 200 }).notNull(),
-    slug: varchar({ length: 50 }).notNull(),
-    geonameId: integer("geoname_id"),
-    alternateNames: text("alternate_names"),
-    displayName: varchar("display_name", { length: 200 }).notNull(),
-    geonameCode: varchar("geoname_code", { length: 50 }),
-    countryId: integer("country_id").notNull(),
-    regionId: integer("region_id"),
-    translations: jsonb().notNull(),
-  },
-  (table) => [
-    index("cities_light_subregion_country_id_9b32b484").using(
-      "btree",
-      table.countryId.asc().nullsLast().op("int4_ops"),
-    ),
-    index("cities_light_subregion_geoname_code_843acdc3").using(
-      "btree",
-      table.geonameCode.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_subregion_geoname_code_843acdc3_like").using(
-      "btree",
-      table.geonameCode.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_subregion_name_2882337e").using(
-      "btree",
-      table.name.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_subregion_name_2882337e_like").using(
-      "btree",
-      table.name.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_subregion_name_ascii_ecf9a336").using(
-      "btree",
-      table.nameAscii.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_subregion_name_ascii_ecf9a336_like").using(
-      "btree",
-      table.nameAscii.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("cities_light_subregion_region_id_c6e0b71f").using(
-      "btree",
-      table.regionId.asc().nullsLast().op("int4_ops"),
-    ),
-    index("cities_light_subregion_slug_43494546").using(
-      "btree",
-      table.slug.asc().nullsLast().op("text_ops"),
-    ),
-    index("cities_light_subregion_slug_43494546_like").using(
-      "btree",
-      table.slug.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    foreignKey({
-      columns: [table.countryId],
-      foreignColumns: [citiesLightCountry.id],
-      name: "cities_light_subregi_country_id_9b32b484_fk_cities_li",
-    }),
-    foreignKey({
-      columns: [table.regionId],
-      foreignColumns: [citiesLightRegion.id],
-      name: "cities_light_subregi_region_id_c6e0b71f_fk_cities_li",
-    }),
-    unique("cities_light_subregion_geoname_id_key").on(table.geonameId),
-  ],
-);
-
-export const company = pgTable(
-  "company",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "company_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    schemaName: varchar("schema_name", { length: 63 }).notNull(),
-    name: varchar({ length: 255 }).notNull(),
-    logo: varchar({ length: 255 }),
-    email: varchar({ length: 254 }),
-    phone: varchar({ length: 20 }),
-    street: varchar({ length: 255 }),
-    isActive: boolean("is_active").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    onboardingPending: boolean("onboarding_pending").notNull(),
-    onboardingStep: varchar("onboarding_step", { length: 32 }).notNull(),
-    countryId: integer("country_id"),
-    stateId: integer("state_id"),
-    cityId: integer("city_id"),
-  },
-  (table) => [
-    index("company_city_id_bf231d2e").using(
-      "btree",
-      table.cityId.asc().nullsLast().op("int4_ops"),
-    ),
-    index("company_country_id_3fe7e9da").using(
-      "btree",
-      table.countryId.asc().nullsLast().op("int4_ops"),
-    ),
-    index("company_name_5abe57d9_like").using(
-      "btree",
-      table.name.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("company_schema_name_09f104c8_like").using(
-      "btree",
-      table.schemaName.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("company_state_id_b89c18c4").using(
-      "btree",
-      table.stateId.asc().nullsLast().op("int4_ops"),
-    ),
-    unique("company_schema_name_key").on(table.schemaName),
-    unique("company_name_key").on(table.name),
-  ],
-);
-
-export const coreAutoSendRule = pgTable(
-  "core_auto_send_rule",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "core_auto_send_rule_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    templateName: varchar("template_name", { length: 512 }).notNull(),
-    eventType: varchar("event_type", { length: 30 }).notNull(),
-    isActive: boolean("is_active").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-  },
-  (table) => [
-    unique("uniq_auto_send_rule_name_event").on(
-      table.templateName,
-      table.eventType,
-    ),
-  ],
-);
-
-export const emailTemplate = pgTable(
-  "email_template",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "email_template_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    name: varchar({ length: 512 }).notNull(),
-    channelType: varchar("channel_type", { length: 20 }).notNull(),
-    heading: varchar({ length: 255 }).notNull(),
-    bodyText: text("body_text").notNull(),
-    footerText: varchar("footer_text", { length: 255 }).notNull(),
-    isActive: boolean("is_active").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    subject: varchar({ length: 255 }).notNull(),
-    preheader: varchar({ length: 255 }).notNull(),
-    accentColor: varchar("accent_color", { length: 7 }).notNull(),
-    icon: varchar({ length: 16 }).notNull(),
-    detailRows: jsonb("detail_rows").notNull(),
-    buttonLabel: varchar("button_label", { length: 40 }).notNull(),
-    buttonUrl: varchar("button_url", { length: 255 }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    storeId: bigint("store_id", { mode: "number" }).notNull(),
-  },
-  (table) => [
-    index("email_template_store_id_c9101be2").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("idx_email_template_active").using(
-      "btree",
-      table.isActive.asc().nullsLast().op("bool_ops"),
-      table.updatedAt.desc().nullsFirst().op("timestamptz_ops"),
-    ),
-    index("idx_emailtemplate_store_act").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-      table.isActive.asc().nullsLast().op("int8_ops"),
-    ),
-    index("idx_emailtemplate_store_upd").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-      table.updatedAt.desc().nullsFirst().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.storeId],
-      foreignColumns: [store.id],
-      name: "email_template_store_id_c9101be2_fk_store_id",
-    }),
-  ],
-);
-
-export const whatsappTemplate = pgTable(
-  "whatsapp_template",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "whatsapp_template_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    name: varchar({ length: 512 }).notNull(),
-    channelType: varchar("channel_type", { length: 20 }).notNull(),
-    heading: varchar({ length: 255 }).notNull(),
-    bodyText: text("body_text").notNull(),
-    footerText: varchar("footer_text", { length: 255 }).notNull(),
-    isActive: boolean("is_active").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    metaTemplateId: varchar("meta_template_id", { length: 64 }),
-    language: varchar({ length: 35 }).notNull(),
-    category: varchar({ length: 50 }).notNull(),
-    parameterFormat: varchar("parameter_format", { length: 20 }).notNull(),
-    headerFormat: varchar("header_format", { length: 20 }).notNull(),
-    headerText: varchar("header_text", { length: 60 }).notNull(),
-    buttonType: varchar("button_type", { length: 20 }).notNull(),
-    buttonText: varchar("button_text", { length: 25 }).notNull(),
-    buttonUrl: varchar("button_url", { length: 2000 }).notNull(),
-    buttonPhoneNumber: varchar("button_phone_number", { length: 20 }).notNull(),
-    status: varchar({ length: 30 }).notNull(),
-    rejectedReason: varchar("rejected_reason", { length: 255 }).notNull(),
-    lastSyncedAt: timestamp("last_synced_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    accountId: bigint("account_id", { mode: "number" }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    storeId: bigint("store_id", { mode: "number" }).notNull(),
-  },
-  (table) => [
-    index("idx_wa_template_status").using(
-      "btree",
-      table.accountId.asc().nullsLast().op("int8_ops"),
-      table.status.asc().nullsLast().op("text_ops"),
-    ),
-    index("idx_whatsapptemplate_store_act").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("bool_ops"),
-      table.isActive.asc().nullsLast().op("int8_ops"),
-    ),
-    index("idx_whatsapptemplate_store_upd").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-      table.updatedAt.desc().nullsFirst().op("timestamptz_ops"),
-    ),
-    uniqueIndex("uniq_whatsapp_template_account_name_language")
-      .using(
-        "btree",
-        table.accountId.asc().nullsLast().op("int8_ops"),
-        table.name.asc().nullsLast().op("text_ops"),
-        table.language.asc().nullsLast().op("int8_ops"),
-      )
-      .where(sql`(NOT ((status)::text = 'DRAFT'::text))`),
-    index("whatsapp_template_account_id_e77ee092").using(
-      "btree",
-      table.accountId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("whatsapp_template_meta_template_id_8a233f8e_like").using(
-      "btree",
-      table.metaTemplateId.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("whatsapp_template_store_id_141d171f").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.accountId],
-      foreignColumns: [socialConnectedAccount.id],
-      name: "whatsapp_template_account_id_e77ee092_fk_social_co",
-    }),
-    foreignKey({
-      columns: [table.storeId],
-      foreignColumns: [store.id],
-      name: "whatsapp_template_store_id_141d171f_fk_store_id",
-    }),
-    unique("whatsapp_template_meta_template_id_key").on(table.metaTemplateId),
-  ],
-);
-
-export const segmentsCategory = pgTable(
-  "segments_category",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "segments_category_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    name: varchar({ length: 255 }).notNull(),
-    slug: varchar({ length: 255 }).notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-  },
-  (table) => [
-    index("segments_category_name_e3b6faf1_like").using(
-      "btree",
-      table.name.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("segments_category_slug_d9b5b3a7_like").using(
-      "btree",
-      table.slug.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    unique("segments_category_name_key").on(table.name),
-    unique("segments_category_slug_key").on(table.slug),
-  ],
-);
-
-export const segments = pgTable(
-  "segments",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "segments_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    name: varchar({ length: 255 }).notNull(),
-    timePeriod: integer("time_period").notNull(),
-    minPrice: numeric("min_price", { precision: 12, scale: 2 }).notNull(),
-    isActive: boolean("is_active").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    categoryId: bigint("category_id", { mode: "number" }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    storeId: bigint("store_id", { mode: "number" }).notNull(),
-  },
-  (table) => [
-    index("idx_segment_detail_range").using(
-      "btree",
-      table.categoryId.asc().nullsLast().op("int4_ops"),
-      table.timePeriod.asc().nullsLast().op("int8_ops"),
-      table.minPrice.asc().nullsLast().op("numeric_ops"),
-    ),
-    index("idx_segment_detail_store").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("segments_category_id_bbd8a55b").using(
-      "btree",
-      table.categoryId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("segments_store_id_883580b3").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.categoryId],
-      foreignColumns: [segmentsCategory.id],
-      name: "segments_category_id_bbd8a55b_fk_segments_category_id",
-    }),
-    foreignKey({
-      columns: [table.storeId],
-      foreignColumns: [store.id],
-      name: "segments_store_id_883580b3_fk_store_id",
-    }),
-    unique("uniq_segment_store_name").on(table.name, table.storeId),
-    check("segments_time_period_check", sql`time_period >= 0`),
-  ],
-);
-
-export const campaign = pgTable(
-  "campaign",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "campaign_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    name: varchar({ length: 255 }).notNull(),
-    status: varchar({ length: 20 }).notNull(),
-    isActive: boolean("is_active").notNull(),
-    startTime: time("start_time").notNull(),
-    continuousEntry: boolean("continuous_entry").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    storeId: bigint("store_id", { mode: "number" }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    segmentId: bigint("segment_id", { mode: "number" }).notNull(),
-  },
-  (table) => [
-    index("campaign_segment_id_ae1b38ee").using(
-      "btree",
-      table.segmentId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("campaign_store_id_fa0bc8bb").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("idx_campaign_active").using(
-      "btree",
-      table.isActive.asc().nullsLast().op("bool_ops"),
-    ),
-    index("idx_campaign_status").using(
-      "btree",
-      table.status.asc().nullsLast().op("text_ops"),
-    ),
-    index("idx_campaign_store").using(
-      "btree",
-      table.storeId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.segmentId],
-      foreignColumns: [segments.id],
-      name: "campaign_segment_id_ae1b38ee_fk_segments_id",
-    }),
-    foreignKey({
-      columns: [table.storeId],
-      foreignColumns: [store.id],
-      name: "campaign_store_id_fa0bc8bb_fk_store_id",
-    }),
-    unique("uniq_campaign_store_name").on(table.name, table.storeId),
-  ],
-);
-
-export const templateAttachment = pgTable(
-  "template_attachment",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "template_attachment_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    file: varchar({ length: 255 }),
-    fileName: varchar("file_name", { length: 255 }).notNull(),
-    fileType: varchar("file_type", { length: 100 }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    fileSize: bigint("file_size", { mode: "number" }),
-    headerHandle: text("header_handle").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    templateId: bigint("template_id", { mode: "number" }).notNull(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.templateId],
-      foreignColumns: [whatsappTemplate.id],
-      name: "template_attachment_template_id_2986255b_fk_whatsapp_",
-    }),
-    unique("template_attachment_template_id_key").on(table.templateId),
-    check("template_attachment_file_size_check", sql`file_size >= 0`),
-  ],
-);
-
-export const campaignSequence = pgTable(
-  "campaign_sequence",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "campaign_sequence_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    startTime: time("start_time").notNull(),
-    delayValue: integer("delay_value"),
-    stepOrder: integer("step_order").notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    campaignId: bigint("campaign_id", { mode: "number" }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    emailTemplateId: bigint("email_template_id", { mode: "number" }),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    whatsappTemplateId: bigint("whatsapp_template_id", { mode: "number" }),
-    scheduleName: varchar("schedule_name", { length: 255 }).notNull(),
-  },
-  (table) => [
-    index("campaign_sequence_campaign_id_888f18e2").using(
-      "btree",
-      table.campaignId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("campaign_sequence_email_template_id_b08912d0").using(
-      "btree",
-      table.emailTemplateId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("campaign_sequence_whatsapp_template_id_34ad576c").using(
-      "btree",
-      table.whatsappTemplateId.asc().nullsLast().op("int8_ops"),
-    ),
-    foreignKey({
-      columns: [table.campaignId],
-      foreignColumns: [campaign.id],
-      name: "campaign_sequence_campaign_id_888f18e2_fk_campaign_id",
-    }),
-    foreignKey({
-      columns: [table.emailTemplateId],
-      foreignColumns: [emailTemplate.id],
-      name: "campaign_sequence_email_template_id_b08912d0_fk_email_tem",
-    }),
-    foreignKey({
-      columns: [table.whatsappTemplateId],
-      foreignColumns: [whatsappTemplate.id],
-      name: "campaign_sequence_whatsapp_template_id_34ad576c_fk_whatsapp_",
-    }),
-    unique("uniq_campaign_step_order").on(table.stepOrder, table.campaignId),
-    check("campaign_sequence_delay_value_check", sql`delay_value >= 0`),
-    check("campaign_sequence_step_order_check", sql`step_order >= 0`),
-  ],
-);
-
-export const campaignStepRun = pgTable(
-  "campaign_step_run",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "campaign_step_run_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    jobId: uuid("job_id").notNull(),
-    runAt: timestamp("run_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    status: varchar({ length: 20 }).notNull(),
-    startedAt: timestamp("started_at", { withTimezone: true, mode: "string" }),
-    completedAt: timestamp("completed_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    errorMessage: text("error_message"),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    campaignId: bigint("campaign_id", { mode: "number" }).notNull(),
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    sequenceStepId: bigint("sequence_step_id", { mode: "number" }).notNull(),
-    runDate: date("run_date").notNull(),
-  },
-  (table) => [
-    index("campaign_step_run_campaign_id_d7d63c67").using(
-      "btree",
-      table.campaignId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("campaign_step_run_sequence_step_id_f61a1032").using(
-      "btree",
-      table.sequenceStepId.asc().nullsLast().op("int8_ops"),
-    ),
-    index("idx_step_run_status_time").using(
-      "btree",
-      table.status.asc().nullsLast().op("text_ops"),
-      table.runAt.asc().nullsLast().op("timestamptz_ops"),
-    ),
-    foreignKey({
-      columns: [table.campaignId],
-      foreignColumns: [campaign.id],
-      name: "campaign_step_run_campaign_id_d7d63c67_fk_campaign_id",
-    }),
-    foreignKey({
-      columns: [table.sequenceStepId],
-      foreignColumns: [campaignSequence.id],
-      name: "campaign_step_run_sequence_step_id_f61a1032_fk_campaign_",
-    }),
-    unique("campaign_step_run_job_id_key").on(table.jobId),
-    unique("uniq_campaign_step_day_run").on(
-      table.campaignId,
-      table.sequenceStepId,
-      table.runDate,
-    ),
-  ],
-);
-
-export const userAuthState = pgTable(
-  "user_auth_state",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "user_auth_state_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    tokenVersion: integer("token_version").notNull(),
-    resetLinkVersion: integer("reset_link_version").notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    userId: integer("user_id").notNull(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.userId],
-      foreignColumns: [authUser.id],
-      name: "user_auth_state_user_id_9adf108d_fk_auth_user_id",
-    }),
-    unique("user_auth_state_user_id_key").on(table.userId),
-    check(
-      "user_auth_state_reset_link_version_check",
-      sql`reset_link_version >= 0`,
-    ),
-    check("user_auth_state_token_version_check", sql`token_version >= 0`),
-  ],
-);
-
-export const revokedToken = pgTable(
-  "revoked_token",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "revoked_token_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    jti: varchar({ length: 255 }).notNull(),
-    expiresAt: timestamp("expires_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    userId: integer("user_id").notNull(),
-  },
-  (table) => [
-    index("revoked_token_expires_at_a7f23f4d").using(
-      "btree",
-      table.expiresAt.asc().nullsLast().op("timestamptz_ops"),
-    ),
-    index("revoked_token_jti_85422f2f_like").using(
-      "btree",
-      table.jti.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("revoked_token_user_id_c552fc68").using(
-      "btree",
-      table.userId.asc().nullsLast().op("int4_ops"),
-    ),
-    foreignKey({
-      columns: [table.userId],
-      foreignColumns: [authUser.id],
-      name: "revoked_token_user_id_c552fc68_fk_auth_user_id",
-    }),
-    unique("revoked_token_jti_key").on(table.jti),
-  ],
-);
-
 export const supportConfiguration = pgTable(
   "support_configuration",
   {
@@ -5829,80 +5784,6 @@ export const supportConfiguration = pgTable(
       "support_configuration_reopen_sla_hours_check",
       sql`reopen_sla_hours >= 0`,
     ),
-  ],
-);
-
-export const chatEscalationOffer = pgTable(
-  "chat_escalation_offer",
-  {
-    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
-      name: "chat_escalation_offer_id_seq",
-      startWith: 1,
-      increment: 1,
-      minValue: 1,
-      maxValue: 9223372036854775807,
-      cache: 1,
-    }),
-    status: varchar({ length: 20 }).notNull(),
-    offeredAt: timestamp("offered_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    expiresAt: timestamp("expires_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    acceptedAt: timestamp("accepted_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    agentId: integer("agent_id").notNull(),
-    threadId: uuid("thread_id").notNull(),
-  },
-  (table) => [
-    index("chat_escala_status_529604_idx").using(
-      "btree",
-      table.status.asc().nullsLast().op("text_ops"),
-      table.expiresAt.asc().nullsLast().op("timestamptz_ops"),
-    ),
-    index("chat_escala_thread__596345_idx").using(
-      "btree",
-      table.threadId.asc().nullsLast().op("uuid_ops"),
-      table.agentId.asc().nullsLast().op("uuid_ops"),
-    ),
-    index("chat_escalation_offer_agent_id_c3fcec06").using(
-      "btree",
-      table.agentId.asc().nullsLast().op("int4_ops"),
-    ),
-    index("chat_escalation_offer_status_66f7f966").using(
-      "btree",
-      table.status.asc().nullsLast().op("text_ops"),
-    ),
-    index("chat_escalation_offer_status_66f7f966_like").using(
-      "btree",
-      table.status.asc().nullsLast().op("varchar_pattern_ops"),
-    ),
-    index("chat_escalation_offer_thread_id_b8aa47d5").using(
-      "btree",
-      table.threadId.asc().nullsLast().op("uuid_ops"),
-    ),
-    uniqueIndex("unique_live_escalation_offer_per_thread")
-      .using("btree", table.threadId.asc().nullsLast().op("uuid_ops"))
-      .where(sql`((status)::text = 'offered'::text)`),
-    foreignKey({
-      columns: [table.threadId],
-      foreignColumns: [chatThread.id],
-      name: "chat_escalation_offer_thread_id_b8aa47d5_fk_chat_thread_id",
-    }),
   ],
 );
 
@@ -6009,5 +5890,170 @@ export const chatThreadOrders = pgTable(
       table.threadId,
       table.customerorderId,
     ),
+  ],
+);
+
+export const notification = pgTable(
+  "notification",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "notification_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    notificationType: varchar("notification_type", { length: 30 }).notNull(),
+    title: varchar({ length: 255 }).notNull(),
+    message: text().notNull(),
+    isRead: boolean("is_read").notNull(),
+    readAt: timestamp("read_at", { withTimezone: true, mode: "string" }),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    recipientId: integer("recipient_id").notNull(),
+    threadId: uuid("thread_id"),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    ticketId: bigint("ticket_id", { mode: "number" }),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("notificatio_recipie_d6408e_idx").using(
+      "btree",
+      table.recipientId.asc().nullsLast().op("bool_ops"),
+      table.storeId.asc().nullsLast().op("int4_ops"),
+      table.isRead.asc().nullsLast().op("bool_ops"),
+      table.createdAt.desc().nullsFirst().op("int4_ops"),
+    ),
+    index("notification_recipient_id_305d14d6").using(
+      "btree",
+      table.recipientId.asc().nullsLast().op("int4_ops"),
+    ),
+    index("notification_store_id_ee564644").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("notification_thread_id_4e137ed7").using(
+      "btree",
+      table.threadId.asc().nullsLast().op("uuid_ops"),
+    ),
+    index("notification_ticket_id_b13d5a99").using(
+      "btree",
+      table.ticketId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "notification_store_id_ee564644_fk_store_id",
+    }),
+    foreignKey({
+      columns: [table.threadId],
+      foreignColumns: [chatThread.id],
+      name: "notification_thread_id_4e137ed7_fk_chat_thread_id",
+    }),
+    foreignKey({
+      columns: [table.ticketId],
+      foreignColumns: [supportTicket.id],
+      name: "notification_ticket_id_b13d5a99_fk_support_ticket_id",
+    }),
+    check(
+      "notification_ticket_xor_thread",
+      sql`((thread_id IS NULL) AND (ticket_id IS NOT NULL)) OR ((thread_id IS NOT NULL) AND (ticket_id IS NULL))`,
+    ),
+  ],
+);
+
+export const storeWorkflowSetting = pgTable(
+  "store_workflow_setting",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "store_workflow_setting_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    isEnabled: boolean("is_enabled").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    workflowId: bigint("workflow_id", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("store_workflow_setting_store_id_3f4c9361").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("store_workflow_setting_workflow_id_69fd5b6b").using(
+      "btree",
+      table.workflowId.asc().nullsLast().op("int8_ops"),
+    ),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "store_workflow_setting_store_id_3f4c9361_fk_store_id",
+    }),
+    unique("unique_store_workflow_setting").on(table.storeId, table.workflowId),
+  ],
+);
+
+export const workflow = pgTable(
+  "workflow",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "workflow_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    code: varchar({ length: 100 }).notNull(),
+    name: varchar({ length: 100 }).notNull(),
+    description: varchar({ length: 255 }).notNull(),
+    icon: varchar({ length: 100 }),
+    isActive: boolean("is_active").notNull(),
+    canDisable: boolean("can_disable").notNull(),
+    defaultEnabled: boolean("default_enabled").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    kbSupported: boolean("kb_supported").notNull(),
+    magentoSupported: boolean("magento_supported").notNull(),
+    order: integer().notNull(),
+    shopifySupported: boolean("shopify_supported").notNull(),
+    tags: jsonb().notNull(),
+  },
+  (table) => [
+    index("workflow_code_5b27f6cd_like").using(
+      "btree",
+      table.code.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    unique("workflow_code_key").on(table.code),
+    check("workflow_order_check", sql`"order" >= 0`),
   ],
 );

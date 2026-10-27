@@ -1,18 +1,19 @@
-import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
-// import { redirect } from "next/navigation";
-//
-// /**
-//  * Workflows has no screen of its own — it is a heading over three.
-//  *
-//  * The sub-sidebar renders it as a collapsible trigger rather than a link,
-//  * so this path is only reached by typing it or by an older bookmark. Land
-//  * on the first workflow rather than a blank page.
-//  */
-// export default function Page() {
-//   redirect("/settings/workflows/order-cancellation");
-// }
+import SettingsWorkflows from "@/clients/settings-workflows";
+import { AreaSubPage } from "@/components/custom/area-sub-page";
+import { areaSectionMetadata } from "@/lib/nav-areas";
+
+const HREF = "/settings/workflows";
+
+export const metadata = areaSectionMetadata(HREF);
 
 export default function Page() {
-  notFound();
+  return (
+    <AreaSubPage href={HREF}>
+      <Suspense fallback={null}>
+        <SettingsWorkflows />
+      </Suspense>
+    </AreaSubPage>
+  );
 }
