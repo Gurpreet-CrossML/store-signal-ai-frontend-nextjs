@@ -1523,7 +1523,7 @@ function ConversationPanel({
                     // A sticky note, not a pencil: a pencil in a circle
                     // beside a message reads as an edit button, and this
                     // is a label, not something you can press.
-                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-primary/40 bg-primary/10 text-primary">
+                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-amber-500/60 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
                       <IconNote className="size-3.5" />
                     </div>
                   ) : isOutgoing ? (
