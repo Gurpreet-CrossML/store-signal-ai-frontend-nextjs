@@ -22,7 +22,12 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
-import { fetchAIUsage } from "@/redux/api-slice/ai-usage-slice";
+import {
+  fetchAIUsageByFeature,
+  fetchAIUsageCreditDaily,
+  fetchAIUsageCreditSummary,
+  fetchCreditStatus,
+} from "@/redux/api-slice/ai-usage-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 // Billed features, grouped the way the store owner thinks about them.
@@ -56,9 +61,12 @@ export default function AIUsage() {
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const { FetchAIUsageIsLoading, FetchAIUsageData } = useAppSelector(
-    (state) => state.GetAIUsageReducer.FetchAIUsageState,
-  );
+  const {
+    FetchCreditStatusState,
+    FetchAIUsageCreditSummaryState,
+    FetchAIUsageCreditDailyState,
+    FetchAIUsageByFeatureState,
+  } = useAppSelector((state) => state.GetAIUsageReducer);
   const [filters, setFilters] = useState<DashboardFilterState>({
     ...DEFAULT_DASHBOARD_FILTERS,
     range: "30d",
@@ -68,10 +76,22 @@ export default function AIUsage() {
   useEffect(() => {
     // A custom range waits for both ends to be picked.
     if (!storeCode || !from || !to) return;
-    dispatch(fetchAIUsage({ storeCode, from, to }));
+    const args = { storeCode, from, to };
+    dispatch(fetchCreditStatus(args));
+    dispatch(fetchAIUsageCreditSummary(args));
+    dispatch(fetchAIUsageCreditDaily(args));
+    dispatch(fetchAIUsageByFeature(args));
   }, [dispatch, storeCode, from, to]);
 
-  const { credits, summary, daily, byFeature } = FetchAIUsageData;
+  const credits = FetchCreditStatusState.FetchCreditStatusData;
+  const summary = FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryData;
+  const daily = FetchAIUsageCreditDailyState.FetchAIUsageCreditDailyData;
+  const byFeature = FetchAIUsageByFeatureState.FetchAIUsageByFeatureData;
+  const isLoading =
+    FetchCreditStatusState.FetchCreditStatusIsLoading ||
+    FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryIsLoading ||
+    FetchAIUsageCreditDailyState.FetchAIUsageCreditDailyIsLoading ||
+    FetchAIUsageByFeatureState.FetchAIUsageByFeatureIsLoading;
   const used = Number(summary.credits_charged) || 0;
   // Share of the period's credits, e.g. "50.0%".
   const share = (part: number) =>
@@ -141,7 +161,7 @@ export default function AIUsage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {FetchAIUsageIsLoading && <Spinner className="size-4" />}
+        {isLoading && <Spinner className="size-4" />}
         <DashboardRangeFilter filters={filters} onChange={setFilters} />
       </div>
 
