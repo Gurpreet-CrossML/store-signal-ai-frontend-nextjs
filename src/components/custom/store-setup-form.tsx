@@ -36,7 +36,8 @@ import { Typography } from "@/components/ui/typography";
 
 const validationSchema = z
   .object({
-    platform: z.enum(["shopify", "magento"]),
+    // Magento is commented out until its connect flow ships.
+    platform: z.enum(["shopify" /* , "magento" */]),
     store_url: z.string().trim(),
     client_id: z.string().trim(),
     client_secret: z.string().trim(),
@@ -123,7 +124,12 @@ export function StoreSetupForm({
             onValueChange={(value) =>
               formik.setFieldValue("platform", value as StorePlatform)
             }
-            className="grid-cols-1 sm:grid-cols-2"
+            // A lone platform (Magento is commented out) takes the full width.
+            className={
+              STORE_PLATFORMS.length > 1
+                ? "grid-cols-1 sm:grid-cols-2"
+                : "grid-cols-1"
+            }
           >
             {STORE_PLATFORMS.map((platform) => (
               <FieldLabel
@@ -178,9 +184,11 @@ export function StoreSetupForm({
             </Typography>
           ) : (
             <FieldDescription>
-              {isShopify
-                ? "Your store's address, e.g. https://www.your-store.com, including https://."
-                : "The full address of your Magento storefront, including https://."}
+              {/* Magento is commented out until its connect flow ships; its
+                  copy was "The full address of your Magento storefront,
+                  including https://." */}
+              Your store&apos;s address, e.g. https://www.your-store.com,
+              including https://.
             </FieldDescription>
           )}
         </Field>
