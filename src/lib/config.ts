@@ -736,6 +736,11 @@ export const STORE_PLATFORMS = [
 
 export type StorePlatform = (typeof STORE_PLATFORMS)[number]["value"];
 
+// Same formats the backend's ShopifyOAuthStartSerializer enforces.
+export const SHOPIFY_CLIENT_ID_RE = /^[0-9a-fA-F]{32}$/;
+export const SHOPIFY_CLIENT_SECRET_RE =
+  /^(shpss_[0-9a-fA-F]{32}|[0-9a-fA-F]{32})$/;
+
 export const SocialAIPlatformOptions: {
   readonly [key: string]: { label: string; icon: Icon; color: string };
 } = {
