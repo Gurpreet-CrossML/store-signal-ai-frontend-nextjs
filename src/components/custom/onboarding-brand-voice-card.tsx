@@ -134,61 +134,70 @@ export function OnboardingBrandVoiceCard() {
     },
   });
 
-  if (stores.length === 0 || presets.length === 0) {
-    return <Skeleton className="h-72 w-full" />;
-  }
+  const ready = stores.length > 0 && presets.length > 0;
 
   return (
     <form onSubmit={formik.handleSubmit} className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Set up your brand voice</CardTitle>
-          <CardDescription>
-            Name your assistant and pick how it sounds. You can fine-tune
-            everything later under Brand Voice.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Field className="gap-2">
-            <div className="flex flex-col gap-1">
-              <FieldLabel htmlFor="onboarding-agent-name">
-                <IconIdBadge2 className="size-4" />
-                Agent Name
-                <span className="-ml-1 text-xs text-destructive">*</span>
-                <InfoIcon text="The name customers see in chat and email. Short, friendly names work best — e.g. Ellie, Max, or your brand name." />
-              </FieldLabel>
-              <FieldDescription>
-                How the AI identifies itself — a persona name feels like a real
-                teammate, your brand name gives a company voice.
-              </FieldDescription>
-            </div>
-            <Input
-              id="onboarding-agent-name"
-              name="name"
-              value={formik.values.name}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              placeholder="Ellie"
-            />
-            {formik.touched.name && formik.errors.name && (
-              <p className="text-xs text-destructive">{formik.errors.name}</p>
-            )}
-          </Field>
-        </CardContent>
-      </Card>
+      {ready ? (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Set up your brand voice</CardTitle>
+              <CardDescription>
+                Name your assistant and pick how it sounds. You can fine-tune
+                everything later under Brand Voice.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Field className="gap-2">
+                <div className="flex flex-col gap-1">
+                  <FieldLabel htmlFor="onboarding-agent-name">
+                    <IconIdBadge2 className="size-4" />
+                    Agent Name
+                    <span className="-ml-1 text-xs text-destructive">*</span>
+                    <InfoIcon text="The name customers see in chat and email. Short, friendly names work best — e.g. Ellie, Max, or your brand name." />
+                  </FieldLabel>
+                  <FieldDescription>
+                    How the AI identifies itself — a persona name feels like a
+                    real teammate, your brand name gives a company voice.
+                  </FieldDescription>
+                </div>
+                <Input
+                  id="onboarding-agent-name"
+                  name="name"
+                  value={formik.values.name}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  placeholder="Ellie"
+                />
+                {formik.touched.name && formik.errors.name && (
+                  <p className="text-xs text-destructive">
+                    {formik.errors.name}
+                  </p>
+                )}
+              </Field>
+            </CardContent>
+          </Card>
 
-      <BrandVoiceTonePresetSelector
-        presets={presets}
-        activePreset={formik.values.preset}
-        onSelect={(presetId) => formik.setFieldValue("preset", presetId)}
-        // The drawer is max-w-3xl, so viewport breakpoints over-split it.
-        className="sm:grid-cols-3 2xl:grid-cols-3"
-      />
+          <BrandVoiceTonePresetSelector
+            presets={presets}
+            activePreset={formik.values.preset}
+            onSelect={(presetId) => formik.setFieldValue("preset", presetId)}
+            // The drawer is max-w-3xl, so viewport breakpoints over-split it.
+            className="sm:grid-cols-3 2xl:grid-cols-3"
+          />
+        </>
+      ) : (
+        // Skip stays reachable below even if these reads fail or come back empty.
+        <Skeleton className="h-72 w-full" />
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <Button
           type="submit"
-          disabled={formik.isSubmitting || UpdateOnboardingStepIsLoading}
+          disabled={
+            !ready || formik.isSubmitting || UpdateOnboardingStepIsLoading
+          }
         >
           {formik.isSubmitting ? (
             <Spinner data-icon="inline-start" />
