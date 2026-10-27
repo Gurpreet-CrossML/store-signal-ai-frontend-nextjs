@@ -28,6 +28,8 @@ import {
   type CustomerOrdering,
 } from "@/redux/api-slice/customer-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { ACTIVE_FILTER_STYLE } from "@/components/custom/thread-filteration";
+import { cn } from "@/lib/utils";
 
 const PER_PAGE = 25;
 
@@ -168,7 +170,13 @@ export default function Customers() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-44" aria-label="Sort customers">
+            <SelectTrigger
+              className={cn(
+                "w-44",
+                ordering !== "-total_spent" && ACTIVE_FILTER_STYLE,
+              )}
+              aria-label="Sort customers"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

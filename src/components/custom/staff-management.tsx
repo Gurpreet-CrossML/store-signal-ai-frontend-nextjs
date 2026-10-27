@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LoadingState } from "@/components/custom/loading-state";
+import { ACTIVE_FILTER_STYLE } from "@/components/custom/thread-filteration";
 import { cn } from "@/lib/utils";
 
 export default function StaffManagement({
@@ -123,7 +124,10 @@ export default function StaffManagement({
         </div>
 
         <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger aria-label="Filter by role" className="w-fit">
+          <SelectTrigger
+            aria-label="Filter by role"
+            className={cn("w-fit", roleFilter !== "all" && ACTIVE_FILTER_STYLE)}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -137,7 +141,13 @@ export default function StaffManagement({
         </Select>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger aria-label="Filter by status" className="w-fit">
+          <SelectTrigger
+            aria-label="Filter by status"
+            className={cn(
+              "w-fit",
+              statusFilter !== "all" && ACTIVE_FILTER_STYLE,
+            )}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
