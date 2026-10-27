@@ -7,6 +7,7 @@ import { ONBOARDING_STEPS } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/hooks";
 import { GoLiveCard } from "@/components/custom/go-live-card";
+import { OnboardingBrandVoiceCard } from "@/components/custom/onboarding-brand-voice-card";
 import { StoreSetupForm } from "@/components/custom/store-setup-form";
 import {
   Card,
@@ -146,6 +147,8 @@ export function OnboardingDrawer() {
                 <StoreSetupForm />
               </CardContent>
             </Card>
+          ) : current === "brand_voice" ? (
+            <OnboardingBrandVoiceCard />
           ) : (
             <>
               {connected &&
