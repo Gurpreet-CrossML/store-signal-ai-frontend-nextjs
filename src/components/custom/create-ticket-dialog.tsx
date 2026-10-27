@@ -47,7 +47,6 @@ import {
   DEFAULT_TICKET_LANGUAGE,
   DEFAULT_TICKET_SENTIMENT,
   SUPPORTED_LANGUAGES,
-  TICKET_SENTIMENTS,
   type TicketLanguage,
   type TicketSentiment,
 } from "@/lib/ticket-options";
@@ -678,28 +677,6 @@ export function CreateTicketDialog({
                   {SUPPORTED_LANGUAGES.map((language) => (
                     <SelectItem key={language.code} value={language.code}>
                       {language.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="ticket-sentiment">Sentiment</FieldLabel>
-              <Select
-                value={formik.values.sentiment}
-                onValueChange={(value) =>
-                  formik.setFieldValue("sentiment", value)
-                }
-                disabled={busy}
-              >
-                <SelectTrigger id="ticket-sentiment" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TICKET_SENTIMENTS.map((sentiment) => (
-                    <SelectItem key={sentiment.value} value={sentiment.value}>
-                      {sentiment.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
