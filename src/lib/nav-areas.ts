@@ -205,7 +205,7 @@ export const NAV_AREAS = {
         title: "AI Usage",
         description: "Credits left, your plan cycle, and where credits went.",
         pageDescription:
-          "AI credit usage for this store by day, channel and capability.",
+          "AI credit usage for this store by day and capability.",
         icon: IconChartBar,
       },
       {
