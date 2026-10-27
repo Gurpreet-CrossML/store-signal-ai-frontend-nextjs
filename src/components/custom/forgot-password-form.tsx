@@ -58,12 +58,12 @@ export function ForgotPasswordForm() {
             Check your email
           </Typography>
           <Typography variant="p" className="text-muted-foreground">
-            If an account exists for <strong>{sentTo}</strong>, we have sent a
-            link to reset its password.
+            Hi ! <strong>{sentTo}</strong>. Password reset link sent
+            successfully. Please check your email for instructions to reset your
+            password.
           </Typography>
           <Typography variant="p" className="text-muted-foreground">
-            The link can be used only once: it stops working as soon as it is
-            opened, even if you do not finish. If that happens, come back here
+            The link will expires in sometimes. If that happens, come back here
             and request a new one.
           </Typography>
         </div>
