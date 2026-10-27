@@ -109,10 +109,7 @@ export function CommentFiltersBar({
       >
         <SelectTrigger
           size="sm"
-          className={cn(
-            "w-40",
-            filters.intent !== ANY && ACTIVE_FILTER_STYLE,
-          )}
+          className={cn("w-40", filters.intent !== ANY && ACTIVE_FILTER_STYLE)}
         >
           <SelectValue placeholder="Any intent" />
         </SelectTrigger>

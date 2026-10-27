@@ -268,10 +268,7 @@ export default function SocialCommentDrafts() {
           <Select value={accountId} onValueChange={setAccountId}>
             <SelectTrigger
               size="sm"
-              className={cn(
-                "w-52",
-                accountId !== "all" && ACTIVE_FILTER_STYLE,
-              )}
+              className={cn("w-52", accountId !== "all" && ACTIVE_FILTER_STYLE)}
               aria-label="Account"
             >
               <SelectValue />

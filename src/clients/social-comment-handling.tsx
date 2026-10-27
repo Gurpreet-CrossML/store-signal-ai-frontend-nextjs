@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 import { InfoIcon } from "@/components/custom/info-icon";
 import { LoadingState } from "@/components/custom/loading-state";
+import { ACTIVE_FILTER_STYLE } from "@/components/custom/thread-filteration";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,6 +62,7 @@ import {
   type Autonomy,
 } from "@/lib/comment-handling-data";
 import { toggleInList } from "@/lib/helpers";
+import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   deleteTopicRule,
@@ -418,7 +420,10 @@ export default function SocialCommentHandling() {
           Every connected account has its own rules — pick the one to configure.
         </Typography>
         <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-          <SelectTrigger className="w-64" aria-label="Connected account">
+          <SelectTrigger
+            className={cn("w-64", ACTIVE_FILTER_STYLE)}
+            aria-label="Connected account"
+          >
             <SelectValue placeholder="Select an account" />
           </SelectTrigger>
           <SelectContent>
