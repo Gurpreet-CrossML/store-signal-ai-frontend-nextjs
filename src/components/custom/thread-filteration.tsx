@@ -25,6 +25,7 @@ import {
   useComboboxAnchor,
 } from "@/components/ui/combobox";
 import { FEEDBACK_RATINGS, type FeedbackRatingValue } from "@/lib/config";
+import { cn } from "@/lib/utils";
 
 export type FeedbackRating = "" | FeedbackRatingValue;
 
@@ -73,6 +74,8 @@ type ThreadFilterationProps = {
 const ALL = "all";
 const ALL_TAGS = "__all_tags__";
 
+const ACTIVE_FILTER_STYLE = "border-primary/40 bg-primary/10 text-primary";
+
 // Shared with the dashboard filters, so both screens offer the same channels.
 export const CHANNEL_OPTIONS = [
   { value: "", label: "All Channels" },
@@ -85,18 +88,24 @@ export function FilterSelect({
   value,
   onChange,
   options,
+  activeClassName,
 }: {
   ariaLabel: string;
   value: string;
   onChange: (value: string) => void;
   options: { value: string; label: string }[];
+  activeClassName?: string;
 }) {
   return (
     <Select
       value={value || ALL}
       onValueChange={(next) => onChange(next === ALL ? "" : next)}
     >
-      <SelectTrigger size="sm" aria-label={ariaLabel} className="w-fit">
+      <SelectTrigger
+        size="sm"
+        aria-label={ariaLabel}
+        className={cn("w-fit", value && activeClassName)}
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -122,6 +131,7 @@ function MultiSelectFilter({
   placeholder,
   emptyText,
   isLoading,
+  activeClassName,
 }: {
   options: string[];
   value: string[];
@@ -130,6 +140,7 @@ function MultiSelectFilter({
   placeholder: string;
   emptyText: string;
   isLoading?: boolean;
+  activeClassName?: string;
 }) {
   const anchor = useComboboxAnchor();
   // An empty selection means "no tag filter", shown as a checked "All Tags"
@@ -147,7 +158,10 @@ function MultiSelectFilter({
         onChange(next.filter((item) => item !== ALL_TAGS));
       }}
     >
-      <ComboboxChips ref={anchor} className="w-56">
+      <ComboboxChips
+        ref={anchor}
+        className={cn("w-56", value.length > 0 && activeClassName)}
+      >
         <ComboboxValue>
           {(selected) => (
             <>
@@ -220,11 +234,13 @@ export default function ThreadFilteration({
         to={filters.to}
         onRangeChange={(from, to) => onChange({ ...filters, from, to })}
         disabled={{ after: new Date() }}
+        className={filters.from || filters.to ? ACTIVE_FILTER_STYLE : undefined}
       />
 
       <FilterSelect
         ariaLabel="Filter by status"
         value={filters.is_active}
+        activeClassName={ACTIVE_FILTER_STYLE}
         onChange={(is_active) =>
           onChange({
             ...filters,
@@ -241,6 +257,7 @@ export default function ThreadFilteration({
       <FilterSelect
         ariaLabel="Filter by support ticket"
         value={filters.has_ticket}
+        activeClassName={ACTIVE_FILTER_STYLE}
         onChange={(has_ticket) =>
           onChange({
             ...filters,
@@ -257,6 +274,7 @@ export default function ThreadFilteration({
       <FilterSelect
         ariaLabel="Filter by order"
         value={filters.has_order}
+        activeClassName={ACTIVE_FILTER_STYLE}
         onChange={(has_order) =>
           onChange({
             ...filters,
@@ -273,6 +291,7 @@ export default function ThreadFilteration({
       <FilterSelect
         ariaLabel="Filter by handled by"
         value={filters.handled_by}
+        activeClassName={ACTIVE_FILTER_STYLE}
         onChange={(handled_by) =>
           onChange({
             ...filters,
@@ -289,6 +308,7 @@ export default function ThreadFilteration({
       <FilterSelect
         ariaLabel="Filter by channel"
         value={filters.channel}
+        activeClassName={ACTIVE_FILTER_STYLE}
         onChange={(channel) =>
           onChange({
             ...filters,
@@ -301,6 +321,7 @@ export default function ThreadFilteration({
       <MultiSelectFilter
         options={tagOptions}
         value={filters.tags}
+        activeClassName={ACTIVE_FILTER_STYLE}
         onChange={(tags) => onChange({ ...filters, tags })}
         placeholder="All Tags"
         emptyText="No tags found."
@@ -311,6 +332,7 @@ export default function ThreadFilteration({
         <FilterSelect
           ariaLabel="Filter by feedback rating"
           value={filters.feedback_rating}
+          activeClassName={ACTIVE_FILTER_STYLE}
           onChange={(feedback_rating) =>
             onChange({
               ...filters,

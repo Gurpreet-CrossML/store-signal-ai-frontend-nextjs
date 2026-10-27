@@ -39,44 +39,36 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 
-const validationSchema = z
-  .object({
-    platform: z.enum(["shopify", "magento"]),
-    store_url: z
-      .string()
-      .trim()
-      .pipe(
-        z.url({
-          protocol: /^https$/,
-          hostname: z.regexes.domain,
-          error: "Enter the full store URL, starting with https://",
-        }),
-      ),
-    client_id: z.string().trim(),
-    client_secret: z.string().trim(),
-  })
-  .superRefine((values, ctx) => {
-    if (values.platform === "shopify") {
-      for (const [field, pattern, message] of [
-        [
-          "client_id",
-          SHOPIFY_CLIENT_ID_RE,
-          "Enter the 32-character client ID from your Shopify app",
-        ],
-        [
-          "client_secret",
-          SHOPIFY_CLIENT_SECRET_RE,
-          "Enter the client secret from your Shopify app (it starts with shpss_)",
-        ],
-      ] as const) {
-        if (!values[field]) {
-          ctx.addIssue({ code: "custom", path: [field], message: "Required" });
-        } else if (!pattern.test(values[field])) {
-          ctx.addIssue({ code: "custom", path: [field], message });
-        }
-      }
-    }
-  });
+const validationSchema = z.object({
+  // Magento is commented out until its connect flow ships.
+  platform: z.enum(["shopify" /* , "magento" */]),
+  store_url: z
+    .string()
+    .trim()
+    .pipe(
+      z.url({
+        protocol: /^https$/,
+        hostname: z.regexes.domain,
+        error: "Enter the full store URL, starting with https://",
+      }),
+    ),
+  // shortcut: always required since Shopify is the only platform; make them
+  // Shopify-only again when Magento (which hides these fields) comes back.
+  client_id: z
+    .string()
+    .trim()
+    .regex(
+      SHOPIFY_CLIENT_ID_RE,
+      "Enter the 32-character client ID from your Shopify app",
+    ),
+  client_secret: z
+    .string()
+    .trim()
+    .regex(
+      SHOPIFY_CLIENT_SECRET_RE,
+      "Enter the client secret from your Shopify app (it starts with shpss_)",
+    ),
+});
 
 type StoreSetupValues = z.infer<typeof validationSchema>;
 
@@ -143,7 +135,12 @@ export function StoreSetupForm({
             onValueChange={(value) =>
               formik.setFieldValue("platform", value as StorePlatform)
             }
-            className="grid-cols-1 sm:grid-cols-2"
+            // A lone platform (Magento is commented out) takes the full width.
+            className={
+              STORE_PLATFORMS.length > 1
+                ? "grid-cols-1 sm:grid-cols-2"
+                : "grid-cols-1"
+            }
           >
             {STORE_PLATFORMS.map((platform) => (
               <FieldLabel
@@ -198,9 +195,11 @@ export function StoreSetupForm({
             </Typography>
           ) : (
             <FieldDescription>
-              {isShopify
-                ? "Your store's address, e.g. https://www.your-store.com, including https://."
-                : "The full address of your Magento storefront, including https://."}
+              {/* Magento is commented out until its connect flow ships; its
+                  copy was "The full address of your Magento storefront,
+                  including https://." */}
+              Your store&apos;s address, e.g. https://www.your-store.com,
+              including https://.
             </FieldDescription>
           )}
         </Field>

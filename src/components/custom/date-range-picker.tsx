@@ -8,6 +8,7 @@ import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   Popover,
   PopoverContent,
@@ -66,6 +67,7 @@ export function DateRangePicker({
   onRangeChange,
   disabled,
   withTime = false,
+  className,
 }: {
   from: string;
   to: string;
@@ -74,6 +76,7 @@ export function DateRangePicker({
   onRangeChange: (from: string, to: string) => void;
   disabled?: React.ComponentProps<typeof Calendar>["disabled"];
   withTime?: boolean;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange | undefined>();
@@ -174,7 +177,7 @@ export function DateRangePicker({
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" className={cn(className)}>
           <IconCalendar />
           {label}
         </Button>

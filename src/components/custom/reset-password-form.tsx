@@ -185,8 +185,8 @@ export function ResetPasswordForm({
             This link no longer works
           </Typography>
           <Typography variant="p" className="text-muted-foreground">
-            Reset links can be opened only once and expire after a while. This
-            one is invalid, expired, or has already been used.
+            Reset links expire after a while or after the password is changed.
+            This one is invalid or expired.
           </Typography>
         </div>
         <Button size="lg" asChild>
@@ -229,8 +229,7 @@ export function ResetPasswordForm({
             Set a new password
           </Typography>
           <Typography variant="p" className="text-muted-foreground">
-            Finish now: this link has been used and won&apos;t open again. After
-            the change you&apos;ll be signed out everywhere.
+            After changing password you&apos;ll be signed out everywhere.
           </Typography>
         </div>
         <PasswordInput

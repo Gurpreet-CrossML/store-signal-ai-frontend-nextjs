@@ -98,12 +98,15 @@ export const ENDPOINTS = {
   shopifyOauthCallback: () => "/store/shopify/oauth/callback/",
   // Company onboarding (Django, company admin). GET (needs useBackend) is the
   // step + connected stores with their widget keys; PATCH sets
-  // `onboarding_step` to "completed" or "skipped".
+  // `onboarding_step` to "brand_voice", "completed" or "skipped".
   companyOnboarding: () => "/tenancy/company/onboarding/",
   // Per-store settings (Django) — currently the widget's allowed-IP list.
   // GET returns the settings, PATCH updates them.
   storeAllowedIPsSettings: () =>
     createAPIUrl("/store/settings/allowed-ips/", "django"),
+  // Workflows for a store (Django). GET lists every platform workflow with
+  // the store's on/off state; POST turns one on or off.
+  storeWorkflows: () => createAPIUrl("/chat/workflows/", "django"),
 
   // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
   // Next.js issues a 308 redirect (an extra round-trip) before each call.
@@ -687,6 +690,7 @@ export const REGIONAL_SPELLING_CHOICES: readonly DescribedOption[] = [
 export const ONBOARDING_STEPS = [
   { value: "store_setup", label: "Connect the store" },
   { value: "go_live", label: "Go live on store" },
+  { value: "brand_voice", label: "Set up brand voice" },
 ] as const;
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]["value"];
@@ -725,21 +729,21 @@ export const STORE_PLATFORMS = [
     description:
       "Connect with your store alias. We'll send you to Shopify to authorize access.",
   },
-  {
-    value: "magento",
-    label: "Magento",
-    icon: "/magento-2.svg",
-    description:
-      "Connect with your store URL. We'll send you to Magento to authorize access.",
-  },
+  // Magento is commented out until its connect flow ships.
+  // {
+  //   value: "magento",
+  //   label: "Magento",
+  //   icon: "/magento-2.svg",
+  //   description:
+  //     "Connect with your store URL. We'll send you to Magento to authorize access.",
+  // },
 ] as const;
 
 export type StorePlatform = (typeof STORE_PLATFORMS)[number]["value"];
 
 // Same formats the backend's ShopifyOAuthStartSerializer enforces.
 export const SHOPIFY_CLIENT_ID_RE = /^[0-9a-fA-F]{32}$/;
-export const SHOPIFY_CLIENT_SECRET_RE =
-  /^(shpss_[0-9a-fA-F]{32}|[0-9a-fA-F]{32})$/;
+export const SHOPIFY_CLIENT_SECRET_RE = /\bshpss_[a-zA-Z0-9]{32,64}\b/;
 
 export const SocialAIPlatformOptions: {
   readonly [key: string]: { label: string; icon: Icon; color: string };
