@@ -13,6 +13,7 @@ import {
   resolveDashboardRange,
   type DashboardFilterState,
 } from "@/components/custom/dashboard-filters";
+import { PageHeading } from "@/components/custom/page-heading";
 import {
   Card,
   CardContent,
@@ -56,7 +57,13 @@ const FEATURE_GROUPS: { title: string; features: Record<string, string> }[] = [
 const formatDate = (value: string) => format(parseISO(value), "MMM d, yyyy");
 
 /** Store-level AI credit usage: balance, plan cycle, and where credits went. */
-export default function AIUsage() {
+export default function AIUsage({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -159,11 +166,17 @@ export default function AIUsage() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        {isLoading && <Spinner className="size-4" />}
-        <DashboardRangeFilter filters={filters} onChange={setFilters} />
-      </div>
+    <div className="flex flex-col gap-6 p-4">
+      <PageHeading
+        title={title}
+        description={description}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            {isLoading && <Spinner className="size-4" />}
+            <DashboardRangeFilter filters={filters} onChange={setFilters} />
+          </div>
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map(({ label, value, note, danger }) => (
