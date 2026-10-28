@@ -240,23 +240,6 @@ export default function ThreadFilteration({
       />
 
       <FilterSelect
-        ariaLabel="Filter by status"
-        value={filters.is_active}
-        activeClassName={ACTIVE_FILTER_STYLE}
-        onChange={(is_active) =>
-          onChange({
-            ...filters,
-            is_active: is_active as ThreadFilterState["is_active"],
-          })
-        }
-        options={[
-          { value: "", label: "All Statuses" },
-          { value: "true", label: "Active" },
-          { value: "false", label: "Closed" },
-        ]}
-      />
-
-      <FilterSelect
         ariaLabel="Filter by support ticket"
         value={filters.has_ticket}
         activeClassName={ACTIVE_FILTER_STYLE}
