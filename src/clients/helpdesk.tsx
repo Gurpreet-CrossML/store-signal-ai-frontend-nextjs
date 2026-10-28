@@ -334,13 +334,13 @@ const SORT_OPTIONS: { key: SupportTicketOrdering; label: string }[] = [
 
 /**
  * Where an agent can move a ticket from the status menu. Mirrors the API:
- * a resolved ticket can only be opened or closed and a closed one only
+ * only a resolved ticket can be opened or closed and a closed one only
  * reopened, and snoozed is set from the snooze control, never from here.
  */
 const STATUS_TRANSITIONS: Record<SupportTicketStatus, SupportTicketStatus[]> = {
-  open: ["resolved", "closed"],
-  reopen: ["resolved", "closed"],
-  snoozed: ["resolved", "closed"],
+  open: ["resolved"],
+  reopen: ["resolved"],
+  snoozed: ["resolved"],
   resolved: ["open", "closed"],
   closed: ["reopen"],
 };
@@ -1134,17 +1134,19 @@ function ConversationPanel({
             Resolve
           </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label="Close ticket"
-            className={cn(ACTION_TONE_STYLES.danger, "@3xl/conv:order-5")}
-            onClick={() => setPendingEndStatus("closed")}
-            disabled={ticket.status === "closed"}
-          >
-            <IconCircleX className="size-4" />
-            Close
-          </Button>
+          {/* Only a resolved ticket can be closed. */}
+          {ticket.status === "resolved" ? (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Close ticket"
+              className={cn(ACTION_TONE_STYLES.danger, "@3xl/conv:order-5")}
+              onClick={() => setPendingEndStatus("closed")}
+            >
+              <IconCircleX className="size-4" />
+              Close
+            </Button>
+          ) : null}
 
           {/* <DropdownMenu>
             <Tooltip>
