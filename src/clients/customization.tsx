@@ -13,6 +13,7 @@ import {
   FetchWidgetCustomization,
   UpdateWidgetCustomization,
   UpdateWidgetCustomizationWithImage,
+  type AiInfo,
   type UpdateWidgetCustomizationPayload,
   type WidgetCustomizationDataResponse,
   type WidgetQuickAction,
@@ -28,6 +29,7 @@ import {
 import CustomizationTheme from "@/components/custom/customization-theme";
 import CustomizationActionButtons from "@/components/custom/customization-action-buttons";
 import CustomizationBranding from "@/components/custom/customization-branding";
+import CustomizationAiInfo from "@/components/custom/customization-ai-info";
 import CustomizationQuickLinks from "@/components/custom/customization-quick-links";
 import { PreviewModalButton } from "@/components/custom/preview-modal-button";
 import CustomizationLivePreview from "@/components/custom/customization-live-preview";
@@ -155,6 +157,7 @@ export default function Customization() {
 
   const [actionButtons, setActionButtons] = useState<ActionButton[]>([]);
   const [quickLinks, setQuickLinks] = useState<QuickLinkItem[]>([]);
+  const [aiInfo, setAiInfo] = useState<AiInfo | null>(null);
   const [hasQuickActionError, setHasQuickActionError] = useState(false);
   const [hasQuickActionChanges, setHasQuickActionChanges] = useState(false);
   const formik = useFormik<CustomizationFormValues>({
@@ -195,6 +198,7 @@ export default function Customization() {
         tertiary_color: tertiaryColor,
         welcome_message: values.welcome_message,
         greeting_message: values.greeting_message.trim(),
+        ai_info: aiInfo,
         quick_actions: quickActions,
         quick_links: quickLinksPayload,
       };
@@ -289,6 +293,7 @@ export default function Customization() {
       setLogoUrl(null);
       setActionButtons([]);
       setQuickLinks([]);
+      setAiInfo(null);
       formik.setValues({
         welcome_message: DEFAULT_WELCOME,
         greeting_message: DEFAULT_GREETING,
@@ -322,6 +327,7 @@ export default function Customization() {
     setLogoUrl(data.logo?.trim() ? data.logo : null);
     setActionButtons(nextActionButtons);
     setQuickLinks(nextQuickLinks);
+    setAiInfo(data.ai_info ?? null);
     formik.setValues({
       welcome_message: nextWelcome,
       greeting_message: nextGreeting,
@@ -500,6 +506,7 @@ export default function Customization() {
     themeVars,
     actionButtons,
     quickLinks: previewQuickLinks,
+    aiInfo,   
   };
 
   return (
@@ -555,6 +562,12 @@ export default function Customization() {
           onAdd={addQuickLink}
           onRemove={removeQuickLink}
           rowErrors={quickLinkRowErrors}
+        />
+        <CustomizationAiInfo
+          value={aiInfo}
+          onChange={setAiInfo}
+          themeColor={themeColor}
+          fieldErrors={fieldErrors}
         />
 
         <div className="flex justify-start border-t border-border py-3">

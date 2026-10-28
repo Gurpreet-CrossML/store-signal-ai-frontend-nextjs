@@ -32,6 +32,12 @@ import type {
   ActionButton,
   QuickLinkItem,
 } from "@/components/custom/customization-types";
+import {
+  DEFAULTS as AI_DEFAULTS,
+  ICONS as AI_ICONS,
+  pick,
+} from "@/components/custom/customization-ai-info";
+import type { AiInfo } from "@/redux/api-slice/customization-slice";
 
 type CustomizationLivePreviewProps = {
   storeLabel: string;
@@ -43,6 +49,7 @@ type CustomizationLivePreviewProps = {
   themeVars: React.CSSProperties;
   actionButtons: ActionButton[];
   quickLinks: QuickLinkItem[];
+  aiInfo?: AiInfo | null;
 };
 
 export default function CustomizationLivePreview({
@@ -55,9 +62,22 @@ export default function CustomizationLivePreview({
   themeVars,
   actionButtons,
   quickLinks,
+  aiInfo,
 }: CustomizationLivePreviewProps) {
   const [previewTab, setPreviewTab] = useState<"home" | "messages">("home");
   const [inputMessage, setInputMessage] = useState("");
+  const [showAiInfo, setShowAiInfo] = useState(false);
+  const ai = aiInfo ?? {};
+  const AiHeaderIcon = AI_ICONS[ai.header_icon ?? "info"] ?? AI_ICONS.info;
+  const aiCards = (
+    Array.isArray(ai.sections) ? ai.sections : AI_DEFAULTS.sections
+  )
+    .map((section) => ({
+      title: (section.title ?? "").trim(),
+      icon: section.icon ?? "info",
+      points: (section.points ?? []).map((p) => p.trim()).filter(Boolean),
+    }))
+    .filter((section) => section.points.length > 0);
 
   return (
     <div className="desktop:sticky desktop:top-6">
@@ -245,11 +265,82 @@ export default function CustomizationLivePreview({
                         </div>
                       </div>
                       <p className="mt-2 text-center text-[11px] text-slate-400">
-                        This AI-Chatbot can make mistakes.
+                        {pick(
+                          ai.disclaimer_text ?? "",
+                          AI_DEFAULTS.disclaimer_text,
+                        )}{" "}
+                        <button
+                          type="button"
+                          onClick={() => setShowAiInfo(true)}
+                          className="font-bold text-slate-900 underline"
+                        >
+                          {pick(
+                            ai.disclaimer_link_text ?? "",
+                            AI_DEFAULTS.disclaimer_link_text,
+                          )}
+                        </button>
                       </p>
                     </div>
                   </div>
                 </>
+              )}
+
+              {previewTab === "messages" && showAiInfo && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
+                  <div className="max-h-full w-full max-w-xs overflow-y-auto rounded-xl bg-white p-4 text-[#111827] shadow-lg">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-gray-200">
+                          <AiHeaderIcon className="size-3.5" />
+                        </span>
+                        <h3 className="text-base leading-tight font-bold">
+                          {pick(ai.title ?? "", AI_DEFAULTS.title)}
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Close"
+                        onClick={() => setShowAiInfo(false)}
+                        className="flex size-5 shrink-0 items-center justify-center rounded-full bg-gray-200"
+                      >
+                        <IconX className="size-3.5" />
+                      </button>
+                    </div>
+                    <p className="mb-2.5 text-sm leading-relaxed">
+                      {pick(ai.description ?? "", AI_DEFAULTS.description)}
+                    </p>
+                    {aiCards.map((section, index) => {
+                      const SectionIcon =
+                        AI_ICONS[section.icon] ?? AI_ICONS.info;
+                      return (
+                        <div
+                          key={index}
+                          className="mt-2 rounded-lg bg-gray-100 p-2.5"
+                        >
+                          {section.title ? (
+                            <h4 className="mb-2 flex items-center gap-1 text-[13px] font-bold">
+                              <SectionIcon className="size-3" />
+                              {section.title}
+                            </h4>
+                          ) : null}
+                          {section.points.map((point, i) => (
+                            <p key={i} className="mb-1 text-[13px] last:mb-0">
+                              {point}
+                            </p>
+                          ))}
+                        </div>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setShowAiInfo(false)}
+                      className="mt-2.5 w-full rounded-lg py-2.5 text-center text-[11px] font-bold text-white"
+                      style={{ backgroundColor: themeColor }}
+                    >
+                      {pick(ai.button_label ?? "", AI_DEFAULTS.button_label)}
+                    </button>
+                  </div>
+                </div>
               )}
 
               <div className="grid grid-cols-2 border-t border-slate-200 bg-gray-100">

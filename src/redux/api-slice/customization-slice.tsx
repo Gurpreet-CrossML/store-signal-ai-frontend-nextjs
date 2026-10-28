@@ -18,6 +18,24 @@ export type WidgetQuickLink = {
   is_active: boolean;
 };
 
+export type AiInfoIcon = "warning" | "lock" | "info" | "check";
+
+export type AiInfoSection = {
+  title?: string;
+  icon?: AiInfoIcon;
+  points?: string[];
+};
+
+export type AiInfo = {
+  disclaimer_text?: string;
+  disclaimer_link_text?: string;
+  title?: string;
+  header_icon?: AiInfoIcon;
+  description?: string;
+  sections?: AiInfoSection[];
+  button_label?: string;
+};
+
 export type UpdateWidgetCustomizationPayload = {
   store?: number;
   primary_color?: string;
@@ -28,6 +46,7 @@ export type UpdateWidgetCustomizationPayload = {
   greeting_message?: string;
   quick_actions?: WidgetQuickAction[];
   quick_links?: WidgetQuickLink[];
+  ai_info?: AiInfo | null;
 };
 
 export type WidgetCustomizationDataResponse = {
@@ -41,6 +60,7 @@ export type WidgetCustomizationDataResponse = {
   greeting_message: string;
   quick_actions: WidgetQuickAction[];
   quick_links: WidgetQuickLink[];
+  ai_info?: AiInfo | null;
   created_at: string;
   updated_at: string;
 };
@@ -156,6 +176,9 @@ export const UpdateWidgetCustomizationWithImage = createAsyncThunk(
       }
       if (payload.quick_links !== undefined) {
         formData.append("quick_links", JSON.stringify(payload.quick_links));
+      }
+      if (payload.ai_info !== undefined) {
+        formData.append("ai_info", JSON.stringify(payload.ai_info));
       }
 
       const response = await axiosInstance.patch(
