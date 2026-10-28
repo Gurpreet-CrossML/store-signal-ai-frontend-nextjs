@@ -52,13 +52,13 @@ export const fetchPersonaIdentity = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch persona identity", {
         description:
           data?.message ||
           "Unable to fetch persona identity, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch persona identity");
     }
   },
 );
@@ -85,13 +85,13 @@ export const createPersonaIdentity = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't save persona identity.", {
         description:
           data?.message ||
           "Unable to save persona identity, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't save persona identity.");
     }
   },
 );
@@ -111,13 +111,13 @@ export const fetchNeverSayRules = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch never-say rules.", {
         description:
           data?.message ||
           "Unable to fetch never-say rules, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch never-say rules.");
     }
   },
 );
@@ -144,13 +144,13 @@ export const createNeverSayRules = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't save never-say rules", {
         description:
           data?.message ||
           "Unable to save never-say rules, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't save never-say rules");
     }
   },
 );

@@ -19,7 +19,9 @@ export function announceMetaOAuthResult({ status, message }: MetaOAuthResult) {
   if (status === "success") {
     toast.success(message || "Meta account connected.");
   } else {
-    toast.error("Uh oh! Something went wrong.", { description: message });
+    toast.error("Unable to connect Meta account.", {
+      description: message || "Try again or reconnect the account.",
+    });
   }
 }
 
