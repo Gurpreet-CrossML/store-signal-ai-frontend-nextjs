@@ -506,7 +506,7 @@ export default function Customization() {
     themeVars,
     actionButtons,
     quickLinks: previewQuickLinks,
-    aiInfo,   
+    aiInfo,
   };
 
   return (

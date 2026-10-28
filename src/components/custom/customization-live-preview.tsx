@@ -287,13 +287,13 @@ export default function CustomizationLivePreview({
 
               {previewTab === "messages" && showAiInfo && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
-                  <div className="max-h-full w-full max-w-xs overflow-y-auto rounded-xl bg-white p-4 text-[#111827] shadow-lg">
+                  <div className="max-h-full w-full max-w-xs overflow-x-hidden overflow-y-auto rounded-xl bg-white p-4 text-[#111827] shadow-lg">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-2.5">
                         <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-gray-200">
                           <AiHeaderIcon className="size-3.5" />
                         </span>
-                        <h3 className="text-base leading-tight font-bold">
+                        <h3 className="min-w-0 text-base leading-tight font-bold [overflow-wrap:anywhere]">
                           {pick(ai.title ?? "", AI_DEFAULTS.title)}
                         </h3>
                       </div>
@@ -306,7 +306,7 @@ export default function CustomizationLivePreview({
                         <IconX className="size-3.5" />
                       </button>
                     </div>
-                    <p className="mb-2.5 text-sm leading-relaxed">
+                    <p className="mb-2.5 text-sm leading-relaxed [overflow-wrap:anywhere]">
                       {pick(ai.description ?? "", AI_DEFAULTS.description)}
                     </p>
                     {aiCards.map((section, index) => {
@@ -315,16 +315,19 @@ export default function CustomizationLivePreview({
                       return (
                         <div
                           key={index}
-                          className="mt-2 rounded-lg bg-gray-100 p-2.5"
+                          className="mt-2 min-w-0 rounded-lg bg-gray-100 p-2.5"
                         >
                           {section.title ? (
-                            <h4 className="mb-2 flex items-center gap-1 text-[13px] font-bold">
-                              <SectionIcon className="size-3" />
+                            <h4 className="mb-2 flex items-center gap-1 text-[13px] font-bold [overflow-wrap:anywhere]">
+                              <SectionIcon className="size-3 shrink-0" />
                               {section.title}
                             </h4>
                           ) : null}
                           {section.points.map((point, i) => (
-                            <p key={i} className="mb-1 text-[13px] last:mb-0">
+                            <p
+                              key={i}
+                              className="mb-1 text-[13px] last:mb-0 [overflow-wrap:anywhere]"
+                            >
                               {point}
                             </p>
                           ))}

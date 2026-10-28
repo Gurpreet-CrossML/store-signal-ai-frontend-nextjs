@@ -112,7 +112,8 @@ type EditorState = {
   sections: Required<AiInfoSection>[] | null;
 };
 
-export const pick = (value: string, fallback: string) => value.trim() || fallback;
+export const pick = (value: string, fallback: string) =>
+  value.trim() || fallback;
 
 const toState = (value: AiInfo | null | undefined): EditorState => ({
   texts: {
@@ -214,7 +215,9 @@ export default function CustomizationAiInfo({
       <CardContent className="flex flex-col gap-6">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field className="gap-2">
-            <FieldLabel htmlFor="ai-disclaimer-text">Disclaimer text</FieldLabel>
+            <FieldLabel htmlFor="ai-disclaimer-text">
+              Disclaimer text
+            </FieldLabel>
             <Input
               id="ai-disclaimer-text"
               value={state.texts.disclaimer_text}
