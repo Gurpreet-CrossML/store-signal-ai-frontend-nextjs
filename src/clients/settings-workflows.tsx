@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
-import { IconAutomaticGearbox, IconLock } from "@tabler/icons-react";
+import { useEffect, useState } from "react";
+import {
+  IconAutomaticGearbox,
+  IconFileText,
+  IconLock,
+} from "@tabler/icons-react";
 import { toast } from "sonner";
 
+import { WorkflowPolicySheet } from "@/components/custom/settings/workflows/workflow-policy-sheet";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Empty,
   EmptyDescription,
@@ -34,7 +40,8 @@ const SKELETON_CARDS = 6;
  * Settings → Workflows: one card per platform workflow with an on/off switch
  * for the selected store. The list is the same for every company; a switch
  * only changes this store. Locked workflows show a lock instead of a usable
- * switch, since the backend refuses to turn them off.
+ * switch, since the backend refuses to turn them off. A workflow that takes
+ * the store's own policy has a Policy button that opens its editor.
  */
 export default function SettingsWorkflows() {
   const dispatch = useAppDispatch();
@@ -49,6 +56,12 @@ export default function SettingsWorkflows() {
     (state) =>
       state.GetStoreSettingsReducer.UpdateStoreWorkflowState
         .UpdateStoreWorkflowPendingCode,
+  );
+
+  // Looked up from the list so the open sheet sees its saved version.
+  const [policyCode, setPolicyCode] = useState<string | null>(null);
+  const policyWorkflow = FetchStoreWorkflowsData.find(
+    (workflow) => workflow.code === policyCode,
   );
 
   useEffect(() => {
@@ -105,8 +118,16 @@ export default function SettingsWorkflows() {
           workflow={workflow}
           saving={pendingCode === workflow.code}
           onToggle={(isEnabled) => toggle(workflow, isEnabled)}
+          onOpenPolicy={() => setPolicyCode(workflow.code)}
         />
       ))}
+      {policyWorkflow && (
+        <WorkflowPolicySheet
+          key={policyWorkflow.code}
+          workflow={policyWorkflow}
+          onClose={() => setPolicyCode(null)}
+        />
+      )}
     </div>
   );
 }
@@ -115,10 +136,12 @@ function WorkflowCard({
   workflow,
   saving,
   onToggle,
+  onOpenPolicy,
 }: {
   workflow: StoreWorkflow;
   saving: boolean;
   onToggle: (isEnabled: boolean) => void;
+  onOpenPolicy: () => void;
 }) {
   const locked = !workflow.can_disable;
   // What the workflow depends on, shown so a store knows why it may not work.
@@ -190,6 +213,22 @@ function WorkflowCard({
           <Typography variant="muted" className="text-xs">
             Needs {needs.join(" · ")}
           </Typography>
+        )}
+        {workflow.has_policy && (
+          <Button
+            variant="outline"
+            size="xs"
+            className="ml-auto"
+            onClick={onOpenPolicy}
+          >
+            <IconFileText data-icon="inline-start" />
+            Policy
+            {workflow.policy_version > 0 && (
+              <Badge variant="secondary" className="h-4 px-1.5">
+                v{workflow.policy_version}
+              </Badge>
+            )}
+          </Button>
         )}
       </div>
     </div>
