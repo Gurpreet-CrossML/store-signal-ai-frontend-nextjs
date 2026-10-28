@@ -124,7 +124,12 @@ import { DateRangePicker } from "@/components/custom/date-range-picker";
 import { LoadingState } from "@/components/custom/loading-state";
 import { SearchInput } from "@/components/custom/search-input";
 
-import { ENDPOINTS } from "@/lib/config";
+import {
+  ACTIVE_ASSIGNEE_STYLE,
+  ACTIVE_QUEUE_STYLE,
+  DEFAULT_HELPDESK_QUEUE,
+  ENDPOINTS,
+} from "@/lib/config";
 import {
   SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS,
   prepareSupportAttachments,
@@ -359,11 +364,6 @@ const emptyTicketFilters: TicketFilterSelection = {
   toDate: "",
 };
 
-const ACTIVE_QUEUE_STYLE =
-  "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary";
-const ACTIVE_ASSIGNEE_STYLE =
-  "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-300 dark:hover:bg-sky-950/50";
-
 /**
  * How each channel is named and drawn.
  *
@@ -506,7 +506,7 @@ function TicketListPanel({
                 size="sm"
                 className={cn(
                   "-ml-2 gap-1",
-                  activeQueue !== "open" && ACTIVE_QUEUE_STYLE,
+                  activeQueue !== DEFAULT_HELPDESK_QUEUE && ACTIVE_QUEUE_STYLE,
                 )}
               >
                 <CardTitle>

@@ -13,7 +13,6 @@ import { toast } from "sonner";
 
 import { InfoIcon } from "@/components/custom/info-icon";
 import { LoadingState } from "@/components/custom/loading-state";
-import { ACTIVE_FILTER_STYLE } from "@/components/custom/thread-filteration";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,6 +61,7 @@ import {
   type Autonomy,
 } from "@/lib/comment-handling-data";
 import { toggleInList } from "@/lib/helpers";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {

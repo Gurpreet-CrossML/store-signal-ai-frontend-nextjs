@@ -19,7 +19,7 @@ import {
   SelectSeparator,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { ACTIVE_FILTER_STYLE } from "@/components/custom/thread-filteration";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import type { CommentTopic } from "@/redux/api-slice/social-ai-slice";
 import { IconChevronDown } from "@tabler/icons-react";
 import { DEFAULT_INTENTS, INTENT_GROUPS } from "@/lib/comment-handling-data";

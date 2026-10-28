@@ -5,10 +5,10 @@ import { format, parseISO, subDays } from "date-fns";
 
 import { DateRangePicker } from "@/components/custom/date-range-picker";
 import {
-  ACTIVE_FILTER_STYLE,
   CHANNEL_OPTIONS,
   FilterSelect,
 } from "@/components/custom/thread-filteration";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 
 export type DashboardFilterState = {

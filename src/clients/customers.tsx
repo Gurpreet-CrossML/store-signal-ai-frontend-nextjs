@@ -28,7 +28,7 @@ import {
   type CustomerOrdering,
 } from "@/redux/api-slice/customer-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { ACTIVE_FILTER_STYLE } from "@/components/custom/thread-filteration";
+import { ACTIVE_FILTER_STYLE, DEFAULT_CUSTOMER_ORDERING } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 const PER_PAGE = 25;
@@ -173,7 +173,7 @@ export default function Customers() {
             <SelectTrigger
               className={cn(
                 "w-44",
-                ordering !== "-total_spent" && ACTIVE_FILTER_STYLE,
+                ordering !== DEFAULT_CUSTOMER_ORDERING && ACTIVE_FILTER_STYLE,
               )}
               aria-label="Sort customers"
             >

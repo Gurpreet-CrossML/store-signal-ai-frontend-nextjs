@@ -28,7 +28,7 @@ import {
   type OrderOrdering,
 } from "@/redux/api-slice/order-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { ACTIVE_FILTER_STYLE } from "@/components/custom/thread-filteration";
+import { ACTIVE_FILTER_STYLE, DEFAULT_ORDER_ORDERING } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 const PER_PAGE = 25;
@@ -180,7 +180,7 @@ export default function Orders() {
             <SelectTrigger
               className={cn(
                 "w-44",
-                ordering !== "-created_at" && ACTIVE_FILTER_STYLE,
+                ordering !== DEFAULT_ORDER_ORDERING && ACTIVE_FILTER_STYLE,
               )}
               aria-label="Sort orders"
             >

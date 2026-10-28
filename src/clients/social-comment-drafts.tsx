@@ -36,7 +36,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { ACTIVE_FILTER_STYLE } from "@/components/custom/thread-filteration";
+import { ACTIVE_FILTER_STYLE, ALL_FILTER_VALUE } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import {
   commentDraftChanged,
@@ -268,7 +268,10 @@ export default function SocialCommentDrafts() {
           <Select value={accountId} onValueChange={setAccountId}>
             <SelectTrigger
               size="sm"
-              className={cn("w-52", accountId !== "all" && ACTIVE_FILTER_STYLE)}
+              className={cn(
+                "w-52",
+                accountId !== ALL_FILTER_VALUE && ACTIVE_FILTER_STYLE,
+              )}
               aria-label="Account"
             >
               <SelectValue />

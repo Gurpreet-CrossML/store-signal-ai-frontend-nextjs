@@ -16,7 +16,7 @@ import {
   KNOWLEDGE_STATUS_META,
   KNOWLEDGE_TYPE_OPTIONS,
 } from "@/components/custom/knowledge/knowledge-meta";
-import { ACTIVE_FILTER_STYLE } from "@/components/custom/thread-filteration";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 export type KnowledgeFilterSelection = {
