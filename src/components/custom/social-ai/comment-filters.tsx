@@ -19,6 +19,7 @@ import {
   SelectSeparator,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import type { CommentTopic } from "@/redux/api-slice/social-ai-slice";
 import { IconChevronDown } from "@tabler/icons-react";
 import { DEFAULT_INTENTS, INTENT_GROUPS } from "@/lib/comment-handling-data";
@@ -106,7 +107,10 @@ export function CommentFiltersBar({
         value={filters.intent}
         onValueChange={(intent) => onChange({ ...filters, intent })}
       >
-        <SelectTrigger size="sm" className="w-40">
+        <SelectTrigger
+          size="sm"
+          className={cn("w-40", filters.intent !== ANY && ACTIVE_FILTER_STYLE)}
+        >
           <SelectValue placeholder="Any intent" />
         </SelectTrigger>
         <SelectContent position="popper" className="max-h-72">
@@ -135,7 +139,13 @@ export function CommentFiltersBar({
         value={filters.sentiment}
         onValueChange={(sentiment) => onChange({ ...filters, sentiment })}
       >
-        <SelectTrigger size="sm" className="w-40">
+        <SelectTrigger
+          size="sm"
+          className={cn(
+            "w-40",
+            filters.sentiment !== ANY && ACTIVE_FILTER_STYLE,
+          )}
+        >
           <SelectValue placeholder="Any sentiment" />
         </SelectTrigger>
         <SelectContent>
@@ -154,7 +164,10 @@ export function CommentFiltersBar({
             <Button
               variant="outline"
               size="sm"
-              className="w-40 justify-between"
+              className={cn(
+                "w-40 justify-between",
+                filters.topics.length > 0 && ACTIVE_FILTER_STYLE,
+              )}
             >
               <span className="truncate">
                 {filters.topics.length ? "Tags" : "Any tag"}
