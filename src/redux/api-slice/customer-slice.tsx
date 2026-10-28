@@ -151,7 +151,7 @@ export const FetchCustomers = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load customers.", {
         description: data?.message || "Unable to load customers.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -174,7 +174,7 @@ export const FetchCustomerDetails = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load this customer.", {
         description: data?.message || "Unable to load this customer.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");

@@ -25,7 +25,7 @@ export const FetchStoreAllowedIpsSettings = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load store settings.", {
         description: data?.message || "Unable to load store settings.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -50,7 +50,7 @@ export const UpdateStoreAllowedIpsSettings = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't save store settings.", {
         description: data?.message || "Unable to save store settings.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -91,7 +91,7 @@ export const FetchStoreWorkflows = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load workflows.", {
         description: data?.message || "Unable to load workflows.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -119,7 +119,7 @@ export const UpdateStoreWorkflow = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't update this workflow.", {
         description: data?.message || "Unable to update this workflow.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");

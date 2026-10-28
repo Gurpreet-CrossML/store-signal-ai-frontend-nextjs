@@ -516,7 +516,7 @@ export const fetchSocialAccountsSubscriptions = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch social subscriptions.", {
         description:
           data?.message ||
           "Unable to fetch social subscriptions, please try again later.",
@@ -544,7 +544,7 @@ export const fetchWhatsAppTemplates = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch WhatsApp templates.", {
         description:
           data?.message ||
           "Unable to fetch WhatsApp templates, please try again later.",
@@ -734,7 +734,7 @@ export const fetchWhatsAppTemplateLibrary = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the post-sale template library.", {
         description:
           data?.message ||
           "Unable to fetch the post-sale template library, please try again later.",
@@ -794,7 +794,7 @@ export const updateAccountAutoRespond = createAsyncThunk(
       return response.data;
     } catch (error) {
       const data = errorEnvelope(error);
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't update the AI auto-reply.", {
         description: bestErrorMessage(
           data,
           "Unable to update the AI auto-reply.",
@@ -820,7 +820,7 @@ export const disconnectSocialAccount = createAsyncThunk(
       return response.data.data as ConnectedAccount;
     } catch (error) {
       const data = errorEnvelope(error);
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't disconnect the account.", {
         description: bestErrorMessage(
           data,
           "Unable to disconnect the account.",
@@ -854,7 +854,7 @@ export const createMetaOAuthUrl = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch Meta OAuth URL.", {
         description:
           data?.message ||
           "Unable to fetch Meta OAuth URL, please try again later.",
@@ -924,7 +924,7 @@ export const fetchSocialPosts = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch posts.", {
         description:
           data?.message || "Unable to fetch posts, please try again later.",
       });
@@ -1023,7 +1023,7 @@ export const fetchPostComments = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch post comments.", {
         description:
           data?.message ||
           "Unable to fetch post comments, please try again later.",
@@ -1053,7 +1053,7 @@ export const fetchCommentTopics = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch comment topics.", {
         description:
           data?.message ||
           "Unable to fetch comment topics, please try again later.",
@@ -1096,7 +1096,7 @@ export const fetchSocialUsers = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch conversations.", {
         description:
           data?.message ||
           "Unable to fetch conversations, please try again later.",
@@ -1140,7 +1140,7 @@ export const fetchSocialDms = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch messages.", {
         description:
           data?.message || "Unable to fetch messages, please try again later.",
       });
@@ -1169,7 +1169,7 @@ export const likeMetaComment = createAsyncThunk(
       return response.data;
     } catch (error) {
       const data = errorEnvelope(error);
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't like item.", {
         description: bestErrorMessage(data, "Unable to like item."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -1196,7 +1196,7 @@ export const unlikeMetaComment = createAsyncThunk(
       return response.data;
     } catch (error) {
       const data = errorEnvelope(error);
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't remove the like.", {
         description: bestErrorMessage(data, "Unable to remove the like."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -1229,7 +1229,7 @@ export const hideMetaComment = createAsyncThunk(
       return response.data;
     } catch (error) {
       const data = errorEnvelope(error);
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't hide item.", {
         description: bestErrorMessage(data, "Unable to hide item."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -1255,7 +1255,7 @@ export const deleteMetaComment = createAsyncThunk(
       return response.data;
     } catch (error) {
       const data = errorEnvelope(error);
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't delete item.", {
         description: bestErrorMessage(data, "Unable to delete item."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -1311,7 +1311,7 @@ export const replyToMetaMessage = createAsyncThunk(
       return response.data;
     } catch (error) {
       const data = errorEnvelope(error);
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't reply to message.", {
         description: bestErrorMessage(data, "Unable to reply to message."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -1344,7 +1344,7 @@ export const reactToMetaMessage = createAsyncThunk(
       return response.data;
     } catch (error) {
       const data = errorEnvelope(error);
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't react to message.", {
         description: bestErrorMessage(data, "Unable to react to message."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -1377,7 +1377,7 @@ export const replyToMetaComment = createAsyncThunk(
       return response.data;
     } catch (error) {
       const data = errorEnvelope(error);
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't reply to comment.", {
         description: bestErrorMessage(data, "Unable to reply to comment."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -1513,7 +1513,7 @@ export const fetchCommentSettings = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load comment settings.", {
         description:
           data?.message ||
           "Unable to load comment settings, please try again later.",
@@ -1552,7 +1552,7 @@ export const saveIntentRule = createAsyncThunk(
       return response.data.data as CommentIntentRule;
     } catch (error) {
       const data = errorEnvelope(error);
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't save this intent rule.", {
         description: bestErrorMessage(data, "Unable to save this intent rule."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -1587,7 +1587,7 @@ export const saveTopicRule = createAsyncThunk(
       return response.data.data as CommentTopicRule;
     } catch (error) {
       const data = errorEnvelope(error);
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't save this topic rule.", {
         description: bestErrorMessage(data, "Unable to save this topic rule."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -1613,7 +1613,7 @@ export const deleteTopicRule = createAsyncThunk(
       return topic;
     } catch (error) {
       const data = errorEnvelope(error);
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't remove this topic rule.", {
         description: bestErrorMessage(
           data,
           "Unable to remove this topic rule.",
@@ -1658,7 +1658,7 @@ export const fetchCommentDrafts = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load the draft queue.", {
         description:
           data?.message ||
           "Unable to load the draft queue, please try again later.",
@@ -1712,7 +1712,7 @@ export const fetchUserCommentDraft = createAsyncThunk(
       return toDraftList(response.data);
     } catch (error) {
       const data = errorEnvelope(error);
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load the AI draft.", {
         description: bestErrorMessage(data, "Unable to load the AI draft."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -1738,7 +1738,7 @@ export const fetchUserMessageDraft = createAsyncThunk(
       return toDraftList(response.data);
     } catch (error) {
       const data = errorEnvelope(error);
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load the AI draft.", {
         description: bestErrorMessage(data, "Unable to load the AI draft."),
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");

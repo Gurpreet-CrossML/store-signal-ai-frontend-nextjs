@@ -252,7 +252,7 @@ export const FetchSupportTickets = createAsyncThunk<
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the support ticket.", {
         description:
           data?.message ||
           "Unable to fetch the support ticket, please try again later.",
@@ -280,7 +280,7 @@ export const FetchSupportTicketDetails = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch ticket details.", {
         description:
           data?.message ||
           "Unable to fetch ticket details, please try again later.",
@@ -318,7 +318,7 @@ export const SupportTicketMessageSend = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't send message.", {
         description:
           data?.message || "Unable to send message, please try again later.",
       });
@@ -353,7 +353,7 @@ export const FetchSupportTicketTags = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch support ticket tags.", {
         description:
           data?.message ||
           "Unable to fetch support ticket tags, please try again later.",
@@ -546,7 +546,7 @@ export const SupportTicketStaffAssign = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't assign a staff to ticket.", {
         description:
           data?.message ||
           "Unable to assign a staff to ticket, please try again later.",
@@ -579,7 +579,7 @@ export const SupportTicketAgentDraftSave = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't save draft message.", {
         description:
           data?.message ||
           "Unable to save draft message, please try again later.",
@@ -611,7 +611,7 @@ export const SupportTicketTagAssign = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't assign this tag to ticket.", {
         description:
           data?.message ||
           "Unable to assign this tag to ticket, please try again later.",
@@ -643,7 +643,7 @@ export const SupportTicketTagRemove = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't remove this tag to ticket.", {
         description:
           data?.message ||
           "Unable to remove this tag to ticket, please try again later.",
@@ -680,7 +680,7 @@ export const SupportMessageImprove = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't improve the message.", {
         description:
           data?.message ||
           "Unable to improve the message, please try again later.",
@@ -717,7 +717,7 @@ export const SupportTicketSnooze = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't snooze this ticket.", {
         description:
           data?.message ||
           "Unable to snooze this ticket, please try again later.",
@@ -745,7 +745,7 @@ export const SupportTicketMarkRead = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't mark read.", {
         description:
           data?.message || "Unable to mark read, please try again later.",
       });
@@ -772,7 +772,7 @@ export const TicketTagDelete = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't delete this tag.", {
         description:
           data?.message || "Unable to delete this tag, please try again later.",
       });
@@ -803,7 +803,7 @@ export const TicketTagCreate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't create a tag.", {
         description:
           data?.message || "Unable to create a tag, please try again later.",
       });
@@ -835,7 +835,7 @@ export const TicketTagUpdate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't update this tag.", {
         description:
           data?.message || "Unable to update this tag, please try again later.",
       });
@@ -862,7 +862,7 @@ export const SupportTicketAIMessageDraftGenerate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't generate ai draft.", {
         description:
           data?.message ||
           "Unable to generate ai draft, please try again later.",
@@ -904,7 +904,7 @@ export const SupportTicketStatusUpdate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't update ticket status.", {
         description:
           data?.message ||
           "Unable to update ticket status, please try again later.",
@@ -941,7 +941,7 @@ export const SupportTicketPriorityUpdate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't update ticket priority.", {
         description:
           data?.message ||
           "Unable to update ticket priority, please try again later.",
@@ -980,7 +980,7 @@ export const SupportTicketActivityFetch = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load ticket activity.", {
         description:
           data?.message ||
           "Unable to load ticket activity, please try again later.",
@@ -1019,7 +1019,7 @@ export const SupportTicketLanguageSentimentUpdate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't update ticket language or sentiment.", {
         description:
           data?.message ||
           "Unable to update ticket language or sentiment, please try again later.",
@@ -1052,7 +1052,7 @@ export const SupportTicketMessagesTranslate = createAsyncThunk<
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't translate ticket messages.", {
         description:
           data?.message ||
           "Unable to translate ticket messages, please try again later.",

@@ -504,7 +504,7 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the threads.", {
         description:
           data?.message ||
           "Unable to fetch the threads, please try again later.",
@@ -529,7 +529,7 @@ export const FetchThreadDetails = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the thread details.", {
         description:
           data?.message ||
           "Unable to fetch the thread details, please try again later.",
@@ -560,7 +560,7 @@ export const CreateInternalNote = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't save the internal note.", {
         description:
           data?.message ||
           "Unable to save the internal note. Please try again later.",
@@ -585,7 +585,7 @@ export const FetchUserMetadata = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the user metadata.", {
         description:
           data?.message ||
           "Unable to fetch the user metadata, please try again later.",
@@ -610,7 +610,7 @@ export const FetchConversationSummary = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the conversation summary.", {
         description:
           data?.message ||
           "Unable to fetch the conversation summary, please try again later.",
@@ -635,7 +635,7 @@ export const FetchFeedbackSequence = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the feedback sequence.", {
         description:
           data?.message ||
           "Unable to fetch the feedback sequence, please try again later.",
@@ -658,7 +658,7 @@ export const FetchTags = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the tags.", {
         description:
           data?.message || "Unable to fetch the tags, please try again later.",
       });
@@ -682,7 +682,7 @@ export const FetchThreadTagOptions = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch tag options.", {
         description:
           data?.message ||
           "Unable to fetch tag options, please try again later.",
@@ -707,7 +707,7 @@ export const FetchAIInsight = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the AI insights.", {
         description:
           data?.message ||
           "Unable to fetch the AI insights, please try again later.",
@@ -734,7 +734,7 @@ export const FetchCart = createAsyncThunk(
 
       // A 404 simply means no cart data exists for this thread — not an error worth surfacing.
       if (response?.status !== 404) {
-        toast.error("Uh oh! Something went wrong.", {
+        toast.error("Couldn't fetch the cart data.", {
           description:
             data?.message ||
             "Unable to fetch the cart data, please try again later.",
@@ -803,7 +803,7 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the Support ticket ID.", {
         description:
           data?.message ||
           "Unable to fetch the Support ticket ID, please try again later.",
@@ -834,7 +834,7 @@ export const UploadMessageAttachments = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Could not upload the selected image(s).", {
         description:
           data?.message ||
           "Could not upload the selected image(s). Please try again later.",
@@ -861,7 +861,7 @@ export const FetchOrders = createAsyncThunk(
 
       // A 404 simply means no cart data exists for this thread — not an error worth surfacing.
       if (response?.status !== 404) {
-        toast.error("Uh oh! Something went wrong.", {
+        toast.error("Couldn't fetch the cart data.", {
           description:
             data?.message ||
             "Unable to fetch the cart data, please try again later.",

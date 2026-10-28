@@ -62,7 +62,7 @@ export const fetchEmailTemplates = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch email templates.", {
         description:
           data?.message ||
           "Unable to fetch email templates, please try again later.",

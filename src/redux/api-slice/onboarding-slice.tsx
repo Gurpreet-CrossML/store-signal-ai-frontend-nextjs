@@ -44,7 +44,7 @@ export const FetchOnboardingStatus = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load your setup progress.", {
         description: data?.message || "Unable to load your setup progress.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");

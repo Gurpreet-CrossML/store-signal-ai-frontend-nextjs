@@ -85,7 +85,7 @@ export const FetchNotifications = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load notifications.", {
         description:
           data?.message || "Unable to load notifications, please try again.",
       });
@@ -110,7 +110,7 @@ export const FetchMoreNotifications = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load more notifications.", {
         description:
           data?.message ||
           "Unable to load more notifications, please try again.",
@@ -153,7 +153,7 @@ export const MarkNotificationRead = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't mark the notification as read.", {
         description:
           data?.message ||
           "Unable to mark the notification as read, please try again.",

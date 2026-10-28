@@ -346,7 +346,7 @@ export const FetchKnowledgeItems = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load knowledge items.", {
         description:
           data?.message || "Unable to load knowledge items, please try again.",
       });
@@ -446,7 +446,7 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't add knowledge.", {
         description:
           data?.message || "Unable to add knowledge, please try again.",
       });
@@ -486,7 +486,7 @@ export const UpdateKnowledgeItem = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't update knowledge.", {
         description:
           data?.message || "Unable to update knowledge, please try again.",
       });
@@ -509,7 +509,7 @@ export const DeleteKnowledgeItem = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't delete knowledge.", {
         description:
           data?.message || "Unable to delete knowledge, please try again.",
       });

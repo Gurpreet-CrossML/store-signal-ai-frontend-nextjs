@@ -40,7 +40,7 @@ export const GetStores = createAsyncThunk<Store[], GetStoresArgs>(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the Store.", {
         description:
           data?.message || "Unable to fetch the Store, please try again later.",
       });
@@ -86,7 +86,7 @@ export const FetchStoresList = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load the stores.", {
         description:
           data?.message || "Unable to load the stores, please try again later.",
       });
@@ -107,7 +107,7 @@ export const FetchWidgetScript = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load the widget script.", {
         description:
           data?.message || "Unable to load the widget script. Try again.",
       });

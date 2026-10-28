@@ -144,7 +144,7 @@ export const FetchFeedbackInsights = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch feedback insights.", {
         description:
           data?.message ||
           "Unable to fetch feedback insights, please try again later.",
@@ -169,7 +169,7 @@ export const FetchConversation = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch conversation data.", {
         description:
           data?.message ||
           "Unable to fetch conversation data, please try again later.",
@@ -194,7 +194,7 @@ export const FetchEngagement = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch engagement data.", {
         description:
           data?.message ||
           "Unable to fetch engagement data, please try again later.",
@@ -219,7 +219,7 @@ export const FetchOperationalEfficiency = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch operational efficiency data.", {
         description:
           data?.message ||
           "Unable to fetch operational efficiency data, please try again later.",
@@ -244,7 +244,7 @@ export const FetchUserMatrix = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch user matrix data.", {
         description:
           data?.message ||
           "Unable to fetch user matrix data, please try again later.",
@@ -269,7 +269,7 @@ export const FetchConversionRate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch conversion rate data.", {
         description:
           data?.message ||
           "Unable to fetch conversion rate data, please try again later.",
@@ -294,7 +294,7 @@ export const FetchQueryCategoryInsights = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch query category insights.", {
         description:
           data?.message ||
           "Unable to fetch query category insights, please try again later.",
@@ -332,7 +332,7 @@ export const FetchConversationHistory = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch conversation history.", {
         description:
           data?.message ||
           "Unable to fetch conversation history, please try again later.",
@@ -356,7 +356,7 @@ export const FetchChatOrderFunnel = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch chat to order funnel.", {
         description:
           data?.message ||
           "Unable to fetch chat to order funnel, please try again later.",
@@ -389,7 +389,7 @@ export const FetchDashboard = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch dashboard data.", {
         description:
           data?.message ||
           "Unable to fetch dashboard data, please try again later.",

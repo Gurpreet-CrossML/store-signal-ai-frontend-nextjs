@@ -170,7 +170,7 @@ export const fetchToneStyle = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the Tone & Style.", {
         description:
           data?.message ||
           "Unable to fetch the Tone & Style, please try again later.",
@@ -192,7 +192,7 @@ export const fetchTonePresets = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the tone presets.", {
         description:
           data?.message ||
           "Unable to fetch the tone presets, please try again later.",
@@ -225,7 +225,7 @@ export const createToneStyle = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't save the Tone & Style.", {
         description:
           data?.message ||
           "Unable to save the Tone & Style, please try again later.",
@@ -251,7 +251,7 @@ export const fetchVocabulary = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the vocabulary.", {
         description:
           data?.message ||
           "Unable to fetch the vocabulary, please try again later.",
@@ -284,7 +284,7 @@ export const createVocabulary = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't save the vocabulary.", {
         description:
           data?.message ||
           "Unable to save the vocabulary, please try again later.",
@@ -305,7 +305,7 @@ export const fetchVocabularyPresets = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the vocabulary presets.", {
         description:
           data?.message ||
           "Unable to fetch the vocabulary presets, please try again later.",
@@ -328,7 +328,7 @@ export const fetchNeverSayRulesPresets = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't fetch the never-say rules presets.", {
         description:
           data?.message ||
           "Unable to fetch the never-say rules presets, please try again later.",

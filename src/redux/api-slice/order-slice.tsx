@@ -207,7 +207,7 @@ export const FetchOrders = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load orders.", {
         description: data?.message || "Unable to load orders.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -251,7 +251,7 @@ export const FetchCustomerOrders = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load this customer's orders.", {
         description: data?.message || "Unable to load this customer's orders.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
@@ -305,7 +305,7 @@ export const FetchOrderDetails = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
+      toast.error("Couldn't load this order.", {
         description: data?.message || "Unable to load this order.",
       });
       return thunkAPI.rejectWithValue(data || "Something went wrong");
