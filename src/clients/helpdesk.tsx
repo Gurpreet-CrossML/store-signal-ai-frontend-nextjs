@@ -898,9 +898,11 @@ function ConversationPanel({
       ?.name ?? ticketLanguage;
 
   const customerName = customerLabel(ticket.customer);
-  // Shown in brackets beside the status — only worth the width once the
-  // ticket has actually been reopened.
-  const reopenCount = ticket.reopen_count ?? 0;
+  // Shown in brackets beside the status — only while the ticket is in the
+  // reopen status. The count is lifetime, so a reopened ticket that has since
+  // been closed or resolved still carries it, and must not show it.
+  const reopenCount =
+    ticket.status === "reopen" ? (ticket.reopen_count ?? 0) : 0;
   const customerEmail =
     ticket.customer && typeof ticket.customer === "object"
       ? ticket.customer.email
@@ -3780,6 +3782,15 @@ export default function HelpDesk() {
             open={isDetailsOpen}
             onOpenChange={setIsDetailsOpen}
             customerData={ticketCustomer}
+            ticket={
+              storeCode
+                ? {
+                    storeCode,
+                    ticketId: activeSupportTicket.id,
+                    version: `${activeSupportTicket.status}|${activeSupportTicket.internal_assignee?.id ?? ""}|${activeSupportTicket.updated_at ?? ""}`,
+                  }
+                : undefined
+            }
             orders={ticketCustomer?.orders}
             ordersLoading={FetchSupportTicketDetailsIsLoading}
             onOrdersSync={handleCustomerOrderSync}
