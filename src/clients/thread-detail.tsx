@@ -582,7 +582,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                     ],
                   )}
                 >
-                  Reason: {closeReasonLabel(details.close_reason)}
+                  {closeReasonLabel(details.close_reason)}
                 </Badge>
               )}
               {!details.is_active &&

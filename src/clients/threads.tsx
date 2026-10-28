@@ -148,7 +148,7 @@ export default function Threads() {
     if (!storeCode) return;
     const activeFilters = {
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
-      ...(filters.is_active ? { is_active: filters.is_active === "true" } : {}),
+      is_active: false,
       ...(filters.user_type ? { user_type: filters.user_type } : {}),
       ...(filters.has_ticket
         ? { has_ticket: filters.has_ticket === "true" }
