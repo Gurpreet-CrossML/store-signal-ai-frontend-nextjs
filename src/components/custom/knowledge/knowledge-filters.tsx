@@ -16,6 +16,8 @@ import {
   KNOWLEDGE_STATUS_META,
   KNOWLEDGE_TYPE_OPTIONS,
 } from "@/components/custom/knowledge/knowledge-meta";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
+import { cn } from "@/lib/utils";
 
 export type KnowledgeFilterSelection = {
   type: KnowledgeType | "";
@@ -58,7 +60,11 @@ function FilterSelect({
       value={value || ALL}
       onValueChange={(next) => onChange(next === ALL ? "" : next)}
     >
-      <SelectTrigger size="sm" aria-label={ariaLabel} className="w-fit">
+      <SelectTrigger
+        size="sm"
+        aria-label={ariaLabel}
+        className={cn("w-fit", value && ACTIVE_FILTER_STYLE)}
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

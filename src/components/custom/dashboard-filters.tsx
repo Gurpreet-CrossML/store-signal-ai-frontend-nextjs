@@ -8,6 +8,7 @@ import {
   CHANNEL_OPTIONS,
   FilterSelect,
 } from "@/components/custom/thread-filteration";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 
 export type DashboardFilterState = {
@@ -79,6 +80,11 @@ export function DashboardRangeFilter({
           })
         }
         options={RANGE_OPTIONS}
+        activeClassName={
+          filters.range !== DEFAULT_DASHBOARD_FILTERS.range
+            ? ACTIVE_FILTER_STYLE
+            : undefined
+        }
       />
       {filters.range === "custom" && (
         <DateRangePicker
@@ -86,6 +92,7 @@ export function DashboardRangeFilter({
           to={filters.to}
           onRangeChange={(from, to) => onChange({ ...filters, from, to })}
           disabled={{ after: new Date() }}
+          className={ACTIVE_FILTER_STYLE}
         />
       )}
     </>
@@ -119,6 +126,7 @@ export function DashboardFilters({
           })
         }
         options={CHANNEL_OPTIONS}
+        activeClassName={ACTIVE_FILTER_STYLE}
       />
       {(filters.range !== DEFAULT_DASHBOARD_FILTERS.range ||
         filters.channel !== DEFAULT_DASHBOARD_FILTERS.channel) && (

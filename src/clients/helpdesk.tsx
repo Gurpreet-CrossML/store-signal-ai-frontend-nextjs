@@ -124,7 +124,12 @@ import { DateRangePicker } from "@/components/custom/date-range-picker";
 import { LoadingState } from "@/components/custom/loading-state";
 import { SearchInput } from "@/components/custom/search-input";
 
-import { ENDPOINTS } from "@/lib/config";
+import {
+  ACTIVE_ASSIGNEE_STYLE,
+  ACTIVE_QUEUE_STYLE,
+  DEFAULT_HELPDESK_QUEUE,
+  ENDPOINTS,
+} from "@/lib/config";
 import {
   SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS,
   prepareSupportAttachments,
@@ -496,7 +501,14 @@ function TicketListPanel({
         <div className="flex min-w-0 items-center gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="-ml-2 gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "-ml-2 gap-1",
+                  activeQueue !== DEFAULT_HELPDESK_QUEUE && ACTIVE_QUEUE_STYLE,
+                )}
+              >
                 <CardTitle>
                   {queueLabel}
                   <span className="ml-1.5 font-normal text-muted-foreground">
@@ -1052,7 +1064,10 @@ function ConversationPanel({
             }
           >
             <ComboboxInput
-              className="h-8 w-28 2xl:w-40"
+              className={cn(
+                "h-8 w-28 2xl:w-40",
+                ticket?.internal_assignee?.id && ACTIVE_ASSIGNEE_STYLE,
+              )}
               placeholder={
                 ticket?.internal_assignee?.id
                   ? ticket?.internal_assignee?.name
