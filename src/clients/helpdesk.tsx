@@ -1124,17 +1124,18 @@ function ConversationPanel({
 
           {/* The two endings a ticket actually has, one click away —
               they were buried in the status Select behind the ⋮ menu. */}
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label="Mark as resolved"
-            className={cn(ACTION_TONE_STYLES.success, "@3xl/conv:order-4")}
-            onClick={() => setPendingEndStatus("resolved")}
-            disabled={isClosed}
-          >
-            <IconCircleCheck className="size-4" />
-            Resolve
-          </Button>
+          {!isClosed ? (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Mark as resolved"
+              className={cn(ACTION_TONE_STYLES.success, "@3xl/conv:order-4")}
+              onClick={() => setPendingEndStatus("resolved")}
+            >
+              <IconCircleCheck className="size-4" />
+              Resolve
+            </Button>
+          ) : null}
 
           {/* Only a resolved ticket can be closed. */}
           {ticket.status === "resolved" ? (
