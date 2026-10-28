@@ -193,7 +193,7 @@ const StoresSlice = createSlice({
         state.GetStoresState.GetStoresIsLoading = false;
         state.GetStoresState.GetStoresIsSuccess = false;
         state.GetStoresState.GetStoresIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't load stores.";
       })
       .addCase(FetchStoresList.pending, (state) => {
         state.FetchStoresListState.FetchStoresListIsLoading = true;

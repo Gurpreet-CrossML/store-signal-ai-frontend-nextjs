@@ -897,7 +897,7 @@ export const FetchProducts = createAsyncThunk(
       return (response.data?.data ?? null) as ProductListResponse | null;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+      return thunkAPI.rejectWithValue(response?.data || "Couldn't fetch products.");
     }
   },
 );

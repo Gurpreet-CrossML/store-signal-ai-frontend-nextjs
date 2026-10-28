@@ -224,7 +224,7 @@ const CustomizationSlice = createSlice({
         state.FetchWidgetCustomizationState.FetchWidgetCustomizationIsLoading = false;
         state.FetchWidgetCustomizationState.FetchWidgetCustomizationIsSuccess = false;
         state.FetchWidgetCustomizationState.FetchWidgetCustomizationIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't load widget customization.";
       })
       // UpdateWidgetCustomization
       .addCase(UpdateWidgetCustomization.pending, (state) => {
@@ -243,7 +243,7 @@ const CustomizationSlice = createSlice({
         state.UpdateWidgetCustomizationState.UpdateWidgetCustomizationIsLoading = false;
         state.UpdateWidgetCustomizationState.UpdateWidgetCustomizationIsSuccess = false;
         state.UpdateWidgetCustomizationState.UpdateWidgetCustomizationIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't update widget customization.";
       })
       // UpdateWidgetCustomizationWithImage
       .addCase(UpdateWidgetCustomizationWithImage.pending, (state) => {
@@ -265,7 +265,7 @@ const CustomizationSlice = createSlice({
         state.UpdateWidgetCustomizationWithImageState.UpdateWidgetCustomizationWithImageIsLoading = false;
         state.UpdateWidgetCustomizationWithImageState.UpdateWidgetCustomizationWithImageIsSuccess = false;
         state.UpdateWidgetCustomizationWithImageState.UpdateWidgetCustomizationWithImageIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't update widget customization with image.";
       });
   },
 });

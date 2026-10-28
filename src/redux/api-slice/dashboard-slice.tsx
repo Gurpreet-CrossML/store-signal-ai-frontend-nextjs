@@ -478,7 +478,7 @@ const DashboardSlice = createSlice({
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsLoading = false;
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsSuccess = false;
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch feedback insights.";
       })
       // Conversation Data
       .addCase(FetchConversation.pending, (state) => {
@@ -495,7 +495,7 @@ const DashboardSlice = createSlice({
         state.FetchConversationDataState.FetchConversationDataIsLoading = false;
         state.FetchConversationDataState.FetchConversationDataIsSuccess = false;
         state.FetchConversationDataState.FetchConversationDataIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch conversation data.";
       })
       // Engagement Data
       .addCase(FetchEngagement.pending, (state) => {
@@ -512,7 +512,7 @@ const DashboardSlice = createSlice({
         state.FetchEngagementDataState.FetchEngagementDataIsLoading = false;
         state.FetchEngagementDataState.FetchEngagementDataIsSuccess = false;
         state.FetchEngagementDataState.FetchEngagementDataIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch engagement data.";
       })
       // Operational Efficiency Data
       .addCase(FetchOperationalEfficiency.pending, (state) => {
@@ -531,7 +531,7 @@ const DashboardSlice = createSlice({
         state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsLoading = false;
         state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsSuccess = false;
         state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch operational efficiency data.";
       })
       // User Matrix
       .addCase(FetchUserMatrix.pending, (state) => {
@@ -548,7 +548,7 @@ const DashboardSlice = createSlice({
         state.FetchUserMatrixState.FetchUserMatrixIsLoading = false;
         state.FetchUserMatrixState.FetchUserMatrixIsSuccess = false;
         state.FetchUserMatrixState.FetchUserMatrixIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch user matrix data.";
       })
       // Conversion Rate Data
       .addCase(FetchConversionRate.pending, (state) => {
@@ -567,7 +567,7 @@ const DashboardSlice = createSlice({
         state.FetchConversionRateDataState.FetchConversionRateDataIsLoading = false;
         state.FetchConversionRateDataState.FetchConversionRateDataIsSuccess = false;
         state.FetchConversionRateDataState.FetchConversionRateDataIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch conversion rate data.";
       })
       // Query Category Insights
       .addCase(FetchQueryCategoryInsights.pending, (state) => {
@@ -586,7 +586,7 @@ const DashboardSlice = createSlice({
         state.FetchQueryCategoryInsightsState.FetchQueryCategoryInsightsIsLoading = false;
         state.FetchQueryCategoryInsightsState.FetchQueryCategoryInsightsIsSuccess = false;
         state.FetchQueryCategoryInsightsState.FetchQueryCategoryInsightsIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch query category insights.";
       })
       // Conversation History
       .addCase(FetchConversationHistory.pending, (state) => {
@@ -605,7 +605,7 @@ const DashboardSlice = createSlice({
         state.FetchConversationHistoryState.FetchConversationHistoryIsLoading = false;
         state.FetchConversationHistoryState.FetchConversationHistoryIsSuccess = false;
         state.FetchConversationHistoryState.FetchConversationHistoryIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch conversation history.";
       })
       // Chat to Order Funnel
       .addCase(FetchChatOrderFunnel.pending, (state) => {
@@ -623,7 +623,7 @@ const DashboardSlice = createSlice({
         state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsLoading = false;
         state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsSuccess = false;
         state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch chat to order funnel.";
       })
       // Consolidated dashboard: one request fans out into all five widget states.
       .addCase(FetchDashboard.pending, (state) => {
@@ -667,7 +667,7 @@ const DashboardSlice = createSlice({
           d.conversion_rate;
       })
       .addCase(FetchDashboard.rejected, (state, action) => {
-        const err = action.payload || "Something went wrong";
+        const err = action.payload || "Couldn't load dashboard data.";
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsLoading = false;
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsError = err;
         state.FetchEngagementDataState.FetchEngagementDataIsLoading = false;

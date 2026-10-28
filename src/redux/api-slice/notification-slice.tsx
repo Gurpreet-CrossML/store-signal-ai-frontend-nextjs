@@ -136,7 +136,7 @@ export const FetchNotificationCounts = createAsyncThunk(
       return data;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+      return thunkAPI.rejectWithValue(response?.data || "Couldn't fetch notification counts.");
     }
   },
 );
@@ -219,7 +219,7 @@ const NotificationSlice = createSlice({
         state.FetchNotificationsState.FetchNotificationsIsLoading = false;
         state.FetchNotificationsState.FetchNotificationsIsSuccess = false;
         state.FetchNotificationsState.FetchNotificationsIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't load notifications.";
       })
       .addCase(FetchMoreNotifications.pending, (state) => {
         state.FetchMoreNotificationsState.FetchMoreNotificationsIsLoading = true;
@@ -241,7 +241,7 @@ const NotificationSlice = createSlice({
         state.FetchMoreNotificationsState.FetchMoreNotificationsIsLoading = false;
         state.FetchMoreNotificationsState.FetchMoreNotificationsIsSuccess = false;
         state.FetchMoreNotificationsState.FetchMoreNotificationsIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't load more notifications.";
       })
       .addCase(FetchNotificationCounts.pending, (state) => {
         state.FetchNotificationCountsState.FetchNotificationCountsIsLoading = true;
@@ -259,7 +259,7 @@ const NotificationSlice = createSlice({
         state.FetchNotificationCountsState.FetchNotificationCountsIsLoading = false;
         state.FetchNotificationCountsState.FetchNotificationCountsIsSuccess = false;
         state.FetchNotificationCountsState.FetchNotificationCountsIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch notification counts.";
       })
       .addCase(MarkNotificationRead.pending, (state) => {
         state.MarkNotificationReadState.MarkNotificationReadIsLoading = true;
@@ -274,7 +274,7 @@ const NotificationSlice = createSlice({
         state.MarkNotificationReadState.MarkNotificationReadIsLoading = false;
         state.MarkNotificationReadState.MarkNotificationReadIsSuccess = false;
         state.MarkNotificationReadState.MarkNotificationReadIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't mark the notification as read.";
       });
   },
 });

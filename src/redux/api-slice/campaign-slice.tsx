@@ -296,7 +296,9 @@ export const previewSegmentCount = createAsyncThunk(
       // momentarily empty mid-edit), so a validation 400 is routine
       // rather than something worth interrupting them about.
       const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't preview the segment count.",
+      );
     }
   },
 );
@@ -318,7 +320,7 @@ export const createSegment = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       // Reject with the whole envelope so the form can pull field errors
       // out of ``err.data`` (DRF puts one on the 400 response).
-      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+      return thunkAPI.rejectWithValue(response?.data || "Couldn't create the segment.");
     }
   },
 );
@@ -372,7 +374,7 @@ export const updateSegment = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       // Reject with the whole envelope so the form can pull field errors
       // out of ``err.data`` (DRF puts one on the 400 response).
-      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+      return thunkAPI.rejectWithValue(response?.data || "Couldn't update the segment.");
     }
   },
 );
@@ -591,7 +593,7 @@ export const createCampaign = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       // Reject with the whole envelope so the form can pull field errors
       // out of ``err.data`` (DRF puts one on the 400 response).
-      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+      return thunkAPI.rejectWithValue(response?.data || "Couldn't create the campaign.");
     }
   },
 );
@@ -653,7 +655,7 @@ export const updateCampaign = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       // Reject with the whole envelope so the form can pull field errors
       // out of ``err.data`` (DRF puts one on the 400 response).
-      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+      return thunkAPI.rejectWithValue(response?.data || "Couldn't update the campaign.");
     }
   },
 );
