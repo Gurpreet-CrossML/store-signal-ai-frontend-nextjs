@@ -45,7 +45,7 @@ export const FetchOnboardingStatus = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't load your setup progress.", {
-        description: data?.message || "Unable to load your setup progress.",
+        description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load your setup progress.");
     }
@@ -111,7 +111,7 @@ export const StartShopifyOauth = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't start the Shopify connection", {
-        description: data?.message || "Unable to reach Shopify. Try again.",
+        description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't start the Shopify connection");
     }

@@ -147,7 +147,7 @@ export const FetchFeedbackInsights = createAsyncThunk(
       toast.error("Couldn't fetch feedback insights.", {
         description:
           data?.message ||
-          "Unable to fetch feedback insights, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch feedback insights.");
@@ -172,7 +172,7 @@ export const FetchConversation = createAsyncThunk(
       toast.error("Couldn't fetch conversation data.", {
         description:
           data?.message ||
-          "Unable to fetch conversation data, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch conversation data.");
@@ -197,7 +197,7 @@ export const FetchEngagement = createAsyncThunk(
       toast.error("Couldn't fetch engagement data.", {
         description:
           data?.message ||
-          "Unable to fetch engagement data, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch engagement data.");
@@ -222,7 +222,7 @@ export const FetchOperationalEfficiency = createAsyncThunk(
       toast.error("Couldn't fetch operational efficiency data.", {
         description:
           data?.message ||
-          "Unable to fetch operational efficiency data, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch operational efficiency data.");
@@ -247,7 +247,7 @@ export const FetchUserMatrix = createAsyncThunk(
       toast.error("Couldn't fetch user matrix data.", {
         description:
           data?.message ||
-          "Unable to fetch user matrix data, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch user matrix data.");
@@ -272,7 +272,7 @@ export const FetchConversionRate = createAsyncThunk(
       toast.error("Couldn't fetch conversion rate data.", {
         description:
           data?.message ||
-          "Unable to fetch conversion rate data, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch conversion rate data.");
@@ -297,7 +297,7 @@ export const FetchQueryCategoryInsights = createAsyncThunk(
       toast.error("Couldn't fetch query category insights.", {
         description:
           data?.message ||
-          "Unable to fetch query category insights, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch query category insights.");
@@ -335,7 +335,7 @@ export const FetchConversationHistory = createAsyncThunk(
       toast.error("Couldn't fetch conversation history.", {
         description:
           data?.message ||
-          "Unable to fetch conversation history, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch conversation history.");
@@ -359,7 +359,7 @@ export const FetchChatOrderFunnel = createAsyncThunk(
       toast.error("Couldn't fetch chat to order funnel.", {
         description:
           data?.message ||
-          "Unable to fetch chat to order funnel, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch chat to order funnel.");
@@ -392,7 +392,7 @@ export const FetchDashboard = createAsyncThunk(
       toast.error("Couldn't fetch dashboard data.", {
         description:
           data?.message ||
-          "Unable to fetch dashboard data, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch dashboard data.");

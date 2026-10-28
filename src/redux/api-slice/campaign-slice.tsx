@@ -65,7 +65,7 @@ export const fetchEmailTemplates = createAsyncThunk(
       toast.error("Couldn't fetch email templates.", {
         description:
           data?.message ||
-          "Unable to fetch email templates, please try again later.",
+          "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't fetch email templates.");
     }

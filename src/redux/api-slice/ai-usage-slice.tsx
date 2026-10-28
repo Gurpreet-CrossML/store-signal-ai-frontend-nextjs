@@ -127,7 +127,7 @@ export const fetchCreditStatus = createAsyncThunk(
       toast.error("Couldn't fetch AI credit status.", {
         description:
           data?.message ||
-          "Unable to fetch AI credit status, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch AI credit status.");
@@ -152,7 +152,7 @@ export const fetchAIUsageCreditSummary = createAsyncThunk(
       toast.error("Couldn't fetch AI credits used.", {
         description:
           data?.message ||
-          "Unable to fetch AI credits used, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch AI credits used.");
@@ -177,7 +177,7 @@ export const fetchAIUsageCreditDaily = createAsyncThunk(
       toast.error("Couldn't fetch daily AI credits.", {
         description:
           data?.message ||
-          "Unable to fetch daily AI credits, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch daily AI credits.");
@@ -202,7 +202,7 @@ export const fetchAIUsageByFeature = createAsyncThunk(
       toast.error("Couldn't fetch AI credits by feature.", {
         description:
           data?.message ||
-          "Unable to fetch AI credits by feature, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch AI credits by feature.");
@@ -227,7 +227,7 @@ export const fetchAIUsageSummary = createAsyncThunk(
       toast.error("Couldn't fetch AI usage summary.", {
         description:
           data?.message ||
-          "Unable to fetch AI usage summary, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch AI usage summary.");
@@ -252,7 +252,7 @@ export const fetchAIUsageDaily = createAsyncThunk(
       toast.error("Couldn't fetch AI daily usage.", {
         description:
           data?.message ||
-          "Unable to fetch daily AI usage, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch AI daily usage.");
@@ -277,7 +277,7 @@ export const fetchAIUsageTokenSplit = createAsyncThunk(
       toast.error("Couldn't fetch AI token split.", {
         description:
           data?.message ||
-          "Unable to fetch AI token split, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch AI token split.");
@@ -302,7 +302,7 @@ export const fetchAIUsageWorkflowCosts = createAsyncThunk(
       toast.error("Couldn't fetch AI workflow costs.", {
         description:
           data?.message ||
-          "Unable to fetch AI workflow costs, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch AI workflow costs.");
@@ -327,7 +327,7 @@ export const fetchAIUsageLatencyTrend = createAsyncThunk(
       toast.error("Couldn't fetch AI latency trend.", {
         description:
           data?.message ||
-          "Unable to fetch AI latency trend, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch AI latency trend.");

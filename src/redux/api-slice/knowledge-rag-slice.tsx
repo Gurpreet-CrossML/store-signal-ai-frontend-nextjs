@@ -348,7 +348,7 @@ export const FetchKnowledgeItems = createAsyncThunk(
       const data = response?.data;
       toast.error("Couldn't load knowledge items.", {
         description:
-          data?.message || "Unable to load knowledge items, please try again.",
+          data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load knowledge items.");
     }
@@ -448,7 +448,7 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
       const data = response?.data;
       toast.error("Couldn't add knowledge.", {
         description:
-          data?.message || "Unable to add knowledge, please try again.",
+          data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't add knowledge.");
     }
@@ -488,7 +488,7 @@ export const UpdateKnowledgeItem = createAsyncThunk(
       const data = response?.data;
       toast.error("Couldn't update knowledge.", {
         description:
-          data?.message || "Unable to update knowledge, please try again.",
+          data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't update knowledge.");
     }
@@ -511,7 +511,7 @@ export const DeleteKnowledgeItem = createAsyncThunk(
       const data = response?.data;
       toast.error("Couldn't delete knowledge.", {
         description:
-          data?.message || "Unable to delete knowledge, please try again.",
+          data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't delete knowledge.");
     }

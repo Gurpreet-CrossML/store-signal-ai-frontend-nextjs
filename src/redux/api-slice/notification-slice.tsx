@@ -87,7 +87,7 @@ export const FetchNotifications = createAsyncThunk(
       const data = response?.data;
       toast.error("Couldn't load notifications.", {
         description:
-          data?.message || "Unable to load notifications, please try again.",
+          data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load notifications.");
     }
@@ -113,7 +113,7 @@ export const FetchMoreNotifications = createAsyncThunk(
       toast.error("Couldn't load more notifications.", {
         description:
           data?.message ||
-          "Unable to load more notifications, please try again.",
+          "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load more notifications.");
     }
@@ -156,7 +156,7 @@ export const MarkNotificationRead = createAsyncThunk(
       toast.error("Couldn't mark the notification as read.", {
         description:
           data?.message ||
-          "Unable to mark the notification as read, please try again.",
+          "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't mark the notification as read.");
     }

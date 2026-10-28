@@ -74,7 +74,7 @@ export const FetchWidgetCustomization = createAsyncThunk(
       toast.error("Couldn't fetch customization metrics.", {
         description:
           data?.message ||
-          "Unable to fetch customization metrics, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch customization metrics.");
@@ -109,7 +109,7 @@ export const UpdateWidgetCustomization = createAsyncThunk(
       toast.error("Couldn't update widget customization.", {
         description:
           data?.message ||
-          "Unable to update widget customization, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't update widget customization.");
@@ -176,7 +176,7 @@ export const UpdateWidgetCustomizationWithImage = createAsyncThunk(
       toast.error("Couldn't update widget customization.", {
         description:
           data?.message ||
-          "Unable to update widget customization, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't update widget customization.");

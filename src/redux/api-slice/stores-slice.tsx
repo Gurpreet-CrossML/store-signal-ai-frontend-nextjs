@@ -42,7 +42,7 @@ export const GetStores = createAsyncThunk<Store[], GetStoresArgs>(
 
       toast.error("Couldn't fetch the Store.", {
         description:
-          data?.message || "Unable to fetch the Store, please try again later.",
+          data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch the Store.");
@@ -88,7 +88,7 @@ export const FetchStoresList = createAsyncThunk(
       const data = response?.data;
       toast.error("Couldn't load the stores.", {
         description:
-          data?.message || "Unable to load the stores, please try again later.",
+          data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load the stores.");
     }
@@ -109,7 +109,7 @@ export const FetchWidgetScript = createAsyncThunk(
       const data = response?.data;
       toast.error("Couldn't load the widget script.", {
         description:
-          data?.message || "Unable to load the widget script. Try again.",
+          data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load the widget script.");
     }

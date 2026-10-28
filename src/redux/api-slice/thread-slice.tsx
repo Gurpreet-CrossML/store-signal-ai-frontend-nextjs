@@ -507,7 +507,7 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
       toast.error("Couldn't fetch the threads.", {
         description:
           data?.message ||
-          "Unable to fetch the threads, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch the threads.");
@@ -532,7 +532,7 @@ export const FetchThreadDetails = createAsyncThunk(
       toast.error("Couldn't fetch the thread details.", {
         description:
           data?.message ||
-          "Unable to fetch the thread details, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch the thread details.");
@@ -563,7 +563,7 @@ export const CreateInternalNote = createAsyncThunk(
       toast.error("Couldn't save the internal note.", {
         description:
           data?.message ||
-          "Unable to save the internal note. Please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't save the internal note.");
@@ -588,7 +588,7 @@ export const FetchUserMetadata = createAsyncThunk(
       toast.error("Couldn't fetch the user metadata.", {
         description:
           data?.message ||
-          "Unable to fetch the user metadata, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch the user metadata.");
@@ -613,7 +613,7 @@ export const FetchConversationSummary = createAsyncThunk(
       toast.error("Couldn't fetch the conversation summary.", {
         description:
           data?.message ||
-          "Unable to fetch the conversation summary, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch the conversation summary.");
@@ -638,7 +638,7 @@ export const FetchFeedbackSequence = createAsyncThunk(
       toast.error("Couldn't fetch the feedback sequence.", {
         description:
           data?.message ||
-          "Unable to fetch the feedback sequence, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch the feedback sequence.");
@@ -660,7 +660,7 @@ export const FetchTags = createAsyncThunk(
 
       toast.error("Couldn't fetch the tags.", {
         description:
-          data?.message || "Unable to fetch the tags, please try again later.",
+          data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch the tags.");
@@ -685,7 +685,7 @@ export const FetchThreadTagOptions = createAsyncThunk(
       toast.error("Couldn't fetch tag options.", {
         description:
           data?.message ||
-          "Unable to fetch tag options, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch tag options.");
@@ -710,7 +710,7 @@ export const FetchAIInsight = createAsyncThunk(
       toast.error("Couldn't fetch the AI insights.", {
         description:
           data?.message ||
-          "Unable to fetch the AI insights, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch the AI insights.");
@@ -737,7 +737,7 @@ export const FetchCart = createAsyncThunk(
         toast.error("Couldn't fetch the cart data.", {
           description:
             data?.message ||
-            "Unable to fetch the cart data, please try again later.",
+            "Please try again later.",
         });
       }
 
@@ -769,7 +769,7 @@ export const ThreadCustomerLink = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't link the customer", {
-        description: data?.message || "Please try again.",
+        description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't link the customer");
     }
@@ -806,7 +806,7 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
       toast.error("Couldn't fetch the Support ticket ID.", {
         description:
           data?.message ||
-          "Unable to fetch the Support ticket ID, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch the Support ticket ID.");
@@ -837,10 +837,10 @@ export const UploadMessageAttachments = createAsyncThunk(
       toast.error("Could not upload the selected image(s).", {
         description:
           data?.message ||
-          "Could not upload the selected image(s). Please try again later.",
+          "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Could not upload the selected image(s).");
+      return thunkAPI.rejectWithValue(data || "Please try again later.");
     }
   },
 );
@@ -864,7 +864,7 @@ export const FetchOrders = createAsyncThunk(
         toast.error("Couldn't fetch the cart data.", {
           description:
             data?.message ||
-            "Unable to fetch the cart data, please try again later.",
+            "Please try again later.",
         });
       }
 

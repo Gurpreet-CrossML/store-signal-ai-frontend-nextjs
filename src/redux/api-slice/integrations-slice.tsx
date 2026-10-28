@@ -50,7 +50,7 @@ export const FetchIntegrations = createAsyncThunk(
       toast.error("Couldn't fetch the integrations.", {
         description:
           data?.message ||
-          "Unable to fetch the integrations, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch the integrations.");
@@ -103,13 +103,13 @@ export const ConnectStoreIntegration = createAsyncThunk(
         toast.error("Couldn't connect the integration.", {
           description:
             data?.data?.integration[0] ||
-            "Unable to connect the integration, please try again later.",
+            "Please try again later.",
         });
       } else {
         toast.error("Couldn't connect the integration.", {
           description:
             data?.message ||
-            "Unable to connect the integration, please try again later.",
+            "Please try again later.",
         });
       }
 
@@ -144,7 +144,7 @@ export const FetchStoreIntegrations = createAsyncThunk(
       toast.error("Couldn't fetch the store integrations.", {
         description:
           data?.message ||
-          "Unable to fetch the store integrations, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch the store integrations.");
@@ -178,7 +178,7 @@ export const DisconnectStoreIntegration = createAsyncThunk(
       toast.error("Couldn't disconnect the integration.", {
         description:
           data?.message ||
-          "Unable to disconnect the integration, please try again later.",
+          "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't disconnect the integration.");

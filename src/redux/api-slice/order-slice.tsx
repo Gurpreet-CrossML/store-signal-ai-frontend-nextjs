@@ -208,7 +208,7 @@ export const FetchOrders = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't load orders.", {
-        description: data?.message || "Unable to load orders.",
+        description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load orders.");
     }
@@ -252,7 +252,7 @@ export const FetchCustomerOrders = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't load this customer's orders.", {
-        description: data?.message || "Unable to load this customer's orders.",
+        description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load this customer's orders.");
     }
@@ -306,7 +306,7 @@ export const FetchOrderDetails = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't load this order.", {
-        description: data?.message || "Unable to load this order.",
+        description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load this order.");
     }
