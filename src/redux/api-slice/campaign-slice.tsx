@@ -67,7 +67,7 @@ export const fetchEmailTemplates = createAsyncThunk(
           data?.message ||
           "Unable to fetch email templates, please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch email templates.");
     }
   },
 );
@@ -94,7 +94,7 @@ export const createEmailTemplate = createAsyncThunk(
       toast.error("Couldn't create the template", {
         description: data?.message || "Please check the form and try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't create the template");
     }
   },
 );
@@ -126,7 +126,7 @@ export const updateEmailTemplate = createAsyncThunk(
       toast.error("Couldn't update the template", {
         description: data?.message || "Please check the form and try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update the template");
     }
   },
 );
@@ -149,7 +149,7 @@ export const deleteEmailTemplate = createAsyncThunk(
       toast.error("Couldn't delete the template", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't delete the template");
     }
   },
 );
@@ -206,7 +206,7 @@ export const fetchSegmentCategories = createAsyncThunk(
       toast.error("Couldn't load segment categories", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load segment categories");
     }
   },
 );
@@ -232,7 +232,7 @@ export const fetchSegments = createAsyncThunk(
       toast.error("Couldn't load segments", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load segments");
     }
   },
 );
@@ -346,7 +346,7 @@ export const fetchSegmentDetail = createAsyncThunk(
       toast.error("Couldn't load the segment", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load the segment");
     }
   },
 );
@@ -395,7 +395,7 @@ export const deleteSegment = createAsyncThunk(
       toast.error("Couldn't delete the segment", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't delete the segment");
     }
   },
 );
@@ -422,7 +422,7 @@ export const updateSegmentStatus = createAsyncThunk(
       toast.error("Couldn't update the segment", {
         description: bestErrorMessage(data, "Please try again later."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update the segment");
     }
   },
 );
@@ -520,7 +520,7 @@ export const fetchCampaigns = createAsyncThunk(
       toast.error("Couldn't load campaigns", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load campaigns");
     }
   },
 );
@@ -543,7 +543,7 @@ export const fetchCampaignDetail = createAsyncThunk(
       toast.error("Couldn't load the campaign", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load the campaign");
     }
   },
 );
@@ -566,7 +566,7 @@ export const fetchCampaignSequenceSteps = createAsyncThunk(
       toast.error("Couldn't load the campaign's steps", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load the campaign's steps");
     }
   },
 );
@@ -627,7 +627,7 @@ export const updateCampaignStatus = createAsyncThunk(
       toast.error("Couldn't update the campaign", {
         description: bestErrorMessage(data, "Please try again later."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update the campaign");
     }
   },
 );
@@ -690,7 +690,7 @@ export const scheduleCampaign = createAsyncThunk(
       toast.error("Couldn't schedule the campaign", {
         description: bestErrorMessage(data, "Please try again later."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't schedule the campaign");
     }
   },
 );
@@ -748,7 +748,7 @@ export const deleteCampaign = createAsyncThunk(
       toast.error("Couldn't delete the campaign", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't delete the campaign");
     }
   },
 );
@@ -771,7 +771,7 @@ export const fetchEmailTemplateDetail = createAsyncThunk(
       toast.error("Couldn't load the template", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load the template");
     }
   },
 );

@@ -77,7 +77,7 @@ export const FetchWidgetCustomization = createAsyncThunk(
           "Unable to fetch customization metrics, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch customization metrics.");
     }
   },
 );
@@ -112,7 +112,7 @@ export const UpdateWidgetCustomization = createAsyncThunk(
           "Unable to update widget customization, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update widget customization.");
     }
   },
 );
@@ -179,7 +179,7 @@ export const UpdateWidgetCustomizationWithImage = createAsyncThunk(
           "Unable to update widget customization, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update widget customization.");
     }
   },
 );

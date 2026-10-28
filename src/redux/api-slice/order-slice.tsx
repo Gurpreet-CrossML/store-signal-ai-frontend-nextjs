@@ -210,7 +210,7 @@ export const FetchOrders = createAsyncThunk(
       toast.error("Couldn't load orders.", {
         description: data?.message || "Unable to load orders.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load orders.");
     }
   },
 );
@@ -254,7 +254,7 @@ export const FetchCustomerOrders = createAsyncThunk(
       toast.error("Couldn't load this customer's orders.", {
         description: data?.message || "Unable to load this customer's orders.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load this customer's orders.");
     }
   },
 );
@@ -285,7 +285,7 @@ export const SyncCustomerOrders = createAsyncThunk(
         description:
           data?.message || "The store did not return this customer's orders.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't refresh orders");
     }
   },
 );
@@ -308,7 +308,7 @@ export const FetchOrderDetails = createAsyncThunk(
       toast.error("Couldn't load this order.", {
         description: data?.message || "Unable to load this order.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load this order.");
     }
   },
 );

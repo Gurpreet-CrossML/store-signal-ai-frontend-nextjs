@@ -28,7 +28,7 @@ export const FetchStoreAllowedIpsSettings = createAsyncThunk(
       toast.error("Couldn't load store settings.", {
         description: data?.message || "Unable to load store settings.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load store settings.");
     }
   },
 );
@@ -53,7 +53,7 @@ export const UpdateStoreAllowedIpsSettings = createAsyncThunk(
       toast.error("Couldn't save store settings.", {
         description: data?.message || "Unable to save store settings.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't save store settings.");
     }
   },
 );
@@ -94,7 +94,7 @@ export const FetchStoreWorkflows = createAsyncThunk(
       toast.error("Couldn't load workflows.", {
         description: data?.message || "Unable to load workflows.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load workflows.");
     }
   },
 );
@@ -122,7 +122,7 @@ export const UpdateStoreWorkflow = createAsyncThunk(
       toast.error("Couldn't update this workflow.", {
         description: data?.message || "Unable to update this workflow.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update this workflow.");
     }
   },
 );

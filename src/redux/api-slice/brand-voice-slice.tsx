@@ -176,7 +176,7 @@ export const fetchToneStyle = createAsyncThunk(
           "Unable to fetch the Tone & Style, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the Tone & Style.");
     }
   },
 );
@@ -198,7 +198,7 @@ export const fetchTonePresets = createAsyncThunk(
           "Unable to fetch the tone presets, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the tone presets.");
     }
   },
 );
@@ -231,7 +231,7 @@ export const createToneStyle = createAsyncThunk(
           "Unable to save the Tone & Style, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't save the Tone & Style.");
     }
   },
 );
@@ -257,7 +257,7 @@ export const fetchVocabulary = createAsyncThunk(
           "Unable to fetch the vocabulary, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the vocabulary.");
     }
   },
 );
@@ -290,7 +290,7 @@ export const createVocabulary = createAsyncThunk(
           "Unable to save the vocabulary, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't save the vocabulary.");
     }
   },
 );
@@ -311,7 +311,7 @@ export const fetchVocabularyPresets = createAsyncThunk(
           "Unable to fetch the vocabulary presets, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the vocabulary presets.");
     }
   },
 );
@@ -334,7 +334,7 @@ export const fetchNeverSayRulesPresets = createAsyncThunk(
           "Unable to fetch the never-say rules presets, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the never-say rules presets.");
     }
   },
 );

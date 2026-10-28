@@ -350,7 +350,7 @@ export const FetchKnowledgeItems = createAsyncThunk(
         description:
           data?.message || "Unable to load knowledge items, please try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load knowledge items.");
     }
   },
 );
@@ -450,7 +450,7 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
         description:
           data?.message || "Unable to add knowledge, please try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't add knowledge.");
     }
   },
 );
@@ -490,7 +490,7 @@ export const UpdateKnowledgeItem = createAsyncThunk(
         description:
           data?.message || "Unable to update knowledge, please try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update knowledge.");
     }
   },
 );
@@ -513,7 +513,7 @@ export const DeleteKnowledgeItem = createAsyncThunk(
         description:
           data?.message || "Unable to delete knowledge, please try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't delete knowledge.");
     }
   },
 );

@@ -53,7 +53,7 @@ export const FetchIntegrations = createAsyncThunk(
           "Unable to fetch the integrations, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the integrations.");
     }
   },
 );
@@ -113,7 +113,7 @@ export const ConnectStoreIntegration = createAsyncThunk(
         });
       }
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't connect the integration.");
     }
   },
 );
@@ -147,7 +147,7 @@ export const FetchStoreIntegrations = createAsyncThunk(
           "Unable to fetch the store integrations, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the store integrations.");
     }
   },
 );
@@ -181,7 +181,7 @@ export const DisconnectStoreIntegration = createAsyncThunk(
           "Unable to disconnect the integration, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't disconnect the integration.");
     }
   },
 );

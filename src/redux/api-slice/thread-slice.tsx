@@ -510,7 +510,7 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
           "Unable to fetch the threads, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the threads.");
     }
   },
 );
@@ -535,7 +535,7 @@ export const FetchThreadDetails = createAsyncThunk(
           "Unable to fetch the thread details, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the thread details.");
     }
   },
 );
@@ -566,7 +566,7 @@ export const CreateInternalNote = createAsyncThunk(
           "Unable to save the internal note. Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't save the internal note.");
     }
   },
 );
@@ -591,7 +591,7 @@ export const FetchUserMetadata = createAsyncThunk(
           "Unable to fetch the user metadata, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the user metadata.");
     }
   },
 );
@@ -616,7 +616,7 @@ export const FetchConversationSummary = createAsyncThunk(
           "Unable to fetch the conversation summary, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the conversation summary.");
     }
   },
 );
@@ -641,7 +641,7 @@ export const FetchFeedbackSequence = createAsyncThunk(
           "Unable to fetch the feedback sequence, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the feedback sequence.");
     }
   },
 );
@@ -663,7 +663,7 @@ export const FetchTags = createAsyncThunk(
           data?.message || "Unable to fetch the tags, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the tags.");
     }
   },
 );
@@ -688,7 +688,7 @@ export const FetchThreadTagOptions = createAsyncThunk(
           "Unable to fetch tag options, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch tag options.");
     }
   },
 );
@@ -713,7 +713,7 @@ export const FetchAIInsight = createAsyncThunk(
           "Unable to fetch the AI insights, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the AI insights.");
     }
   },
 );
@@ -741,7 +741,7 @@ export const FetchCart = createAsyncThunk(
         });
       }
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the cart data.");
     }
   },
 );
@@ -771,7 +771,7 @@ export const ThreadCustomerLink = createAsyncThunk(
       toast.error("Couldn't link the customer", {
         description: data?.message || "Please try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't link the customer");
     }
   },
 );
@@ -809,7 +809,7 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
           "Unable to fetch the Support ticket ID, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the Support ticket ID.");
     }
   },
 );
@@ -840,7 +840,7 @@ export const UploadMessageAttachments = createAsyncThunk(
           "Could not upload the selected image(s). Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Could not upload the selected image(s).");
     }
   },
 );
@@ -868,7 +868,7 @@ export const FetchOrders = createAsyncThunk(
         });
       }
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the cart data.");
     }
   },
 );

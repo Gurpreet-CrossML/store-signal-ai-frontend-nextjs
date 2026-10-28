@@ -89,7 +89,7 @@ export const FetchNotifications = createAsyncThunk(
         description:
           data?.message || "Unable to load notifications, please try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load notifications.");
     }
   },
 );
@@ -115,7 +115,7 @@ export const FetchMoreNotifications = createAsyncThunk(
           data?.message ||
           "Unable to load more notifications, please try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load more notifications.");
     }
   },
 );
@@ -158,7 +158,7 @@ export const MarkNotificationRead = createAsyncThunk(
           data?.message ||
           "Unable to mark the notification as read, please try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't mark the notification as read.");
     }
   },
 );

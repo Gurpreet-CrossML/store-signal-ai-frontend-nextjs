@@ -154,7 +154,7 @@ export const FetchCustomers = createAsyncThunk(
       toast.error("Couldn't load customers.", {
         description: data?.message || "Unable to load customers.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load customers.");
     }
   },
 );
@@ -177,7 +177,7 @@ export const FetchCustomerDetails = createAsyncThunk(
       toast.error("Couldn't load this customer.", {
         description: data?.message || "Unable to load this customer.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load this customer.");
     }
   },
 );
@@ -241,7 +241,7 @@ export const CreateCustomer = createAsyncThunk(
       toast.error("Couldn't create the customer", {
         description: data?.message || "Please check the email and try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't create the customer");
     }
   },
 );

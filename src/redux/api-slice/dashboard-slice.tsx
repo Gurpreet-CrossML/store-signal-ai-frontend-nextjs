@@ -150,7 +150,7 @@ export const FetchFeedbackInsights = createAsyncThunk(
           "Unable to fetch feedback insights, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch feedback insights.");
     }
   },
 );
@@ -175,7 +175,7 @@ export const FetchConversation = createAsyncThunk(
           "Unable to fetch conversation data, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch conversation data.");
     }
   },
 );
@@ -200,7 +200,7 @@ export const FetchEngagement = createAsyncThunk(
           "Unable to fetch engagement data, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch engagement data.");
     }
   },
 );
@@ -225,7 +225,7 @@ export const FetchOperationalEfficiency = createAsyncThunk(
           "Unable to fetch operational efficiency data, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch operational efficiency data.");
     }
   },
 );
@@ -250,7 +250,7 @@ export const FetchUserMatrix = createAsyncThunk(
           "Unable to fetch user matrix data, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch user matrix data.");
     }
   },
 );
@@ -275,7 +275,7 @@ export const FetchConversionRate = createAsyncThunk(
           "Unable to fetch conversion rate data, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch conversion rate data.");
     }
   },
 );
@@ -300,7 +300,7 @@ export const FetchQueryCategoryInsights = createAsyncThunk(
           "Unable to fetch query category insights, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch query category insights.");
     }
   },
 );
@@ -338,7 +338,7 @@ export const FetchConversationHistory = createAsyncThunk(
           "Unable to fetch conversation history, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch conversation history.");
     }
   },
 );
@@ -362,7 +362,7 @@ export const FetchChatOrderFunnel = createAsyncThunk(
           "Unable to fetch chat to order funnel, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch chat to order funnel.");
     }
   },
 );
@@ -395,7 +395,7 @@ export const FetchDashboard = createAsyncThunk(
           "Unable to fetch dashboard data, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch dashboard data.");
     }
   },
 );

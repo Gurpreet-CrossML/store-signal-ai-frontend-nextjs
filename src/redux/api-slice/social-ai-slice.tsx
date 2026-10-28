@@ -522,7 +522,7 @@ export const fetchSocialAccountsSubscriptions = createAsyncThunk(
           "Unable to fetch social subscriptions, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch social subscriptions.");
     }
   },
 );
@@ -550,7 +550,7 @@ export const fetchWhatsAppTemplates = createAsyncThunk(
           "Unable to fetch WhatsApp templates, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch WhatsApp templates.");
     }
   },
 );
@@ -622,7 +622,7 @@ export const submitWhatsAppTemplate = createAsyncThunk(
           "Please check the form and try again.",
         ),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't submit the template");
     }
   },
 );
@@ -650,7 +650,7 @@ export const fetchLocalWhatsAppTemplate = createAsyncThunk(
       toast.error("Couldn't load the template", {
         description: bestErrorMessage(data, "Please try again later."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load the template");
     }
   },
 );
@@ -687,7 +687,7 @@ export const updateWhatsAppTemplate = createAsyncThunk(
           "Please check the form and try again.",
         ),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update the template");
     }
   },
 );
@@ -713,7 +713,7 @@ export const deleteWhatsAppTemplate = createAsyncThunk(
       toast.error("Couldn't delete the template", {
         description: bestErrorMessage(data, "Please try again later."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't delete the template");
     }
   },
 );
@@ -740,7 +740,7 @@ export const fetchWhatsAppTemplateLibrary = createAsyncThunk(
           "Unable to fetch the post-sale template library, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the post-sale template library.");
     }
   },
 );
@@ -770,7 +770,7 @@ export const importWhatsAppTemplateFromLibrary = createAsyncThunk(
       toast.error("Couldn't import the template", {
         description: bestErrorMessage(data, "Please try again later."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't import the template");
     }
   },
 );
@@ -800,7 +800,7 @@ export const updateAccountAutoRespond = createAsyncThunk(
           "Unable to update the AI auto-reply.",
         ),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update the AI auto-reply.");
     }
   },
 );
@@ -826,7 +826,7 @@ export const disconnectSocialAccount = createAsyncThunk(
           "Unable to disconnect the account.",
         ),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't disconnect the account.");
     }
   },
 );
@@ -860,7 +860,7 @@ export const createMetaOAuthUrl = createAsyncThunk(
           "Unable to fetch Meta OAuth URL, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch Meta OAuth URL.");
     }
   },
 );
@@ -929,7 +929,7 @@ export const fetchSocialPosts = createAsyncThunk(
           data?.message || "Unable to fetch posts, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch posts.");
     }
   },
 );
@@ -959,7 +959,7 @@ export const fetchSocialPost = createAsyncThunk(
         description:
           data?.message || "It may belong to a different store, or be gone.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't open the post");
     }
   },
 );
@@ -1029,7 +1029,7 @@ export const fetchPostComments = createAsyncThunk(
           "Unable to fetch post comments, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch post comments.");
     }
   },
 );
@@ -1059,7 +1059,7 @@ export const fetchCommentTopics = createAsyncThunk(
           "Unable to fetch comment topics, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch comment topics.");
     }
   },
 );
@@ -1102,7 +1102,7 @@ export const fetchSocialUsers = createAsyncThunk(
           "Unable to fetch conversations, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch conversations.");
     }
   },
 );
@@ -1145,7 +1145,7 @@ export const fetchSocialDms = createAsyncThunk(
           data?.message || "Unable to fetch messages, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch messages.");
     }
   },
 );
@@ -1172,7 +1172,7 @@ export const likeMetaComment = createAsyncThunk(
       toast.error("Couldn't like item.", {
         description: bestErrorMessage(data, "Unable to like item."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't like item.");
     }
   },
 );
@@ -1199,7 +1199,7 @@ export const unlikeMetaComment = createAsyncThunk(
       toast.error("Couldn't remove the like.", {
         description: bestErrorMessage(data, "Unable to remove the like."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't remove the like.");
     }
   },
 );
@@ -1232,7 +1232,7 @@ export const hideMetaComment = createAsyncThunk(
       toast.error("Couldn't hide item.", {
         description: bestErrorMessage(data, "Unable to hide item."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't hide item.");
     }
   },
 );
@@ -1258,7 +1258,7 @@ export const deleteMetaComment = createAsyncThunk(
       toast.error("Couldn't delete item.", {
         description: bestErrorMessage(data, "Unable to delete item."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't delete item.");
     }
   },
 );
@@ -1314,7 +1314,7 @@ export const replyToMetaMessage = createAsyncThunk(
       toast.error("Couldn't reply to message.", {
         description: bestErrorMessage(data, "Unable to reply to message."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't reply to message.");
     }
   },
 );
@@ -1347,7 +1347,7 @@ export const reactToMetaMessage = createAsyncThunk(
       toast.error("Couldn't react to message.", {
         description: bestErrorMessage(data, "Unable to react to message."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't react to message.");
     }
   },
 );
@@ -1380,7 +1380,7 @@ export const replyToMetaComment = createAsyncThunk(
       toast.error("Couldn't reply to comment.", {
         description: bestErrorMessage(data, "Unable to reply to comment."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't reply to comment.");
     }
   },
 );
@@ -1412,7 +1412,7 @@ export const FetchSocialTicketDraft = createAsyncThunk(
           data?.message ||
           "Fill the form in manually.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't create ticket");
     }
   },
 );
@@ -1458,7 +1458,7 @@ export const CreateSocialSupportTicket = createAsyncThunk(
           data?.message ||
           "Please check the form and try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't link the customer");
     }
   },
 );
@@ -1493,7 +1493,7 @@ export const SocialUserCustomerLink = createAsyncThunk(
       toast.error("Couldn't link the customer", {
         description: bestErrorMessage(data, "Please try again."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load comment settings.");
     }
   },
 );
@@ -1518,7 +1518,7 @@ export const fetchCommentSettings = createAsyncThunk(
           data?.message ||
           "Unable to load comment settings, please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't save this intent rule.");
     }
   },
 );
@@ -1555,7 +1555,7 @@ export const saveIntentRule = createAsyncThunk(
       toast.error("Couldn't save this intent rule.", {
         description: bestErrorMessage(data, "Unable to save this intent rule."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't save this topic rule.");
     }
   },
 );
@@ -1590,7 +1590,7 @@ export const saveTopicRule = createAsyncThunk(
       toast.error("Couldn't save this topic rule.", {
         description: bestErrorMessage(data, "Unable to save this topic rule."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't remove this topic rule.");
     }
   },
 );
@@ -1619,7 +1619,7 @@ export const deleteTopicRule = createAsyncThunk(
           "Unable to remove this topic rule.",
         ),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load the draft queue.");
     }
   },
 );
@@ -1663,7 +1663,7 @@ export const fetchCommentDrafts = createAsyncThunk(
           data?.message ||
           "Unable to load the draft queue, please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load the AI draft.");
     }
   },
 );
@@ -1715,7 +1715,7 @@ export const fetchUserCommentDraft = createAsyncThunk(
       toast.error("Couldn't load the AI draft.", {
         description: bestErrorMessage(data, "Unable to load the AI draft."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load the AI draft.");
     }
   },
 );
@@ -1741,7 +1741,7 @@ export const fetchUserMessageDraft = createAsyncThunk(
       toast.error("Couldn't load the AI draft.", {
         description: bestErrorMessage(data, "Unable to load the AI draft."),
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update the draft");
     }
   },
 );
@@ -1791,7 +1791,7 @@ export const updateCommentDraft = createAsyncThunk(
             ? "It is no longer pending — someone else may have handled it."
             : data?.message || "Unable to save your edits, please try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't approve the draft");
     }
   },
 );
@@ -1821,7 +1821,7 @@ export const approveCommentDraft = createAsyncThunk(
             ? "It is no longer pending — someone else may have handled it."
             : data?.message || "Nothing was sent, please try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't discard the draft");
     }
   },
 );
@@ -1851,7 +1851,7 @@ export const discardCommentDraft = createAsyncThunk(
             ? "It is no longer pending — someone else may have handled it."
             : data?.message || "Unable to discard, please try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't discard the draft");
     }
   },
 );

@@ -45,7 +45,7 @@ export const GetStores = createAsyncThunk<Store[], GetStoresArgs>(
           data?.message || "Unable to fetch the Store, please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the Store.");
     }
   },
 );
@@ -90,7 +90,7 @@ export const FetchStoresList = createAsyncThunk(
         description:
           data?.message || "Unable to load the stores, please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load the stores.");
     }
   },
 );
@@ -111,7 +111,7 @@ export const FetchWidgetScript = createAsyncThunk(
         description:
           data?.message || "Unable to load the widget script. Try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load the widget script.");
     }
   },
 );
@@ -133,7 +133,7 @@ export const DeactivateStore = createAsyncThunk(
       toast.error("Couldn't deactivate the store", {
         description: data?.message || "Try again in a moment.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't deactivate the store");
     }
   },
 );
