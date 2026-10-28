@@ -8,7 +8,7 @@ import {
 } from "@/redux/api-slice/thread-slice";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ReactMarkdown from "react-markdown";
-import { formatDateTime } from "@/lib/helpers";
+import { formatDate, formatDateTime } from "@/lib/helpers";
 import { MessageAppear } from "@/components/custom/message-appear";
 import OrderBillCard from "@/components/custom/order-bill-card";
 import {
@@ -18,7 +18,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { IconLock, IconShoppingBag, IconSparkles } from "@tabler/icons-react";
+import {
+  IconLock,
+  IconShoppingBag,
+  IconSparkles,
+  IconUser,
+} from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
 import { ProductCarousel } from "@/components/custom/product-carousel";
@@ -478,6 +483,59 @@ export default function MessagePan({
                           </CardFooter>
                         </Card>
                       )}
+
+                    {message.role === "assistant" &&
+                      message.json_content?.ticket_details &&
+                      (() => {
+                        // Mirrors the widget's ticket card (vw-ticket-*).
+                        const t = message.json_content.ticket_details;
+                        return (
+                          <div className="mt-2 flex flex-col gap-2.5 rounded-xl border border-border bg-background p-3.5">
+                            <div className="text-sm font-semibold text-foreground">
+                              Ticket #{t.ticket_id}
+                            </div>
+
+                            {(t.customer_email || t.customer_name) && (
+                              <div className="flex items-center gap-2.5">
+                                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                                  <IconUser className="size-4" />
+                                </div>
+                                <div className="flex flex-col gap-0.5">
+                                  {t.customer_email && (
+                                    <div className="text-[13px] font-semibold text-foreground">
+                                      {t.customer_email}
+                                    </div>
+                                  )}
+                                  {t.customer_name && (
+                                    <div className="text-xs text-muted-foreground">
+                                      {t.customer_name}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="h-px bg-border" />
+
+                            {t.description && (
+                              <div className="flex flex-col gap-1">
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                                  Your Query
+                                </div>
+                                <div className="whitespace-pre-wrap wrap-anywhere text-[13px] leading-[1.55] text-muted-foreground">
+                                  {t.description}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="h-px bg-border" />
+
+                            <div className="text-xs text-muted-foreground">
+                              Created {formatDate(t.created_at)}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                     {message.role === "assistant" &&
                       message.json_content?.suggestions &&

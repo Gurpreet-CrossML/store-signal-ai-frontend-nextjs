@@ -143,6 +143,16 @@ export type ProductComparisonBlock = {
   comparison_message: string;
 };
 
+/** Ticket card raised from a chat, by the AI or an agent. */
+export type TicketDetails = {
+  ticket_id: string | number;
+  subject?: string;
+  description: string;
+  customer_name: string;
+  customer_email: string;
+  created_at: string;
+};
+
 export type ThreadJsonContent = {
   products?: ProductData[];
   related_products?: ProductData[];
@@ -153,6 +163,7 @@ export type ThreadJsonContent = {
   order_id?: string;
   order_verification_step?: string;
   suggestions?: string[];
+  ticket_details?: TicketDetails;
   /** Mirrors ChatHistory.confidence for resilient session reloads. */
   confidence?: number | null;
   /** Mirrors ChatHistory.source_used for resilient session reloads. */
