@@ -57,7 +57,13 @@ const AuthSlice = createSlice({
       RegisterCompanyData: null as RegisteredCompany | null,
     },
   },
-  reducers: {},
+  reducers: {
+    resetRegisterCompany: (state) => {
+      state.RegisterCompanyState.RegisterCompanyIsSuccess = false;
+      state.RegisterCompanyState.RegisterCompanyIsError = null;
+      state.RegisterCompanyState.RegisterCompanyData = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(RegisterCompany.pending, (state) => {
@@ -79,4 +85,5 @@ const AuthSlice = createSlice({
   },
 });
 
+export const { resetRegisterCompany } = AuthSlice.actions;
 export default AuthSlice.reducer;

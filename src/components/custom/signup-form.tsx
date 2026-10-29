@@ -1,4 +1,5 @@
 import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
+import { useEffect } from "react";
 import Link from "next/link";
 import { useFormik } from "formik";
 import z from "zod";
@@ -12,7 +13,10 @@ import {
 
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { RegisterCompany } from "@/redux/api-slice/auth-slice";
+import {
+  RegisterCompany,
+  resetRegisterCompany,
+} from "@/redux/api-slice/auth-slice";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -80,6 +84,15 @@ export function SignupForm({
     RegisterCompanyIsSuccess,
     RegisterCompanyData: registered,
   } = useAppSelector((state) => state.GetAuthReducer.RegisterCompanyState);
+
+  // Leaving the page (e.g. "Go to login") clears the success screen, so
+  // "Create one" opens a fresh signup form.
+  useEffect(
+    () => () => {
+      dispatch(resetRegisterCompany());
+    },
+    [dispatch],
+  );
 
   const formik = useFormik<SignupValues>({
     initialValues: {
