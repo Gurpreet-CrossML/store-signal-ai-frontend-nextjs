@@ -47,6 +47,7 @@ import {
   TicketTagDelete,
   TicketTagCreate,
   TicketTagUpdate,
+  fetchSimilarTicketTags,
   type SupportTicketTagData,
 } from "@/redux/api-slice/support-ticket-slice";
 
@@ -129,6 +130,14 @@ export default function Tags() {
   const [editingTag, setEditingTag] = useState<SupportTicketTagData | null>(
     null,
   );
+  // The name as typed in the dialog; the lookup below follows this.
+  const [nameInput, setNameInput] = useState("");
+  // The tags the server said `name` is too close to. Kept with the name they
+  // answer, so a result for an earlier name is never shown for a later one.
+  const [similar, setSimilar] = useState<{
+    name: string;
+    tags: SupportTicketTagData[];
+  }>({ name: "", tags: [] });
 
   // tag pending delete confirmation (null = confirm dialog closed)
   const [tagPendingDelete, setTagPendingDelete] =
@@ -176,13 +185,47 @@ export default function Tags() {
     );
   }, [dispatch, storeCode, page, limit, debouncedSearch]);
 
+  // Existing tags the typed name is too close to, shown under the name field
+  // so the owner picks one instead of adding a near-duplicate. None when the
+  // dialog is closed or an edited tag still has its own name.
+  const typedName = nameInput.trim();
+  const isOwnName =
+    !!editingTag && typedName.toLowerCase() === editingTag.name.toLowerCase();
+  const matchedTags =
+    dialogOpen && !isOwnName && similar.name === typedName ? similar.tags : [];
+
+  // Look up matching tags a moment after the owner stops typing.
+  useEffect(() => {
+    if (!dialogOpen || !storeCode || typedName.length < TAG_MIN || isOwnName) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const handle = setTimeout(async () => {
+      const tags = await fetchSimilarTicketTags({
+        storeCode,
+        name: typedName,
+        excludeId: editingTag?.id,
+        signal: controller.signal,
+      });
+      if (!controller.signal.aborted) setSimilar({ name: typedName, tags });
+    }, 300);
+
+    return () => {
+      clearTimeout(handle);
+      controller.abort();
+    };
+  }, [typedName, isOwnName, dialogOpen, storeCode, editingTag?.id]);
+
   const openCreateDialog = () => {
     setEditingTag(null);
+    setNameInput("");
     setDialogOpen(true);
   };
 
   const openEditDialog = (tag: SupportTicketTagData) => {
     setEditingTag(tag);
+    setNameInput(tag.name);
     setDialogOpen(true);
   };
 
@@ -290,7 +333,19 @@ export default function Tags() {
     } catch (error) {
       // unwrap() throws the rejected payload, which is where a duplicate
       // name or a bad colour comes back named.
-      applyServerFieldErrors(helpers, error);
+      const body = (error as { data?: Record<string, unknown> } | null)?.data;
+      const matches = body?.matched_tags;
+      if (Array.isArray(matches) && matches.length > 0) {
+        // A name that matches existing tags: list them, and put only the
+        // message on the field (the list is not a form field).
+        setSimilar({
+          name: values.name.trim(),
+          tags: matches as SupportTicketTagData[],
+        });
+        applyServerFieldErrors(helpers, { data: { name: body?.name } });
+      } else {
+        applyServerFieldErrors(helpers, error);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -350,7 +405,10 @@ export default function Tags() {
         open={dialogOpen}
         onOpenChange={(open) => {
           setDialogOpen(open);
-          if (!open) setEditingTag(null);
+          if (!open) {
+            setEditingTag(null);
+            setNameInput("");
+          }
         }}
       >
         <DialogContent className="sm:max-w-[400px]">
@@ -381,6 +439,10 @@ export default function Tags() {
                         placeholder="e.g. Shipping"
                         maxLength={TAG_NAME_MAX}
                         {...field}
+                        onChange={(event) => {
+                          field.onChange(event);
+                          setNameInput(event.target.value);
+                        }}
                       />
                     )}
                   </Field>
@@ -395,6 +457,19 @@ export default function Tags() {
                     touched.name && (
                       <p className="text-xs text-destructive">{errors.name}</p>
                     )
+                  )}
+                  {matchedTags.length > 0 && (
+                    <div className="space-y-2 rounded-md border bg-muted/40 p-3">
+                      <p className="text-xs text-muted-foreground">
+                        These tags already exist. Use one of them, or choose a
+                        different name.
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {matchedTags.map((tag) => (
+                          <TagBadge key={tag.id ?? tag.name} tag={tag} />
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -499,7 +574,10 @@ export default function Tags() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={isSubmitting}>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || matchedTags.length > 0}
+                  >
                     {isSubmitting
                       ? editingTag
                         ? "Saving..."

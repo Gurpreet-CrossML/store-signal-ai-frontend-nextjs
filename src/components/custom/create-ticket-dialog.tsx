@@ -41,7 +41,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
-import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
+import {
+  applyServerFieldErrors,
+  formikErrorsFromZod,
+  serverFieldErrors,
+} from "@/lib/form-errors";
 import { formatDate, formatPrice } from "@/lib/helpers";
 import {
   DEFAULT_TICKET_LANGUAGE,
@@ -386,6 +390,12 @@ export function CreateTicketDialog({
         return;
       }
       applyServerFieldErrors(formik, result.payload);
+      // The API names the field `tags`; on this form it is `tagNames`.
+      const tagsError = serverFieldErrors(result.payload).tags;
+      if (tagsError) {
+        formik.setFieldError("tagNames", tagsError);
+        formik.setFieldTouched("tagNames", true, false);
+      }
     },
   });
 
@@ -471,14 +481,12 @@ export function CreateTicketDialog({
     }
   };
 
-  // Keyed by name, not id: the API resolves a tag by name, reusing one
-  // that exists and creating one that does not, so a name is the value
-  // that survives the round trip.
+  // Keyed by name, not id: the API matches a tag to the store's own by
+  // name, so a name is the value that survives the round trip. Only the
+  // store's existing tags can be chosen; the API refuses any other name.
   //
-  // A drafted tag is merged in even when it is not in the store's list —
-  // the AI returns Title Case and tags resolve case-insensitively, so
-  // "Wrong Item" is the store's "wrong item" and must still show as a
-  // chip the agent can see and remove.
+  // A chosen tag is merged in even when it is not on the loaded page of the
+  // store's list, so it still shows as a chip the agent can see and remove.
   const tagOptions = [
     ...new Set([
       ...(FetchSupportTicketTagsData?.results ?? []).map((tag) => tag.name),
@@ -689,7 +697,7 @@ export function CreateTicketDialog({
           <Field>
             <FieldLabel>Tags</FieldLabel>
             <FieldDescription>
-              The same labels the help desk sorts by.
+              Choose from the store&apos;s tags.
             </FieldDescription>
             <MultiSelectCombobox
               options={tagOptions}
@@ -700,6 +708,11 @@ export function CreateTicketDialog({
               isLoading={FetchSupportTicketTagsIsLoading}
               portalContainer={contentEl}
             />
+            {formik.touched.tagNames && formik.errors.tagNames && (
+              <Typography variant="caption" as="p" className="text-destructive">
+                {formik.errors.tagNames}
+              </Typography>
+            )}
           </Field>
         </form>
 
