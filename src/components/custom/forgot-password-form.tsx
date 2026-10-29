@@ -103,7 +103,15 @@ export function ForgotPasswordForm() {
               placeholder="you@example.com"
               required
               aria-invalid={formik.touched.email && !!formik.errors.email}
-              onChange={formik.handleChange}
+              onChange={(event) =>
+                formik.setFieldValue(
+                  "email",
+                  event.target.value.replace(/\s/g, ""),
+                )
+              }
+              onKeyDown={(event) => {
+                if (event.key === " ") event.preventDefault();
+              }}
               onBlur={formik.handleBlur}
               value={formik.values.email}
             />
