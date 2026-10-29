@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import { z } from "zod";
 import {
-  IconSearch,
   IconSparkles,
   IconTicket,
   IconUserPlus,
@@ -49,10 +48,8 @@ import {
 import { formatDate, formatPrice } from "@/lib/helpers";
 import {
   DEFAULT_TICKET_LANGUAGE,
-  DEFAULT_TICKET_SENTIMENT,
   SUPPORTED_LANGUAGES,
   type TicketLanguage,
-  type TicketSentiment,
 } from "@/lib/ticket-options";
 import { SearchCustomers } from "@/redux/api-slice/customer-slice";
 import {
@@ -116,7 +113,6 @@ type FormValues = {
   orderId: string;
   tagNames: string[];
   language: TicketLanguage;
-  sentiment: TicketSentiment;
 };
 
 const schema = z.object({
@@ -133,7 +129,6 @@ const schema = z.object({
   orderId: z.string(),
   tagNames: z.array(z.string()),
   language: z.string(),
-  sentiment: z.enum(["positive", "neutral", "negative"]),
 });
 
 /** The chosen customer, or the search that finds one. */
@@ -210,74 +205,71 @@ function CustomerField({
     !results.some((c) => c.email.toLowerCase() === debounced.toLowerCase());
 
   return (
-    <div className="flex flex-col gap-2">
+    // `relative` anchors the results, which float over the fields below
+    // instead of sitting in the flow — Subject and the rest must not jump
+    // down every time a search returns.
+    <div className="relative">
       <SearchInput
         value={search}
         onChange={setSearch}
         placeholder="name@example.com"
         label="Search customers by email"
       />
-      <div className="h-40 overflow-y-auto rounded-lg border border-border">
-        {debounced.length < 2 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-1 px-6 text-center">
-            <IconSearch className="mb-1 size-5 text-muted-foreground opacity-40" />
-            <Typography variant="muted">
-              Start typing an email address.
-            </Typography>
-          </div>
-        ) : SearchCustomersIsLoading ? (
-          <div className="flex h-full items-center justify-center">
-            <LoadingState label="Searching…" className="py-0" />
-          </div>
-        ) : results.length > 0 ? (
-          <div className="flex flex-col p-1">
-            {results.map((customer) => (
-              <button
-                key={customer.id}
-                type="button"
-                onClick={() =>
-                  onChange({
-                    kind: "record",
-                    id: customer.id,
-                    name: displayName(customer),
-                    email: customer.email,
-                  })
-                }
-                className="flex items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted"
-              >
-                <CustomerAvatar name={displayName(customer)} size="size-8" />
-                <div className="min-w-0">
-                  <Typography variant="small" as="p" className="truncate">
-                    {displayName(customer)}
-                  </Typography>
-                  <Typography variant="muted" className="truncate">
-                    {customer.email}
-                  </Typography>
-                </div>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-            <IconUserPlus className="size-5 text-muted-foreground opacity-40" />
-            <Typography variant="muted">
-              {canUseEmail
-                ? "No record yet — raise the ticket against this address."
-                : "Enter a full email address to use it."}
-            </Typography>
-            {canUseEmail ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => onChange({ kind: "email", email: debounced })}
-              >
-                Use {debounced}
-              </Button>
-            ) : null}
-          </div>
-        )}
-      </div>
+      {debounced.length < 2 ? null : (
+        <div className="absolute inset-x-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-lg border border-border bg-popover text-popover-foreground shadow-md">
+          {SearchCustomersIsLoading ? (
+            <LoadingState label="Searching…" className="py-3" />
+          ) : results.length > 0 ? (
+            <div className="flex flex-col p-1">
+              {results.map((customer) => (
+                <button
+                  key={customer.id}
+                  type="button"
+                  onClick={() =>
+                    onChange({
+                      kind: "record",
+                      id: customer.id,
+                      name: displayName(customer),
+                      email: customer.email,
+                    })
+                  }
+                  className="flex items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted"
+                >
+                  <CustomerAvatar name={displayName(customer)} size="size-8" />
+                  <div className="min-w-0">
+                    <Typography variant="small" as="p" className="truncate">
+                      {displayName(customer)}
+                    </Typography>
+                    <Typography variant="muted" className="truncate">
+                      {customer.email}
+                    </Typography>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3 p-2.5">
+              <Typography variant="muted">
+                {canUseEmail
+                  ? "No record yet — raise the ticket against this address."
+                  : "Enter a full email address to use it."}
+              </Typography>
+              {canUseEmail ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => onChange({ kind: "email", email: debounced })}
+                >
+                  <IconUserPlus className="size-4" />
+                  Use {debounced}
+                </Button>
+              ) : null}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -354,7 +346,6 @@ export function CreateTicketDialog({
       orderId: NO_ORDER,
       tagNames: [],
       language: DEFAULT_TICKET_LANGUAGE,
-      sentiment: DEFAULT_TICKET_SENTIMENT,
     },
     validate: (values) => {
       const result = schema.safeParse(values);
@@ -374,7 +365,6 @@ export function CreateTicketDialog({
         description: values.description.trim(),
         priority: values.priority,
         language: values.language,
-        sentiment: values.sentiment,
         ...(values.tagNames.length
           ? { tags: values.tagNames.map((name) => ({ name })) }
           : {}),
@@ -414,7 +404,6 @@ export function CreateTicketDialog({
           orderId: NO_ORDER,
           tagNames: [],
           language: DEFAULT_TICKET_LANGUAGE,
-          sentiment: DEFAULT_TICKET_SENTIMENT,
         },
       });
       setCustomer(initialCustomer);
