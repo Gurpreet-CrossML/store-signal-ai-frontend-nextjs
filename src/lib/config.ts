@@ -752,9 +752,15 @@ export const STORE_PLATFORMS = [
 
 export type StorePlatform = (typeof STORE_PLATFORMS)[number]["value"];
 
-// Same formats the backend's ShopifyOAuthStartSerializer enforces.
+// Same formats the backend's ShopifyOAuthStartSerializer enforces: the client
+// ID is 32 hex chars; the secret is shpss_ + 32 hex chars, or 32 hex chars
+// in the legacy format.
 export const SHOPIFY_CLIENT_ID_RE = /^[0-9a-fA-F]{32}$/;
-export const SHOPIFY_CLIENT_SECRET_RE = /\bshpss_[a-zA-Z0-9]{32,64}\b/;
+export const SHOPIFY_CLIENT_SECRET_RE =
+  /^(shpss_[0-9a-fA-F]{32}|[0-9a-fA-F]{32})$/;
+// Longest value each accepts, so the inputs stop taking characters there.
+export const SHOPIFY_CLIENT_ID_MAX_LENGTH = 32;
+export const SHOPIFY_CLIENT_SECRET_MAX_LENGTH = 38;
 
 // sessionStorage flag set right before the hop to Shopify and cleared when
 // Shopify sends the user back; still set means they came back on their own.
