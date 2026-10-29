@@ -92,6 +92,9 @@ export type SupportTicketTagData = {
   name: string;
   color: string;
   description: string;
+  /** A platform-provided tag; the store cannot edit or delete it. */
+  is_predefined?: boolean;
+  is_active?: boolean;
 };
 
 export type SupportTicketTagsResponse = {
@@ -754,6 +757,41 @@ export const SupportTicketMarkRead = createAsyncThunk(
     }
   },
 );
+
+/**
+ * The store's tags a typed name would duplicate.
+ *
+ * Not a thunk, and it never toasts: it runs as the owner types, so an error
+ * toast per keystroke would be noise. A failed lookup returns no matches —
+ * the create and update endpoints still refuse a duplicate on their own.
+ */
+export async function fetchSimilarTicketTags({
+  storeCode,
+  name,
+  excludeId,
+  signal,
+}: {
+  storeCode: string;
+  name: string;
+  /** The tag being renamed, which must not match itself. */
+  excludeId?: number;
+  signal?: AbortSignal;
+}): Promise<SupportTicketTagData[]> {
+  try {
+    const response = await axiosInstance.get(ENDPOINTS.ticketTagSimilar(), {
+      params: {
+        store_code: storeCode,
+        name,
+        ...(excludeId && { exclude_id: excludeId }),
+      },
+      signal,
+    });
+    const data = response.data.data;
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
 
 export const TicketTagDelete = createAsyncThunk(
   "TicketTagDelete",
