@@ -151,10 +151,10 @@ export const FetchCustomers = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to load customers.",
+      toast.error("Couldn't load customers.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load customers.");
     }
   },
 );
@@ -174,10 +174,10 @@ export const FetchCustomerDetails = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to load this customer.",
+      toast.error("Couldn't load this customer.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load this customer.");
     }
   },
 );
@@ -203,7 +203,9 @@ export const SearchCustomers = createAsyncThunk(
       ).results;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't search customers.",
+      );
     }
   },
 );
@@ -241,7 +243,7 @@ export const CreateCustomer = createAsyncThunk(
       toast.error("Couldn't create the customer", {
         description: data?.message || "Please check the email and try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't create the customer");
     }
   },
 );

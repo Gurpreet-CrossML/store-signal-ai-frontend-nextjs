@@ -37,12 +37,6 @@ function failure(error: unknown, fallback: string): ResetFailure {
       noAnswer: true,
     };
   }
-  if (isAxiosError(error) && error.response?.status === 429) {
-    return {
-      message: "Too many attempts. Please wait a while and try again.",
-      data: null,
-    };
-  }
   return { message: body?.message || fallback, data: body?.data ?? null };
 }
 
