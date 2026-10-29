@@ -101,6 +101,7 @@ import {
 } from "@/lib/badge-tones";
 
 import { ConversationRow } from "@/components/custom/conversation-row";
+import { CreditLabel } from "@/components/custom/credit-label";
 import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
 import { SyncCustomerOrders } from "@/redux/api-slice/order-slice";
 import {
@@ -1756,35 +1757,32 @@ function ConversationPanel({
           */}
 
           <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  {/* Icon only until a language is applied — after that the
-                      language is the state of the thread you are reading,
-                      so it is worth the width. */}
-                  <Button
-                    variant="outline"
-                    size={translatedLanguage ? "sm" : "icon-sm"}
-                    aria-label="Translate the conversation"
-                    disabled={isClosed || isTranslating}
-                  >
-                    {isTranslating ? (
-                      <Spinner className="size-4" />
-                    ) : (
-                      <IconLanguage className="size-4" />
-                    )}
-                    {translatedLanguage
-                      ? `Translated to ${translatedLanguage.name}`
-                      : null}
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isTranslating
-                  ? "Translating…"
-                  : `${translatedLanguage ? `Translated to ${translatedLanguage.name}` : "Translate"} · AI credits will be used for this action.`}
-              </TooltipContent>
-            </Tooltip>
+            <DropdownMenuTrigger asChild>
+              {/* Small text and tight padding, so the label and its cost fit
+                  the button's normal height and the toolbar's one line. */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-0.5 px-1.5 text-xs"
+                title={
+                  translatedLanguage
+                    ? `Translated to ${translatedLanguage.name}`
+                    : undefined
+                }
+                disabled={isClosed || isTranslating}
+              >
+                {isTranslating ? (
+                  <Spinner className="size-3.5" />
+                ) : (
+                  <IconLanguage className="size-3.5" />
+                )}
+                <CreditLabel className="text-[9px]">
+                  {translatedLanguage
+                    ? `Translated to ${translatedLanguage.name}`
+                    : "Translate"}
+                </CreditLabel>
+              </Button>
+            </DropdownMenuTrigger>
             <DropdownMenuContent
               align="start"
               className="max-h-72 overflow-y-auto"
@@ -1861,7 +1859,16 @@ function ConversationPanel({
                 ) : (
                   <IconSend className="size-4" />
                 )}
-                {isSending ? "Sending…" : selectedSendLabel}
+                {isSending ? (
+                  "Sending…"
+                ) : effectiveSendMode === "customer_language" ? (
+                  // The send itself translates the reply, so it is billed.
+                  <CreditLabel className="text-primary-foreground/80">
+                    {selectedSendLabel}
+                  </CreditLabel>
+                ) : (
+                  selectedSendLabel
+                )}
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1886,19 +1893,12 @@ function ConversationPanel({
                     <IconSend className="size-4" />
                     Send
                   </DropdownMenuItem>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuItem
-                        onClick={() => setSelectedSendMode("customer_language")}
-                      >
-                        <IconLanguage className="size-4" />
-                        Send in Customer Language
-                      </DropdownMenuItem>
-                    </TooltipTrigger>
-                    <TooltipContent side="left">
-                      AI credits will be used for this action.
-                    </TooltipContent>
-                  </Tooltip>
+                  <DropdownMenuItem
+                    onClick={() => setSelectedSendMode("customer_language")}
+                  >
+                    <IconLanguage className="size-4" />
+                    <CreditLabel>Send in Customer Language</CreditLabel>
+                  </DropdownMenuItem>
                   {canResolve ? (
                     <DropdownMenuItem
                       onClick={() => setSelectedSendMode("reply_and_resolve")}
