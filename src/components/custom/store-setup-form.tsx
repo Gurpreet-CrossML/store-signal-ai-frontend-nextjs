@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { useFormik } from "formik";
 import { toast } from "sonner";
 import z from "zod";
 import {
   IconArrowRight,
+  IconEye,
+  IconEyeOff,
   IconKey,
   IconLock,
   IconWorld,
@@ -15,8 +18,11 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { StartShopifyOauth } from "@/redux/api-slice/onboarding-slice";
 
 import {
+  SHOPIFY_CLIENT_ID_MAX_LENGTH,
   SHOPIFY_CLIENT_ID_RE,
+  SHOPIFY_CLIENT_SECRET_MAX_LENGTH,
   SHOPIFY_CLIENT_SECRET_RE,
+  SHOPIFY_OAUTH_PENDING_KEY,
   STORE_PLATFORMS,
   type StorePlatform,
 } from "@/lib/config";
@@ -33,6 +39,7 @@ import {
 import {
   InputGroup,
   InputGroupAddon,
+  InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -66,7 +73,7 @@ const validationSchema = z.object({
     .trim()
     .regex(
       SHOPIFY_CLIENT_SECRET_RE,
-      "Enter the client secret from your Shopify app (it starts with shpss_)",
+      "Enter the client secret from your Shopify app: shpss_ followed by 32 hex characters, or 32 hex characters",
     ),
 });
 
@@ -83,6 +90,7 @@ export function StoreSetupForm({
   const { StartShopifyOauthIsLoading } = useAppSelector(
     (state) => state.GetOnboardingReducer.StartShopifyOauthState,
   );
+  const [showSecret, setShowSecret] = useState(false);
 
   const formik = useFormik<StoreSetupValues>({
     initialValues: {
@@ -113,6 +121,8 @@ export function StoreSetupForm({
       if (StartShopifyOauth.fulfilled.match(result)) {
         // Full-page hop to Shopify's consent screen; it sends the browser
         // back here with the OAuth params and the drawer finishes the flow.
+        // If it doesn't, ShopifyOauthReturn finds this flag on the way back.
+        sessionStorage.setItem(SHOPIFY_OAUTH_PENDING_KEY, "1");
         window.location.assign(result.payload.authorize_url);
       } else {
         applyServerFieldErrors(formik, result.payload);
@@ -212,6 +222,7 @@ export function StoreSetupForm({
                 IconKey,
                 "text",
                 "e.g. 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d",
+                SHOPIFY_CLIENT_ID_MAX_LENGTH,
               ],
               [
                 "client_secret",
@@ -219,9 +230,10 @@ export function StoreSetupForm({
                 IconLock,
                 "password",
                 "e.g. shpss_xxxxxxxxxxxxxxxx",
+                SHOPIFY_CLIENT_SECRET_MAX_LENGTH,
               ],
             ] as const
-          ).map(([field, label, Icon, type, placeholder]) => (
+          ).map(([field, label, Icon, type, placeholder, maxLength]) => (
             <Field key={field} data-invalid={invalid(field)}>
               <FieldLabel htmlFor={field}>{label}</FieldLabel>
               <InputGroup>
@@ -231,14 +243,29 @@ export function StoreSetupForm({
                 <InputGroupInput
                   id={field}
                   name={field}
-                  type={type}
+                  type={type === "password" && showSecret ? "text" : type}
                   placeholder={placeholder}
+                  maxLength={maxLength}
                   autoComplete="off"
                   aria-invalid={invalid(field)}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   value={formik.values[field]}
                 />
+                {type === "password" && (
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      type="button"
+                      size="icon-xs"
+                      aria-label={
+                        showSecret ? "Hide client secret" : "Show client secret"
+                      }
+                      onClick={() => setShowSecret((visible) => !visible)}
+                    >
+                      {showSecret ? <IconEyeOff /> : <IconEye />}
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                )}
               </InputGroup>
               {invalid(field) ? (
                 <Typography variant="small" className="text-destructive">
