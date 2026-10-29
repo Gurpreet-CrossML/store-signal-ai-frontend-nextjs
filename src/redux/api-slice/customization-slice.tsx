@@ -18,6 +18,11 @@ export type WidgetQuickLink = {
   is_active: boolean;
 };
 
+export type AiDisclaimer = {
+  title?: string | null;
+  description?: string | null;
+};
+
 export type UpdateWidgetCustomizationPayload = {
   store?: number;
   primary_color?: string;
@@ -28,6 +33,8 @@ export type UpdateWidgetCustomizationPayload = {
   greeting_message?: string;
   quick_actions?: WidgetQuickAction[];
   quick_links?: WidgetQuickLink[];
+  ai_disclaimer_title?: string | null;
+  ai_disclaimer_description?: string | null;
 };
 
 export type WidgetCustomizationDataResponse = {
@@ -41,6 +48,8 @@ export type WidgetCustomizationDataResponse = {
   greeting_message: string;
   quick_actions: WidgetQuickAction[];
   quick_links: WidgetQuickLink[];
+  ai_disclaimer_title?: string | null;
+  ai_disclaimer_description?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -156,6 +165,18 @@ export const UpdateWidgetCustomizationWithImage = createAsyncThunk(
       }
       if (payload.quick_links !== undefined) {
         formData.append("quick_links", JSON.stringify(payload.quick_links));
+      }
+      if (payload.ai_disclaimer_title !== undefined) {
+        formData.append(
+          "ai_disclaimer_title",
+          payload.ai_disclaimer_title ?? "",
+        );
+      }
+      if (payload.ai_disclaimer_description !== undefined) {
+        formData.append(
+          "ai_disclaimer_description",
+          payload.ai_disclaimer_description ?? "",
+        );
       }
 
       const response = await axiosInstance.patch(
