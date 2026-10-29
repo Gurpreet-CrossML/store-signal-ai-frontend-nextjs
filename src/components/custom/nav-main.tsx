@@ -5,10 +5,11 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
+import { cn, titleWhenClipped } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -70,6 +71,8 @@ export function SidebarMenuItemWrapper({
         className={cn(
           "relative data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15 data-[active=true]:hover:text-primary",
           expanded && EXPANDED_MENU_BUTTON,
+          // Room for the count, which sits over the row's right edge.
+          item.count !== undefined && "group-data-[collapsible=icon]:pr-9!",
         )}
         asChild
       >
@@ -77,7 +80,9 @@ export function SidebarMenuItemWrapper({
           {item.icon && (
             <item.icon className={cn(active ? "text-primary!" : "")} />
           )}
-          <span>{item.title}</span>
+          <span onMouseEnter={expanded ? titleWhenClipped : undefined}>
+            {item.title}
+          </span>
           {badgeCount > 0 && (
             <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
               {badgeCount}
@@ -85,6 +90,12 @@ export function SidebarMenuItemWrapper({
           )}
         </Link>
       </SidebarMenuButton>
+      {item.count !== undefined && (
+        // The sidebar is pinned to its icon state, which hides badges.
+        <SidebarMenuBadge className="group-data-[collapsible=icon]:flex">
+          {item.count}
+        </SidebarMenuBadge>
+      )}
     </SidebarMenuItem>
   );
 }
