@@ -84,27 +84,67 @@ export type StoreWorkflow = {
   policy_version: number;
 };
 
-/** One check in the plain-English summary, e.g. "a discount code was used". */
-export type PolicySummaryItem = {
+/** What happens to a request: the outcome of one flowchart step. */
+export type PolicyEffect = "decline" | "need_info" | "team" | "allow";
+
+/** One rule in a flowchart step, in plain words. */
+export type PolicyFlowRule = {
+  id: string;
+  /** Its conditions in words; a built-in check is shown by its reason. */
   check: string;
-  /** What the customer is told when this check decides. */
+  /** What the customer is told when this rule decides. */
   told: string;
+  /** The merchant's sentence it came from. */
+  source_text: string;
+  /** A built-in check every store gets. */
+  platform: boolean;
 };
 
-/** A built-in check every store gets, and what it does to a request. */
-export type PolicyAlwaysCheck = {
+/**
+ * One step of the flowchart, in the order the engine settles a request:
+ * yes leads to its outcome, no to the next step. `need_info` lists what
+ * the customer is asked for; the others list their rules.
+ */
+export type PolicyFlowStep =
+  | { effect: "need_info"; asks: string[] }
+  | { effect: Exclude<PolicyEffect, "need_info">; rules: PolicyFlowRule[] };
+
+/** The saved policy as the steps the engine settles a request in. */
+export type PolicyFlow = {
+  steps: PolicyFlowStep[];
+  /** What happens when no step matched. */
+  default: { effect: "decline" | "team"; told: string };
+  /** What an allowed request does, e.g. "Cancelling the order". */
+  action: string;
+  /** Sentences that hold every allowed request for the team. */
+  held: string[];
+};
+
+/** Something code found about how the merchant's sentences work together. */
+export type PolicyFinding = {
+  key: string;
+  kind: "impossible" | "overridden" | "conflict" | "redundant" | "gap";
+  severity: "error" | "warning" | "info";
   text: string;
-  outcome: "declined" | "team" | "ask";
+  /** The merchant's sentence it is about; empty for a gap. */
+  sentence: string;
+  /** The other sentences, or built-in checks, involved. */
+  others: { text: string; platform: boolean }[];
+  /** The AI's read on an overlap, made when the policy was saved. */
+  note: { verdict: "exception" | "contradiction"; text: string } | null;
 };
 
-/** The saved policy in plain English, grouped by what happens. */
-export type PolicySummary = {
-  allowed: PolicySummaryItem[];
-  declined: PolicySummaryItem[];
-  team: PolicySummaryItem[];
-  /** How allowed requests are carried out, one sentence each. */
-  how: string[];
-  always: PolicyAlwaysCheck[];
+/** A sentence the AI suggests adding to the policy. */
+export type PolicyIdea = { sentence: string; why: string };
+
+/** One time a version was made live again. */
+export type PolicyRollback = {
+  /** 1 for its first restore, then 2, 3… */
+  order: number;
+  /** The version that was live before the restore. */
+  from_version: number;
+  rolled_back_by: string;
+  rolled_back_at: string;
 };
 
 export type PolicyHistoryEntry = {
@@ -112,29 +152,37 @@ export type PolicyHistoryEntry = {
   text: string;
   published_at: string;
   published_by: string;
-  /** Set when this version brought back an earlier one. */
-  rolled_back_from?: number;
+  /** Every restore of this version, in order. */
+  rollbacks: PolicyRollback[];
 };
 
 /** A store's own policy for one workflow, as the policy endpoints return it. */
 export type WorkflowPolicy = {
   workflow: string;
+  /** The workflow's name. */
+  name: string;
   text: string;
   policy: Record<string, unknown> | null;
   policy_version: number;
   policy_published_at: string | null;
-  /** The policy in plain English; empty for older responses. */
-  summary?: Partial<PolicySummary>;
+  /** Who published the live version; empty before the first save. */
+  policy_published_by: string;
+  /** The saved policy as a flowchart. */
+  flow: PolicyFlow;
+  /** What could be better in the saved policy. */
+  suggestions: { findings: PolicyFinding[]; ideas: PolicyIdea[] };
   /** What the merchant should check about the current version. */
   review: {
     warnings: string[];
+    // `limits`: the sentence would stop or route some requests, so until it
+    // is reworded everything the policy would allow goes to the team.
     ambiguities: {
       source_text: string;
       question: string;
       options: string[];
-      assumed: string;
+      limits?: boolean;
     }[];
-    unsupported: { source_text: string; why: string }[];
+    unsupported: { source_text: string; why: string; limits?: boolean }[];
   };
   /** Published versions, newest first. */
   history: PolicyHistoryEntry[];
@@ -275,6 +323,37 @@ export const RollbackWorkflowPolicy = createAsyncThunk(
   },
 );
 
+export const DeleteWorkflowPolicyVersion = createAsyncThunk(
+  "DeleteWorkflowPolicyVersion",
+  async (
+    {
+      storeCode,
+      workflow,
+      version,
+    }: { storeCode: string; workflow: string; version: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.delete(
+        `${ENDPOINTS.workflowPolicyVersion()}?store_code=${storeCode}&workflow=${workflow}`,
+        { data: { version }, useBackend: true },
+      );
+      return response.data.data as WorkflowPolicy;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      // The live version, or one already gone, says why under `version`.
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          Object.values(serverFieldErrors(data))[0] ||
+          data?.message ||
+          "Unable to delete this version.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 const StoreSettingsSlice = createSlice({
   name: "StoreSettings",
   initialState: {
@@ -314,6 +393,11 @@ const StoreSettingsSlice = createSlice({
       // Version being restored, so only its button waits.
       RollbackWorkflowPolicyPendingVersion: null as null | number,
       RollbackWorkflowPolicyIsError: null as null | string | object,
+    },
+    DeleteWorkflowPolicyVersionState: {
+      // Version being deleted, so only its button waits.
+      DeleteWorkflowPolicyVersionPendingVersion: null as null | number,
+      DeleteWorkflowPolicyVersionIsError: null as null | string | object,
     },
   },
   reducers: {},
@@ -439,7 +523,25 @@ const StoreSettingsSlice = createSlice({
         state.RollbackWorkflowPolicyState.RollbackWorkflowPolicyIsError =
           action.payload as string | object;
       })
-      // Save and rollback both publish a new version: show it, and keep the
+      .addCase(DeleteWorkflowPolicyVersion.pending, (state, action) => {
+        state.DeleteWorkflowPolicyVersionState.DeleteWorkflowPolicyVersionPendingVersion =
+          action.meta.arg.version;
+        state.DeleteWorkflowPolicyVersionState.DeleteWorkflowPolicyVersionIsError =
+          null;
+      })
+      .addCase(DeleteWorkflowPolicyVersion.fulfilled, (state, action) => {
+        state.DeleteWorkflowPolicyVersionState.DeleteWorkflowPolicyVersionPendingVersion =
+          null;
+        // The same policy, one version fewer in its history.
+        state.FetchWorkflowPolicyState.FetchWorkflowPolicyData = action.payload;
+      })
+      .addCase(DeleteWorkflowPolicyVersion.rejected, (state, action) => {
+        state.DeleteWorkflowPolicyVersionState.DeleteWorkflowPolicyVersionPendingVersion =
+          null;
+        state.DeleteWorkflowPolicyVersionState.DeleteWorkflowPolicyVersionIsError =
+          action.payload as string | object;
+      })
+      // Save and rollback both change the live version: show it, and keep the
       // card's version badge in step without a refetch.
       .addMatcher(
         isAnyOf(SaveWorkflowPolicy.fulfilled, RollbackWorkflowPolicy.fulfilled),

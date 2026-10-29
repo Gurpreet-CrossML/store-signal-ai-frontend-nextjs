@@ -113,6 +113,9 @@ export const ENDPOINTS = {
   // POST re-publishes an earlier policy version as a new one.
   workflowPolicyRollback: () =>
     createAPIUrl("/chat/workflows/policy/rollback/", "django"),
+  // DELETE removes an earlier policy version for good (never the live one).
+  workflowPolicyVersion: () =>
+    createAPIUrl("/chat/workflows/policy/version/", "django"),
 
   // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
   // Next.js issues a 308 redirect (an extra round-trip) before each call.

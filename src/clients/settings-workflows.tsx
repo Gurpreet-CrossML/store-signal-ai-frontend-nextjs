@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import type { ColumnDef, PaginationState } from "@tanstack/react-table";
 import {
   IconAutomaticGearbox,
   IconFileText,
@@ -8,17 +10,9 @@ import {
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 
-import { WorkflowPolicySheet } from "@/components/custom/settings/workflows/workflow-policy-sheet";
+import { DataTable } from "@/components/custom/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
   Tooltip,
@@ -33,15 +27,143 @@ import {
   type StoreWorkflow,
 } from "@/redux/api-slice/store-settings-slice";
 
-// Placeholder cards shown while the list loads.
-const SKELETON_CARDS = 6;
+/** Shown in a cell that has nothing to say. */
+const EMPTY_CELL = <Typography variant="muted">—</Typography>;
 
 /**
- * Settings → Workflows: one card per platform workflow with an on/off switch
- * for the selected store. The list is the same for every company; a switch
- * only changes this store. Locked workflows show a lock instead of a usable
- * switch, since the backend refuses to turn them off. A workflow that takes
- * the store's own policy has a Policy button that opens its editor.
+ * One row per platform workflow: what it is, its tags, what it depends on,
+ * a link to its policy page and the on/off switch.
+ */
+function getColumns(
+  pendingCode: string | null,
+  onToggle: (workflow: StoreWorkflow, isEnabled: boolean) => void,
+): ColumnDef<StoreWorkflow>[] {
+  return [
+    {
+      accessorKey: "name",
+      header: "Workflow",
+      cell: ({ row }) => {
+        const workflow = row.original;
+        return (
+          <div className="flex min-w-64 items-center gap-3 py-1">
+            <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary">
+              {workflow.icon ? (
+                // Plain <img>: the icon is a temporary S3 URL, not a static asset.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={workflow.icon}
+                  alt=""
+                  className="size-5 object-contain"
+                />
+              ) : (
+                <IconAutomaticGearbox className="size-4" />
+              )}
+            </div>
+            <div className="flex max-w-md min-w-0 flex-col gap-0.5 whitespace-normal">
+              <span className="font-medium">{workflow.name}</span>
+              <Typography variant="muted" className="line-clamp-2 text-xs">
+                {workflow.description}
+              </Typography>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "tags",
+      header: "Tags",
+      cell: ({ row }) =>
+        row.original.tags.length ? (
+          <div className="flex max-w-56 flex-wrap gap-1.5">
+            {row.original.tags.map((tag) => (
+              <Badge key={tag} variant="outline" className="capitalize">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        ) : (
+          EMPTY_CELL
+        ),
+    },
+    {
+      id: "needs",
+      header: "Needs",
+      cell: ({ row }) => {
+        const workflow = row.original;
+        // What the workflow depends on, shown so a store knows why it may not work.
+        const needs = [
+          workflow.shopify_supported && "Shopify",
+          workflow.magento_supported && "Magento",
+          workflow.kb_supported && "Knowledge base",
+        ].filter(Boolean) as string[];
+        return needs.length ? (
+          <span className="text-sm text-muted-foreground">
+            {needs.join(" · ")}
+          </span>
+        ) : (
+          EMPTY_CELL
+        );
+      },
+    },
+    {
+      id: "policy",
+      header: "Policy",
+      cell: ({ row }) => {
+        const workflow = row.original;
+        if (!workflow.has_policy) return EMPTY_CELL;
+        return (
+          <Button variant="outline" size="xs" asChild>
+            <Link href={`/settings/workflows/${workflow.code}/policy`}>
+              <IconFileText data-icon="inline-start" />
+              Policy
+              {workflow.policy_version > 0 && (
+                <Badge variant="secondary" className="h-4 px-1.5">
+                  v{workflow.policy_version}
+                </Badge>
+              )}
+            </Link>
+          </Button>
+        );
+      },
+    },
+    {
+      accessorKey: "is_enabled",
+      header: "On",
+      cell: ({ row }) => {
+        const workflow = row.original;
+        // Locked workflows show a lock: the backend refuses to turn them off.
+        if (!workflow.can_disable)
+          return (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <IconLock className="size-4" />
+                  Always on
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                Core to Store Signal, so it can&apos;t be turned off.
+              </TooltipContent>
+            </Tooltip>
+          );
+        return (
+          <Switch
+            checked={workflow.is_enabled}
+            disabled={pendingCode === workflow.code}
+            onCheckedChange={(isEnabled) => onToggle(workflow, isEnabled)}
+            aria-label={`Turn ${workflow.name} ${workflow.is_enabled ? "off" : "on"}`}
+          />
+        );
+      },
+    },
+  ];
+}
+
+/**
+ * Settings → Workflows: a table with one row per platform workflow and an
+ * on/off switch for the selected store. The list is the same for every
+ * company; a switch only changes this store. A workflow that takes the
+ * store's own policy links to its policy page.
  */
 export default function SettingsWorkflows() {
   const dispatch = useAppDispatch();
@@ -58,10 +180,14 @@ export default function SettingsWorkflows() {
         .UpdateStoreWorkflowPendingCode,
   );
 
-  // Looked up from the list so the open sheet sees its saved version.
-  const [policyCode, setPolicyCode] = useState<string | null>(null);
-  const policyWorkflow = FetchStoreWorkflowsData.find(
-    (workflow) => workflow.code === policyCode,
+  // The whole list comes in one response; the table pages it here.
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 25,
+  });
+  const pageRows = FetchStoreWorkflowsData.slice(
+    pagination.pageIndex * pagination.pageSize,
+    (pagination.pageIndex + 1) * pagination.pageSize,
   );
 
   useEffect(() => {
@@ -84,153 +210,19 @@ export default function SettingsWorkflows() {
     }
   };
 
-  if (FetchStoreWorkflowsIsLoading && !FetchStoreWorkflowsData.length) {
-    return (
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: SKELETON_CARDS }, (_, index) => (
-          <Skeleton key={index} className="h-36 rounded-xl" />
-        ))}
-      </div>
-    );
-  }
-
-  if (!FetchStoreWorkflowsData.length) {
-    return (
-      <Empty className="w-full">
-        <EmptyHeader>
-          <EmptyMedia>
-            <IconAutomaticGearbox />
-          </EmptyMedia>
-          <EmptyTitle>No workflows yet</EmptyTitle>
-          <EmptyDescription>
-            Workflows appear here once the platform has set them up.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    );
-  }
-
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {FetchStoreWorkflowsData.map((workflow) => (
-        <WorkflowCard
-          key={workflow.code}
-          workflow={workflow}
-          saving={pendingCode === workflow.code}
-          onToggle={(isEnabled) => toggle(workflow, isEnabled)}
-          onOpenPolicy={() => setPolicyCode(workflow.code)}
-        />
-      ))}
-      {policyWorkflow && (
-        <WorkflowPolicySheet
-          key={policyWorkflow.code}
-          workflow={policyWorkflow}
-          onClose={() => setPolicyCode(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-function WorkflowCard({
-  workflow,
-  saving,
-  onToggle,
-  onOpenPolicy,
-}: {
-  workflow: StoreWorkflow;
-  saving: boolean;
-  onToggle: (isEnabled: boolean) => void;
-  onOpenPolicy: () => void;
-}) {
-  const locked = !workflow.can_disable;
-  // What the workflow depends on, shown so a store knows why it may not work.
-  const needs = [
-    workflow.shopify_supported && "Shopify",
-    workflow.magento_supported && "Magento",
-    workflow.kb_supported && "Knowledge base",
-  ].filter(Boolean) as string[];
-
-  return (
-    <div className="flex flex-col gap-3 rounded-xl bg-card p-4 shadow-xs ring-1 ring-foreground/10">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary">
-          {workflow.icon ? (
-            // Plain <img>: the icon is a temporary S3 URL, not a static asset.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={workflow.icon} alt="" className="size-6 object-contain" />
-          ) : (
-            <IconAutomaticGearbox className="size-5" />
-          )}
-        </div>
-
-        {locked ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <IconLock className="size-4" />
-                Always on
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              Core to Store Signal, so it can&apos;t be turned off.
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <Switch
-            checked={workflow.is_enabled}
-            disabled={saving}
-            onCheckedChange={onToggle}
-            aria-label={`Turn ${workflow.name} ${workflow.is_enabled ? "off" : "on"}`}
-          />
-        )}
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-1">
-        <Typography variant="h6" as="h3">
-          {workflow.name}
-        </Typography>
-        <Typography variant="muted" className="line-clamp-2">
-          {workflow.description}
-        </Typography>
-      </div>
-
-      {workflow.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {workflow.tags.map((tag) => (
-            <Badge key={tag} variant="outline" className="capitalize">
-              {tag}
-            </Badge>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Badge variant={workflow.is_enabled ? "secondary" : "outline"}>
-          {workflow.is_enabled ? "On" : "Off"}
-        </Badge>
-        {needs.length > 0 && (
-          <Typography variant="muted" className="text-xs">
-            Needs {needs.join(" · ")}
-          </Typography>
-        )}
-        {workflow.has_policy && (
-          <Button
-            variant="outline"
-            size="xs"
-            className="ml-auto"
-            onClick={onOpenPolicy}
-          >
-            <IconFileText data-icon="inline-start" />
-            Policy
-            {workflow.policy_version > 0 && (
-              <Badge variant="secondary" className="h-4 px-1.5">
-                v{workflow.policy_version}
-              </Badge>
-            )}
-          </Button>
-        )}
-      </div>
-    </div>
+    <DataTable
+      columns={getColumns(pendingCode, toggle)}
+      data={pageRows}
+      totalCount={FetchStoreWorkflowsData.length}
+      pagination={pagination}
+      onPaginationChange={setPagination}
+      isLoading={
+        FetchStoreWorkflowsIsLoading && !FetchStoreWorkflowsData.length
+      }
+      noun="workflow"
+      emptyTitle="No workflows yet"
+      emptyDescription="Workflows appear here once the platform has set them up."
+    />
   );
 }
