@@ -1,7 +1,7 @@
 "use client";
 
-import { useSession } from "next-auth/react";
-import { IconCheck } from "@tabler/icons-react";
+import { signOut, useSession } from "next-auth/react";
+import { IconCheck, IconLogout } from "@tabler/icons-react";
 
 import { ONBOARDING_STEPS } from "@/lib/config";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { useAppSelector } from "@/redux/hooks";
 import { GoLiveCard } from "@/components/custom/go-live-card";
 import { OnboardingBrandVoiceCard } from "@/components/custom/onboarding-brand-voice-card";
 import { StoreSetupForm } from "@/components/custom/store-setup-form";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -80,6 +81,16 @@ export function OnboardingDrawer() {
           "data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-svh data-[vaul-drawer-direction=bottom]:rounded-none",
         )}
       >
+        {/* The drawer can't be dismissed, so this is the only way out. */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute top-4 right-4"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+        >
+          <IconLogout data-icon="inline-start" />
+          Log Out
+        </Button>
         <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6 md:p-10">
           <DrawerHeader className="p-0">
             <DrawerTitle>
