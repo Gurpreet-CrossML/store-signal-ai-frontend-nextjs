@@ -42,7 +42,7 @@ export const RegisterCompany = createAsyncThunk(
       toast.error("Couldn't create your account", {
         description: data?.message || "Unable to register the company.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't create your account");
     }
   },
 );

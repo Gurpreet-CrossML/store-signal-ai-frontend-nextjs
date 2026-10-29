@@ -24,7 +24,11 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from "@/components/ui/combobox";
-import { FEEDBACK_RATINGS, type FeedbackRatingValue } from "@/lib/config";
+import {
+  ACTIVE_FILTER_STYLE,
+  FEEDBACK_RATINGS,
+  type FeedbackRatingValue,
+} from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 export type FeedbackRating = "" | FeedbackRatingValue;
@@ -73,8 +77,6 @@ type ThreadFilterationProps = {
 // that maps back to "" (filter off) in state.
 const ALL = "all";
 const ALL_TAGS = "__all_tags__";
-
-const ACTIVE_FILTER_STYLE = "border-primary/40 bg-primary/10 text-primary";
 
 // Shared with the dashboard filters, so both screens offer the same channels.
 export const CHANNEL_OPTIONS = [
@@ -235,23 +237,6 @@ export default function ThreadFilteration({
         onRangeChange={(from, to) => onChange({ ...filters, from, to })}
         disabled={{ after: new Date() }}
         className={filters.from || filters.to ? ACTIVE_FILTER_STYLE : undefined}
-      />
-
-      <FilterSelect
-        ariaLabel="Filter by status"
-        value={filters.is_active}
-        activeClassName={ACTIVE_FILTER_STYLE}
-        onChange={(is_active) =>
-          onChange({
-            ...filters,
-            is_active: is_active as ThreadFilterState["is_active"],
-          })
-        }
-        options={[
-          { value: "", label: "All Statuses" },
-          { value: "true", label: "Active" },
-          { value: "false", label: "Closed" },
-        ]}
       />
 
       <FilterSelect

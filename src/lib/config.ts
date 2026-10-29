@@ -128,6 +128,11 @@ export const ENDPOINTS = {
   fetchAIUsageTokenSplit: () => "/chat/ai-usage/token-split/",
   fetchAIUsageWorkflowCosts: () => "/chat/ai-usage/workflow-costs/",
   fetchAIUsageLatencyTrend: () => "/chat/ai-usage/latency-trend/",
+  // AI credit usage (Django usage + billing apps; GET needs useBackend).
+  fetchAIUsageCreditSummary: () => "/usage/ai-usage/summary/",
+  fetchAIUsageCreditDaily: () => "/usage/ai-usage/daily/",
+  fetchAIUsageByFeature: () => "/usage/ai-usage/by-feature/",
+  fetchCreditStatus: () => "/billing/credits/",
 
   // Geography (Django Cities Light). Countries is intentionally limited to
   // India by the backend; states and cities are dependent lists.
@@ -296,6 +301,8 @@ export const ENDPOINTS = {
   supportTicketMarkRead: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/mark/read/`, "django"),
   ticketTagCreate: () => createAPIUrl("/support/ticket-tags/", "django"),
+  ticketTagSimilar: () =>
+    createAPIUrl("/support/ticket-tags/similar/", "django"),
   ticketTagUpdate: (tag_id: number) =>
     createAPIUrl(`/support/ticket-tags/${tag_id}/`, "django"),
   ticketTagDelete: (tag_id: number) =>
@@ -741,6 +748,10 @@ export const STORE_PLATFORMS = [
 
 export type StorePlatform = (typeof STORE_PLATFORMS)[number]["value"];
 
+// Same formats the backend's ShopifyOAuthStartSerializer enforces.
+export const SHOPIFY_CLIENT_ID_RE = /^[0-9a-fA-F]{32}$/;
+export const SHOPIFY_CLIENT_SECRET_RE = /\bshpss_[a-zA-Z0-9]{32,64}\b/;
+
 export const SocialAIPlatformOptions: {
   readonly [key: string]: { label: string; icon: Icon; color: string };
 } = {
@@ -770,3 +781,16 @@ export const StatusBadges: {
     text: "text-green-800",
   },
 };
+
+/** Shared light highlight for filters with a non-default value. */
+export const ACTIVE_FILTER_STYLE =
+  "border-primary/40 bg-primary/10 text-primary";
+export const ACTIVE_QUEUE_STYLE =
+  "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary";
+export const ACTIVE_ASSIGNEE_STYLE =
+  "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-300 dark:hover:bg-sky-950/50";
+export const ALL_FILTER_VALUE = "all" as const;
+export const ANY_FILTER_VALUE = "any" as const;
+export const DEFAULT_HELPDESK_QUEUE = "open" as const;
+export const DEFAULT_CUSTOMER_ORDERING = "-total_spent" as const;
+export const DEFAULT_ORDER_ORDERING = "-created_at" as const;

@@ -61,6 +61,8 @@ import {
   type Autonomy,
 } from "@/lib/comment-handling-data";
 import { toggleInList } from "@/lib/helpers";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
+import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   deleteTopicRule,
@@ -418,7 +420,10 @@ export default function SocialCommentHandling() {
           Every connected account has its own rules — pick the one to configure.
         </Typography>
         <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-          <SelectTrigger className="w-64" aria-label="Connected account">
+          <SelectTrigger
+            className={cn("w-64", ACTIVE_FILTER_STYLE)}
+            aria-label="Connected account"
+          >
             <SelectValue placeholder="Select an account" />
           </SelectTrigger>
           <SelectContent>

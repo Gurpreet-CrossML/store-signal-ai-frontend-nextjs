@@ -25,10 +25,10 @@ export const FetchStoreAllowedIpsSettings = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to load store settings.",
+      toast.error("Couldn't load store settings.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load store settings.");
     }
   },
 );
@@ -50,10 +50,10 @@ export const UpdateStoreAllowedIpsSettings = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to save store settings.",
+      toast.error("Couldn't save store settings.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't save store settings.");
     }
   },
 );
@@ -99,10 +99,10 @@ export const FetchStoreWorkflows = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to load workflows.",
+      toast.error("Couldn't load workflows.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load workflows.");
     }
   },
 );
@@ -132,10 +132,10 @@ export const UpdateStoreWorkflow = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to update this workflow.",
+      toast.error("Couldn't update this workflow.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update this workflow.");
     }
   },
 );
