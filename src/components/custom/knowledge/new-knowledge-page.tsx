@@ -398,7 +398,7 @@ export function NewKnowledgePage() {
         setBanner(
           firstErrorMessage(payload?.data) ||
             payload?.message ||
-            "Something went wrong. Please try again.",
+            "We couldn't save your knowledge items. Please check your entries and try again.",
         );
       }
     },

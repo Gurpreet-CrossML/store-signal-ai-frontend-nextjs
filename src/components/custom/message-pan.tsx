@@ -11,6 +11,7 @@ import ReactMarkdown from "react-markdown";
 import { formatDateTime } from "@/lib/helpers";
 import { MessageAppear } from "@/components/custom/message-appear";
 import OrderBillCard from "@/components/custom/order-bill-card";
+import TicketCard from "@/components/custom/ticket-card";
 import {
   Card,
   CardContent,
@@ -477,6 +478,13 @@ export default function MessagePan({
                             </div>
                           </CardFooter>
                         </Card>
+                      )}
+
+                    {message.role === "assistant" &&
+                      message.json_content?.ticket_details && (
+                        <TicketCard
+                          ticket={message.json_content.ticket_details}
+                        />
                       )}
 
                     {message.role === "assistant" &&

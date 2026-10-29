@@ -28,6 +28,8 @@ import {
   type OrderOrdering,
 } from "@/redux/api-slice/order-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { ACTIVE_FILTER_STYLE, DEFAULT_ORDER_ORDERING } from "@/lib/config";
+import { cn } from "@/lib/utils";
 
 const PER_PAGE = 25;
 
@@ -175,7 +177,13 @@ export default function Orders() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-44" aria-label="Sort orders">
+            <SelectTrigger
+              className={cn(
+                "w-44",
+                ordering !== DEFAULT_ORDER_ORDERING && ACTIVE_FILTER_STYLE,
+              )}
+              aria-label="Sort orders"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

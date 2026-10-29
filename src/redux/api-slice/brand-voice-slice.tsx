@@ -52,13 +52,13 @@ export const fetchPersonaIdentity = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch persona identity, please try again later.",
+      toast.error("Couldn't fetch persona identity", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch persona identity",
+      );
     }
   },
 );
@@ -85,13 +85,13 @@ export const createPersonaIdentity = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to save persona identity, please try again later.",
+      toast.error("Couldn't save persona identity.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't save persona identity.",
+      );
     }
   },
 );
@@ -111,13 +111,13 @@ export const fetchNeverSayRules = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch never-say rules, please try again later.",
+      toast.error("Couldn't fetch never-say rules.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch never-say rules.",
+      );
     }
   },
 );
@@ -144,13 +144,11 @@ export const createNeverSayRules = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to save never-say rules, please try again later.",
+      toast.error("Couldn't save never-say rules", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't save never-say rules");
     }
   },
 );
@@ -170,13 +168,13 @@ export const fetchToneStyle = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the Tone & Style, please try again later.",
+      toast.error("Couldn't fetch the Tone & Style.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the Tone & Style.",
+      );
     }
   },
 );
@@ -192,13 +190,13 @@ export const fetchTonePresets = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the tone presets, please try again later.",
+      toast.error("Couldn't fetch the tone presets.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the tone presets.",
+      );
     }
   },
 );
@@ -225,13 +223,13 @@ export const createToneStyle = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to save the Tone & Style, please try again later.",
+      toast.error("Couldn't save the Tone & Style.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't save the Tone & Style.",
+      );
     }
   },
 );
@@ -251,13 +249,11 @@ export const fetchVocabulary = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the vocabulary, please try again later.",
+      toast.error("Couldn't fetch the vocabulary.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the vocabulary.");
     }
   },
 );
@@ -284,13 +280,11 @@ export const createVocabulary = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to save the vocabulary, please try again later.",
+      toast.error("Couldn't save the vocabulary.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't save the vocabulary.");
     }
   },
 );
@@ -305,13 +299,13 @@ export const fetchVocabularyPresets = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the vocabulary presets, please try again later.",
+      toast.error("Couldn't fetch the vocabulary presets.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the vocabulary presets.",
+      );
     }
   },
 );
@@ -328,13 +322,13 @@ export const fetchNeverSayRulesPresets = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the never-say rules presets, please try again later.",
+      toast.error("Couldn't fetch the never-say rules presets.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the never-say rules presets.",
+      );
     }
   },
 );

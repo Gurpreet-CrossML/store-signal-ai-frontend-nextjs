@@ -66,8 +66,8 @@ export const FetchCompanyProfile = createAsyncThunk(
       });
       return res.data.data as CompanyProfile;
     } catch (error) {
-      toast.error("Uh oh! Something went wrong.", {
-        description: errorMessage(error, "Unable to load company profile."),
+      toast.error("Couldn't load company profile.", {
+        description: errorMessage(error, "Please try again later."),
       });
       return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
     }
@@ -109,8 +109,8 @@ export const UpdateCompanyProfile = createAsyncThunk(
       toast.success("Company profile updated.");
       return res.data.data as CompanyProfile;
     } catch (error) {
-      toast.error("Uh oh! Something went wrong.", {
-        description: errorMessage(error, "Unable to update company profile."),
+      toast.error("Couldn't update company profile.", {
+        description: errorMessage(error, "Please try again later."),
       });
       const data = isAxiosError(error) ? error.response?.data : undefined;
       return thunkAPI.rejectWithValue(data || errorMessage(error, "Failed"));
@@ -169,8 +169,8 @@ export const FetchStaff = createAsyncThunk(
       });
       return res.data.data as StaffMember[];
     } catch (error) {
-      toast.error("Uh oh! Something went wrong.", {
-        description: errorMessage(error, "Unable to load staff."),
+      toast.error("Couldn't load staff.", {
+        description: errorMessage(error, "Please try again later."),
       });
       return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
     }
@@ -202,8 +202,8 @@ export const CreateStaff = createAsyncThunk(
       });
       return data;
     } catch (error) {
-      toast.error("Uh oh! Something went wrong.", {
-        description: errorMessage(error, "Unable to create staff user."),
+      toast.error("Couldn't create staff user.", {
+        description: errorMessage(error, "Please try again later."),
       });
       // The whole body, so the form can put field errors (e.g. a taken
       // email) under the field that caused them.
@@ -231,8 +231,8 @@ export const UpdateStaff = createAsyncThunk(
       );
       return res.data.data as StaffMember;
     } catch (error) {
-      toast.error("Uh oh! Something went wrong.", {
-        description: errorMessage(error, "Unable to update staff user."),
+      toast.error("Couldn't update staff user.", {
+        description: errorMessage(error, "Please try again later."),
       });
       return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
     }
@@ -255,8 +255,8 @@ export const ResetStaffPassword = createAsyncThunk(
       });
       return data;
     } catch (error) {
-      toast.error("Uh oh! Something went wrong.", {
-        description: errorMessage(error, "Unable to reset password."),
+      toast.error("Couldn't reset password.", {
+        description: errorMessage(error, "Please try again later."),
       });
       return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
     }

@@ -92,6 +92,9 @@ export type SupportTicketTagData = {
   name: string;
   color: string;
   description: string;
+  /** A platform-provided tag; the store cannot edit or delete it. */
+  is_predefined?: boolean;
+  is_active?: boolean;
 };
 
 export type SupportTicketTagsResponse = {
@@ -252,13 +255,13 @@ export const FetchSupportTickets = createAsyncThunk<
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the support ticket, please try again later.",
+      toast.error("Couldn't fetch the support ticket.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the support ticket.",
+      );
     }
   },
 );
@@ -280,13 +283,11 @@ export const FetchSupportTicketDetails = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch ticket details, please try again later.",
+      toast.error("Couldn't fetch ticket details.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch ticket details.");
     }
   },
 );
@@ -318,12 +319,11 @@ export const SupportTicketMessageSend = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to send message, please try again later.",
+      toast.error("Couldn't send message.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't send message.");
     }
   },
 );
@@ -353,13 +353,13 @@ export const FetchSupportTicketTags = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch support ticket tags, please try again later.",
+      toast.error("Couldn't fetch support ticket tags.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch support ticket tags.",
+      );
     }
   },
 );
@@ -436,7 +436,7 @@ export const FetchThreadTicketDraft = createAsyncThunk(
           data?.message ||
           "Fill the form in manually.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't create ticket");
     }
   },
 );
@@ -485,7 +485,7 @@ export const CreateSupportTicket = createAsyncThunk(
           data?.message ||
           "Please check the form and try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't link the customer");
     }
   },
 );
@@ -513,9 +513,11 @@ export const SupportTicketCustomerLink = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't link the customer", {
-        description: data?.message || "Please try again.",
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't assign a staff to ticket.",
+      );
     }
   },
 );
@@ -546,13 +548,11 @@ export const SupportTicketStaffAssign = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to assign a staff to ticket, please try again later.",
+      toast.error("Couldn't assign a staff to ticket.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't save draft message.");
     }
   },
 );
@@ -579,13 +579,13 @@ export const SupportTicketAgentDraftSave = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to save draft message, please try again later.",
+      toast.error("Couldn't save draft message.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't assign this tag to ticket.",
+      );
     }
   },
 );
@@ -611,13 +611,13 @@ export const SupportTicketTagAssign = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to assign this tag to ticket, please try again later.",
+      toast.error("Couldn't assign this tag to ticket.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't remove this tag to ticket.",
+      );
     }
   },
 );
@@ -643,13 +643,11 @@ export const SupportTicketTagRemove = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to remove this tag to ticket, please try again later.",
+      toast.error("Couldn't remove this tag to ticket.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't improve the message.");
     }
   },
 );
@@ -680,13 +678,11 @@ export const SupportMessageImprove = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to improve the message, please try again later.",
+      toast.error("Couldn't improve the message.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't snooze this ticket.");
     }
   },
 );
@@ -717,13 +713,11 @@ export const SupportTicketSnooze = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to snooze this ticket, please try again later.",
+      toast.error("Couldn't snooze this ticket.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't mark read.");
     }
   },
 );
@@ -745,15 +739,49 @@ export const SupportTicketMarkRead = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to mark read, please try again later.",
+      toast.error("Couldn't mark read.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't delete this tag.");
     }
   },
 );
+
+/**
+ * The store's tags a typed name would duplicate.
+ *
+ * Not a thunk, and it never toasts: it runs as the owner types, so an error
+ * toast per keystroke would be noise. A failed lookup returns no matches —
+ * the create and update endpoints still refuse a duplicate on their own.
+ */
+export async function fetchSimilarTicketTags({
+  storeCode,
+  name,
+  excludeId,
+  signal,
+}: {
+  storeCode: string;
+  name: string;
+  /** The tag being renamed, which must not match itself. */
+  excludeId?: number;
+  signal?: AbortSignal;
+}): Promise<SupportTicketTagData[]> {
+  try {
+    const response = await axiosInstance.get(ENDPOINTS.ticketTagSimilar(), {
+      params: {
+        store_code: storeCode,
+        name,
+        ...(excludeId && { exclude_id: excludeId }),
+      },
+      signal,
+    });
+    const data = response.data.data;
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
 
 export const TicketTagDelete = createAsyncThunk(
   "TicketTagDelete",
@@ -772,12 +800,11 @@ export const TicketTagDelete = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to delete this tag, please try again later.",
+      toast.error("Couldn't delete this tag.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't create a tag.");
     }
   },
 );
@@ -803,12 +830,11 @@ export const TicketTagCreate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to create a tag, please try again later.",
+      toast.error("Couldn't create a tag.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update this tag.");
     }
   },
 );
@@ -835,12 +861,11 @@ export const TicketTagUpdate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to update this tag, please try again later.",
+      toast.error("Couldn't update this tag.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't generate ai draft.");
     }
   },
 );
@@ -862,13 +887,11 @@ export const SupportTicketAIMessageDraftGenerate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to generate ai draft, please try again later.",
+      toast.error("Couldn't generate ai draft.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update ticket status.");
     }
   },
 );
@@ -904,13 +927,13 @@ export const SupportTicketStatusUpdate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to update ticket status, please try again later.",
+      toast.error("Couldn't update ticket status.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't update ticket priority.",
+      );
     }
   },
 );
@@ -941,13 +964,11 @@ export const SupportTicketPriorityUpdate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to update ticket priority, please try again later.",
+      toast.error("Couldn't update ticket priority.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load ticket activity.");
     }
   },
 );
@@ -980,13 +1001,13 @@ export const SupportTicketActivityFetch = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to load ticket activity, please try again later.",
+      toast.error("Couldn't load ticket activity.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't update ticket language or sentiment.",
+      );
     }
   },
 );
@@ -1019,13 +1040,13 @@ export const SupportTicketLanguageSentimentUpdate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to update ticket language or sentiment, please try again later.",
+      toast.error("Couldn't update ticket language or sentiment.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't translate ticket messages.",
+      );
     }
   },
 );
@@ -1052,13 +1073,13 @@ export const SupportTicketMessagesTranslate = createAsyncThunk<
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to translate ticket messages, please try again later.",
+      toast.error("Couldn't translate ticket messages.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't translate ticket messages.",
+      );
     }
   },
 );

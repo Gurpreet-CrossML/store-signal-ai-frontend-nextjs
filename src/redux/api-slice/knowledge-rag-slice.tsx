@@ -346,11 +346,10 @@ export const FetchKnowledgeItems = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to load knowledge items, please try again.",
+      toast.error("Couldn't load knowledge items.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load knowledge items.");
     }
   },
 );
@@ -446,11 +445,10 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to add knowledge, please try again.",
+      toast.error("Couldn't add knowledge.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't add knowledge.");
     }
   },
 );
@@ -486,11 +484,10 @@ export const UpdateKnowledgeItem = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to update knowledge, please try again.",
+      toast.error("Couldn't update knowledge.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update knowledge.");
     }
   },
 );
@@ -509,11 +506,10 @@ export const DeleteKnowledgeItem = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to delete knowledge, please try again.",
+      toast.error("Couldn't delete knowledge.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't delete knowledge.");
     }
   },
 );
@@ -547,7 +543,9 @@ export const FetchProductOptions = createAsyncThunk(
       }));
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't load product options.",
+      );
     }
   },
 );
@@ -576,7 +574,9 @@ export const FetchCategoryOptions = createAsyncThunk(
       }));
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't load category options.",
+      );
     }
   },
 );
@@ -605,7 +605,9 @@ export const FetchCollectionOptions = createAsyncThunk(
       }));
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't load collection options.",
+      );
     }
   },
 );
@@ -768,7 +770,7 @@ const KnowledgeRagSlice = createSlice({
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = false;
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsSuccess = false;
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsError =
-          "Something went wrong";
+          "Couldn't load knowledge items.";
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsListData = {
           count: 0,
           next: null,
@@ -791,7 +793,7 @@ const KnowledgeRagSlice = createSlice({
         state.CreateKnowledgeItemsBulkState.CreateKnowledgeItemsBulkIsLoading = false;
         state.CreateKnowledgeItemsBulkState.CreateKnowledgeItemsBulkIsSuccess = false;
         state.CreateKnowledgeItemsBulkState.CreateKnowledgeItemsBulkIsError =
-          "Something went wrong";
+          "Couldn't add knowledge.";
       })
       // UpdateKnowledgeItem
       .addCase(UpdateKnowledgeItem.pending, (state) => {
@@ -807,7 +809,7 @@ const KnowledgeRagSlice = createSlice({
         state.UpdateKnowledgeItemState.UpdateKnowledgeItemIsLoading = false;
         state.UpdateKnowledgeItemState.UpdateKnowledgeItemIsSuccess = false;
         state.UpdateKnowledgeItemState.UpdateKnowledgeItemIsError =
-          "Something went wrong";
+          "Couldn't update knowledge.";
       })
       // DeleteKnowledgeItem
       .addCase(DeleteKnowledgeItem.pending, (state) => {
@@ -823,7 +825,7 @@ const KnowledgeRagSlice = createSlice({
         state.DeleteKnowledgeItemState.DeleteKnowledgeItemIsLoading = false;
         state.DeleteKnowledgeItemState.DeleteKnowledgeItemIsSuccess = false;
         state.DeleteKnowledgeItemState.DeleteKnowledgeItemIsError =
-          "Something went wrong";
+          "Couldn't delete knowledge.";
       })
       // FetchProductOptions
       .addCase(FetchProductOptions.pending, (state) => {
@@ -839,7 +841,7 @@ const KnowledgeRagSlice = createSlice({
       .addCase(FetchProductOptions.rejected, (state) => {
         state.FetchProductOptionsState.FetchProductOptionsIsLoading = false;
         state.FetchProductOptionsState.FetchProductOptionsIsError =
-          "Something went wrong";
+          "Couldn't load product options.";
       })
       // FetchCategoryOptions
       .addCase(FetchCategoryOptions.pending, (state) => {
@@ -855,7 +857,7 @@ const KnowledgeRagSlice = createSlice({
       .addCase(FetchCategoryOptions.rejected, (state) => {
         state.FetchCategoryOptionsState.FetchCategoryOptionsIsLoading = false;
         state.FetchCategoryOptionsState.FetchCategoryOptionsIsError =
-          "Something went wrong";
+          "Couldn't load category options.";
       })
       // FetchCollectionOptions
       .addCase(FetchCollectionOptions.pending, (state) => {
@@ -871,7 +873,7 @@ const KnowledgeRagSlice = createSlice({
       .addCase(FetchCollectionOptions.rejected, (state) => {
         state.FetchCollectionOptionsState.FetchCollectionOptionsIsLoading = false;
         state.FetchCollectionOptionsState.FetchCollectionOptionsIsError =
-          "Something went wrong";
+          "Couldn't load collection options.";
       })
       // FetchRetrievalSettings
       .addCase(FetchRetrievalSettings.pending, (state) => {
@@ -889,7 +891,7 @@ const KnowledgeRagSlice = createSlice({
         state.FetchRetrievalSettingsState.FetchRetrievalSettingsIsLoading = false;
         state.FetchRetrievalSettingsState.FetchRetrievalSettingsIsSuccess = false;
         state.FetchRetrievalSettingsState.FetchRetrievalSettingsIsError =
-          "Something went wrong";
+          "Couldn't load retrieval settings.";
       })
       // SaveRetrievalSettings
       .addCase(SaveRetrievalSettings.pending, (state) => {
@@ -907,7 +909,7 @@ const KnowledgeRagSlice = createSlice({
         state.SaveRetrievalSettingsState.SaveRetrievalSettingsIsLoading = false;
         state.SaveRetrievalSettingsState.SaveRetrievalSettingsIsSuccess = false;
         state.SaveRetrievalSettingsState.SaveRetrievalSettingsIsError =
-          "Something went wrong";
+          "Couldn't save retrieval settings.";
       })
       // FetchAIKnowledgeScope
       .addCase(FetchAIKnowledgeScope.pending, (state) => {
@@ -925,7 +927,7 @@ const KnowledgeRagSlice = createSlice({
         state.FetchAIKnowledgeScopeState.FetchAIKnowledgeScopeIsLoading = false;
         state.FetchAIKnowledgeScopeState.FetchAIKnowledgeScopeIsSuccess = false;
         state.FetchAIKnowledgeScopeState.FetchAIKnowledgeScopeIsError =
-          "Something went wrong";
+          "Couldn't load AI knowledge scope.";
       })
       // SaveAIKnowledgeScope
       .addCase(SaveAIKnowledgeScope.pending, (state) => {
@@ -943,7 +945,7 @@ const KnowledgeRagSlice = createSlice({
         state.SaveAIKnowledgeScopeState.SaveAIKnowledgeScopeIsLoading = false;
         state.SaveAIKnowledgeScopeState.SaveAIKnowledgeScopeIsSuccess = false;
         state.SaveAIKnowledgeScopeState.SaveAIKnowledgeScopeIsError =
-          "Something went wrong";
+          "Couldn't save AI knowledge scope.";
       })
       // RunTestQuery
       .addCase(RunTestQuery.pending, (state) => {
@@ -959,7 +961,8 @@ const KnowledgeRagSlice = createSlice({
       .addCase(RunTestQuery.rejected, (state) => {
         state.RunTestQueryState.RunTestQueryIsLoading = false;
         state.RunTestQueryState.RunTestQueryIsSuccess = false;
-        state.RunTestQueryState.RunTestQueryIsError = "Something went wrong";
+        state.RunTestQueryState.RunTestQueryIsError =
+          "Couldn't run the test query.";
       });
   },
 });

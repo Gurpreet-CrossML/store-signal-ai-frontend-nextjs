@@ -124,7 +124,12 @@ import { DateRangePicker } from "@/components/custom/date-range-picker";
 import { LoadingState } from "@/components/custom/loading-state";
 import { SearchInput } from "@/components/custom/search-input";
 
-import { ENDPOINTS } from "@/lib/config";
+import {
+  ACTIVE_ASSIGNEE_STYLE,
+  ACTIVE_QUEUE_STYLE,
+  DEFAULT_HELPDESK_QUEUE,
+  ENDPOINTS,
+} from "@/lib/config";
 import {
   SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS,
   prepareSupportAttachments,
@@ -329,13 +334,13 @@ const SORT_OPTIONS: { key: SupportTicketOrdering; label: string }[] = [
 
 /**
  * Where an agent can move a ticket from the status menu. Mirrors the API:
- * a resolved ticket can only be opened or closed and a closed one only
+ * only a resolved ticket can be opened or closed and a closed one only
  * reopened, and snoozed is set from the snooze control, never from here.
  */
 const STATUS_TRANSITIONS: Record<SupportTicketStatus, SupportTicketStatus[]> = {
-  open: ["resolved", "closed"],
-  reopen: ["resolved", "closed"],
-  snoozed: ["resolved", "closed"],
+  open: ["resolved"],
+  reopen: ["resolved"],
+  snoozed: ["resolved"],
   resolved: ["open", "closed"],
   closed: ["reopen"],
 };
@@ -496,7 +501,14 @@ function TicketListPanel({
         <div className="flex min-w-0 items-center gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="-ml-2 gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "-ml-2 gap-1",
+                  activeQueue !== DEFAULT_HELPDESK_QUEUE && ACTIVE_QUEUE_STYLE,
+                )}
+              >
                 <CardTitle>
                   {queueLabel}
                   <span className="ml-1.5 font-normal text-muted-foreground">
@@ -886,9 +898,11 @@ function ConversationPanel({
       ?.name ?? ticketLanguage;
 
   const customerName = customerLabel(ticket.customer);
-  // Shown in brackets beside the status — only worth the width once the
-  // ticket has actually been reopened.
-  const reopenCount = ticket.reopen_count ?? 0;
+  // Shown in brackets beside the status — only while the ticket is in the
+  // reopen status. The count is lifetime, so a reopened ticket that has since
+  // been closed or resolved still carries it, and must not show it.
+  const reopenCount =
+    ticket.status === "reopen" ? (ticket.reopen_count ?? 0) : 0;
   const customerEmail =
     ticket.customer && typeof ticket.customer === "object"
       ? ticket.customer.email
@@ -1052,7 +1066,10 @@ function ConversationPanel({
             }
           >
             <ComboboxInput
-              className="h-8 w-28 2xl:w-40"
+              className={cn(
+                "h-8 w-28 2xl:w-40",
+                ticket?.internal_assignee?.id && ACTIVE_ASSIGNEE_STYLE,
+              )}
               placeholder={
                 ticket?.internal_assignee?.id
                   ? ticket?.internal_assignee?.name
@@ -1107,29 +1124,32 @@ function ConversationPanel({
 
           {/* The two endings a ticket actually has, one click away —
               they were buried in the status Select behind the ⋮ menu. */}
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label="Mark as resolved"
-            className={cn(ACTION_TONE_STYLES.success, "@3xl/conv:order-4")}
-            onClick={() => setPendingEndStatus("resolved")}
-            disabled={isClosed}
-          >
-            <IconCircleCheck className="size-4" />
-            Resolve
-          </Button>
+          {!isClosed ? (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Mark as resolved"
+              className={cn(ACTION_TONE_STYLES.success, "@3xl/conv:order-4")}
+              onClick={() => setPendingEndStatus("resolved")}
+            >
+              <IconCircleCheck className="size-4" />
+              Resolve
+            </Button>
+          ) : null}
 
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label="Close ticket"
-            className={cn(ACTION_TONE_STYLES.danger, "@3xl/conv:order-5")}
-            onClick={() => setPendingEndStatus("closed")}
-            disabled={ticket.status === "closed"}
-          >
-            <IconCircleX className="size-4" />
-            Close
-          </Button>
+          {/* Only a resolved ticket can be closed. */}
+          {ticket.status === "resolved" ? (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Close ticket"
+              className={cn(ACTION_TONE_STYLES.danger, "@3xl/conv:order-5")}
+              onClick={() => setPendingEndStatus("closed")}
+            >
+              <IconCircleX className="size-4" />
+              Close
+            </Button>
+          ) : null}
 
           {/* <DropdownMenu>
             <Tooltip>
@@ -3765,6 +3785,15 @@ export default function HelpDesk() {
             open={isDetailsOpen}
             onOpenChange={setIsDetailsOpen}
             customerData={ticketCustomer}
+            ticket={
+              storeCode
+                ? {
+                    storeCode,
+                    ticketId: activeSupportTicket.id,
+                    version: `${activeSupportTicket.status}|${activeSupportTicket.internal_assignee?.id ?? ""}|${activeSupportTicket.updated_at ?? ""}`,
+                  }
+                : undefined
+            }
             orders={ticketCustomer?.orders}
             ordersLoading={FetchSupportTicketDetailsIsLoading}
             onOrdersSync={handleCustomerOrderSync}

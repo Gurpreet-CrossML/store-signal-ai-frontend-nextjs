@@ -143,6 +143,16 @@ export type ProductComparisonBlock = {
   comparison_message: string;
 };
 
+/** Ticket card raised from a chat, by the AI or an agent. */
+export type TicketDetails = {
+  ticket_id: string | number;
+  subject?: string;
+  description: string;
+  customer_name: string;
+  customer_email: string;
+  created_at: string;
+};
+
 export type ThreadJsonContent = {
   products?: ProductData[];
   related_products?: ProductData[];
@@ -153,6 +163,7 @@ export type ThreadJsonContent = {
   order_id?: string;
   order_verification_step?: string;
   suggestions?: string[];
+  ticket_details?: TicketDetails;
   /** Mirrors ChatHistory.confidence for resilient session reloads. */
   confidence?: number | null;
   /** Mirrors ChatHistory.source_used for resilient session reloads. */
@@ -493,13 +504,11 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the threads, please try again later.",
+      toast.error("Couldn't fetch the threads.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the threads.");
     }
   },
 );
@@ -518,13 +527,13 @@ export const FetchThreadDetails = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the thread details, please try again later.",
+      toast.error("Couldn't fetch the thread details.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the thread details.",
+      );
     }
   },
 );
@@ -549,13 +558,13 @@ export const CreateInternalNote = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to save the internal note. Please try again later.",
+      toast.error("Couldn't save the internal note.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't save the internal note.",
+      );
     }
   },
 );
@@ -574,13 +583,13 @@ export const FetchUserMetadata = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the user metadata, please try again later.",
+      toast.error("Couldn't fetch the user metadata.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the user metadata.",
+      );
     }
   },
 );
@@ -599,13 +608,13 @@ export const FetchConversationSummary = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the conversation summary, please try again later.",
+      toast.error("Couldn't fetch the conversation summary.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the conversation summary.",
+      );
     }
   },
 );
@@ -624,13 +633,13 @@ export const FetchFeedbackSequence = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the feedback sequence, please try again later.",
+      toast.error("Couldn't fetch the feedback sequence.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the feedback sequence.",
+      );
     }
   },
 );
@@ -647,12 +656,11 @@ export const FetchTags = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to fetch the tags, please try again later.",
+      toast.error("Couldn't fetch the tags.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the tags.");
     }
   },
 );
@@ -671,13 +679,11 @@ export const FetchThreadTagOptions = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch tag options, please try again later.",
+      toast.error("Couldn't fetch tag options.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch tag options.");
     }
   },
 );
@@ -696,13 +702,13 @@ export const FetchAIInsight = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the AI insights, please try again later.",
+      toast.error("Couldn't fetch the AI insights.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the AI insights.",
+      );
     }
   },
 );
@@ -723,14 +729,12 @@ export const FetchCart = createAsyncThunk(
 
       // A 404 simply means no cart data exists for this thread — not an error worth surfacing.
       if (response?.status !== 404) {
-        toast.error("Uh oh! Something went wrong.", {
-          description:
-            data?.message ||
-            "Unable to fetch the cart data, please try again later.",
+        toast.error("Couldn't fetch the cart data.", {
+          description: data?.message || "Please try again later.",
         });
       }
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the cart data.");
     }
   },
 );
@@ -758,9 +762,9 @@ export const ThreadCustomerLink = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't link the customer", {
-        description: data?.message || "Please try again.",
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't link the customer");
     }
   },
 );
@@ -792,13 +796,13 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the Support ticket ID, please try again later.",
+      toast.error("Couldn't fetch the Support ticket ID.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the Support ticket ID.",
+      );
     }
   },
 );
@@ -823,13 +827,11 @@ export const UploadMessageAttachments = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Could not upload the selected image(s). Please try again later.",
+      toast.error("Could not upload the selected image(s).", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Please try again later.");
     }
   },
 );
@@ -850,14 +852,12 @@ export const FetchOrders = createAsyncThunk(
 
       // A 404 simply means no cart data exists for this thread — not an error worth surfacing.
       if (response?.status !== 404) {
-        toast.error("Uh oh! Something went wrong.", {
-          description:
-            data?.message ||
-            "Unable to fetch the cart data, please try again later.",
+        toast.error("Couldn't fetch the cart data.", {
+          description: data?.message || "Please try again later.",
         });
       }
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the cart data.");
     }
   },
 );
@@ -886,7 +886,9 @@ export const FetchProducts = createAsyncThunk(
       return (response.data?.data ?? null) as ProductListResponse | null;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't fetch products.",
+      );
     }
   },
 );
