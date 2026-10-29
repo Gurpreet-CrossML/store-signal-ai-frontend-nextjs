@@ -307,6 +307,8 @@ export const ENDPOINTS = {
   supportTicketMarkRead: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/mark/read/`, "django"),
   ticketTagCreate: () => createAPIUrl("/support/ticket-tags/", "django"),
+  ticketTagSimilar: () =>
+    createAPIUrl("/support/ticket-tags/similar/", "django"),
   ticketTagUpdate: (tag_id: number) =>
     createAPIUrl(`/support/ticket-tags/${tag_id}/`, "django"),
   ticketTagDelete: (tag_id: number) =>
