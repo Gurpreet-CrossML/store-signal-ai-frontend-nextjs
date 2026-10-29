@@ -243,6 +243,10 @@ export const ENDPOINTS = {
 
   // Helpdesk(Support) apis
   fetchSupportTickets: () => createAPIUrl("/support/tickets", "django"),
+  // GET — the ticket count of every help desk filter view, tags and channels
+  // included, in one request.
+  fetchSupportTicketFilterCounts: () =>
+    createAPIUrl("/support/tickets/filter-counts/", "django"),
   // POST — raise a ticket with no conversation behind it: an agent logging
   // a problem that reached them by phone, email or in person.
   createSupportTicket: () => createAPIUrl("/support/tickets/", "django"),

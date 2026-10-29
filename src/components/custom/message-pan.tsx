@@ -9,6 +9,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ReactMarkdown from "react-markdown";
 import { formatDateTime } from "@/lib/helpers";
+import { CreditLabel } from "@/components/custom/credit-label";
 import { MessageAppear } from "@/components/custom/message-appear";
 import OrderBillCard from "@/components/custom/order-bill-card";
 import TicketCard from "@/components/custom/ticket-card";
@@ -391,7 +392,7 @@ export default function MessagePan({
                           ) : (
                             <>
                               <IconSparkles className="h-3 w-3" />
-                              Reply with AI
+                              <CreditLabel>Reply with AI</CreditLabel>
                             </>
                           )}
                         </Button>
