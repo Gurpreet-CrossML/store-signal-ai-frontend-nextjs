@@ -16,8 +16,8 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { EXPANDED_MENU_BUTTON } from "@/components/custom/nav-main";
-import { isMenuItemActive, type SideBarMenuItem } from "@/lib/sidebar-navs";
-import { cn } from "@/lib/utils";
+import type { SideBarMenuItem } from "@/lib/sidebar-navs";
+import { cn, titleWhenClipped } from "@/lib/utils";
 
 /**
  * A sub-sidebar section that holds its own screens.
@@ -33,16 +33,24 @@ import { cn } from "@/lib/utils";
  * as a lone icon with nothing beneath it.
  */
 export function CollapsibleMenuItem({
-  pathname,
+  activeUrl,
   title,
   icon: ItemIcon,
   defaultOpen,
+  count,
   items,
 }: {
-  pathname: string | null;
+  /**
+   * The url of the one entry that is open, as `activeNavUrl` decided it.
+   * Not re-derived from the path here: the entries of a group can share a
+   * path and differ only by query string.
+   */
+  activeUrl: string | null;
   title: string;
   icon?: Icon;
   defaultOpen?: boolean;
+  /** The group's own count, shown on its heading. */
+  count?: number;
   items?: SideBarMenuItem[];
 }) {
   return (
@@ -60,33 +68,59 @@ export function CollapsibleMenuItem({
           >
             {ItemIcon && <ItemIcon />}
             <span>{title}</span>
-            <IconChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+            {count !== undefined && (
+              <span className="ml-auto text-xs tabular-nums text-muted-foreground">
+                {count}
+              </span>
+            )}
+            <IconChevronRight
+              className={cn(
+                "transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90",
+                count === undefined && "ml-auto",
+              )}
+            />
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarMenuSub className="mr-0 pr-0 group-data-[collapsible=icon]:flex">
-            {items?.map((subItem) => (
-              <SidebarMenuSubItem key={subItem.title}>
-                <SidebarMenuSubButton
-                  isActive={isMenuItemActive(pathname, subItem.url)}
-                  className="group-data-[collapsible=icon]:flex data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15"
-                  asChild
-                >
-                  <Link href={subItem.url}>
-                    {subItem.icon && (
-                      <subItem.icon
-                        className={cn(
-                          isMenuItemActive(pathname, subItem.url)
-                            ? "text-primary!"
-                            : "",
-                        )}
-                      />
-                    )}
-                    <span>{subItem.title}</span>
-                  </Link>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            ))}
+            {items?.map((subItem) => {
+              const isActive = subItem.url === activeUrl;
+
+              return (
+                <SidebarMenuSubItem key={subItem.url}>
+                  <SidebarMenuSubButton
+                    isActive={isActive}
+                    className="group-data-[collapsible=icon]:flex data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15"
+                    asChild
+                  >
+                    <Link href={subItem.url}>
+                      {subItem.icon && (
+                        <subItem.icon
+                          style={
+                            subItem.color ? { color: subItem.color } : undefined
+                          }
+                          // An item with its own colour keeps it when active.
+                          className={cn(
+                            isActive && !subItem.color && "text-primary!",
+                          )}
+                        />
+                      )}
+                      <span
+                        className="flex-1 truncate"
+                        onMouseEnter={titleWhenClipped}
+                      >
+                        {subItem.title}
+                      </span>
+                      {subItem.count !== undefined && (
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          {subItem.count}
+                        </span>
+                      )}
+                    </Link>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              );
+            })}
           </SidebarMenuSub>
         </CollapsibleContent>
       </SidebarMenuItem>
