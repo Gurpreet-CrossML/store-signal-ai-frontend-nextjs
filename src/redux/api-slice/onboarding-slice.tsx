@@ -44,10 +44,12 @@ export const FetchOnboardingStatus = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to load your setup progress.",
+      toast.error("Couldn't load your setup progress.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't load your setup progress.",
+      );
     }
   },
 );
@@ -73,7 +75,7 @@ export const UpdateOnboardingStep = createAsyncThunk(
       toast.error("Couldn't update your setup", {
         description: data?.message || "Try again in a moment.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update your setup");
     }
   },
 );
@@ -111,9 +113,11 @@ export const StartShopifyOauth = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't start the Shopify connection", {
-        description: data?.message || "Unable to reach Shopify. Try again.",
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't start the Shopify connection",
+      );
     }
   },
 );
@@ -145,7 +149,9 @@ export const CompleteShopifyOauth = createAsyncThunk(
         description:
           data?.message || "Shopify didn't complete the handshake. Try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't finish the Shopify connection",
+      );
     }
   },
 );

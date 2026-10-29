@@ -144,13 +144,13 @@ export const FetchFeedbackInsights = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch feedback insights, please try again later.",
+      toast.error("Couldn't fetch feedback insights.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch feedback insights.",
+      );
     }
   },
 );
@@ -169,13 +169,13 @@ export const FetchConversation = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch conversation data, please try again later.",
+      toast.error("Couldn't fetch conversation data.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch conversation data.",
+      );
     }
   },
 );
@@ -194,13 +194,13 @@ export const FetchEngagement = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch engagement data, please try again later.",
+      toast.error("Couldn't fetch engagement data.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch engagement data.",
+      );
     }
   },
 );
@@ -219,13 +219,13 @@ export const FetchOperationalEfficiency = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch operational efficiency data, please try again later.",
+      toast.error("Couldn't fetch operational efficiency data.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch operational efficiency data.",
+      );
     }
   },
 );
@@ -244,13 +244,13 @@ export const FetchUserMatrix = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch user matrix data, please try again later.",
+      toast.error("Couldn't fetch user matrix data.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch user matrix data.",
+      );
     }
   },
 );
@@ -269,13 +269,13 @@ export const FetchConversionRate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch conversion rate data, please try again later.",
+      toast.error("Couldn't fetch conversion rate data.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch conversion rate data.",
+      );
     }
   },
 );
@@ -294,13 +294,13 @@ export const FetchQueryCategoryInsights = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch query category insights, please try again later.",
+      toast.error("Couldn't fetch query category insights.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch query category insights.",
+      );
     }
   },
 );
@@ -332,13 +332,13 @@ export const FetchConversationHistory = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch conversation history, please try again later.",
+      toast.error("Couldn't fetch conversation history.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch conversation history.",
+      );
     }
   },
 );
@@ -356,13 +356,13 @@ export const FetchChatOrderFunnel = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch chat to order funnel, please try again later.",
+      toast.error("Couldn't fetch chat to order funnel.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch chat to order funnel.",
+      );
     }
   },
 );
@@ -389,13 +389,11 @@ export const FetchDashboard = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch dashboard data, please try again later.",
+      toast.error("Couldn't fetch dashboard data.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch dashboard data.");
     }
   },
 );
@@ -478,7 +476,7 @@ const DashboardSlice = createSlice({
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsLoading = false;
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsSuccess = false;
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch feedback insights.";
       })
       // Conversation Data
       .addCase(FetchConversation.pending, (state) => {
@@ -495,7 +493,7 @@ const DashboardSlice = createSlice({
         state.FetchConversationDataState.FetchConversationDataIsLoading = false;
         state.FetchConversationDataState.FetchConversationDataIsSuccess = false;
         state.FetchConversationDataState.FetchConversationDataIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch conversation data.";
       })
       // Engagement Data
       .addCase(FetchEngagement.pending, (state) => {
@@ -512,7 +510,7 @@ const DashboardSlice = createSlice({
         state.FetchEngagementDataState.FetchEngagementDataIsLoading = false;
         state.FetchEngagementDataState.FetchEngagementDataIsSuccess = false;
         state.FetchEngagementDataState.FetchEngagementDataIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch engagement data.";
       })
       // Operational Efficiency Data
       .addCase(FetchOperationalEfficiency.pending, (state) => {
@@ -531,7 +529,7 @@ const DashboardSlice = createSlice({
         state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsLoading = false;
         state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsSuccess = false;
         state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch operational efficiency data.";
       })
       // User Matrix
       .addCase(FetchUserMatrix.pending, (state) => {
@@ -548,7 +546,7 @@ const DashboardSlice = createSlice({
         state.FetchUserMatrixState.FetchUserMatrixIsLoading = false;
         state.FetchUserMatrixState.FetchUserMatrixIsSuccess = false;
         state.FetchUserMatrixState.FetchUserMatrixIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch user matrix data.";
       })
       // Conversion Rate Data
       .addCase(FetchConversionRate.pending, (state) => {
@@ -567,7 +565,7 @@ const DashboardSlice = createSlice({
         state.FetchConversionRateDataState.FetchConversionRateDataIsLoading = false;
         state.FetchConversionRateDataState.FetchConversionRateDataIsSuccess = false;
         state.FetchConversionRateDataState.FetchConversionRateDataIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch conversion rate data.";
       })
       // Query Category Insights
       .addCase(FetchQueryCategoryInsights.pending, (state) => {
@@ -586,7 +584,7 @@ const DashboardSlice = createSlice({
         state.FetchQueryCategoryInsightsState.FetchQueryCategoryInsightsIsLoading = false;
         state.FetchQueryCategoryInsightsState.FetchQueryCategoryInsightsIsSuccess = false;
         state.FetchQueryCategoryInsightsState.FetchQueryCategoryInsightsIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch query category insights.";
       })
       // Conversation History
       .addCase(FetchConversationHistory.pending, (state) => {
@@ -605,7 +603,7 @@ const DashboardSlice = createSlice({
         state.FetchConversationHistoryState.FetchConversationHistoryIsLoading = false;
         state.FetchConversationHistoryState.FetchConversationHistoryIsSuccess = false;
         state.FetchConversationHistoryState.FetchConversationHistoryIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch conversation history.";
       })
       // Chat to Order Funnel
       .addCase(FetchChatOrderFunnel.pending, (state) => {
@@ -623,7 +621,7 @@ const DashboardSlice = createSlice({
         state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsLoading = false;
         state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsSuccess = false;
         state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch chat to order funnel.";
       })
       // Consolidated dashboard: one request fans out into all five widget states.
       .addCase(FetchDashboard.pending, (state) => {
@@ -667,7 +665,7 @@ const DashboardSlice = createSlice({
           d.conversion_rate;
       })
       .addCase(FetchDashboard.rejected, (state, action) => {
-        const err = action.payload || "Something went wrong";
+        const err = action.payload || "Couldn't load dashboard data.";
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsLoading = false;
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsError = err;
         state.FetchEngagementDataState.FetchEngagementDataIsLoading = false;

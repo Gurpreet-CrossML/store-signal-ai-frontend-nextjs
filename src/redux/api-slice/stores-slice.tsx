@@ -40,12 +40,11 @@ export const GetStores = createAsyncThunk<Store[], GetStoresArgs>(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to fetch the Store, please try again later.",
+      toast.error("Couldn't fetch the Store.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the Store.");
     }
   },
 );
@@ -86,11 +85,10 @@ export const FetchStoresList = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to load the stores, please try again later.",
+      toast.error("Couldn't load the stores.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load the stores.");
     }
   },
 );
@@ -107,11 +105,12 @@ export const FetchWidgetScript = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to load the widget script. Try again.",
+      toast.error("Couldn't load the widget script.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't load the widget script.",
+      );
     }
   },
 );
@@ -133,7 +132,7 @@ export const DeactivateStore = createAsyncThunk(
       toast.error("Couldn't deactivate the store", {
         description: data?.message || "Try again in a moment.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't deactivate the store");
     }
   },
 );
@@ -193,7 +192,7 @@ const StoresSlice = createSlice({
         state.GetStoresState.GetStoresIsLoading = false;
         state.GetStoresState.GetStoresIsSuccess = false;
         state.GetStoresState.GetStoresIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't load stores.";
       })
       .addCase(FetchStoresList.pending, (state) => {
         state.FetchStoresListState.FetchStoresListIsLoading = true;

@@ -124,13 +124,13 @@ export const fetchCreditStatus = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch AI credit status, please try again later.",
+      toast.error("Couldn't fetch AI credit status.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch AI credit status.",
+      );
     }
   },
 );
@@ -149,13 +149,13 @@ export const fetchAIUsageCreditSummary = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch AI credits used, please try again later.",
+      toast.error("Couldn't fetch AI credits used.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch AI credits used.",
+      );
     }
   },
 );
@@ -174,13 +174,13 @@ export const fetchAIUsageCreditDaily = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch daily AI credits, please try again later.",
+      toast.error("Couldn't fetch daily AI credits.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch daily AI credits.",
+      );
     }
   },
 );
@@ -199,13 +199,13 @@ export const fetchAIUsageByFeature = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch AI credits by feature, please try again later.",
+      toast.error("Couldn't fetch AI credits by feature.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch AI credits by feature.",
+      );
     }
   },
 );
@@ -224,13 +224,13 @@ export const fetchAIUsageSummary = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch AI usage summary, please try again later.",
+      toast.error("Couldn't fetch AI usage summary.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch AI usage summary.",
+      );
     }
   },
 );
@@ -249,13 +249,11 @@ export const fetchAIUsageDaily = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch daily AI usage, please try again later.",
+      toast.error("Couldn't fetch AI daily usage.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch AI daily usage.");
     }
   },
 );
@@ -274,13 +272,11 @@ export const fetchAIUsageTokenSplit = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch AI token split, please try again later.",
+      toast.error("Couldn't fetch AI token split.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch AI token split.");
     }
   },
 );
@@ -299,13 +295,13 @@ export const fetchAIUsageWorkflowCosts = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch AI workflow costs, please try again later.",
+      toast.error("Couldn't fetch AI workflow costs.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch AI workflow costs.",
+      );
     }
   },
 );
@@ -324,13 +320,13 @@ export const fetchAIUsageLatencyTrend = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch AI latency trend, please try again later.",
+      toast.error("Couldn't fetch AI latency trend.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch AI latency trend.",
+      );
     }
   },
 );
