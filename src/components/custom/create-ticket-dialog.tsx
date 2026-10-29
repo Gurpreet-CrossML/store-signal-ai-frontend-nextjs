@@ -11,6 +11,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 
+import { CreditLabel } from "@/components/custom/credit-label";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { LoadingState } from "@/components/custom/loading-state";
 import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
@@ -35,11 +36,6 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
 import {
   applyServerFieldErrors,
@@ -531,28 +527,25 @@ export function CreateTicketDialog({
                   description, priority and tags. Everything stays editable.
                 </Typography>
               </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                    disabled={drafting || busy}
-                    onClick={handleDraft}
-                  >
-                    {drafting ? (
-                      <Spinner className="size-4" />
-                    ) : (
-                      <IconSparkles className="size-4" />
-                    )}
-                    {drafting ? "Drafting…" : "Draft with AI"}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  AI credits will be used for this action.
-                </TooltipContent>
-              </Tooltip>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                disabled={drafting || busy}
+                onClick={handleDraft}
+              >
+                {drafting ? (
+                  <Spinner className="size-4" />
+                ) : (
+                  <IconSparkles className="size-4" />
+                )}
+                {drafting ? (
+                  "Drafting…"
+                ) : (
+                  <CreditLabel>Draft with AI</CreditLabel>
+                )}
+              </Button>
             </div>
           ) : null}
 
