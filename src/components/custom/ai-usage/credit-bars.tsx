@@ -1,82 +1,108 @@
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+
 export type CreditBarRow = {
   label: string;
+  // One line under the label, e.g. what the feature does.
   note?: string;
+  calls: number;
   credits: number;
-  // Shown in the right-hand column, e.g. "20.7%".
-  extra?: string;
-  // A group sub-heading spanning the row, e.g. "Social AI · 37 credits".
-  heading?: boolean;
+  // Share of the period's credits, e.g. "20.7%".
+  share: string;
 };
 
-/** Rows of credits with a bar scaled to the largest row, as in the usage tables. */
-export default function CreditBars({
-  rows,
-  nameLabel,
-  extraLabel,
-}: {
-  rows: CreditBarRow[];
-  nameLabel: string;
-  extraLabel?: string;
-}) {
-  // One scale for the whole table, so bars compare across groups.
-  const max = Math.max(
-    ...rows.filter((row) => !row.heading).map((row) => row.credits),
-    1,
+export type CreditGroup = CreditBarRow & { rows: CreditBarRow[] };
+
+// Calls, credits and share: the same right-hand columns on every line.
+const NUMBERS = "grid w-56 shrink-0 grid-cols-3 text-right tabular-nums";
+
+/** A credits bar scaled to the largest group, so groups compare at a glance. */
+function Bar({ credits, max }: { credits: number; max: number }) {
+  return (
+    <div className="hidden h-1.5 flex-1 rounded-full bg-muted sm:block">
+      <div
+        className="h-full rounded-full bg-primary"
+        style={{ width: `${(credits / max) * 100}%` }}
+      />
+    </div>
   );
+}
+
+/**
+ * Credits per capability group, largest first. Each group opens to its
+ * features, also largest first; the largest group starts open.
+ */
+export default function CreditGroups({ groups }: { groups: CreditGroup[] }) {
+  const sorted = [...groups].sort((a, b) => b.credits - a.credits);
+  const max = Math.max(...sorted.map((group) => group.credits), 1);
 
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="text-xs text-muted-foreground">
-          <th className="pb-2 text-left font-normal">{nameLabel}</th>
-          <th className="hidden pb-2 sm:table-cell" />
-          <th className="pb-2 text-right font-normal">Credits</th>
-          {extraLabel && (
-            <th className="pb-2 pl-4 text-right font-normal">{extraLabel}</th>
-          )}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) =>
-          row.heading ? (
-            <tr key={row.label}>
-              <td
-                colSpan={extraLabel ? 4 : 3}
-                className="pt-5 pb-2 text-xs font-medium text-muted-foreground"
-              >
-                {row.label}
-              </td>
-            </tr>
-          ) : (
-            <tr key={row.label} className="border-t">
-              <td className="py-2.5 pr-4">
-                <div>{row.label}</div>
-                {row.note && (
-                  <div className="text-xs text-muted-foreground">
-                    {row.note}
-                  </div>
-                )}
-              </td>
-              <td className="hidden w-2/5 py-2.5 pr-4 sm:table-cell">
-                <div className="h-1.5 rounded-full bg-muted">
+    <div className="text-sm">
+      <div className="flex items-center gap-4 pb-2 pr-8 text-xs text-muted-foreground">
+        <span className="flex-1">Capability</span>
+        <div className={NUMBERS}>
+          <span>Calls</span>
+          <span>Credits</span>
+          <span>Share</span>
+        </div>
+      </div>
+      <Accordion
+        type="multiple"
+        defaultValue={sorted.length ? [sorted[0].label] : []}
+        className="border-t"
+      >
+        {sorted.map((group) => (
+          <AccordionItem key={group.label} value={group.label}>
+            <AccordionTrigger className="items-center gap-4 py-3 hover:no-underline">
+              <span className="min-w-0 flex-1 font-medium sm:w-40 sm:flex-none">
+                {group.label}
+              </span>
+              <Bar credits={group.credits} max={max} />
+              <div className={NUMBERS}>
+                <span className="text-muted-foreground">
+                  {group.calls.toLocaleString()}
+                </span>
+                <span className="font-semibold">
+                  {group.credits.toLocaleString()}
+                </span>
+                <span className="text-muted-foreground">{group.share}</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pb-2">
+              {[...group.rows]
+                .sort((a, b) => b.credits - a.credits)
+                .map((row) => (
                   <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${(row.credits / max) * 100}%` }}
-                  />
-                </div>
-              </td>
-              <td className="py-2.5 text-right font-semibold tabular-nums">
-                {row.credits.toLocaleString()}
-              </td>
-              {extraLabel && (
-                <td className="py-2.5 pl-4 text-right text-muted-foreground tabular-nums">
-                  {row.extra}
-                </td>
-              )}
-            </tr>
-          ),
-        )}
-      </tbody>
-    </table>
+                    key={row.label}
+                    className="flex items-center gap-4 border-t py-2.5 pr-8 pl-4"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div>{row.label}</div>
+                      {row.note && (
+                        <div className="text-xs text-muted-foreground">
+                          {row.note}
+                        </div>
+                      )}
+                    </div>
+                    <div className={NUMBERS}>
+                      <span className="text-muted-foreground">
+                        {row.calls.toLocaleString()}
+                      </span>
+                      <span className="font-semibold">
+                        {row.credits.toLocaleString()}
+                      </span>
+                      <span className="text-muted-foreground">{row.share}</span>
+                    </div>
+                  </div>
+                ))}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    </div>
   );
 }
