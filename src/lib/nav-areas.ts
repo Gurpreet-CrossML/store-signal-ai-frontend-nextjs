@@ -267,7 +267,7 @@ export const NAV_AREAS = {
         title: "Workflows",
         description: "Turn the AI's workflows on or off for this store.",
         pageDescription:
-          "Everything the AI can do for your customers, one card per workflow. Turn one off and the AI stops using it for this store only. Locked workflows are core to Store Signal and always stay on.",
+          "Everything your Sales AI and Support AI can do for your customers. Turn one off and the AI stops answering those questions for this store only; workflows that depend on it turn off with it.",
         icon: IconAutomaticGearbox,
         // Order rule screens, switched off for now:
         // items: [
