@@ -26,6 +26,11 @@ import {
 } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import { openResetLink, resetPassword } from "@/lib/password-reset";
 
@@ -89,14 +94,21 @@ function PasswordInput({
           value={formik.values[name]}
         />
         <InputGroupAddon align="inline-end">
-          <InputGroupButton
-            type="button"
-            size="icon-xs"
-            aria-label={visible ? "Hide password" : "Show password"}
-            onClick={() => setVisible((v) => !v)}
-          >
-            {visible ? <IconEyeOff /> : <IconEye />}
-          </InputGroupButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <InputGroupButton
+                type="button"
+                size="icon-xs"
+                aria-label={visible ? "Hide password" : "Show password"}
+                onClick={() => setVisible((v) => !v)}
+              >
+                {visible ? <IconEyeOff /> : <IconEye />}
+              </InputGroupButton>
+            </TooltipTrigger>
+            <TooltipContent>
+              {visible ? "Hide password" : "Show password"}
+            </TooltipContent>
+          </Tooltip>
         </InputGroupAddon>
       </InputGroup>
       {error && (
