@@ -9,6 +9,7 @@ import {
   IconExternalLink,
   IconHeadphones,
   IconHome,
+  IconInfoCircle,
   IconMaximize,
   IconMessage,
   IconMessageCircle,
@@ -34,10 +35,10 @@ import type {
 } from "@/components/custom/customization-types";
 import {
   DEFAULTS as AI_DEFAULTS,
-  ICONS as AI_ICONS,
   pick,
 } from "@/components/custom/customization-ai-info";
-import type { AiInfo } from "@/redux/api-slice/customization-slice";
+
+type AiDisclaimer = { title?: string | null; description?: string | null };
 
 type CustomizationLivePreviewProps = {
   storeLabel: string;
@@ -49,7 +50,9 @@ type CustomizationLivePreviewProps = {
   themeVars: React.CSSProperties;
   actionButtons: ActionButton[];
   quickLinks: QuickLinkItem[];
-  aiInfo?: AiInfo | null;
+  aiDisclaimer?: AiDisclaimer | null;
+  /** Old prop name, still accepted until the parent page is updated. */
+  aiInfo?: AiDisclaimer | null;
 };
 
 export default function CustomizationLivePreview({
@@ -62,22 +65,13 @@ export default function CustomizationLivePreview({
   themeVars,
   actionButtons,
   quickLinks,
+  aiDisclaimer,
   aiInfo,
 }: CustomizationLivePreviewProps) {
   const [previewTab, setPreviewTab] = useState<"home" | "messages">("home");
   const [inputMessage, setInputMessage] = useState("");
   const [showAiInfo, setShowAiInfo] = useState(false);
-  const ai = aiInfo ?? {};
-  const AiHeaderIcon = AI_ICONS[ai.header_icon ?? "info"] ?? AI_ICONS.info;
-  const aiCards = (
-    Array.isArray(ai.sections) ? ai.sections : AI_DEFAULTS.sections
-  )
-    .map((section) => ({
-      title: (section.title ?? "").trim(),
-      icon: section.icon ?? "info",
-      points: (section.points ?? []).map((p) => p.trim()).filter(Boolean),
-    }))
-    .filter((section) => section.points.length > 0);
+  const ai = aiDisclaimer ?? aiInfo ?? {};
 
   return (
     <div className="desktop:sticky desktop:top-6">
@@ -265,19 +259,13 @@ export default function CustomizationLivePreview({
                         </div>
                       </div>
                       <p className="mt-2 text-center text-[11px] text-slate-400">
-                        {pick(
-                          ai.disclaimer_text ?? "",
-                          AI_DEFAULTS.disclaimer_text,
-                        )}{" "}
+                        This AI-Chatbot can make mistakes.{" "}
                         <button
                           type="button"
                           onClick={() => setShowAiInfo(true)}
                           className="font-bold text-slate-900 underline"
                         >
-                          {pick(
-                            ai.disclaimer_link_text ?? "",
-                            AI_DEFAULTS.disclaimer_link_text,
-                          )}
+                          Learn more
                         </button>
                       </p>
                     </div>
@@ -291,7 +279,7 @@ export default function CustomizationLivePreview({
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-2.5">
                         <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-gray-200">
-                          <AiHeaderIcon className="size-3.5" />
+                          <IconInfoCircle className="size-3.5" />
                         </span>
                         <h3 className="min-w-0 text-base leading-tight font-bold [overflow-wrap:anywhere]">
                           {pick(ai.title ?? "", AI_DEFAULTS.title)}
@@ -306,41 +294,22 @@ export default function CustomizationLivePreview({
                         <IconX className="size-3.5" />
                       </button>
                     </div>
-                    <p className="mb-2.5 text-sm leading-relaxed [overflow-wrap:anywhere]">
-                      {pick(ai.description ?? "", AI_DEFAULTS.description)}
-                    </p>
-                    {aiCards.map((section, index) => {
-                      const SectionIcon =
-                        AI_ICONS[section.icon] ?? AI_ICONS.info;
-                      return (
-                        <div
-                          key={index}
-                          className="mt-2 min-w-0 rounded-lg bg-gray-100 p-2.5"
-                        >
-                          {section.title ? (
-                            <h4 className="mb-2 flex items-center gap-1 text-[13px] font-bold [overflow-wrap:anywhere]">
-                              <SectionIcon className="size-3 shrink-0" />
-                              {section.title}
-                            </h4>
-                          ) : null}
-                          {section.points.map((point, i) => (
-                            <p
-                              key={i}
-                              className="mb-1 text-[13px] last:mb-0 [overflow-wrap:anywhere]"
-                            >
-                              {point}
-                            </p>
-                          ))}
-                        </div>
-                      );
-                    })}
+                    <div
+                      className="mb-2.5 text-sm leading-relaxed [overflow-wrap:anywhere] [&_:is(h1,h2,h3,h4,h5,h6)]:font-bold [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:mb-2 [&_p:last-child]:mb-0 [&_strong]:font-bold [&_ul]:list-disc [&_ul]:pl-4"
+                      dangerouslySetInnerHTML={{
+                        __html: pick(
+                          ai.description ?? "",
+                          AI_DEFAULTS.description,
+                        ),
+                      }}
+                    />
                     <button
                       type="button"
                       onClick={() => setShowAiInfo(false)}
                       className="mt-2.5 w-full rounded-lg py-2.5 text-center text-[11px] font-bold text-white"
                       style={{ backgroundColor: themeColor }}
                     >
-                      {pick(ai.button_label ?? "", AI_DEFAULTS.button_label)}
+                      {AI_DEFAULTS.button_label}
                     </button>
                   </div>
                 </div>

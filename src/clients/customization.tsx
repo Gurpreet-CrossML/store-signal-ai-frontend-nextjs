@@ -13,7 +13,7 @@ import {
   FetchWidgetCustomization,
   UpdateWidgetCustomization,
   UpdateWidgetCustomizationWithImage,
-  type AiInfo,
+  type AiDisclaimer,
   type UpdateWidgetCustomizationPayload,
   type WidgetCustomizationDataResponse,
   type WidgetQuickAction,
@@ -157,7 +157,7 @@ export default function Customization() {
 
   const [actionButtons, setActionButtons] = useState<ActionButton[]>([]);
   const [quickLinks, setQuickLinks] = useState<QuickLinkItem[]>([]);
-  const [aiInfo, setAiInfo] = useState<AiInfo | null>(null);
+  const [aiDisclaimer, setAiDisclaimer] = useState<AiDisclaimer | null>(null);
   const [hasQuickActionError, setHasQuickActionError] = useState(false);
   const [hasQuickActionChanges, setHasQuickActionChanges] = useState(false);
   const formik = useFormik<CustomizationFormValues>({
@@ -198,7 +198,8 @@ export default function Customization() {
         tertiary_color: tertiaryColor,
         welcome_message: values.welcome_message,
         greeting_message: values.greeting_message.trim(),
-        ai_info: aiInfo,
+        ai_disclaimer_title: aiDisclaimer?.title ?? "",
+        ai_disclaimer_description: aiDisclaimer?.description ?? "",
         quick_actions: quickActions,
         quick_links: quickLinksPayload,
       };
@@ -293,7 +294,7 @@ export default function Customization() {
       setLogoUrl(null);
       setActionButtons([]);
       setQuickLinks([]);
-      setAiInfo(null);
+      setAiDisclaimer(null);
       formik.setValues({
         welcome_message: DEFAULT_WELCOME,
         greeting_message: DEFAULT_GREETING,
@@ -327,7 +328,14 @@ export default function Customization() {
     setLogoUrl(data.logo?.trim() ? data.logo : null);
     setActionButtons(nextActionButtons);
     setQuickLinks(nextQuickLinks);
-    setAiInfo(data.ai_info ?? null);
+    setAiDisclaimer(
+      data.ai_disclaimer_title || data.ai_disclaimer_description
+        ? {
+            title: data.ai_disclaimer_title,
+            description: data.ai_disclaimer_description,
+          }
+        : null,
+    );
     formik.setValues({
       welcome_message: nextWelcome,
       greeting_message: nextGreeting,
@@ -506,7 +514,7 @@ export default function Customization() {
     themeVars,
     actionButtons,
     quickLinks: previewQuickLinks,
-    aiInfo,
+    aiDisclaimer,
   };
 
   return (
@@ -564,9 +572,8 @@ export default function Customization() {
           rowErrors={quickLinkRowErrors}
         />
         <CustomizationAiInfo
-          value={aiInfo}
-          onChange={setAiInfo}
-          themeColor={themeColor}
+          value={aiDisclaimer}
+          onChange={setAiDisclaimer}
           fieldErrors={fieldErrors}
         />
 
