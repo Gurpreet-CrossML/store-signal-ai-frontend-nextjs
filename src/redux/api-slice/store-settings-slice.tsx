@@ -63,6 +63,10 @@ export type StoreWorkflow = {
   code: string;
   name: string;
   description: string;
+  /** The AI the workflow belongs to. */
+  agent: "sales" | "support";
+  /** That AI's name for merchants, e.g. "Sales AI". */
+  agent_label: string;
   /** Temporary download URL of the workflow's icon, or null for none. */
   icon: string | null;
   /** Short grouping labels, e.g. ["sales", "offers"]. */
@@ -74,9 +78,13 @@ export type StoreWorkflow = {
   kb_supported: boolean;
   /** Position in the list; the API already returns workflows in this order. */
   order: number;
-  /** False when the platform has locked the workflow on. */
+  /** False when the workflow is locked on, or a locked workflow needs it. */
   can_disable: boolean;
   is_enabled: boolean;
+  /** Codes of the workflows that need this one; turning it off turns them off. */
+  also_turns_off: string[];
+  /** Codes of the workflows this one needs; turning it on turns them on. */
+  also_turns_on: string[];
 };
 
 export const FetchStoreWorkflows = createAsyncThunk(
@@ -115,7 +123,12 @@ export const UpdateStoreWorkflow = createAsyncThunk(
         { workflow: code, is_enabled: isEnabled },
         { useBackend: true },
       );
-      return response.data.data as { workflow: string; is_enabled: boolean };
+      return response.data.data as {
+        workflow: string;
+        is_enabled: boolean;
+        /** Linked workflows the backend switched in the same save. */
+        also_changed: string[];
+      };
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
@@ -220,11 +233,15 @@ const StoreSettingsSlice = createSlice({
       .addCase(UpdateStoreWorkflow.fulfilled, (state, action) => {
         state.UpdateStoreWorkflowState.UpdateStoreWorkflowPendingCode = null;
         // Keep the list in step with what was saved, without a refetch.
-        const saved =
-          state.FetchStoreWorkflowsState.FetchStoreWorkflowsData.find(
-            (workflow) => workflow.code === action.payload.workflow,
-          );
-        if (saved) saved.is_enabled = action.payload.is_enabled;
+        const changed = [
+          action.payload.workflow,
+          ...action.payload.also_changed,
+        ];
+        for (const workflow of state.FetchStoreWorkflowsState
+          .FetchStoreWorkflowsData) {
+          if (changed.includes(workflow.code))
+            workflow.is_enabled = action.payload.is_enabled;
+        }
       })
       .addCase(UpdateStoreWorkflow.rejected, (state, action) => {
         state.UpdateStoreWorkflowState.UpdateStoreWorkflowPendingCode = null;
