@@ -95,8 +95,12 @@ export type CreditStatus = {
 /** Credits charged over the selected range. */
 export type CreditSummary = { total_calls: number; credits_charged: number };
 
-/** Credits charged on one calendar date. */
-export type DailyCreditPoint = { date: string; credits_charged: number };
+/** Credits charged on one calendar date, with credits per feature. */
+export type DailyCreditPoint = {
+  date: string;
+  credits_charged: number;
+  features?: Record<string, number>;
+};
 
 /** Credits charged by one feature. */
 export type FeatureUsage = {
@@ -185,13 +189,13 @@ export const fetchAIUsageCreditDaily = createAsyncThunk(
   },
 );
 
-/** Fetches billed credits per feature for "Where the credits went". */
+/** Fetches calls and credits per feature for "Where the credits went", unbilled ones included. */
 export const fetchAIUsageByFeature = createAsyncThunk(
   "aiUsage/fetchAIUsageByFeature",
   async (filters: AIUsageFilters, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchAIUsageByFeature()}?${paramsFor(filters).toString()}&customer_facing=true`,
+        `${ENDPOINTS.fetchAIUsageByFeature()}?${paramsFor(filters).toString()}`,
         { useBackend: true },
       );
       return response.data.data as FeatureUsage[];
