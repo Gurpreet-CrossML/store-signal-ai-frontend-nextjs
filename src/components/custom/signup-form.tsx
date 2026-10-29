@@ -34,26 +34,38 @@ import { Typography } from "@/components/ui/typography";
 
 // Mirrors the server's rules for POST /api/tenancy/register/ so the common
 // mistakes are caught before the round trip; uniqueness comes back from it.
-const personName = z
-  .string()
-  .trim()
-  .min(1, "This is required")
-  .max(100, "Use 100 characters or fewer")
-  .regex(/^[\p{L} ]+$/u, "Use letters and spaces only");
+// `abort` keeps an empty field on "required" instead of the later checks.
+const personName = (label: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, { error: `${label} is required.`, abort: true })
+    .max(100, `${label} must not exceed 100 characters.`)
+    .regex(/^[\p{L} ]+$/u, `${label} can contain only letters and spaces.`);
 
 const validationSchema = z.object({
-  first_name: personName,
-  last_name: personName,
+  first_name: personName("First name"),
+  last_name: personName("Last name"),
   name: z
     .string()
     .trim()
-    .min(1, "Company name is required")
-    .max(255, "Use 255 characters or fewer")
-    .regex(/\p{L}/u, "Include at least one letter"),
-  email: z.email("Enter a valid work email").max(254),
+    .min(1, { error: "Company name is required.", abort: true })
+    .max(255, "Company name must not exceed 255 characters.")
+    // The server derives the company code from it: its first letter or
+    // digit has to be an a-z letter.
+    .regex(/^[^a-zA-Z0-9]*[a-zA-Z]/, "Company name must start with a letter."),
+  email: z
+    .string()
+    .trim()
+    .min(1, { error: "Work email is required.", abort: true })
+    .max(254, "Please enter a valid work email address.")
+    .regex(z.regexes.email, "Please enter a valid work email address."),
   terms_and_conditions_accepted: z
     .boolean()
-    .refine(Boolean, "Accept the terms to continue"),
+    .refine(
+      Boolean,
+      "Please accept the Terms of Service and Privacy Policy to continue.",
+    ),
 });
 
 type SignupValues = z.infer<typeof validationSchema>;

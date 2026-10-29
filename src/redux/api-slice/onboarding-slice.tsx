@@ -131,11 +131,12 @@ export const CompleteShopifyOauth = createAsyncThunk(
       const data = response.data.data as ShopifyConnectedStore;
       const failed = Object.keys(data?.webhooks?.failed ?? {});
       if (failed.length) {
-        toast.warning("Store connected, some webhooks failed", {
-          description: `Not subscribed: ${failed.join(", ")}.`,
-        });
+        toast.warning(
+          response?.data?.message || "Store connected, some webhooks failed",
+          { description: `Not subscribed: ${failed.join(", ")}.` },
+        );
       } else {
-        toast.success("Shopify store connected");
+        toast.success(response?.data?.message || "Shopify store connected");
       }
       return data;
     } catch (error) {
@@ -176,7 +177,15 @@ const OnboardingSlice = createSlice({
       CompleteShopifyOauthData: null as ShopifyConnectedStore | null,
     },
   },
-  reducers: {},
+  reducers: {
+    // The fulfilled case leaves loading on for the hop to Shopify; a Back
+    // from there can restore the page with the button still spinning.
+    resetStartShopifyOauth: (state) => {
+      state.StartShopifyOauthState.StartShopifyOauthIsLoading = false;
+      state.StartShopifyOauthState.StartShopifyOauthIsSuccess = false;
+      state.StartShopifyOauthState.StartShopifyOauthIsError = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(FetchOnboardingStatus.pending, (state) => {
@@ -249,5 +258,7 @@ const OnboardingSlice = createSlice({
       });
   },
 });
+
+export const { resetStartShopifyOauth } = OnboardingSlice.actions;
 
 export default OnboardingSlice.reducer;

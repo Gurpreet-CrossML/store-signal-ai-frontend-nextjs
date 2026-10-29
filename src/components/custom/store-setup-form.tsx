@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { useFormik } from "formik";
 import { toast } from "sonner";
 import z from "zod";
 import {
   IconArrowRight,
+  IconEye,
+  IconEyeOff,
   IconKey,
   IconLock,
   IconWorld,
@@ -17,6 +20,7 @@ import { StartShopifyOauth } from "@/redux/api-slice/onboarding-slice";
 import {
   SHOPIFY_CLIENT_ID_RE,
   SHOPIFY_CLIENT_SECRET_RE,
+  SHOPIFY_OAUTH_PENDING_KEY,
   STORE_PLATFORMS,
   type StorePlatform,
 } from "@/lib/config";
@@ -33,6 +37,7 @@ import {
 import {
   InputGroup,
   InputGroupAddon,
+  InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -83,6 +88,7 @@ export function StoreSetupForm({
   const { StartShopifyOauthIsLoading } = useAppSelector(
     (state) => state.GetOnboardingReducer.StartShopifyOauthState,
   );
+  const [showSecret, setShowSecret] = useState(false);
 
   const formik = useFormik<StoreSetupValues>({
     initialValues: {
@@ -113,6 +119,8 @@ export function StoreSetupForm({
       if (StartShopifyOauth.fulfilled.match(result)) {
         // Full-page hop to Shopify's consent screen; it sends the browser
         // back here with the OAuth params and the drawer finishes the flow.
+        // If it doesn't, ShopifyOauthReturn finds this flag on the way back.
+        sessionStorage.setItem(SHOPIFY_OAUTH_PENDING_KEY, "1");
         window.location.assign(result.payload.authorize_url);
       } else {
         applyServerFieldErrors(formik, result.payload);
@@ -231,7 +239,7 @@ export function StoreSetupForm({
                 <InputGroupInput
                   id={field}
                   name={field}
-                  type={type}
+                  type={type === "password" && showSecret ? "text" : type}
                   placeholder={placeholder}
                   autoComplete="off"
                   aria-invalid={invalid(field)}
@@ -239,6 +247,20 @@ export function StoreSetupForm({
                   onBlur={formik.handleBlur}
                   value={formik.values[field]}
                 />
+                {type === "password" && (
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      type="button"
+                      size="icon-xs"
+                      aria-label={
+                        showSecret ? "Hide client secret" : "Show client secret"
+                      }
+                      onClick={() => setShowSecret((visible) => !visible)}
+                    >
+                      {showSecret ? <IconEyeOff /> : <IconEye />}
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                )}
               </InputGroup>
               {invalid(field) ? (
                 <Typography variant="small" className="text-destructive">

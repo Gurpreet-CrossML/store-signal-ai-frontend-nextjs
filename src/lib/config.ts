@@ -756,6 +756,10 @@ export type StorePlatform = (typeof STORE_PLATFORMS)[number]["value"];
 export const SHOPIFY_CLIENT_ID_RE = /^[0-9a-fA-F]{32}$/;
 export const SHOPIFY_CLIENT_SECRET_RE = /\bshpss_[a-zA-Z0-9]{32,64}\b/;
 
+// sessionStorage flag set right before the hop to Shopify and cleared when
+// Shopify sends the user back; still set means they came back on their own.
+export const SHOPIFY_OAUTH_PENDING_KEY = "shopifyOauthPending";
+
 export const SocialAIPlatformOptions: {
   readonly [key: string]: { label: string; icon: Icon; color: string };
 } = {
