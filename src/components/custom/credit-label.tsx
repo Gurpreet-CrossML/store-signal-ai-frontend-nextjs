@@ -19,7 +19,9 @@ export function CreditLabel({
     // leading-none so both lines fit the button's normal height.
     <span className="flex flex-col items-start gap-0.5 leading-none">
       {children}
-      <span className={cn("text-[10px] font-normal text-destructive", className)}>
+      <span
+        className={cn("text-[10px] font-normal text-destructive", className)}
+      >
         1 AI credit
       </span>
     </span>
