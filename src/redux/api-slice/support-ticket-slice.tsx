@@ -253,12 +253,12 @@ export const FetchSupportTickets = createAsyncThunk<
       const data = response?.data;
 
       toast.error("Couldn't fetch the support ticket.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't fetch the support ticket.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the support ticket.",
+      );
     }
   },
 );
@@ -281,9 +281,7 @@ export const FetchSupportTicketDetails = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch ticket details.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch ticket details.");
@@ -319,8 +317,7 @@ export const SupportTicketMessageSend = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't send message.", {
-        description:
-          data?.message || "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't send message.");
@@ -354,12 +351,12 @@ export const FetchSupportTicketTags = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch support ticket tags.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't fetch support ticket tags.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch support ticket tags.",
+      );
     }
   },
 );
@@ -515,7 +512,9 @@ export const SupportTicketCustomerLink = createAsyncThunk(
       toast.error("Couldn't link the customer", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't assign a staff to ticket.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't assign a staff to ticket.",
+      );
     }
   },
 );
@@ -547,9 +546,7 @@ export const SupportTicketStaffAssign = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't assign a staff to ticket.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't save draft message.");
@@ -580,12 +577,12 @@ export const SupportTicketAgentDraftSave = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't save draft message.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't assign this tag to ticket.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't assign this tag to ticket.",
+      );
     }
   },
 );
@@ -612,12 +609,12 @@ export const SupportTicketTagAssign = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't assign this tag to ticket.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't remove this tag to ticket.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't remove this tag to ticket.",
+      );
     }
   },
 );
@@ -644,9 +641,7 @@ export const SupportTicketTagRemove = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't remove this tag to ticket.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't improve the message.");
@@ -681,9 +676,7 @@ export const SupportMessageImprove = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't improve the message.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't snooze this ticket.");
@@ -718,9 +711,7 @@ export const SupportTicketSnooze = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't snooze this ticket.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't mark read.");
@@ -746,8 +737,7 @@ export const SupportTicketMarkRead = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't mark read.", {
-        description:
-          data?.message || "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't delete this tag.");
@@ -773,8 +763,7 @@ export const TicketTagDelete = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't delete this tag.", {
-        description:
-          data?.message || "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't create a tag.");
@@ -804,8 +793,7 @@ export const TicketTagCreate = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't create a tag.", {
-        description:
-          data?.message || "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't update this tag.");
@@ -836,8 +824,7 @@ export const TicketTagUpdate = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't update this tag.", {
-        description:
-          data?.message || "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't generate ai draft.");
@@ -863,9 +850,7 @@ export const SupportTicketAIMessageDraftGenerate = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't generate ai draft.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't update ticket status.");
@@ -905,12 +890,12 @@ export const SupportTicketStatusUpdate = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't update ticket status.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't update ticket priority.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't update ticket priority.",
+      );
     }
   },
 );
@@ -942,9 +927,7 @@ export const SupportTicketPriorityUpdate = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't update ticket priority.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't load ticket activity.");
@@ -981,12 +964,12 @@ export const SupportTicketActivityFetch = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't load ticket activity.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't update ticket language or sentiment.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't update ticket language or sentiment.",
+      );
     }
   },
 );
@@ -1020,12 +1003,12 @@ export const SupportTicketLanguageSentimentUpdate = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't update ticket language or sentiment.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't translate ticket messages.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't translate ticket messages.",
+      );
     }
   },
 );
@@ -1053,12 +1036,12 @@ export const SupportTicketMessagesTranslate = createAsyncThunk<
       const data = response?.data;
 
       toast.error("Couldn't translate ticket messages.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't translate ticket messages.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't translate ticket messages.",
+      );
     }
   },
 );

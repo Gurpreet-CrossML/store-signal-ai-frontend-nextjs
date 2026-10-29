@@ -254,7 +254,9 @@ export const FetchCustomerOrders = createAsyncThunk(
       toast.error("Couldn't load this customer's orders.", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't load this customer's orders.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't load this customer's orders.",
+      );
     }
   },
 );

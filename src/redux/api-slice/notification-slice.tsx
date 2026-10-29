@@ -86,8 +86,7 @@ export const FetchNotifications = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't load notifications.", {
-        description:
-          data?.message || "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load notifications.");
     }
@@ -111,11 +110,11 @@ export const FetchMoreNotifications = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't load more notifications.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't load more notifications.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't load more notifications.",
+      );
     }
   },
 );
@@ -136,7 +135,9 @@ export const FetchNotificationCounts = createAsyncThunk(
       return data;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Couldn't fetch notification counts.");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't fetch notification counts.",
+      );
     }
   },
 );
@@ -154,11 +155,11 @@ export const MarkNotificationRead = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't mark the notification as read.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't mark the notification as read.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't mark the notification as read.",
+      );
     }
   },
 );

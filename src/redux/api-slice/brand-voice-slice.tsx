@@ -53,12 +53,12 @@ export const fetchPersonaIdentity = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch persona identity", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't fetch persona identity");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch persona identity",
+      );
     }
   },
 );
@@ -86,12 +86,12 @@ export const createPersonaIdentity = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't save persona identity.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't save persona identity.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't save persona identity.",
+      );
     }
   },
 );
@@ -112,12 +112,12 @@ export const fetchNeverSayRules = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch never-say rules.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't fetch never-say rules.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch never-say rules.",
+      );
     }
   },
 );
@@ -145,9 +145,7 @@ export const createNeverSayRules = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't save never-say rules", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't save never-say rules");
@@ -171,12 +169,12 @@ export const fetchToneStyle = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch the Tone & Style.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't fetch the Tone & Style.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the Tone & Style.",
+      );
     }
   },
 );
@@ -193,12 +191,12 @@ export const fetchTonePresets = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch the tone presets.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't fetch the tone presets.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the tone presets.",
+      );
     }
   },
 );
@@ -226,12 +224,12 @@ export const createToneStyle = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't save the Tone & Style.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't save the Tone & Style.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't save the Tone & Style.",
+      );
     }
   },
 );
@@ -252,9 +250,7 @@ export const fetchVocabulary = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch the vocabulary.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch the vocabulary.");
@@ -285,9 +281,7 @@ export const createVocabulary = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't save the vocabulary.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't save the vocabulary.");
@@ -306,12 +300,12 @@ export const fetchVocabularyPresets = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch the vocabulary presets.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't fetch the vocabulary presets.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the vocabulary presets.",
+      );
     }
   },
 );
@@ -329,12 +323,12 @@ export const fetchNeverSayRulesPresets = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch the never-say rules presets.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't fetch the never-say rules presets.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the never-say rules presets.",
+      );
     }
   },
 );

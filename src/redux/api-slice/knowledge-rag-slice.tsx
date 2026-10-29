@@ -347,8 +347,7 @@ export const FetchKnowledgeItems = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't load knowledge items.", {
-        description:
-          data?.message || "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load knowledge items.");
     }
@@ -447,8 +446,7 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't add knowledge.", {
-        description:
-          data?.message || "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't add knowledge.");
     }
@@ -487,8 +485,7 @@ export const UpdateKnowledgeItem = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't update knowledge.", {
-        description:
-          data?.message || "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't update knowledge.");
     }
@@ -510,8 +507,7 @@ export const DeleteKnowledgeItem = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't delete knowledge.", {
-        description:
-          data?.message || "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't delete knowledge.");
     }
@@ -547,7 +543,9 @@ export const FetchProductOptions = createAsyncThunk(
       }));
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Couldn't load product options.");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't load product options.",
+      );
     }
   },
 );
@@ -576,7 +574,9 @@ export const FetchCategoryOptions = createAsyncThunk(
       }));
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Couldn't load category options.");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't load category options.",
+      );
     }
   },
 );
@@ -605,7 +605,9 @@ export const FetchCollectionOptions = createAsyncThunk(
       }));
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Couldn't load collection options.");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't load collection options.",
+      );
     }
   },
 );
@@ -959,7 +961,8 @@ const KnowledgeRagSlice = createSlice({
       .addCase(RunTestQuery.rejected, (state) => {
         state.RunTestQueryState.RunTestQueryIsLoading = false;
         state.RunTestQueryState.RunTestQueryIsSuccess = false;
-        state.RunTestQueryState.RunTestQueryIsError = "Couldn't run the test query.";
+        state.RunTestQueryState.RunTestQueryIsError =
+          "Couldn't run the test query.";
       });
   },
 });

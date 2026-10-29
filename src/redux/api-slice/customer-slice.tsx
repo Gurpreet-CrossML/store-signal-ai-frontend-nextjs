@@ -203,7 +203,9 @@ export const SearchCustomers = createAsyncThunk(
       ).results;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
-      return thunkAPI.rejectWithValue(response?.data || "Couldn't search customers.");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't search customers.",
+      );
     }
   },
 );

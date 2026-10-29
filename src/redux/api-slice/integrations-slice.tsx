@@ -48,12 +48,12 @@ export const FetchIntegrations = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch the integrations.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't fetch the integrations.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the integrations.",
+      );
     }
   },
 );
@@ -101,19 +101,17 @@ export const ConnectStoreIntegration = createAsyncThunk(
 
       if (data?.data?.integration) {
         toast.error("Couldn't connect the integration.", {
-          description:
-            data?.data?.integration[0] ||
-            "Please try again later.",
+          description: data?.data?.integration[0] || "Please try again later.",
         });
       } else {
         toast.error("Couldn't connect the integration.", {
-          description:
-            data?.message ||
-            "Please try again later.",
+          description: data?.message || "Please try again later.",
         });
       }
 
-      return thunkAPI.rejectWithValue(data || "Couldn't connect the integration.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't connect the integration.",
+      );
     }
   },
 );
@@ -142,12 +140,12 @@ export const FetchStoreIntegrations = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch the store integrations.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't fetch the store integrations.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the store integrations.",
+      );
     }
   },
 );
@@ -176,12 +174,12 @@ export const DisconnectStoreIntegration = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't disconnect the integration.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't disconnect the integration.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't disconnect the integration.",
+      );
     }
   },
 );

@@ -47,7 +47,9 @@ export const FetchOnboardingStatus = createAsyncThunk(
       toast.error("Couldn't load your setup progress.", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't load your setup progress.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't load your setup progress.",
+      );
     }
   },
 );
@@ -113,7 +115,9 @@ export const StartShopifyOauth = createAsyncThunk(
       toast.error("Couldn't start the Shopify connection", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't start the Shopify connection");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't start the Shopify connection",
+      );
     }
   },
 );
@@ -145,7 +149,9 @@ export const CompleteShopifyOauth = createAsyncThunk(
         description:
           data?.message || "Shopify didn't complete the handshake. Try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't finish the Shopify connection");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't finish the Shopify connection",
+      );
     }
   },
 );

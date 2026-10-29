@@ -63,11 +63,11 @@ export const fetchEmailTemplates = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't fetch email templates.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't fetch email templates.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch email templates.",
+      );
     }
   },
 );
@@ -206,7 +206,9 @@ export const fetchSegmentCategories = createAsyncThunk(
       toast.error("Couldn't load segment categories", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't load segment categories");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't load segment categories",
+      );
     }
   },
 );
@@ -320,7 +322,9 @@ export const createSegment = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       // Reject with the whole envelope so the form can pull field errors
       // out of ``err.data`` (DRF puts one on the 400 response).
-      return thunkAPI.rejectWithValue(response?.data || "Couldn't create the segment.");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't create the segment.",
+      );
     }
   },
 );
@@ -374,7 +378,9 @@ export const updateSegment = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       // Reject with the whole envelope so the form can pull field errors
       // out of ``err.data`` (DRF puts one on the 400 response).
-      return thunkAPI.rejectWithValue(response?.data || "Couldn't update the segment.");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't update the segment.",
+      );
     }
   },
 );
@@ -568,7 +574,9 @@ export const fetchCampaignSequenceSteps = createAsyncThunk(
       toast.error("Couldn't load the campaign's steps", {
         description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't load the campaign's steps");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't load the campaign's steps",
+      );
     }
   },
 );
@@ -593,7 +601,9 @@ export const createCampaign = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       // Reject with the whole envelope so the form can pull field errors
       // out of ``err.data`` (DRF puts one on the 400 response).
-      return thunkAPI.rejectWithValue(response?.data || "Couldn't create the campaign.");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't create the campaign.",
+      );
     }
   },
 );
@@ -655,7 +665,9 @@ export const updateCampaign = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       // Reject with the whole envelope so the form can pull field errors
       // out of ``err.data`` (DRF puts one on the 400 response).
-      return thunkAPI.rejectWithValue(response?.data || "Couldn't update the campaign.");
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't update the campaign.",
+      );
     }
   },
 );

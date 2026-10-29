@@ -517,12 +517,12 @@ export const fetchSocialAccountsSubscriptions = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch social subscriptions.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't fetch social subscriptions.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch social subscriptions.",
+      );
     }
   },
 );
@@ -545,12 +545,12 @@ export const fetchWhatsAppTemplates = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch WhatsApp templates.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't fetch WhatsApp templates.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch WhatsApp templates.",
+      );
     }
   },
 );
@@ -735,12 +735,12 @@ export const fetchWhatsAppTemplateLibrary = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch the post-sale template library.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Couldn't fetch the post-sale template library.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the post-sale template library.",
+      );
     }
   },
 );
@@ -795,12 +795,11 @@ export const updateAccountAutoRespond = createAsyncThunk(
     } catch (error) {
       const data = errorEnvelope(error);
       toast.error("Couldn't update the AI auto-reply.", {
-        description: bestErrorMessage(
-          data,
-          "Please try again later.",
-        ),
+        description: bestErrorMessage(data, "Please try again later."),
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't update the AI auto-reply.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't update the AI auto-reply.",
+      );
     }
   },
 );
@@ -821,12 +820,11 @@ export const disconnectSocialAccount = createAsyncThunk(
     } catch (error) {
       const data = errorEnvelope(error);
       toast.error("Couldn't disconnect the account.", {
-        description: bestErrorMessage(
-          data,
-          "Please try again later.",
-        ),
+        description: bestErrorMessage(data, "Please try again later."),
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't disconnect the account.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't disconnect the account.",
+      );
     }
   },
 );
@@ -855,9 +853,7 @@ export const createMetaOAuthUrl = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch Meta OAuth URL.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch Meta OAuth URL.");
@@ -925,8 +921,7 @@ export const fetchSocialPosts = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch posts.", {
-        description:
-          data?.message || "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch posts.");
@@ -1024,9 +1019,7 @@ export const fetchPostComments = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch post comments.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch post comments.");
@@ -1054,9 +1047,7 @@ export const fetchCommentTopics = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch comment topics.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch comment topics.");
@@ -1097,9 +1088,7 @@ export const fetchSocialUsers = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch conversations.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch conversations.");
@@ -1141,8 +1130,7 @@ export const fetchSocialDms = createAsyncThunk(
       const data = response?.data;
 
       toast.error("Couldn't fetch messages.", {
-        description:
-          data?.message || "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
 
       return thunkAPI.rejectWithValue(data || "Couldn't fetch messages.");
@@ -1493,7 +1481,9 @@ export const SocialUserCustomerLink = createAsyncThunk(
       toast.error("Couldn't link the customer", {
         description: bestErrorMessage(data, "Please try again later."),
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't load comment settings.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't load comment settings.",
+      );
     }
   },
 );
@@ -1514,11 +1504,11 @@ export const fetchCommentSettings = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't load comment settings.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't save this intent rule.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't save this intent rule.",
+      );
     }
   },
 );
@@ -1590,7 +1580,9 @@ export const saveTopicRule = createAsyncThunk(
       toast.error("Couldn't save this topic rule.", {
         description: bestErrorMessage(data, "Please try again later."),
       });
-      return thunkAPI.rejectWithValue(data || "Couldn't remove this topic rule.");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't remove this topic rule.",
+      );
     }
   },
 );
@@ -1614,10 +1606,7 @@ export const deleteTopicRule = createAsyncThunk(
     } catch (error) {
       const data = errorEnvelope(error);
       toast.error("Couldn't remove this topic rule.", {
-        description: bestErrorMessage(
-          data,
-          "Please try again later.",
-        ),
+        description: bestErrorMessage(data, "Please try again later."),
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load the draft queue.");
     }
@@ -1659,9 +1648,7 @@ export const fetchCommentDrafts = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't load the draft queue.", {
-        description:
-          data?.message ||
-          "Please try again later.",
+        description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load the AI draft.");
     }
