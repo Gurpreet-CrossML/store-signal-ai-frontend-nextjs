@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ColumnDef, PaginationState } from "@tanstack/react-table";
-import { IconAutomaticGearbox, IconLock } from "@tabler/icons-react";
+import { IconAutomaticGearbox, IconLock, IconX } from "@tabler/icons-react";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/custom/data-table";
@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -33,6 +34,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
+import { ACTIVE_FILTER_STYLE, ALL_FILTER_VALUE } from "@/lib/config";
+import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   FetchStoreWorkflows,
@@ -42,9 +45,6 @@ import {
 
 /** Shown in a cell that has nothing to say. */
 const EMPTY_CELL = <Typography variant="muted">—</Typography>;
-
-/** Filter value that keeps every row. */
-const ALL = "all";
 
 /** A switch the store flipped, waiting for its approval in the dialog. */
 type SwitchChange = { workflow: StoreWorkflow; isEnabled: boolean };
@@ -149,7 +149,7 @@ function getColumns(
 /**
  * Settings → Workflows: a table with one row per platform workflow and an
  * on/off switch for the selected store, searchable by name and filtered by
- * AI agent and tag. The list is the same for every company; a switch only
+ * AI agent. The list is the same for every company; a switch only
  * changes this store. Every switch asks for approval first, showing what
  * customers will notice and which linked workflows change with it.
  */
@@ -169,8 +169,7 @@ export default function SettingsWorkflows() {
   );
   const [change, setChange] = useState<SwitchChange | null>(null);
   const [search, setSearch] = useState("");
-  const [agent, setAgent] = useState(ALL);
-  const [tag, setTag] = useState(ALL);
+  const [agent, setAgent] = useState<string>(ALL_FILTER_VALUE);
 
   // The whole list comes in one response; the table filters and pages it here.
   const [pagination, setPagination] = useState<PaginationState>({
@@ -181,16 +180,15 @@ export default function SettingsWorkflows() {
   const rows = FetchStoreWorkflowsData.filter(
     (workflow) =>
       workflow.name.toLowerCase().includes(query) &&
-      (agent === ALL || workflow.agent === agent) &&
-      (tag === ALL || workflow.tags.includes(tag)),
+      (agent === ALL_FILTER_VALUE || workflow.agent === agent),
   );
   const pageRows = rows.slice(
     pagination.pageIndex * pagination.pageSize,
     (pagination.pageIndex + 1) * pagination.pageSize,
   );
-  const filtered = Boolean(query) || agent !== ALL || tag !== ALL;
+  const filtered = Boolean(query) || agent !== ALL_FILTER_VALUE;
 
-  // Filter choices come from the list itself, so new agents or tags show up.
+  // Agent choices come from the list itself, so a new agent shows up.
   const agentOptions = [
     ...new Map(
       FetchStoreWorkflowsData.map((workflow) => [
@@ -199,9 +197,6 @@ export default function SettingsWorkflows() {
       ]),
     ),
   ];
-  const tagOptions = [
-    ...new Set(FetchStoreWorkflowsData.flatMap((workflow) => workflow.tags)),
-  ].sort();
 
   // Any filter change starts again from the first page.
   const filterBy =
@@ -210,6 +205,12 @@ export default function SettingsWorkflows() {
       setter(value);
       setPagination((prev) => ({ ...prev, pageIndex: 0 }));
     };
+
+  const clearFilters = () => {
+    setSearch("");
+    setAgent(ALL_FILTER_VALUE);
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  };
 
   useEffect(() => {
     if (storeCode) dispatch(FetchStoreWorkflows(storeCode));
@@ -245,11 +246,17 @@ export default function SettingsWorkflows() {
           className="w-full sm:w-64"
         />
         <Select value={agent} onValueChange={filterBy(setAgent)}>
-          <SelectTrigger aria-label="Filter by AI agent" className="sm:w-44">
+          <SelectTrigger
+            aria-label="Filter by AI agent"
+            className={cn(
+              "sm:w-44",
+              agent !== ALL_FILTER_VALUE && ACTIVE_FILTER_STYLE,
+            )}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>All AI agents</SelectItem>
+            <SelectItem value={ALL_FILTER_VALUE}>All AI agents</SelectItem>
             {agentOptions.map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}
@@ -257,19 +264,18 @@ export default function SettingsWorkflows() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={tag} onValueChange={filterBy(setTag)}>
-          <SelectTrigger aria-label="Filter by tag" className="sm:w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All tags</SelectItem>
-            {tagOptions.map((value) => (
-              <SelectItem key={value} value={value} className="capitalize">
-                {value}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {filtered && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground"
+            onClick={clearFilters}
+          >
+            <IconX />
+            Clear
+          </Button>
+        )}
       </div>
 
       <DataTable
@@ -289,7 +295,7 @@ export default function SettingsWorkflows() {
         }
         emptyDescription={
           filtered
-            ? "Try another search, AI agent or tag."
+            ? "Try another search or AI agent."
             : "Workflows appear here once the platform has set them up."
         }
       />
