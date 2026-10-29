@@ -1764,25 +1764,23 @@ function ConversationPanel({
                 variant="outline"
                 size="sm"
                 className="gap-0.5 px-1.5 text-xs"
+                title={
+                  translatedLanguage
+                    ? `Translated to ${translatedLanguage.name}`
+                    : undefined
+                }
                 disabled={isClosed || isTranslating}
               >
                 {isTranslating ? (
-                  <>
-                    <Spinner className="size-3.5" />
-                    Translating…
-                  </>
+                  <Spinner className="size-3.5" />
                 ) : (
-                  // ml-4 = the icon (size-3.5) plus its gap, so the cost
-                  // starts under the text, not the icon.
-                  <CreditLabel className="ml-4 text-[9px]">
-                    <span className="flex items-center gap-0.5">
-                      <IconLanguage className="size-3.5" />
-                      {translatedLanguage
-                        ? `Translated to ${translatedLanguage.name}`
-                        : "Translate"}
-                    </span>
-                  </CreditLabel>
+                  <IconLanguage className="size-3.5" />
                 )}
+                <CreditLabel className="text-[9px]">
+                  {translatedLanguage
+                    ? `Translated to ${translatedLanguage.name}`
+                    : "Translate"}
+                </CreditLabel>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
