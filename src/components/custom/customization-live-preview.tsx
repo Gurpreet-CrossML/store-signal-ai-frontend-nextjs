@@ -33,10 +33,7 @@ import type {
   ActionButton,
   QuickLinkItem,
 } from "@/components/custom/customization-types";
-import {
-  DEFAULTS as AI_DEFAULTS,
-  pick,
-} from "@/components/custom/customization-ai-info";
+import { DEFAULTS as AI_DEFAULTS } from "@/components/custom/customization-ai-info";
 
 type AiDisclaimer = { title?: string | null; description?: string | null };
 
@@ -284,7 +281,7 @@ export default function CustomizationLivePreview({
                         </span>
 
                         <h3 className="min-w-0 text-base leading-tight font-bold [overflow-wrap:anywhere]">
-                          {pick(ai.title ?? "", AI_DEFAULTS.title)}
+                          {ai.title}
                         </h3>
                       </div>
 
@@ -303,10 +300,7 @@ export default function CustomizationLivePreview({
                       <div
                         className="text-sm leading-relaxed [overflow-wrap:anywhere] [&_:is(h1,h2,h3,h4,h5,h6)]:font-bold [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:mb-2 [&_p:last-child]:mb-0 [&_strong]:font-bold [&_ul]:list-disc [&_ul]:pl-4"
                         dangerouslySetInnerHTML={{
-                          __html: pick(
-                            ai.description ?? "",
-                            AI_DEFAULTS.description,
-                          ),
+                          __html: ai.description ?? "",
                         }}
                       />
 
