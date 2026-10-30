@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { differenceInCalendarDays, format, parseISO, subDays } from "date-fns";
+import { differenceInCalendarDays, format, parseISO } from "date-fns";
 
 import CreditGroups from "@/components/custom/ai-usage/credit-bars";
 import ChartEmptyState from "@/components/custom/ai-usage/chart-empty-state";
@@ -34,9 +34,6 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 const formatDate = (value: string) => format(parseISO(value), "MMM d, yyyy");
 
-// The day-by-day chart always covers the last 7 days, today included.
-const CHART_DAYS = 7;
-
 /** Store-level AI credit usage: balance, plan cycle, and where credits went. */
 export default function AIUsage({
   title,
@@ -57,7 +54,7 @@ export default function AIUsage({
   } = useAppSelector((state) => state.GetAIUsageReducer);
   const [filters, setFilters] = useState<DashboardFilterState>({
     ...DEFAULT_DASHBOARD_FILTERS,
-    range: "30d",
+    range: "7d",
   });
   const { from, to } = resolveDashboardRange(filters);
 
@@ -67,19 +64,9 @@ export default function AIUsage({
     const args = { storeCode, from, to };
     dispatch(fetchCreditStatus(args));
     dispatch(fetchAIUsageCreditSummary(args));
+    dispatch(fetchAIUsageCreditDaily(args));
     dispatch(fetchAIUsageByFeature(args));
   }, [dispatch, storeCode, from, to]);
-
-  // Its own window, so the chart stays on the last 7 days whatever range the
-  // rest of the page shows.
-  const chartTo = format(new Date(), "yyyy-MM-dd");
-  const chartFrom = format(subDays(new Date(), CHART_DAYS - 1), "yyyy-MM-dd");
-  useEffect(() => {
-    if (!storeCode) return;
-    dispatch(
-      fetchAIUsageCreditDaily({ storeCode, from: chartFrom, to: chartTo }),
-    );
-  }, [dispatch, storeCode, chartFrom, chartTo]);
 
   const credits = FetchCreditStatusState.FetchCreditStatusData;
   const summary = FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryData;
@@ -198,7 +185,8 @@ export default function AIUsage({
         ))}
       </div>
 
-      <CreditDailyChart data={daily} from={chartFrom} to={chartTo} />
+      {/* A custom range waits for both ends, like the data above. */}
+      {from && to && <CreditDailyChart data={daily} from={from} to={to} />}
 
       <Card>
         <CardHeader>
