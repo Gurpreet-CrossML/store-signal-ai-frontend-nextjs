@@ -1,5 +1,6 @@
 import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import Link from "next/link";
+import { useEffect } from "react";
 import { useFormik } from "formik";
 import z from "zod";
 import {
@@ -12,7 +13,10 @@ import {
 
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { RegisterCompany } from "@/redux/api-slice/auth-slice";
+import {
+  clearRegisterCompanyState,
+  RegisterCompany,
+} from "@/redux/api-slice/auth-slice";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -75,6 +79,11 @@ export function SignupForm({
   ...props
 }: React.ComponentProps<"form">) {
   const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    dispatch(clearRegisterCompanyState());
+  }, [dispatch]);
+
   const {
     RegisterCompanyIsLoading: isLoading,
     RegisterCompanyIsSuccess,
@@ -128,18 +137,17 @@ export function SignupForm({
               as="span"
               className="text-2xl font-bold sm:text-3xl"
             >
-              Your account has been created
+              Your account has been created successfully
             </Typography>
           </EmptyTitle>
           <EmptyDescription>
             {registered.credentials_emailed ? (
               <>
-                We&apos;ve emailed a temporary password to{" "}
+                Check your registered email for your login credentials to{" "}
                 <span className="font-medium text-foreground">
                   {registered.admin_email}
                 </span>
-                . Your workspace is being set up — you&apos;ll be able to log in
-                in a few minutes.
+                {" "}and log in to complete your workspace setup.
               </>
             ) : (
               <>
