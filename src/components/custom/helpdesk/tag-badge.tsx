@@ -3,6 +3,7 @@
 import { IconX } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
   HoverCard,
   HoverCardContent,
@@ -50,14 +51,16 @@ export function tint(hex: string, alpha: number): string | undefined {
 export function TagBadge({
   tag,
   onRemove,
+  className,
 }: {
   tag: SupportTicketTagData;
   onRemove?: () => void;
+  className?: string;
 }) {
   return (
     <Badge
       variant="outline"
-      className="max-w-40"
+      className={cn("max-w-40", className)}
       style={
         tag.color
           ? {
