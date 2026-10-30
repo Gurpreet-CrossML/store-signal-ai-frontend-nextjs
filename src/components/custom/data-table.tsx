@@ -53,6 +53,8 @@ interface DataTableProps<TData, TValue> {
   onRowClick?: (row: TData) => void;
   emptyTitle?: string;
   emptyDescription?: string;
+  /** Extra classes for the header row, e.g. to give it a background. */
+  headerClassName?: string;
 }
 
 /**
@@ -72,6 +74,7 @@ export function DataTable<TData, TValue>({
   onRowClick,
   emptyTitle,
   emptyDescription,
+  headerClassName,
 }: DataTableProps<TData, TValue>) {
   // TanStack builds its row model straight off this array; handed undefined
   // it produces a row model with no `rows` at all, and every read of it
@@ -94,7 +97,7 @@ export function DataTable<TData, TValue>({
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
+              <TableRow key={headerGroup.id} className={headerClassName}>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id}>
                     {header.isPlaceholder
