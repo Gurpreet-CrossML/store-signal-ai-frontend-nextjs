@@ -47,6 +47,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -520,7 +521,13 @@ export default function Tags() {
                 setPage(1);
               }}
             >
-              <SelectTrigger className="w-[160px]" aria-label="Filter by type">
+              <SelectTrigger
+                className={cn(
+                  "w-[160px]",
+                  typeFilter !== ALL_TYPES && ACTIVE_FILTER_STYLE,
+                )}
+                aria-label="Filter by type"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
