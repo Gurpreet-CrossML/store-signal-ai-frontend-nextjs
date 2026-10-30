@@ -8,22 +8,12 @@ export const FEATURE_GROUPS: {
   features: Record<string, FeatureInfo>;
 }[] = [
   {
-    title: "Chat AI",
+    title: "Chat Widget",
     features: {
       chat_turn: {
-        name: "AI Chat Replies",
+        name: "Web Chat",
         description:
           "Answers your customers in the website chat widget and on WhatsApp",
-      },
-    },
-  },
-  {
-    title: "Chat Insights",
-    features: {
-      thread_analytics: {
-        name: "Chat Analysis",
-        description:
-          "Sums up each closed chat: solved or not, what it was about, and how well the AI did",
       },
     },
   },
