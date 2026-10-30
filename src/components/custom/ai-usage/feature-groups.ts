@@ -11,7 +11,7 @@ export const FEATURE_GROUPS: {
     title: "Chat AI",
     features: {
       chat_turn: {
-        name: "AI chat replies",
+        name: "AI Chat Replies",
         description:
           "Answers your customers in the website chat widget and on WhatsApp",
       },
@@ -21,7 +21,7 @@ export const FEATURE_GROUPS: {
     title: "Chat Insights",
     features: {
       thread_analytics: {
-        name: "Chat analysis",
+        name: "Chat Analysis",
         description:
           "Sums up each closed chat: solved or not, what it was about, and how well the AI did",
       },
@@ -31,23 +31,23 @@ export const FEATURE_GROUPS: {
     title: "Helpdesk AI",
     features: {
       ticket_message_draft: {
-        name: "Copilot replies",
+        name: "Copilot Replies",
         description: "Drafts a reply for your agent to send",
       },
       ticket_message_improve: {
-        name: "Reply polishing",
+        name: "Reply Polishing",
         description: "Rewrites an agent's reply to make it clearer",
       },
       ticket_draft: {
-        name: "Ticket draft",
+        name: "Ticket Draft",
         description: "Fills in a new ticket from the chat or DM",
       },
       ticket_translate: {
-        name: "Ticket translations",
+        name: "Ticket Translations",
         description: "Translates the customer's messages for your agent",
       },
       ticket_auto_translate: {
-        name: "Reply in customer's language",
+        name: "Reply in Customer's Language",
         description: "Sends your agent's reply in the customer's language",
       },
     },
@@ -56,15 +56,15 @@ export const FEATURE_GROUPS: {
     title: "Social AI",
     features: {
       comment_reply: {
-        name: "Comment replies",
+        name: "Comment Replies",
         description: "Replies to comments on your posts",
       },
       dm_reply: {
-        name: "Direct message replies",
+        name: "Direct Message Replies",
         description: "Replies to Instagram and Facebook DMs",
       },
       comment_tagging: {
-        name: "Comment classification and tagging",
+        name: "Comment Classification and Tagging",
         description: "Sorts comments by type and tags",
       },
     },
