@@ -1,4 +1,5 @@
-import { list_threads, ListThreadsFilters } from "@/db/threads";
+import { list_threads } from "@/db/threads";
+import { parseThreadFilters } from "@/lib/thread-filters";
 import { APIResponse, DEFAULT_API_PAGE_SIZE } from "@/lib/config";
 import { createAPIResponse, createPaginatedResponse } from "@/lib/helpers";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -26,37 +27,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   }
 
   const q = req.query;
+  const filters = parseThreadFilters(q);
+
   const getStr = (v: string | string[] | undefined): string | undefined =>
     Array.isArray(v) ? v[0] : v;
-  const getList = (v: string | string[] | undefined): string[] | undefined => {
-    if (!v) return undefined;
-    const tags = (Array.isArray(v) ? v : [v])
-      .flatMap((part) => part.split(","))
-      .map((tag) => tag.trim())
-      .filter(Boolean);
-    return tags.length ? tags : undefined;
-  };
-
-  const filters: ListThreadsFilters = {
-    store_code: getStr(q.store_code),
-    from: getStr(q.from),
-    to: getStr(q.to),
-    is_active: getStr(q.is_active),
-    need_escalation: getStr(q.need_escalation),
-    search: getStr(q.search),
-    user_type: getStr(q.user_type),
-    has_ticket: getStr(q.has_ticket),
-    has_order: getStr(q.has_order),
-    has_agent: getStr(q.has_agent),
-    has_feedback: getStr(q.has_feedback),
-    feedback_rating: getStr(q.feedback_rating),
-    tags: getList(q.tags),
-    handled_by: getStr(q.handled_by),
-    channel: getList(q.channel),
-    assignee: getList(q.assignee),
-    before_thread_id: getStr(q.before_thread_id),
-  };
-
   const pageParam = getStr(q.page);
   const pageSizeParam = getStr(q.page_size);
 
