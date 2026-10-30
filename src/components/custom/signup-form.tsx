@@ -146,8 +146,8 @@ export function SignupForm({
                 Check your registered email for your login credentials to{" "}
                 <span className="font-medium text-foreground">
                   {registered.admin_email}
-                </span>
-                {" "}and log in to complete your workspace setup.
+                </span>{" "}
+                and log in to complete your workspace setup.
               </>
             ) : (
               <>
