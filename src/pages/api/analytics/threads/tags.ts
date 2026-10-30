@@ -1,12 +1,15 @@
 import { list_thread_tags } from "@/db/threads";
+import { parseThreadFilters } from "@/lib/thread-filters";
 import { APIResponse } from "@/lib/config";
 import { createAPIResponse } from "@/lib/helpers";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { withTenantRoute } from "@/lib/with-tenant-route";
 
 /**
- * GET /analytics/threads/tags  -> distinct AiInsights.tags for a store's
- * threads, used to populate the Threads page's tags filter.
+ * GET /analytics/threads/tags  -> the store ticket tags that threads carry,
+ * each with its thread count, for the Threads page's tag chips. Takes the same
+ * query params as the thread list and counts against all of them except the
+ * tag filter.
  */
 export default withTenantRoute(handler, "conversations");
 
@@ -17,10 +20,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
       .json(createAPIResponse(false, "Method Not Allowed", null));
   }
 
-  const store_code = req.query.store_code;
-  const tags = await list_thread_tags(
-    Array.isArray(store_code) ? store_code[0] : store_code,
-  );
+  const tags = await list_thread_tags(parseThreadFilters(req.query));
 
   return res
     .status(200)

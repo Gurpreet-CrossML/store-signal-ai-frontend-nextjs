@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useFormik } from "formik";
 import { toast } from "sonner";
@@ -25,6 +26,11 @@ import {
 } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import { openResetLink, resetPassword } from "@/lib/password-reset";
 
@@ -88,14 +94,21 @@ function PasswordInput({
           value={formik.values[name]}
         />
         <InputGroupAddon align="inline-end">
-          <InputGroupButton
-            type="button"
-            size="icon-xs"
-            aria-label={visible ? "Hide password" : "Show password"}
-            onClick={() => setVisible((v) => !v)}
-          >
-            {visible ? <IconEyeOff /> : <IconEye />}
-          </InputGroupButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <InputGroupButton
+                type="button"
+                size="icon-xs"
+                aria-label={visible ? "Hide password" : "Show password"}
+                onClick={() => setVisible((v) => !v)}
+              >
+                {visible ? <IconEyeOff /> : <IconEye />}
+              </InputGroupButton>
+            </TooltipTrigger>
+            <TooltipContent>
+              {visible ? "Hide password" : "Show password"}
+            </TooltipContent>
+          </Tooltip>
         </InputGroupAddon>
       </InputGroup>
       {error && (
@@ -114,12 +127,19 @@ export function ResetPasswordForm({
   uid: string;
   token: string;
 }) {
+  const router = useRouter();
   const { status } = useSession();
   const [stage, setStage] = useState<Stage>({ name: "opening" });
 
-  // Opening the link uses it up on the server, so it runs once, here in the
-  // browser (openResetLink also dedupes a repeated effect).
+  // Do not open a reset link for an authenticated user. Reset links are public
+  // credentials, so redirect before the request can consume or validate one.
   useEffect(() => {
+    if (status === "loading") return;
+    if (status === "authenticated") {
+      router.replace("/");
+      return;
+    }
+
     let cancelled = false;
     openResetLink(uid, token).then((result) => {
       if (cancelled) return;
@@ -132,7 +152,7 @@ export function ResetPasswordForm({
     return () => {
       cancelled = true;
     };
-  }, [uid, token]);
+  }, [router, status, uid, token]);
 
   const formik = useFormik({
     initialValues: { new_password: "", confirm_password: "" },

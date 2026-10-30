@@ -3,6 +3,7 @@
 import { IconX } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
   HoverCard,
   HoverCardContent,
@@ -18,7 +19,7 @@ import type { SupportTicketTagData } from "@/redux/api-slice/support-ticket-slic
  * at all — the browser drops the declaration and the chip silently loses
  * its tint. Parsing to rgb() handles both lengths.
  */
-function tint(hex: string, alpha: number): string | undefined {
+export function tint(hex: string, alpha: number): string | undefined {
   const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
   if (!match) return undefined;
 
@@ -50,14 +51,16 @@ function tint(hex: string, alpha: number): string | undefined {
 export function TagBadge({
   tag,
   onRemove,
+  className,
 }: {
   tag: SupportTicketTagData;
   onRemove?: () => void;
+  className?: string;
 }) {
   return (
     <Badge
       variant="outline"
-      className="max-w-40"
+      className={cn("max-w-40", className)}
       style={
         tag.color
           ? {

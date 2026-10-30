@@ -20,6 +20,10 @@ export type SideBarMenuItem = {
   url: string;
   icon: Icon;
   items?: SideBarMenuItem[];
+  /** A count shown at the row's right edge, e.g. a view's ticket count. */
+  count?: number;
+  /** Colours the row's icon, e.g. a tag's own colour. */
+  color?: string;
 };
 
 export type SubSidebarMenuItem = {
@@ -117,7 +121,9 @@ export function activeNavUrl(
   let bare: { url: string; pathLength: number } | null = null;
   for (const item of items) {
     const { path, query } = splitHref(item.url);
-    if (query !== "" || !isMenuItemActive(pathname, path)) continue;
+    // A group heading has no destination. Its empty path would otherwise
+    // match every page, lighting the group (and opening it) everywhere.
+    if (!path || query !== "" || !isMenuItemActive(pathname, path)) continue;
     if (!bare || path.length > bare.pathLength) {
       bare = { url: item.url, pathLength: path.length };
     }

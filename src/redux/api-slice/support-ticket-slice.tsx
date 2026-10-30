@@ -1,6 +1,11 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import {
+  createAsyncThunk,
+  createSlice,
+  isAnyOf,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
 import { axiosInstance } from "@/redux/axios-config";
-import { ENDPOINTS } from "@/lib/config";
+import { DEFAULT_HELPDESK_QUEUE, ENDPOINTS } from "@/lib/config";
 import { getApiErrorMessage } from "@/lib/helpers";
 import type { TicketLanguage, TicketSentiment } from "@/lib/ticket-options";
 import { toast } from "sonner";
@@ -53,6 +58,10 @@ export type SupportTicketFilters = {
   from_date?: string;
   to_date?: string;
   priority?: SupportTicketPriority[];
+  sentiment?: TicketSentiment[];
+  is_read?: boolean;
+  /** The logged-in agent's own tickets. */
+  assigned_to_me?: boolean;
   is_assigned?: boolean;
   is_snoozed?: boolean;
 };
@@ -95,6 +104,10 @@ export type SupportTicketTagData = {
   /** A platform-provided tag; the store cannot edit or delete it. */
   is_predefined?: boolean;
   is_active?: boolean;
+  /** Support tickets carrying the tag. Sent by the tag list only. */
+  ticket_count?: number;
+  /** Analysed threads the AI tagged with it. Sent by the tag list only. */
+  thread_count?: number;
 };
 
 export type SupportTicketTagsResponse = {
@@ -212,6 +225,36 @@ export type SupportTicketStatusCounts = {
   snoozed: number;
 };
 
+/** One channel in use, with how many tickets came through it. */
+export type SupportTicketFilterCountItem = {
+  value: string;
+  label: string;
+  count: number;
+};
+
+/** One of the store's active tags, with how many tickets carry it. */
+export type SupportTicketFilterCountTag = {
+  id: number;
+  name: string;
+  color: string;
+  count: number;
+};
+
+/** What the help desk's left panel shows next to each of its views. */
+export type SupportTicketFilterCounts = {
+  all: number;
+  unassigned: number;
+  assigned_to_me: number;
+  unread: number;
+  /** Tickets with any tag, each once — not the sum of the tag rows. */
+  tagged: number;
+  /** Urgent or high priority. */
+  high_priority: number;
+  negative_sentiment: number;
+  channels: SupportTicketFilterCountItem[];
+  tags: SupportTicketFilterCountTag[];
+};
+
 export type SupportTicketsResponse = {
   count: number;
   next: string | null;
@@ -265,6 +308,28 @@ export const FetchSupportTickets = createAsyncThunk<
     }
   },
 );
+
+// The left panel's counts. No error toast: this runs in the background and
+// the panel simply shows no numbers when it fails.
+export const FetchSupportTicketFilterCounts = createAsyncThunk<
+  SupportTicketFilterCounts,
+  { storeCode: string; status?: SupportTicketStatus }
+>("FetchSupportTicketFilterCounts", async ({ storeCode, status }, thunkAPI) => {
+  try {
+    const params = new URLSearchParams({ store_code: storeCode });
+    if (status) params.set("status", status);
+
+    const response = await axiosInstance.get(
+      `${ENDPOINTS.fetchSupportTicketFilterCounts()}?${params.toString()}`,
+    );
+    return response.data.data;
+  } catch (error) {
+    const response = isAxiosError(error) ? error.response : undefined;
+    return thunkAPI.rejectWithValue(
+      response?.data || "Couldn't fetch the ticket filter counts.",
+    );
+  }
+});
 
 export const FetchSupportTicketDetails = createAsyncThunk(
   "FetchSupportTicketDetails",
@@ -1084,9 +1149,39 @@ export const SupportTicketMessagesTranslate = createAsyncThunk<
   },
 );
 
+// Everything that moves a ticket between the left panel's views, so the
+// counts are fetched again after it.
+const ticketChangeThunks = isAnyOf(
+  CreateSupportTicket.fulfilled,
+  SupportTicketStaffAssign.fulfilled,
+  SupportTicketTagAssign.fulfilled,
+  SupportTicketTagRemove.fulfilled,
+  SupportTicketSnooze.fulfilled,
+  SupportTicketMarkRead.fulfilled,
+  SupportTicketStatusUpdate.fulfilled,
+  SupportTicketPriorityUpdate.fulfilled,
+  SupportTicketLanguageSentimentUpdate.fulfilled,
+);
+
 const SupportTicketsSlice = createSlice({
   name: "SupportTicketsSlice",
   initialState: {
+    // The status tab the list is on. Lives here, not in the screen, because
+    // the left panel counts only the tickets of that tab.
+    HelpdeskQueue: DEFAULT_HELPDESK_QUEUE as SupportTicketStatus,
+    // Bumped whenever a ticket changes; the left panel refetches on it.
+    FilterCountsRefreshKey: 0,
+    FetchSupportTicketFilterCountsState: {
+      FetchSupportTicketFilterCountsIsLoading: false,
+      FetchSupportTicketFilterCountsIsSuccess: false,
+      FetchSupportTicketFilterCountsIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      FetchSupportTicketFilterCountsData:
+        null as SupportTicketFilterCounts | null,
+    },
     FetchSupportTicketsState: {
       FetchSupportTicketsLoading: false,
       FetchSupportTicketsIsSuccess: false,
@@ -1269,9 +1364,35 @@ const SupportTicketsSlice = createSlice({
       SupportTicketMessagesTranslateData: {} as SupportTicketTranslateResponse,
     },
   },
-  reducers: {},
+  reducers: {
+    setHelpdeskQueue: (state, action: PayloadAction<SupportTicketStatus>) => {
+      state.HelpdeskQueue = action.payload;
+    },
+    // For changes the screen only learns of from the ticket socket.
+    refreshFilterCounts: (state) => {
+      state.FilterCountsRefreshKey += 1;
+    },
+  },
   extraReducers: (builder) => {
     builder
+      .addCase(FetchSupportTicketFilterCounts.pending, (state) => {
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsLoading = true;
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsError =
+          null;
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsSuccess = false;
+      })
+      .addCase(FetchSupportTicketFilterCounts.fulfilled, (state, action) => {
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsLoading = false;
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsData =
+          action.payload;
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsSuccess = true;
+      })
+      .addCase(FetchSupportTicketFilterCounts.rejected, (state, action) => {
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsLoading = false;
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsError =
+          action.payload;
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsSuccess = false;
+      })
       .addCase(FetchSupportTickets.pending, (state, action) => {
         state.FetchSupportTicketsState.FetchSupportTicketsLoading = true;
         state.FetchSupportTicketsState.FetchSupportTicketsIsError = null;
@@ -1704,8 +1825,13 @@ const SupportTicketsSlice = createSlice({
         state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsError =
           action.payload;
         state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsSuccess = false;
+      })
+      .addMatcher(ticketChangeThunks, (state) => {
+        state.FilterCountsRefreshKey += 1;
       });
   },
 });
 
+export const { setHelpdeskQueue, refreshFilterCounts } =
+  SupportTicketsSlice.actions;
 export default SupportTicketsSlice.reducer;

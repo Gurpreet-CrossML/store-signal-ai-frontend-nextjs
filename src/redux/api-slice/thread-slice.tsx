@@ -41,6 +41,9 @@ export type ThreadTagData = {
   description: string;
 };
 
+/** A tag chip on the Threads page: a store ticket tag and its thread count. */
+export type ThreadTagOption = Required<ThreadTagData> & { count: number };
+
 export type FeedbackEntry = {
   id: number;
   rating: string;
@@ -468,6 +471,24 @@ export const FetchThreadCounts = createAsyncThunk<
   }
 });
 
+/**
+ * `&key=value` pairs for a set of thread filters.
+ *
+ * Values are URI-encoded (a tag like "Return & Refund" would otherwise split
+ * the query at the "&"); arrays repeat the key so a value that contains a
+ * comma survives too. Empty when there is nothing to send.
+ */
+function filterQuery(filters: ThreadFilters): string {
+  return Object.entries(filters)
+    .flatMap(([key, value]) =>
+      (Array.isArray(value) ? value : [value]).map(
+        (item) =>
+          `&${encodeURIComponent(key)}=${encodeURIComponent(String(item))}`,
+      ),
+    )
+    .join("");
+}
+
 export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
   "Threads",
   async (
@@ -480,22 +501,8 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
     thunkAPI,
   ) => {
     try {
-      // Values are URI-encoded (a tag like "Return & Refund" would otherwise
-      // split the query at the "&"); arrays repeat the key so a value that
-      // contains a comma survives too.
-      const filteration =
-        "&" +
-        Object.entries(filters)
-          .flatMap(([key, value]) =>
-            (Array.isArray(value) ? value : [value]).map(
-              (item) =>
-                `${encodeURIComponent(key)}=${encodeURIComponent(String(item))}`,
-            ),
-          )
-          .join("&");
-
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchThreads()}?store_code=${store_code}&page=${page}&page_size=${limit}${filteration !== "&" ? filteration : ""}`,
+        `${ENDPOINTS.fetchThreads()}?store_code=${store_code}&page=${page}&page_size=${limit}${filterQuery(filters)}`,
       );
       const data = response.data.data;
 
@@ -665,16 +672,25 @@ export const FetchTags = createAsyncThunk(
   },
 );
 
-/** Distinct tags across a store's threads, for the Threads page tags filter. */
+/**
+ * The tags threads carry, each with its thread count, for the Threads page tag
+ * chips. Counted against the given filters (the tag filter itself aside), so
+ * the chips follow whatever the list is currently narrowed to.
+ */
 export const FetchThreadTagOptions = createAsyncThunk(
   "ThreadTagOptions",
-  async ({ store_code }: { store_code?: string } = {}, thunkAPI) => {
+  async (
+    {
+      store_code = "",
+      filters = {},
+    }: { store_code?: string; filters?: ThreadFilters } = {},
+    thunkAPI,
+  ) => {
     try {
       const response = await axiosInstance.get(
-        ENDPOINTS.fetchThreadTagOptions(),
-        { params: { store_code } },
+        `${ENDPOINTS.fetchThreadTagOptions()}?store_code=${encodeURIComponent(store_code)}${filterQuery(filters)}`,
       );
-      return response.data.data as string[];
+      return response.data.data as ThreadTagOption[];
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
@@ -952,7 +968,7 @@ const ThreadSlice = createSlice({
       FetchThreadTagOptionsIsLoading: false,
       FetchThreadTagOptionsIsSuccess: false,
       FetchThreadTagOptionsIsError: null as null | string | object | unknown,
-      FetchThreadTagOptionsData: [] as string[],
+      FetchThreadTagOptionsData: [] as ThreadTagOption[],
     },
     FetchAIInsightState: {
       FetchAIInsightIsLoading: false,

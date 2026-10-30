@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Popover,
@@ -17,6 +17,9 @@ import { cn } from "@/lib/utils";
  * ignores touch for tooltips, so on an iPad the full text was unreachable.
  * A popover opens on tap, and the hover handlers (mouse only) keep the old
  * behaviour for desktop users.
+ *
+ * It is only interactive while the text is actually cut off: when the full
+ * text fits, there is nothing more to show, so no popover opens.
  */
 export function ExpandableText({
   text,
@@ -26,18 +29,37 @@ export function ExpandableText({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [truncated, setTruncated] = useState(false);
+  const textRef = useRef<HTMLParagraphElement>(null);
+
+  // Re-measured whenever the text or its available width changes, so a
+  // resize can turn the popover on or off.
+  useEffect(() => {
+    const element = textRef.current;
+    if (!element) return;
+
+    const measure = () =>
+      setTruncated(element.scrollWidth > element.clientWidth);
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [text]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open && truncated} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <p
+          ref={textRef}
           className={cn(
-            "max-w-xs cursor-pointer truncate rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+            "max-w-xs truncate rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+            truncated && "cursor-pointer",
             className,
           )}
-          role="button"
-          tabIndex={0}
-          aria-label={`Show full text: ${text}`}
+          role={truncated ? "button" : undefined}
+          tabIndex={truncated ? 0 : undefined}
+          aria-label={truncated ? `Show full text: ${text}` : undefined}
           onPointerEnter={(event) => {
             if (event.pointerType === "mouse") setOpen(true);
           }}

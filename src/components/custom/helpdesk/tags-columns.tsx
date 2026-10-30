@@ -20,18 +20,26 @@ export function getTagColumns({
     {
       accessorKey: "name",
       header: "Tag",
-      cell: ({ row }) => <TagBadge tag={row.original} />,
+      // A floor on the width, and padding for the longest names, keep clear
+      // space between the chip and the description beside it.
+      meta: { cellClassName: "min-w-60 pr-10" },
+      // The table gives the name its full width; the default cap is for chips
+      // squeezed into a row of other tags.
+      cell: ({ row }) => <TagBadge tag={row.original} className="max-w-none" />,
     },
     {
       accessorKey: "description",
       header: "Description",
+      // w-full takes whatever width the other columns leave; max-w-0 lets the
+      // text truncate to that width instead of stretching the column.
+      meta: { cellClassName: "w-full max-w-0" },
       cell: ({ row }) => {
         const description = row.original.description;
         if (!description) {
           return <Typography variant="muted">—</Typography>;
         }
 
-        return <ExpandableText text={description} />;
+        return <ExpandableText text={description} className="max-w-full" />;
       },
     },
     {

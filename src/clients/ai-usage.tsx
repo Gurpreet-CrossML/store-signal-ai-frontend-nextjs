@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 
-import CreditBars from "@/components/custom/ai-usage/credit-bars";
+import CreditGroups from "@/components/custom/ai-usage/credit-bars";
 import ChartEmptyState from "@/components/custom/ai-usage/chart-empty-state";
 import CreditDailyChart from "@/components/custom/ai-usage/credit-daily-chart";
+import { FEATURE_GROUPS } from "@/components/custom/ai-usage/feature-groups";
 import {
   DEFAULT_DASHBOARD_FILTERS,
   DashboardRangeFilter,
@@ -31,29 +32,6 @@ import {
 } from "@/redux/api-slice/ai-usage-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
-// Billed features, grouped the way the store owner thinks about them.
-const FEATURE_GROUPS: { title: string; features: Record<string, string> }[] = [
-  { title: "Chat AI", features: { chat_turn: "Chat replies" } },
-  {
-    title: "Helpdesk AI",
-    features: {
-      ticket_message_draft: "Suggested replies for agents",
-      ticket_draft: "Ticket drafts",
-      ticket_message_improve: "Reply improvements",
-      ticket_translate: "Ticket translations",
-      ticket_auto_translate: "Reply auto-translations",
-    },
-  },
-  {
-    title: "Social AI",
-    features: {
-      comment_reply: "Comment replies",
-      dm_reply: "Direct message replies",
-      comment_tagging: "Comment triage and tagging",
-    },
-  },
-];
-
 const formatDate = (value: string) => format(parseISO(value), "MMM d, yyyy");
 
 /** Store-level AI credit usage: balance, plan cycle, and where credits went. */
@@ -76,7 +54,7 @@ export default function AIUsage({
   } = useAppSelector((state) => state.GetAIUsageReducer);
   const [filters, setFilters] = useState<DashboardFilterState>({
     ...DEFAULT_DASHBOARD_FILTERS,
-    range: "30d",
+    range: "7d",
   });
   const { from, to } = resolveDashboardRange(filters);
 
@@ -110,22 +88,27 @@ export default function AIUsage({
   const featureCredits = new Map(byFeature.map((row) => [row.feature, row]));
   const featureGroups = FEATURE_GROUPS.map((group) => {
     const rows = Object.entries(group.features)
-      .map(([feature, label]) => {
+      .map(([feature, { name, description }]) => {
         const row = featureCredits.get(feature);
         const calls = Number(row?.calls) || 0;
         const rowCredits = Number(row?.credits_charged) || 0;
         return {
-          label,
-          note: `${calls.toLocaleString()} ${calls === 1 ? "call" : "calls"}, 1 credit each`,
+          label: name,
+          note: description,
+          calls,
           credits: rowCredits,
-          extra: share(rowCredits),
+          share: share(rowCredits),
         };
       })
-      .filter((row) => row.credits > 0);
+      // By calls, so unbilled features (Chat analysis) show with 0 credits.
+      .filter((row) => row.calls > 0);
+    const total = rows.reduce((sum, row) => sum + row.credits, 0);
     return {
-      ...group,
+      label: group.title,
+      calls: rows.reduce((sum, row) => sum + row.calls, 0),
+      credits: total,
+      share: share(total),
       rows,
-      total: rows.reduce((sum, row) => sum + row.credits, 0),
     };
   }).filter((group) => group.rows.length);
 
@@ -202,30 +185,21 @@ export default function AIUsage({
         ))}
       </div>
 
+      {/* A custom range waits for both ends, like the data above. */}
       {from && to && <CreditDailyChart data={daily} from={from} to={to} />}
 
       <Card>
         <CardHeader>
           <CardTitle>Where the credits went</CardTitle>
           <CardDescription>
-            Each capability that used credits in this period. Every AI call is
-            charged one credit.
+            Credits by capability in this period, largest first. Open a group to
+            see its features. Each billed AI call is charged one credit; chat
+            analysis is free.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {featureGroups.length ? (
-            <CreditBars
-              nameLabel="Capability"
-              extraLabel="Share"
-              rows={featureGroups.flatMap((group) => [
-                {
-                  heading: true,
-                  label: `${group.title} · ${group.total.toLocaleString()} credits, ${share(group.total)} of the period`,
-                  credits: group.total,
-                },
-                ...group.rows,
-              ])}
-            />
+            <CreditGroups groups={featureGroups} />
           ) : (
             <ChartEmptyState />
           )}
