@@ -108,6 +108,8 @@ export type SupportTicketTagData = {
   ticket_count?: number;
   /** Analysed threads the AI tagged with it. Sent by the tag list only. */
   thread_count?: number;
+  /** Similar-tags lookup only: same name as the one typed, so a duplicate. */
+  is_exact?: boolean;
 };
 
 export type SupportTicketTagsResponse = {
