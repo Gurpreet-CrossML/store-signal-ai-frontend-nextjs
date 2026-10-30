@@ -298,7 +298,7 @@ export default function CustomizationLivePreview({
                     {/* Scrollable Description + Button */}
                     <div className="min-h-0 overflow-x-hidden overflow-y-auto px-4 pb-4">
                       <div
-                        className="text-sm leading-relaxed [overflow-wrap:anywhere] [&_:is(h1,h2,h3,h4,h5,h6)]:font-bold [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:mb-2 [&_p:last-child]:mb-0 [&_strong]:font-bold [&_ul]:list-disc [&_ul]:pl-4"
+                        className="text-sm leading-relaxed [overflow-wrap:anywhere] [&_:is(h1,h2,h3,h4,h5,h6)]:font-bold [&_:is(h1,h2,h3,h4,h5,h6)]:[font-size:revert] [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:mb-2 [&_p:last-child]:mb-0 [&_strong]:font-bold [&_ul]:list-disc [&_ul]:pl-4"
                         dangerouslySetInnerHTML={{
                           __html: ai.description ?? "",
                         }}
