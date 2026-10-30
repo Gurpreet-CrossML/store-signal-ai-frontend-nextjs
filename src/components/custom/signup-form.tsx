@@ -11,6 +11,11 @@ import {
   IconUser,
 } from "@tabler/icons-react";
 
+import {
+  SIGNUP_COMPANY_NAME_MAX_LENGTH,
+  SIGNUP_EMAIL_MAX_LENGTH,
+  SIGNUP_NAME_MAX_LENGTH,
+} from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
@@ -39,30 +44,41 @@ import { Typography } from "@/components/ui/typography";
 // Mirrors the server's rules for POST /api/tenancy/register/ so the common
 // mistakes are caught before the round trip; uniqueness comes back from it.
 // `abort` keeps an empty field on "required" instead of the later checks.
-const personName = (label: string) =>
+// The blank checks run before trim(), which would turn "   " into "".
+const requiredText = (label: string) =>
   z
     .string()
-    .trim()
     .min(1, { error: `${label} is required.`, abort: true })
-    .max(100, `${label} must not exceed 100 characters.`)
+    .refine((value) => value.trim() !== "", {
+      error: "This field cannot contain only spaces.",
+      abort: true,
+    })
+    .trim();
+
+const personName = (label: string) =>
+  requiredText(label)
+    .max(
+      SIGNUP_NAME_MAX_LENGTH,
+      `${label} must not exceed ${SIGNUP_NAME_MAX_LENGTH} characters.`,
+    )
     .regex(/^[\p{L} ]+$/u, `${label} can contain only letters and spaces.`);
 
 const validationSchema = z.object({
   first_name: personName("First name"),
   last_name: personName("Last name"),
-  name: z
-    .string()
-    .trim()
-    .min(1, { error: "Company name is required.", abort: true })
-    .max(255, "Company name must not exceed 255 characters.")
+  name: requiredText("Company name")
+    .max(
+      SIGNUP_COMPANY_NAME_MAX_LENGTH,
+      `Company name must not exceed ${SIGNUP_COMPANY_NAME_MAX_LENGTH} characters.`,
+    )
     // The server derives the company code from it: its first letter or
     // digit has to be an a-z letter.
     .regex(/^[^a-zA-Z0-9]*[a-zA-Z]/, "Company name must start with a letter."),
-  email: z
-    .string()
-    .trim()
-    .min(1, { error: "Work email is required.", abort: true })
-    .max(254, "Please enter a valid work email address.")
+  email: requiredText("Work email")
+    .max(
+      SIGNUP_EMAIL_MAX_LENGTH,
+      `Work email must not exceed ${SIGNUP_EMAIL_MAX_LENGTH} characters.`,
+    )
     .regex(z.regexes.email, "Please enter a valid work email address."),
   terms_and_conditions_accepted: z
     .boolean()
@@ -209,6 +225,7 @@ export function SignupForm({
                 id="first_name"
                 name="first_name"
                 placeholder="Jane"
+                maxLength={SIGNUP_NAME_MAX_LENGTH}
                 required
                 aria-invalid={invalid("first_name")}
                 onChange={formik.handleChange}
@@ -225,6 +242,7 @@ export function SignupForm({
                 id="last_name"
                 name="last_name"
                 placeholder="Doe"
+                maxLength={SIGNUP_NAME_MAX_LENGTH}
                 required
                 aria-invalid={invalid("last_name")}
                 onChange={formik.handleChange}
@@ -245,6 +263,7 @@ export function SignupForm({
               id="name"
               name="name"
               placeholder="Acme Stores"
+              maxLength={SIGNUP_COMPANY_NAME_MAX_LENGTH}
               required
               aria-invalid={invalid("name")}
               onChange={formik.handleChange}
@@ -263,8 +282,13 @@ export function SignupForm({
             <InputGroupInput
               id="email"
               name="email"
-              type="email"
+              // Not type="email": the browser strips its spaces, so a
+              // spaces-only entry would never reach the check for it.
+              type="text"
+              inputMode="email"
+              autoComplete="email"
               placeholder="you@company.com"
+              maxLength={SIGNUP_EMAIL_MAX_LENGTH}
               required
               aria-invalid={invalid("email")}
               onChange={formik.handleChange}
