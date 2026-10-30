@@ -39,7 +39,7 @@ export const FEATURE_GROUPS: {
         description: "Rewrites an agent's reply to make it clearer",
       },
       ticket_draft: {
-        name: "Draft tickets",
+        name: "Ticket draft",
         description: "Fills in a new ticket from the chat or DM",
       },
       ticket_translate: {
