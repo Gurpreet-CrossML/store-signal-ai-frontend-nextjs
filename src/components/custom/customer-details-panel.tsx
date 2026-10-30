@@ -10,11 +10,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TicketAuditTrailCard } from "@/components/custom/ticket-activity-popover";
 import {
   CartDetailsCard,
-  CustomerProfileCard,
   OrdersCard,
   SessionDataCard,
   SupportTicketsCard,
@@ -82,7 +79,6 @@ export function CustomerDetailsPanel({
   cart,
   currentThreadId,
   userMetadataLoading,
-  ticket,
   open,
   onOpenChange,
 }: {
@@ -101,63 +97,25 @@ export function CustomerDetailsPanel({
   /** True while `userMetadata` may still be the previous thread's. */
   userMetadataLoading?: boolean;
   /**
-   * Pass on a ticket screen to split the pane in two tabs: "Ticket details"
-   * (the customer's tickets and this ticket's audit trail) and "Customer
-   * details" (who they are, and their orders). Omit it and the pane is the
-   * single scrolling list the other screens use.
-   */
-  ticket?: {
-    storeCode: string;
-    ticketId: number;
-    /** Changes whenever the ticket does, to refresh the audit trail. */
-    version?: string;
-  };
-  /**
    * Below `xl` the pane is not docked; it opens as a sheet instead, driven
    * by these. Omit them where a screen has no way to open it.
    */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
-  const ordersCard = (
-    <OrdersCard
-      orders={orders}
-      loading={ordersLoading}
-      handleOrdersSync={onOrdersSync}
-      orderSyncLoading={orderSyncLoading}
-      customerData={customerData}
-      isDisabled={ordersDisabled}
-    />
-  );
-  const ticketsCard = tickets ? (
-    <SupportTicketsCard tickets={tickets.data} loading={tickets.loading} />
-  ) : null;
-
-  const tabbedContent = ticket ? (
-    <Tabs defaultValue="ticket" className="min-h-0 flex-1 gap-0">
-      <TabsList variant="line" className="w-full shrink-0 border-b px-2">
-        <TabsTrigger value="ticket">Ticket Details</TabsTrigger>
-        <TabsTrigger value="customer">Customer Details</TabsTrigger>
-      </TabsList>
-      <TabsContent value="ticket" className="min-h-0 overflow-y-auto">
-        {ticketsCard}
-        <TicketAuditTrailCard
-          storeCode={ticket.storeCode}
-          ticketId={ticket.ticketId}
-          version={ticket.version}
-        />
-      </TabsContent>
-      <TabsContent value="customer" className="min-h-0 overflow-y-auto">
-        <CustomerProfileCard customer={customerData} />
-        {ordersCard}
-      </TabsContent>
-    </Tabs>
-  ) : null;
-
-  const content = tabbedContent ?? (
+  const content = (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      {ordersCard}
-      {ticketsCard}
+      <OrdersCard
+        orders={orders}
+        loading={ordersLoading}
+        handleOrdersSync={onOrdersSync}
+        orderSyncLoading={orderSyncLoading}
+        customerData={customerData}
+        isDisabled={ordersDisabled}
+      />
+      {tickets ? (
+        <SupportTicketsCard tickets={tickets.data} loading={tickets.loading} />
+      ) : null}
       {cart ? (
         <>
           <CartDetailsCard cartData={cart.data} loading={cart.loading} />
