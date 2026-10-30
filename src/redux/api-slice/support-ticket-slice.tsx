@@ -104,6 +104,10 @@ export type SupportTicketTagData = {
   /** A platform-provided tag; the store cannot edit or delete it. */
   is_predefined?: boolean;
   is_active?: boolean;
+  /** Support tickets carrying the tag. Sent by the tag list only. */
+  ticket_count?: number;
+  /** Analysed threads the AI tagged with it. Sent by the tag list only. */
+  thread_count?: number;
 };
 
 export type SupportTicketTagsResponse = {

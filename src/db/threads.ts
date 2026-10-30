@@ -8,6 +8,8 @@ import {
   store,
   chatHistory,
   aiInsights,
+  aiInsightsTicketTags,
+  ticketTag,
   chatbotFeedback,
   supportTicket,
   userMetadata,
@@ -58,6 +60,14 @@ function closedByName(user: {
   );
 }
 
+/** A store ticket tag linked to a thread's analysis. */
+export type ThreadTagRecord = {
+  id: number;
+  name: string;
+  color: string;
+  description: string;
+};
+
 /**
  * Filters accepted by the thread list endpoint, mirroring
  * ThreadListAPIView.get_queryset (analytics/views.py).
@@ -74,7 +84,7 @@ export type ListThreadsFilters = {
   has_agent?: string; // a human agent took the thread over at any point
   has_feedback?: string;
   feedback_rating?: string; // very_bad | bad | neutral | good | excellent
-  tags?: string[]; // matches threads tagged with ANY of the given tags
+  tags?: string[]; // ticket-tag names; matches threads linked to ANY of them
   handled_by?: string; // ai | human
   channel?: string[]; // whatsapp | web (native/webhook)
   assignee?: string[]; // auth.User email values
@@ -185,7 +195,7 @@ export type ThreadListItem = {
   last_message_at: string | null;
   cart_total: number;
   ended_at: string | null;
-  tags: string[];
+  tags: ThreadTagRecord[];
   last_message: string;
 };
 
@@ -223,7 +233,7 @@ const pastThreadsCount = sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL TH
  *
  * Serializer fidelity:
  *   - customer: { id | null, name: "first last".strip() | null, email | null }
- *   - tags: AiInsights.tags for the thread (first row) or []
+ *   - tags: the active store ticket tags linked to the thread's analysis, or []
  *   - last_message: latest role="assistant" message text, or "" when none.
  *   - followup_level / is_active / total_messages / created_at / ended_at as-is.
  */
@@ -233,6 +243,207 @@ export async function list_threads(
   pageSize: number,
 ): Promise<{ count: number; results: ThreadListItem[] }> {
   const db = getDb();
+  const conditions = buildThreadConditions(filters);
+
+  const whereClause = conditions.length ? and(...conditions) : undefined;
+
+  // Total count (pre-pagination), distinct threads.
+  const countRows = await db
+    .select({ value: sql<number>`count(DISTINCT ${chatThread.id})` })
+    .from(chatThread)
+    .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
+    .leftJoin(authUser, eq(chatThread.chatHandlerUserId, authUser.id))
+    .innerJoin(store, eq(chatThread.storeId, store.id))
+    .where(whereClause);
+
+  const total = Number(countRows[0]?.value ?? 0);
+
+  if (total === 0) {
+    return { count: 0, results: [] };
+  }
+
+  const offset = (page - 1) * pageSize;
+
+  const rows: ThreadListRow[] = await db
+    .select({
+      id: chatThread.id,
+      name: chatThread.name,
+      source: chatThread.source,
+      followup_level: chatThread.followupLevel,
+      is_active: chatThread.isActive,
+      ai_responding: chatThread.aiResponding,
+      need_escalation: chatThread.needEscalation,
+      escalation_time: chatThread.escalationTime,
+      total_messages: count(chatHistory.id),
+      created_at: chatThread.createdAt,
+      last_message_at: max(chatHistory.createdAt),
+      cart_total: sql<
+        string | number
+      >`COALESCE((SELECT NULLIF(regexp_replace(${userMetadata.updatedCartData}->>'total', '[^0-9.]', '', 'g'), '')::numeric FROM ${userMetadata} WHERE ${userMetadata.threadId} = ${chatThread.id} LIMIT 1), 0)`,
+      ended_at: chatThread.endedAt,
+      customer_id: chatCustomer.id,
+      customer_first_name: chatCustomer.firstName,
+      customer_last_name: chatCustomer.lastName,
+      customer_email: chatCustomer.email,
+      customer_phone: chatCustomer.phone,
+      customer_past_threads_count: pastThreadsCount,
+      chat_handler: chatThread.chatHandler,
+      chat_handler_user_id: authUser.id,
+      chat_handler_user_first_name: authUser.firstName,
+      chat_handler_user_last_name: authUser.lastName,
+      chat_handler_user_email: authUser.email,
+    })
+    .from(chatThread)
+    .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
+    .leftJoin(authUser, eq(chatThread.chatHandlerUserId, authUser.id))
+    .innerJoin(store, eq(chatThread.storeId, store.id))
+    .leftJoin(chatHistory, eq(chatHistory.threadId, chatThread.id))
+    .where(whereClause)
+    .groupBy(
+      chatThread.id,
+      chatCustomer.id,
+      chatCustomer.firstName,
+      chatCustomer.lastName,
+      chatCustomer.email,
+      chatCustomer.phone,
+      authUser.id,
+      authUser.firstName,
+      authUser.lastName,
+      authUser.email,
+    )
+    .orderBy(desc(chatThread.createdAt))
+    .limit(pageSize)
+    .offset(offset);
+
+  const threadIds = rows.map((r) => r.id);
+
+  // tags: the store ticket tags linked to each thread's analysis (active
+  // ones only), alphabetically.
+  const tagRows = threadIds.length
+    ? await db
+        .select({
+          threadId: aiInsights.threadId,
+          id: ticketTag.id,
+          name: ticketTag.name,
+          color: ticketTag.color,
+          description: ticketTag.description,
+        })
+        .from(aiInsights)
+        .innerJoin(chatThread, eq(chatThread.id, aiInsights.threadId))
+        .innerJoin(
+          aiInsightsTicketTags,
+          eq(aiInsightsTicketTags.aiinsightsId, aiInsights.id),
+        )
+        .innerJoin(
+          ticketTag,
+          and(
+            eq(ticketTag.id, aiInsightsTicketTags.tickettagId),
+            eq(ticketTag.isActive, true),
+            // A thread only ever shows its own store's tags.
+            eq(ticketTag.storeId, chatThread.storeId),
+          ),
+        )
+        .where(inArray(aiInsights.threadId, threadIds))
+        .orderBy(asc(ticketTag.name))
+    : [];
+  const tagsByThread = new Map<string, ThreadTagRecord[]>();
+  for (const { threadId, ...tag } of tagRows) {
+    const tags = tagsByThread.get(threadId) ?? [];
+    tags.push(tag);
+    tagsByThread.set(threadId, tags);
+  }
+
+  // last_message: latest assistant message text per thread.
+  const lastMessageByThread = new Map<string, string>();
+  if (threadIds.length) {
+    const lastRows = await db
+      .select({
+        threadId: chatHistory.threadId,
+        message: chatHistory.message,
+        createdAt: chatHistory.createdAt,
+        id: chatHistory.id,
+      })
+      .from(chatHistory)
+      .where(
+        and(
+          eq(chatHistory.role, "assistant"),
+          sql`${chatHistory.threadId} IN (${sql.join(
+            threadIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`,
+        ),
+      )
+      .orderBy(desc(chatHistory.createdAt), desc(chatHistory.id));
+    for (const m of lastRows) {
+      if (!lastMessageByThread.has(m.threadId)) {
+        lastMessageByThread.set(m.threadId, m.message || "");
+      }
+    }
+  }
+
+  const results: ThreadListItem[] = rows.map((row) => {
+    const hasCustomer =
+      row.customer_email !== null || row.customer_first_name !== null;
+    const customerName = hasCustomer
+      ? `${row.customer_first_name ?? ""} ${row.customer_last_name ?? ""}`.trim()
+      : null;
+    const handlerName =
+      row.chat_handler_user_id != null
+        ? `${row.chat_handler_user_first_name ?? ""} ${row.chat_handler_user_last_name ?? ""}`.trim() ||
+          row.chat_handler_user_email ||
+          "Agent"
+        : "";
+    return {
+      id: row.id,
+      name: row.name,
+      source: row.source,
+      chat_handler: row.chat_handler,
+      chat_handler_user:
+        row.chat_handler_user_id != null
+          ? {
+              id: row.chat_handler_user_id,
+              name: handlerName,
+              email: row.chat_handler_user_email ?? "",
+            }
+          : null,
+      need_escalation: row.need_escalation,
+      escalation_time: row.escalation_time,
+      customer: {
+        // Null for a guest — the UI keys its tickets lookup off this.
+        id: row.customer_id ?? null,
+        name: hasCustomer ? customerName : null,
+        email: row.customer_email,
+        phone: row.customer_phone || "",
+        past_threads_count: Number(row.customer_past_threads_count ?? 0),
+      },
+      followup_level: row.followup_level,
+      is_active: row.is_active,
+      ai_responding: row.ai_responding,
+      total_messages: Number(row.total_messages),
+      created_at: row.created_at,
+      last_message_at: row.last_message_at,
+      cart_total: Number(row.cart_total ?? 0),
+      ended_at: row.ended_at,
+      tags: tagsByThread.get(row.id) ?? [],
+      last_message: lastMessageByThread.get(row.id) ?? "",
+    };
+  });
+
+  return { count: total, results };
+}
+
+/**
+ * The WHERE conditions for a thread list, shared by the list itself and by
+ * the tag counts above it, so both always agree on which threads are in play.
+ * The query must join chat_customer, auth_user (handler) and store.
+ *
+ * @param includeTags - false leaves the tag filter out, for counting tags
+ *   against every other filter (selecting a tag must not hide its siblings).
+ */
+function buildThreadConditions(
+  filters: ListThreadsFilters,
+  includeTags = true,
+): SQL[] {
   const conditions: SQL[] = [];
 
   const storeScope = storeIdScope(chatThread.storeId, filters.store_code);
@@ -389,206 +600,93 @@ export async function list_threads(
     );
   }
 
-  // Any-match: a thread qualifies if its AiInsights.tags contains at least
-  // one of the selected tags.
-  if (filters.tags && filters.tags.length) {
-    const tagConditions = filters.tags.map(
-      (tag) => sql`${aiInsights.tags} @> ${JSON.stringify([tag])}::jsonb`,
-    );
-    conditions.push(
-      sql`EXISTS (SELECT 1 FROM ${aiInsights} WHERE ${aiInsights.threadId} = ${chatThread.id} AND (${sql.join(tagConditions, sql` OR `)}))`,
-    );
-  }
-
-  const whereClause = conditions.length ? and(...conditions) : undefined;
-
-  // Total count (pre-pagination), distinct threads.
-  const countRows = await db
-    .select({ value: sql<number>`count(DISTINCT ${chatThread.id})` })
-    .from(chatThread)
-    .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
-    .leftJoin(authUser, eq(chatThread.chatHandlerUserId, authUser.id))
-    .innerJoin(store, eq(chatThread.storeId, store.id))
-    .where(whereClause);
-
-  const total = Number(countRows[0]?.value ?? 0);
-
-  if (total === 0) {
-    return { count: 0, results: [] };
-  }
-
-  const offset = (page - 1) * pageSize;
-
-  const rows: ThreadListRow[] = await db
-    .select({
-      id: chatThread.id,
-      name: chatThread.name,
-      source: chatThread.source,
-      followup_level: chatThread.followupLevel,
-      is_active: chatThread.isActive,
-      ai_responding: chatThread.aiResponding,
-      need_escalation: chatThread.needEscalation,
-      escalation_time: chatThread.escalationTime,
-      total_messages: count(chatHistory.id),
-      created_at: chatThread.createdAt,
-      last_message_at: max(chatHistory.createdAt),
-      cart_total: sql<
-        string | number
-      >`COALESCE((SELECT NULLIF(regexp_replace(${userMetadata.updatedCartData}->>'total', '[^0-9.]', '', 'g'), '')::numeric FROM ${userMetadata} WHERE ${userMetadata.threadId} = ${chatThread.id} LIMIT 1), 0)`,
-      ended_at: chatThread.endedAt,
-      customer_id: chatCustomer.id,
-      customer_first_name: chatCustomer.firstName,
-      customer_last_name: chatCustomer.lastName,
-      customer_email: chatCustomer.email,
-      customer_phone: chatCustomer.phone,
-      customer_past_threads_count: pastThreadsCount,
-      chat_handler: chatThread.chatHandler,
-      chat_handler_user_id: authUser.id,
-      chat_handler_user_first_name: authUser.firstName,
-      chat_handler_user_last_name: authUser.lastName,
-      chat_handler_user_email: authUser.email,
-    })
-    .from(chatThread)
-    .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
-    .leftJoin(authUser, eq(chatThread.chatHandlerUserId, authUser.id))
-    .innerJoin(store, eq(chatThread.storeId, store.id))
-    .leftJoin(chatHistory, eq(chatHistory.threadId, chatThread.id))
-    .where(whereClause)
-    .groupBy(
-      chatThread.id,
-      chatCustomer.id,
-      chatCustomer.firstName,
-      chatCustomer.lastName,
-      chatCustomer.email,
-      chatCustomer.phone,
-      authUser.id,
-      authUser.firstName,
-      authUser.lastName,
-      authUser.email,
-    )
-    .orderBy(desc(chatThread.createdAt))
-    .limit(pageSize)
-    .offset(offset);
-
-  const threadIds = rows.map((r) => r.id);
-
-  // tags: AiInsights.tags per thread (OneToOne -> at most one row).
-  const tagRows = threadIds.length
-    ? await db
-        .select({ threadId: aiInsights.threadId, tags: aiInsights.tags })
-        .from(aiInsights)
-        .where(
-          sql`${aiInsights.threadId} IN (${sql.join(
-            threadIds.map((id) => sql`${id}`),
-            sql`, `,
-          )})`,
-        )
-    : [];
-  const tagsByThread = new Map<string, string[]>();
-  for (const t of tagRows) {
-    tagsByThread.set(t.threadId, (t.tags as string[]) ?? []);
-  }
-
-  // last_message: latest assistant message text per thread.
-  const lastMessageByThread = new Map<string, string>();
-  if (threadIds.length) {
-    const lastRows = await db
-      .select({
-        threadId: chatHistory.threadId,
-        message: chatHistory.message,
-        createdAt: chatHistory.createdAt,
-        id: chatHistory.id,
-      })
-      .from(chatHistory)
-      .where(
-        and(
-          eq(chatHistory.role, "assistant"),
-          sql`${chatHistory.threadId} IN (${sql.join(
-            threadIds.map((id) => sql`${id}`),
-            sql`, `,
-          )})`,
-        ),
-      )
-      .orderBy(desc(chatHistory.createdAt), desc(chatHistory.id));
-    for (const m of lastRows) {
-      if (!lastMessageByThread.has(m.threadId)) {
-        lastMessageByThread.set(m.threadId, m.message || "");
-      }
+  // Any-match: a thread qualifies if its analysis is linked to at least one
+  // of the selected tags. Names compare case-insensitively (they are unique
+  // per store that way), and only active tags count, like the options list.
+  if (includeTags && filters.tags && filters.tags.length) {
+    const names = filters.tags
+      .map((tag) => tag.trim().toLowerCase())
+      .filter(Boolean);
+    if (names.length) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${aiInsights}
+          INNER JOIN ${aiInsightsTicketTags} ON ${aiInsightsTicketTags.aiinsightsId} = ${aiInsights.id}
+          INNER JOIN ${ticketTag} ON ${ticketTag.id} = ${aiInsightsTicketTags.tickettagId}
+          WHERE ${aiInsights.threadId} = ${chatThread.id}
+            AND ${ticketTag.isActive}
+            AND ${ticketTag.storeId} = ${chatThread.storeId}
+            AND lower(${ticketTag.name}) IN (${sql.join(
+              names.map((name) => sql`${name}`),
+              sql`, `,
+            )})
+        )`,
+      );
     }
   }
 
-  const results: ThreadListItem[] = rows.map((row) => {
-    const hasCustomer =
-      row.customer_email !== null || row.customer_first_name !== null;
-    const customerName = hasCustomer
-      ? `${row.customer_first_name ?? ""} ${row.customer_last_name ?? ""}`.trim()
-      : null;
-    const handlerName =
-      row.chat_handler_user_id != null
-        ? `${row.chat_handler_user_first_name ?? ""} ${row.chat_handler_user_last_name ?? ""}`.trim() ||
-          row.chat_handler_user_email ||
-          "Agent"
-        : "";
-    return {
-      id: row.id,
-      name: row.name,
-      source: row.source,
-      chat_handler: row.chat_handler,
-      chat_handler_user:
-        row.chat_handler_user_id != null
-          ? {
-              id: row.chat_handler_user_id,
-              name: handlerName,
-              email: row.chat_handler_user_email ?? "",
-            }
-          : null,
-      need_escalation: row.need_escalation,
-      escalation_time: row.escalation_time,
-      customer: {
-        // Null for a guest — the UI keys its tickets lookup off this.
-        id: row.customer_id ?? null,
-        name: hasCustomer ? customerName : null,
-        email: row.customer_email,
-        phone: row.customer_phone || "",
-        past_threads_count: Number(row.customer_past_threads_count ?? 0),
-      },
-      followup_level: row.followup_level,
-      is_active: row.is_active,
-      ai_responding: row.ai_responding,
-      total_messages: Number(row.total_messages),
-      created_at: row.created_at,
-      last_message_at: row.last_message_at,
-      cart_total: Number(row.cart_total ?? 0),
-      ended_at: row.ended_at,
-      tags: tagsByThread.get(row.id) ?? [],
-      last_message: lastMessageByThread.get(row.id) ?? "",
-    };
-  });
-
-  return { count: total, results };
+  return conditions;
 }
 
+export type ThreadTagOption = ThreadTagRecord & {
+  /** Threads in the current result set that carry the tag. */
+  count: number;
+};
+
 /**
- * Distinct AiInsights.tags values across a store's threads — powers the
- * Threads page's tags filter option list.
+ * The tags to offer as chips above the Threads list: the store's active
+ * ticket tags that at least one thread carries, each with how many threads.
+ *
+ * Counted against every filter except the tag filter itself, so the counts
+ * follow the search, dates and the rest, while picking a tag leaves its
+ * siblings visible. Most used first.
  */
-export async function list_thread_tags(storeCode?: string): Promise<string[]> {
+export async function list_thread_tags(
+  filters: ListThreadsFilters,
+): Promise<ThreadTagOption[]> {
   const db = getDb();
-  const conditions: SQL[] = [];
+  const conditions = buildThreadConditions(filters, false);
 
-  const storeScope = storeIdScope(chatThread.storeId, storeCode);
-  if (storeScope) conditions.push(storeScope);
-
+  // Tags are per store, so a view spanning several stores holds one "Refund"
+  // per store. They are one chip: grouped by name, which is also what the tag
+  // filter matches on.
   const rows = await db
-    .selectDistinct({
-      tag: sql<string>`jsonb_array_elements_text(${aiInsights.tags})`,
+    .select({
+      id: sql<number>`min(${ticketTag.id})`,
+      name: sql<string>`min(${ticketTag.name})`,
+      color: sql<string>`min(${ticketTag.color})`,
+      description: sql<string>`min(${ticketTag.description})`,
+      count: sql<number>`count(DISTINCT ${chatThread.id})`,
     })
-    .from(aiInsights)
-    .innerJoin(chatThread, eq(aiInsights.threadId, chatThread.id))
+    .from(chatThread)
+    .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
+    .leftJoin(authUser, eq(chatThread.chatHandlerUserId, authUser.id))
+    .innerJoin(store, eq(chatThread.storeId, store.id))
+    .innerJoin(aiInsights, eq(aiInsights.threadId, chatThread.id))
+    .innerJoin(
+      aiInsightsTicketTags,
+      eq(aiInsightsTicketTags.aiinsightsId, aiInsights.id),
+    )
+    .innerJoin(
+      ticketTag,
+      and(
+        eq(ticketTag.id, aiInsightsTicketTags.tickettagId),
+        eq(ticketTag.isActive, true),
+        eq(ticketTag.storeId, chatThread.storeId),
+      ),
+    )
     .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(sql`1`);
+    .groupBy(sql`lower(${ticketTag.name})`)
+    .orderBy(
+      desc(sql`count(DISTINCT ${chatThread.id})`),
+      asc(sql`min(${ticketTag.name})`),
+    );
 
-  return rows.map((row) => row.tag).filter(Boolean);
+  return rows.map((row) => ({
+    ...row,
+    id: Number(row.id),
+    count: Number(row.count),
+  }));
 }
 
 type ThreadMessage = {
@@ -887,7 +985,7 @@ export type AiInsightsData = {
   overperforming_cases: unknown;
   resolution_success_rate: string;
   reason_for_score: string;
-  tags: unknown;
+  tags: string[];
   ai_insight_required: boolean;
   next_actionable_items: unknown;
 };
@@ -907,7 +1005,7 @@ export async function get_ai_insights(
       overperforming_cases: aiInsights.overperformingCases,
       resolution_success_rate: aiInsights.resolutionSuccessRate,
       reason_for_score: aiInsights.reasonForScore,
-      tags: aiInsights.tags,
+      id: aiInsights.id,
       ai_insight_required: aiInsights.aiInsightRequired,
       next_actionable_items: aiInsights.nextActionableItems,
     })
@@ -916,7 +1014,34 @@ export async function get_ai_insights(
     .limit(1);
 
   if (rows.length === 0) return null;
-  return rows[0];
+  const { id, ...insights } = rows[0];
+  const tags = await tagsOfInsight(id);
+  return { ...insights, tags: tags.map((tag) => tag.name) };
+}
+
+/** A thread analysis's active ticket tags, alphabetically. */
+async function tagsOfInsight(insightId: number): Promise<ThreadTagRecord[]> {
+  const db = getDb();
+  return db
+    .select({
+      id: ticketTag.id,
+      name: ticketTag.name,
+      color: ticketTag.color,
+      description: ticketTag.description,
+    })
+    .from(aiInsightsTicketTags)
+    .innerJoin(aiInsights, eq(aiInsights.id, aiInsightsTicketTags.aiinsightsId))
+    .innerJoin(chatThread, eq(chatThread.id, aiInsights.threadId))
+    .innerJoin(
+      ticketTag,
+      and(
+        eq(ticketTag.id, aiInsightsTicketTags.tickettagId),
+        eq(ticketTag.isActive, true),
+        eq(ticketTag.storeId, chatThread.storeId),
+      ),
+    )
+    .where(eq(aiInsightsTicketTags.aiinsightsId, insightId))
+    .orderBy(asc(ticketTag.name));
 }
 
 export type CartData = {
@@ -1022,21 +1147,20 @@ export async function get_feedback_sequence(
 
 /**
  * Port of TagsSerializer.
- * Returns AiInsights.tags for the thread (first row) or [].
+ * Returns the active store ticket tags linked to the thread's analysis, or [].
+ * Full records, not bare names, so the chips can carry the tag's colour.
  */
 export async function get_thread_tags(
   thread_id: string,
-): Promise<{ tags: string[] }> {
+): Promise<{ tags: ThreadTagRecord[] }> {
   const db = getDb();
   const rows = await db
-    .select({ tags: aiInsights.tags })
+    .select({ id: aiInsights.id })
     .from(aiInsights)
     .where(scopedThreadFilter(aiInsights.threadId, thread_id))
     .limit(1);
 
-  const tags =
-    rows.length && rows[0].tags != null ? (rows[0].tags as string[]) : [];
-  return { tags };
+  return { tags: rows.length ? await tagsOfInsight(rows[0].id) : [] };
 }
 
 export type UserMetadataData = {
