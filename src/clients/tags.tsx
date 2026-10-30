@@ -211,14 +211,17 @@ export default function Tags() {
     );
   }, [dispatch, storeCode, page, limit, debouncedSearch]);
 
-  // Existing tags the typed name is too close to, shown under the name field
-  // so the owner picks one instead of adding a near-duplicate. None when the
-  // dialog is closed or an edited tag still has its own name.
+  // Existing tags the typed name resembles, shown under the name field so the
+  // owner can pick one instead of adding a near-duplicate. None when the
+  // dialog is closed or an edited tag still has its own name. Only one with
+  // the same name (`is_exact`) is a duplicate that blocks saving; a partial
+  // match is just a suggestion.
   const typedName = nameInput.trim();
   const isOwnName =
     !!editingTag && typedName.toLowerCase() === editingTag.name.toLowerCase();
   const matchedTags =
     dialogOpen && !isOwnName && similar.name === typedName ? similar.tags : [];
+  const isDuplicate = matchedTags.some((tag) => tag.is_exact);
 
   // Look up matching tags a moment after the owner stops typing.
   useEffect(() => {
@@ -541,8 +544,9 @@ export default function Tags() {
                   {matchedTags.length > 0 && (
                     <div className="space-y-2 rounded-md border bg-muted/40 p-3">
                       <p className="text-xs text-muted-foreground">
-                        These tags already exist. Use one of them, or choose a
-                        different name.
+                        {isDuplicate
+                          ? "A tag with this name already exists. Use it, or choose a different name."
+                          : "Similar tags already exist. You can still add this one."}
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {matchedTags.map((tag) => (
@@ -658,7 +662,7 @@ export default function Tags() {
                     type="submit"
                     disabled={
                       isSubmitting ||
-                      matchedTags.length > 0 ||
+                      isDuplicate ||
                       // Editing with nothing changed: there is nothing to save.
                       (!!editingTag &&
                         values.name.trim() === editingTag.name &&
