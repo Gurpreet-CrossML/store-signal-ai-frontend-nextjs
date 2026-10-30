@@ -683,8 +683,11 @@ function ConversationPanel({
   availableTags,
   isTagPickerOpen,
   isTagPickerLoading,
+  isLoadingMoreTags,
   hasMoreTags,
   onLoadMoreTags,
+  tagSearch,
+  onTagSearchChange,
   onToggleTagPicker,
   onAddTag,
   onRemoveTag,
@@ -731,8 +734,13 @@ function ConversationPanel({
   availableTags: SupportTicketTagData[];
   isTagPickerOpen: boolean;
   isTagPickerLoading: boolean;
+  /** True while a further page is loading, as opposed to a first page or a new search. */
+  isLoadingMoreTags: boolean;
   hasMoreTags: boolean;
   onLoadMoreTags: () => void;
+  /** The picker's search box. The search itself runs on the server. */
+  tagSearch: string;
+  onTagSearchChange: (value: string) => void;
   onToggleTagPicker: () => void;
   onAddTag: (tagId: number) => void;
   onRemoveTag: (tagId: number) => void;
@@ -760,7 +768,6 @@ function ConversationPanel({
   /** Offered beside the name when a guest raised this ticket. */
   onLinkCustomer: () => void;
 }) {
-  const [tagSearch, setTagSearch] = useState("");
   // Resolving and closing end a conversation, so they wait for a yes.
   const [pendingEndStatus, setPendingEndStatus] = useState<
     "resolved" | "closed" | null
@@ -798,10 +805,6 @@ function ConversationPanel({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
   }, [ticket.id, messages.length]);
-
-  const filteredTags = availableTags.filter((tag) =>
-    tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
-  );
 
   // Tickets from before these fields existed come back without them.
   const ticketLanguage = ticket.language ?? DEFAULT_TICKET_LANGUAGE;
@@ -1355,24 +1358,24 @@ function ConversationPanel({
                 <div className="p-2">
                   <SearchInput
                     value={tagSearch}
-                    onChange={setTagSearch}
+                    onChange={onTagSearchChange}
                     placeholder="Search tags…"
                     label="Search tags"
                   />
                 </div>
-                {isTagPickerLoading && availableTags.length === 0 ? (
+                {isTagPickerLoading && !isLoadingMoreTags ? (
                   <LoadingState label="Loading tags…" className="py-6" />
-                ) : filteredTags.length === 0 ? (
+                ) : availableTags.length === 0 ? (
                   <div className="px-3 pb-4 text-center">
                     <Typography variant="muted">
-                      {availableTags.length === 0
-                        ? "No tags available."
-                        : "No matching tags."}
+                      {tagSearch.trim()
+                        ? "No matching tags."
+                        : "No tags available."}
                     </Typography>
                   </div>
                 ) : (
                   <div className="max-h-56 space-y-1 overflow-y-auto p-2 pt-0">
-                    {filteredTags.map((tag) => {
+                    {availableTags.map((tag) => {
                       const alreadyAdded = ticket.tags.some(
                         (existingTag) => existingTag.id === tag.id,
                       );
@@ -1399,16 +1402,16 @@ function ConversationPanel({
                         </button>
                       );
                     })}
-                    {hasMoreTags && !tagSearch ? (
+                    {hasMoreTags ? (
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         className="w-full"
                         onClick={onLoadMoreTags}
-                        disabled={isTagPickerLoading}
+                        disabled={isLoadingMoreTags}
                       >
-                        {isTagPickerLoading ? "Loading…" : "Load More"}
+                        {isLoadingMoreTags ? "Loading…" : "Load More"}
                       </Button>
                     ) : null}
                   </div>
@@ -2048,6 +2051,8 @@ export default function HelpDesk() {
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [tagPage, setTagPage] = useState(1);
+  const [tagSearchInput, setTagSearchInput] = useState("");
+  const [tagSearch, setTagSearch] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] =
     useState<TicketFilterSelection>(emptyTicketFilters);
@@ -2579,17 +2584,35 @@ export default function HelpDesk() {
     return () => window.clearTimeout(timeout);
   }, [searchValue, debouncedSearch]);
 
+  // Debounced like the ticket search above, and back to the first page: the
+  // tags already loaded say nothing about which ones match.
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const nextSearch = tagSearchInput.trim();
+      if (nextSearch === tagSearch) return;
+
+      setTagSearch(nextSearch);
+      setTagPage(1);
+    }, 400);
+
+    return () => window.clearTimeout(timeout);
+  }, [tagSearchInput, tagSearch]);
+
   useEffect(() => {
     if (!storeCode) return;
-    dispatch(
+    const request = dispatch(
       FetchSupportTicketTags({
         storeCode,
         page: tagPage,
         limit: 15,
+        search: tagSearch,
         append: tagPage > 1,
       }),
     );
-  }, [dispatch, storeCode, tagPage]);
+
+    // A slower answer to an earlier search must not overwrite a newer one.
+    return () => request.abort();
+  }, [dispatch, storeCode, tagPage, tagSearch]);
 
   // Mirror the open ticket into the query string, so a refresh, a shared
   // link and the back button all land on the same ticket. `replace`, not
@@ -2830,8 +2853,17 @@ export default function HelpDesk() {
     }
   };
 
+  const closeTagPicker = () => {
+    setShowTagPicker(false);
+    setTagSearchInput("");
+  };
+
   const handleToggleTagPicker = () => {
-    setShowTagPicker((current) => !current);
+    if (showTagPicker) {
+      closeTagPicker();
+    } else {
+      setShowTagPicker(true);
+    }
   };
 
   const handleAddTag = async (tagId: number) => {
@@ -2869,7 +2901,7 @@ export default function HelpDesk() {
           };
         });
 
-        setShowTagPicker(false);
+        closeTagPicker();
 
         toast.success(`Tag assigned: ${assignedTag.name}`);
       } else {
@@ -2915,7 +2947,7 @@ export default function HelpDesk() {
             : current,
         );
 
-        setShowTagPicker(false);
+        closeTagPicker();
 
         toast.success("Tag removed");
       } else {
@@ -3646,12 +3678,15 @@ export default function HelpDesk() {
             availableTags={ticketTags}
             isTagPickerOpen={showTagPicker}
             isTagPickerLoading={FetchSupportTicketTagsIsLoading}
+            isLoadingMoreTags={FetchSupportTicketTagsIsLoading && tagPage > 1}
             hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
             onLoadMoreTags={() => {
               if (FetchSupportTicketTagsData?.next) {
                 setTagPage((current) => current + 1);
               }
             }}
+            tagSearch={tagSearchInput}
+            onTagSearchChange={setTagSearchInput}
             onToggleTagPicker={handleToggleTagPicker}
             onAddTag={handleAddTag}
             onRemoveTag={handleRemoveTag}
