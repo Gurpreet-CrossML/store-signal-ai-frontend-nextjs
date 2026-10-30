@@ -141,7 +141,10 @@ import {
   type TicketLanguage,
   type TicketSentiment,
 } from "@/lib/ticket-options";
-import { helpdeskFilterToQuery } from "@/lib/helpdesk-filters";
+import {
+  helpdeskFilterToQuery,
+  ticketBelongsToHelpdeskFilter,
+} from "@/lib/helpdesk-filters";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   FetchSupportTickets,
@@ -327,6 +330,8 @@ const queues = [
   { key: "closed", label: "Closed" },
 ] as const;
 
+const DEFAULT_SORT_ORDER: SupportTicketOrdering = "last_updated";
+
 const SORT_OPTIONS: { key: SupportTicketOrdering; label: string }[] = [
   { key: "last_updated", label: "Last updated" },
   { key: "newest", label: "Newest" },
@@ -388,6 +393,10 @@ const emptyTicketFilters: TicketFilterSelection = {
   fromDate: "",
   toDate: "",
 };
+
+/** A date from the URL is only used if it parses; a hand-edited one may not. */
+const isValidDateParam = (value: string) =>
+  value !== "" && !Number.isNaN(new Date(value).getTime());
 
 /** Who opened a ticket, as the header shows it. */
 const CREATED_BY_META: Record<
@@ -2040,8 +2049,6 @@ export default function HelpDesk() {
     },
     [dispatch],
   );
-  const [sortOrder, setSortOrder] =
-    useState<SupportTicketOrdering>("last_updated");
   const [supportTikcetMessages, setSupportTicketMessages] = useState<
     SupportTicketMessage[]
   >([]);
@@ -2081,8 +2088,43 @@ export default function HelpDesk() {
   const [tagSearchInput, setTagSearchInput] = useState("");
   const [tagSearch, setTagSearch] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [appliedFilters, setAppliedFilters] =
-    useState<TicketFilterSelection>(emptyTicketFilters);
+
+  // The filter popover's choices and the sort live in the query string, so
+  // they survive a refresh and a shared link, and stay put while the sidebar
+  // view changes (its links carry them along). Read as plain strings first so
+  // the objects below keep their identity until one really changes.
+  const priorityParam = searchParams?.get("priority") ?? "";
+  const fromDateParam = searchParams?.get("from_date") ?? "";
+  const toDateParam = searchParams?.get("to_date") ?? "";
+  const sortParam = searchParams?.get("sort");
+
+  const appliedFilters = useMemo<TicketFilterSelection>(
+    () => ({
+      priorities: priorityOptions
+        .map((option) => option.value)
+        .filter((value) => priorityParam.split(",").includes(value)),
+      fromDate: isValidDateParam(fromDateParam) ? fromDateParam : "",
+      toDate: isValidDateParam(toDateParam) ? toDateParam : "",
+    }),
+    [priorityParam, fromDateParam, toDateParam],
+  );
+  const sortOrder: SupportTicketOrdering =
+    SORT_OPTIONS.find((option) => option.key === sortParam)?.key ??
+    DEFAULT_SORT_ORDER;
+
+  /** Sets (or, with null, drops) query params, leaving the others as they are. */
+  const updateQueryParams = (changes: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : (pathname ?? ""), {
+      scroll: false,
+    });
+  };
 
   // Open a deep-linked ticket once. The detail request keys on the id
   // alone, so the ticket does not have to be on the loaded page — which is
@@ -2126,6 +2168,16 @@ export default function HelpDesk() {
     setPortraitView("list");
   }
 
+  // A new filter or sort starts the list over, whether it came from the
+  // controls or from the back button.
+  const listParamsKey = JSON.stringify([appliedFilters, sortOrder]);
+  const [lastListParamsKey, setLastListParamsKey] = useState(listParamsKey);
+  if (lastListParamsKey !== listParamsKey) {
+    setLastListParamsKey(listParamsKey);
+    setPage(1);
+    setTicketRows([]);
+  }
+
   const filterFormik = useFormik<TicketFilterSelection>({
     initialValues: emptyTicketFilters,
     validate: (values) => {
@@ -2149,8 +2201,11 @@ export default function HelpDesk() {
       return {};
     },
     onSubmit: (values) => {
-      setAppliedFilters(values);
-      setPage(1);
+      updateQueryParams({
+        priority: values.priorities.join(",") || null,
+        from_date: values.fromDate || null,
+        to_date: values.toDate || null,
+      });
       setIsFilterOpen(false);
     },
   });
@@ -2802,9 +2857,7 @@ export default function HelpDesk() {
   };
 
   const handleSortChange = (order: SupportTicketOrdering) => {
-    setSortOrder(order);
-    setPage(1);
-    setTicketRows([]);
+    updateQueryParams({ sort: order === DEFAULT_SORT_ORDER ? null : order });
   };
 
   const handleAiDraftGenerate = async () => {
@@ -2987,6 +3040,54 @@ export default function HelpDesk() {
     }
   };
 
+  /**
+   * Applies an edit to a ticket in the list. When the edit takes it out of
+   * the view being shown (assigned from "Unassigned", re-rated out of
+   * "Negative sentiment") or the filter popover's priority, the row leaves the list and, if it was the open
+   * one, the next row opens, rather than waiting for a refetch.
+   */
+  const applyTicketRowUpdate = (
+    ticketId: number,
+    patch: Partial<SupportTicket>,
+  ) => {
+    setTicketRows((current) => {
+      const index = current.findIndex((ticket) => ticket.id === ticketId);
+      if (index === -1) return current;
+
+      const updated = { ...current[index], ...patch };
+      const matchesPriority =
+        appliedFilters.priorities.length === 0 ||
+        appliedFilters.priorities.includes(updated.priority);
+      if (
+        matchesPriority &&
+        ticketBelongsToHelpdeskFilter(
+          activeFilter,
+          updated,
+          session?.user?.email,
+        )
+      ) {
+        return current.map((ticket) =>
+          ticket.id === ticketId ? updated : ticket,
+        );
+      }
+
+      if (ticketId === currentActiveSupportTicketIdRef.current) {
+        // Both ids: the conversation pane shows `activeSupportTicket`, so
+        // clearing only the id left the ticket open beside an empty list.
+        const nextTicket = current[index + 1] ?? current[index - 1] ?? null;
+        setActiveTicketId(nextTicket?.id ?? null);
+        setActiveSupportTicket(nextTicket);
+      }
+      return current.filter((ticket) => ticket.id !== ticketId);
+    });
+
+    // The open ticket takes the edit too (a no-op if it was just replaced by
+    // the next row above).
+    setActiveSupportTicket((current) =>
+      current?.id === ticketId ? { ...current, ...patch } : current,
+    );
+  };
+
   const handleStaffAssign = async (staffId: number | null) => {
     const ticketId = currentActiveSupportTicketIdRef.current;
     if (!storeCode || !ticketId) return;
@@ -3005,47 +3106,16 @@ export default function HelpDesk() {
       ).unwrap();
 
       const assignedStaff = staff.find((member) => member.id === staffId);
-      const leavesUnassignedTab =
-        activeFilter === "unassigned" && staffId !== null;
 
-      setTicketRows((current) => {
-        if (leavesUnassignedTab) {
-          const index = current.findIndex((ticket) => ticket.id === ticketId);
-          const nextTicket = current[index + 1] ?? current[index - 1];
-          setActiveTicketId(nextTicket?.id ?? null);
-          return current.filter((ticket) => ticket.id !== ticketId);
-        }
-
-        return current.map((ticket) =>
-          ticket.id === ticketId
-            ? {
-                ...ticket,
-                internal_assignee: assignedStaff
-                  ? {
-                      id: assignedStaff.id,
-                      name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
-                      email: assignedStaff.email,
-                    }
-                  : null,
-              }
-            : ticket,
-        );
-      });
-
-      setActiveSupportTicket((current) =>
-        current
+      applyTicketRowUpdate(ticketId, {
+        internal_assignee: assignedStaff
           ? {
-              ...current,
-              internal_assignee: assignedStaff
-                ? {
-                    id: assignedStaff.id,
-                    name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
-                    email: assignedStaff.email,
-                  }
-                : null,
+              id: assignedStaff.id,
+              name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
+              email: assignedStaff.email,
             }
-          : current,
-      );
+          : null,
+      });
 
       toast.success(
         staffId === null
@@ -3415,7 +3485,8 @@ export default function HelpDesk() {
   const handleSupportTicketPriorityUpdate = async (
     priority: SupportTicketPriority,
   ) => {
-    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+    const ticketId = currentActiveSupportTicketIdRef.current;
+    if (!storeCode || !ticketId) return;
 
     try {
       const payload = {
@@ -3423,33 +3494,11 @@ export default function HelpDesk() {
       };
 
       const updatedPriority = await dispatch(
-        SupportTicketPriorityUpdate({
-          storeCode,
-          ticketId: currentActiveSupportTicketIdRef.current,
-          payload,
-        }),
+        SupportTicketPriorityUpdate({ storeCode, ticketId, payload }),
       ).unwrap();
 
       if (updatedPriority) {
-        setTicketRows((current) =>
-          current.map((ticket) =>
-            ticket.id === currentActiveSupportTicketIdRef.current
-              ? {
-                  ...ticket,
-                  priority: updatedPriority.priority,
-                }
-              : ticket,
-          ),
-        );
-
-        setActiveSupportTicket((current) =>
-          current
-            ? {
-                ...current,
-                priority: updatedPriority.priority,
-              }
-            : current,
-        );
+        applyTicketRowUpdate(ticketId, { priority: updatedPriority.priority });
 
         toast.success("Ticket priority", {
           description: `Ticket priority updated to ${updatedPriority.priority}.`,
@@ -3464,29 +3513,16 @@ export default function HelpDesk() {
     language?: TicketLanguage;
     sentiment?: TicketSentiment;
   }) => {
-    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+    const ticketId = currentActiveSupportTicketIdRef.current;
+    if (!storeCode || !ticketId) return;
 
     try {
       const updated = await dispatch(
-        SupportTicketLanguageSentimentUpdate({
-          storeCode,
-          ticketId: currentActiveSupportTicketIdRef.current,
-          payload,
-        }),
+        SupportTicketLanguageSentimentUpdate({ storeCode, ticketId, payload }),
       ).unwrap();
 
       if (updated) {
-        setTicketRows((current) =>
-          current.map((ticket) =>
-            ticket.id === currentActiveSupportTicketIdRef.current
-              ? { ...ticket, ...updated }
-              : ticket,
-          ),
-        );
-
-        setActiveSupportTicket((current) =>
-          current ? { ...current, ...updated } : current,
-        );
+        applyTicketRowUpdate(ticketId, updated);
 
         toast.success("Ticket updated", {
           description: "Ticket language and sentiment saved.",
@@ -3587,8 +3623,7 @@ export default function HelpDesk() {
 
   const handleClearFilters = () => {
     filterFormik.resetForm({ values: emptyTicketFilters });
-    setAppliedFilters(emptyTicketFilters);
-    setPage(1);
+    updateQueryParams({ priority: null, from_date: null, to_date: null });
     setIsFilterOpen(false);
   };
 
