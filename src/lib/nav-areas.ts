@@ -3,7 +3,7 @@ import type { ComponentType } from "react";
 import {
   IconAdjustmentsSpark,
   IconBooks,
-  IconAutomaticGearbox,
+  // IconAutomaticGearbox,
   IconBrandFacebook,
   IconBrandInstagram,
   IconBrandMessenger,
@@ -265,44 +265,45 @@ export const NAV_AREAS = {
           },
         ],
       },
-      {
-        href: "/settings/workflows",
-        title: "Workflows",
-        description: "Turn the AI's workflows on or off for this store.",
-        pageDescription:
-          "Everything your Sales AI and Support AI can do for your customers. Turn one off and the AI stops answering those questions for this store only; workflows that depend on it turn off with it.",
-        icon: IconAutomaticGearbox,
-        // Order rule screens, switched off for now:
-        // items: [
-        //     {
-        //       href: "/settings/workflows/order-cancellation",
-        //       title: "Order Cancellation",
-        //       description:
-        //         "The rules the AI follows when it cancels an order on your behalf.",
-        //       pageDescription:
-        //         "The rules and guardrails the AI follows when it cancels an order on your behalf.",
-        //       icon: IconPackageOff,
-        //     },
-        //     {
-        //       href: "/settings/workflows/order-modification",
-        //       title: "Order Modification",
-        //       description:
-        //         "The rules the AI follows when it modifies an order on your behalf.",
-        //       pageDescription:
-        //         "The rules and guardrails the AI follows when it modifies an order on your behalf.",
-        //       icon: IconShoppingBagEdit,
-        //     },
-        //     {
-        //       href: "/settings/workflows/order-returns",
-        //       title: "Order Returns",
-        //       description:
-        //         "The rules the AI follows when it processes a return on your behalf.",
-        //       pageDescription:
-        //         "The rules and guardrails the AI follows when it processes a return on your behalf.",
-        //       icon: IconPackageImport,
-        //     },
-        //   ],
-      },
+      // Workflows screen, switched off for the beta:
+      // {
+      //   href: "/settings/workflows",
+      //   title: "Workflows",
+      //   description: "Turn the AI's workflows on or off for this store.",
+      //   pageDescription:
+      //     "Everything your Sales AI and Support AI can do for your customers. Turn one off and the AI stops answering those questions for this store only; workflows that depend on it turn off with it.",
+      //   icon: IconAutomaticGearbox,
+      //   // Order rule screens, switched off for now:
+      //   // items: [
+      //   //     {
+      //   //       href: "/settings/workflows/order-cancellation",
+      //   //       title: "Order Cancellation",
+      //   //       description:
+      //   //         "The rules the AI follows when it cancels an order on your behalf.",
+      //   //       pageDescription:
+      //   //         "The rules and guardrails the AI follows when it cancels an order on your behalf.",
+      //   //       icon: IconPackageOff,
+      //   //     },
+      //   //     {
+      //   //       href: "/settings/workflows/order-modification",
+      //   //       title: "Order Modification",
+      //   //       description:
+      //   //         "The rules the AI follows when it modifies an order on your behalf.",
+      //   //       pageDescription:
+      //   //         "The rules and guardrails the AI follows when it modifies an order on your behalf.",
+      //   //       icon: IconShoppingBagEdit,
+      //   //     },
+      //   //     {
+      //   //       href: "/settings/workflows/order-returns",
+      //   //       title: "Order Returns",
+      //   //       description:
+      //   //         "The rules the AI follows when it processes a return on your behalf.",
+      //   //       pageDescription:
+      //   //         "The rules and guardrails the AI follows when it processes a return on your behalf.",
+      //   //       icon: IconPackageImport,
+      //   //     },
+      //   //   ],
+      // },
     ],
   },
 
