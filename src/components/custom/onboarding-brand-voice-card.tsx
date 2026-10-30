@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useAdvanceOnboarding } from "@/hooks/use-advance-onboarding";
+import { AGENT_NAME_MAX_LENGTH } from "@/lib/config";
 import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import {
   createPersonaIdentity,
@@ -29,12 +30,24 @@ import {
 import { FetchOnboardingStatus } from "@/redux/api-slice/onboarding-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
+// Mirrors the server's rules for the agent name. Every check needs its own
+// message: the one given to z.string() is the fallback for any check without
+// one. `abort` keeps a blank field on its own message, and those checks run
+// before trim(), which would turn "   " into "".
 const validationSchema = z.object({
   name: z
     .string("Agent name is required")
+    .min(1, { error: "Agent name is required", abort: true })
+    .refine((value) => value.trim() !== "", {
+      error: "This field cannot contain only spaces.",
+      abort: true,
+    })
     .trim()
-    .min(1, "Agent name is required")
-    .max(60),
+    .max(
+      AGENT_NAME_MAX_LENGTH,
+      `Agent name must not exceed ${AGENT_NAME_MAX_LENGTH} characters.`,
+    )
+    .regex(/^[\p{L} ]+$/u, "Agent name can contain only letters and spaces."),
   preset: z.number().int().positive("Pick a starting voice"),
 });
 
@@ -169,6 +182,7 @@ export function OnboardingBrandVoiceCard() {
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   placeholder="Ellie"
+                  maxLength={AGENT_NAME_MAX_LENGTH}
                 />
                 {formik.touched.name && formik.errors.name && (
                   <p className="text-xs text-destructive">
