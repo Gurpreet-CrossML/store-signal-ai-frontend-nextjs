@@ -54,7 +54,7 @@ export default function AIUsage({
   } = useAppSelector((state) => state.GetAIUsageReducer);
   const [filters, setFilters] = useState<DashboardFilterState>({
     ...DEFAULT_DASHBOARD_FILTERS,
-    range: "30d",
+    range: "7d",
   });
   const { from, to } = resolveDashboardRange(filters);
 
