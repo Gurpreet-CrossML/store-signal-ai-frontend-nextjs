@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { IconPlus } from "@tabler/icons-react";
+import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
 import { toast } from "sonner";
 import {
   Formik,
@@ -50,6 +50,19 @@ import {
   fetchSimilarTicketTags,
   type SupportTicketTagData,
 } from "@/redux/api-slice/support-ticket-slice";
+
+/** Where a tag is in use, as "3 tickets and 12 analysed threads"; "" when unused. */
+function describeTagUsage(tag: SupportTicketTagData | null): string {
+  const parts = [
+    tag?.ticket_count
+      ? `${tag.ticket_count} ticket${tag.ticket_count === 1 ? "" : "s"}`
+      : "",
+    tag?.thread_count
+      ? `${tag.thread_count} analysed thread${tag.thread_count === 1 ? "" : "s"}`
+      : "",
+  ].filter(Boolean);
+  return parts.join(" and ");
+}
 
 // preset swatches shown next to the native color picker for quick selection
 const COLOR_PRESETS = [
@@ -143,6 +156,10 @@ export default function Tags() {
   const [tagPendingDelete, setTagPendingDelete] =
     useState<SupportTicketTagData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Where the tag being edited / deleted is already in use ("" when nowhere).
+  const editingTagUsage = describeTagUsage(editingTag);
+  const pendingDeleteUsage = describeTagUsage(tagPendingDelete);
 
   // pagination + search state
   const [page, setPage] = useState(1);
@@ -416,6 +433,24 @@ export default function Tags() {
             <DialogTitle>{editingTag ? "Edit Tag" : "Add Tag"}</DialogTitle>
           </DialogHeader>
 
+          {editingTagUsage ? (
+            // The tag is shared: renaming or recolouring it changes it on
+            // every ticket and thread listed here, so say so before the save.
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400"
+            >
+              <IconAlertTriangle
+                className="mt-0.5 size-4 shrink-0"
+                aria-hidden
+              />
+              <p>
+                This tag is used by {editingTagUsage}. Changes to its name,
+                colour or description will show on all of them.
+              </p>
+            </div>
+          ) : null}
+
           <Formik<TagFormValues>
             enableReinitialize
             initialValues={{
@@ -602,27 +637,45 @@ export default function Tags() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove tag?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {pendingDeleteUsage ? "Tag is in use" : "Remove tag?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove{" "}
-              <span className="font-semibold text-foreground">
-                {tagPendingDelete?.name}
-              </span>{" "}
-              from your tag list. This action cannot be undone.
+              {pendingDeleteUsage ? (
+                <>
+                  <span className="font-semibold text-foreground">
+                    {tagPendingDelete?.name}
+                  </span>{" "}
+                  is used by {pendingDeleteUsage}, so it can&apos;t be removed.
+                  Take it off those first, or edit the tag instead.
+                </>
+              ) : (
+                <>
+                  This will permanently remove{" "}
+                  <span className="font-semibold text-foreground">
+                    {tagPendingDelete?.name}
+                  </span>{" "}
+                  from your tag list. This action cannot be undone.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault(); // keep dialog open until the async call resolves
-                confirmRemoveTag();
-              }}
-              disabled={isDeleting}
-              className={buttonVariants({ variant: "destructive" })}
-            >
-              {isDeleting ? "Removing..." : "Remove Tag"}
-            </AlertDialogAction>
+            <AlertDialogCancel disabled={isDeleting}>
+              {pendingDeleteUsage ? "Close" : "Cancel"}
+            </AlertDialogCancel>
+            {pendingDeleteUsage ? null : (
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault(); // keep dialog open until the async call resolves
+                  confirmRemoveTag();
+                }}
+                disabled={isDeleting}
+                className={buttonVariants({ variant: "destructive" })}
+              >
+                {isDeleting ? "Removing..." : "Remove Tag"}
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
