@@ -21,11 +21,8 @@ const RichTextArea = dynamic(
   { ssr: false },
 );
 
-/** The widget's built-in wording. A blank field falls back to these. */
+/** Only UI copy lives here; the default title/description come from the API. */
 export const DEFAULTS = {
-  title: "About this AI Chatbot",
-  description:
-    "<p>This chatbot is powered by artificial intelligence and is designed to assist you with product discovery, and general support.</p><p>Please keep in mind: AI responses may occasionally be inaccurate or incomplete. Always verify important details like pricing, availability. For critical issues, please contact our human support team.</p><p>Your privacy matters: Conversations may be used to improve our service. We do not share your personal data with third parties.</p>",
   button_label: "Got it",
 };
 
@@ -36,27 +33,22 @@ const LIMITS = {
   description: 1000,
 };
 
-export const pick = (value: string, fallback: string) =>
-  value.trim() || fallback;
-
 const visibleLength = (html: string) => html.replace(/<[^>]*>/g, "").length;
 
 type EditorState = { title: string; description: string };
 
 const toState = (value: AiDisclaimer | null | undefined): EditorState => ({
-  title: value?.title || DEFAULTS.title,
-  description: value?.description || DEFAULTS.description,
+  title: value?.title ?? "",
+  description: value?.description ?? "",
 });
 
-/** What is saved: only what differs from the defaults, or null for nothing. */
+/** What is saved: whatever the user entered; blank means "use the default". */
 const toPayload = (state: EditorState): AiDisclaimer | null => {
   const out: AiDisclaimer = {};
   const title = state.title.trim();
   const description = state.description.trim();
-  if (title && title !== DEFAULTS.title) out.title = title;
-  if (description && description !== DEFAULTS.description) {
-    out.description = description;
-  }
+  if (title) out.title = title;
+  if (description) out.description = description;
   return Object.keys(out).length ? out : null;
 };
 
@@ -109,7 +101,6 @@ export default function CustomizationAiInfo({
             id="ai-title"
             value={state.title}
             maxLength={LIMITS.title}
-            placeholder={DEFAULTS.title}
             onChange={(e) => update({ ...state, title: e.target.value })}
           />
           {fieldErrors?.ai_disclaimer_title ? (
