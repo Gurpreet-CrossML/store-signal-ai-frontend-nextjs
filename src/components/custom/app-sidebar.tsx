@@ -9,6 +9,7 @@ import { NavSecondary } from "@/components/custom/nav-secondary";
 import { NavUser } from "@/components/custom/nav-user";
 import { NotificationBell } from "@/components/custom/notification-bell";
 import { useHelpdeskSidebar } from "@/hooks/use-helpdesk-sidebar";
+import { keepHelpdeskListParams } from "@/lib/helpdesk-filters";
 import {
   Sidebar,
   SidebarContent,
@@ -253,7 +254,12 @@ export function AppSidebar({
                     return (
                       <SidebarMenuItemWrapper
                         key={item.title}
-                        item={item}
+                        // Which one is active is decided on the plain url; only
+                        // the link carries the list's filter and sort along.
+                        item={{
+                          ...item,
+                          url: keepHelpdeskListParams(item.url, subNavSearch),
+                        }}
                         pathname={pathname}
                         isActive={item.url === activeSubNavUrl}
                         expanded

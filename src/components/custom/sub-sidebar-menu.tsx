@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Icon, IconChevronRight } from "@tabler/icons-react";
 
 import {
@@ -16,6 +17,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { EXPANDED_MENU_BUTTON } from "@/components/custom/nav-main";
+import { keepHelpdeskListParams } from "@/lib/helpdesk-filters";
 import type { SideBarMenuItem } from "@/lib/sidebar-navs";
 import { cn, titleWhenClipped } from "@/lib/utils";
 
@@ -53,6 +55,8 @@ export function CollapsibleMenuItem({
   count?: number;
   items?: SideBarMenuItem[];
 }) {
+  const search = useSearchParams()?.toString() ?? "";
+
   return (
     <Collapsible
       asChild
@@ -93,7 +97,7 @@ export function CollapsibleMenuItem({
                     className="group-data-[collapsible=icon]:flex data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15"
                     asChild
                   >
-                    <Link href={subItem.url}>
+                    <Link href={keepHelpdeskListParams(subItem.url, search)}>
                       {subItem.icon && (
                         <subItem.icon
                           style={

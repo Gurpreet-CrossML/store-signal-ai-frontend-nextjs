@@ -10,6 +10,7 @@ import { CHANNEL_META } from "@/lib/ticket-options";
 import type {
   SupportTicketChannel,
   SupportTicketFilterCounts,
+  SupportTicket,
   SupportTicketFilters,
 } from "@/redux/api-slice/support-ticket-slice";
 
@@ -42,10 +43,10 @@ const FIXED_VIEWS: Record<
     count: (counts) => counts.assigned_to_me,
   },
   unread: { query: { is_read: false }, count: (counts) => counts.unread },
-  high_priority: {
-    query: { priority: ["urgent", "high"] },
-    count: (counts) => counts.high_priority,
-  },
+  // high_priority: {
+  //   query: { priority: ["urgent", "high"] },
+  //   count: (counts) => counts.high_priority,
+  // },
   negative_sentiment: {
     query: { sentiment: ["negative"] },
     count: (counts) => counts.negative_sentiment,
@@ -68,8 +69,14 @@ type CountRow = {
   color?: string;
 };
 
-/** Channels left out of the panel for now, though the backend still counts them. */
-const HIDDEN_CHANNELS: readonly string[] = ["email"];
+/** Channels listed in the panel for now; the backend still counts the rest. */
+const SHOWN_CHANNELS: readonly string[] = [
+  "web",
+  // "email",
+  // "whatsapp",
+  // "facebook",
+  // "instagram",
+];
 
 /**
  * A collapsible group of views that share one ticket list filter. Every row
@@ -92,14 +99,17 @@ const COUNT_GROUPS: {
     icon: IconTags,
     param: "tags",
     // The store's own tags, so a new one appears without a code change.
+    // A tag no ticket carries is left out.
     rows: (counts) =>
-      (counts?.tags ?? []).map((tag) => ({
-        value: tag.name,
-        label: tag.name,
-        count: tag.count,
-        icon: IconTag,
-        color: tag.color,
-      })),
+      (counts?.tags ?? [])
+        .filter((tag) => tag.count > 0)
+        .map((tag) => ({
+          value: tag.name,
+          label: tag.name,
+          count: tag.count,
+          icon: IconTag,
+          color: tag.color,
+        })),
     // Not the rows' sum: a ticket with two tags is on two rows.
     total: (counts) => counts.tagged,
   },
@@ -107,34 +117,59 @@ const COUNT_GROUPS: {
     title: "Channels",
     icon: IconBroadcast,
     param: "channel",
-    // Every channel the help desk knows, then any other the store's tickets
-    // came through (one the backend added before this list heard of it).
+    // Only the channels in SHOWN_CHANNELS, whether or not tickets came
+    // through them.
     rows: (counts) => {
       const counted = new Map(
         (counts?.channels ?? []).map((channel) => [channel.value, channel]),
       );
-      const known = Object.keys(CHANNEL_META) as SupportTicketChannel[];
-      const unknown = [...counted.keys()].filter(
-        (value) => !known.includes(value as SupportTicketChannel),
-      );
 
-      return [...known, ...unknown]
-        .filter((value) => !HIDDEN_CHANNELS.includes(value))
-        .map((value) => ({
+      return SHOWN_CHANNELS.map((value) => ({
+        value,
+        label:
+          CHANNEL_META[value as SupportTicketChannel]?.label ??
+          counted.get(value)?.label ??
           value,
-          label:
-            CHANNEL_META[value as SupportTicketChannel]?.label ??
-            counted.get(value)?.label ??
-            value,
-          count: counts ? (counted.get(value)?.count ?? 0) : undefined,
-          icon: CHANNEL_META[value as SupportTicketChannel]?.icon,
-        }));
+        count: counts ? (counted.get(value)?.count ?? 0) : undefined,
+        icon: CHANNEL_META[value as SupportTicketChannel]?.icon,
+      }));
     },
     // A ticket has one channel, so the rows do add up — those shown, at least.
     total: (_counts, rows) =>
       rows.reduce((sum, row) => sum + (row.count ?? 0), 0),
   },
 ];
+
+/**
+ * The query params the list's own controls (the filter popover and the sort
+ * menu) keep in the URL. They narrow whichever view is open, so moving to
+ * another view carries them along.
+ */
+export const HELPDESK_LIST_PARAMS = [
+  "priority",
+  "from_date",
+  "to_date",
+  "sort",
+] as const;
+
+/**
+ * `href`, if it is a help desk view, with the list params of `search`
+ * (the current query string) added to it.
+ */
+export function keepHelpdeskListParams(href: string, search: string) {
+  if (href.split("?")[0] !== "/helpdesk") return href;
+
+  const current = new URLSearchParams(search);
+  const kept = new URLSearchParams();
+  for (const key of HELPDESK_LIST_PARAMS) {
+    const value = current.get(key);
+    if (value) kept.set(key, value);
+  }
+
+  const query = kept.toString();
+  if (!query) return href;
+  return `${href}${href.includes("?") ? "&" : "?"}${query}`;
+}
 
 /** The URL of the view showing one value of a filter. */
 function valueViewUrl(param: ValueParam, value: string) {
@@ -156,6 +191,35 @@ export function helpdeskFilterToQuery(filter: string): SupportTicketFilters {
   if (separator === -1 || !VALUE_PARAMS.includes(param)) return {};
 
   return { [param]: [filter.slice(separator + 1)] } as SupportTicketFilters;
+}
+
+/**
+ * Whether a ticket, as it now stands, still belongs in the list of a `filter`.
+ *
+ * Only the views a ticket can leave by being edited in place are decided here
+ * (who it is assigned to, its sentiment); every other view says yes, so the
+ * list keeps the ticket until it is next fetched.
+ */
+export function ticketBelongsToHelpdeskFilter(
+  filter: string,
+  ticket: Pick<SupportTicket, "internal_assignee" | "sentiment">,
+  userEmail?: string | null,
+) {
+  const assignee = ticket.internal_assignee;
+
+  switch (filter) {
+    case "unassigned":
+      return !assignee;
+    case "assigned_to_me":
+      return (
+        Boolean(assignee?.email) &&
+        assignee?.email?.toLowerCase() === userEmail?.toLowerCase()
+      );
+    case "negative_sentiment":
+      return ticket.sentiment === "negative";
+    default:
+      return true;
+  }
 }
 
 /** The ticket count of the fixed view a sidebar url points at, if it is one. */
