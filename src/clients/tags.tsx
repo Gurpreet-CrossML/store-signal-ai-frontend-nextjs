@@ -157,6 +157,15 @@ export default function Tags() {
     useState<SupportTicketTagData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // An edit to a tag that is in use, held until the user confirms it. `usage`
+  // is kept here because saving clears `editingTag` before the dialog closes.
+  const [pendingSave, setPendingSave] = useState<{
+    values: TagFormValues;
+    helpers: FormikHelpers<TagFormValues>;
+    usage: string;
+  } | null>(null);
+  const [isConfirmingSave, setIsConfirmingSave] = useState(false);
+
   // Where the tag being edited / deleted is already in use ("" when nowhere).
   const editingTagUsage = describeTagUsage(editingTag);
   const pendingDeleteUsage = describeTagUsage(tagPendingDelete);
@@ -295,7 +304,43 @@ export default function Tags() {
     }
   };
 
+  // Saving an edit to a tag that tickets or threads already carry changes it
+  // on all of them, so that waits for a yes first. (An edit with nothing
+  // changed never gets here: its Save button is disabled.)
   const handleSubmitTag = async (
+    values: TagFormValues,
+    helpers: FormikHelpers<TagFormValues>,
+  ) => {
+    if (editingTag && editingTagUsage) {
+      setPendingSave({ values, helpers, usage: editingTagUsage });
+      return;
+    }
+    await saveTag(values, helpers);
+  };
+
+  const confirmSave = async () => {
+    if (!pendingSave) return;
+    setIsConfirmingSave(true);
+    try {
+      await saveTag(pendingSave.values, pendingSave.helpers);
+    } finally {
+      // Closed either way: on success the edit dialog closes too, and on a
+      // server error (a duplicate name, say) the message is on the form.
+      setIsConfirmingSave(false);
+      setPendingSave(null);
+    }
+  };
+
+  // Cancel throws the edit away: the tag keeps its name, colour and description.
+  const cancelSave = () => {
+    pendingSave?.helpers.setSubmitting(false);
+    setPendingSave(null);
+    setDialogOpen(false);
+    setEditingTag(null);
+    setNameInput("");
+  };
+
+  const saveTag = async (
     values: TagFormValues,
     helpers: FormikHelpers<TagFormValues>,
   ) => {
@@ -611,7 +656,15 @@ export default function Tags() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={isSubmitting || matchedTags.length > 0}
+                    disabled={
+                      isSubmitting ||
+                      matchedTags.length > 0 ||
+                      // Editing with nothing changed: there is nothing to save.
+                      (!!editingTag &&
+                        values.name.trim() === editingTag.name &&
+                        values.color === editingTag.color &&
+                        values.description.trim() === editingTag.description)
+                    }
                   >
                     {isSubmitting
                       ? editingTag
@@ -627,6 +680,39 @@ export default function Tags() {
           </Formik>
         </DialogContent>
       </Dialog>
+
+      {/* confirmation before saving an edit to a tag that is in use */}
+      <AlertDialog
+        open={!!pendingSave}
+        onOpenChange={(open) => {
+          if (!open && !isConfirmingSave) cancelSave();
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Update this tag everywhere?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Changing this tag will update it across all tickets and threads
+              currently associated with it ({pendingSave?.usage}). Do you want
+              to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isConfirmingSave}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault(); // keep dialog open until the save resolves
+                confirmSave();
+              }}
+              disabled={isConfirmingSave}
+            >
+              {isConfirmingSave ? "Saving..." : "Save Changes"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* delete confirmation */}
       <AlertDialog
