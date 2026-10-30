@@ -22,6 +22,7 @@ import {
   IconDeviceFloppy,
   IconFilter,
   IconInbox,
+  IconInfoCircle,
   type Icon,
   IconLanguage,
   IconMessageChatbot,
@@ -347,6 +348,34 @@ const STATUS_TRANSITIONS: Record<SupportTicketStatus, SupportTicketStatus[]> = {
 
 /** Negative so an optimistic message can never collide with a server id. */
 const createTempMessageId = () => -Date.now();
+
+/** Copy for the confirmation shown before each status change. */
+const STATUS_CONFIRMATIONS = {
+  open: {
+    title: "Open ticket",
+    description:
+      "Are you sure you want to open this ticket? This will mark the ticket as open.",
+    action: "Open ticket",
+  },
+  reopen: {
+    title: "Reopen ticket",
+    description:
+      "Are you sure you want to reopen this ticket? This will mark the ticket as reopened.",
+    action: "Reopen ticket",
+  },
+  resolved: {
+    title: "Mark ticket as resolved",
+    description:
+      "Are you sure this issue has been resolved? This will mark the ticket as resolved.",
+    action: "Mark resolved",
+  },
+  closed: {
+    title: "Close ticket",
+    description:
+      "Are you sure you want to close this ticket? This will mark the ticket as closed.",
+    action: "Close ticket",
+  },
+} as const;
 
 type TicketFilterSelection = {
   priorities: SupportTicketPriority[];
@@ -769,10 +798,13 @@ function ConversationPanel({
   /** Offered beside the name when a guest raised this ticket. */
   onLinkCustomer: () => void;
 }) {
-  // Resolving and closing end a conversation, so they wait for a yes.
-  const [pendingEndStatus, setPendingEndStatus] = useState<
-    "resolved" | "closed" | null
+  // Every status change waits for a yes, since each one emails the customer.
+  const [pendingStatus, setPendingStatus] = useState<
+    keyof typeof STATUS_CONFIRMATIONS | null
   >(null);
+  const pendingConfirmation = pendingStatus
+    ? STATUS_CONFIRMATIONS[pendingStatus]
+    : null;
   const [selectedSendMode, setSelectedSendMode] = useState<
     "reply" | "customer_language" | "reply_and_resolve"
   >("reply");
@@ -1044,32 +1076,59 @@ function ConversationPanel({
             onClick={onShowDetails}
           />
 
-          {/* The two endings a ticket actually has, one click away —
-              they were buried in the status Select behind the ⋮ menu. */}
-          {!isClosed ? (
+          {/* Status is changed from here, per the ticket's current status:
+              open/reopen → Resolve, resolved → Open or Close, closed →
+              Reopen. Offered from STATUS_TRANSITIONS so the buttons can
+              never drift from what the API accepts. */}
+          {(STATUS_TRANSITIONS[ticket.status] ?? []).includes("resolved") ? (
             <Button
               variant="outline"
               size="sm"
               aria-label="Mark as resolved"
               className={cn(ACTION_TONE_STYLES.success, "@3xl/conv:order-4")}
-              onClick={() => setPendingEndStatus("resolved")}
+              onClick={() => setPendingStatus("resolved")}
             >
               <IconCircleCheck className="size-4" />
               Resolve
             </Button>
           ) : null}
 
-          {/* Only a resolved ticket can be closed. */}
-          {ticket.status === "resolved" ? (
+          {(STATUS_TRANSITIONS[ticket.status] ?? []).includes("open") ? (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Open ticket"
+              className={cn(ACTION_TONE_STYLES.info, "@3xl/conv:order-4")}
+              onClick={() => setPendingStatus("open")}
+            >
+              <IconInbox className="size-4" />
+              Open
+            </Button>
+          ) : null}
+
+          {(STATUS_TRANSITIONS[ticket.status] ?? []).includes("closed") ? (
             <Button
               variant="outline"
               size="sm"
               aria-label="Close ticket"
               className={cn(ACTION_TONE_STYLES.danger, "@3xl/conv:order-5")}
-              onClick={() => setPendingEndStatus("closed")}
+              onClick={() => setPendingStatus("closed")}
             >
               <IconCircleX className="size-4" />
               Close
+            </Button>
+          ) : null}
+
+          {(STATUS_TRANSITIONS[ticket.status] ?? []).includes("reopen") ? (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Reopen ticket"
+              className={cn(ACTION_TONE_STYLES.info, "@3xl/conv:order-4")}
+              onClick={() => setPendingStatus("reopen")}
+            >
+              <IconReload className="size-4" />
+              Reopen
             </Button>
           ) : null}
 
@@ -1171,57 +1230,23 @@ function ConversationPanel({
 
         <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
           <div className="flex shrink-0 items-center gap-2">
-            {/* Status and priority are set on the badges that report them,
-              rather than in a menu behind a ⋮ that showed the same two
-              values a second time. */}
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label="Change status"
-                title={
-                  reopenCount > 0
-                    ? `Reopened ${pluralize(reopenCount, "time")}`
-                    : undefined
-                }
-                disabled={!(STATUS_TRANSITIONS[ticket.status] ?? []).length}
-                className={cn(
-                  badgeVariants({ variant: "outline" }),
-                  "cursor-pointer capitalize disabled:cursor-default",
-                  BADGE_TONE_STYLES[STATUS_TONE[ticket.status]],
-                )}
-              >
-                {capitalizeText(ticket.status)}
-                {reopenCount > 0 ? ` (${reopenCount})` : null}
-                {(STATUS_TRANSITIONS[ticket.status] ?? []).length ? (
-                  <IconChevronDown />
-                ) : null}
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuLabel>Status</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {queues
-                  .filter(
-                    (queue) =>
-                      queue.key === ticket.status ||
-                      (STATUS_TRANSITIONS[ticket.status] ?? []).includes(
-                        queue.key,
-                      ),
-                  )
-                  .map((queue) => (
-                    <DropdownMenuItem
-                      key={queue.key}
-                      onClick={() =>
-                        queue.key !== ticket.status &&
-                        onTicketStatusUpdate(queue.key)
-                      }
-                      className={cn(
-                        queue.key === ticket.status && "font-medium",
-                      )}
-                    >
-                      {queue.label}
-                    </DropdownMenuItem>
-                  ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* A plain tag: status is changed with the action buttons in the
+              header, not from here. Priority is still set on its badge. */}
+            <Badge
+              variant="outline"
+              title={
+                reopenCount > 0
+                  ? `Reopened ${pluralize(reopenCount, "time")}`
+                  : undefined
+              }
+              className={cn(
+                "capitalize",
+                BADGE_TONE_STYLES[STATUS_TONE[ticket.status]],
+              )}
+            >
+              {capitalizeText(ticket.status)}
+              {reopenCount > 0 ? ` (${reopenCount})` : null}
+            </Badge>
 
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -1836,35 +1861,31 @@ function ConversationPanel({
       </div>
 
       <AlertDialog
-        open={pendingEndStatus !== null}
+        open={pendingStatus !== null}
         onOpenChange={(open) => {
-          if (!open) setPendingEndStatus(null);
+          if (!open) setPendingStatus(null);
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {pendingEndStatus === "closed"
-                ? "Close ticket"
-                : "Mark ticket as resolved"}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{pendingConfirmation?.title}</AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingEndStatus === "closed"
-                ? "Are you sure you want to close this ticket? This will mark the ticket as closed."
-                : "Are you sure this issue has been resolved? This will mark the ticket as resolved."}
+              {pendingConfirmation?.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <p className="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+            <IconInfoCircle className="mt-0.5 size-4 shrink-0" />A mail will be
+            sent to the customer to let them know about this change.
+          </p>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              variant={
-                pendingEndStatus === "closed" ? "destructive" : "default"
-              }
+              variant={pendingStatus === "closed" ? "destructive" : "default"}
               onClick={() => {
-                if (pendingEndStatus) onTicketStatusUpdate(pendingEndStatus);
+                if (pendingStatus) onTicketStatusUpdate(pendingStatus);
               }}
             >
-              {pendingEndStatus === "closed" ? "Close ticket" : "Mark resolved"}
+              {pendingConfirmation?.action}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
