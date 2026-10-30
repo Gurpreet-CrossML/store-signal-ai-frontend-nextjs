@@ -12,8 +12,7 @@ export const FEATURE_GROUPS: {
     features: {
       chat_turn: {
         name: "AI Chat Replies",
-        description:
-          "Answers your customers in the website chat widget",
+        description: "Answers your customers in the website chat widget",
       },
     },
   },
