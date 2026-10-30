@@ -125,11 +125,12 @@ export default function CreditDailyChart({
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5">
           Day by day
-          <InfoIcon text="Credits charged on each of the last 7 days. Hover a day to see which capabilities used them." />
+          <InfoIcon text="Credits charged on each day of the selected period. Hover a day to see which capabilities used them." />
         </CardTitle>
         <CardDescription>
-          Last 7 days · about {Math.round(total / days).toLocaleString()}{" "}
-          credits a day on average.
+          {days > 1
+            ? `About ${Math.round(total / days).toLocaleString()} credits a day on average.`
+            : `${total.toLocaleString()} credits on this day.`}
         </CardDescription>
       </CardHeader>
       <CardContent>
