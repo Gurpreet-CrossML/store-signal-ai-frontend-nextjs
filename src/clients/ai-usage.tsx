@@ -100,8 +100,9 @@ export default function AIUsage({
           share: share(rowCredits),
         };
       })
-      // By calls, so unbilled features (Chat analysis) show with 0 credits.
-      .filter((row) => row.calls > 0);
+      // Hide rows with no credits charged (e.g. a feature whose calls all
+      // failed this period, so nothing was billed).
+      .filter((row) => row.credits > 0);
     const total = rows.reduce((sum, row) => sum + row.credits, 0);
     return {
       label: group.title,
