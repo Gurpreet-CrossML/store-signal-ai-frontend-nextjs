@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { IconAlertTriangle, IconPlus, IconX } from "@tabler/icons-react";
 import { toast } from "sonner";
 import {
   Formik,
@@ -13,12 +14,20 @@ import {
 import z from "zod";
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import { DataTable } from "@/components/custom/data-table";
+import { PAGE_SIZE_OPTIONS } from "@/components/custom/threads-data-table-pagination";
 import { SearchInput } from "@/components/custom/search-input";
 import { getTagColumns } from "@/components/custom/helpdesk/tags-columns";
 import { TagBadge } from "@/components/custom/helpdesk/tag-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Typography } from "@/components/ui/typography";
 import {
@@ -50,6 +59,10 @@ import {
   fetchSimilarTicketTags,
   type SupportTicketTagData,
 } from "@/redux/api-slice/support-ticket-slice";
+
+const ALL_TYPES = "all";
+type TagTypeFilter = typeof ALL_TYPES | "custom" | "system";
+const TAG_TYPE_FILTERS: TagTypeFilter[] = [ALL_TYPES, "custom", "system"];
 
 /** Where a tag is in use, as "3 tickets and 12 analysed threads"; "" when unused. */
 function describeTagUsage(tag: SupportTicketTagData | null): string {
@@ -138,6 +151,9 @@ function RequiredMark() {
 
 export default function Tags() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<SupportTicketTagData | null>(
@@ -170,11 +186,38 @@ export default function Tags() {
   const editingTagUsage = describeTagUsage(editingTag);
   const pendingDeleteUsage = describeTagUsage(tagPendingDelete);
 
-  // pagination + search state
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState<number>(DEFAULT_PER_PAGE);
-  const [searchInput, setSearchInput] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // pagination + search + type state. All four are mirrored in the URL
+  // (?page=, ?page_size=, ?search=, ?type=), so a reload or a shared link
+  // lands on the same view. Read once on mount; anything unusable falls back
+  // to the default.
+  const [page, setPage] = useState(() => {
+    const value = Number(searchParams?.get("page"));
+    return Number.isInteger(value) && value > 1 ? value : 1;
+  });
+  const [limit, setLimit] = useState<number>(() => {
+    const value = Number(searchParams?.get("page_size"));
+    return PAGE_SIZE_OPTIONS.includes(value) ? value : DEFAULT_PER_PAGE;
+  });
+  const [searchInput, setSearchInput] = useState(
+    () => searchParams?.get("search")?.trim() ?? "",
+  );
+  const [debouncedSearch, setDebouncedSearch] = useState(
+    () => searchParams?.get("search")?.trim() ?? "",
+  );
+  const [typeFilter, setTypeFilter] = useState<TagTypeFilter>(() => {
+    const value = searchParams?.get("type") as TagTypeFilter | null;
+    return value && TAG_TYPE_FILTERS.includes(value) ? value : ALL_TYPES;
+  });
+
+  const hasActiveFilters = !!searchInput || typeFilter !== ALL_TYPES;
+  const clearFilters = () => {
+    // Set the debounced value too, so the list updates now instead of after
+    // the search box's pause.
+    setSearchInput("");
+    setDebouncedSearch("");
+    setTypeFilter(ALL_TYPES);
+    setPage(1);
+  };
 
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -189,15 +232,40 @@ export default function Tags() {
 
   // debounce the search input so we don't fire a request on every keystroke,
   // and reset to page 1 at the same time so we don't chain a second effect
-  // off of debouncedSearch changing
+  // off of debouncedSearch changing. Only a real change resets the page, so
+  // the page read from the URL survives the first run on mount.
   useEffect(() => {
     const handle = setTimeout(() => {
-      setDebouncedSearch(searchInput.trim());
+      const next = searchInput.trim();
+      if (next === debouncedSearch) return;
+      setDebouncedSearch(next);
       setPage(1);
     }, 400);
 
     return () => clearTimeout(handle);
-  }, [searchInput]);
+  }, [searchInput, debouncedSearch]);
+
+  // Keep the URL in step with the view. Defaults are left out, and the write
+  // is skipped when nothing changed so it can't loop.
+  const queryString = searchParams?.toString() ?? "";
+  useEffect(() => {
+    const params = new URLSearchParams(queryString);
+    const setOrDelete = (key: string, value: string | null) => {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    };
+    setOrDelete("page", page > 1 ? String(page) : null);
+    setOrDelete("page_size", limit !== DEFAULT_PER_PAGE ? String(limit) : null);
+    setOrDelete("search", debouncedSearch || null);
+    setOrDelete("type", typeFilter !== ALL_TYPES ? typeFilter : null);
+
+    const query = params.toString();
+    if (query === queryString) return;
+    const basePath = pathname ?? "/settings/tags";
+    router.replace(query ? `${basePath}?${query}` : basePath, {
+      scroll: false,
+    });
+  }, [page, limit, debouncedSearch, typeFilter, queryString, pathname, router]);
 
   useEffect(() => {
     if (!storeCode) return;
@@ -207,9 +275,10 @@ export default function Tags() {
         page,
         limit,
         search: debouncedSearch,
+        type: typeFilter === ALL_TYPES ? undefined : typeFilter,
       }),
     );
-  }, [dispatch, storeCode, page, limit, debouncedSearch]);
+  }, [dispatch, storeCode, page, limit, debouncedSearch, typeFilter]);
 
   // Existing tags the typed name resembles, shown under the name field so the
   // owner can pick one instead of adding a near-duplicate. None when the
@@ -270,6 +339,7 @@ export default function Tags() {
         page,
         limit,
         search: debouncedSearch,
+        type: typeFilter === ALL_TYPES ? undefined : typeFilter,
       }),
     );
   };
@@ -435,13 +505,37 @@ export default function Tags() {
           anatomy as Threads. */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <SearchInput
-            value={searchInput}
-            onChange={setSearchInput}
-            placeholder="Search tags…"
-            label="Search tags"
-            className="w-full max-w-xs"
-          />
+          <div className="flex flex-1 flex-wrap items-center gap-3">
+            <SearchInput
+              value={searchInput}
+              onChange={setSearchInput}
+              placeholder="Search tags…"
+              label="Search tags"
+              className="w-full max-w-xs"
+            />
+            <Select
+              value={typeFilter}
+              onValueChange={(value) => {
+                setTypeFilter(value as TagTypeFilter);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[160px]" aria-label="Filter by type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_TYPES}>All Types</SelectItem>
+                <SelectItem value="custom">Custom</SelectItem>
+                <SelectItem value="system">System</SelectItem>
+              </SelectContent>
+            </Select>
+            {hasActiveFilters && (
+              <Button type="button" variant="ghost" onClick={clearFilters}>
+                <IconX className="size-4" />
+                Clear filters
+              </Button>
+            )}
+          </div>
           <Button onClick={openCreateDialog}>
             <IconPlus className="size-4" />
             Add Tag
@@ -456,10 +550,15 @@ export default function Tags() {
           onPaginationChange={handlePaginationChange}
           isLoading={FetchSupportTicketTagsIsLoading}
           noun="tag"
-          emptyTitle={debouncedSearch ? "No matching tags" : "No tags yet"}
+          headerClassName="bg-muted hover:bg-muted"
+          emptyTitle={
+            debouncedSearch || typeFilter !== ALL_TYPES
+              ? "No matching tags"
+              : "No tags yet"
+          }
           emptyDescription={
-            debouncedSearch
-              ? "Try a different search term."
+            debouncedSearch || typeFilter !== ALL_TYPES
+              ? "Try a different search term or type."
               : "Create your first tag to start organising tickets."
           }
         />

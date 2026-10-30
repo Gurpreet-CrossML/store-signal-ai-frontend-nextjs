@@ -93,6 +93,8 @@ type GetSupportTicketTagsArgs = {
   page?: number;
   limit?: number;
   search?: string;
+  /** Only tags of this type; omit for all tags. */
+  type?: "custom" | "system";
   append?: boolean;
 };
 
@@ -104,6 +106,8 @@ export type SupportTicketTagData = {
   /** A platform-provided tag; the store cannot edit or delete it. */
   is_predefined?: boolean;
   is_active?: boolean;
+  /** When the tag was created. Sent by the tag list only. */
+  created_at?: string;
   /** Support tickets carrying the tag. Sent by the tag list only. */
   ticket_count?: number;
   /** Analysed threads the AI tagged with it. Sent by the tag list only. */
@@ -398,7 +402,13 @@ export const SupportTicketMessageSend = createAsyncThunk(
 export const FetchSupportTicketTags = createAsyncThunk(
   "FetchSupportTicketTags",
   async (
-    { storeCode, page = 1, limit = 15, search = "" }: GetSupportTicketTagsArgs,
+    {
+      storeCode,
+      page = 1,
+      limit = 15,
+      search = "",
+      type,
+    }: GetSupportTicketTagsArgs,
     thunkAPI,
   ) => {
     try {
@@ -410,6 +420,7 @@ export const FetchSupportTicketTags = createAsyncThunk(
             page,
             page_size: limit,
             ...(search && { search }),
+            ...(type && { type }),
           },
         },
       );

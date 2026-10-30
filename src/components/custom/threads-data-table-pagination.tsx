@@ -16,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
 
 export const PAGE_SIZE_OPTIONS = [25, 50, 75, 100];
 
@@ -31,19 +30,23 @@ export function DataTablePagination<TData>({
   totalCount,
   noun = "thread",
 }: DataTablePaginationProps<TData>) {
-  const [{ pageIndex, pageSize }, setPagination] = useState(
-    table.getState().pagination,
-  );
+  // TanStack hands back the same `table` object on every render and changes
+  // its state in place, so the React Compiler would cache what is read from
+  // it and keep showing the old page. Opt out so it is read on each render.
+  "use no memo";
+
+  // Read the table's own state rather than a copy: a screen can move the
+  // page itself (a filter resets it to page 1), and a copy only follows this
+  // bar's buttons, so it would keep showing the old page.
+  const { pageIndex, pageSize } = table.getState().pagination;
   const pageCount = table.getPageCount();
 
   const handlePageSizeChange = (newPageSize: number) => {
     table.setPageSize(newPageSize);
-    setPagination((prev) => ({ ...prev, pageSize: newPageSize }));
   };
 
   const handlePageIndexChange = (newPageIndex: number) => {
     table.setPageIndex(newPageIndex);
-    setPagination((prev) => ({ ...prev, pageIndex: newPageIndex }));
   };
 
   return (
