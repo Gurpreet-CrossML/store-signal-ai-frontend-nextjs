@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import { useAppDispatch } from "@/redux/hooks";
@@ -17,6 +18,7 @@ import {
  */
 export function useAdvanceOnboarding() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const { update } = useSession();
 
   return useCallback(
@@ -30,7 +32,11 @@ export function useAdvanceOnboarding() {
       // only requested once; refilling it hydrates `selectedStore`, and every
       // screen refetches on that change — no page reload needed.
       dispatch(GetStores({}));
+      // shortcut: explicit landing on "/" because sidebar links were seen
+      // bouncing back there after onboarding. The cause wasn't found (it
+      // stopped reproducing); drop this once it is.
+      if (step !== "brand_voice") router.replace("/");
     },
-    [dispatch, update],
+    [dispatch, router, update],
   );
 }
