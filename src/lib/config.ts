@@ -768,6 +768,10 @@ export const SIGNUP_NAME_MAX_LENGTH = 100;
 export const SIGNUP_COMPANY_NAME_MAX_LENGTH = 255;
 export const SIGNUP_EMAIL_MAX_LENGTH = 254;
 
+// Longest agent name, the same as the backend's PersonaIdentity; the inputs
+// stop taking characters there.
+export const AGENT_NAME_MAX_LENGTH = 100;
+
 // sessionStorage flag set right before the hop to Shopify and cleared when
 // Shopify sends the user back; still set means they came back on their own.
 export const SHOPIFY_OAUTH_PENDING_KEY = "shopifyOauthPending";
