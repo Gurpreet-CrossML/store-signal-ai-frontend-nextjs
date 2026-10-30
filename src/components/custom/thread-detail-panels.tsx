@@ -21,10 +21,7 @@ import {
   IconDeviceLaptop,
   IconEye,
   IconTicket,
-  IconMail,
-  IconPhone,
 } from "@tabler/icons-react";
-import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { FulfillmentBadge } from "@/components/ui/status-badge";
 import { OrderDetails } from "@/components/custom/order-details";
 import { IconRefresh } from "@tabler/icons-react";
@@ -306,47 +303,6 @@ export function CartDetailsCard({
           ))}
         </div>
       )}
-    </section>
-  );
-}
-
-/**
- * Who the customer is: avatar, name, email and — when there is one — phone
- * number. A guest has only whatever the ticket itself recorded.
- */
-export function CustomerProfileCard({
-  customer,
-}: {
-  customer?: Customer | null;
-}) {
-  const name = customer?.name?.trim() || customer?.email?.trim() || "Guest";
-  const email = customer?.email?.trim();
-  const phone = customer?.phone?.trim();
-
-  return (
-    <section className="flex items-start gap-3 border-b p-4">
-      <CustomerAvatar name={name === "Guest" ? null : name} size="h-11 w-11" />
-      <div className="flex min-w-0 flex-col gap-1">
-        <Typography variant="small" as="p" className="truncate font-medium">
-          {name}
-        </Typography>
-        {email ? (
-          <span className="flex items-center gap-1.5 text-muted-foreground">
-            <IconMail className="size-3.5 shrink-0" />
-            <Typography variant="muted" className="truncate">
-              {email}
-            </Typography>
-          </span>
-        ) : null}
-        {phone ? (
-          <span className="flex items-center gap-1.5 text-muted-foreground">
-            <IconPhone className="size-3.5 shrink-0" />
-            <Typography variant="muted" className="truncate">
-              {phone}
-            </Typography>
-          </span>
-        ) : null}
-      </div>
     </section>
   );
 }

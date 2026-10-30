@@ -108,6 +108,7 @@ import {
   CustomerDetailsButton,
   CustomerDetailsPanel,
 } from "@/components/custom/customer-details-panel";
+import { TicketActivityDrawer } from "@/components/custom/ticket-activity-drawer";
 import { CrmLinkButton } from "@/components/custom/customer-header";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
@@ -1033,6 +1034,11 @@ function ConversationPanel({
             rest wraps onto a row of its own, right-aligned. Wide panes
             (`contents`) put everything back on one row, via `order`. */}
         <div className="flex basis-full items-center justify-end gap-2 @3xl/conv:contents">
+          <TicketActivityDrawer
+            storeCode={storeCode}
+            ticketId={ticket.id}
+            className="@3xl/conv:order-2"
+          />
           <CustomerDetailsButton
             className="@3xl/conv:order-2"
             onClick={onShowDetails}
@@ -3731,15 +3737,6 @@ export default function HelpDesk() {
             open={isDetailsOpen}
             onOpenChange={setIsDetailsOpen}
             customerData={ticketCustomer}
-            ticket={
-              storeCode
-                ? {
-                    storeCode,
-                    ticketId: activeSupportTicket.id,
-                    version: `${activeSupportTicket.status}|${activeSupportTicket.internal_assignee?.id ?? ""}|${activeSupportTicket.updated_at ?? ""}`,
-                  }
-                : undefined
-            }
             orders={ticketCustomer?.orders}
             ordersLoading={FetchSupportTicketDetailsIsLoading}
             onOrdersSync={handleCustomerOrderSync}
