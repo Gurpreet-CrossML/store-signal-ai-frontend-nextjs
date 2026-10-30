@@ -762,6 +762,12 @@ export const SHOPIFY_CLIENT_SECRET_RE =
 export const SHOPIFY_CLIENT_ID_MAX_LENGTH = 32;
 export const SHOPIFY_CLIENT_SECRET_MAX_LENGTH = 38;
 
+// Signup field limits, the same as the backend's register serializers; the
+// inputs stop taking characters there.
+export const SIGNUP_NAME_MAX_LENGTH = 100;
+export const SIGNUP_COMPANY_NAME_MAX_LENGTH = 255;
+export const SIGNUP_EMAIL_MAX_LENGTH = 254;
+
 // sessionStorage flag set right before the hop to Shopify and cleared when
 // Shopify sends the user back; still set means they came back on their own.
 export const SHOPIFY_OAUTH_PENDING_KEY = "shopifyOauthPending";
