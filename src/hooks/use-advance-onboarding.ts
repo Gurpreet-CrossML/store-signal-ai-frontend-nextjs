@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import { useAppDispatch } from "@/redux/hooks";
+import { resetRouterCache } from "@/hooks/reset-router-cache";
 import { GetStores } from "@/redux/api-slice/stores-slice";
 import {
   UpdateOnboardingStep,
@@ -32,10 +33,14 @@ export function useAdvanceOnboarding() {
       // only requested once; refilling it hydrates `selectedStore`, and every
       // screen refetches on that change — no page reload needed.
       dispatch(GetStores({}));
-      // shortcut: explicit landing on "/" because sidebar links were seen
-      // bouncing back there after onboarding. The cause wasn't found (it
-      // stopped reproducing); drop this once it is.
-      if (step !== "brand_voice") router.replace("/");
+      // While onboarding was pending the proxy bounced every other URL to
+      // "/", and the sidebar links prefetched in that state cached the
+      // redirect as their destination. Without dropping those, a link click
+      // after the last step lands back on "/" until the page is reloaded.
+      if (step !== "brand_voice") {
+        await resetRouterCache();
+        router.replace("/");
+      }
     },
     [dispatch, router, update],
   );
