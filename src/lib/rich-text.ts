@@ -27,24 +27,27 @@ const ENTITIES: Record<string, string> = {
 /**
  * The visible text of editor HTML. Each paragraph, heading, list item and
  * `<br>` becomes one newline; tags are dropped and entities decoded. Leading
- * and trailing spaces and newlines are removed.
+ * and trailing spaces and newlines are removed unless `trim` is false, which
+ * keeps them (minus the one line break that closes the last block) so a live
+ * counter can include what the user has just typed.
  */
-export function richTextToPlainText(html: string): string {
-  return (
-    html
-      .replace(/<br\s*\/?>/gi, "\n")
-      // TipTap wraps list item text in <p>, which already ends the line.
-      .replace(/(?<!<\/p>)<\/li>/gi, "\n")
-      .replace(/<\/(?:p|h[1-6])>/gi, "\n")
-      .replace(/<[^>]*>/g, "")
-      .replace(/&(?:nbsp|amp|lt|gt|quot|#39);/g, (m) => ENTITIES[m])
-      .trim()
-  );
+export function richTextToPlainText(html: string, trim = true): string {
+  const text = html
+    .replace(/<br\s*\/?>/gi, "\n")
+    // TipTap wraps list item text in <p>, which already ends the line.
+    .replace(/(?<!<\/p>)<\/li>/gi, "\n")
+    .replace(/<\/(?:p|h[1-6])>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&(?:nbsp|amp|lt|gt|quot|#39);/g, (m) => ENTITIES[m]);
+  return trim ? text.trim() : text.replace(/\n$/, "");
 }
 
-/** Number of characters a user sees, counting spaces and line breaks. */
-export function richTextLength(html: string): number {
-  return Array.from(richTextToPlainText(html)).length;
+/**
+ * Number of characters a user sees, counting spaces and line breaks. Edge
+ * whitespace is ignored unless `trim` is false.
+ */
+export function richTextLength(html: string, trim = true): number {
+  return Array.from(richTextToPlainText(html, trim)).length;
 }
 
 /**
