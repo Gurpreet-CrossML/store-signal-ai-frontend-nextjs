@@ -28,6 +28,8 @@ type RichTextAreaProps = {
   placeholder?: string;
   value?: string;
   onChange?: (value: string) => void;
+  /** Fires when the editor loses focus. */
+  onBlur?: () => void;
   /** Read and write Markdown instead of HTML. */
   useMarkdown?: boolean;
   disabled?: boolean;
@@ -205,6 +207,7 @@ const RichTextArea: React.FC<RichTextAreaProps> = ({
   placeholder,
   value,
   onChange,
+  onBlur,
   useMarkdown,
   disabled,
   className,
@@ -217,9 +220,11 @@ const RichTextArea: React.FC<RichTextAreaProps> = ({
   // an echo of the user's own typing from a genuine external change.
   const lastEmitted = useRef(value ?? "");
   const onChangeRef = useRef(onChange);
+  const onBlurRef = useRef(onBlur);
   useEffect(() => {
     onChangeRef.current = onChange;
-  }, [onChange]);
+    onBlurRef.current = onBlur;
+  }, [onChange, onBlur]);
 
   const editor = useEditor(
     {
@@ -243,6 +248,7 @@ const RichTextArea: React.FC<RichTextAreaProps> = ({
           "aria-multiline": "true",
         },
       },
+      onBlur: () => onBlurRef.current?.(),
       onUpdate: ({ editor: e }) => {
         const next = serialize(e, useMarkdown);
         lastEmitted.current = next;

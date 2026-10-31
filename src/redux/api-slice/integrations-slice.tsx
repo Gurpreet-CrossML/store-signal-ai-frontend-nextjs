@@ -47,13 +47,13 @@ export const FetchIntegrations = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the integrations, please try again later.",
+      toast.error("Couldn't fetch the integrations.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the integrations.",
+      );
     }
   },
 );
@@ -100,20 +100,18 @@ export const ConnectStoreIntegration = createAsyncThunk(
       const data = response?.data;
 
       if (data?.data?.integration) {
-        toast.error("Uh oh! Something went wrong.", {
-          description:
-            data?.data?.integration[0] ||
-            "Unable to connect the integration, please try again later.",
+        toast.error("Couldn't connect the integration.", {
+          description: data?.data?.integration[0] || "Please try again later.",
         });
       } else {
-        toast.error("Uh oh! Something went wrong.", {
-          description:
-            data?.message ||
-            "Unable to connect the integration, please try again later.",
+        toast.error("Couldn't connect the integration.", {
+          description: data?.message || "Please try again later.",
         });
       }
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't connect the integration.",
+      );
     }
   },
 );
@@ -141,13 +139,13 @@ export const FetchStoreIntegrations = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the store integrations, please try again later.",
+      toast.error("Couldn't fetch the store integrations.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the store integrations.",
+      );
     }
   },
 );
@@ -175,13 +173,13 @@ export const DisconnectStoreIntegration = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to disconnect the integration, please try again later.",
+      toast.error("Couldn't disconnect the integration.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't disconnect the integration.",
+      );
     }
   },
 );

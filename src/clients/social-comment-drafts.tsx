@@ -36,6 +36,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { ACTIVE_FILTER_STYLE, ALL_FILTER_VALUE } from "@/lib/config";
+import { cn } from "@/lib/utils";
 import {
   commentDraftChanged,
   commentDraftReceived,
@@ -180,7 +182,7 @@ export default function SocialCommentDrafts() {
   const pageRef = useRef(1);
 
   useEffect(() => {
-    if (storeCode) dispatch(fetchSocialAccountsSubscriptions(storeCode));
+    if (storeCode) dispatch(fetchSocialAccountsSubscriptions({ storeCode }));
   }, [dispatch, storeCode]);
 
   const loadPageOne = useCallback(() => {
@@ -264,7 +266,14 @@ export default function SocialCommentDrafts() {
         </Typography>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger size="sm" className="w-52" aria-label="Account">
+            <SelectTrigger
+              size="sm"
+              className={cn(
+                "w-52",
+                accountId !== ALL_FILTER_VALUE && ACTIVE_FILTER_STYLE,
+              )}
+              aria-label="Account"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

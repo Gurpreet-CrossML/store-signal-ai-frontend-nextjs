@@ -1,13 +1,15 @@
 "use client";
 
-import { useSession } from "next-auth/react";
-import { IconCheck } from "@tabler/icons-react";
+import { signOut, useSession } from "next-auth/react";
+import { IconCheck, IconLogout } from "@tabler/icons-react";
 
 import { ONBOARDING_STEPS } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/hooks";
 import { GoLiveCard } from "@/components/custom/go-live-card";
+import { OnboardingBrandVoiceCard } from "@/components/custom/onboarding-brand-voice-card";
 import { StoreSetupForm } from "@/components/custom/store-setup-form";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -72,96 +74,110 @@ export function OnboardingDrawer() {
   const finishing = CompleteShopifyOauthIsLoading;
 
   return (
-    <Drawer open dismissible={false}>
+    <Drawer open dismissible={false} repositionInputs={false}>
       <DrawerContent
         className={cn(
           "h-svh rounded-none border-0",
           "data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-svh data-[vaul-drawer-direction=bottom]:rounded-none",
         )}
       >
-        <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 overflow-y-auto p-6 md:p-10">
-          <DrawerHeader className="p-0">
-            <DrawerTitle>
-              <Typography variant="h1" as="span">
-                Set up your workspace
-              </Typography>
-            </DrawerTitle>
-            <DrawerDescription>
-              A couple of steps before StoreSignal can start working on your
-              store.
-            </DrawerDescription>
-          </DrawerHeader>
+        {/* The drawer can't be dismissed, so this is the only way out. */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute top-4 right-4"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+        >
+          <IconLogout data-icon="inline-start" />
+          Log Out
+        </Button>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 md:p-10">
+            <DrawerHeader className="p-0">
+              <DrawerTitle>
+                <Typography variant="h1" as="span">
+                  Set up your workspace
+                </Typography>
+              </DrawerTitle>
+              <DrawerDescription>
+                A couple of steps before StoreSignal can start working on your
+                store.
+              </DrawerDescription>
+            </DrawerHeader>
 
-          <ol className="flex flex-col gap-2 sm:flex-row sm:gap-6">
-            {ONBOARDING_STEPS.map((step, index) => {
-              const done = index < currentIndex;
-              const active = index === currentIndex;
-              return (
-                <li key={step.value} className="flex items-center gap-3">
-                  <span
-                    className={cn(
-                      "flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-medium",
-                      active &&
-                        "border-primary bg-primary text-primary-foreground",
-                      done && "border-primary text-primary",
-                      !active && !done && "text-muted-foreground",
-                    )}
-                  >
-                    {done ? <IconCheck className="size-4" /> : index + 1}
-                  </span>
-                  <Typography
-                    variant={active ? "small" : "muted"}
-                    className="text-sm"
-                  >
-                    {step.label}
-                  </Typography>
-                </li>
-              );
-            })}
-          </ol>
+            <ol className="flex flex-col gap-2 sm:flex-row sm:gap-6">
+              {ONBOARDING_STEPS.map((step, index) => {
+                const done = index < currentIndex;
+                const active = index === currentIndex;
+                return (
+                  <li key={step.value} className="flex items-center gap-3">
+                    <span
+                      className={cn(
+                        "flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-medium",
+                        active &&
+                          "border-primary bg-primary text-primary-foreground",
+                        done && "border-primary text-primary",
+                        !active && !done && "text-muted-foreground",
+                      )}
+                    >
+                      {done ? <IconCheck className="size-4" /> : index + 1}
+                    </span>
+                    <Typography
+                      variant={active ? "small" : "muted"}
+                      className="text-sm"
+                    >
+                      {step.label}
+                    </Typography>
+                  </li>
+                );
+              })}
+            </ol>
 
-          {finishing && !CompleteShopifyOauthIsSuccess ? (
-            <Empty className="border">
-              <EmptyHeader>
-                <EmptyMedia>
-                  <Spinner />
-                </EmptyMedia>
-                <EmptyTitle>Finishing your Shopify connection</EmptyTitle>
-                <EmptyDescription>
-                  Exchanging the authorization with Shopify and subscribing to
-                  store updates. This takes a few seconds.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : current === "store_setup" ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Connect the store</CardTitle>
-                <CardDescription>
-                  Choose your platform and point us at your store. You&apos;ll
-                  be sent to it to authorize access.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <StoreSetupForm />
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              {connected &&
-                Object.keys(connected.webhooks.failed).length > 0 && (
-                  <Typography variant="muted" className="text-sm">
-                    {connected.store_name} is connected, but some store updates
-                    couldn&apos;t be subscribed:{" "}
-                    {Object.entries(connected.webhooks.failed)
-                      .map(([topic, reason]) => `${topic} (${reason})`)
-                      .join(", ")}
-                    . Reconnecting the store retries them.
-                  </Typography>
-                )}
-              <GoLiveCard />
-            </>
-          )}
+            {finishing && !CompleteShopifyOauthIsSuccess ? (
+              <Empty className="border">
+                <EmptyHeader>
+                  <EmptyMedia>
+                    <Spinner />
+                  </EmptyMedia>
+                  <EmptyTitle>Finishing your Shopify connection</EmptyTitle>
+                  <EmptyDescription>
+                    Exchanging the authorization with Shopify and subscribing to
+                    store updates. This takes a few seconds.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : current === "store_setup" ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Connect the store</CardTitle>
+                  <CardDescription>
+                    Choose your platform and point us at your store. You&apos;ll
+                    be sent to it to authorize access.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <StoreSetupForm />
+                </CardContent>
+              </Card>
+            ) : current === "brand_voice" ? (
+              <OnboardingBrandVoiceCard />
+            ) : (
+              <>
+                {connected &&
+                  Object.keys(connected.webhooks.failed).length > 0 && (
+                    <Typography variant="muted" className="text-sm">
+                      {connected.store_name} is connected, but some store
+                      updates couldn&apos;t be subscribed:{" "}
+                      {Object.entries(connected.webhooks.failed)
+                        .map(([topic, reason]) => `${topic} (${reason})`)
+                        .join(", ")}
+                      . Reconnecting the store retries them.
+                    </Typography>
+                  )}
+                <GoLiveCard />
+              </>
+            )}
+          </div>
         </div>
       </DrawerContent>
     </Drawer>

@@ -13,6 +13,7 @@ import {
 import { IconMoodSmile } from "@tabler/icons-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { TonePresetRecord } from "@/db/chat";
+import { cn } from "@/lib/utils";
 import {
   Field,
   FieldContent,
@@ -25,12 +26,15 @@ type BrandVoiceTonePresetSelectorProps = {
   presets: readonly TonePresetRecord[];
   activePreset: number;
   onSelect: (presetId: number) => void;
+  /** Grid overrides; the default columns assume a full-width page. */
+  className?: string;
 };
 
 export default function BrandVoiceTonePresetSelector({
   presets,
   activePreset,
   onSelect,
+  className,
 }: BrandVoiceTonePresetSelectorProps) {
   return (
     <Card>
@@ -53,7 +57,10 @@ export default function BrandVoiceTonePresetSelector({
         <RadioGroup
           value={activePreset.toString()}
           onValueChange={(value) => onSelect(parseInt(value, 10))}
-          className="grid grid-cols-1 gap-3 sm:grid-cols-4 2xl:grid-cols-6"
+          className={cn(
+            "grid grid-cols-1 gap-3 sm:grid-cols-4 2xl:grid-cols-6",
+            className,
+          )}
         >
           {presets.map((preset: TonePresetRecord) => (
             <FieldLabel

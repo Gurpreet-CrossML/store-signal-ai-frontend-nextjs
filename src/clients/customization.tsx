@@ -13,6 +13,7 @@ import {
   FetchWidgetCustomization,
   UpdateWidgetCustomization,
   UpdateWidgetCustomizationWithImage,
+  type AiDisclaimer,
   type UpdateWidgetCustomizationPayload,
   type WidgetCustomizationDataResponse,
   type WidgetQuickAction,
@@ -20,6 +21,11 @@ import {
 } from "@/redux/api-slice/customization-slice";
 import { darken, getReadableText, mix, normalizeHex } from "@/lib/color";
 import { isValidUrl, normalizeUrl } from "@/lib/url";
+import { richTextLength, trimRichText } from "@/lib/rich-text";
+import {
+  AI_DESCRIPTION_LIMITS,
+  AI_TITLE_LIMITS,
+} from "@/components/custom/customization-ai-info";
 import {
   applyServerFieldErrors,
   formikErrorsFromZod,
@@ -28,6 +34,7 @@ import {
 import CustomizationTheme from "@/components/custom/customization-theme";
 import CustomizationActionButtons from "@/components/custom/customization-action-buttons";
 import CustomizationBranding from "@/components/custom/customization-branding";
+import CustomizationAiInfo from "@/components/custom/customization-ai-info";
 import CustomizationQuickLinks from "@/components/custom/customization-quick-links";
 import { PreviewModalButton } from "@/components/custom/preview-modal-button";
 import CustomizationLivePreview from "@/components/custom/customization-live-preview";
@@ -46,6 +53,8 @@ const DEFAULT_GREETING = "Hi there! How can I help you today?";
 type CustomizationFormValues = {
   welcome_message: string;
   greeting_message: string;
+  ai_disclaimer_title: string;
+  ai_disclaimer_description: string;
   quick_links: { name: string; url: string }[];
   quick_actions: ActionButton[];
 };
@@ -57,6 +66,34 @@ const customizationValidationSchema = z
       .string()
       .trim()
       .min(1, "Please enter a greeting message before saving."),
+    ai_disclaimer_title: z
+      .string()
+      .trim()
+      .min(1, "Title is required.")
+      .min(
+        AI_TITLE_LIMITS.min,
+        `Title must be at least ${AI_TITLE_LIMITS.min} characters.`,
+      )
+      .max(
+        AI_TITLE_LIMITS.max,
+        `Title must be at most ${AI_TITLE_LIMITS.max} characters.`,
+      ),
+    ai_disclaimer_description: z.string().superRefine((html, ctx) => {
+      const length = richTextLength(html);
+      if (length === 0) {
+        ctx.addIssue({ code: "custom", message: "Description is required." });
+      } else if (length < AI_DESCRIPTION_LIMITS.min) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Description must be at least ${AI_DESCRIPTION_LIMITS.min} characters.`,
+        });
+      } else if (length > AI_DESCRIPTION_LIMITS.max) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Description must be at most ${AI_DESCRIPTION_LIMITS.max} characters.`,
+        });
+      }
+    }),
     quick_links: z.array(
       z.object({
         name: z.string(),
@@ -155,16 +192,18 @@ export default function Customization() {
 
   const [actionButtons, setActionButtons] = useState<ActionButton[]>([]);
   const [quickLinks, setQuickLinks] = useState<QuickLinkItem[]>([]);
+  const [aiDisclaimer, setAiDisclaimer] = useState<AiDisclaimer | null>(null);
   const [hasQuickActionError, setHasQuickActionError] = useState(false);
   const [hasQuickActionChanges, setHasQuickActionChanges] = useState(false);
   const formik = useFormik<CustomizationFormValues>({
     initialValues: {
       welcome_message: DEFAULT_WELCOME,
       greeting_message: DEFAULT_GREETING,
+      ai_disclaimer_title: "",
+      ai_disclaimer_description: "",
       quick_links: [],
       quick_actions: [],
     },
-    enableReinitialize: true,
     validate: (values) => {
       const { errors, rowErrors } = customizationErrorsFromZod(values);
       setQuickLinkRowErrors(rowErrors);
@@ -195,6 +234,10 @@ export default function Customization() {
         tertiary_color: tertiaryColor,
         welcome_message: values.welcome_message,
         greeting_message: values.greeting_message.trim(),
+        ai_disclaimer_title: values.ai_disclaimer_title.trim(),
+        ai_disclaimer_description: trimRichText(
+          values.ai_disclaimer_description,
+        ),
         quick_actions: quickActions,
         quick_links: quickLinksPayload,
       };
@@ -289,9 +332,12 @@ export default function Customization() {
       setLogoUrl(null);
       setActionButtons([]);
       setQuickLinks([]);
+      setAiDisclaimer(null);
       formik.setValues({
         welcome_message: DEFAULT_WELCOME,
         greeting_message: DEFAULT_GREETING,
+        ai_disclaimer_title: "",
+        ai_disclaimer_description: "",
         quick_links: [],
         quick_actions: [],
       });
@@ -322,9 +368,19 @@ export default function Customization() {
     setLogoUrl(data.logo?.trim() ? data.logo : null);
     setActionButtons(nextActionButtons);
     setQuickLinks(nextQuickLinks);
+    setAiDisclaimer(
+      data.ai_disclaimer_title || data.ai_disclaimer_description
+        ? {
+            title: data.ai_disclaimer_title,
+            description: data.ai_disclaimer_description,
+          }
+        : null,
+    );
     formik.setValues({
       welcome_message: nextWelcome,
       greeting_message: nextGreeting,
+      ai_disclaimer_title: data.ai_disclaimer_title ?? "",
+      ai_disclaimer_description: data.ai_disclaimer_description ?? "",
       quick_actions: nextActionButtons,
       quick_links: nextQuickLinks.map((link) => ({
         name: link.label,
@@ -387,6 +443,24 @@ export default function Customization() {
     setGreetingMessage(value);
     formik.setFieldValue("greeting_message", value, false);
     clearFieldError("greeting_message");
+  };
+
+  const handleAiDisclaimerChange = (value: AiDisclaimer | null) => {
+    setAiDisclaimer(value);
+    formik.setFieldValue("ai_disclaimer_title", value?.title ?? "", false);
+    formik.setFieldValue(
+      "ai_disclaimer_description",
+      value?.description ?? "",
+      false,
+    );
+    // Clear only the field that changed; one setErrors call so the second
+    // clear doesn't restore the first from a stale copy of the errors.
+    const next = { ...formik.errors } as Record<string, unknown>;
+    if (value?.title !== aiDisclaimer?.title) delete next.ai_disclaimer_title;
+    if (value?.description !== aiDisclaimer?.description) {
+      delete next.ai_disclaimer_description;
+    }
+    formik.setErrors(next);
   };
 
   const updateQuickLink = (index: number, patch: Partial<QuickLinkItem>) => {
@@ -500,6 +574,7 @@ export default function Customization() {
     themeVars,
     actionButtons,
     quickLinks: previewQuickLinks,
+    aiDisclaimer,
   };
 
   return (
@@ -555,6 +630,11 @@ export default function Customization() {
           onAdd={addQuickLink}
           onRemove={removeQuickLink}
           rowErrors={quickLinkRowErrors}
+        />
+        <CustomizationAiInfo
+          value={aiDisclaimer}
+          onChange={handleAiDisclaimerChange}
+          fieldErrors={fieldErrors}
         />
 
         <div className="flex justify-start border-t border-border py-3">

@@ -1,5 +1,6 @@
 import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import Link from "next/link";
+import { useEffect } from "react";
 import { useFormik } from "formik";
 import z from "zod";
 import {
@@ -10,9 +11,17 @@ import {
   IconUser,
 } from "@tabler/icons-react";
 
+import {
+  SIGNUP_COMPANY_NAME_MAX_LENGTH,
+  SIGNUP_EMAIL_MAX_LENGTH,
+  SIGNUP_NAME_MAX_LENGTH,
+} from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { RegisterCompany } from "@/redux/api-slice/auth-slice";
+import {
+  clearRegisterCompanyState,
+  RegisterCompany,
+} from "@/redux/api-slice/auth-slice";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -34,26 +43,49 @@ import { Typography } from "@/components/ui/typography";
 
 // Mirrors the server's rules for POST /api/tenancy/register/ so the common
 // mistakes are caught before the round trip; uniqueness comes back from it.
-const personName = z
-  .string()
-  .trim()
-  .min(1, "This is required")
-  .max(100, "Use 100 characters or fewer")
-  .regex(/^[\p{L} ]+$/u, "Use letters and spaces only");
+// `abort` keeps an empty field on "required" instead of the later checks.
+// The blank checks run before trim(), which would turn "   " into "".
+const requiredText = (label: string) =>
+  z
+    .string()
+    .min(1, { error: `${label} is required.`, abort: true })
+    .refine((value) => value.trim() !== "", {
+      error: "This field cannot contain only spaces.",
+      abort: true,
+    })
+    .trim();
+
+const personName = (label: string) =>
+  requiredText(label)
+    .max(
+      SIGNUP_NAME_MAX_LENGTH,
+      `${label} must not exceed ${SIGNUP_NAME_MAX_LENGTH} characters.`,
+    )
+    .regex(/^[\p{L} ]+$/u, `${label} can contain only letters and spaces.`);
 
 const validationSchema = z.object({
-  first_name: personName,
-  last_name: personName,
-  name: z
-    .string()
-    .trim()
-    .min(1, "Company name is required")
-    .max(255, "Use 255 characters or fewer")
-    .regex(/\p{L}/u, "Include at least one letter"),
-  email: z.email("Enter a valid work email").max(254),
+  first_name: personName("First name"),
+  last_name: personName("Last name"),
+  name: requiredText("Company name")
+    .max(
+      SIGNUP_COMPANY_NAME_MAX_LENGTH,
+      `Company name must not exceed ${SIGNUP_COMPANY_NAME_MAX_LENGTH} characters.`,
+    )
+    // The server derives the company code from it: its first letter or
+    // digit has to be an a-z letter.
+    .regex(/^[^a-zA-Z0-9]*[a-zA-Z]/, "Company name must start with a letter."),
+  email: requiredText("Work email")
+    .max(
+      SIGNUP_EMAIL_MAX_LENGTH,
+      `Work email must not exceed ${SIGNUP_EMAIL_MAX_LENGTH} characters.`,
+    )
+    .regex(z.regexes.email, "Please enter a valid work email address."),
   terms_and_conditions_accepted: z
     .boolean()
-    .refine(Boolean, "Accept the terms to continue"),
+    .refine(
+      Boolean,
+      "Please accept the Terms of Service and Privacy Policy to continue.",
+    ),
 });
 
 type SignupValues = z.infer<typeof validationSchema>;
@@ -63,6 +95,11 @@ export function SignupForm({
   ...props
 }: React.ComponentProps<"form">) {
   const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    dispatch(clearRegisterCompanyState());
+  }, [dispatch]);
+
   const {
     RegisterCompanyIsLoading: isLoading,
     RegisterCompanyIsSuccess,
@@ -116,18 +153,14 @@ export function SignupForm({
               as="span"
               className="text-2xl font-bold sm:text-3xl"
             >
-              Your account has been created
+              Your account has been created successfully
             </Typography>
           </EmptyTitle>
           <EmptyDescription>
             {registered.credentials_emailed ? (
               <>
-                We&apos;ve emailed a temporary password to{" "}
-                <span className="font-medium text-foreground">
-                  {registered.admin_email}
-                </span>
-                . Your workspace is being set up — you&apos;ll be able to log in
-                in a few minutes.
+                Check your registered email for your login credentials to and
+                log in to complete your workspace setup.
               </>
             ) : (
               <>
@@ -192,6 +225,7 @@ export function SignupForm({
                 id="first_name"
                 name="first_name"
                 placeholder="Jane"
+                maxLength={SIGNUP_NAME_MAX_LENGTH}
                 required
                 aria-invalid={invalid("first_name")}
                 onChange={formik.handleChange}
@@ -208,6 +242,7 @@ export function SignupForm({
                 id="last_name"
                 name="last_name"
                 placeholder="Doe"
+                maxLength={SIGNUP_NAME_MAX_LENGTH}
                 required
                 aria-invalid={invalid("last_name")}
                 onChange={formik.handleChange}
@@ -228,6 +263,7 @@ export function SignupForm({
               id="name"
               name="name"
               placeholder="Acme Stores"
+              maxLength={SIGNUP_COMPANY_NAME_MAX_LENGTH}
               required
               aria-invalid={invalid("name")}
               onChange={formik.handleChange}
@@ -246,8 +282,13 @@ export function SignupForm({
             <InputGroupInput
               id="email"
               name="email"
-              type="email"
+              // Not type="email": the browser strips its spaces, so a
+              // spaces-only entry would never reach the check for it.
+              type="text"
+              inputMode="email"
+              autoComplete="email"
               placeholder="you@company.com"
+              maxLength={SIGNUP_EMAIL_MAX_LENGTH}
               required
               aria-invalid={invalid("email")}
               onChange={formik.handleChange}

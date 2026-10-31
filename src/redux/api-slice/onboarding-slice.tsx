@@ -31,7 +31,7 @@ export type OnboardingStore = {
 };
 
 /** What the dashboard may set the step to; the backend owns the rest. */
-export type OnboardingOutcome = "completed" | "skipped";
+export type OnboardingOutcome = "brand_voice" | "completed" | "skipped";
 
 export const FetchOnboardingStatus = createAsyncThunk(
   "FetchOnboardingStatus",
@@ -44,10 +44,12 @@ export const FetchOnboardingStatus = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to load your setup progress.",
+      toast.error("Couldn't load your setup progress.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't load your setup progress.",
+      );
     }
   },
 );
@@ -60,11 +62,12 @@ export const UpdateOnboardingStep = createAsyncThunk(
         ENDPOINTS.companyOnboarding(),
         { onboarding_step: onboardingStep },
       );
-      toast.success(
-        onboardingStep === "completed"
-          ? "You're live"
-          : "Setup skipped — you can install the widget later",
-      );
+      // Moving between steps is silent; only the end of setup is announced.
+      if (onboardingStep === "completed") {
+        toast.success("You're all set");
+      } else if (onboardingStep === "skipped") {
+        toast.success("Setup finished — you can finish the rest later");
+      }
       return response.data.data as Partial<OnboardingStatus>;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -72,7 +75,7 @@ export const UpdateOnboardingStep = createAsyncThunk(
       toast.error("Couldn't update your setup", {
         description: data?.message || "Try again in a moment.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't update your setup");
     }
   },
 );
@@ -110,9 +113,11 @@ export const StartShopifyOauth = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
       toast.error("Couldn't start the Shopify connection", {
-        description: data?.message || "Unable to reach Shopify. Try again.",
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't start the Shopify connection",
+      );
     }
   },
 );
@@ -130,11 +135,12 @@ export const CompleteShopifyOauth = createAsyncThunk(
       const data = response.data.data as ShopifyConnectedStore;
       const failed = Object.keys(data?.webhooks?.failed ?? {});
       if (failed.length) {
-        toast.warning("Store connected, some webhooks failed", {
-          description: `Not subscribed: ${failed.join(", ")}.`,
-        });
+        toast.warning(
+          response?.data?.message || "Store connected, some webhooks failed",
+          { description: `Not subscribed: ${failed.join(", ")}.` },
+        );
       } else {
-        toast.success("Shopify store connected");
+        toast.success(response?.data?.message || "Shopify store connected");
       }
       return data;
     } catch (error) {
@@ -144,7 +150,9 @@ export const CompleteShopifyOauth = createAsyncThunk(
         description:
           data?.message || "Shopify didn't complete the handshake. Try again.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't finish the Shopify connection",
+      );
     }
   },
 );
@@ -175,7 +183,15 @@ const OnboardingSlice = createSlice({
       CompleteShopifyOauthData: null as ShopifyConnectedStore | null,
     },
   },
-  reducers: {},
+  reducers: {
+    // The fulfilled case leaves loading on for the hop to Shopify; a Back
+    // from there can restore the page with the button still spinning.
+    resetStartShopifyOauth: (state) => {
+      state.StartShopifyOauthState.StartShopifyOauthIsLoading = false;
+      state.StartShopifyOauthState.StartShopifyOauthIsSuccess = false;
+      state.StartShopifyOauthState.StartShopifyOauthIsError = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(FetchOnboardingStatus.pending, (state) => {
@@ -248,5 +264,7 @@ const OnboardingSlice = createSlice({
       });
   },
 });
+
+export const { resetStartShopifyOauth } = OnboardingSlice.actions;
 
 export default OnboardingSlice.reducer;

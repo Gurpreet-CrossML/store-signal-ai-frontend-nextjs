@@ -8,6 +8,7 @@ import {
   CHANNEL_OPTIONS,
   FilterSelect,
 } from "@/components/custom/thread-filteration";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 
 export type DashboardFilterState = {
@@ -57,6 +58,47 @@ export function dashboardRangeLabel(filters: DashboardFilterState) {
   return RANGE_OPTIONS.find((option) => option.value === filters.range)!.label;
 }
 
+/** The date range select, plus the picker when the range is custom. */
+export function DashboardRangeFilter({
+  filters,
+  onChange,
+}: {
+  filters: DashboardFilterState;
+  onChange: (filters: DashboardFilterState) => void;
+}) {
+  return (
+    <>
+      <FilterSelect
+        ariaLabel="Filter by date range"
+        value={filters.range}
+        onChange={(range) =>
+          onChange({
+            ...filters,
+            // Custom opens on the period already on screen, not an empty picker.
+            ...(range === "custom" ? resolveDashboardRange(filters) : {}),
+            range: range as DashboardFilterState["range"],
+          })
+        }
+        options={RANGE_OPTIONS}
+        activeClassName={
+          filters.range !== DEFAULT_DASHBOARD_FILTERS.range
+            ? ACTIVE_FILTER_STYLE
+            : undefined
+        }
+      />
+      {filters.range === "custom" && (
+        <DateRangePicker
+          from={filters.from}
+          to={filters.to}
+          onRangeChange={(from, to) => onChange({ ...filters, from, to })}
+          disabled={{ after: new Date() }}
+          className={ACTIVE_FILTER_STYLE}
+        />
+      )}
+    </>
+  );
+}
+
 /** Date and channel filters for the whole dashboard, with refresh status. */
 export function DashboardFilters({
   filters,
@@ -73,27 +115,7 @@ export function DashboardFilters({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <FilterSelect
-        ariaLabel="Filter by date range"
-        value={filters.range}
-        onChange={(range) =>
-          onChange({
-            ...filters,
-            // Custom opens on the period already on screen, not an empty picker.
-            ...(range === "custom" ? resolveDashboardRange(filters) : {}),
-            range: range as DashboardFilterState["range"],
-          })
-        }
-        options={RANGE_OPTIONS}
-      />
-      {filters.range === "custom" && (
-        <DateRangePicker
-          from={filters.from}
-          to={filters.to}
-          onRangeChange={(from, to) => onChange({ ...filters, from, to })}
-          disabled={{ after: new Date() }}
-        />
-      )}
+      <DashboardRangeFilter filters={filters} onChange={onChange} />
       <FilterSelect
         ariaLabel="Filter by channel"
         value={filters.channel}
@@ -104,6 +126,7 @@ export function DashboardFilters({
           })
         }
         options={CHANNEL_OPTIONS}
+        activeClassName={ACTIVE_FILTER_STYLE}
       />
       {(filters.range !== DEFAULT_DASHBOARD_FILTERS.range ||
         filters.channel !== DEFAULT_DASHBOARD_FILTERS.channel) && (

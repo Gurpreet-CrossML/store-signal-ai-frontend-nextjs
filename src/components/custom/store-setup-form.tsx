@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { useFormik } from "formik";
 import { toast } from "sonner";
 import z from "zod";
 import {
   IconArrowRight,
+  IconEye,
+  IconEyeOff,
   IconKey,
   IconLock,
   IconWorld,
@@ -14,7 +17,15 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { StartShopifyOauth } from "@/redux/api-slice/onboarding-slice";
 
-import { STORE_PLATFORMS, type StorePlatform } from "@/lib/config";
+import {
+  SHOPIFY_CLIENT_ID_MAX_LENGTH,
+  SHOPIFY_CLIENT_ID_RE,
+  SHOPIFY_CLIENT_SECRET_MAX_LENGTH,
+  SHOPIFY_CLIENT_SECRET_RE,
+  SHOPIFY_OAUTH_PENDING_KEY,
+  STORE_PLATFORMS,
+  type StorePlatform,
+} from "@/lib/config";
 import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,35 +39,43 @@ import {
 import {
   InputGroup,
   InputGroupAddon,
+  InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 
-const validationSchema = z
-  .object({
-    platform: z.enum(["shopify", "magento"]),
-    store_url: z.string().trim(),
-    client_id: z.string().trim(),
-    client_secret: z.string().trim(),
-  })
-  .superRefine((values, ctx) => {
-    if (!/^https:\/\/[^\s/]+\.[^\s/]+/i.test(values.store_url)) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["store_url"],
-        message: "Enter the full store URL, starting with https://",
-      });
-    }
-    if (values.platform === "shopify") {
-      for (const field of ["client_id", "client_secret"] as const) {
-        if (!values[field]) {
-          ctx.addIssue({ code: "custom", path: [field], message: "Required" });
-        }
-      }
-    }
-  });
+const validationSchema = z.object({
+  // Magento is commented out until its connect flow ships.
+  platform: z.enum(["shopify" /* , "magento" */]),
+  store_url: z
+    .string()
+    .trim()
+    .pipe(
+      z.url({
+        protocol: /^https$/,
+        hostname: z.regexes.domain,
+        error: "Enter the full store URL, starting with https://",
+      }),
+    ),
+  // shortcut: always required since Shopify is the only platform; make them
+  // Shopify-only again when Magento (which hides these fields) comes back.
+  client_id: z
+    .string()
+    .trim()
+    .regex(
+      SHOPIFY_CLIENT_ID_RE,
+      "Enter the 32-character client ID from your Shopify app",
+    ),
+  client_secret: z
+    .string()
+    .trim()
+    .regex(
+      SHOPIFY_CLIENT_SECRET_RE,
+      "Enter the client secret from your Shopify app: shpss_ followed by 32 hex characters, or 32 hex characters",
+    ),
+});
 
 type StoreSetupValues = z.infer<typeof validationSchema>;
 
@@ -71,6 +90,7 @@ export function StoreSetupForm({
   const { StartShopifyOauthIsLoading } = useAppSelector(
     (state) => state.GetOnboardingReducer.StartShopifyOauthState,
   );
+  const [showSecret, setShowSecret] = useState(false);
 
   const formik = useFormik<StoreSetupValues>({
     initialValues: {
@@ -101,6 +121,8 @@ export function StoreSetupForm({
       if (StartShopifyOauth.fulfilled.match(result)) {
         // Full-page hop to Shopify's consent screen; it sends the browser
         // back here with the OAuth params and the drawer finishes the flow.
+        // If it doesn't, ShopifyOauthReturn finds this flag on the way back.
+        sessionStorage.setItem(SHOPIFY_OAUTH_PENDING_KEY, "1");
         window.location.assign(result.payload.authorize_url);
       } else {
         applyServerFieldErrors(formik, result.payload);
@@ -123,7 +145,12 @@ export function StoreSetupForm({
             onValueChange={(value) =>
               formik.setFieldValue("platform", value as StorePlatform)
             }
-            className="grid-cols-1 sm:grid-cols-2"
+            // A lone platform (Magento is commented out) takes the full width.
+            className={
+              STORE_PLATFORMS.length > 1
+                ? "grid-cols-1 sm:grid-cols-2"
+                : "grid-cols-1"
+            }
           >
             {STORE_PLATFORMS.map((platform) => (
               <FieldLabel
@@ -178,9 +205,11 @@ export function StoreSetupForm({
             </Typography>
           ) : (
             <FieldDescription>
-              {isShopify
-                ? "Your store's address, e.g. https://www.your-store.com, including https://."
-                : "The full address of your Magento storefront, including https://."}
+              {/* Magento is commented out until its connect flow ships; its
+                  copy was "The full address of your Magento storefront,
+                  including https://." */}
+              Your store&apos;s address, e.g. https://www.your-store.com,
+              including https://.
             </FieldDescription>
           )}
         </Field>
@@ -193,6 +222,7 @@ export function StoreSetupForm({
                 IconKey,
                 "text",
                 "e.g. 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d",
+                SHOPIFY_CLIENT_ID_MAX_LENGTH,
               ],
               [
                 "client_secret",
@@ -200,9 +230,10 @@ export function StoreSetupForm({
                 IconLock,
                 "password",
                 "e.g. shpss_xxxxxxxxxxxxxxxx",
+                SHOPIFY_CLIENT_SECRET_MAX_LENGTH,
               ],
             ] as const
-          ).map(([field, label, Icon, type, placeholder]) => (
+          ).map(([field, label, Icon, type, placeholder, maxLength]) => (
             <Field key={field} data-invalid={invalid(field)}>
               <FieldLabel htmlFor={field}>{label}</FieldLabel>
               <InputGroup>
@@ -212,14 +243,29 @@ export function StoreSetupForm({
                 <InputGroupInput
                   id={field}
                   name={field}
-                  type={type}
+                  type={type === "password" && showSecret ? "text" : type}
                   placeholder={placeholder}
+                  maxLength={maxLength}
                   autoComplete="off"
                   aria-invalid={invalid(field)}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
                   value={formik.values[field]}
                 />
+                {type === "password" && (
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      type="button"
+                      size="icon-xs"
+                      aria-label={
+                        showSecret ? "Hide client secret" : "Show client secret"
+                      }
+                      onClick={() => setShowSecret((visible) => !visible)}
+                    >
+                      {showSecret ? <IconEyeOff /> : <IconEye />}
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                )}
               </InputGroup>
               {invalid(field) ? (
                 <Typography variant="small" className="text-destructive">

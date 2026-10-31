@@ -45,16 +45,28 @@ import {
 } from "@/redux/api-slice/brand-voice-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { formikErrorsFromZod, applyServerFieldErrors } from "@/lib/form-errors";
-import { SELF_REFERENCE_OPTIONS } from "@/lib/config";
+import { AGENT_NAME_MAX_LENGTH, SELF_REFERENCE_OPTIONS } from "@/lib/config";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // Validation schema for the form using Zod
 const validationSchema = z.object({
+  // Mirrors the server's rules. Every check needs its own message: the one
+  // given to z.string() is the fallback for any check without one. `abort`
+  // keeps a blank field on its own message, and those checks run before
+  // trim(), which would turn "   " into "".
   name: z
     .string("Agent name is required")
+    .min(1, { error: "Agent name is required", abort: true })
+    .refine((value) => value.trim() !== "", {
+      error: "This field cannot contain only spaces.",
+      abort: true,
+    })
     .trim()
-    .min(1, "Agent name is required")
-    .max(60),
+    .max(
+      AGENT_NAME_MAX_LENGTH,
+      `Agent name must not exceed ${AGENT_NAME_MAX_LENGTH} characters.`,
+    )
+    .regex(/^[\p{L} ]+$/u, "Agent name can contain only letters and spaces."),
   role_description: z
     .string("Role description is required")
     .trim()
@@ -176,6 +188,7 @@ export default function PersonaIdentity() {
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
                     placeholder="Ellie"
+                    maxLength={AGENT_NAME_MAX_LENGTH}
                   />
                   {formik.touched.name && formik.errors.name && (
                     <p className="text-xs text-destructive">

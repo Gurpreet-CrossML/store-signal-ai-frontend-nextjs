@@ -142,13 +142,12 @@ export default function Threads() {
   // Set by the "Past chats" link: only threads started before that one.
   const beforeThreadId = searchParams?.get("before_thread_id") ?? undefined;
 
-  // Fetch whenever the store, page, page size or filters change.
-  // The API is 1-indexed, the table is 0-indexed.
-  useEffect(() => {
-    if (!storeCode) return;
-    const activeFilters = {
+  // Everything that narrows the list except the tag selection. The tag chips
+  // are counted against exactly this, so picking a tag never hides the others.
+  const baseFilters = useMemo(
+    () => ({
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
-      ...(filters.is_active ? { is_active: filters.is_active === "true" } : {}),
+      is_active: false,
       ...(filters.user_type ? { user_type: filters.user_type } : {}),
       ...(filters.has_ticket
         ? { has_ticket: filters.has_ticket === "true" }
@@ -161,19 +160,41 @@ export default function Threads() {
       ...(filters.feedback_rating
         ? { feedback_rating: filters.feedback_rating }
         : {}),
-      ...(filters.tags.length ? { tags: filters.tags } : {}),
       ...(filters.handled_by ? { handled_by: filters.handled_by } : {}),
       ...(filters.channel ? { channel: filters.channel } : {}),
       ...(filters.from ? { from: filters.from } : {}),
       ...(filters.to ? { to: filters.to } : {}),
       ...(beforeThreadId ? { before_thread_id: beforeThreadId } : {}),
-    };
+    }),
+    [
+      debouncedSearch,
+      filters.user_type,
+      filters.has_ticket,
+      filters.has_order,
+      filters.has_agent,
+      filters.has_feedback,
+      filters.feedback_rating,
+      filters.handled_by,
+      filters.channel,
+      filters.from,
+      filters.to,
+      beforeThreadId,
+    ],
+  );
+
+  // Fetch whenever the store, page, page size or filters change.
+  // The API is 1-indexed, the table is 0-indexed.
+  useEffect(() => {
+    if (!storeCode) return;
     dispatch(
       FetchThreads({
         store_code: storeCode,
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
-        filters: activeFilters,
+        filters: {
+          ...baseFilters,
+          ...(filters.tags.length ? { tags: filters.tags } : {}),
+        },
       }),
     );
   }, [
@@ -181,27 +202,18 @@ export default function Threads() {
     storeCode,
     pagination.pageIndex,
     pagination.pageSize,
-    debouncedSearch,
-    filters.is_active,
-    filters.user_type,
-    filters.has_ticket,
-    filters.has_order,
-    filters.has_agent,
-    filters.has_feedback,
-    filters.feedback_rating,
+    baseFilters,
     filters.tags,
-    filters.handled_by,
-    filters.channel,
-    filters.from,
-    filters.to,
-    beforeThreadId,
   ]);
 
-  // Tag options for the filter bar's tags combobox — refetched per store.
+  // The tag chips: only tags threads carry, with counts that follow the
+  // filters above — refetched when the store or any of them changes.
   useEffect(() => {
     if (!storeCode) return;
-    dispatch(FetchThreadTagOptions({ store_code: storeCode }));
-  }, [dispatch, storeCode]);
+    dispatch(
+      FetchThreadTagOptions({ store_code: storeCode, filters: baseFilters }),
+    );
+  }, [dispatch, storeCode, baseFilters]);
 
   const rows = useMemo(
     () => FetchThreadsListData?.results ?? [],

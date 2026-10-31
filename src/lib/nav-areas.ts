@@ -3,7 +3,7 @@ import type { ComponentType } from "react";
 import {
   IconAdjustmentsSpark,
   IconBooks,
-  IconArrowsExchange,
+  IconAutomaticGearbox,
   // IconBrandFacebook,
   // IconBrandInstagram,
   // IconBrandMessenger,
@@ -14,7 +14,6 @@ import {
   IconBuildingSkyscraper,
   // IconChecklist,
   // IconClockShield,
-  IconCreditCardOff,
   IconImageGeneration,
   IconHeadset,
   IconInbox,
@@ -22,7 +21,6 @@ import {
   IconLibrary,
   // IconMessages,
   // IconSocial,
-  IconPackageOff,
   // IconSend,
   IconSettings,
   // IconShield,
@@ -31,12 +29,16 @@ import {
   IconTags,
   IconUserHexagon,
   IconUsers,
-  IconUser,
+  IconUserCheck,
+  // IconFlag,
+  IconMoodSad,
+  IconUserOff,
+  IconMailOpened,
   IconUsersGroup,
   IconShoppingBag,
   IconVolume,
   type Icon,
-  // IconChartBar,
+  IconChartBar,
   // IconPackage,
 } from "@tabler/icons-react";
 
@@ -122,36 +124,38 @@ export const NAV_AREAS = {
         description: "Every ticket for this store.",
         icon: IconInbox,
       },
+      {
+        href: "/helpdesk?filter=unassigned",
+        title: "Unassigned",
+        description: "Tickets nobody has picked up yet.",
+        icon: IconUserOff,
+      },
+      {
+        href: "/helpdesk?filter=assigned_to_me",
+        title: "Assigned to me",
+        description: "Tickets you are working on.",
+        icon: IconUserCheck,
+      },
+      {
+        href: "/helpdesk?filter=unread",
+        title: "Unread",
+        description: "Tickets nobody has opened yet.",
+        icon: IconMailOpened,
+      },
       // {
-      //   href: "/helpdesk?filter=unassigned",
-      //   title: "Unassigned",
-      //   description: "Tickets nobody has picked up yet.",
-      //   icon: IconUser,
-      // },
-      // {
-      //   href: "/helpdesk?filter=snoozed",
-      //   title: "Snoozed",
-      //   description: "Tickets set aside until a chosen time.",
-      //   icon: IconAlarmSnoozeFilled,
+      //   href: "/helpdesk?filter=high_priority",
+      //   title: "Urgent / High priority",
+      //   description: "Tickets filed as urgent or high priority.",
+      //   icon: IconFlag,
       // },
       {
-        href: "/helpdesk?filter=Order_Return",
-        title: "Order Return",
-        description: "Tickets tagged as a return.",
-        icon: IconPackageOff,
+        href: "/helpdesk?filter=negative_sentiment",
+        title: "Negative Sentiment",
+        description: "Tickets from customers who sound unhappy.",
+        icon: IconMoodSad,
       },
-      {
-        href: "/helpdesk?filter=Payment_Failed",
-        title: "Payment Failed",
-        description: "Tickets tagged as a failed payment.",
-        icon: IconCreditCardOff,
-      },
-      {
-        href: "/helpdesk?filter=Exchange_Request",
-        title: "Exchange Request",
-        description: "Tickets tagged as an exchange.",
-        icon: IconArrowsExchange,
-      },
+      // The tag and channel views are not listed here: they come from the
+      // store's own data, with their counts (see lib/helpdesk-filters).
     ],
   },
 
@@ -199,106 +203,106 @@ export const NAV_AREAS = {
       //   description: "Connect your store and third-party platforms.",
       //   icon: IconPlugConnected,
       // },
-      // {
-      // href: "/settings/ai-usage",
-      // title: "AI Usage",
-      // description: "What the assistant costs to run, and how hard it works.",
-      // pageDescription:
-      // "Token spend, workflow costs and response latency for this store's assistant.",
-      // icon: IconChartBar,
-      // },
-      // {
-      // href: "/settings/social-ai",
-      // title: "Social AI",
-      // description:
-      // "Connected accounts, and how the AI answers comments and DMs.",
-      // pageDescription:
-      // "The Facebook and Instagram accounts connected to Store Signal AI, and the rules the AI follows when it answers on them.",
-      // icon: IconBrandMeta,
-      // items: [
-      // {
-      // href: "/settings/social-ai/accounts",
-      // title: "Connected Accounts",
-      // description:
-      // "Facebook and Instagram accounts connected to Store Signal AI.",
-      // pageDescription:
-      // "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
-      // icon: IconSocial,
-      // },
-      // {
-      // href: "/settings/social-ai/comment-handling",
-      // title: "Comment Handling",
-      // description: "How the AI reads, classifies and acts on comments.",
-      // pageDescription:
-      // "How the AI reads, classifies and acts on every comment on your posts and ads. Each comment is tagged by intent, then handled by the rule you set for that intent.",
-      // icon: IconMessageCircle,
-      // },
-      // {
-      // href: "/settings/social-ai/dm-automation",
-      // title: "DM Automation",
-      // description: "How the AI handles direct messages.",
-      // pageDescription:
-      // "How the AI handles direct messages — the private, higher-trust channel where orders, support and conversions happen. Meta's messaging rules are applied on top of everything set here.",
-      // icon: IconMessages,
-      // },
-      // {
-      // href: "/settings/social-ai/guardrails",
-      // title: "Guardrails & Limits",
-      // description:
-      // "Rate and pacing ceilings that keep every account safe.",
-      // pageDescription:
-      // "Rate and pacing ceilings, set per connected account, that keep automation well inside spam-safe territory.",
-      // icon: IconClockShield,
-      // },
-      // {
-      // href: "/settings/social-ai/meta-compliance",
-      // title: "Meta Compliance",
-      // description:
-      // "The platform rails enforced on every connected account.",
-      // pageDescription:
-      // "The Meta rules enforced automatically on every connected account, so nothing you configure can put your accounts at risk.",
-      // icon: IconShield,
-      // },
-      // ],
-      // },
-      // {
-      //   href: "/settings/workflows",
-      //   title: "Workflows",
-      //   description:
-      //     "The rules the AI follows for order cancellation, modification, and returns.",
-      //   pageDescription:
-      //     "The rules and guardrails the AI follows when it cancels, modifies, or refunds an order on your behalf.",
-      //   icon: IconAutomaticGearbox,
-      //   items: [
-      //     {
-      //       href: "/settings/workflows/order-cancellation",
-      //       title: "Order Cancellation",
-      //       description:
-      //         "The rules the AI follows when it cancels an order on your behalf.",
-      //       pageDescription:
-      //         "The rules and guardrails the AI follows when it cancels an order on your behalf.",
-      //       icon: IconPackageOff,
-      //     },
-      //     {
-      //       href: "/settings/workflows/order-modification",
-      //       title: "Order Modification",
-      //       description:
-      //         "The rules the AI follows when it modifies an order on your behalf.",
-      //       pageDescription:
-      //         "The rules and guardrails the AI follows when it modifies an order on your behalf.",
-      //       icon: IconShoppingBagEdit,
-      //     },
-      //     {
-      //       href: "/settings/workflows/order-returns",
-      //       title: "Order Returns",
-      //       description:
-      //         "The rules the AI follows when it processes a return on your behalf.",
-      //       pageDescription:
-      //         "The rules and guardrails the AI follows when it processes a return on your behalf.",
-      //       icon: IconPackageImport,
-      //     },
-      //   ],
-      // },
+      {
+        href: "/settings/ai-usage",
+        title: "AI Usage",
+        description: "Credits left, your plan cycle, and where credits went.",
+        pageDescription:
+          "AI credit usage for this store by day and capability.",
+        icon: IconChartBar,
+      },
+      //       {
+      //         href: "/settings/social-ai",
+      //         title: "Social AI",
+      //         description:
+      //           "Connected accounts, and how the AI answers comments and DMs.",
+      //         pageDescription:
+      //           "The Facebook and Instagram accounts connected to Store Signal AI, and the rules the AI follows when it answers on them.",
+      //         icon: IconBrandMeta,
+      //         items: [
+      //           {
+      //             href: "/settings/social-ai/accounts",
+      //             title: "Connected Accounts",
+      //             description:
+      //               "Facebook and Instagram accounts connected to Store Signal AI.",
+      //             pageDescription:
+      //               "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
+      //             icon: IconSocial,
+      //           },
+      //           {
+      //             href: "/settings/social-ai/comment-handling",
+      //             title: "Comment Handling",
+      //             description: "How the AI reads, classifies and acts on comments.",
+      //             pageDescription:
+      //               "How the AI reads, classifies and acts on every comment on your posts and ads. Each comment is tagged by intent, then handled by the rule you set for that intent.",
+      //             icon: IconMessageCircle,
+      //           },
+      //           {
+      //             href: "/settings/social-ai/dm-automation",
+      //             title: "DM Automation",
+      //             description: "How the AI handles direct messages.",
+      //             pageDescription:
+      //               "How the AI handles direct messages — the private, higher-trust channel where orders, support and conversions happen. Meta's messaging rules are applied on top of everything set here.",
+      //             icon: IconMessages,
+      //           },
+      //           {
+      //             href: "/settings/social-ai/guardrails",
+      //             title: "Guardrails & Limits",
+      //             description:
+      //               "Rate and pacing ceilings that keep every account safe.",
+      //             pageDescription:
+      //               "Rate and pacing ceilings, set per connected account, that keep automation well inside spam-safe territory.",
+      //             icon: IconClockShield,
+      //           },
+      //           {
+      //             href: "/settings/social-ai/meta-compliance",
+      //             title: "Meta Compliance",
+      //             description:
+      //               "The platform rails enforced on every connected account.",
+      //             pageDescription:
+      //               "The Meta rules enforced automatically on every connected account, so nothing you configure can put your accounts at risk.",
+      //             icon: IconShield,
+      //           },
+      //         ],
+      //       },
+      {
+        href: "/settings/workflows",
+        title: "Workflows",
+        description: "Turn the AI's workflows on or off for this store.",
+        pageDescription:
+          "Everything your Sales AI and Support AI can do for your customers. Turn one off and the AI stops answering those questions for this store only; workflows that depend on it turn off with it.",
+        icon: IconAutomaticGearbox,
+        // Order rule screens, switched off for now:
+        // items: [
+        //     {
+        //       href: "/settings/workflows/order-cancellation",
+        //       title: "Order Cancellation",
+        //       description:
+        //         "The rules the AI follows when it cancels an order on your behalf.",
+        //       pageDescription:
+        //         "The rules and guardrails the AI follows when it cancels an order on your behalf.",
+        //       icon: IconPackageOff,
+        //     },
+        //     {
+        //       href: "/settings/workflows/order-modification",
+        //       title: "Order Modification",
+        //       description:
+        //         "The rules the AI follows when it modifies an order on your behalf.",
+        //       pageDescription:
+        //         "The rules and guardrails the AI follows when it modifies an order on your behalf.",
+        //       icon: IconShoppingBagEdit,
+        //     },
+        //     {
+        //       href: "/settings/workflows/order-returns",
+        //       title: "Order Returns",
+        //       description:
+        //         "The rules the AI follows when it processes a return on your behalf.",
+        //       pageDescription:
+        //         "The rules and guardrails the AI follows when it processes a return on your behalf.",
+        //       icon: IconPackageImport,
+        //     },
+        //   ],
+      },
     ],
   },
 
@@ -373,48 +377,48 @@ export const NAV_AREAS = {
     ],
   },
 
-  // socialAI: {
-  // href: "/social-ai",
-  // title: "Social AI",
-  // description:
-  // "AI-handled comments and messages across your connected social accounts.",
-  // icon: IconBrandMeta,
-  // sections: [
-  // {
-  // href: "/social-ai/facebook-post",
-  // title: "Facebook Posts",
-  // description: "AI replies to comments on your Facebook posts.",
-  // icon: IconBrandFacebook,
-  // },
-  // {
-  // href: "/social-ai/facebook-messages",
-  // title: "Facebook Messages",
-  // description: "AI conversations in your Facebook page inbox.",
-  // icon: IconBrandMessenger,
-  // },
-  // {
-  // href: "/social-ai/instagram-post",
-  // title: "Instagram Posts",
-  // description: "AI replies to comments on your Instagram posts.",
-  // icon: IconBrandInstagram,
-  // },
-  // {
-  // href: "/social-ai/instagram-messages",
-  // title: "Instagram Messages",
-  // description: "AI conversations in your Instagram direct messages.",
-  // icon: IconSend,
-  // },
-  // {
-  // href: "/social-ai/comment-drafts",
-  // title: "Draft Review",
-  // description: "Review AI-drafted comment replies before they go out.",
-  // pageDescription:
-  // "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
-  // icon: IconChecklist,
-  // },
-  // ],
-  // },
-  //
+  //   socialAI: {
+  //     href: "/social-ai",
+  //     title: "Social AI",
+  //     description:
+  //       "AI-handled comments and messages across your connected social accounts.",
+  //     icon: IconBrandMeta,
+  //     sections: [
+  //       {
+  //         href: "/social-ai/facebook-post",
+  //         title: "Facebook Posts",
+  //         description: "AI replies to comments on your Facebook posts.",
+  //         icon: IconBrandFacebook,
+  //       },
+  //       {
+  //         href: "/social-ai/facebook-messages",
+  //         title: "Facebook Messages",
+  //         description: "AI conversations in your Facebook page inbox.",
+  //         icon: IconBrandMessenger,
+  //       },
+  //       {
+  //         href: "/social-ai/instagram-post",
+  //         title: "Instagram Posts",
+  //         description: "AI replies to comments on your Instagram posts.",
+  //         icon: IconBrandInstagram,
+  //       },
+  //       {
+  //         href: "/social-ai/instagram-messages",
+  //         title: "Instagram Messages",
+  //         description: "AI conversations in your Instagram direct messages.",
+  //         icon: IconSend,
+  //       },
+  //       {
+  //         href: "/social-ai/comment-drafts",
+  //         title: "Draft Review",
+  //         description: "Review AI-drafted comment replies before they go out.",
+  //         pageDescription:
+  //           "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
+  //         icon: IconChecklist,
+  //       },
+  //     ],
+  //   },
+
   // campaign: {
   // href: "/campaign",
   // title: "Campaign",
