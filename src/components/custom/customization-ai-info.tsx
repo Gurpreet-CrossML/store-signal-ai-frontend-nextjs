@@ -14,6 +14,7 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Typography } from "@/components/ui/typography";
+import { richTextLength, trimRichText } from "@/lib/rich-text";
 import type { AiDisclaimer } from "@/redux/api-slice/customization-slice";
 
 const RichTextArea = dynamic(
@@ -26,14 +27,10 @@ export const DEFAULTS = {
   button_label: "Got it",
 };
 
-// Title limit is enforced by the API (store/models.py); the description limit
-// counts visible text only, not the HTML tags.
-const LIMITS = {
-  title: 80,
-  description: 1000,
-};
-
-const visibleLength = (html: string) => html.replace(/<[^>]*>/g, "").length;
+// The description limits count visible text only — characters, spaces and line
+// breaks, not the HTML tags — with leading and trailing blank space ignored.
+export const AI_TITLE_LIMITS = { min: 10, max: 80 };
+export const AI_DESCRIPTION_LIMITS = { min: 100, max: 1000 };
 
 type EditorState = { title: string; description: string };
 
@@ -42,11 +39,11 @@ const toState = (value: AiDisclaimer | null | undefined): EditorState => ({
   description: value?.description ?? "",
 });
 
-/** What is saved: whatever the user entered; blank means "use the default". */
+/** What is saved: the entered text without leading or trailing blank space. */
 const toPayload = (state: EditorState): AiDisclaimer | null => {
   const out: AiDisclaimer = {};
   const title = state.title.trim();
-  const description = state.description.trim();
+  const description = trimRichText(state.description);
   if (title) out.title = title;
   if (description) out.description = description;
   return Object.keys(out).length ? out : null;
@@ -75,6 +72,13 @@ export default function CustomizationAiInfo({
     }
   }, [value]);
 
+  const titleLength = Array.from(state.title.trim()).length;
+  const descriptionLength = richTextLength(state.description);
+  const descriptionOutOfRange =
+    descriptionLength > 0 &&
+    (descriptionLength < AI_DESCRIPTION_LIMITS.min ||
+      descriptionLength > AI_DESCRIPTION_LIMITS.max);
+
   const update = (next: EditorState) => {
     setState(next);
     const payload = toPayload(next);
@@ -87,7 +91,7 @@ export default function CustomizationAiInfo({
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5">
           AI Disclaimer
-          <InfoIcon text="The popup opened from the AI disclaimer line under the chat input. Leave a field blank to use the default wording." />
+          <InfoIcon text="The popup opened from the AI disclaimer line under the chat input. Both fields are required." />
         </CardTitle>
         <CardDescription>
           Change the title and description of the &quot;About this AI
@@ -100,9 +104,24 @@ export default function CustomizationAiInfo({
           <Input
             id="ai-title"
             value={state.title}
-            maxLength={LIMITS.title}
-            onChange={(e) => update({ ...state, title: e.target.value })}
+            maxLength={AI_TITLE_LIMITS.max}
+            aria-invalid={!!fieldErrors?.ai_disclaimer_title}
+            // No leading spaces: they would only be trimmed on save.
+            onChange={(e) =>
+              update({ ...state, title: e.target.value.trimStart() })
+            }
           />
+          <Typography
+            variant="caption"
+            className={
+              titleLength > 0 && titleLength < AI_TITLE_LIMITS.min
+                ? "text-destructive"
+                : undefined
+            }
+          >
+            {titleLength}/{AI_TITLE_LIMITS.max} characters (minimum{" "}
+            {AI_TITLE_LIMITS.min})
+          </Typography>
           {fieldErrors?.ai_disclaimer_title ? (
             <Typography variant="caption" className="text-destructive">
               {fieldErrors.ai_disclaimer_title}
@@ -120,13 +139,10 @@ export default function CustomizationAiInfo({
           />
           <Typography
             variant="caption"
-            className={
-              visibleLength(state.description) > LIMITS.description
-                ? "text-destructive"
-                : undefined
-            }
+            className={descriptionOutOfRange ? "text-destructive" : undefined}
           >
-            {visibleLength(state.description)}/{LIMITS.description} characters
+            {descriptionLength}/{AI_DESCRIPTION_LIMITS.max} characters (minimum{" "}
+            {AI_DESCRIPTION_LIMITS.min})
           </Typography>
           {fieldErrors?.ai_disclaimer_description ? (
             <Typography variant="caption" className="text-destructive">
