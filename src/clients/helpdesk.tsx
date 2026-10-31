@@ -22,11 +22,7 @@ import {
   IconDeviceFloppy,
   IconFilter,
   IconInbox,
-  IconMail,
-  IconWorld,
-  IconBrandFacebook,
-  IconBrandInstagram,
-  IconBrandWhatsapp,
+  IconInfoCircle,
   type Icon,
   IconLanguage,
   IconMessageChatbot,
@@ -101,6 +97,7 @@ import {
 } from "@/lib/badge-tones";
 
 import { ConversationRow } from "@/components/custom/conversation-row";
+import { CreditLabel } from "@/components/custom/credit-label";
 import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
 import { SyncCustomerOrders } from "@/redux/api-slice/order-slice";
 import {
@@ -112,6 +109,7 @@ import {
   CustomerDetailsButton,
   CustomerDetailsPanel,
 } from "@/components/custom/customer-details-panel";
+import { TicketActivityDrawer } from "@/components/custom/ticket-activity-drawer";
 import { CrmLinkButton } from "@/components/custom/customer-header";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
@@ -124,22 +122,34 @@ import { DateRangePicker } from "@/components/custom/date-range-picker";
 import { LoadingState } from "@/components/custom/loading-state";
 import { SearchInput } from "@/components/custom/search-input";
 
-import { ENDPOINTS } from "@/lib/config";
+import {
+  ACTIVE_ASSIGNEE_STYLE,
+  ACTIVE_QUEUE_STYLE,
+  DEFAULT_HELPDESK_QUEUE,
+  ENDPOINTS,
+} from "@/lib/config";
 import {
   SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS,
   prepareSupportAttachments,
 } from "@/lib/support-attachment-constants";
 import {
   DEFAULT_TICKET_LANGUAGE,
+  CHANNEL_META,
   DEFAULT_TICKET_SENTIMENT,
   SUPPORTED_LANGUAGES,
   TICKET_SENTIMENTS,
   type TicketLanguage,
   type TicketSentiment,
 } from "@/lib/ticket-options";
+import {
+  helpdeskFilterToQuery,
+  ticketBelongsToHelpdeskFilter,
+} from "@/lib/helpdesk-filters";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   FetchSupportTickets,
+  refreshFilterCounts,
+  setHelpdeskQueue,
   FetchSupportTicketTags,
   SupportTicketStaffAssign,
   FetchSupportTicketDetails,
@@ -157,7 +167,6 @@ import {
   SupportTicketLanguageSentimentUpdate,
   SupportTicketMessagesTranslate,
   type SupportTicket,
-  type SupportTicketChannel,
   type SupportTicketCreatedBy,
   type SupportTicketPriority,
   type SupportTicketTagData,
@@ -321,6 +330,8 @@ const queues = [
   { key: "closed", label: "Closed" },
 ] as const;
 
+const DEFAULT_SORT_ORDER: SupportTicketOrdering = "last_updated";
+
 const SORT_OPTIONS: { key: SupportTicketOrdering; label: string }[] = [
   { key: "last_updated", label: "Last updated" },
   { key: "newest", label: "Newest" },
@@ -329,13 +340,13 @@ const SORT_OPTIONS: { key: SupportTicketOrdering; label: string }[] = [
 
 /**
  * Where an agent can move a ticket from the status menu. Mirrors the API:
- * a resolved ticket can only be opened or closed and a closed one only
+ * only a resolved ticket can be opened or closed and a closed one only
  * reopened, and snoozed is set from the snooze control, never from here.
  */
 const STATUS_TRANSITIONS: Record<SupportTicketStatus, SupportTicketStatus[]> = {
-  open: ["resolved", "closed"],
-  reopen: ["resolved", "closed"],
-  snoozed: ["resolved", "closed"],
+  open: ["resolved"],
+  reopen: ["resolved"],
+  snoozed: ["resolved"],
   resolved: ["open", "closed"],
   closed: ["reopen"],
 };
@@ -343,47 +354,49 @@ const STATUS_TRANSITIONS: Record<SupportTicketStatus, SupportTicketStatus[]> = {
 /** Negative so an optimistic message can never collide with a server id. */
 const createTempMessageId = () => -Date.now();
 
+/** Copy for the confirmation shown before each status change. */
+const STATUS_CONFIRMATIONS = {
+  open: {
+    title: "Open ticket",
+    description:
+      "Are you sure you want to open this ticket? This will mark the ticket as open.",
+    action: "Open ticket",
+  },
+  reopen: {
+    title: "Reopen ticket",
+    description:
+      "Are you sure you want to reopen this ticket? This will mark the ticket as reopened.",
+    action: "Reopen ticket",
+  },
+  resolved: {
+    title: "Mark ticket as resolved",
+    description:
+      "Are you sure this issue has been resolved? This will mark the ticket as resolved.",
+    action: "Mark resolved",
+  },
+  closed: {
+    title: "Close ticket",
+    description:
+      "Are you sure you want to close this ticket? This will mark the ticket as closed.",
+    action: "Close ticket",
+  },
+} as const;
+
 type TicketFilterSelection = {
-  channels: SupportTicketChannel[];
-  tags: string[];
   priorities: SupportTicketPriority[];
   fromDate: string;
   toDate: string;
 };
 
 const emptyTicketFilters: TicketFilterSelection = {
-  channels: [],
-  tags: [],
   priorities: [],
   fromDate: "",
   toDate: "",
 };
 
-/**
- * How each channel is named and drawn.
- *
- * One map rather than a label list and an icon chosen at the point of use:
- * the ticket header was showing a generic inbox for every channel, so a
- * Facebook ticket and an email ticket looked identical until you read the
- * word beside them — which is the one thing an icon is there to save.
- */
-const CHANNEL_META: Record<
-  SupportTicketChannel,
-  { label: string; icon: Icon }
-> = {
-  web: { label: "Web", icon: IconWorld },
-  email: { label: "Email", icon: IconMail },
-  whatsapp: { label: "WhatsApp", icon: IconBrandWhatsapp },
-  facebook: { label: "Facebook", icon: IconBrandFacebook },
-  instagram: { label: "Instagram", icon: IconBrandInstagram },
-};
-
-const channelOptions: { value: SupportTicketChannel; label: string }[] =
-  // Derived, so adding a channel to the map offers it as a filter too.
-  (Object.keys(CHANNEL_META) as SupportTicketChannel[]).map((value) => ({
-    value,
-    label: CHANNEL_META[value].label,
-  }));
+/** A date from the URL is only used if it parses; a hand-edited one may not. */
+const isValidDateParam = (value: string) =>
+  value !== "" && !Number.isNaN(new Date(value).getTime());
 
 /** Who opened a ticket, as the header shows it. */
 const CREATED_BY_META: Record<
@@ -423,7 +436,6 @@ function TicketListPanel({
   onLoadMore,
   searchValue,
   onSearchChange,
-  availableTags,
   filters,
   isFilterOpen,
   onFilterOpenChange,
@@ -431,10 +443,6 @@ function TicketListPanel({
   onApplyFilters,
   onClearFilters,
   dateError,
-  hasMoreTags,
-  isTagListLoading,
-  onTagSearchChange,
-  onLoadMoreTags,
   supportTicketStatusCount,
   className,
 }: {
@@ -455,7 +463,6 @@ function TicketListPanel({
   onLoadMore: () => void;
   searchValue: string;
   onSearchChange: (value: string) => void;
-  availableTags: SupportTicketTagData[];
   filters: TicketFilterSelection;
   isFilterOpen: boolean;
   onFilterOpenChange: (open: boolean) => void;
@@ -463,15 +470,9 @@ function TicketListPanel({
   onApplyFilters: () => void;
   onClearFilters: () => void;
   dateError?: string;
-  hasMoreTags: boolean;
-  isTagListLoading: boolean;
-  onTagSearchChange: (value: string) => void;
-  onLoadMoreTags: () => void;
   supportTicketStatusCount: SupportTicketStatusCounts;
 }) {
   const activeFilterCount =
-    filters.channels.length +
-    filters.tags.length +
     filters.priorities.length +
     Number(Boolean(filters.fromDate || filters.toDate));
 
@@ -496,7 +497,14 @@ function TicketListPanel({
         <div className="flex min-w-0 items-center gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="-ml-2 gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "-ml-2 gap-1",
+                  activeQueue !== DEFAULT_HELPDESK_QUEUE && ACTIVE_QUEUE_STYLE,
+                )}
+              >
                 <CardTitle>
                   {queueLabel}
                   <span className="ml-1.5 font-normal text-muted-foreground">
@@ -550,50 +558,6 @@ function TicketListPanel({
                 <CardTitle>Filter Tickets</CardTitle>
               </div>
               <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4">
-                <fieldset>
-                  <legend className="mb-2">
-                    <Typography variant="small" as="span">
-                      Channel
-                    </Typography>
-                  </legend>
-                  <MultiSelectCombobox
-                    options={channelOptions}
-                    value={filters.channels}
-                    onValueChange={(channels) =>
-                      onFiltersChange({
-                        ...filters,
-                        channels: channels as SupportTicketChannel[],
-                      })
-                    }
-                    placeholder="Search channels…"
-                    emptyMessage="No channels found."
-                  />
-                </fieldset>
-
-                <fieldset>
-                  <legend className="mb-2">
-                    <Typography variant="small" as="span">
-                      Tags
-                    </Typography>
-                  </legend>
-                  <MultiSelectCombobox
-                    options={availableTags.map((tag) => ({
-                      value: tag.name,
-                      label: tag.name,
-                    }))}
-                    value={filters.tags}
-                    onValueChange={(tags) =>
-                      onFiltersChange({ ...filters, tags })
-                    }
-                    placeholder="Search tags…"
-                    emptyMessage="No tags found."
-                    onSearchChange={onTagSearchChange}
-                    hasMore={hasMoreTags}
-                    isLoading={isTagListLoading}
-                    onLoadMore={onLoadMoreTags}
-                  />
-                </fieldset>
-
                 <fieldset>
                   <legend className="mb-2">
                     <Typography variant="small" as="span">
@@ -758,8 +722,11 @@ function ConversationPanel({
   availableTags,
   isTagPickerOpen,
   isTagPickerLoading,
+  isLoadingMoreTags,
   hasMoreTags,
   onLoadMoreTags,
+  tagSearch,
+  onTagSearchChange,
   onToggleTagPicker,
   onAddTag,
   onRemoveTag,
@@ -806,8 +773,13 @@ function ConversationPanel({
   availableTags: SupportTicketTagData[];
   isTagPickerOpen: boolean;
   isTagPickerLoading: boolean;
+  /** True while a further page is loading, as opposed to a first page or a new search. */
+  isLoadingMoreTags: boolean;
   hasMoreTags: boolean;
   onLoadMoreTags: () => void;
+  /** The picker's search box. The search itself runs on the server. */
+  tagSearch: string;
+  onTagSearchChange: (value: string) => void;
   onToggleTagPicker: () => void;
   onAddTag: (tagId: number) => void;
   onRemoveTag: (tagId: number) => void;
@@ -835,11 +807,13 @@ function ConversationPanel({
   /** Offered beside the name when a guest raised this ticket. */
   onLinkCustomer: () => void;
 }) {
-  const [tagSearch, setTagSearch] = useState("");
-  // Resolving and closing end a conversation, so they wait for a yes.
-  const [pendingEndStatus, setPendingEndStatus] = useState<
-    "resolved" | "closed" | null
+  // Every status change waits for a yes, since each one emails the customer.
+  const [pendingStatus, setPendingStatus] = useState<
+    keyof typeof STATUS_CONFIRMATIONS | null
   >(null);
+  const pendingConfirmation = pendingStatus
+    ? STATUS_CONFIRMATIONS[pendingStatus]
+    : null;
   const [selectedSendMode, setSelectedSendMode] = useState<
     "reply" | "customer_language" | "reply_and_resolve"
   >("reply");
@@ -874,10 +848,6 @@ function ConversationPanel({
     messagesEndRef.current?.scrollIntoView({ block: "end" });
   }, [ticket.id, messages.length]);
 
-  const filteredTags = availableTags.filter((tag) =>
-    tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
-  );
-
   // Tickets from before these fields existed come back without them.
   const ticketLanguage = ticket.language ?? DEFAULT_TICKET_LANGUAGE;
   const ticketSentiment = ticket.sentiment ?? DEFAULT_TICKET_SENTIMENT;
@@ -886,9 +856,11 @@ function ConversationPanel({
       ?.name ?? ticketLanguage;
 
   const customerName = customerLabel(ticket.customer);
-  // Shown in brackets beside the status — only worth the width once the
-  // ticket has actually been reopened.
-  const reopenCount = ticket.reopen_count ?? 0;
+  // Shown in brackets beside the status — only while the ticket is in the
+  // reopen status. The count is lifetime, so a reopened ticket that has since
+  // been closed or resolved still carries it, and must not show it.
+  const reopenCount =
+    ticket.status === "reopen" ? (ticket.reopen_count ?? 0) : 0;
   const customerEmail =
     ticket.customer && typeof ticket.customer === "object"
       ? ticket.customer.email
@@ -999,8 +971,8 @@ function ConversationPanel({
       {/* Same 4rem header as the two side panels, so all three borders line
           up across the screen. The customer leads — who you are talking to
           is the first thing you need — and the subject follows below. */}
-      <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+      <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b px-4 py-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 @3xl/conv:order-1">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -1036,8 +1008,7 @@ function ConversationPanel({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <CustomerDetailsButton onClick={onShowDetails} />
+        <div className="shrink-0 @3xl/conv:order-3">
           {/* Staff are matched by id, not name: several people can share
               a name, and only the assigned one should carry the check. */}
           <Combobox
@@ -1053,7 +1024,10 @@ function ConversationPanel({
             }
           >
             <ComboboxInput
-              className="h-8 w-28 2xl:w-40"
+              className={cn(
+                "h-8 w-28 2xl:w-40",
+                ticket?.internal_assignee?.id && ACTIVE_ASSIGNEE_STYLE,
+              )}
               placeholder={
                 ticket?.internal_assignee?.id
                   ? ticket?.internal_assignee?.name
@@ -1095,32 +1069,77 @@ function ConversationPanel({
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
+        </div>
 
-          {/* The two endings a ticket actually has, one click away —
-              they were buried in the status Select behind the ⋮ menu. */}
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label="Mark as resolved"
-            className={ACTION_TONE_STYLES.success}
-            onClick={() => setPendingEndStatus("resolved")}
-            disabled={isClosed}
-          >
-            <IconCircleCheck className="size-4" />
-            Resolve
-          </Button>
+        {/* Narrow panes: the assignee stays on the customer row and the
+            rest wraps onto a row of its own, right-aligned. Wide panes
+            (`contents`) put everything back on one row, via `order`. */}
+        <div className="flex basis-full items-center justify-end gap-2 @3xl/conv:contents">
+          <TicketActivityDrawer
+            storeCode={storeCode}
+            ticketId={ticket.id}
+            className="@3xl/conv:order-2"
+          />
+          <CustomerDetailsButton
+            className="@3xl/conv:order-2"
+            onClick={onShowDetails}
+          />
 
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label="Close ticket"
-            className={ACTION_TONE_STYLES.danger}
-            onClick={() => setPendingEndStatus("closed")}
-            disabled={ticket.status === "closed"}
-          >
-            <IconCircleX className="size-4" />
-            Close
-          </Button>
+          {/* Status is changed from here, per the ticket's current status:
+              open/reopen → Resolve, resolved → Open or Close, closed →
+              Reopen. Offered from STATUS_TRANSITIONS so the buttons can
+              never drift from what the API accepts. */}
+          {(STATUS_TRANSITIONS[ticket.status] ?? []).includes("resolved") ? (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Mark as resolved"
+              className={cn(ACTION_TONE_STYLES.success, "@3xl/conv:order-4")}
+              onClick={() => setPendingStatus("resolved")}
+            >
+              <IconCircleCheck className="size-4" />
+              Resolve
+            </Button>
+          ) : null}
+
+          {(STATUS_TRANSITIONS[ticket.status] ?? []).includes("open") ? (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Open ticket"
+              className={cn(ACTION_TONE_STYLES.info, "@3xl/conv:order-4")}
+              onClick={() => setPendingStatus("open")}
+            >
+              <IconInbox className="size-4" />
+              Open
+            </Button>
+          ) : null}
+
+          {(STATUS_TRANSITIONS[ticket.status] ?? []).includes("closed") ? (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Close ticket"
+              className={cn(ACTION_TONE_STYLES.danger, "@3xl/conv:order-5")}
+              onClick={() => setPendingStatus("closed")}
+            >
+              <IconCircleX className="size-4" />
+              Close
+            </Button>
+          ) : null}
+
+          {(STATUS_TRANSITIONS[ticket.status] ?? []).includes("reopen") ? (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Reopen ticket"
+              className={cn(ACTION_TONE_STYLES.info, "@3xl/conv:order-4")}
+              onClick={() => setPendingStatus("reopen")}
+            >
+              <IconReload className="size-4" />
+              Reopen
+            </Button>
+          ) : null}
 
           {/* <DropdownMenu>
             <Tooltip>
@@ -1220,57 +1239,23 @@ function ConversationPanel({
 
         <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
           <div className="flex shrink-0 items-center gap-2">
-            {/* Status and priority are set on the badges that report them,
-              rather than in a menu behind a ⋮ that showed the same two
-              values a second time. */}
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label="Change status"
-                title={
-                  reopenCount > 0
-                    ? `Reopened ${pluralize(reopenCount, "time")}`
-                    : undefined
-                }
-                disabled={!(STATUS_TRANSITIONS[ticket.status] ?? []).length}
-                className={cn(
-                  badgeVariants({ variant: "outline" }),
-                  "cursor-pointer capitalize disabled:cursor-default",
-                  BADGE_TONE_STYLES[STATUS_TONE[ticket.status]],
-                )}
-              >
-                {capitalizeText(ticket.status)}
-                {reopenCount > 0 ? ` (${reopenCount})` : null}
-                {(STATUS_TRANSITIONS[ticket.status] ?? []).length ? (
-                  <IconChevronDown />
-                ) : null}
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuLabel>Status</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {queues
-                  .filter(
-                    (queue) =>
-                      queue.key === ticket.status ||
-                      (STATUS_TRANSITIONS[ticket.status] ?? []).includes(
-                        queue.key,
-                      ),
-                  )
-                  .map((queue) => (
-                    <DropdownMenuItem
-                      key={queue.key}
-                      onClick={() =>
-                        queue.key !== ticket.status &&
-                        onTicketStatusUpdate(queue.key)
-                      }
-                      className={cn(
-                        queue.key === ticket.status && "font-medium",
-                      )}
-                    >
-                      {queue.label}
-                    </DropdownMenuItem>
-                  ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* A plain tag: status is changed with the action buttons in the
+              header, not from here. Priority is still set on its badge. */}
+            <Badge
+              variant="outline"
+              title={
+                reopenCount > 0
+                  ? `Reopened ${pluralize(reopenCount, "time")}`
+                  : undefined
+              }
+              className={cn(
+                "capitalize",
+                BADGE_TONE_STYLES[STATUS_TONE[ticket.status]],
+              )}
+            >
+              {capitalizeText(ticket.status)}
+              {reopenCount > 0 ? ` (${reopenCount})` : null}
+            </Badge>
 
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -1413,24 +1398,24 @@ function ConversationPanel({
                 <div className="p-2">
                   <SearchInput
                     value={tagSearch}
-                    onChange={setTagSearch}
+                    onChange={onTagSearchChange}
                     placeholder="Search tags…"
                     label="Search tags"
                   />
                 </div>
-                {isTagPickerLoading && availableTags.length === 0 ? (
+                {isTagPickerLoading && !isLoadingMoreTags ? (
                   <LoadingState label="Loading tags…" className="py-6" />
-                ) : filteredTags.length === 0 ? (
+                ) : availableTags.length === 0 ? (
                   <div className="px-3 pb-4 text-center">
                     <Typography variant="muted">
-                      {availableTags.length === 0
-                        ? "No tags available."
-                        : "No matching tags."}
+                      {tagSearch.trim()
+                        ? "No matching tags."
+                        : "No tags available."}
                     </Typography>
                   </div>
                 ) : (
                   <div className="max-h-56 space-y-1 overflow-y-auto p-2 pt-0">
-                    {filteredTags.map((tag) => {
+                    {availableTags.map((tag) => {
                       const alreadyAdded = ticket.tags.some(
                         (existingTag) => existingTag.id === tag.id,
                       );
@@ -1457,16 +1442,16 @@ function ConversationPanel({
                         </button>
                       );
                     })}
-                    {hasMoreTags && !tagSearch ? (
+                    {hasMoreTags ? (
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         className="w-full"
                         onClick={onLoadMoreTags}
-                        disabled={isTagPickerLoading}
+                        disabled={isLoadingMoreTags}
                       >
-                        {isTagPickerLoading ? "Loading…" : "Load More"}
+                        {isLoadingMoreTags ? "Loading…" : "Load More"}
                       </Button>
                     ) : null}
                   </div>
@@ -1514,7 +1499,7 @@ function ConversationPanel({
                     // A sticky note, not a pencil: a pencil in a circle
                     // beside a message reads as an edit button, and this
                     // is a label, not something you can press.
-                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-primary/40 bg-primary/10 text-primary">
+                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-amber-500/60 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
                       <IconNote className="size-3.5" />
                     </div>
                   ) : isOutgoing ? (
@@ -1545,7 +1530,7 @@ function ConversationPanel({
                           // to be unmistakable at a glance. The old
                           // border-on-background was so faint it read as a
                           // rendering fault.
-                          "rounded-br-md border border-dashed border-primary/40 bg-primary/5"
+                          "rounded-br-md border border-dashed border-amber-500/60 bg-amber-50 dark:bg-amber-500/10"
                         : isOutgoing
                           ? "rounded-br-md bg-primary/10"
                           : "rounded-bl-md bg-muted",
@@ -1727,37 +1712,32 @@ function ConversationPanel({
           */}
 
           <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  {/* Icon only until a language is applied — after that the
-                      language is the state of the thread you are reading,
-                      so it is worth the width. */}
-                  <Button
-                    variant="outline"
-                    size={translatedLanguage ? "sm" : "icon-sm"}
-                    aria-label="Translate the conversation"
-                    disabled={isClosed || isTranslating}
-                  >
-                    {isTranslating ? (
-                      <Spinner className="size-4" />
-                    ) : (
-                      <IconLanguage className="size-4" />
-                    )}
-                    {translatedLanguage
-                      ? `Translated to ${translatedLanguage.name}`
-                      : null}
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isTranslating
-                  ? "Translating…"
-                  : translatedLanguage
+            <DropdownMenuTrigger asChild>
+              {/* Small text and tight padding, so the label and its cost fit
+                  the button's normal height and the toolbar's one line. */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-0.5 px-1.5 text-xs"
+                title={
+                  translatedLanguage
+                    ? `Translated to ${translatedLanguage.name}`
+                    : undefined
+                }
+                disabled={isClosed || isTranslating}
+              >
+                {isTranslating ? (
+                  <Spinner className="size-3.5" />
+                ) : (
+                  <IconLanguage className="size-3.5" />
+                )}
+                <CreditLabel className="text-[9px]">
+                  {translatedLanguage
                     ? `Translated to ${translatedLanguage.name}`
                     : "Translate"}
-              </TooltipContent>
-            </Tooltip>
+                </CreditLabel>
+              </Button>
+            </DropdownMenuTrigger>
             <DropdownMenuContent
               align="start"
               className="max-h-72 overflow-y-auto"
@@ -1834,7 +1814,16 @@ function ConversationPanel({
                 ) : (
                   <IconSend className="size-4" />
                 )}
-                {isSending ? "Sending…" : selectedSendLabel}
+                {isSending ? (
+                  "Sending…"
+                ) : effectiveSendMode === "customer_language" ? (
+                  // The send itself translates the reply, so it is billed.
+                  <CreditLabel className="text-primary-foreground/80">
+                    {selectedSendLabel}
+                  </CreditLabel>
+                ) : (
+                  selectedSendLabel
+                )}
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1863,7 +1852,7 @@ function ConversationPanel({
                     onClick={() => setSelectedSendMode("customer_language")}
                   >
                     <IconLanguage className="size-4" />
-                    Send in Customer Language
+                    <CreditLabel>Send in Customer Language</CreditLabel>
                   </DropdownMenuItem>
                   {canResolve ? (
                     <DropdownMenuItem
@@ -1881,35 +1870,31 @@ function ConversationPanel({
       </div>
 
       <AlertDialog
-        open={pendingEndStatus !== null}
+        open={pendingStatus !== null}
         onOpenChange={(open) => {
-          if (!open) setPendingEndStatus(null);
+          if (!open) setPendingStatus(null);
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {pendingEndStatus === "closed"
-                ? "Close ticket"
-                : "Mark ticket as resolved"}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{pendingConfirmation?.title}</AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingEndStatus === "closed"
-                ? "Are you sure you want to close this ticket? This will mark the ticket as closed."
-                : "Are you sure this issue has been resolved? This will mark the ticket as resolved."}
+              {pendingConfirmation?.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <p className="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+            <IconInfoCircle className="mt-0.5 size-4 shrink-0" />A mail will be
+            sent to the customer to let them know about this change.
+          </p>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              variant={
-                pendingEndStatus === "closed" ? "destructive" : "default"
-              }
+              variant={pendingStatus === "closed" ? "destructive" : "default"}
               onClick={() => {
-                if (pendingEndStatus) onTicketStatusUpdate(pendingEndStatus);
+                if (pendingStatus) onTicketStatusUpdate(pendingStatus);
               }}
             >
-              {pendingEndStatus === "closed" ? "Close ticket" : "Mark resolved"}
+              {pendingConfirmation?.action}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2050,15 +2035,29 @@ export default function HelpDesk() {
       ? "conversation"
       : "list",
   );
-  const [activeQueue, setActiveQueue] = useState<SupportTicketStatus>("open");
-  const [sortOrder, setSortOrder] =
-    useState<SupportTicketOrdering>("last_updated");
+  // In the store rather than here: the left panel counts the tickets of this
+  // tab only.
+  const activeQueue = useAppSelector(
+    (state) => state.GetSupportTicketsReducer.HelpdeskQueue,
+  );
+  const setActiveQueue = (queue: SupportTicketStatus) =>
+    dispatch(setHelpdeskQueue(queue));
+  // Back on "Open" next time, as it was when the tab was local to the screen.
+  useEffect(
+    () => () => {
+      dispatch(setHelpdeskQueue(DEFAULT_HELPDESK_QUEUE));
+    },
+    [dispatch],
+  );
   const [supportTikcetMessages, setSupportTicketMessages] = useState<
     SupportTicketMessage[]
   >([]);
   const [activeSupportTicket, setActiveSupportTicket] =
     useState<SupportTicket | null>(null);
   const currentActiveSupportTicketIdRef = useRef<number | null>(null);
+  // What the list was last filtered by, to tell a filter change from a plain
+  // refetch (another page, a new sort, a different store).
+  const lastFilterKeyRef = useRef<string | null>(null);
   const supportSocketRef = useRef<WebSocket | null>(null);
   const supportSocketReconnectTimerRef = useRef<number | null>(null);
 
@@ -2085,12 +2084,47 @@ export default function HelpDesk() {
   // Support Ticket Search Filters
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [, setTagSearch] = useState("");
-  const [, setDebouncedTagSearch] = useState("");
   const [tagPage, setTagPage] = useState(1);
+  const [tagSearchInput, setTagSearchInput] = useState("");
+  const [tagSearch, setTagSearch] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [appliedFilters, setAppliedFilters] =
-    useState<TicketFilterSelection>(emptyTicketFilters);
+
+  // The filter popover's choices and the sort live in the query string, so
+  // they survive a refresh and a shared link, and stay put while the sidebar
+  // view changes (its links carry them along). Read as plain strings first so
+  // the objects below keep their identity until one really changes.
+  const priorityParam = searchParams?.get("priority") ?? "";
+  const fromDateParam = searchParams?.get("from_date") ?? "";
+  const toDateParam = searchParams?.get("to_date") ?? "";
+  const sortParam = searchParams?.get("sort");
+
+  const appliedFilters = useMemo<TicketFilterSelection>(
+    () => ({
+      priorities: priorityOptions
+        .map((option) => option.value)
+        .filter((value) => priorityParam.split(",").includes(value)),
+      fromDate: isValidDateParam(fromDateParam) ? fromDateParam : "",
+      toDate: isValidDateParam(toDateParam) ? toDateParam : "",
+    }),
+    [priorityParam, fromDateParam, toDateParam],
+  );
+  const sortOrder: SupportTicketOrdering =
+    SORT_OPTIONS.find((option) => option.key === sortParam)?.key ??
+    DEFAULT_SORT_ORDER;
+
+  /** Sets (or, with null, drops) query params, leaving the others as they are. */
+  const updateQueryParams = (changes: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : (pathname ?? ""), {
+      scroll: false,
+    });
+  };
 
   // Open a deep-linked ticket once. The detail request keys on the id
   // alone, so the ticket does not have to be on the loaded page — which is
@@ -2131,8 +2165,17 @@ export default function HelpDesk() {
     setLastActiveFilter(activeFilter);
     setPage(1);
     setTicketRows([]);
-    setActiveTicketId(null);
     setPortraitView("list");
+  }
+
+  // A new filter or sort starts the list over, whether it came from the
+  // controls or from the back button.
+  const listParamsKey = JSON.stringify([appliedFilters, sortOrder]);
+  const [lastListParamsKey, setLastListParamsKey] = useState(listParamsKey);
+  if (lastListParamsKey !== listParamsKey) {
+    setLastListParamsKey(listParamsKey);
+    setPage(1);
+    setTicketRows([]);
   }
 
   const filterFormik = useFormik<TicketFilterSelection>({
@@ -2158,8 +2201,11 @@ export default function HelpDesk() {
       return {};
     },
     onSubmit: (values) => {
-      setAppliedFilters(values);
-      setPage(1);
+      updateQueryParams({
+        priority: values.priorities.join(",") || null,
+        from_date: values.fromDate || null,
+        to_date: values.toDate || null,
+      });
       setIsFilterOpen(false);
     },
   });
@@ -2369,6 +2415,8 @@ export default function HelpDesk() {
 
         if (!payload.ticket) return;
 
+        dispatch(refreshFilterCounts());
+
         if (payload.event === "ticket_created") {
           upsertSocketTicket(payload.ticket);
           return;
@@ -2512,10 +2560,6 @@ export default function HelpDesk() {
       status: activeQueue,
       ordering: sortOrder,
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
-      ...(appliedFilters.channels.length
-        ? { channel: appliedFilters.channels }
-        : {}),
-      ...(appliedFilters.tags.length ? { tags: appliedFilters.tags } : {}),
       // The picker yields whole days, so the range runs from the start of
       // the first to the end of the last — otherwise "to: today" would stop
       // at midnight and miss everything that happened today.
@@ -2530,25 +2574,22 @@ export default function HelpDesk() {
         : {}),
     };
 
-    if (activeFilter === "unassigned") {
-      filters.is_assigned = false;
-    }
+    // The sidebar view is the narrower of the two: it replaces, rather than
+    // adds to, whatever the filter panel set for the same field.
+    Object.assign(filters, helpdeskFilterToQuery(activeFilter));
 
-    if (activeFilter === "snoozed") {
-      filters.is_snoozed = true;
-    }
-
-    if (activeFilter === "Order_Return") {
-      filters.tags = [...(filters.tags ?? []), "Order Return"];
-    }
-
-    if (activeFilter === "Payment_Failed") {
-      filters.tags = [...(filters.tags ?? []), "Payment Failed"];
-    }
-
-    if (activeFilter === "Exchange_Request") {
-      filters.tags = [...(filters.tags ?? []), "Exchange Request"];
-    }
+    // Did this fetch come from changing what the list is filtered by? The
+    // first fetch is not one: it must leave a deep-linked ticket alone.
+    const filterKey = JSON.stringify([
+      activeFilter,
+      debouncedSearch,
+      appliedFilters,
+      activeQueue,
+    ]);
+    const isFilterChange =
+      lastFilterKeyRef.current !== null &&
+      lastFilterKeyRef.current !== filterKey;
+    lastFilterKeyRef.current = filterKey;
 
     const fetchArgs = {
       store_code: storeCode,
@@ -2571,25 +2612,28 @@ export default function HelpDesk() {
           page === 1 ? data.results : [...prev, ...data.results],
         );
 
-        // Open the first ticket only when nothing is open yet.
+        // Which ticket is open once the list is in.
         //
-        // This used to replace the open ticket with the list's first row
-        // whenever that ticket was not among the loaded ones — so every
-        // link to a ticket sitting under another filter, or past the first
-        // page, silently landed on a different ticket instead. The list is
-        // a view of the queue; it does not get to decide what is open.
+        // Nothing open: open the list's first. Applying a filter: the open
+        // ticket stays if it is in the filtered list, otherwise the first of
+        // that list opens, or none when the list is empty. A plain refetch
+        // never swaps the ticket — this used to replace it with the first row
+        // whenever it was not among the loaded ones, so every link to a
+        // ticket past the first page silently landed on a different ticket.
         //
         // Not on a narrow screen: there the list is the landing view and a
         // ticket opens only when tapped, so defaulting one would put its id
         // in the URL and open it on the next refresh.
-        if (
-          page === 1 &&
-          !currentActiveSupportTicketIdRef.current &&
-          !isBelowLg()
-        ) {
-          const first = data.results[0] ?? null;
-          setActiveTicketId(first?.id ?? null);
-          setActiveSupportTicket(first);
+        const openId = currentActiveSupportTicketIdRef.current;
+        const openTicketLeftList =
+          isFilterChange &&
+          openId !== null &&
+          !data.results.some((ticket) => ticket.id === openId);
+
+        if (page === 1 && (!openId || openTicketLeftList)) {
+          const next = isBelowLg() ? null : (data.results[0] ?? null);
+          setActiveTicketId(next?.id ?? null);
+          setActiveSupportTicket(next);
         }
       } finally {
         if (isLoadMore) {
@@ -2622,17 +2666,35 @@ export default function HelpDesk() {
     return () => window.clearTimeout(timeout);
   }, [searchValue, debouncedSearch]);
 
+  // Debounced like the ticket search above, and back to the first page: the
+  // tags already loaded say nothing about which ones match.
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const nextSearch = tagSearchInput.trim();
+      if (nextSearch === tagSearch) return;
+
+      setTagSearch(nextSearch);
+      setTagPage(1);
+    }, 400);
+
+    return () => window.clearTimeout(timeout);
+  }, [tagSearchInput, tagSearch]);
+
   useEffect(() => {
     if (!storeCode) return;
-    dispatch(
+    const request = dispatch(
       FetchSupportTicketTags({
         storeCode,
         page: tagPage,
         limit: 15,
+        search: tagSearch,
         append: tagPage > 1,
       }),
     );
-  }, [dispatch, storeCode, tagPage]);
+
+    // A slower answer to an earlier search must not overwrite a newer one.
+    return () => request.abort();
+  }, [dispatch, storeCode, tagPage, tagSearch]);
 
   // Mirror the open ticket into the query string, so a refresh, a shared
   // link and the back button all land on the same ticket. `replace`, not
@@ -2795,9 +2857,7 @@ export default function HelpDesk() {
   };
 
   const handleSortChange = (order: SupportTicketOrdering) => {
-    setSortOrder(order);
-    setPage(1);
-    setTicketRows([]);
+    updateQueryParams({ sort: order === DEFAULT_SORT_ORDER ? null : order });
   };
 
   const handleAiDraftGenerate = async () => {
@@ -2873,8 +2933,17 @@ export default function HelpDesk() {
     }
   };
 
+  const closeTagPicker = () => {
+    setShowTagPicker(false);
+    setTagSearchInput("");
+  };
+
   const handleToggleTagPicker = () => {
-    setShowTagPicker((current) => !current);
+    if (showTagPicker) {
+      closeTagPicker();
+    } else {
+      setShowTagPicker(true);
+    }
   };
 
   const handleAddTag = async (tagId: number) => {
@@ -2912,7 +2981,7 @@ export default function HelpDesk() {
           };
         });
 
-        setShowTagPicker(false);
+        closeTagPicker();
 
         toast.success(`Tag assigned: ${assignedTag.name}`);
       } else {
@@ -2958,7 +3027,7 @@ export default function HelpDesk() {
             : current,
         );
 
-        setShowTagPicker(false);
+        closeTagPicker();
 
         toast.success("Tag removed");
       } else {
@@ -2969,6 +3038,54 @@ export default function HelpDesk() {
     } catch {
       //
     }
+  };
+
+  /**
+   * Applies an edit to a ticket in the list. When the edit takes it out of
+   * the view being shown (assigned from "Unassigned", re-rated out of
+   * "Negative sentiment") or the filter popover's priority, the row leaves the list and, if it was the open
+   * one, the next row opens, rather than waiting for a refetch.
+   */
+  const applyTicketRowUpdate = (
+    ticketId: number,
+    patch: Partial<SupportTicket>,
+  ) => {
+    setTicketRows((current) => {
+      const index = current.findIndex((ticket) => ticket.id === ticketId);
+      if (index === -1) return current;
+
+      const updated = { ...current[index], ...patch };
+      const matchesPriority =
+        appliedFilters.priorities.length === 0 ||
+        appliedFilters.priorities.includes(updated.priority);
+      if (
+        matchesPriority &&
+        ticketBelongsToHelpdeskFilter(
+          activeFilter,
+          updated,
+          session?.user?.email,
+        )
+      ) {
+        return current.map((ticket) =>
+          ticket.id === ticketId ? updated : ticket,
+        );
+      }
+
+      if (ticketId === currentActiveSupportTicketIdRef.current) {
+        // Both ids: the conversation pane shows `activeSupportTicket`, so
+        // clearing only the id left the ticket open beside an empty list.
+        const nextTicket = current[index + 1] ?? current[index - 1] ?? null;
+        setActiveTicketId(nextTicket?.id ?? null);
+        setActiveSupportTicket(nextTicket);
+      }
+      return current.filter((ticket) => ticket.id !== ticketId);
+    });
+
+    // The open ticket takes the edit too (a no-op if it was just replaced by
+    // the next row above).
+    setActiveSupportTicket((current) =>
+      current?.id === ticketId ? { ...current, ...patch } : current,
+    );
   };
 
   const handleStaffAssign = async (staffId: number | null) => {
@@ -2989,47 +3106,16 @@ export default function HelpDesk() {
       ).unwrap();
 
       const assignedStaff = staff.find((member) => member.id === staffId);
-      const leavesUnassignedTab =
-        activeFilter === "unassigned" && staffId !== null;
 
-      setTicketRows((current) => {
-        if (leavesUnassignedTab) {
-          const index = current.findIndex((ticket) => ticket.id === ticketId);
-          const nextTicket = current[index + 1] ?? current[index - 1];
-          setActiveTicketId(nextTicket?.id ?? null);
-          return current.filter((ticket) => ticket.id !== ticketId);
-        }
-
-        return current.map((ticket) =>
-          ticket.id === ticketId
-            ? {
-                ...ticket,
-                internal_assignee: assignedStaff
-                  ? {
-                      id: assignedStaff.id,
-                      name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
-                      email: assignedStaff.email,
-                    }
-                  : null,
-              }
-            : ticket,
-        );
-      });
-
-      setActiveSupportTicket((current) =>
-        current
+      applyTicketRowUpdate(ticketId, {
+        internal_assignee: assignedStaff
           ? {
-              ...current,
-              internal_assignee: assignedStaff
-                ? {
-                    id: assignedStaff.id,
-                    name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
-                    email: assignedStaff.email,
-                  }
-                : null,
+              id: assignedStaff.id,
+              name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
+              email: assignedStaff.email,
             }
-          : current,
-      );
+          : null,
+      });
 
       toast.success(
         staffId === null
@@ -3399,7 +3485,8 @@ export default function HelpDesk() {
   const handleSupportTicketPriorityUpdate = async (
     priority: SupportTicketPriority,
   ) => {
-    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+    const ticketId = currentActiveSupportTicketIdRef.current;
+    if (!storeCode || !ticketId) return;
 
     try {
       const payload = {
@@ -3407,33 +3494,11 @@ export default function HelpDesk() {
       };
 
       const updatedPriority = await dispatch(
-        SupportTicketPriorityUpdate({
-          storeCode,
-          ticketId: currentActiveSupportTicketIdRef.current,
-          payload,
-        }),
+        SupportTicketPriorityUpdate({ storeCode, ticketId, payload }),
       ).unwrap();
 
       if (updatedPriority) {
-        setTicketRows((current) =>
-          current.map((ticket) =>
-            ticket.id === currentActiveSupportTicketIdRef.current
-              ? {
-                  ...ticket,
-                  priority: updatedPriority.priority,
-                }
-              : ticket,
-          ),
-        );
-
-        setActiveSupportTicket((current) =>
-          current
-            ? {
-                ...current,
-                priority: updatedPriority.priority,
-              }
-            : current,
-        );
+        applyTicketRowUpdate(ticketId, { priority: updatedPriority.priority });
 
         toast.success("Ticket priority", {
           description: `Ticket priority updated to ${updatedPriority.priority}.`,
@@ -3448,29 +3513,16 @@ export default function HelpDesk() {
     language?: TicketLanguage;
     sentiment?: TicketSentiment;
   }) => {
-    if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
+    const ticketId = currentActiveSupportTicketIdRef.current;
+    if (!storeCode || !ticketId) return;
 
     try {
       const updated = await dispatch(
-        SupportTicketLanguageSentimentUpdate({
-          storeCode,
-          ticketId: currentActiveSupportTicketIdRef.current,
-          payload,
-        }),
+        SupportTicketLanguageSentimentUpdate({ storeCode, ticketId, payload }),
       ).unwrap();
 
       if (updated) {
-        setTicketRows((current) =>
-          current.map((ticket) =>
-            ticket.id === currentActiveSupportTicketIdRef.current
-              ? { ...ticket, ...updated }
-              : ticket,
-          ),
-        );
-
-        setActiveSupportTicket((current) =>
-          current ? { ...current, ...updated } : current,
-        );
+        applyTicketRowUpdate(ticketId, updated);
 
         toast.success("Ticket updated", {
           description: "Ticket language and sentiment saved.",
@@ -3562,9 +3614,6 @@ export default function HelpDesk() {
     setIsFilterOpen(open);
     if (open) {
       filterFormik.resetForm({ values: appliedFilters });
-      setTagSearch("");
-      setDebouncedTagSearch("");
-      setTagPage(1);
     }
   };
 
@@ -3574,8 +3623,7 @@ export default function HelpDesk() {
 
   const handleClearFilters = () => {
     filterFormik.resetForm({ values: emptyTicketFilters });
-    setAppliedFilters(emptyTicketFilters);
-    setPage(1);
+    updateQueryParams({ priority: null, from_date: null, to_date: null });
     setIsFilterOpen(false);
   };
 
@@ -3608,7 +3656,6 @@ export default function HelpDesk() {
           }}
           searchValue={searchValue}
           onSearchChange={setSearchValue}
-          availableTags={ticketTags}
           filters={filterFormik.values}
           isFilterOpen={isFilterOpen}
           onFilterOpenChange={handleFilterOpenChange}
@@ -3616,14 +3663,6 @@ export default function HelpDesk() {
           onApplyFilters={handleApplyFilters}
           onClearFilters={handleClearFilters}
           dateError={filterFormik.errors.fromDate ?? filterFormik.errors.toDate}
-          hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
-          isTagListLoading={FetchSupportTicketTagsIsLoading}
-          onTagSearchChange={setTagSearch}
-          onLoadMoreTags={() => {
-            if (FetchSupportTicketTagsData?.next) {
-              setTagPage((current) => current + 1);
-            }
-          }}
           supportTicketStatusCount={FetchSupportTicketsListData.status_counts}
         />
         {(FetchSupportTicketsLoading || FetchSupportTicketDetailsIsLoading) &&
@@ -3701,12 +3740,15 @@ export default function HelpDesk() {
             availableTags={ticketTags}
             isTagPickerOpen={showTagPicker}
             isTagPickerLoading={FetchSupportTicketTagsIsLoading}
+            isLoadingMoreTags={FetchSupportTicketTagsIsLoading && tagPage > 1}
             hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
             onLoadMoreTags={() => {
               if (FetchSupportTicketTagsData?.next) {
                 setTagPage((current) => current + 1);
               }
             }}
+            tagSearch={tagSearchInput}
+            onTagSearchChange={setTagSearchInput}
             onToggleTagPicker={handleToggleTagPicker}
             onAddTag={handleAddTag}
             onRemoveTag={handleRemoveTag}

@@ -18,6 +18,11 @@ export type WidgetQuickLink = {
   is_active: boolean;
 };
 
+export type AiDisclaimer = {
+  title?: string | null;
+  description?: string | null;
+};
+
 export type UpdateWidgetCustomizationPayload = {
   store?: number;
   primary_color?: string;
@@ -28,6 +33,8 @@ export type UpdateWidgetCustomizationPayload = {
   greeting_message?: string;
   quick_actions?: WidgetQuickAction[];
   quick_links?: WidgetQuickLink[];
+  ai_disclaimer_title?: string | null;
+  ai_disclaimer_description?: string | null;
 };
 
 export type WidgetCustomizationDataResponse = {
@@ -41,6 +48,8 @@ export type WidgetCustomizationDataResponse = {
   greeting_message: string;
   quick_actions: WidgetQuickAction[];
   quick_links: WidgetQuickLink[];
+  ai_disclaimer_title?: string | null;
+  ai_disclaimer_description?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -71,13 +80,13 @@ export const FetchWidgetCustomization = createAsyncThunk(
 
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch customization metrics, please try again later.",
+      toast.error("Couldn't fetch customization metrics.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch customization metrics.",
+      );
     }
   },
 );
@@ -106,13 +115,13 @@ export const UpdateWidgetCustomization = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to update widget customization, please try again later.",
+      toast.error("Couldn't update widget customization.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't update widget customization.",
+      );
     }
   },
 );
@@ -157,6 +166,18 @@ export const UpdateWidgetCustomizationWithImage = createAsyncThunk(
       if (payload.quick_links !== undefined) {
         formData.append("quick_links", JSON.stringify(payload.quick_links));
       }
+      if (payload.ai_disclaimer_title !== undefined) {
+        formData.append(
+          "ai_disclaimer_title",
+          payload.ai_disclaimer_title ?? "",
+        );
+      }
+      if (payload.ai_disclaimer_description !== undefined) {
+        formData.append(
+          "ai_disclaimer_description",
+          payload.ai_disclaimer_description ?? "",
+        );
+      }
 
       const response = await axiosInstance.patch(
         `${ENDPOINTS.widgetCustomization(storeId)}`,
@@ -173,13 +194,13 @@ export const UpdateWidgetCustomizationWithImage = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to update widget customization, please try again later.",
+      toast.error("Couldn't update widget customization.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't update widget customization.",
+      );
     }
   },
 );
@@ -224,7 +245,7 @@ const CustomizationSlice = createSlice({
         state.FetchWidgetCustomizationState.FetchWidgetCustomizationIsLoading = false;
         state.FetchWidgetCustomizationState.FetchWidgetCustomizationIsSuccess = false;
         state.FetchWidgetCustomizationState.FetchWidgetCustomizationIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't load widget customization.";
       })
       // UpdateWidgetCustomization
       .addCase(UpdateWidgetCustomization.pending, (state) => {
@@ -243,7 +264,7 @@ const CustomizationSlice = createSlice({
         state.UpdateWidgetCustomizationState.UpdateWidgetCustomizationIsLoading = false;
         state.UpdateWidgetCustomizationState.UpdateWidgetCustomizationIsSuccess = false;
         state.UpdateWidgetCustomizationState.UpdateWidgetCustomizationIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't update widget customization.";
       })
       // UpdateWidgetCustomizationWithImage
       .addCase(UpdateWidgetCustomizationWithImage.pending, (state) => {
@@ -265,7 +286,7 @@ const CustomizationSlice = createSlice({
         state.UpdateWidgetCustomizationWithImageState.UpdateWidgetCustomizationWithImageIsLoading = false;
         state.UpdateWidgetCustomizationWithImageState.UpdateWidgetCustomizationWithImageIsSuccess = false;
         state.UpdateWidgetCustomizationWithImageState.UpdateWidgetCustomizationWithImageIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't update widget customization with image.";
       });
   },
 });

@@ -8,6 +8,8 @@ import { StoreSwitcher } from "@/components/custom/store-switcher";
 import { NavSecondary } from "@/components/custom/nav-secondary";
 import { NavUser } from "@/components/custom/nav-user";
 import { NotificationBell } from "@/components/custom/notification-bell";
+import { useHelpdeskSidebar } from "@/hooks/use-helpdesk-sidebar";
+import { keepHelpdeskListParams } from "@/lib/helpdesk-filters";
 import {
   Sidebar,
   SidebarContent,
@@ -44,7 +46,7 @@ import { useSupportDashboardEvents } from "@/hooks/use-support-dashboard-events"
 
 export function AppSidebar({
   className,
-  subSidebarItems,
+  subSidebarItems: staticSubSidebarItems,
   subSidebarHidden = false,
   onToggleSubSidebar,
   onSubSidebarNavigate,
@@ -59,6 +61,9 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  // The help desk's views come with their ticket counts; any other area's
+  // sub-sidebar is the static one.
+  const subSidebarItems = useHelpdeskSidebar(staticSubSidebarItems);
 
   // Resolved once for the whole group: an entry carrying a query string
   // and its bare-path sibling can both match the path, and only the more
@@ -217,7 +222,10 @@ export function AppSidebar({
               <CardTitle>{subSidebarItems.title}</CardTitle>
             </div>
           </SidebarHeader>
-          <SidebarContent>
+          {/* This sidebar sits inside one pinned to its icon state, whose
+              rules clip the content. Scrolling is switched back on so a long
+              list (the help desk's tags) stays reachable. */}
+          <SidebarContent className="group-data-[collapsible=icon]:overflow-y-auto">
             <SidebarGroup>
               <SidebarGroupContent className="flex flex-col gap-2">
                 {subSidebarItems.action && <subSidebarItems.action />}
@@ -227,8 +235,9 @@ export function AppSidebar({
                       return (
                         <CollapsibleMenuItem
                           key={item.title}
-                          pathname={pathname}
+                          activeUrl={activeSubNavUrl}
                           title={item.title}
+                          count={item.count}
                           icon={item.icon}
                           // Open when anything inside is the current
                           // screen — the parent is a heading, not a link,
@@ -245,7 +254,12 @@ export function AppSidebar({
                     return (
                       <SidebarMenuItemWrapper
                         key={item.title}
-                        item={item}
+                        // Which one is active is decided on the plain url; only
+                        // the link carries the list's filter and sort along.
+                        item={{
+                          ...item,
+                          url: keepHelpdeskListParams(item.url, subNavSearch),
+                        }}
                         pathname={pathname}
                         isActive={item.url === activeSubNavUrl}
                         expanded

@@ -98,12 +98,15 @@ export const ENDPOINTS = {
   shopifyOauthCallback: () => "/store/shopify/oauth/callback/",
   // Company onboarding (Django, company admin). GET (needs useBackend) is the
   // step + connected stores with their widget keys; PATCH sets
-  // `onboarding_step` to "completed" or "skipped".
+  // `onboarding_step` to "brand_voice", "completed" or "skipped".
   companyOnboarding: () => "/tenancy/company/onboarding/",
   // Per-store settings (Django) — currently the widget's allowed-IP list.
   // GET returns the settings, PATCH updates them.
   storeAllowedIPsSettings: () =>
     createAPIUrl("/store/settings/allowed-ips/", "django"),
+  // Workflows for a store (Django). GET lists every platform workflow with
+  // the store's on/off state; POST turns one on or off.
+  storeWorkflows: () => createAPIUrl("/chat/workflows/", "django"),
 
   // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
   // Next.js issues a 308 redirect (an extra round-trip) before each call.
@@ -125,6 +128,11 @@ export const ENDPOINTS = {
   fetchAIUsageTokenSplit: () => "/chat/ai-usage/token-split/",
   fetchAIUsageWorkflowCosts: () => "/chat/ai-usage/workflow-costs/",
   fetchAIUsageLatencyTrend: () => "/chat/ai-usage/latency-trend/",
+  // AI credit usage (Django usage + billing apps; GET needs useBackend).
+  fetchAIUsageCreditSummary: () => "/usage/ai-usage/summary/",
+  fetchAIUsageCreditDaily: () => "/usage/ai-usage/daily/",
+  fetchAIUsageByFeature: () => "/usage/ai-usage/by-feature/",
+  fetchCreditStatus: () => "/billing/credits/",
 
   // Geography (Django Cities Light). Countries is intentionally limited to
   // India by the backend; states and cities are dependent lists.
@@ -235,6 +243,10 @@ export const ENDPOINTS = {
 
   // Helpdesk(Support) apis
   fetchSupportTickets: () => createAPIUrl("/support/tickets", "django"),
+  // GET — the ticket count of every help desk filter view, tags and channels
+  // included, in one request.
+  fetchSupportTicketFilterCounts: () =>
+    createAPIUrl("/support/tickets/filter-counts/", "django"),
   // POST — raise a ticket with no conversation behind it: an agent logging
   // a problem that reached them by phone, email or in person.
   createSupportTicket: () => createAPIUrl("/support/tickets/", "django"),
@@ -293,6 +305,8 @@ export const ENDPOINTS = {
   supportTicketMarkRead: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/mark/read/`, "django"),
   ticketTagCreate: () => createAPIUrl("/support/ticket-tags/", "django"),
+  ticketTagSimilar: () =>
+    createAPIUrl("/support/ticket-tags/similar/", "django"),
   ticketTagUpdate: (tag_id: number) =>
     createAPIUrl(`/support/ticket-tags/${tag_id}/`, "django"),
   ticketTagDelete: (tag_id: number) =>
@@ -333,7 +347,8 @@ export const ENDPOINTS = {
   createMetaOAuthUrl: () => `/social/meta/oauth/`,
   fetchSocialAccountsSubscriptions: () =>
     `/social/subscriptions/connected-accounts/`,
-  // PATCH — per-account settings (currently the AI auto-reply toggle).
+  // PATCH — per-account settings (currently the AI auto-reply toggle);
+  // DELETE — disconnect the account (its history is kept).
   updateConnectedAccount: ({ accountId }: { accountId: string }) =>
     `/social/subscriptions/connected-accounts/${accountId}/`,
   fetchSocialPosts: ({ accountId }: { accountId: string }) =>
@@ -686,6 +701,7 @@ export const REGIONAL_SPELLING_CHOICES: readonly DescribedOption[] = [
 export const ONBOARDING_STEPS = [
   { value: "store_setup", label: "Connect the store" },
   { value: "go_live", label: "Go live on store" },
+  { value: "brand_voice", label: "Set up brand voice" },
 ] as const;
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]["value"];
@@ -724,16 +740,41 @@ export const STORE_PLATFORMS = [
     description:
       "Connect with your store alias. We'll send you to Shopify to authorize access.",
   },
-  {
-    value: "magento",
-    label: "Magento",
-    icon: "/magento-2.svg",
-    description:
-      "Connect with your store URL. We'll send you to Magento to authorize access.",
-  },
+  // Magento is commented out until its connect flow ships.
+  // {
+  //   value: "magento",
+  //   label: "Magento",
+  //   icon: "/magento-2.svg",
+  //   description:
+  //     "Connect with your store URL. We'll send you to Magento to authorize access.",
+  // },
 ] as const;
 
 export type StorePlatform = (typeof STORE_PLATFORMS)[number]["value"];
+
+// Same formats the backend's ShopifyOAuthStartSerializer enforces: the client
+// ID is 32 hex chars; the secret is shpss_ + 32 hex chars, or 32 hex chars
+// in the legacy format.
+export const SHOPIFY_CLIENT_ID_RE = /^[0-9a-fA-F]{32}$/;
+export const SHOPIFY_CLIENT_SECRET_RE =
+  /^(shpss_[0-9a-fA-F]{32}|[0-9a-fA-F]{32})$/;
+// Longest value each accepts, so the inputs stop taking characters there.
+export const SHOPIFY_CLIENT_ID_MAX_LENGTH = 32;
+export const SHOPIFY_CLIENT_SECRET_MAX_LENGTH = 38;
+
+// Signup field limits, the same as the backend's register serializers; the
+// inputs stop taking characters there.
+export const SIGNUP_NAME_MAX_LENGTH = 100;
+export const SIGNUP_COMPANY_NAME_MAX_LENGTH = 255;
+export const SIGNUP_EMAIL_MAX_LENGTH = 254;
+
+// Longest agent name, the same as the backend's PersonaIdentity; the inputs
+// stop taking characters there.
+export const AGENT_NAME_MAX_LENGTH = 100;
+
+// sessionStorage flag set right before the hop to Shopify and cleared when
+// Shopify sends the user back; still set means they came back on their own.
+export const SHOPIFY_OAUTH_PENDING_KEY = "shopifyOauthPending";
 
 export const SocialAIPlatformOptions: {
   readonly [key: string]: { label: string; icon: Icon; color: string };
@@ -764,3 +805,16 @@ export const StatusBadges: {
     text: "text-green-800",
   },
 };
+
+/** Shared light highlight for filters with a non-default value. */
+export const ACTIVE_FILTER_STYLE =
+  "border-primary/40 bg-primary/10 text-primary";
+export const ACTIVE_QUEUE_STYLE =
+  "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary";
+export const ACTIVE_ASSIGNEE_STYLE =
+  "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-300 dark:hover:bg-sky-950/50";
+export const ALL_FILTER_VALUE = "all" as const;
+export const ANY_FILTER_VALUE = "any" as const;
+export const DEFAULT_HELPDESK_QUEUE = "open" as const;
+export const DEFAULT_CUSTOMER_ORDERING = "-total_spent" as const;
+export const DEFAULT_ORDER_ORDERING = "-created_at" as const;

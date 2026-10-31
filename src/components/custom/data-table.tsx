@@ -5,6 +5,7 @@ import {
   type ColumnDef,
   type OnChangeFn,
   type PaginationState,
+  type RowData,
   flexRender,
   getCoreRowModel,
   useReactTable,
@@ -22,6 +23,14 @@ import {
 } from "@/components/ui/table";
 import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
+
+declare module "@tanstack/react-table" {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData extends RowData, TValue> {
+    /** Extra classes for this column's body cells, e.g. to let it fill the row. */
+    cellClassName?: string;
+  }
+}
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -44,6 +53,8 @@ interface DataTableProps<TData, TValue> {
   onRowClick?: (row: TData) => void;
   emptyTitle?: string;
   emptyDescription?: string;
+  /** Extra classes for the header row, e.g. to give it a background. */
+  headerClassName?: string;
 }
 
 /**
@@ -63,6 +74,7 @@ export function DataTable<TData, TValue>({
   onRowClick,
   emptyTitle,
   emptyDescription,
+  headerClassName,
 }: DataTableProps<TData, TValue>) {
   // TanStack builds its row model straight off this array; handed undefined
   // it produces a row model with no `rows` at all, and every read of it
@@ -85,7 +97,7 @@ export function DataTable<TData, TValue>({
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
+              <TableRow key={headerGroup.id} className={headerClassName}>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id}>
                     {header.isPlaceholder
@@ -122,7 +134,10 @@ export function DataTable<TData, TValue>({
                   )}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      key={cell.id}
+                      className={cell.column.columnDef.meta?.cellClassName}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),

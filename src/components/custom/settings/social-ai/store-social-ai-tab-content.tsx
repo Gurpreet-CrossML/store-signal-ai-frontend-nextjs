@@ -1,18 +1,30 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  createMetaOAuthUrl,
+  disconnectSocialAccount,
   fetchSocialAccountsSubscriptions,
+  type ConnectedAccount,
 } from "@/redux/api-slice/social-ai-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { IconBrandMeta, IconSearch } from "@tabler/icons-react";
 import { SocialAccountsDataTable } from "./social-accounts-data-table";
-import { SocialAccountsColumns } from "./social-accounts-columns";
+import { getSocialAccountsColumns } from "./social-accounts-columns";
+import { useMetaOAuth } from "./use-meta-oauth";
 import { SocialAIPlatformOptions } from "@/lib/config";
 import { useSearchParams } from "next/navigation";
 import { PaginationState } from "@tanstack/react-table";
@@ -24,9 +36,6 @@ export default function SocialAITabContent({
 }) {
   const dispatch = useAppDispatch();
   const searchParams = useSearchParams();
-  const { FetchMetaOauthURLIsLoading } = useAppSelector(
-    (state) => state.GetSocialAIReducer.FetchMetaOauthURLState,
-  );
   const {
     FetchSocialAccountsSubscriptionsData,
     FetchSocialAccountsSubscriptionsIsLoading,
@@ -48,36 +57,62 @@ export default function SocialAITabContent({
   const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState("");
 
-  // Fetch the authorize URL and open it in the SAME click flow — routing
-  // it through the store + an effect made the popup re-open on every tab
-  // mount, since the last URL never left the store.
-  const handleConnectMeta = async () => {
-    try {
-      const data = await dispatch(createMetaOAuthUrl(storeCode)).unwrap();
-      if (!data?.authorize_url) return;
-      // A features string makes window.open spawn a popup window;
-      // without one the browser opens a full tab instead. Centered on
-      // the parent window; the fixed name reuses the same popup if
-      // "Connect" is clicked again instead of stacking new ones.
-      const width = 600;
-      const height = 750;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
-      window.open(
-        data.authorize_url,
-        "meta-oauth-connect",
-        `popup=yes,width=${width},height=${height},left=${left},top=${top}`,
+  // The accounts screen is the one place disconnected accounts still show,
+  // so they can be reconnected.
+  const refreshAccounts = useCallback(() => {
+    if (storeCode) {
+      dispatch(
+        fetchSocialAccountsSubscriptions({
+          storeCode,
+          includeDisconnected: true,
+        }),
       );
-    } catch (error) {
-      console.error("Failed to connect Meta:", error);
+    }
+  }, [dispatch, storeCode]);
+
+  const { startMetaOAuth, isStarting } = useMetaOAuth(
+    storeCode,
+    refreshAccounts,
+  );
+
+  const [accountToDisconnect, setAccountToDisconnect] =
+    useState<ConnectedAccount | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  // Disconnecting a Facebook page also disconnects its Instagram account,
+  // so reload the list rather than patching a single row.
+  const handleConfirmDisconnect = async () => {
+    if (!accountToDisconnect) return;
+    setDisconnecting(true);
+    try {
+      await dispatch(
+        disconnectSocialAccount({
+          storeCode,
+          accountId: String(accountToDisconnect.id),
+        }),
+      ).unwrap();
+      refreshAccounts();
+      setAccountToDisconnect(null);
+    } catch {
+      // The thunk already surfaces the error toast.
+    } finally {
+      setDisconnecting(false);
     }
   };
 
+  const columns = useMemo(
+    () =>
+      getSocialAccountsColumns({
+        onReauthorize: () => startMetaOAuth(),
+        onReconnect: (account) => startMetaOAuth(String(account.id)),
+        onDisconnect: setAccountToDisconnect,
+      }),
+    [startMetaOAuth],
+  );
+
   useEffect(() => {
-    if (storeCode) {
-      dispatch(fetchSocialAccountsSubscriptions(storeCode));
-    }
-  }, [dispatch, storeCode]);
+    refreshAccounts();
+  }, [refreshAccounts]);
 
   const rows = useMemo(
     () => FetchSocialAccountsSubscriptionsData?.results ?? [],
@@ -112,10 +147,7 @@ export default function SocialAITabContent({
   return (
     <div className="flex flex-col gap-6 w-full">
       <div className="flex w-full items-center justify-end gap-4">
-        <Button
-          onClick={handleConnectMeta}
-          disabled={FetchMetaOauthURLIsLoading}
-        >
+        <Button onClick={() => startMetaOAuth()} disabled={isStarting}>
           <IconBrandMeta className="size-4" />
           Connect Meta Account
         </Button>
@@ -163,7 +195,7 @@ export default function SocialAITabContent({
         </div>
 
         <SocialAccountsDataTable
-          columns={SocialAccountsColumns}
+          columns={columns}
           data={filteredRows}
           totalCount={filteredRows.length}
           pagination={pagination}
@@ -171,6 +203,44 @@ export default function SocialAITabContent({
           isLoading={FetchSocialAccountsSubscriptionsIsLoading}
         />
       </div>
+
+      <AlertDialog
+        open={!!accountToDisconnect}
+        onOpenChange={(open) => {
+          if (!open) setAccountToDisconnect(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold text-foreground">
+                {accountToDisconnect?.name}
+              </span>{" "}
+              will stop receiving comments and messages, and nothing will be
+              sent from it, including AI replies.
+              {accountToDisconnect?.channel_type === "facebook" &&
+                " Its linked Instagram account is disconnected too."}{" "}
+              Everything already synced is kept, and you can reconnect it later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={disconnecting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                handleConfirmDisconnect();
+              }}
+              disabled={disconnecting}
+              className={buttonVariants({ variant: "destructive" })}
+            >
+              {disconnecting ? "Disconnecting…" : "Disconnect"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

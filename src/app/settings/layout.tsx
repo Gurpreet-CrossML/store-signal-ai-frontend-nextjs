@@ -1,4 +1,7 @@
+import { Suspense } from "react";
+
 import { AccessGate } from "@/components/custom/access-gate";
+import { MetaOAuthPopupResult } from "@/components/custom/settings/social-ai/meta-oauth-popup-result";
 
 /**
  * Company-admin gate for every settings route, menu page included. Held
@@ -10,5 +13,13 @@ export default function SettingsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <AccessGate>{children}</AccessGate>;
+  return (
+    <AccessGate>
+      {/* useSearchParams needs a Suspense boundary for static prerender. */}
+      <Suspense fallback={null}>
+        <MetaOAuthPopupResult />
+      </Suspense>
+      {children}
+    </AccessGate>
+  );
 }

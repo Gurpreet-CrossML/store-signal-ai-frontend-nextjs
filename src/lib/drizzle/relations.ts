@@ -19,12 +19,26 @@ import {
   threadRegistry,
   socialAccountRegistry,
   storeRegistry,
+  workflow,
+  workflowDependsOn,
+  aiUsage,
+  aiAgentUsage,
+  billingTopUp,
+  billingSubscription,
+  subscriptionPlan,
+  billingCreditTransaction,
+  citiesLightCountry,
+  citiesLightRegion,
+  citiesLightCity,
+  citiesLightSubregion,
+  userAuthState,
+  revokedToken,
+  store,
+  storeCredentials,
   chatbotWidgetCustomization,
   chatbotWidgetCustomizationQuickActions,
   quickAction,
   quickLink,
-  store,
-  storeCredentials,
   chatThread,
   chatHistory,
   chatbotFeedback,
@@ -63,45 +77,35 @@ import {
   socialWebhookEvent,
   socialReaction,
   socialCommentAnalysis,
+  socialCommentSetting,
   socialMessageAttachment,
   socialCommentDraft,
-  socialCommentSetting,
-  campaignSendLog,
   emailTemplate,
+  campaignSendLog,
   whatsappTemplate,
+  campaign,
+  campaignSequence,
+  segmentsCategory,
+  segments,
+  templateAttachment,
+  campaignStepRun,
+  chatThreadAssignment,
+  chatThreadOrders,
+  storeWorkflowSetting,
   category,
   collection,
   product,
   productSyncJob,
   productVariant,
+  productCategories,
+  productCollections,
   knowledgeItem,
   knowledgeItemCategories,
   knowledgeItemCollections,
   knowledgeItemProducts,
-  aiUsage,
-  aiAgentUsage,
-  billingSubscription,
-  subscriptionPlan,
-  billingTopUp,
-  billingCreditTransaction,
-  productCategories,
-  productCollections,
-  citiesLightCountry,
-  citiesLightRegion,
-  citiesLightCity,
-  citiesLightSubregion,
-  segmentsCategory,
-  segments,
-  campaign,
-  templateAttachment,
-  campaignSequence,
-  campaignStepRun,
-  userAuthState,
-  revokedToken,
+  notification,
   supportConfiguration,
-  chatEscalationOffer,
-  chatThreadAssignment,
-  chatThreadOrders,
+  aiInsightsTicketTags,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -247,8 +251,8 @@ export const companyRelations = relations(company, ({ many }) => ({
   socialAccountRegistries: many(socialAccountRegistry),
   storeRegistries: many(storeRegistry),
   aiUsages: many(aiUsage),
-  billingSubscriptions: many(billingSubscription),
   billingTopUps: many(billingTopUp),
+  billingSubscriptions: many(billingSubscription),
   billingCreditTransactions: many(billingCreditTransaction),
 }));
 
@@ -288,6 +292,211 @@ export const storeRegistryRelations = relations(storeRegistry, ({ one }) => ({
     fields: [storeRegistry.companyId],
     references: [company.id],
   }),
+}));
+
+export const workflowDependsOnRelations = relations(
+  workflowDependsOn,
+  ({ one }) => ({
+    workflow_fromWorkflowId: one(workflow, {
+      fields: [workflowDependsOn.fromWorkflowId],
+      references: [workflow.id],
+      relationName: "workflowDependsOn_fromWorkflowId_workflow_id",
+    }),
+    workflow_toWorkflowId: one(workflow, {
+      fields: [workflowDependsOn.toWorkflowId],
+      references: [workflow.id],
+      relationName: "workflowDependsOn_toWorkflowId_workflow_id",
+    }),
+  }),
+);
+
+export const workflowRelations = relations(workflow, ({ many }) => ({
+  workflowDependsOns_fromWorkflowId: many(workflowDependsOn, {
+    relationName: "workflowDependsOn_fromWorkflowId_workflow_id",
+  }),
+  workflowDependsOns_toWorkflowId: many(workflowDependsOn, {
+    relationName: "workflowDependsOn_toWorkflowId_workflow_id",
+  }),
+}));
+
+export const aiUsageRelations = relations(aiUsage, ({ one, many }) => ({
+  company: one(company, {
+    fields: [aiUsage.companyId],
+    references: [company.id],
+  }),
+  authUser: one(authUser, {
+    fields: [aiUsage.performedById],
+    references: [authUser.id],
+  }),
+  aiAgentUsages: many(aiAgentUsage),
+  billingCreditTransactions: many(billingCreditTransaction),
+}));
+
+export const aiAgentUsageRelations = relations(aiAgentUsage, ({ one }) => ({
+  aiUsage: one(aiUsage, {
+    fields: [aiAgentUsage.usageId],
+    references: [aiUsage.id],
+  }),
+}));
+
+export const billingTopUpRelations = relations(
+  billingTopUp,
+  ({ one, many }) => ({
+    company: one(company, {
+      fields: [billingTopUp.companyId],
+      references: [company.id],
+    }),
+    billingCreditTransactions: many(billingCreditTransaction),
+  }),
+);
+
+export const billingSubscriptionRelations = relations(
+  billingSubscription,
+  ({ one, many }) => ({
+    company: one(company, {
+      fields: [billingSubscription.companyId],
+      references: [company.id],
+    }),
+    subscriptionPlan: one(subscriptionPlan, {
+      fields: [billingSubscription.planId],
+      references: [subscriptionPlan.id],
+    }),
+    billingCreditTransactions: many(billingCreditTransaction),
+  }),
+);
+
+export const subscriptionPlanRelations = relations(
+  subscriptionPlan,
+  ({ many }) => ({
+    billingSubscriptions: many(billingSubscription),
+  }),
+);
+
+export const billingCreditTransactionRelations = relations(
+  billingCreditTransaction,
+  ({ one }) => ({
+    billingSubscription: one(billingSubscription, {
+      fields: [billingCreditTransaction.subscriptionId],
+      references: [billingSubscription.id],
+    }),
+    billingTopUp: one(billingTopUp, {
+      fields: [billingCreditTransaction.topUpId],
+      references: [billingTopUp.id],
+    }),
+    company: one(company, {
+      fields: [billingCreditTransaction.companyId],
+      references: [company.id],
+    }),
+    aiUsage: one(aiUsage, {
+      fields: [billingCreditTransaction.usageId],
+      references: [aiUsage.id],
+    }),
+  }),
+);
+
+export const citiesLightRegionRelations = relations(
+  citiesLightRegion,
+  ({ one, many }) => ({
+    citiesLightCountry: one(citiesLightCountry, {
+      fields: [citiesLightRegion.countryId],
+      references: [citiesLightCountry.id],
+    }),
+    citiesLightCities: many(citiesLightCity),
+    citiesLightSubregions: many(citiesLightSubregion),
+  }),
+);
+
+export const citiesLightCountryRelations = relations(
+  citiesLightCountry,
+  ({ many }) => ({
+    citiesLightRegions: many(citiesLightRegion),
+    citiesLightCities: many(citiesLightCity),
+    citiesLightSubregions: many(citiesLightSubregion),
+  }),
+);
+
+export const citiesLightCityRelations = relations(
+  citiesLightCity,
+  ({ one }) => ({
+    citiesLightCountry: one(citiesLightCountry, {
+      fields: [citiesLightCity.countryId],
+      references: [citiesLightCountry.id],
+    }),
+    citiesLightRegion: one(citiesLightRegion, {
+      fields: [citiesLightCity.regionId],
+      references: [citiesLightRegion.id],
+    }),
+    citiesLightSubregion: one(citiesLightSubregion, {
+      fields: [citiesLightCity.subregionId],
+      references: [citiesLightSubregion.id],
+    }),
+  }),
+);
+
+export const citiesLightSubregionRelations = relations(
+  citiesLightSubregion,
+  ({ one, many }) => ({
+    citiesLightCities: many(citiesLightCity),
+    citiesLightCountry: one(citiesLightCountry, {
+      fields: [citiesLightSubregion.countryId],
+      references: [citiesLightCountry.id],
+    }),
+    citiesLightRegion: one(citiesLightRegion, {
+      fields: [citiesLightSubregion.regionId],
+      references: [citiesLightRegion.id],
+    }),
+  }),
+);
+
+export const userAuthStateRelations = relations(userAuthState, ({ one }) => ({
+  authUser: one(authUser, {
+    fields: [userAuthState.userId],
+    references: [authUser.id],
+  }),
+}));
+
+export const revokedTokenRelations = relations(revokedToken, ({ one }) => ({
+  authUser: one(authUser, {
+    fields: [revokedToken.userId],
+    references: [authUser.id],
+  }),
+}));
+
+export const storeCredentialsRelations = relations(
+  storeCredentials,
+  ({ one }) => ({
+    store: one(store, {
+      fields: [storeCredentials.storeId],
+      references: [store.id],
+    }),
+  }),
+);
+
+export const storeRelations = relations(store, ({ many }) => ({
+  storeCredentialss: many(storeCredentials),
+  chatbotWidgetCustomizations: many(chatbotWidgetCustomization),
+  chatThreads: many(chatThread),
+  sessionResolutionVerdicts: many(sessionResolutionVerdict),
+  supportTickets: many(supportTicket),
+  storeIntegrations: many(storeIntegration),
+  ticketTags: many(ticketTag),
+  neverSayRuless: many(neverSayRules),
+  vocabularys: many(vocabulary),
+  personaIdentitys: many(personaIdentity),
+  toneStyles: many(toneStyle),
+  socialSubscriptions: many(socialSubscription),
+  emailTemplates: many(emailTemplate),
+  whatsappTemplates: many(whatsappTemplate),
+  segmentss: many(segments),
+  campaigns: many(campaign),
+  storeWorkflowSettings: many(storeWorkflowSetting),
+  categorys: many(category),
+  collections: many(collection),
+  products: many(product),
+  productSyncJobs: many(productSyncJob),
+  knowledgeItems: many(knowledgeItem),
+  notifications: many(notification),
+  supportConfigurations: many(supportConfiguration),
 }));
 
 export const chatbotWidgetCustomizationQuickActionsRelations = relations(
@@ -333,41 +542,6 @@ export const quickLinkRelations = relations(quickLink, ({ one }) => ({
   }),
 }));
 
-export const storeRelations = relations(store, ({ many }) => ({
-  chatbotWidgetCustomizations: many(chatbotWidgetCustomization),
-  storeCredentialss: many(storeCredentials),
-  chatThreads: many(chatThread),
-  sessionResolutionVerdicts: many(sessionResolutionVerdict),
-  supportTickets: many(supportTicket),
-  storeIntegrations: many(storeIntegration),
-  ticketTags: many(ticketTag),
-  neverSayRuless: many(neverSayRules),
-  vocabularys: many(vocabulary),
-  personaIdentitys: many(personaIdentity),
-  toneStyles: many(toneStyle),
-  socialSubscriptions: many(socialSubscription),
-  categorys: many(category),
-  collections: many(collection),
-  products: many(product),
-  productSyncJobs: many(productSyncJob),
-  knowledgeItems: many(knowledgeItem),
-  emailTemplates: many(emailTemplate),
-  whatsappTemplates: many(whatsappTemplate),
-  segmentss: many(segments),
-  campaigns: many(campaign),
-  supportConfigurations: many(supportConfiguration),
-}));
-
-export const storeCredentialsRelations = relations(
-  storeCredentials,
-  ({ one }) => ({
-    store: one(store, {
-      fields: [storeCredentials.storeId],
-      references: [store.id],
-    }),
-  }),
-);
-
 export const chatHistoryRelations = relations(chatHistory, ({ one, many }) => ({
   chatThread: one(chatThread, {
     fields: [chatHistory.threadId],
@@ -396,9 +570,9 @@ export const chatThreadRelations = relations(chatThread, ({ one, many }) => ({
   userMetadatas: many(userMetadata),
   fraudFlags: many(fraudFlag),
   supportTickets: many(supportTicket),
-  chatEscalationOffers: many(chatEscalationOffer),
   chatThreadAssignments: many(chatThreadAssignment),
   chatThreadOrderss: many(chatThreadOrders),
+  notifications: many(notification),
 }));
 
 export const chatbotFeedbackRelations = relations(
@@ -419,8 +593,8 @@ export const chatCustomerRelations = relations(chatCustomer, ({ many }) => ({
   chatThreads: many(chatThread),
   chatAddresss: many(chatAddress),
   chatCustomerorders: many(chatCustomerorder),
-  ticketMessages: many(ticketMessage),
   supportTickets: many(supportTicket),
+  ticketMessages: many(ticketMessage),
   socialUsers: many(socialUser),
   campaignSendLogs: many(campaignSendLog),
 }));
@@ -463,11 +637,12 @@ export const sessionResolutionVerdictRelations = relations(
   }),
 );
 
-export const aiInsightsRelations = relations(aiInsights, ({ one }) => ({
+export const aiInsightsRelations = relations(aiInsights, ({ one, many }) => ({
   chatThread: one(chatThread, {
     fields: [aiInsights.threadId],
     references: [chatThread.id],
   }),
+  aiInsightsTicketTagss: many(aiInsightsTicketTags),
 }));
 
 export const userMetadataRelations = relations(userMetadata, ({ one }) => ({
@@ -534,19 +709,6 @@ export const ticketMessageRelations = relations(
     supportTicket: one(supportTicket, {
       fields: [ticketMessage.ticketId],
       references: [supportTicket.id],
-      relationName: "ticketMessage_ticketId_supportTicket_id",
-    }),
-    supportTickets_firstAgentMessageId: many(supportTicket, {
-      relationName: "supportTicket_firstAgentMessageId_ticketMessage_id",
-    }),
-    supportTickets_firstCustomerMessageId: many(supportTicket, {
-      relationName: "supportTicket_firstCustomerMessageId_ticketMessage_id",
-    }),
-    supportTickets_latestAgentMessageId: many(supportTicket, {
-      relationName: "supportTicket_latestAgentMessageId_ticketMessage_id",
-    }),
-    supportTickets_latestCustomerMessageId: many(supportTicket, {
-      relationName: "supportTicket_latestCustomerMessageId_ticketMessage_id",
     }),
   }),
 );
@@ -555,33 +717,9 @@ export const supportTicketRelations = relations(
   supportTicket,
   ({ one, many }) => ({
     ticketAttachments: many(ticketAttachment),
-    supportTicketChannels: many(supportTicketChannel),
-    ticketMessages: many(ticketMessage, {
-      relationName: "ticketMessage_ticketId_supportTicket_id",
-    }),
     chatCustomer: one(chatCustomer, {
       fields: [supportTicket.customerId],
       references: [chatCustomer.id],
-    }),
-    ticketMessage_firstAgentMessageId: one(ticketMessage, {
-      fields: [supportTicket.firstAgentMessageId],
-      references: [ticketMessage.id],
-      relationName: "supportTicket_firstAgentMessageId_ticketMessage_id",
-    }),
-    ticketMessage_firstCustomerMessageId: one(ticketMessage, {
-      fields: [supportTicket.firstCustomerMessageId],
-      references: [ticketMessage.id],
-      relationName: "supportTicket_firstCustomerMessageId_ticketMessage_id",
-    }),
-    ticketMessage_latestAgentMessageId: one(ticketMessage, {
-      fields: [supportTicket.latestAgentMessageId],
-      references: [ticketMessage.id],
-      relationName: "supportTicket_latestAgentMessageId_ticketMessage_id",
-    }),
-    ticketMessage_latestCustomerMessageId: one(ticketMessage, {
-      fields: [supportTicket.latestCustomerMessageId],
-      references: [ticketMessage.id],
-      relationName: "supportTicket_latestCustomerMessageId_ticketMessage_id",
     }),
     chatCustomerorder: one(chatCustomerorder, {
       fields: [supportTicket.orderId],
@@ -595,11 +733,14 @@ export const supportTicketRelations = relations(
       fields: [supportTicket.threadId],
       references: [chatThread.id],
     }),
+    supportTicketChannels: many(supportTicketChannel),
+    ticketMessages: many(ticketMessage),
     supportTicketTagss: many(supportTicketTags),
     ticketMessageDrafts: many(ticketMessageDraft),
     supportTicketAssignmentAudits: many(supportTicketAssignmentAudit),
     supportTicketStatusAudits: many(supportTicketStatusAudit),
     campaignSendLogs: many(campaignSendLog),
+    notifications: many(notification),
   }),
 );
 
@@ -633,6 +774,7 @@ export const ticketTagRelations = relations(ticketTag, ({ one, many }) => ({
     fields: [ticketTag.storeId],
     references: [store.id],
   }),
+  aiInsightsTicketTagss: many(aiInsightsTicketTags),
 }));
 
 export const storeIntegrationRelations = relations(
@@ -870,6 +1012,16 @@ export const socialCommentAnalysisRelations = relations(
   }),
 );
 
+export const socialCommentSettingRelations = relations(
+  socialCommentSetting,
+  ({ one }) => ({
+    socialConnectedAccount: one(socialConnectedAccount, {
+      fields: [socialCommentSetting.accountId],
+      references: [socialConnectedAccount.id],
+    }),
+  }),
+);
+
 export const socialMessageAttachmentRelations = relations(
   socialMessageAttachment,
   ({ one }) => ({
@@ -890,13 +1042,15 @@ export const socialCommentDraftRelations = relations(
   }),
 );
 
-export const socialCommentSettingRelations = relations(
-  socialCommentSetting,
-  ({ one }) => ({
-    socialConnectedAccount: one(socialConnectedAccount, {
-      fields: [socialCommentSetting.accountId],
-      references: [socialConnectedAccount.id],
+export const emailTemplateRelations = relations(
+  emailTemplate,
+  ({ one, many }) => ({
+    store: one(store, {
+      fields: [emailTemplate.storeId],
+      references: [store.id],
     }),
+    campaignSendLogs: many(campaignSendLog),
+    campaignSequences: many(campaignSequence),
   }),
 );
 
@@ -930,18 +1084,6 @@ export const campaignSendLogRelations = relations(
   }),
 );
 
-export const emailTemplateRelations = relations(
-  emailTemplate,
-  ({ one, many }) => ({
-    campaignSendLogs: many(campaignSendLog),
-    store: one(store, {
-      fields: [emailTemplate.storeId],
-      references: [store.id],
-    }),
-    campaignSequences: many(campaignSequence),
-  }),
-);
-
 export const whatsappTemplateRelations = relations(
   whatsappTemplate,
   ({ one, many }) => ({
@@ -954,8 +1096,121 @@ export const whatsappTemplateRelations = relations(
       fields: [whatsappTemplate.storeId],
       references: [store.id],
     }),
-    templateAttachments: many(templateAttachment),
     campaignSequences: many(campaignSequence),
+    templateAttachments: many(templateAttachment),
+  }),
+);
+
+export const campaignSequenceRelations = relations(
+  campaignSequence,
+  ({ one, many }) => ({
+    campaign: one(campaign, {
+      fields: [campaignSequence.campaignId],
+      references: [campaign.id],
+    }),
+    emailTemplate: one(emailTemplate, {
+      fields: [campaignSequence.emailTemplateId],
+      references: [emailTemplate.id],
+    }),
+    whatsappTemplate: one(whatsappTemplate, {
+      fields: [campaignSequence.whatsappTemplateId],
+      references: [whatsappTemplate.id],
+    }),
+    campaignStepRuns: many(campaignStepRun),
+  }),
+);
+
+export const campaignRelations = relations(campaign, ({ one, many }) => ({
+  campaignSequences: many(campaignSequence),
+  segments: one(segments, {
+    fields: [campaign.segmentId],
+    references: [segments.id],
+  }),
+  store: one(store, {
+    fields: [campaign.storeId],
+    references: [store.id],
+  }),
+  campaignStepRuns: many(campaignStepRun),
+}));
+
+export const segmentsRelations = relations(segments, ({ one, many }) => ({
+  segmentsCategory: one(segmentsCategory, {
+    fields: [segments.categoryId],
+    references: [segmentsCategory.id],
+  }),
+  store: one(store, {
+    fields: [segments.storeId],
+    references: [store.id],
+  }),
+  campaigns: many(campaign),
+}));
+
+export const segmentsCategoryRelations = relations(
+  segmentsCategory,
+  ({ many }) => ({
+    segmentss: many(segments),
+  }),
+);
+
+export const templateAttachmentRelations = relations(
+  templateAttachment,
+  ({ one }) => ({
+    whatsappTemplate: one(whatsappTemplate, {
+      fields: [templateAttachment.templateId],
+      references: [whatsappTemplate.id],
+    }),
+  }),
+);
+
+export const campaignStepRunRelations = relations(
+  campaignStepRun,
+  ({ one }) => ({
+    campaign: one(campaign, {
+      fields: [campaignStepRun.campaignId],
+      references: [campaign.id],
+    }),
+    campaignSequence: one(campaignSequence, {
+      fields: [campaignStepRun.sequenceStepId],
+      references: [campaignSequence.id],
+    }),
+  }),
+);
+
+export const chatThreadAssignmentRelations = relations(
+  chatThreadAssignment,
+  ({ one }) => ({
+    chatHistory: one(chatHistory, {
+      fields: [chatThreadAssignment.afterMessageId],
+      references: [chatHistory.id],
+    }),
+    chatThread: one(chatThread, {
+      fields: [chatThreadAssignment.threadId],
+      references: [chatThread.id],
+    }),
+  }),
+);
+
+export const chatThreadOrdersRelations = relations(
+  chatThreadOrders,
+  ({ one }) => ({
+    chatCustomerorder: one(chatCustomerorder, {
+      fields: [chatThreadOrders.customerorderId],
+      references: [chatCustomerorder.id],
+    }),
+    chatThread: one(chatThread, {
+      fields: [chatThreadOrders.threadId],
+      references: [chatThread.id],
+    }),
+  }),
+);
+
+export const storeWorkflowSettingRelations = relations(
+  storeWorkflowSetting,
+  ({ one }) => ({
+    store: one(store, {
+      fields: [storeWorkflowSetting.storeId],
+      references: [store.id],
+    }),
   }),
 );
 
@@ -972,8 +1227,8 @@ export const categoryRelations = relations(category, ({ one, many }) => ({
     fields: [category.storeId],
     references: [store.id],
   }),
-  knowledgeItemCategoriess: many(knowledgeItemCategories),
   productCategoriess: many(productCategories),
+  knowledgeItemCategoriess: many(knowledgeItemCategories),
 }));
 
 export const collectionRelations = relations(collection, ({ one, many }) => ({
@@ -981,8 +1236,8 @@ export const collectionRelations = relations(collection, ({ one, many }) => ({
     fields: [collection.storeId],
     references: [store.id],
   }),
-  knowledgeItemCollectionss: many(knowledgeItemCollections),
   productCollectionss: many(productCollections),
+  knowledgeItemCollectionss: many(knowledgeItemCollections),
 }));
 
 export const productRelations = relations(product, ({ one, many }) => ({
@@ -991,9 +1246,9 @@ export const productRelations = relations(product, ({ one, many }) => ({
     references: [store.id],
   }),
   productVariants: many(productVariant),
-  knowledgeItemProductss: many(knowledgeItemProducts),
   productCategoriess: many(productCategories),
   productCollectionss: many(productCollections),
+  knowledgeItemProductss: many(knowledgeItemProducts),
 }));
 
 export const productSyncJobRelations = relations(productSyncJob, ({ one }) => ({
@@ -1010,6 +1265,47 @@ export const productVariantRelations = relations(productVariant, ({ one }) => ({
   }),
 }));
 
+export const productCategoriesRelations = relations(
+  productCategories,
+  ({ one }) => ({
+    category: one(category, {
+      fields: [productCategories.categoryId],
+      references: [category.id],
+    }),
+    product: one(product, {
+      fields: [productCategories.productId],
+      references: [product.id],
+    }),
+  }),
+);
+
+export const productCollectionsRelations = relations(
+  productCollections,
+  ({ one }) => ({
+    collection: one(collection, {
+      fields: [productCollections.collectionId],
+      references: [collection.id],
+    }),
+    product: one(product, {
+      fields: [productCollections.productId],
+      references: [product.id],
+    }),
+  }),
+);
+
+export const knowledgeItemRelations = relations(
+  knowledgeItem,
+  ({ one, many }) => ({
+    store: one(store, {
+      fields: [knowledgeItem.storeId],
+      references: [store.id],
+    }),
+    knowledgeItemCategoriess: many(knowledgeItemCategories),
+    knowledgeItemCollectionss: many(knowledgeItemCollections),
+    knowledgeItemProductss: many(knowledgeItemProducts),
+  }),
+);
+
 export const knowledgeItemCategoriesRelations = relations(
   knowledgeItemCategories,
   ({ one }) => ({
@@ -1020,19 +1316,6 @@ export const knowledgeItemCategoriesRelations = relations(
     category: one(category, {
       fields: [knowledgeItemCategories.categoryId],
       references: [category.id],
-    }),
-  }),
-);
-
-export const knowledgeItemRelations = relations(
-  knowledgeItem,
-  ({ one, many }) => ({
-    knowledgeItemCategoriess: many(knowledgeItemCategories),
-    knowledgeItemCollectionss: many(knowledgeItemCollections),
-    knowledgeItemProductss: many(knowledgeItemProducts),
-    store: one(store, {
-      fields: [knowledgeItem.storeId],
-      references: [store.id],
     }),
   }),
 );
@@ -1065,249 +1348,18 @@ export const knowledgeItemProductsRelations = relations(
   }),
 );
 
-export const aiUsageRelations = relations(aiUsage, ({ one, many }) => ({
-  company: one(company, {
-    fields: [aiUsage.companyId],
-    references: [company.id],
-  }),
-  authUser: one(authUser, {
-    fields: [aiUsage.performedById],
-    references: [authUser.id],
-  }),
-  aiAgentUsages: many(aiAgentUsage),
-  billingCreditTransactions: many(billingCreditTransaction),
-}));
-
-export const aiAgentUsageRelations = relations(aiAgentUsage, ({ one }) => ({
-  aiUsage: one(aiUsage, {
-    fields: [aiAgentUsage.usageId],
-    references: [aiUsage.id],
-  }),
-}));
-
-export const billingSubscriptionRelations = relations(
-  billingSubscription,
-  ({ one, many }) => ({
-    company: one(company, {
-      fields: [billingSubscription.companyId],
-      references: [company.id],
-    }),
-    subscriptionPlan: one(subscriptionPlan, {
-      fields: [billingSubscription.planId],
-      references: [subscriptionPlan.id],
-    }),
-    billingCreditTransactions: many(billingCreditTransaction),
-  }),
-);
-
-export const subscriptionPlanRelations = relations(
-  subscriptionPlan,
-  ({ many }) => ({
-    billingSubscriptions: many(billingSubscription),
-  }),
-);
-
-export const billingTopUpRelations = relations(
-  billingTopUp,
-  ({ one, many }) => ({
-    company: one(company, {
-      fields: [billingTopUp.companyId],
-      references: [company.id],
-    }),
-    billingCreditTransactions: many(billingCreditTransaction),
-  }),
-);
-
-export const billingCreditTransactionRelations = relations(
-  billingCreditTransaction,
-  ({ one }) => ({
-    billingSubscription: one(billingSubscription, {
-      fields: [billingCreditTransaction.subscriptionId],
-      references: [billingSubscription.id],
-    }),
-    billingTopUp: one(billingTopUp, {
-      fields: [billingCreditTransaction.topUpId],
-      references: [billingTopUp.id],
-    }),
-    company: one(company, {
-      fields: [billingCreditTransaction.companyId],
-      references: [company.id],
-    }),
-    aiUsage: one(aiUsage, {
-      fields: [billingCreditTransaction.usageId],
-      references: [aiUsage.id],
-    }),
-  }),
-);
-
-export const productCategoriesRelations = relations(
-  productCategories,
-  ({ one }) => ({
-    category: one(category, {
-      fields: [productCategories.categoryId],
-      references: [category.id],
-    }),
-    product: one(product, {
-      fields: [productCategories.productId],
-      references: [product.id],
-    }),
-  }),
-);
-
-export const productCollectionsRelations = relations(
-  productCollections,
-  ({ one }) => ({
-    collection: one(collection, {
-      fields: [productCollections.collectionId],
-      references: [collection.id],
-    }),
-    product: one(product, {
-      fields: [productCollections.productId],
-      references: [product.id],
-    }),
-  }),
-);
-
-export const citiesLightRegionRelations = relations(
-  citiesLightRegion,
-  ({ one, many }) => ({
-    citiesLightCountry: one(citiesLightCountry, {
-      fields: [citiesLightRegion.countryId],
-      references: [citiesLightCountry.id],
-    }),
-    citiesLightCities: many(citiesLightCity),
-    citiesLightSubregions: many(citiesLightSubregion),
-  }),
-);
-
-export const citiesLightCountryRelations = relations(
-  citiesLightCountry,
-  ({ many }) => ({
-    citiesLightRegions: many(citiesLightRegion),
-    citiesLightCities: many(citiesLightCity),
-    citiesLightSubregions: many(citiesLightSubregion),
-  }),
-);
-
-export const citiesLightCityRelations = relations(
-  citiesLightCity,
-  ({ one }) => ({
-    citiesLightCountry: one(citiesLightCountry, {
-      fields: [citiesLightCity.countryId],
-      references: [citiesLightCountry.id],
-    }),
-    citiesLightRegion: one(citiesLightRegion, {
-      fields: [citiesLightCity.regionId],
-      references: [citiesLightRegion.id],
-    }),
-    citiesLightSubregion: one(citiesLightSubregion, {
-      fields: [citiesLightCity.subregionId],
-      references: [citiesLightSubregion.id],
-    }),
-  }),
-);
-
-export const citiesLightSubregionRelations = relations(
-  citiesLightSubregion,
-  ({ one, many }) => ({
-    citiesLightCities: many(citiesLightCity),
-    citiesLightCountry: one(citiesLightCountry, {
-      fields: [citiesLightSubregion.countryId],
-      references: [citiesLightCountry.id],
-    }),
-    citiesLightRegion: one(citiesLightRegion, {
-      fields: [citiesLightSubregion.regionId],
-      references: [citiesLightRegion.id],
-    }),
-  }),
-);
-
-export const segmentsRelations = relations(segments, ({ one, many }) => ({
-  segmentsCategory: one(segmentsCategory, {
-    fields: [segments.categoryId],
-    references: [segmentsCategory.id],
-  }),
+export const notificationRelations = relations(notification, ({ one }) => ({
   store: one(store, {
-    fields: [segments.storeId],
+    fields: [notification.storeId],
     references: [store.id],
   }),
-  campaigns: many(campaign),
-}));
-
-export const segmentsCategoryRelations = relations(
-  segmentsCategory,
-  ({ many }) => ({
-    segmentss: many(segments),
+  chatThread: one(chatThread, {
+    fields: [notification.threadId],
+    references: [chatThread.id],
   }),
-);
-
-export const campaignRelations = relations(campaign, ({ one, many }) => ({
-  segments: one(segments, {
-    fields: [campaign.segmentId],
-    references: [segments.id],
-  }),
-  store: one(store, {
-    fields: [campaign.storeId],
-    references: [store.id],
-  }),
-  campaignSequences: many(campaignSequence),
-  campaignStepRuns: many(campaignStepRun),
-}));
-
-export const templateAttachmentRelations = relations(
-  templateAttachment,
-  ({ one }) => ({
-    whatsappTemplate: one(whatsappTemplate, {
-      fields: [templateAttachment.templateId],
-      references: [whatsappTemplate.id],
-    }),
-  }),
-);
-
-export const campaignSequenceRelations = relations(
-  campaignSequence,
-  ({ one, many }) => ({
-    campaign: one(campaign, {
-      fields: [campaignSequence.campaignId],
-      references: [campaign.id],
-    }),
-    emailTemplate: one(emailTemplate, {
-      fields: [campaignSequence.emailTemplateId],
-      references: [emailTemplate.id],
-    }),
-    whatsappTemplate: one(whatsappTemplate, {
-      fields: [campaignSequence.whatsappTemplateId],
-      references: [whatsappTemplate.id],
-    }),
-    campaignStepRuns: many(campaignStepRun),
-  }),
-);
-
-export const campaignStepRunRelations = relations(
-  campaignStepRun,
-  ({ one }) => ({
-    campaign: one(campaign, {
-      fields: [campaignStepRun.campaignId],
-      references: [campaign.id],
-    }),
-    campaignSequence: one(campaignSequence, {
-      fields: [campaignStepRun.sequenceStepId],
-      references: [campaignSequence.id],
-    }),
-  }),
-);
-
-export const userAuthStateRelations = relations(userAuthState, ({ one }) => ({
-  authUser: one(authUser, {
-    fields: [userAuthState.userId],
-    references: [authUser.id],
-  }),
-}));
-
-export const revokedTokenRelations = relations(revokedToken, ({ one }) => ({
-  authUser: one(authUser, {
-    fields: [revokedToken.userId],
-    references: [authUser.id],
+  supportTicket: one(supportTicket, {
+    fields: [notification.ticketId],
+    references: [supportTicket.id],
   }),
 }));
 
@@ -1321,40 +1373,16 @@ export const supportConfigurationRelations = relations(
   }),
 );
 
-export const chatEscalationOfferRelations = relations(
-  chatEscalationOffer,
+export const aiInsightsTicketTagsRelations = relations(
+  aiInsightsTicketTags,
   ({ one }) => ({
-    chatThread: one(chatThread, {
-      fields: [chatEscalationOffer.threadId],
-      references: [chatThread.id],
+    aiInsights: one(aiInsights, {
+      fields: [aiInsightsTicketTags.aiinsightsId],
+      references: [aiInsights.id],
     }),
-  }),
-);
-
-export const chatThreadAssignmentRelations = relations(
-  chatThreadAssignment,
-  ({ one }) => ({
-    chatHistory: one(chatHistory, {
-      fields: [chatThreadAssignment.afterMessageId],
-      references: [chatHistory.id],
-    }),
-    chatThread: one(chatThread, {
-      fields: [chatThreadAssignment.threadId],
-      references: [chatThread.id],
-    }),
-  }),
-);
-
-export const chatThreadOrdersRelations = relations(
-  chatThreadOrders,
-  ({ one }) => ({
-    chatCustomerorder: one(chatCustomerorder, {
-      fields: [chatThreadOrders.customerorderId],
-      references: [chatCustomerorder.id],
-    }),
-    chatThread: one(chatThread, {
-      fields: [chatThreadOrders.threadId],
-      references: [chatThread.id],
+    ticketTag: one(ticketTag, {
+      fields: [aiInsightsTicketTags.tickettagId],
+      references: [ticketTag.id],
     }),
   }),
 );

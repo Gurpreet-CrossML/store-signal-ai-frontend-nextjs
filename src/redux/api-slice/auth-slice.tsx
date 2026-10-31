@@ -42,7 +42,7 @@ export const RegisterCompany = createAsyncThunk(
       toast.error("Couldn't create your account", {
         description: data?.message || "Unable to register the company.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't create your account");
     }
   },
 );
@@ -57,7 +57,16 @@ const AuthSlice = createSlice({
       RegisterCompanyData: null as RegisteredCompany | null,
     },
   },
-  reducers: {},
+  reducers: {
+    clearRegisterCompanyState: (state) => {
+      state.RegisterCompanyState = {
+        RegisterCompanyIsLoading: false,
+        RegisterCompanyIsSuccess: false,
+        RegisterCompanyIsError: null,
+        RegisterCompanyData: null,
+      };
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(RegisterCompany.pending, (state) => {
@@ -78,5 +87,7 @@ const AuthSlice = createSlice({
       });
   },
 });
+
+export const { clearRegisterCompanyState } = AuthSlice.actions;
 
 export default AuthSlice.reducer;

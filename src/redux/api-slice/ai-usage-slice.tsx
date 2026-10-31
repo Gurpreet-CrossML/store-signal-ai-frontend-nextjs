@@ -81,6 +81,139 @@ function paramsFor(filters: AIUsageFilters) {
   return params;
 }
 
+/** The company's credit position and current plan month. */
+export type CreditStatus = {
+  balance: number;
+  has_quota: boolean;
+  plan: { code: string; name: string } | null;
+  monthly_credits: number | null;
+  billing_cycle: string | null;
+  start_date: string | null;
+  end_date: string | null;
+};
+
+/** Credits charged over the selected range. */
+export type CreditSummary = { total_calls: number; credits_charged: number };
+
+/** Credits charged on one calendar date, with credits per feature. */
+export type DailyCreditPoint = {
+  date: string;
+  credits_charged: number;
+  features?: Record<string, number>;
+};
+
+/** Credits charged by one feature. */
+export type FeatureUsage = {
+  feature: string;
+  calls: number;
+  credits_charged: number;
+};
+
+const emptyCreditSummary: CreditSummary = {
+  total_calls: 0,
+  credits_charged: 0,
+};
+
+/** Fetches the company's credit balance and current plan month. */
+export const fetchCreditStatus = createAsyncThunk(
+  "aiUsage/fetchCreditStatus",
+  async (filters: AIUsageFilters, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchCreditStatus()}?${paramsFor(filters).toString()}`,
+        { useBackend: true },
+      );
+      return response.data.data as CreditStatus;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch AI credit status.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch AI credit status.",
+      );
+    }
+  },
+);
+
+/** Fetches the credits charged over the selected range. */
+export const fetchAIUsageCreditSummary = createAsyncThunk(
+  "aiUsage/fetchAIUsageCreditSummary",
+  async (filters: AIUsageFilters, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchAIUsageCreditSummary()}?${paramsFor(filters).toString()}`,
+        { useBackend: true },
+      );
+      return response.data.data as CreditSummary;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch AI credits used.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch AI credits used.",
+      );
+    }
+  },
+);
+
+/** Fetches the credits charged per day for the day-by-day chart. */
+export const fetchAIUsageCreditDaily = createAsyncThunk(
+  "aiUsage/fetchAIUsageCreditDaily",
+  async (filters: AIUsageFilters, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchAIUsageCreditDaily()}?${paramsFor(filters).toString()}`,
+        { useBackend: true },
+      );
+      return response.data.data as DailyCreditPoint[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch daily AI credits.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch daily AI credits.",
+      );
+    }
+  },
+);
+
+/** Fetches calls and credits per feature for "Where the credits went", unbilled ones included. */
+export const fetchAIUsageByFeature = createAsyncThunk(
+  "aiUsage/fetchAIUsageByFeature",
+  async (filters: AIUsageFilters, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchAIUsageByFeature()}?${paramsFor(filters).toString()}`,
+        { useBackend: true },
+      );
+      return response.data.data as FeatureUsage[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch AI credits by feature.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch AI credits by feature.",
+      );
+    }
+  },
+);
+
 /** Fetches aggregate metrics for the AI usage summary cards. */
 export const fetchAIUsageSummary = createAsyncThunk(
   "aiUsage/fetchSummary",
@@ -95,13 +228,13 @@ export const fetchAIUsageSummary = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch AI usage summary, please try again later.",
+      toast.error("Couldn't fetch AI usage summary.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch AI usage summary.",
+      );
     }
   },
 );
@@ -120,13 +253,11 @@ export const fetchAIUsageDaily = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch daily AI usage, please try again later.",
+      toast.error("Couldn't fetch AI daily usage.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch AI daily usage.");
     }
   },
 );
@@ -145,13 +276,11 @@ export const fetchAIUsageTokenSplit = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch AI token split, please try again later.",
+      toast.error("Couldn't fetch AI token split.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch AI token split.");
     }
   },
 );
@@ -170,13 +299,13 @@ export const fetchAIUsageWorkflowCosts = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch AI workflow costs, please try again later.",
+      toast.error("Couldn't fetch AI workflow costs.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch AI workflow costs.",
+      );
     }
   },
 );
@@ -195,13 +324,13 @@ export const fetchAIUsageLatencyTrend = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch AI latency trend, please try again later.",
+      toast.error("Couldn't fetch AI latency trend.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch AI latency trend.",
+      );
     }
   },
 );
@@ -209,6 +338,30 @@ export const fetchAIUsageLatencyTrend = createAsyncThunk(
 const AIUsageSlice = createSlice({
   name: "AIUsage",
   initialState: {
+    FetchCreditStatusState: {
+      FetchCreditStatusIsLoading: false,
+      FetchCreditStatusIsSuccess: false,
+      FetchCreditStatusIsError: null as null | string | object,
+      FetchCreditStatusData: null as CreditStatus | null,
+    },
+    FetchAIUsageCreditSummaryState: {
+      FetchAIUsageCreditSummaryIsLoading: false,
+      FetchAIUsageCreditSummaryIsSuccess: false,
+      FetchAIUsageCreditSummaryIsError: null as null | string | object,
+      FetchAIUsageCreditSummaryData: emptyCreditSummary,
+    },
+    FetchAIUsageCreditDailyState: {
+      FetchAIUsageCreditDailyIsLoading: false,
+      FetchAIUsageCreditDailyIsSuccess: false,
+      FetchAIUsageCreditDailyIsError: null as null | string | object,
+      FetchAIUsageCreditDailyData: [] as DailyCreditPoint[],
+    },
+    FetchAIUsageByFeatureState: {
+      FetchAIUsageByFeatureIsLoading: false,
+      FetchAIUsageByFeatureIsSuccess: false,
+      FetchAIUsageByFeatureIsError: null as null | string | object,
+      FetchAIUsageByFeatureData: [] as FeatureUsage[],
+    },
     FetchAIUsageSummaryState: {
       FetchAIUsageSummaryIsLoading: false,
       FetchAIUsageSummaryIsSuccess: false,
@@ -243,6 +396,79 @@ const AIUsageSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
+      // CreditStatus
+      .addCase(fetchCreditStatus.pending, (state) => {
+        state.FetchCreditStatusState.FetchCreditStatusIsLoading = true;
+        state.FetchCreditStatusState.FetchCreditStatusIsSuccess = false;
+        state.FetchCreditStatusState.FetchCreditStatusIsError = null;
+      })
+      .addCase(fetchCreditStatus.fulfilled, (state, action) => {
+        state.FetchCreditStatusState.FetchCreditStatusIsLoading = false;
+        state.FetchCreditStatusState.FetchCreditStatusIsSuccess = true;
+        state.FetchCreditStatusState.FetchCreditStatusData = action.payload;
+      })
+      .addCase(fetchCreditStatus.rejected, (state, action) => {
+        state.FetchCreditStatusState.FetchCreditStatusIsLoading = false;
+        state.FetchCreditStatusState.FetchCreditStatusIsSuccess = false;
+        state.FetchCreditStatusState.FetchCreditStatusIsError =
+          action.payload as string | object;
+      })
+      // AIUsageCreditSummary
+      .addCase(fetchAIUsageCreditSummary.pending, (state) => {
+        state.FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryIsLoading = true;
+        state.FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryIsSuccess = false;
+        state.FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryIsError =
+          null;
+      })
+      .addCase(fetchAIUsageCreditSummary.fulfilled, (state, action) => {
+        state.FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryIsLoading = false;
+        state.FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryIsSuccess = true;
+        state.FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryData =
+          action.payload;
+      })
+      .addCase(fetchAIUsageCreditSummary.rejected, (state, action) => {
+        state.FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryIsLoading = false;
+        state.FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryIsSuccess = false;
+        state.FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryIsError =
+          action.payload as string | object;
+      })
+      // AIUsageCreditDaily
+      .addCase(fetchAIUsageCreditDaily.pending, (state) => {
+        state.FetchAIUsageCreditDailyState.FetchAIUsageCreditDailyIsLoading = true;
+        state.FetchAIUsageCreditDailyState.FetchAIUsageCreditDailyIsSuccess = false;
+        state.FetchAIUsageCreditDailyState.FetchAIUsageCreditDailyIsError =
+          null;
+      })
+      .addCase(fetchAIUsageCreditDaily.fulfilled, (state, action) => {
+        state.FetchAIUsageCreditDailyState.FetchAIUsageCreditDailyIsLoading = false;
+        state.FetchAIUsageCreditDailyState.FetchAIUsageCreditDailyIsSuccess = true;
+        state.FetchAIUsageCreditDailyState.FetchAIUsageCreditDailyData =
+          action.payload;
+      })
+      .addCase(fetchAIUsageCreditDaily.rejected, (state, action) => {
+        state.FetchAIUsageCreditDailyState.FetchAIUsageCreditDailyIsLoading = false;
+        state.FetchAIUsageCreditDailyState.FetchAIUsageCreditDailyIsSuccess = false;
+        state.FetchAIUsageCreditDailyState.FetchAIUsageCreditDailyIsError =
+          action.payload as string | object;
+      })
+      // AIUsageByFeature
+      .addCase(fetchAIUsageByFeature.pending, (state) => {
+        state.FetchAIUsageByFeatureState.FetchAIUsageByFeatureIsLoading = true;
+        state.FetchAIUsageByFeatureState.FetchAIUsageByFeatureIsSuccess = false;
+        state.FetchAIUsageByFeatureState.FetchAIUsageByFeatureIsError = null;
+      })
+      .addCase(fetchAIUsageByFeature.fulfilled, (state, action) => {
+        state.FetchAIUsageByFeatureState.FetchAIUsageByFeatureIsLoading = false;
+        state.FetchAIUsageByFeatureState.FetchAIUsageByFeatureIsSuccess = true;
+        state.FetchAIUsageByFeatureState.FetchAIUsageByFeatureData =
+          action.payload;
+      })
+      .addCase(fetchAIUsageByFeature.rejected, (state, action) => {
+        state.FetchAIUsageByFeatureState.FetchAIUsageByFeatureIsLoading = false;
+        state.FetchAIUsageByFeatureState.FetchAIUsageByFeatureIsSuccess = false;
+        state.FetchAIUsageByFeatureState.FetchAIUsageByFeatureIsError =
+          action.payload as string | object;
+      })
       // AI usage summary
       .addCase(fetchAIUsageSummary.pending, (state) => {
         state.FetchAIUsageSummaryState.FetchAIUsageSummaryIsLoading = true;

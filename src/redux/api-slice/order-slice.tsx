@@ -207,10 +207,10 @@ export const FetchOrders = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to load orders.",
+      toast.error("Couldn't load orders.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load orders.");
     }
   },
 );
@@ -251,10 +251,12 @@ export const FetchCustomerOrders = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to load this customer's orders.",
+      toast.error("Couldn't load this customer's orders.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't load this customer's orders.",
+      );
     }
   },
 );
@@ -285,7 +287,7 @@ export const SyncCustomerOrders = createAsyncThunk(
         description:
           data?.message || "The store did not return this customer's orders.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't refresh orders");
     }
   },
 );
@@ -305,10 +307,10 @@ export const FetchOrderDetails = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Uh oh! Something went wrong.", {
-        description: data?.message || "Unable to load this order.",
+      toast.error("Couldn't load this order.", {
+        description: data?.message || "Please try again later.",
       });
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't load this order.");
     }
   },
 );
