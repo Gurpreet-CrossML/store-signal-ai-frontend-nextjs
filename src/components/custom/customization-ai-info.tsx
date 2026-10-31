@@ -100,7 +100,6 @@ export default function CustomizationAiInfo({
           <Input
             id="ai-title"
             value={state.title}
-            maxLength={LIMITS.title}
             onChange={(e) => update({ ...state, title: e.target.value })}
           />
           {fieldErrors?.ai_disclaimer_title ? (
