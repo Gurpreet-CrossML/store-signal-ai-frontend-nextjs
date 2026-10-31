@@ -89,15 +89,14 @@ function present(item: SupportTicketActivityItem): {
             : IconRefresh,
       title: (
         <span className="flex flex-wrap items-center gap-1.5">
-          Status changed
+          {/* One text run, so the words keep real spaces between them. */}
+          <span>Status changed {item.from_value ? "from" : "to"}</span>
           {item.from_value ? (
             <>
-              from <StatusPill status={item.from_value} />
+              <StatusPill status={item.from_value} />
               <IconArrowRight className="size-3.5 text-muted-foreground" />
             </>
-          ) : (
-            "to"
-          )}
+          ) : null}
           <StatusPill status={to} />
         </span>
       ),
