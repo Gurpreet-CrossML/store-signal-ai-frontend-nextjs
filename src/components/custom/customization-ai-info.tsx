@@ -72,12 +72,12 @@ export default function CustomizationAiInfo({
     }
   }, [value]);
 
-  const titleLength = Array.from(state.title.trim()).length;
-  const descriptionLength = richTextLength(state.description);
-  const descriptionOutOfRange =
-    descriptionLength > 0 &&
-    (descriptionLength < AI_DESCRIPTION_LIMITS.min ||
-      descriptionLength > AI_DESCRIPTION_LIMITS.max);
+  // The counters include trailing spaces and line breaks as they are typed;
+  // leaving the field trims them, so the count then matches what is saved.
+  const titleLength = Array.from(state.title).length;
+  const descriptionLength = richTextLength(state.description, false);
+  const outOfRange = (length: number, limits: { min: number; max: number }) =>
+    length > 0 && (length < limits.min || length > limits.max);
 
   const update = (next: EditorState) => {
     setState(next);
@@ -104,17 +104,17 @@ export default function CustomizationAiInfo({
           <Input
             id="ai-title"
             value={state.title}
-            maxLength={AI_TITLE_LIMITS.max}
             aria-invalid={!!fieldErrors?.ai_disclaimer_title}
             // No leading spaces: they would only be trimmed on save.
             onChange={(e) =>
               update({ ...state, title: e.target.value.trimStart() })
             }
+            onBlur={() => update({ ...state, title: state.title.trim() })}
           />
           <Typography
             variant="caption"
             className={
-              titleLength > 0 && titleLength < AI_TITLE_LIMITS.min
+              outOfRange(titleLength, AI_TITLE_LIMITS)
                 ? "text-destructive"
                 : undefined
             }
@@ -136,10 +136,17 @@ export default function CustomizationAiInfo({
             value={state.description}
             minHeight="160px"
             onChange={(next) => update({ ...state, description: next })}
+            onBlur={() =>
+              update({ ...state, description: trimRichText(state.description) })
+            }
           />
           <Typography
             variant="caption"
-            className={descriptionOutOfRange ? "text-destructive" : undefined}
+            className={
+              outOfRange(descriptionLength, AI_DESCRIPTION_LIMITS)
+                ? "text-destructive"
+                : undefined
+            }
           >
             {descriptionLength}/{AI_DESCRIPTION_LIMITS.max} characters (minimum{" "}
             {AI_DESCRIPTION_LIMITS.min})
