@@ -204,7 +204,6 @@ export default function Customization() {
       quick_links: [],
       quick_actions: [],
     },
-    enableReinitialize: true,
     validate: (values) => {
       const { errors, rowErrors } = customizationErrorsFromZod(values);
       setQuickLinkRowErrors(rowErrors);
