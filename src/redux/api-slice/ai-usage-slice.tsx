@@ -45,6 +45,8 @@ export type AIUsageFilters = {
   threadIds?: string[];
   from?: string;
   to?: string;
+  /** How many days to project after the range; credit chart only. */
+  projectionDays?: number;
 };
 
 /** Token totals returned by the token split endpoint. */
@@ -78,6 +80,9 @@ function paramsFor(filters: AIUsageFilters) {
   );
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
+  if (filters.projectionDays) {
+    params.set("days", String(filters.projectionDays));
+  }
   return params;
 }
 
@@ -95,11 +100,12 @@ export type CreditStatus = {
 /** Credits charged over the selected range. */
 export type CreditSummary = { total_calls: number; credits_charged: number };
 
-/** Credits charged on one calendar date, with credits per feature. */
+/** Credits charged on one calendar date, with credits per feature, or projected for it. */
 export type DailyCreditPoint = {
   date: string;
   credits_charged: number;
   features?: Record<string, number>;
+  projected?: boolean;
 };
 
 /** Credits charged by one feature. */
