@@ -234,13 +234,6 @@ export function NotificationBell() {
   // The open tab and the last page loaded in it.
   const [tab, setTab] = useState<NotificationTab>("all");
   const [page, setPage] = useState(1);
-  const [desktopPermission, setDesktopPermission] = useState<
-    NotificationPermission | "unsupported"
-  >(() =>
-    typeof window === "undefined" || !("Notification" in window)
-      ? "unsupported"
-      : Notification.permission,
-  );
   // Ids pushed live this session; only these rows animate in.
   const [liveIds, setLiveIds] = useState<ReadonlySet<number>>(new Set());
 
@@ -313,11 +306,6 @@ export function NotificationBell() {
     handleOpenChange(false);
   };
 
-  const enableDesktopNotifications = async () => {
-    if (desktopPermission !== "default") return;
-    setDesktopPermission(await Notification.requestPermission());
-  };
-
   // The backend pushes only the selected store's notifications. Each one
   // refreshes the counts and, with the drawer open, its first page, where
   // the new row slides in at the top.
@@ -341,13 +329,10 @@ export function NotificationBell() {
       ),
       { position: "top-center", duration: 6000 },
     );
-    // A desktop alert is for a customer replying to an agent's live chat.
-    // Assignment and ticket notifications stay available in the in-app bell.
-    if (notification.notification_type === "chat_message") {
-      showDesktopNotification(notification, () =>
-        openNotification(notification),
-      );
-    }
+    // The drawer always receives every notification without browser
+    // permission. When permission is granted, mirror every drawer type as a
+    // desktop alert while the Store Signal tab is in the background.
+    showDesktopNotification(notification, () => openNotification(notification));
   });
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
@@ -397,22 +382,9 @@ export function NotificationBell() {
       <Drawer direction="right" open={open} onOpenChange={handleOpenChange}>
         <DrawerContent className="data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:rounded-none data-[vaul-drawer-direction=right]:sm:max-w-md">
           <DrawerHeader className="flex-row items-center justify-between gap-2 pb-2">
-            <div>
-              <DrawerTitle className="text-xl font-semibold">
-                Notifications
-              </DrawerTitle>
-              {desktopPermission === "default" && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                  onClick={() => void enableDesktopNotifications()}
-                >
-                  Enable desktop alerts
-                </Button>
-              )}
-            </div>
+            <DrawerTitle className="text-xl font-semibold">
+              Notifications
+            </DrawerTitle>
             <DrawerDescription className="sr-only">
               Your ticket and live chat notifications, newest first.
             </DrawerDescription>
