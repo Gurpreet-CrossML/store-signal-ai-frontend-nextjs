@@ -90,8 +90,8 @@ function showDesktopNotification(
     return;
   }
 
-  const desktopNotification = new Notification(notification.title, {
-    body: previewText(notification),
+  const desktopNotification = new Notification("Store Signal", {
+    body: `${notification.title}\n\n${notification.message}`,
     tag: `store-signal-notification-${notification.id}`,
   });
 
