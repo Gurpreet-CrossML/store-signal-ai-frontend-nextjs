@@ -158,7 +158,7 @@ export default function CreditDailyChart({
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5">
           Day by day
-          <InfoIcon text="Credits charged on each day of the selected period, today so far included. The dashed bars project the coming days from the selected period only. Today scales its pace to a full day, Last 7 days blends each weekday with the average, and Last 30 days weights recent weeks and carries the weekly trend forward, up to 20% a week. Hover a day to see which capabilities used them." />
+          <InfoIcon text="Credits charged on each day of the selected period, today so far included. The dashed bars project the coming days from the selected period only, with today scaled to a full day. Today uses that pace, Last 7 days blends each weekday with the average, and Last 30 days weights recent weeks and carries a fading weekly trend forward, up to 10% a week. Hover a day to see which capabilities used them." />
         </CardTitle>
         <CardDescription>
           {projectedDays.length
