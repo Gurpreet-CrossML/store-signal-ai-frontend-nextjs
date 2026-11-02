@@ -73,7 +73,7 @@ type CountRow = {
 const SHOWN_CHANNELS: readonly string[] = [
   "web",
   // "email",
-  // "whatsapp",
+  "whatsapp",
   // "facebook",
   // "instagram",
 ];
