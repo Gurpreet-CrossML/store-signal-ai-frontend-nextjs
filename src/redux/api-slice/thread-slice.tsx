@@ -156,7 +156,16 @@ export type TicketDetails = {
   created_at: string;
 };
 
+/** One question from the card shown to a shopper in the widget. */
+export type ClarifyingQuestion = {
+  question: string;
+  options: string[];
+  multi_select?: boolean;
+  from_catalogue?: boolean;
+};
+
 export type ThreadJsonContent = {
+  questions?: ClarifyingQuestion[];
   products?: ProductData[];
   related_products?: ProductData[];
   comparison_block?: ProductComparisonBlock[] | null;
