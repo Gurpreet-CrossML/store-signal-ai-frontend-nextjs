@@ -341,7 +341,11 @@ export function NotificationBell() {
       ),
       { position: "top-center", duration: 6000 },
     );
-    showDesktopNotification(notification, () => openNotification(notification));
+    // A desktop alert is for a customer replying to an agent's live chat.
+    // Assignment and ticket notifications stay available in the in-app bell.
+    if (notification.notification_type === "chat_message") {
+      showDesktopNotification(notification, () => openNotification(notification));
+    }
   });
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
