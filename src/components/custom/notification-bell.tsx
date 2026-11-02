@@ -344,7 +344,9 @@ export function NotificationBell() {
     // A desktop alert is for a customer replying to an agent's live chat.
     // Assignment and ticket notifications stay available in the in-app bell.
     if (notification.notification_type === "chat_message") {
-      showDesktopNotification(notification, () => openNotification(notification));
+      showDesktopNotification(notification, () =>
+        openNotification(notification),
+      );
     }
   });
 
