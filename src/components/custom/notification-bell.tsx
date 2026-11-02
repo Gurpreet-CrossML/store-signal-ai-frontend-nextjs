@@ -76,6 +76,32 @@ function previewText(notification: AgentNotification) {
     : notification.message;
 }
 
+function showDesktopNotification(
+  notification: AgentNotification,
+  onOpen: () => void,
+) {
+  // Native notifications are only useful when the agent has moved away from
+  // this tab. The in-app toast remains the notification while it is visible.
+  if (
+    typeof window === "undefined" ||
+    document.visibilityState === "visible" ||
+    Notification.permission !== "granted"
+  ) {
+    return;
+  }
+
+  const desktopNotification = new Notification(notification.title, {
+    body: previewText(notification),
+    tag: `store-signal-notification-${notification.id}`,
+  });
+
+  desktopNotification.onclick = () => {
+    window.focus();
+    desktopNotification.close();
+    onOpen();
+  };
+}
+
 function NotificationIcon({ type }: { type: NotificationType }) {
   const Icon = TYPE_ICONS[type];
   return (
@@ -208,6 +234,13 @@ export function NotificationBell() {
   // The open tab and the last page loaded in it.
   const [tab, setTab] = useState<NotificationTab>("all");
   const [page, setPage] = useState(1);
+  const [desktopPermission, setDesktopPermission] = useState<
+    NotificationPermission | "unsupported"
+  >(() =>
+    typeof window === "undefined" || !("Notification" in window)
+      ? "unsupported"
+      : Notification.permission,
+  );
   // Ids pushed live this session; only these rows animate in.
   const [liveIds, setLiveIds] = useState<ReadonlySet<number>>(new Set());
 
@@ -280,6 +313,11 @@ export function NotificationBell() {
     handleOpenChange(false);
   };
 
+  const enableDesktopNotifications = async () => {
+    if (desktopPermission !== "default") return;
+    setDesktopPermission(await Notification.requestPermission());
+  };
+
   // The backend pushes only the selected store's notifications. Each one
   // refreshes the counts and, with the drawer open, its first page, where
   // the new row slides in at the top.
@@ -303,6 +341,7 @@ export function NotificationBell() {
       ),
       { position: "top-center", duration: 6000 },
     );
+    showDesktopNotification(notification, () => openNotification(notification));
   });
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
@@ -352,9 +391,22 @@ export function NotificationBell() {
       <Drawer direction="right" open={open} onOpenChange={handleOpenChange}>
         <DrawerContent className="data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:rounded-none data-[vaul-drawer-direction=right]:sm:max-w-md">
           <DrawerHeader className="flex-row items-center justify-between gap-2 pb-2">
-            <DrawerTitle className="text-xl font-semibold">
-              Notifications
-            </DrawerTitle>
+            <div>
+              <DrawerTitle className="text-xl font-semibold">
+                Notifications
+              </DrawerTitle>
+              {desktopPermission === "default" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => void enableDesktopNotifications()}
+                >
+                  Enable desktop alerts
+                </Button>
+              )}
+            </div>
             <DrawerDescription className="sr-only">
               Your ticket and live chat notifications, newest first.
             </DrawerDescription>
