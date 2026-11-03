@@ -384,30 +384,6 @@ export default function MessagePan({
                       </div>
                     ) : null}
 
-                    {message.role === "assistant" && feedbackLabel ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="mt-1 flex w-fit cursor-help items-center gap-1 text-xs font-medium text-primary">
-                            {hasPositiveFeedback ? (
-                              <IconThumbUp
-                                className="size-3.5"
-                                aria-hidden="true"
-                              />
-                            ) : (
-                              <IconThumbDown
-                                className="size-3.5"
-                                aria-hidden="true"
-                              />
-                            )}
-                            <span className="capitalize">{feedbackLabel}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-80">
-                          {feedbackMessage || "No written feedback provided."}
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : null}
-
                     {/* "Reply with AI" — only for user messages, only when a
                     handler is supplied by the parent. Shown on row hover
                     so it doesn't clutter the transcript by default. */}
@@ -610,6 +586,30 @@ export default function MessagePan({
                         )}
                       </div>
                     )}
+
+                    {message.role === "assistant" && feedbackLabel ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="mt-2 flex w-fit cursor-help items-center gap-1 text-xs font-medium text-primary">
+                            {hasPositiveFeedback ? (
+                              <IconThumbUp
+                                className="size-3.5"
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <IconThumbDown
+                                className="size-3.5"
+                                aria-hidden="true"
+                              />
+                            )}
+                            <span className="capitalize">{feedbackLabel}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-80">
+                          {feedbackMessage || "No written feedback provided."}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : null}
                   </div>
                 </div>
               </div>
