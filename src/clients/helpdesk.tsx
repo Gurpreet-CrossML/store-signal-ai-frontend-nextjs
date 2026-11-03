@@ -118,6 +118,10 @@ import {
   HiddenTagsBadge,
   TagBadge,
 } from "@/components/custom/helpdesk/tag-badge";
+import {
+  TicketSla,
+  TicketSlaIndicator,
+} from "@/components/custom/helpdesk/ticket-sla";
 import { DateRangePicker } from "@/components/custom/date-range-picker";
 import { LoadingState } from "@/components/custom/loading-state";
 import { SearchInput } from "@/components/custom/search-input";
@@ -277,9 +281,15 @@ function TicketRow({
         ticket.last_message_at || ticket.created_at,
       )}
       indicator={
-        ticket.is_snoozed ? (
-          <IconAlarmSnoozeFilled className="size-3 text-primary" />
-        ) : null
+        <>
+          {/* Only a ticket being worked on can be late. */}
+          {ticket.status === "open" || ticket.status === "reopen" ? (
+            <TicketSlaIndicator sla={ticket.sla} />
+          ) : null}
+          {ticket.is_snoozed ? (
+            <IconAlarmSnoozeFilled className="size-3 text-primary" />
+          ) : null}
+        </>
       }
       // Who it is from, and nothing else. The subject above already says
       // what the ticket is about, so a teaser of the latest message only
@@ -814,6 +824,15 @@ function ConversationPanel({
   const pendingConfirmation = pendingStatus
     ? STATUS_CONFIRMATIONS[pendingStatus]
     : null;
+  // Taking a tag off changes the ticket's SLA, so it waits for a yes too.
+  const [pendingTagRemoval, setPendingTagRemoval] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+  const requestTagRemoval = (tagId: number) => {
+    const tag = ticket.tags?.find((candidate) => candidate.id === tagId);
+    setPendingTagRemoval({ id: tagId, name: tag?.name ?? "this tag" });
+  };
   const [selectedSendMode, setSelectedSendMode] = useState<
     "reply" | "customer_language" | "reply_and_resolve"
   >("reply");
@@ -1354,7 +1373,9 @@ function ConversationPanel({
                     key={tagId}
                     tag={tag}
                     onRemove={
-                      tagId && !isClosed ? () => onRemoveTag(tagId) : undefined
+                      tagId && !isClosed
+                        ? () => requestTagRemoval(tagId)
+                        : undefined
                     }
                   />
                 );
@@ -1363,7 +1384,7 @@ function ConversationPanel({
                 <HiddenTagsBadge
                   tags={hiddenTags}
                   label={`+${hiddenTags.length} more`}
-                  onRemoveTag={isClosed ? undefined : onRemoveTag}
+                  onRemoveTag={isClosed ? undefined : requestTagRemoval}
                 />
               ) : null}
             </div>
@@ -1460,6 +1481,9 @@ function ConversationPanel({
             </Popover>
           </div>
         </div>
+
+        {/* Shown only while a target of the ticket's SLA is overdue. */}
+        <TicketSla sla={ticket.sla} />
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
@@ -1553,6 +1577,26 @@ function ConversationPanel({
                     <div className="rich-text-render text-sm leading-6 [overflow-wrap:anywhere] text-foreground">
                       <ReactMarkdown>{message.message}</ReactMarkdown>
                     </div>
+                    {/* What the customer actually received, so a wrong
+                        language is caught and fixed via the language chip. */}
+                    {message.metadata?.translated_message ? (
+                      <div className="mt-2 border-t border-primary/20 pt-2">
+                        <Typography
+                          variant="caption"
+                          as="p"
+                          className="mb-1 flex items-center gap-1.5"
+                        >
+                          <IconLanguage className="size-3.5" />
+                          Sent in{" "}
+                          {message.metadata.translated_message.language_name}
+                        </Typography>
+                        <div className="rich-text-render text-sm leading-6 [overflow-wrap:anywhere] text-foreground">
+                          <ReactMarkdown>
+                            {message.metadata.translated_message.message}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    ) : null}
                     <Typography
                       variant="caption"
                       as="div"
@@ -1895,6 +1939,38 @@ function ConversationPanel({
               }}
             >
               {pendingConfirmation?.action}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={pendingTagRemoval !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingTagRemoval(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this tag?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold text-foreground">
+                {pendingTagRemoval?.name}
+              </span>{" "}
+              will be taken off this ticket. If it set the ticket&apos;s SLA,
+              the SLA is recalculated from the ticket&apos;s remaining tags, or
+              removed when none sets one.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (pendingTagRemoval) onRemoveTag(pendingTagRemoval.id);
+              }}
+            >
+              Remove tag
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2415,6 +2491,24 @@ export default function HelpDesk() {
 
         if (!payload.ticket) return;
 
+        // An agent's reply or a status change moved the ticket's SLA: update
+        // its timers on the list and in the open ticket's header, nothing else.
+        if (payload.event === "ticket_sla_updated") {
+          const slaTicketId = payload.ticket.id;
+          const sla = payload.ticket.sla ?? null;
+          setTicketRows((currentRows) =>
+            currentRows.map((row) =>
+              row.id === slaTicketId ? { ...row, sla } : row,
+            ),
+          );
+          setActiveSupportTicket((current) =>
+            current && current.id === slaTicketId
+              ? { ...current, sla }
+              : current,
+          );
+          return;
+        }
+
         dispatch(refreshFilterCounts());
 
         if (payload.event === "ticket_created") {
@@ -2497,6 +2591,13 @@ export default function HelpDesk() {
           if (currentActiveSupportTicketIdRef.current === incomingTicket.id) {
             appendSocketMessage(incomingTicket.id, incomingMessage);
             void handleSupportTicketMarkRead();
+            // The message may have started a new wait for a reply: the open
+            // ticket's header follows its list row.
+            setActiveSupportTicket((current) =>
+              current && current.id === incomingTicket.id
+                ? { ...current, sla: incomingTicket.sla ?? null }
+                : current,
+            );
           }
         }
       };
@@ -2963,7 +3064,11 @@ export default function HelpDesk() {
           current.map((ticket) =>
             ticket.id === currentActiveSupportTicketIdRef.current &&
             !ticket.tags.some((existing) => existing.id === assignedTag.id)
-              ? { ...ticket, tags: [...ticket.tags, assignedTag] }
+              ? {
+                  ...ticket,
+                  tags: [...ticket.tags, assignedTag],
+                  sla: assignedTag.ticket_sla ?? null,
+                }
               : ticket,
           ),
         );
@@ -2978,6 +3083,8 @@ export default function HelpDesk() {
           return {
             ...current,
             tags: [...current.tags, assignedTag],
+            // The tag may change which SLA the ticket follows.
+            sla: assignedTag.ticket_sla ?? null,
           };
         });
 
@@ -3013,6 +3120,7 @@ export default function HelpDesk() {
               ? {
                   ...ticket,
                   tags: ticket.tags.filter((tag) => tag.id !== tagId),
+                  sla: assignedTag.ticket_sla ?? null,
                 }
               : ticket,
           ),
@@ -3023,6 +3131,7 @@ export default function HelpDesk() {
             ? {
                 ...current,
                 tags: current.tags.filter((tag) => tag.id !== assignedTag.id),
+                sla: assignedTag.ticket_sla ?? null,
               }
             : current,
         );
