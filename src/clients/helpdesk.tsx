@@ -1290,12 +1290,42 @@ function ConversationPanel({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* The language is detected from the conversation, so it is
-                only shown here, not set. */}
-            <Badge variant="outline" aria-label="Ticket language">
-              <IconLanguage />
-              {languageName}
-            </Badge>
+            {/* Detected from the conversation; the agent can correct it, and
+                replies sent in the customer's language follow it. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Change language"
+                disabled={isClosed}
+                className={cn(
+                  badgeVariants({ variant: "outline" }),
+                  "cursor-pointer disabled:cursor-default disabled:opacity-60",
+                )}
+              >
+                <IconLanguage />
+                {languageName}
+                {!isClosed ? <IconChevronDown /> : null}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-72">
+                <DropdownMenuLabel>Language</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {SUPPORTED_LANGUAGES.map((language) => (
+                  <DropdownMenuItem
+                    key={language.code}
+                    onClick={() =>
+                      language.code !== ticketLanguage &&
+                      onTicketLanguageSentimentUpdate({
+                        language: language.code,
+                      })
+                    }
+                    className={cn(
+                      language.code === ticketLanguage && "font-medium",
+                    )}
+                  >
+                    {language.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -1836,7 +1866,9 @@ function ConversationPanel({
                 )}
                 {isSending ? (
                   "Sending…"
-                ) : effectiveSendMode === "customer_language" ? (
+                ) : effectiveSendMode === "customer_language" ||
+                  // Replies on a non-English ticket are always translated.
+                  ticketLanguage !== DEFAULT_TICKET_LANGUAGE ? (
                   // The send itself translates the reply, so it is billed.
                   <CreditLabel className="text-primary-foreground/80">
                     {selectedSendLabel}
