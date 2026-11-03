@@ -2798,6 +2798,16 @@ export default function Support() {
                     <ConversationRow
                       key={thread.id}
                       active={thread.id === activeThreadId}
+                      activeClassName={
+                        thread.need_escalation
+                          ? "border-l-4 border-red-600 bg-red-50 hover:bg-red-50 dark:border-red-400 dark:bg-red-950/30 dark:hover:bg-red-950/30"
+                          : "border-l-4 border-primary bg-primary/10 hover:bg-primary/10 dark:bg-primary/20 dark:hover:bg-primary/20"
+                      }
+                      hoverClassName={
+                        thread.need_escalation
+                          ? "hover:bg-red-50 dark:hover:bg-red-950/30"
+                          : "hover:bg-primary/5 dark:hover:bg-primary/15"
+                      }
                       onSelect={() => handleSelectThread(thread.id)}
                       unread={isUnread}
                       avatar={
