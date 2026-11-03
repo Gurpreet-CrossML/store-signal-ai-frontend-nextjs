@@ -38,6 +38,13 @@ export type SupportDashboardThreadUpdateEvent = {
   escalation_time?: string | null;
 };
 
+export type SupportDashboardMessageFeedbackEvent = {
+  thread_id: string;
+  chat_message_id: string | number;
+  rating: string;
+  feedback_message: string;
+};
+
 export type SupportDashboardEvent =
   | {
       success: true;
@@ -53,6 +60,11 @@ export type SupportDashboardEvent =
       success: true;
       action_type: "thread_closed";
       data: { thread_id: string };
+    }
+  | {
+      success: true;
+      action_type: "message_feedback";
+      data: SupportDashboardMessageFeedbackEvent;
     }
   | {
       // Sent to the connected agent alone, never to the whole store.
@@ -83,9 +95,13 @@ function isDashboardEvent(
 ): data is SupportDashboardEvent {
   return (
     data.success === true &&
-    ["message", "thread_updated", "thread_closed", "notification"].includes(
-      data.action_type,
-    )
+    [
+      "message",
+      "thread_updated",
+      "thread_closed",
+      "message_feedback",
+      "notification",
+    ].includes(data.action_type)
   );
 }
 
