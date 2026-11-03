@@ -9,6 +9,8 @@ const DISABLED_PREFIXES = [
   "/campaign/email-templates",
   "/campaign/segments",
   "/campaign/campaigns",
+  "/social-ai",
+  "/settings/social-ai",
 ];
 
 export function isDisabledRoute(pathname: string): boolean {
