@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 import {
   FetchDashboardChecklist,
   type ChecklistStepKey,
-} from "@/redux/api-slice/dashboard-checklist-slice";
+} from "@/redux/api-slice/dashboard-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 const STEP_ORDER: ChecklistStepKey[] = [
@@ -136,7 +136,7 @@ export function DashboardSetupChecklist() {
   const [scriptOpen, setScriptOpen] = useState(false);
 
   const { FetchDashboardChecklistData: checklist } = useAppSelector(
-    (state) => state.GetDashboardChecklistReducer.FetchDashboardChecklistState,
+    (state) => state.GetDashboardReducer.FetchDashboardChecklistState,
   );
   const selectedStore = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
