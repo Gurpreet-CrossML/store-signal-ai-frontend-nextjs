@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { differenceInCalendarDays, format, parseISO } from "date-fns";
+import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
 
 import CreditGroups from "@/components/custom/ai-usage/credit-bars";
 import ChartEmptyState from "@/components/custom/ai-usage/chart-empty-state";
@@ -34,6 +34,9 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 const formatDate = (value: string) => format(parseISO(value), "MMM d, yyyy");
 
+// How many days the chart projects for each preset; a custom range gets none.
+const PROJECTION_DAYS = { today: 1, "7d": 7, "30d": 30 };
+
 /** Store-level AI credit usage: balance, plan cycle, and where credits went. */
 export default function AIUsage({
   title,
@@ -56,7 +59,14 @@ export default function AIUsage({
     ...DEFAULT_DASHBOARD_FILTERS,
     range: "7d",
   });
-  const { from, to } = resolveDashboardRange(filters);
+  const { from: rangeStart, to } = resolveDashboardRange(filters);
+  // The shared presets span N + 1 dates; this page shows exactly N, today included.
+  const from =
+    filters.range === "7d" || filters.range === "30d"
+      ? format(addDays(parseISO(rangeStart), 1), "yyyy-MM-dd")
+      : rangeStart;
+  const projectionDays =
+    filters.range === "custom" ? undefined : PROJECTION_DAYS[filters.range];
 
   useEffect(() => {
     // A custom range waits for both ends to be picked.
@@ -64,9 +74,9 @@ export default function AIUsage({
     const args = { storeCode, from, to };
     dispatch(fetchCreditStatus(args));
     dispatch(fetchAIUsageCreditSummary(args));
-    dispatch(fetchAIUsageCreditDaily(args));
+    dispatch(fetchAIUsageCreditDaily({ ...args, projectionDays }));
     dispatch(fetchAIUsageByFeature(args));
-  }, [dispatch, storeCode, from, to]);
+  }, [dispatch, storeCode, from, to, projectionDays]);
 
   const credits = FetchCreditStatusState.FetchCreditStatusData;
   const summary = FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryData;
