@@ -8,6 +8,7 @@ import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 
 import { DataTable } from "@/components/custom/data-table";
 import { PAGE_SIZE_OPTIONS } from "@/components/custom/threads-data-table-pagination";
+import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
 import { NumberStepper } from "@/components/custom/number-stepper";
 import { SearchInput } from "@/components/custom/search-input";
 import { getSlaPolicyColumns } from "@/components/custom/helpdesk/sla-policy-columns";
@@ -43,7 +44,6 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { serverFieldErrors } from "@/lib/form-errors";
 import {
-  SLA_MAX_PRIORITY_ORDER,
   SLA_MAX_TARGET_MINUTES,
   maxForUnit,
   sanitizeWholeNumber,
@@ -58,6 +58,7 @@ import {
   SlaPolicyUpdate,
   fetchSlaPolicyTagOptions,
   type SlaPolicy,
+  type SlaPolicyCreatePayload,
   type SlaPolicyPayload,
 } from "@/redux/api-slice/sla-policy-slice";
 import type { SupportTicketTagData } from "@/redux/api-slice/support-ticket-slice";
@@ -67,9 +68,8 @@ import type { SupportTicketTagData } from "@/redux/api-slice/support-ticket-slic
 const DEFAULT_PER_PAGE = 25;
 
 type PolicyFormValues = {
-  /** The tag's id as text, for the select; empty until one is chosen. */
-  tag: string;
-  priorityOrder: string;
+  /** The ids (as text) of the tags to give the policy; none until chosen. */
+  tags: string[];
   firstReply: string;
   firstReplyUnit: SlaUnit;
   everyReply: string;
@@ -107,8 +107,8 @@ const TARGET_INPUTS = [
 
 // Server field names, mapped to the form fields that show their errors.
 const SERVER_FIELD_TO_FORM: Record<string, string> = {
-  tag: "tag",
-  priority_order: "priorityOrder",
+  tags: "tags",
+  tag: "tags",
   first_reply_minutes: "firstReply",
   every_reply_minutes: "everyReply",
   resolution_minutes: "resolution",
@@ -121,8 +121,7 @@ function initialValues(policy: SlaPolicy | null): PolicyFormValues {
   const every = splitMinutes(policy?.every_reply_minutes);
   const resolution = splitMinutes(policy?.resolution_minutes);
   return {
-    tag: policy ? String(policy.tag) : "",
-    priorityOrder: policy ? String(policy.priority_order) : "",
+    tags: policy ? [String(policy.tag)] : [],
     firstReply: first.value,
     firstReplyUnit: first.unit,
     everyReply: every.value,
@@ -140,7 +139,6 @@ function buildPayload(values: PolicyFormValues): SlaPolicyPayload {
     return result === null || Number.isNaN(result) ? null : result;
   };
   return {
-    priority_order: Number(values.priorityOrder),
     first_reply_minutes: minutes(values.firstReply, values.firstReplyUnit),
     every_reply_minutes: minutes(values.everyReply, values.everyReplyUnit),
     resolution_minutes: minutes(values.resolution, values.resolutionUnit),
@@ -155,17 +153,8 @@ function validate(
 ): Record<string, string> {
   const errors: Record<string, string> = {};
 
-  if (creating && !values.tag) errors.tag = "Choose a tag";
-
-  const order = Number(values.priorityOrder);
-  if (!values.priorityOrder.trim()) {
-    errors.priorityOrder = "Priority order is required";
-  } else if (
-    !Number.isInteger(order) ||
-    order < 1 ||
-    order > SLA_MAX_PRIORITY_ORDER
-  ) {
-    errors.priorityOrder = `Enter a whole number from 1 to ${SLA_MAX_PRIORITY_ORDER}`;
+  if (creating && values.tags.length === 0) {
+    errors.tags = "Choose at least one tag";
   }
 
   let targets = 0;
@@ -203,6 +192,9 @@ export default function SlaPolicies() {
   // The tags a new policy can be created for; loaded when the dialog opens.
   const [tagOptions, setTagOptions] = useState<SupportTicketTagData[]>([]);
   const [tagOptionsLoading, setTagOptionsLoading] = useState(false);
+  // The dialog itself, so the tag list can open inside it (a modal dialog
+  // would otherwise swallow the wheel events of a list outside it).
+  const [dialogEl, setDialogEl] = useState<HTMLElement | null>(null);
 
   const [policyPendingDelete, setPolicyPendingDelete] =
     useState<SlaPolicy | null>(null);
@@ -376,16 +368,23 @@ export default function SlaPolicies() {
         });
         refetch();
       } else {
+        const createPayload: SlaPolicyCreatePayload = {
+          ...payload,
+          tags: values.tags.map(Number),
+        };
         const created = await dispatch(
-          SlaPolicyCreate({
-            storeCode,
-            payload: { ...payload, tag: Number(values.tag) },
-          }),
+          SlaPolicyCreate({ storeCode, payload: createPayload }),
         ).unwrap();
 
-        toast.success("SLA policy created", {
-          description: `"${created.tag_name}" now has an SLA.`,
-        });
+        toast.success(
+          created.length === 1 ? "SLA policy created" : "SLA policies created",
+          {
+            description:
+              created.length === 1
+                ? `"${created[0].tag_name}" now has an SLA.`
+                : `${created.length} tags now have this SLA.`,
+          },
+        );
 
         // Jump back to page 1 so the new policy is visible; if already
         // there, the page will not change, so fetch explicitly.
@@ -475,7 +474,10 @@ export default function SlaPolicies() {
           else setDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[460px]">
+        <DialogContent
+          ref={setDialogEl}
+          className="max-h-[90vh] overflow-y-auto sm:max-w-[460px]"
+        >
           <DialogHeader>
             <DialogTitle>
               {editingPolicy ? "Edit SLA Policy" : "Add SLA Policy"}
@@ -494,10 +496,25 @@ export default function SlaPolicies() {
               />
               <p>
                 This policy applies to every ticket that carries the tag.
-                Changes to its targets apply to all of them.
+                Changes to its targets apply to all of them straight away.
               </p>
             </div>
-          ) : null}
+          ) : (
+            <div
+              role="note"
+              className="flex items-start gap-2 rounded-md border bg-muted/50 p-3 text-sm text-muted-foreground"
+            >
+              <IconAlertTriangle
+                className="mt-0.5 size-4 shrink-0"
+                aria-hidden
+              />
+              <p>
+                Tickets that already carry these tags follow the policy straight
+                away. Counted from when each ticket was created, the ones
+                already past a target show as overdue.
+              </p>
+            </div>
+          )}
 
           <Formik<PolicyFormValues>
             enableReinitialize
@@ -529,8 +546,8 @@ export default function SlaPolicies() {
               return (
                 <Form className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="tag">
-                      Tag <RequiredMark />
+                    <Label htmlFor="tags">
+                      {editingPolicy ? "Tag" : "Tags"} <RequiredMark />
                     </Label>
                     {editingPolicy ? (
                       // A policy keeps its tag for life.
@@ -545,76 +562,36 @@ export default function SlaPolicies() {
                         />
                       </div>
                     ) : (
-                      <Select
-                        value={values.tag}
-                        onValueChange={(value) => setFieldValue("tag", value)}
-                        onOpenChange={(open) => {
-                          if (!open) setFieldTouched("tag", true);
-                        }}
-                        disabled={tagOptionsLoading}
-                      >
-                        <SelectTrigger
-                          id="tag"
-                          className="w-full"
-                          aria-invalid={!!errorFor("tag") || undefined}
-                        >
-                          <SelectValue
-                            placeholder={
-                              tagOptionsLoading
-                                ? "Loading tags…"
-                                : tagOptions.length === 0
-                                  ? "Every tag already has a policy"
-                                  : "Choose a tag"
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          {/* A fixed height, so a store with many tags gets a
-                              scrolling list instead of one as tall as the
-                              screen. The list scrolls in this box rather
-                              than in the select's own viewport, because
-                              Radix hides the scrollbar of that one. */}
-                          <div className="max-h-60 overflow-y-auto [scrollbar-width:thin]">
-                            {tagOptions.map((tag) => (
-                              <SelectItem key={tag.id} value={String(tag.id)}>
-                                {tag.name}
-                              </SelectItem>
-                            ))}
-                          </div>
-                        </SelectContent>
-                      </Select>
+                      <div onBlur={() => setFieldTouched("tags", true)}>
+                        <MultiSelectCombobox
+                          options={tagOptions.map((tag) => ({
+                            value: String(tag.id),
+                            label: tag.name,
+                          }))}
+                          value={values.tags}
+                          onValueChange={(next) => setFieldValue("tags", next)}
+                          placeholder={
+                            tagOptionsLoading
+                              ? "Loading tags…"
+                              : tagOptions.length === 0
+                                ? "Every tag already has a policy"
+                                : "Choose one or more tags"
+                          }
+                          emptyMessage="No tags without a policy."
+                          portalContainer={dialogEl}
+                        />
+                      </div>
                     )}
-                    {errorFor("tag") ? (
-                      <p className="text-xs text-destructive">
-                        {errorFor("tag")}
+                    {editingPolicy ? null : (
+                      <p className="text-xs text-muted-foreground">
+                        Each tag you choose gets this policy. When a ticket has
+                        several of them, the one with the shortest target
+                        decides its SLA.
                       </p>
-                    ) : null}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="priorityOrder">
-                      Priority order <RequiredMark />
-                    </Label>
-                    <NumberStepper
-                      id="priorityOrder"
-                      label="priority order"
-                      placeholder="1"
-                      max={SLA_MAX_PRIORITY_ORDER}
-                      value={values.priorityOrder}
-                      onChange={(value) =>
-                        setFieldValue("priorityOrder", value)
-                      }
-                      onBlur={() => setFieldTouched("priorityOrder", true)}
-                      invalid={!!errorFor("priorityOrder")}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      1 is the highest, up to {SLA_MAX_PRIORITY_ORDER}. With
-                      several tags on a ticket, the lowest number decides its
-                      SLA.
-                    </p>
-                    {errorFor("priorityOrder") ? (
+                    )}
+                    {errorFor("tags") ? (
                       <p className="text-xs text-destructive">
-                        {errorFor("priorityOrder")}
+                        {errorFor("tags")}
                       </p>
                     ) : null}
                   </div>

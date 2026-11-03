@@ -824,6 +824,15 @@ function ConversationPanel({
   const pendingConfirmation = pendingStatus
     ? STATUS_CONFIRMATIONS[pendingStatus]
     : null;
+  // Taking a tag off changes the ticket's SLA, so it waits for a yes too.
+  const [pendingTagRemoval, setPendingTagRemoval] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+  const requestTagRemoval = (tagId: number) => {
+    const tag = ticket.tags?.find((candidate) => candidate.id === tagId);
+    setPendingTagRemoval({ id: tagId, name: tag?.name ?? "this tag" });
+  };
   const [selectedSendMode, setSelectedSendMode] = useState<
     "reply" | "customer_language" | "reply_and_resolve"
   >("reply");
@@ -1364,7 +1373,9 @@ function ConversationPanel({
                     key={tagId}
                     tag={tag}
                     onRemove={
-                      tagId && !isClosed ? () => onRemoveTag(tagId) : undefined
+                      tagId && !isClosed
+                        ? () => requestTagRemoval(tagId)
+                        : undefined
                     }
                   />
                 );
@@ -1373,7 +1384,7 @@ function ConversationPanel({
                 <HiddenTagsBadge
                   tags={hiddenTags}
                   label={`+${hiddenTags.length} more`}
-                  onRemoveTag={isClosed ? undefined : onRemoveTag}
+                  onRemoveTag={isClosed ? undefined : requestTagRemoval}
                 />
               ) : null}
             </div>
@@ -1471,7 +1482,7 @@ function ConversationPanel({
           </div>
         </div>
 
-        {/* The SLA the ticket follows, and the tag that triggered it. */}
+        {/* Shown only while a target of the ticket's SLA is overdue. */}
         <TicketSla sla={ticket.sla} />
       </div>
 
@@ -1908,6 +1919,38 @@ function ConversationPanel({
               }}
             >
               {pendingConfirmation?.action}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={pendingTagRemoval !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingTagRemoval(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this tag?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold text-foreground">
+                {pendingTagRemoval?.name}
+              </span>{" "}
+              will be taken off this ticket. If it set the ticket&apos;s SLA,
+              the SLA is recalculated from the ticket&apos;s remaining tags, or
+              removed when none sets one.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (pendingTagRemoval) onRemoveTag(pendingTagRemoval.id);
+              }}
+            >
+              Remove tag
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

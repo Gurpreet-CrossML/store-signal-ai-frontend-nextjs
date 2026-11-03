@@ -41,16 +41,6 @@ export function getSlaPolicyColumns({
       ),
     },
     {
-      accessorKey: "priority_order",
-      header: "Priority",
-      meta: { cellClassName: "w-[9%] min-w-20" },
-      cell: ({ row }) => (
-        <span className="whitespace-nowrap font-medium">
-          P{row.original.priority_order}
-        </span>
-      ),
-    },
-    {
       accessorKey: "first_reply_minutes",
       header: "First reply",
       meta: { cellClassName: "w-[12%] min-w-24" },

@@ -16,8 +16,6 @@ export type SlaPolicy = {
   tag_name: string;
   tag_color: string;
   tag_is_predefined: boolean;
-  /** 1 is the highest; the lowest number among a ticket's tags wins. */
-  priority_order: number;
   /** Minutes from ticket creation to the first agent reply. */
   first_reply_minutes: number | null;
   /** Minutes from each customer message to the next agent reply. */
@@ -29,14 +27,17 @@ export type SlaPolicy = {
   updated_at: string;
 };
 
-/** What the form sends: `tag` only when the policy is created. */
+/** The policy fields the form sends, for a new policy or an edit. */
 export type SlaPolicyPayload = {
-  tag?: number;
-  priority_order: number;
   first_reply_minutes: number | null;
   every_reply_minutes: number | null;
   resolution_minutes: number | null;
   is_active: boolean;
+};
+
+/** A new policy: the same targets, given to each of the tags. */
+export type SlaPolicyCreatePayload = SlaPolicyPayload & {
+  tags: number[];
 };
 
 export type SlaPoliciesResponse = {
@@ -86,7 +87,10 @@ export const FetchSlaPolicies = createAsyncThunk(
 export const SlaPolicyCreate = createAsyncThunk(
   "SlaPolicyCreate",
   async (
-    { storeCode, payload }: { storeCode: string; payload: SlaPolicyPayload },
+    {
+      storeCode,
+      payload,
+    }: { storeCode: string; payload: SlaPolicyCreatePayload },
     thunkAPI,
   ) => {
     try {
@@ -94,7 +98,7 @@ export const SlaPolicyCreate = createAsyncThunk(
         `${ENDPOINTS.slaPolicies()}?store_code=${storeCode}`,
         payload,
       );
-      return response.data.data as SlaPolicy;
+      return response.data.data as SlaPolicy[];
     } catch (error) {
       const data = isAxiosError(error) ? error.response?.data : undefined;
 

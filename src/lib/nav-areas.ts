@@ -203,7 +203,7 @@ export const NAV_AREAS = {
         title: "SLA Policies",
         description: "How quickly tickets with a tag should be answered.",
         pageDescription:
-          "Set reply and resolution targets per tag. When a ticket has several tags, the one with the lowest priority order decides its SLA.",
+          "Set reply and resolution targets per tag. When a ticket has several tags, the policy with the shortest target decides its SLA.",
         icon: IconClockHour4,
       },
       // {

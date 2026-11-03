@@ -2,10 +2,8 @@
  * Helpers for SLA policies (the numbers their form shows) and for showing the
  * SLA a ticket follows.
  */
-import type { BadgeTone } from "@/lib/badge-tones";
 import type {
   SlaTarget,
-  SlaTargetStatus,
   SupportTicketSla,
 } from "@/redux/api-slice/support-ticket-slice";
 
@@ -14,9 +12,6 @@ const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR;
 
 /** Longest target a tag's SLA may set: 30 days, in minutes. */
 export const SLA_MAX_TARGET_MINUTES = MINUTES_PER_DAY * 30;
-
-/** Highest `priority_order` the server accepts. */
-export const SLA_MAX_PRIORITY_ORDER = 100;
 
 export type SlaUnit = "minutes" | "hours";
 
@@ -86,14 +81,9 @@ export function toMinutes(value: string, unit: SlaUnit): number | null {
 
 // --- Showing a ticket's SLA ---------------------------------------------
 //
-// The server sends each target's due time, when it was met or found breached,
-// and its status at the moment of the request. A ticket stays open on screen
-// for a long time, so the status is worked out again here against the clock,
-// by the same rule as the server's `support.sla.target_status`: a countdown
-// never shows a target as on track after its time has run out.
-
-/** A target in its last quarter is "due soon" (the server's rule). */
-const DUE_SOON_FRACTION = 0.25;
+// A ticket shows its SLA only when it has been missed: one overdue target, the
+// one that went overdue first. A ticket that is on track, due soon or already
+// met shows nothing.
 
 export type SlaTargetKey = "first_reply" | "every_reply" | "resolution";
 
@@ -109,52 +99,13 @@ export const SLA_TARGET_LABELS: Record<SlaTargetKey, string> = {
   resolution: "Resolution",
 };
 
-export const SLA_STATUS_TONE: Record<SlaTargetStatus, BadgeTone> = {
-  not_applicable: "neutral",
-  on_track: "info",
-  due_soon: "warning",
-  met: "success",
-  breached: "danger",
-};
-
-/**
- * Where a target stands now.
- *
- * @param target - The target as the server sent it.
- * @param now - The time to judge by, in epoch milliseconds.
- */
-export function slaTargetStatus(
-  target: SlaTarget,
-  now: number,
-): SlaTargetStatus {
-  if (!target.due_at) return "not_applicable";
-  const due = new Date(target.due_at).getTime();
-
-  if (target.completed_at) {
-    return new Date(target.completed_at).getTime() <= due ? "met" : "breached";
-  }
-  if (target.breached_at || now > due) return "breached";
-
-  const left = due - now;
-  const minutes = target.target_minutes;
-  if (minutes && left <= minutes * DUE_SOON_FRACTION * 60_000) {
-    return "due_soon";
-  }
-  return "on_track";
-}
-
 /**
  * A countdown, exact enough to trust: seconds under a minute ("45s"), minutes
  * and seconds under ten ("1m 30s"), then whole minutes ("12m", "1h 5m").
  *
- * Rounding a countdown up to whole minutes made a one-minute target read "2m"
- * for its first half minute, so it is not rounded here.
- *
  * @param ms - The length of time, in milliseconds.
- * @param round - How to round a long countdown to minutes: "up" for time left
- *   (never promise more than there is), "down" for time overdue.
  */
-export function formatCountdown(ms: number, round: "up" | "down"): string {
+export function formatCountdown(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1000));
   if (seconds < 60) return `${seconds}s`;
   if (seconds < 600) {
@@ -162,52 +113,48 @@ export function formatCountdown(ms: number, round: "up" | "down"): string {
     const minutes = Math.floor(seconds / 60);
     return rest ? `${minutes}m ${rest}s` : `${minutes}m`;
   }
-  const minutes =
-    round === "up" ? Math.ceil(seconds / 60) : Math.floor(seconds / 60);
-  return formatMinutes(minutes);
+  return formatMinutes(Math.floor(seconds / 60));
 }
 
-/** The short text beside a target: "Due in 12m", "Overdue 5m", "Met". */
-export function slaTargetLabel(target: SlaTarget, now: number): string {
-  const status = slaTargetStatus(target, now);
-  if (status === "not_applicable" || !target.due_at) return "—";
-
-  const due = new Date(target.due_at).getTime();
-  if (target.completed_at) {
-    const late = new Date(target.completed_at).getTime() - due;
-    return status === "met"
-      ? "Met"
-      : `Missed by ${formatMinutes(Math.ceil(late / 60_000))}`;
-  }
-
-  return status === "breached"
-    ? `Overdue ${formatCountdown(now - due, "down")}`
-    : `Due in ${formatCountdown(due - now, "up")}`;
-}
+/** A target that is overdue: still open, and past its deadline. */
+export type SlaBreach = {
+  key: SlaTargetKey;
+  target: SlaTarget;
+  /** How long past its deadline it is, in milliseconds. */
+  overdueMs: number;
+};
 
 /**
- * What a ticket's SLA asks of an agent right now: "breached" when a target is
- * past its deadline, "due_soon" when one is close, otherwise null.
+ * The target of a ticket that has been overdue the longest, or null when none
+ * is overdue.
  *
- * Only targets still open count, so a ticket that missed a reply long ago and
- * has since been answered does not stay flagged.
+ * Only open targets count: one that was missed and has since been answered is
+ * done, so a ticket does not stay flagged for it.
  *
  * @param sla - The ticket's SLA block, if it has one.
  * @param now - The time to judge by, in epoch milliseconds.
  */
-export function slaAttention(
+export function slaNearestBreach(
   sla: SupportTicketSla | null | undefined,
   now: number,
-): "breached" | "due_soon" | null {
+): SlaBreach | null {
   if (!sla) return null;
 
-  let attention: "breached" | "due_soon" | null = null;
+  let worst: SlaBreach | null = null;
   for (const key of SLA_TARGET_KEYS) {
     const target = sla[key];
-    if (target.completed_at) continue;
-    const status = slaTargetStatus(target, now);
-    if (status === "breached") return "breached";
-    if (status === "due_soon") attention = "due_soon";
+    if (!target.due_at || target.completed_at) continue;
+
+    const overdueMs = now - new Date(target.due_at).getTime();
+    if (overdueMs < 0 && !target.breached_at) continue;
+    if (!worst || overdueMs > worst.overdueMs) {
+      worst = { key, target, overdueMs: Math.max(0, overdueMs) };
+    }
   }
-  return attention;
+  return worst;
+}
+
+/** "Overdue 5m": the one thing a ticket says about its SLA. */
+export function slaBreachLabel(breach: SlaBreach): string {
+  return `Overdue ${formatCountdown(breach.overdueMs)}`;
 }

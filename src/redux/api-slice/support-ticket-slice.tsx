@@ -128,7 +128,6 @@ export type SupportTicketSla = {
     id: number;
     name: string;
     color: string;
-    priority_order: number | null;
   };
   first_reply: SlaTarget;
   every_reply: SlaTarget;
