@@ -4,15 +4,15 @@ import {
   IconAdjustmentsSpark,
   IconBooks,
   IconAutomaticGearbox,
-  IconBrandFacebook,
-  IconBrandInstagram,
-  IconBrandMessenger,
+  // IconBrandFacebook,
+  // IconBrandInstagram,
+  // IconBrandMessenger,
   IconBrandWhatsapp,
   // IconMail,
   IconAddressBook,
   IconBrandMeta,
   IconBuildingSkyscraper,
-  IconChecklist,
+  // IconChecklist,
   IconClockHour4,
   IconClockShield,
   IconImageGeneration,
@@ -22,7 +22,7 @@ import {
   IconLibrary,
   IconMessages,
   IconSocial,
-  IconSend,
+  // IconSend,
   IconSettings,
   IconShield,
   IconBuildingStore,
@@ -386,47 +386,47 @@ export const NAV_AREAS = {
     ],
   },
 
-  socialAI: {
-    href: "/social-ai",
-    title: "Social AI",
-    description:
-      "AI-handled comments and messages across your connected social accounts.",
-    icon: IconBrandMeta,
-    sections: [
-      {
-        href: "/social-ai/facebook-post",
-        title: "Facebook Posts",
-        description: "AI replies to comments on your Facebook posts.",
-        icon: IconBrandFacebook,
-      },
-      {
-        href: "/social-ai/facebook-messages",
-        title: "Facebook Messages",
-        description: "AI conversations in your Facebook page inbox.",
-        icon: IconBrandMessenger,
-      },
-      {
-        href: "/social-ai/instagram-post",
-        title: "Instagram Posts",
-        description: "AI replies to comments on your Instagram posts.",
-        icon: IconBrandInstagram,
-      },
-      {
-        href: "/social-ai/instagram-messages",
-        title: "Instagram Messages",
-        description: "AI conversations in your Instagram direct messages.",
-        icon: IconSend,
-      },
-      {
-        href: "/social-ai/comment-drafts",
-        title: "Draft Review",
-        description: "Review AI-drafted comment replies before they go out.",
-        pageDescription:
-          "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
-        icon: IconChecklist,
-      },
-    ],
-  },
+  // socialAI: {
+  //   href: "/social-ai",
+  //   title: "Social AI",
+  //   description:
+  //     "AI-handled comments and messages across your connected social accounts.",
+  //   icon: IconBrandMeta,
+  //   sections: [
+  //     {
+  //       href: "/social-ai/facebook-post",
+  //       title: "Facebook Posts",
+  //       description: "AI replies to comments on your Facebook posts.",
+  //       icon: IconBrandFacebook,
+  //     },
+  //     {
+  //       href: "/social-ai/facebook-messages",
+  //       title: "Facebook Messages",
+  //       description: "AI conversations in your Facebook page inbox.",
+  //       icon: IconBrandMessenger,
+  //     },
+  //     {
+  //       href: "/social-ai/instagram-post",
+  //       title: "Instagram Posts",
+  //       description: "AI replies to comments on your Instagram posts.",
+  //       icon: IconBrandInstagram,
+  //     },
+  //     {
+  //       href: "/social-ai/instagram-messages",
+  //       title: "Instagram Messages",
+  //       description: "AI conversations in your Instagram direct messages.",
+  //       icon: IconSend,
+  //     },
+  //     {
+  //       href: "/social-ai/comment-drafts",
+  //       title: "Draft Review",
+  //       description: "Review AI-drafted comment replies before they go out.",
+  //       pageDescription:
+  //         "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
+  //       icon: IconChecklist,
+  //     },
+  //   ],
+  // },
 
   campaign: {
     href: "/campaign",
