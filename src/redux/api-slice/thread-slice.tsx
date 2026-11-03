@@ -196,6 +196,10 @@ export type ThreadMessage = {
   messaged_by: string;
   /** Sender's email, to show "You" for the signed-in agent. */
   messaged_by_email?: string | null;
+  /** Latest feedback the customer attached to this message. */
+  feedback_rating?: string | null;
+  /** Optional written comment attached to the message feedback. */
+  feedback_message?: string | null;
 };
 
 /** One handover of a chat; a null agent name means the AI. */

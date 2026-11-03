@@ -2012,6 +2012,23 @@ export default function Support() {
 
     if (event.action_type === "thread_closed") {
       removeClosedThread(event.data.thread_id);
+      return;
+    }
+
+    if (event.action_type === "message_feedback") {
+      if (event.data.thread_id !== activeThreadIdRef.current) return;
+
+      setThreadMessages((messages) =>
+        messages.map((message) =>
+          String(message.id) === String(event.data.chat_message_id)
+            ? {
+                ...message,
+                feedback_rating: event.data.rating,
+                feedback_message: event.data.feedback_message,
+              }
+            : message,
+        ),
+      );
     }
   });
 

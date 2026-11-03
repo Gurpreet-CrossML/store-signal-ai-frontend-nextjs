@@ -699,6 +699,8 @@ type ThreadMessage = {
   agent_name: string | null;
   confidence: number | null;
   source_used: string;
+  feedback_rating: string | null;
+  feedback_message: string | null;
   created_at: string;
   messaged_by: string;
   messaged_by_email: string | null;
@@ -837,6 +839,18 @@ export async function get_thread_details(
       end`,
       confidence: chatHistory.confidence,
       source_used: chatHistory.sourceUsed,
+      feedback_rating: sql<string | null>`(
+        SELECT ${chatbotFeedback.rating} FROM ${chatbotFeedback}
+        WHERE ${chatbotFeedback.chatMessageId} = ${chatHistory.id}
+        ORDER BY ${chatbotFeedback.createdAt} DESC
+        LIMIT 1
+      )`,
+      feedback_message: sql<string | null>`(
+        SELECT ${chatbotFeedback.feedbackMessage} FROM ${chatbotFeedback}
+        WHERE ${chatbotFeedback.chatMessageId} = ${chatHistory.id}
+        ORDER BY ${chatbotFeedback.createdAt} DESC
+        LIMIT 1
+      )`,
       created_at: chatHistory.createdAt,
       messaged_by_first_name: authUser.firstName,
       messaged_by_last_name: authUser.lastName,
@@ -861,6 +875,8 @@ export async function get_thread_details(
     agent_name: m.agent_name,
     confidence: m.confidence,
     source_used: m.source_used,
+    feedback_rating: m.feedback_rating,
+    feedback_message: m.feedback_message,
     created_at: m.created_at,
     messaged_by:
       [m.messaged_by_first_name, m.messaged_by_last_name]
