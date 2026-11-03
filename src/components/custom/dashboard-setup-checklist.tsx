@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { IconCheck, IconX } from "@tabler/icons-react";
 
 import { StoreSnippet } from "@/components/custom/go-live-card";
@@ -56,7 +57,7 @@ const stepTitle = (key: ChecklistStepKey) =>
 const STEP_DESCRIPTION: Record<ChecklistStepKey, string> = {
   connected: "Choose your platform and authorize access to your store.",
   widget_live:
-    "Paste the widget script into your storefront so the chat widget shows up for shoppers.",
+    "Paste the widget script into your Shopify theme (layout/theme.liquid, just before </body>) so the chat widget shows on your storefront.",
   brand_voice:
     "Name your assistant and pick how it sounds. Until then it uses the default name and the Customer Support preset.",
 };
@@ -140,10 +141,15 @@ export function DashboardSetupChecklist() {
   const selectedStore = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
+  const pathname = usePathname();
 
+  // Re-fetches on every navigation (not just store switches) so a step
+  // finished on another page (e.g. picking a tone preset) shows as done
+  // the moment you're back, instead of needing a hard refresh — the
+  // sidebar that renders this never unmounts between pages.
   useEffect(() => {
     if (selectedStore) void dispatch(FetchDashboardChecklist(selectedStore));
-  }, [dispatch, selectedStore]);
+  }, [dispatch, selectedStore, pathname]);
 
   if (!checklist || checklist.pending.length === 0) return null;
 
@@ -161,8 +167,8 @@ export function DashboardSetupChecklist() {
       </SidebarMenuButton>
 
       <Drawer direction="right" open={open} onOpenChange={setOpen}>
-        <DrawerContent className="data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:rounded-none data-[vaul-drawer-direction=right]:sm:max-w-md">
-          <DrawerHeader className="gap-3 pb-2">
+        <DrawerContent className="data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:rounded-none data-[vaul-drawer-direction=right]:sm:w-1/2 data-[vaul-drawer-direction=right]:sm:max-w-none">
+          <DrawerHeader className="gap-3 border-b bg-primary/5 pb-4">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <DrawerTitle className="text-xl font-semibold">
@@ -175,7 +181,7 @@ export function DashboardSetupChecklist() {
               </div>
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="icon-sm"
                 aria-label="Close setup checklist"
                 onClick={() => setOpen(false)}
@@ -183,34 +189,38 @@ export function DashboardSetupChecklist() {
                 <IconX />
               </Button>
             </div>
-            <div className="flex items-center gap-3">
-              <Progress value={percent} className="h-2" />
-              <span className="shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                {checklist.completed} of {checklist.total} complete
+              </span>
+              <span className="text-xs font-semibold text-primary tabular-nums">
                 {percent}%
               </span>
             </div>
-            <span className="text-xs text-muted-foreground">
-              {checklist.completed} of {checklist.total} complete
-            </span>
+            <Progress value={percent} className="h-2 bg-primary/15" />
           </DrawerHeader>
 
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4">
             {STEP_ORDER.map((key, index) => {
               const step = checklist.steps[key];
+              const isCurrent = key === checklist.pending[0];
               return (
                 <div
                   key={key}
                   className={cn(
                     "flex flex-col gap-2 rounded-xl border p-3",
-                    !step.done && "border-primary/30 bg-primary/5",
+                    isCurrent
+                      ? "border-primary/30 bg-primary/5"
+                      : "border-transparent",
                   )}
                 >
                   <div className="flex items-start gap-3">
                     <span
                       className={cn(
                         "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium",
-                        step.done &&
-                          "border-primary bg-primary text-primary-foreground",
+                        step.done
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : isCurrent && "border-primary text-primary",
                       )}
                     >
                       {step.done ? (
@@ -240,7 +250,41 @@ export function DashboardSetupChecklist() {
                           </span>
                         )}
                       </div>
-                      {step.done ? (
+                      {key === "brand_voice" ? (
+                        <div className="flex flex-col gap-1.5">
+                          <p className="text-xs text-muted-foreground">
+                            {STEP_DESCRIPTION.brand_voice}
+                          </p>
+                          <ul className="flex flex-col gap-0.5">
+                            {(
+                              [
+                                ["Persona Identity", step.persona_done],
+                                ["Tone & Style", step.tone_done],
+                              ] as const
+                            ).map(([label, done]) => (
+                              <li
+                                key={label}
+                                className="flex items-center gap-1.5 text-xs"
+                              >
+                                {done ? (
+                                  <IconCheck className="size-3 shrink-0 text-primary" />
+                                ) : (
+                                  <span className="size-3 shrink-0 rounded-full border border-muted-foreground/40" />
+                                )}
+                                <span
+                                  className={
+                                    done
+                                      ? "text-muted-foreground line-through"
+                                      : "text-muted-foreground"
+                                  }
+                                >
+                                  {label}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : step.done ? (
                         key === "connected" ? (
                           <p className="text-xs text-muted-foreground">
                             {checklist.store.name} ·{" "}
@@ -250,35 +294,6 @@ export function DashboardSetupChecklist() {
                             connected
                           </p>
                         ) : null
-                      ) : key === "brand_voice" ? (
-                        <ul className="flex flex-col gap-0.5">
-                          {(
-                            [
-                              ["Persona Identity", step.persona_done],
-                              ["Tone & Style", step.tone_done],
-                            ] as const
-                          ).map(([label, done]) => (
-                            <li
-                              key={label}
-                              className="flex items-center gap-1.5 text-xs"
-                            >
-                              {done ? (
-                                <IconCheck className="size-3 shrink-0 text-primary" />
-                              ) : (
-                                <span className="size-3 shrink-0 rounded-full border border-muted-foreground/40" />
-                              )}
-                              <span
-                                className={
-                                  done
-                                    ? "text-muted-foreground line-through"
-                                    : "text-muted-foreground"
-                                }
-                              >
-                                {label}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
                       ) : (
                         <p className="text-xs text-muted-foreground">
                           {STEP_DESCRIPTION[key]}
@@ -311,6 +326,7 @@ export function DashboardSetupChecklist() {
                           type="button"
                           size="sm"
                           variant="outline"
+                          className="border-primary text-primary hover:bg-primary/5 hover:text-primary"
                           asChild
                         >
                           {/* Agent Name already saved → send them straight to
