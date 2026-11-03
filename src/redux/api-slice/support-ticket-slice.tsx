@@ -42,7 +42,12 @@ export type SupportTicketMessageAttachment = "text/plain" | "multipart";
 export type SupportTicketDraftType = "manual" | "ai";
 
 export type SupportSocketPayload = {
-  event?: "ticket_created" | "customer_message" | "ticket_updated";
+  event?:
+    | "ticket_created"
+    | "customer_message"
+    | "ticket_updated"
+    // Only the ticket's SLA changed (an agent replied, the status moved).
+    | "ticket_sla_updated";
   ticket?: SupportTicket;
   message?: SupportTicketMessage;
 };
@@ -98,6 +103,37 @@ type GetSupportTicketTagsArgs = {
   append?: boolean;
 };
 
+/** Where a ticket stands on one SLA target. */
+export type SlaTargetStatus =
+  | "not_applicable"
+  | "on_track"
+  | "due_soon"
+  | "met"
+  | "breached";
+
+/** One target of the SLA applied to a ticket. */
+export type SlaTarget = {
+  target_minutes: number | null;
+  due_at: string | null;
+  /** When the target was met; null while it is still open. */
+  completed_at: string | null;
+  /** When the target was found missed; null while it has not been. */
+  breached_at: string | null;
+  status: SlaTargetStatus;
+};
+
+/** The SLA applied to a ticket, and the tag that triggered it. */
+export type SupportTicketSla = {
+  tag: {
+    id: number;
+    name: string;
+    color: string;
+  };
+  first_reply: SlaTarget;
+  every_reply: SlaTarget;
+  resolution: SlaTarget;
+};
+
 export type SupportTicketTagData = {
   id?: number;
   name: string;
@@ -114,6 +150,10 @@ export type SupportTicketTagData = {
   thread_count?: number;
   /** Similar-tags lookup only: same name as the one typed, so a duplicate. */
   is_exact?: boolean;
+  /** Whether the tag has an SLA policy. Sent by the tag list only. */
+  has_sla_policy?: boolean;
+  /** Assign and remove only: the SLA the ticket follows after the change. */
+  ticket_sla?: SupportTicketSla | null;
 };
 
 export type SupportTicketTagsResponse = {
@@ -201,6 +241,9 @@ export type SupportTicket = {
   priority: SupportTicketPriority;
 
   tags: SupportTicketTagData[];
+
+  /** The SLA the ticket follows; null when none of its tags sets one. */
+  sla?: SupportTicketSla | null;
 
   is_read: boolean;
   channel: SupportTicketChannel;

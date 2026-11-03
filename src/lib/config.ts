@@ -320,6 +320,10 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/ticket-tags/${tag_id}/`, "django"),
   ticketTagDelete: (tag_id: number) =>
     createAPIUrl(`/support/ticket-tags/${tag_id}/delete/`, "django"),
+  slaPolicies: () => createAPIUrl("/support/sla-policies/", "django"),
+  // PATCH to update, DELETE to remove.
+  slaPolicyDetail: (policy_id: number) =>
+    createAPIUrl(`/support/sla-policies/${policy_id}/`, "django"),
   supportTicketAIMessageDraftGenerate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/draft-messages/ai/`, "django"),
   supportTicketStatusUpdate: (ticket_id: number) =>

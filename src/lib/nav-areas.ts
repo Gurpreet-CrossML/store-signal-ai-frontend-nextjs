@@ -13,6 +13,7 @@ import {
   IconBrandMeta,
   IconBuildingSkyscraper,
   IconChecklist,
+  IconClockHour4,
   IconClockShield,
   IconImageGeneration,
   IconHeadset,
@@ -196,6 +197,14 @@ export const NAV_AREAS = {
         pageDescription:
           "Label support tickets so they can be grouped, filtered and found quickly.",
         icon: IconTags,
+      },
+      {
+        href: "/settings/sla",
+        title: "SLA Policies",
+        description: "How quickly tickets with a tag should be answered.",
+        pageDescription:
+          "Set reply and resolution targets per tag. When a ticket has several tags, the policy with the shortest target decides its SLA.",
+        icon: IconClockHour4,
       },
       // {
       //   href: "/settings/integrations",
