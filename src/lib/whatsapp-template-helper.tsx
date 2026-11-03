@@ -126,6 +126,12 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
         label: "First item's price",
         sample: "₹2,499.00",
       },
+      {
+        token: "order_items",
+        label: "All items (qty, price, total)",
+        sample:
+          "1 x Travel Backpack @ ₹1,999.00 = ₹1,999.00 | 2 x Packing Cube @ ₹250.00 = ₹500.00",
+      },
     ],
   },
   {
