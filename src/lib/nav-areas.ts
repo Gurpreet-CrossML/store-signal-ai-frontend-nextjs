@@ -13,7 +13,7 @@ import {
   IconBrandMeta,
   IconBuildingSkyscraper,
   IconChecklist,
-  // IconClockShield,
+  IconClockShield,
   IconImageGeneration,
   IconHeadset,
   IconInbox,
