@@ -65,7 +65,11 @@ const ALL_TYPES = "all";
 type TagTypeFilter = typeof ALL_TYPES | "custom" | "system";
 const TAG_TYPE_FILTERS: TagTypeFilter[] = [ALL_TYPES, "custom", "system"];
 
-/** Where a tag is in use, as "3 tickets and 12 analysed threads"; "" when unused. */
+/**
+ * Where a tag is in use, as "3 tickets, 12 analysed threads and an SLA
+ * policy"; "" when unused. A tag with an SLA policy counts as in use: it
+ * cannot be deleted, and editing it is warned about.
+ */
 function describeTagUsage(tag: SupportTicketTagData | null): string {
   const parts = [
     tag?.ticket_count
@@ -74,8 +78,10 @@ function describeTagUsage(tag: SupportTicketTagData | null): string {
     tag?.thread_count
       ? `${tag.thread_count} analysed thread${tag.thread_count === 1 ? "" : "s"}`
       : "",
+    tag?.has_sla_policy ? "an SLA policy" : "",
   ].filter(Boolean);
-  return parts.join(" and ");
+  if (parts.length <= 1) return parts[0] ?? "";
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
 }
 
 // preset swatches shown next to the native color picker for quick selection
@@ -802,9 +808,8 @@ export default function Tags() {
           <AlertDialogHeader>
             <AlertDialogTitle>Update this tag everywhere?</AlertDialogTitle>
             <AlertDialogDescription>
-              Changing this tag will update it across all tickets and threads
-              currently associated with it ({pendingSave?.usage}). Do you want
-              to continue?
+              Changing this tag will update it everywhere it is used (
+              {pendingSave?.usage}). Do you want to continue?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -843,7 +848,8 @@ export default function Tags() {
                     {tagPendingDelete?.name}
                   </span>{" "}
                   is used by {pendingDeleteUsage}, so it can&apos;t be removed.
-                  Take it off those first, or edit the tag instead.
+                  Take it off those first (delete its SLA policy under Settings
+                  → SLA Policies), or edit the tag instead.
                 </>
               ) : (
                 <>
