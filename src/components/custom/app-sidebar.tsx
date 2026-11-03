@@ -8,6 +8,7 @@ import { StoreSwitcher } from "@/components/custom/store-switcher";
 import { NavSecondary } from "@/components/custom/nav-secondary";
 import { NavUser } from "@/components/custom/nav-user";
 import { NotificationBell } from "@/components/custom/notification-bell";
+import { DashboardSetupChecklist } from "@/components/custom/dashboard-setup-checklist";
 import { useHelpdeskSidebar } from "@/hooks/use-helpdesk-sidebar";
 import { keepHelpdeskListParams } from "@/lib/helpdesk-filters";
 import {
@@ -188,6 +189,9 @@ export function AppSidebar({
           {/* Notifications sit with the user's own controls, on every page
               and for every role (agents cannot open the Dashboard). */}
           <SidebarMenu>
+            <SidebarMenuItem>
+              <DashboardSetupChecklist />
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <NotificationBell />
             </SidebarMenuItem>

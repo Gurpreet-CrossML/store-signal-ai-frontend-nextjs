@@ -100,6 +100,9 @@ export const ENDPOINTS = {
   // step + connected stores with their widget keys; PATCH sets
   // `onboarding_step` to "brand_voice", "completed" or "skipped".
   companyOnboarding: () => "/tenancy/company/onboarding/",
+  // Dashboard "finish setup" checklist (Django). GET (needs useBackend,
+  // ?store_code=<code>) returns one store's step statuses; read-only.
+  dashboardChecklist: () => "/tenancy/dashboard/checklist/",
   // Per-store settings (Django) — currently the widget's allowed-IP list.
   // GET returns the settings, PATCH updates them.
   storeAllowedIPsSettings: () =>
