@@ -3,6 +3,7 @@ import { useSession } from "next-auth/react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CartItem,
+  ClarifyingQuestion,
   HandlerEvent,
   ThreadMessage,
 } from "@/redux/api-slice/thread-slice";
@@ -486,6 +487,46 @@ export default function MessagePan({
                         <TicketCard
                           ticket={message.json_content.ticket_details}
                         />
+                      )}
+
+                    {/* The question card the shopper saw, drawn like the widget's,
+                    so agents can read their compiled answer ("Show "Watches"")
+                    in context. */}
+                    {message.role === "assistant" &&
+                      message.json_content?.questions &&
+                      message.json_content.questions.length > 0 && (
+                        <div className="mt-2 flex w-full max-w-sm flex-col gap-4 rounded-xl border border-border bg-background p-3">
+                          {message.json_content.questions.map(
+                            (
+                              question: ClarifyingQuestion,
+                              idx: number,
+                              all: ClarifyingQuestion[],
+                            ) => (
+                              <div key={idx}>
+                                <span className="text-xs text-muted-foreground">
+                                  {idx + 1} of {all.length}
+                                </span>
+                                <p className="mb-2.5 mt-1 text-sm font-semibold text-foreground">
+                                  {question.question}
+                                </p>
+                                <div className="flex flex-col gap-1.5">
+                                  {question.options.map((option) => (
+                                    <div
+                                      key={option}
+                                      className="flex items-center gap-2.5 rounded-[10px] border border-border bg-secondary px-3 py-2 text-[13px] text-foreground"
+                                    >
+                                      <span
+                                        aria-hidden="true"
+                                        className={`size-4 shrink-0 border-[1.5px] border-muted-foreground ${question.multi_select ? "rounded" : "rounded-full"}`}
+                                      />
+                                      <span>{option}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ),
+                          )}
+                        </div>
                       )}
 
                     {message.role === "assistant" &&

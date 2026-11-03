@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { ColumnDef, PaginationState } from "@tanstack/react-table";
-import { IconAutomaticGearbox, IconLock, IconX } from "@tabler/icons-react";
+import {
+  IconAutomaticGearbox,
+  IconFileText,
+  IconLock,
+  IconX,
+} from "@tabler/icons-react";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/custom/data-table";
@@ -50,8 +56,8 @@ const EMPTY_CELL = <Typography variant="muted">—</Typography>;
 type SwitchChange = { workflow: StoreWorkflow; isEnabled: boolean };
 
 /**
- * One row per platform workflow: what it is, the AI it belongs to, its tags
- * and the on/off switch.
+ * One row per platform workflow: what it is, the AI it belongs to, its tags,
+ * a link to its policy page and the on/off switch.
  */
 function getColumns(
   pendingCode: string | null,
@@ -112,6 +118,27 @@ function getColumns(
         ) : (
           EMPTY_CELL
         ),
+    },
+    {
+      id: "policy",
+      header: "Policy",
+      cell: ({ row }) => {
+        const workflow = row.original;
+        if (!workflow.has_policy) return EMPTY_CELL;
+        return (
+          <Button variant="outline" size="xs" asChild>
+            <Link href={`/settings/workflows/${workflow.code}/policy`}>
+              <IconFileText data-icon="inline-start" />
+              Policy
+              {workflow.policy_version > 0 && (
+                <Badge variant="secondary" className="h-4 px-1.5">
+                  v{workflow.policy_version}
+                </Badge>
+              )}
+            </Link>
+          </Button>
+        );
+      },
     },
     {
       accessorKey: "is_enabled",
