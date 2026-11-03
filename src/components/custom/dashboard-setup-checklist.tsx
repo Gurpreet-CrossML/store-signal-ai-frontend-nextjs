@@ -250,41 +250,7 @@ export function DashboardSetupChecklist() {
                           </span>
                         )}
                       </div>
-                      {key === "brand_voice" ? (
-                        <div className="flex flex-col gap-1.5">
-                          <p className="text-xs text-muted-foreground">
-                            {STEP_DESCRIPTION.brand_voice}
-                          </p>
-                          <ul className="flex flex-col gap-0.5">
-                            {(
-                              [
-                                ["Persona Identity", step.persona_done],
-                                ["Tone & Style", step.tone_done],
-                              ] as const
-                            ).map(([label, done]) => (
-                              <li
-                                key={label}
-                                className="flex items-center gap-1.5 text-xs"
-                              >
-                                {done ? (
-                                  <IconCheck className="size-3 shrink-0 text-primary" />
-                                ) : (
-                                  <span className="size-3 shrink-0 rounded-full border border-muted-foreground/40" />
-                                )}
-                                <span
-                                  className={
-                                    done
-                                      ? "text-muted-foreground line-through"
-                                      : "text-muted-foreground"
-                                  }
-                                >
-                                  {label}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : step.done ? (
+                      {step.done ? (
                         key === "connected" ? (
                           <p className="text-xs text-muted-foreground">
                             {checklist.store.name} ·{" "}
