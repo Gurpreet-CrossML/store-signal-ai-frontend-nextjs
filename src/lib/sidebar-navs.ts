@@ -314,7 +314,7 @@ export const sidebarMenus: SideBarMenus = {
     // Social AI is admin-only until its roles are decided.
     // areaMenuItem("socialAI", { adminOnly: true }),
     areaMenuItem("crm", { permission: "conversations" }),
-    // areaMenuItem("campaign"),
+    areaMenuItem("campaign"),
     areaMenuItem("brandVoice", { adminOnly: true }),
     areaMenuItem("settings", { adminOnly: true }),
     areaMenuItem("knowledge", { permission: "knowledge" }),

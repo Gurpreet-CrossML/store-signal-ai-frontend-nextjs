@@ -4,15 +4,15 @@ import {
   IconAdjustmentsSpark,
   IconBooks,
   IconAutomaticGearbox,
-  // IconBrandFacebook,
-  // IconBrandInstagram,
-  // IconBrandMessenger,
-  // IconBrandWhatsapp,
+  IconBrandFacebook,
+  IconBrandInstagram,
+  IconBrandMessenger,
+  IconBrandWhatsapp,
   // IconMail,
   IconAddressBook,
-  // IconBrandMeta,
+  IconBrandMeta,
   IconBuildingSkyscraper,
-  // IconChecklist,
+  IconChecklist,
   // IconClockShield,
   IconImageGeneration,
   IconHeadset,
@@ -21,11 +21,11 @@ import {
   IconLibrary,
   // IconMessages,
   // IconSocial,
-  // IconSend,
+  IconSend,
   IconSettings,
   // IconShield,
   IconBuildingStore,
-  // IconSpeakerphone,
+  IconSpeakerphone,
   IconTags,
   IconUserHexagon,
   IconUsers,
@@ -39,7 +39,7 @@ import {
   IconVolume,
   type Icon,
   IconChartBar,
-  // IconPackage,
+  IconPackage,
 } from "@tabler/icons-react";
 
 import { CreateTicketAction } from "@/components/custom/helpdesk/create-ticket-action";
@@ -377,99 +377,99 @@ export const NAV_AREAS = {
     ],
   },
 
-  //   socialAI: {
-  //     href: "/social-ai",
-  //     title: "Social AI",
-  //     description:
-  //       "AI-handled comments and messages across your connected social accounts.",
-  //     icon: IconBrandMeta,
-  //     sections: [
-  //       {
-  //         href: "/social-ai/facebook-post",
-  //         title: "Facebook Posts",
-  //         description: "AI replies to comments on your Facebook posts.",
-  //         icon: IconBrandFacebook,
-  //       },
-  //       {
-  //         href: "/social-ai/facebook-messages",
-  //         title: "Facebook Messages",
-  //         description: "AI conversations in your Facebook page inbox.",
-  //         icon: IconBrandMessenger,
-  //       },
-  //       {
-  //         href: "/social-ai/instagram-post",
-  //         title: "Instagram Posts",
-  //         description: "AI replies to comments on your Instagram posts.",
-  //         icon: IconBrandInstagram,
-  //       },
-  //       {
-  //         href: "/social-ai/instagram-messages",
-  //         title: "Instagram Messages",
-  //         description: "AI conversations in your Instagram direct messages.",
-  //         icon: IconSend,
-  //       },
-  //       {
-  //         href: "/social-ai/comment-drafts",
-  //         title: "Draft Review",
-  //         description: "Review AI-drafted comment replies before they go out.",
-  //         pageDescription:
-  //           "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
-  //         icon: IconChecklist,
-  //       },
-  //     ],
-  //   },
+  socialAI: {
+    href: "/social-ai",
+    title: "Social AI",
+    description:
+      "AI-handled comments and messages across your connected social accounts.",
+    icon: IconBrandMeta,
+    sections: [
+      {
+        href: "/social-ai/facebook-post",
+        title: "Facebook Posts",
+        description: "AI replies to comments on your Facebook posts.",
+        icon: IconBrandFacebook,
+      },
+      {
+        href: "/social-ai/facebook-messages",
+        title: "Facebook Messages",
+        description: "AI conversations in your Facebook page inbox.",
+        icon: IconBrandMessenger,
+      },
+      {
+        href: "/social-ai/instagram-post",
+        title: "Instagram Posts",
+        description: "AI replies to comments on your Instagram posts.",
+        icon: IconBrandInstagram,
+      },
+      {
+        href: "/social-ai/instagram-messages",
+        title: "Instagram Messages",
+        description: "AI conversations in your Instagram direct messages.",
+        icon: IconSend,
+      },
+      {
+        href: "/social-ai/comment-drafts",
+        title: "Draft Review",
+        description: "Review AI-drafted comment replies before they go out.",
+        pageDescription:
+          "Replies the AI has prepared under your Draft Automatically rules. Edit the texts if needed, then approve to send or discard — nothing is public until someone approves it.",
+        icon: IconChecklist,
+      },
+    ],
+  },
 
-  // campaign: {
-  // href: "/campaign",
-  // title: "Campaign",
-  // description: "WhatsApp templates and campaigns for reaching customers.",
-  // icon: IconSpeakerphone,
-  // sections: [
-  // {
-  // href: "/campaign/post-sale",
-  // title: "Post Sale Templates",
-  // description:
-  // "Import ready-made templates for order placed, shipped, delivered, and review requests.",
-  // pageDescription:
-  // "Import Meta-ready WhatsApp templates for your order lifecycle — placed, shipped, delivered, and review requests. Once imported, they go through the same review process as any other template and show up in WhatsApp Templates.",
-  // icon: IconPackage,
-  // },
-  // {
-  // href: "/campaign/whatsapp-templates",
-  // title: "WhatsApp Templates",
-  // description: "Message templates approved for sending on WhatsApp.",
-  // pageDescription:
-  // "Manage the message templates Meta has approved — or is reviewing — for your connected WhatsApp number.",
-  // icon: IconBrandWhatsapp,
-  // },
-  // {
-  // href: "/campaign/email-templates",
-  // title: "Email Templates",
-  // description:
-  // "Transactional email templates rendered through a shared HTML shell.",
-  // pageDescription:
-  // "Create and manage email templates for your store — offers, order updates and support notifications rendered through a branded HTML shell.",
-  // icon: IconMail,
-  // },
-  // {
-  // href: "/campaign/segments",
-  // title: "Segments",
-  // description: "Saved, reusable audiences a campaign can target.",
-  // pageDescription:
-  // "Saved, reusable audiences. Each segment narrows a platform-wide category (Abandoned Checkout, Total Spent, Last Order Date) with a time window and an optional cart-value floor.",
-  // icon: IconUsersGroup,
-  // },
-  // {
-  // href: "/campaign/campaigns",
-  // title: "Campaigns",
-  // description:
-  // "Multi-step journeys — sends, waits and channel splits — targeting a segment.",
-  // pageDescription:
-  // "Multi-step outbound journeys targeting a saved segment. Each step sends one WhatsApp or email template, and the whole sequence must fit within a 24-hour span.",
-  // icon: IconSpeakerphone,
-  // },
-  // ],
-  // },
+  campaign: {
+    href: "/campaign",
+    title: "Campaign",
+    description: "WhatsApp templates and campaigns for reaching customers.",
+    icon: IconSpeakerphone,
+    sections: [
+      {
+        href: "/campaign/post-sale",
+        title: "Post Sale Templates",
+        description:
+          "Import ready-made templates for order placed, shipped, delivered, and review requests.",
+        pageDescription:
+          "Import Meta-ready WhatsApp templates for your order lifecycle — placed, shipped, delivered, and review requests. Once imported, they go through the same review process as any other template and show up in WhatsApp Templates.",
+        icon: IconPackage,
+      },
+      {
+        href: "/campaign/whatsapp-templates",
+        title: "WhatsApp Templates",
+        description: "Message templates approved for sending on WhatsApp.",
+        pageDescription:
+          "Manage the message templates Meta has approved — or is reviewing — for your connected WhatsApp number.",
+        icon: IconBrandWhatsapp,
+      },
+      // {
+      // href: "/campaign/email-templates",
+      // title: "Email Templates",
+      // description:
+      // "Transactional email templates rendered through a shared HTML shell.",
+      // pageDescription:
+      // "Create and manage email templates for your store — offers, order updates and support notifications rendered through a branded HTML shell.",
+      // icon: IconMail,
+      // },
+      // {
+      // href: "/campaign/segments",
+      // title: "Segments",
+      // description: "Saved, reusable audiences a campaign can target.",
+      // pageDescription:
+      // "Saved, reusable audiences. Each segment narrows a platform-wide category (Abandoned Checkout, Total Spent, Last Order Date) with a time window and an optional cart-value floor.",
+      // icon: IconUsersGroup,
+      // },
+      // {
+      // href: "/campaign/campaigns",
+      // title: "Campaigns",
+      // description:
+      // "Multi-step journeys — sends, waits and channel splits — targeting a segment.",
+      // pageDescription:
+      // "Multi-step outbound journeys targeting a saved segment. Each step sends one WhatsApp or email template, and the whole sequence must fit within a 24-hour span.",
+      // icon: IconSpeakerphone,
+      // },
+    ],
+  },
 } as const satisfies Record<string, NavArea>;
 
 export type NavAreaKey = keyof typeof NAV_AREAS;
