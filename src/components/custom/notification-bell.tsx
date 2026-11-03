@@ -88,9 +88,8 @@ function showDesktopNotification(
     return;
   }
 
-  const isLiveSupportPage = window.location.pathname.startsWith("/support");
-
-  if (isLiveSupportPage && document.visibilityState === "visible") {
+  // An active Store Signal tab must never show a Chrome notification.
+  if (document.visibilityState === "visible") {
     return;
   }
 
