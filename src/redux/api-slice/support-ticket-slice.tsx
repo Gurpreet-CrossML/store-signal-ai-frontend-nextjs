@@ -163,7 +163,14 @@ export type SupportTicketMessage = {
   channel: SupportTicketChannel;
   content_type: SupportTicketMessageContentType;
   created_at: string;
-  metadata: object;
+  metadata: {
+    // Set when the reply was sent in the customer's language.
+    translated_message?: {
+      message: string;
+      language_name: string;
+      language_code: string;
+    };
+  };
   attachments: SupportTicketMessageAttachments[];
   pendingFiles?: File[];
 };
