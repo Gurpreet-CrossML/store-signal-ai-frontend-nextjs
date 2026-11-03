@@ -2843,12 +2843,15 @@ export default function Support() {
                           </Badge>
                           <Badge
                             variant="secondary"
-                            className="h-5 rounded-md px-1.5 text-xs font-normal"
+                            className={cn(
+                              "h-5 rounded-md border-0 px-1.5 text-xs font-medium",
+                              thread.chat_handler === "human"
+                                ? "bg-blue-100 text-blue-700 hover:bg-blue-100"
+                                : "bg-violet-100 text-violet-700 hover:bg-violet-100",
+                            )}
                           >
-                            {thread.chat_handler === "human" ? (
+                            {thread.chat_handler === "human" && (
                               <IconHeadset className="size-3" />
-                            ) : (
-                              <IconRobot className="size-3" />
                             )}
                             {handlerLabel}
                           </Badge>
