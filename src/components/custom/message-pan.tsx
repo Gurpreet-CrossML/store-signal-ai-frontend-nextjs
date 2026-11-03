@@ -21,12 +21,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { IconLock, IconShoppingBag, IconSparkles } from "@tabler/icons-react";
+import {
+  IconLock,
+  IconShoppingBag,
+  IconSparkles,
+  IconThumbDown,
+  IconThumbUp,
+} from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
 import { ProductCarousel } from "@/components/custom/product-carousel";
 import { getInitials } from "@/components/custom/customer-avatar";
 import { Spinner } from "../ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 /** "You" when `email` is the signed-in user, otherwise their name. */
 function whoIs(
@@ -204,6 +211,14 @@ export default function MessagePan({
             isLastMessage && message.role === "user" && !!onReplyWithAI;
           const isCustomer = message.role === "user";
           const isOutgoing = isCustomer;
+          const feedbackRating = message.feedback_rating;
+          const hasPositiveFeedback = ["good", "excellent"].includes(
+            feedbackRating ?? "",
+          );
+          const feedbackLabel = feedbackRating
+            ? feedbackRating.replaceAll("_", " ")
+            : null;
+          const feedbackMessage = message.feedback_message?.trim();
           const avatarLabel = isCustomer
             ? getInitials(customerName || message.messaged_by) || "C"
             : isAgentMessage
@@ -367,6 +382,30 @@ export default function MessagePan({
                       <div className="mt-1 text-xs font-medium text-primary">
                         <span>Source: {message.source_used}</span>
                       </div>
+                    ) : null}
+
+                    {message.role === "assistant" && feedbackLabel ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="mt-1 flex w-fit cursor-help items-center gap-1 text-xs font-medium text-primary">
+                            {hasPositiveFeedback ? (
+                              <IconThumbUp
+                                className="size-3.5"
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <IconThumbDown
+                                className="size-3.5"
+                                aria-hidden="true"
+                              />
+                            )}
+                            <span className="capitalize">{feedbackLabel}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-80">
+                          {feedbackMessage || "No written feedback provided."}
+                        </TooltipContent>
+                      </Tooltip>
                     ) : null}
 
                     {/* "Reply with AI" — only for user messages, only when a
