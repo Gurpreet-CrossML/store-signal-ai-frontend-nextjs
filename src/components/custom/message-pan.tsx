@@ -588,7 +588,13 @@ export default function MessagePan({
                     )}
 
                     {message.role === "assistant" && feedbackLabel ? (
-                      <Tooltip>
+                      <Tooltip
+                        open={
+                          hasPositiveFeedback || !feedbackMessage
+                            ? false
+                            : undefined
+                        }
+                      >
                         <TooltipTrigger asChild>
                           <div className="mt-2 flex w-fit cursor-help items-center gap-1 text-xs font-medium text-primary">
                             {hasPositiveFeedback ? (
@@ -606,7 +612,7 @@ export default function MessagePan({
                           </div>
                         </TooltipTrigger>
                         <TooltipContent className="max-w-80">
-                          {feedbackMessage || "No written feedback provided."}
+                          {feedbackMessage}
                         </TooltipContent>
                       </Tooltip>
                     ) : null}
