@@ -76,6 +76,35 @@ function previewText(notification: AgentNotification) {
     : notification.message;
 }
 
+function showDesktopNotification(
+  notification: AgentNotification,
+  onOpen: () => void,
+) {
+  if (
+    typeof window === "undefined" ||
+    !("Notification" in window) ||
+    Notification.permission !== "granted"
+  ) {
+    return;
+  }
+
+  // An active Store Signal tab must never show a Chrome notification.
+  if (document.visibilityState === "visible") {
+    return;
+  }
+
+  const desktopNotification = new Notification("Store Signal", {
+    body: `${notification.title}\n\n${notification.message}`,
+    tag: `store-signal-notification-${notification.id}`,
+  });
+
+  desktopNotification.onclick = () => {
+    window.focus();
+    desktopNotification.close();
+    onOpen();
+  };
+}
+
 function NotificationIcon({ type }: { type: NotificationType }) {
   const Icon = TYPE_ICONS[type];
   return (
@@ -303,6 +332,10 @@ export function NotificationBell() {
       ),
       { position: "top-center", duration: 6000 },
     );
+    // The drawer always receives every notification without browser
+    // permission. When permission is granted, mirror every drawer type as a
+    // desktop alert while the Store Signal tab is in the background.
+    showDesktopNotification(notification, () => openNotification(notification));
   });
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
