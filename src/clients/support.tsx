@@ -314,8 +314,8 @@ function ReassignAgentSelect({
     : "";
 
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-sm font-medium text-muted-foreground">
+    <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:flex-none sm:gap-3">
+      <span className="shrink-0 text-xs font-medium text-muted-foreground sm:text-sm">
         Assignee
       </span>
       <Popover open={open} onOpenChange={setOpen}>
@@ -327,7 +327,7 @@ function ReassignAgentSelect({
             disabled={disabled}
             aria-label="Choose assignee"
             className={cn(
-              "h-10 rounded-full border-border px-2.5 text-sm",
+              "h-10 min-w-0 flex-1 rounded-full border-border px-2 text-sm sm:flex-none sm:px-2.5",
               open && "border-primary ring-2 ring-primary/15",
             )}
           >
@@ -343,7 +343,7 @@ function ReassignAgentSelect({
             ) : (
               <span className="size-6 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40" />
             )}
-            <span className="max-w-45 truncate">
+            <span className="max-w-20 truncate sm:max-w-45">
               {currentAgentOption?.name || "Unassigned"}
             </span>
             {open ? (
@@ -661,7 +661,7 @@ function ThreadChatControls({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="order-1 flex items-center justify-between gap-3 rounded-xl border bg-muted/30 p-3"
+            className="order-1 flex flex-col gap-3 rounded-xl border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -684,7 +684,7 @@ function ThreadChatControls({
                 </Typography>
               </div>
             </div>
-            <div className="ml-auto flex shrink-0 items-center gap-3">
+            <div className="flex w-full min-w-0 flex-nowrap items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:gap-3">
               {canReassign && (
                 <ReassignAgentSelect
                   agents={agents}
@@ -701,6 +701,7 @@ function ThreadChatControls({
                 <Button
                   type="button"
                   size="sm"
+                  className="shrink-0"
                   onClick={onTakeOver}
                   disabled={
                     transitionState !== "idle" ||
