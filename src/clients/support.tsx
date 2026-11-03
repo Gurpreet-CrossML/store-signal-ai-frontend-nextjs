@@ -15,6 +15,12 @@ import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
@@ -96,6 +102,8 @@ import {
   IconMessage2,
   IconMessageChatbot,
   IconMoodSmile,
+  IconDotsVertical,
+  IconId,
   IconNote,
   IconPaperclip,
   IconRobot,
@@ -2933,7 +2941,7 @@ export default function Support() {
                   <div className="flex min-w-0 flex-1 items-center gap-2.5">
                     <Button
                       variant="ghost"
-                      size="icon-sm"
+                      size="icon-xs"
                       aria-label="Back to chat list"
                       className="-ml-2 shrink-0 desktop:hidden"
                       onClick={() => {
@@ -2992,42 +3000,83 @@ export default function Support() {
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-1 sm:gap-3">
-                    <CustomerDetailsButton
-                      onClick={() => setIsDetailsOpen(true)}
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="px-2 sm:px-3"
-                      aria-label="Create ticket"
-                      onClick={() => setIsCreateTicketOpen(true)}
-                    >
-                      <IconTicket className="size-4" />
-                      <span className="hidden sm:inline">Create Ticket</span>
-                    </Button>
-                    {selectedThread?.is_active && canHandleChats && (
+                  <div className="shrink-0">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="sm:hidden"
+                          aria-label="Conversation actions"
+                        >
+                          <IconDotsVertical className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-48 sm:hidden"
+                      >
+                        <DropdownMenuItem
+                          onSelect={() => setIsDetailsOpen(true)}
+                        >
+                          <IconId className="size-4" />
+                          Customer details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => setIsCreateTicketOpen(true)}
+                        >
+                          <IconTicket className="size-4" />
+                          Create ticket
+                        </DropdownMenuItem>
+                        {selectedThread?.is_active && canHandleChats ? (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            disabled={
+                              !session?.user?.email ||
+                              displayedConnectedAgent !== session.user.email
+                            }
+                            onSelect={() => setIsCloseChatOpen(true)}
+                          >
+                            <IconMessageOff className="size-4" />
+                            Close chat
+                          </DropdownMenuItem>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <div className="hidden items-center gap-3 sm:flex">
+                      <CustomerDetailsButton
+                        onClick={() => setIsDetailsOpen(true)}
+                      />
                       <Button
                         variant="outline"
                         size="sm"
-                        className="px-2 sm:px-3"
-                        aria-label="Close chat"
-                        // Only the agent the chat is assigned to may close it.
-                        disabled={
-                          !session?.user?.email ||
-                          displayedConnectedAgent !== session.user.email
-                        }
-                        title={
-                          displayedConnectedAgent === session?.user?.email
-                            ? "Close this chat"
-                            : "Only the assigned agent can close this chat"
-                        }
-                        onClick={() => setIsCloseChatOpen(true)}
+                        onClick={() => setIsCreateTicketOpen(true)}
                       >
-                        <IconMessageOff className="size-4" />
-                        <span className="hidden sm:inline">Close Chat</span>
+                        <IconTicket className="size-4" />
+                        Create Ticket
                       </Button>
-                    )}
+                      {selectedThread?.is_active && canHandleChats && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          // Only the agent the chat is assigned to may close it.
+                          disabled={
+                            !session?.user?.email ||
+                            displayedConnectedAgent !== session.user.email
+                          }
+                          title={
+                            displayedConnectedAgent === session?.user?.email
+                              ? "Close this chat"
+                              : "Only the assigned agent can close this chat"
+                          }
+                          onClick={() => setIsCloseChatOpen(true)}
+                        >
+                          <IconMessageOff className="size-4" />
+                          Close Chat
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </header>
