@@ -104,7 +104,7 @@ function HandlerEventRow({
 }) {
   return (
     <div className="flex justify-center py-1">
-      <span className="rounded-full border border-dashed border-border bg-background px-3 py-1 text-center text-xs text-muted-foreground">
+      <span className="max-w-full wrap-anywhere rounded-full border border-dashed border-border bg-background px-3 py-1 text-center text-xs text-muted-foreground">
         {describeHandlerEvent(event, me)}
       </span>
     </div>
@@ -335,8 +335,8 @@ export default function MessagePan({
                     <div className="min-w-0">
                       {isInternalNote ? (
                         <>
-                          <div className="flex items-baseline justify-between gap-3">
-                            <span className="font-medium">
+                          <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+                            <span className="wrap-anywhere font-medium">
                               Internal note ·{" "}
                               {message.agent_name ||
                                 message.messaged_by ||
@@ -535,7 +535,7 @@ export default function MessagePan({
                                 return (
                                   <div
                                     key={idx}
-                                    className="flex items-start justify-between gap-3 text-sm"
+                                    className="flex min-w-0 items-start justify-between gap-2 text-sm"
                                   >
                                     <div className="flex min-w-0 flex-1 items-center gap-2">
                                       <Avatar>
@@ -560,7 +560,7 @@ export default function MessagePan({
                                         </span>
                                       </span>
                                     </div>
-                                    <span className="text-xs text-muted-foreground">
+                                    <span className="shrink-0 text-xs text-muted-foreground">
                                       {item.price}
                                     </span>
                                   </div>
@@ -649,7 +649,7 @@ export default function MessagePan({
                     {message.image_url && (
                       <div className="mt-2 flex flex-wrap justify-end gap-2 md:justify-start">
                         {Array.isArray(message.image_url) ? (
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                             {message.image_url.map((url, idx) => (
                               <HoverZoomImage
                                 key={idx}

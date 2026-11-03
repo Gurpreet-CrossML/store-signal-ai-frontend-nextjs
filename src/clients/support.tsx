@@ -353,7 +353,10 @@ function ReassignAgentSelect({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-90 p-1">
+        <PopoverContent
+          align="end"
+          className="w-[calc(100vw-2rem)] max-w-90 p-1"
+        >
           <Command>
             <CommandInput placeholder="Search teammates" />
             <CommandList>
@@ -519,7 +522,7 @@ function ThreadChatControls({
 
   return (
     <div
-      className={`relative flex flex-col gap-2 border-t border-border/50 bg-background/95 p-4 ${className ?? ""}`}
+      className={`relative flex flex-col gap-2 border-t border-border/50 bg-background/95 p-2 sm:p-4 ${className ?? ""}`}
     >
       {/* The three states of this bar are one thing changing, not three
           things appearing. AnimatePresence keeps the outgoing state
@@ -534,9 +537,9 @@ function ThreadChatControls({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="order-1 rounded-xl border bg-muted/30 p-3"
+            className="order-1 rounded-xl border bg-muted/30 p-2.5 sm:p-3"
           >
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <IconMessageChatbot className="size-5" />
@@ -550,7 +553,7 @@ function ThreadChatControls({
                   </Typography>
                 </div>
               </div>
-              <div className="ml-auto flex shrink-0 items-center gap-3">
+              <div className="flex w-full min-w-0 items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:shrink-0 sm:gap-3">
                 {canReassign && (
                   <ReassignAgentSelect
                     agents={agents}
@@ -600,9 +603,12 @@ function ThreadChatControls({
             className="order-2 space-y-2"
           >
             <div className="overflow-hidden rounded-xl border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30">
-              <div className="flex items-center gap-1.5 border-b border-amber-300/80 bg-amber-100/60 px-3 py-1.5 text-xs font-bold text-amber-800 dark:border-amber-700/70 dark:bg-amber-950/40 dark:text-amber-100">
-                <IconLock className="size-3.5 text-amber-700 dark:text-amber-300" />
-                Internal note only — visible to your team, never to the customer
+              <div className="flex items-start gap-1.5 border-b border-amber-300/80 bg-amber-100/60 px-3 py-1.5 text-xs font-bold leading-snug text-amber-800 dark:border-amber-700/70 dark:bg-amber-950/40 dark:text-amber-100">
+                <IconLock className="mt-0.5 size-3.5 shrink-0 text-amber-700 dark:text-amber-300" />
+                <span>
+                  Internal note only — visible to your team, never to the
+                  customer
+                </span>
               </div>
               <div className="px-3 pt-1">
                 <textarea
@@ -725,7 +731,7 @@ function ThreadChatControls({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="order-1 flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 p-3"
+              className="order-1 flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/30 p-2.5 sm:flex-row sm:items-center sm:justify-between sm:p-3"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -738,7 +744,7 @@ function ThreadChatControls({
                   <Typography variant="muted">AI is paused</Typography>
                 </div>
               </div>
-              <div className="flex shrink-0 items-center gap-3">
+              <div className="flex w-full min-w-0 items-center justify-end gap-1.5 sm:w-auto sm:shrink-0 sm:gap-3">
                 {canReassign && (
                   <ReassignAgentSelect
                     agents={agents}
@@ -928,7 +934,7 @@ function ThreadChatControls({
               </div>
 
               {/* Toolbar: emoji + attach + hint on the left, send on the right */}
-              <div className="flex items-center gap-1 p-2">
+              <div className="flex flex-wrap items-center gap-1 p-2">
                 <Button
                   type="button"
                   variant="secondary"
@@ -996,15 +1002,23 @@ function ThreadChatControls({
                     ? "Uploading attachment…"
                     : "Enter to send · Shift + Enter for a new line"}
                 </Typography>
-                <div className="ml-auto flex shrink-0 items-center gap-2">
+                <div className="flex w-full min-w-0 items-center justify-end gap-2 border-t border-border/50 pt-2 sm:ml-auto sm:w-auto sm:shrink-0 sm:border-0 sm:pt-0">
                   {attachedProducts.length > 0 && (
-                    <Typography variant="muted" as="span">
+                    <Typography
+                      variant="muted"
+                      as="span"
+                      className="hidden md:inline"
+                    >
                       {attachedProducts.length} product
                       {attachedProducts.length > 1 ? "s" : ""}
                     </Typography>
                   )}
                   {attachments.length > 0 && (
-                    <Typography variant="muted" as="span">
+                    <Typography
+                      variant="muted"
+                      as="span"
+                      className="hidden md:inline"
+                    >
                       {attachments.length} attached
                     </Typography>
                   )}
@@ -1017,7 +1031,10 @@ function ThreadChatControls({
                     title="Save this text as an internal note"
                   >
                     <IconNote className="size-4" />
-                    Send as Internal Note
+                    <span className="hidden sm:inline">
+                      Send as Internal Note
+                    </span>
+                    <span className="sm:hidden">Note</span>
                   </Button>
                   <Button
                     type="button"
@@ -2625,7 +2642,10 @@ export default function Support() {
                     ) : null}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-80 p-0">
+                <PopoverContent
+                  align="end"
+                  className="w-[calc(100vw-2rem)] max-w-80 p-0"
+                >
                   <div className="border-b px-4 py-3">
                     <CardTitle>Filter Conversations</CardTitle>
                   </div>
@@ -2908,8 +2928,8 @@ export default function Support() {
         {activeThreadId ? (
           <div className="flex h-full min-h-0">
             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-              <header className="flex h-16 shrink-0 items-center border-b bg-background px-4">
-                <div className="flex w-full items-center justify-between gap-3">
+              <header className="flex h-16 shrink-0 items-center border-b bg-background px-2 sm:px-4">
+                <div className="flex min-w-0 w-full items-center justify-between gap-1.5 sm:gap-3">
                   <div className="flex min-w-0 flex-1 items-center gap-2.5">
                     <Button
                       variant="ghost"
@@ -2972,22 +2992,26 @@ export default function Support() {
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-3">
+                  <div className="flex shrink-0 items-center gap-1 sm:gap-3">
                     <CustomerDetailsButton
                       onClick={() => setIsDetailsOpen(true)}
                     />
                     <Button
                       variant="outline"
                       size="sm"
+                      className="px-2 sm:px-3"
+                      aria-label="Create ticket"
                       onClick={() => setIsCreateTicketOpen(true)}
                     >
                       <IconTicket className="size-4" />
-                      Create Ticket
+                      <span className="hidden sm:inline">Create Ticket</span>
                     </Button>
                     {selectedThread?.is_active && canHandleChats && (
                       <Button
                         variant="outline"
                         size="sm"
+                        className="px-2 sm:px-3"
+                        aria-label="Close chat"
                         // Only the agent the chat is assigned to may close it.
                         disabled={
                           !session?.user?.email ||
@@ -3001,7 +3025,7 @@ export default function Support() {
                         onClick={() => setIsCloseChatOpen(true)}
                       >
                         <IconMessageOff className="size-4" />
-                        Close Chat
+                        <span className="hidden sm:inline">Close Chat</span>
                       </Button>
                     )}
                   </div>
@@ -3014,7 +3038,7 @@ export default function Support() {
                   </div>
                 ) : (
                   <div className="flex min-h-0 flex-1 flex-col">
-                    <div className="flex-1 min-h-0 overflow-y-auto p-3">
+                    <div className="min-h-0 flex-1 overflow-y-auto p-1 sm:p-3">
                       {threadMessages.length > 0 ? (
                         <MessagePan
                           messages={threadMessages}

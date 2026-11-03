@@ -204,7 +204,7 @@ export function CustomerDetailsPanel({
         <Sheet open={Boolean(open)} onOpenChange={onOpenChange}>
           <SheetContent
             side="right"
-            className="w-full gap-0 p-0 data-[side=right]:sm:max-w-md xl:hidden"
+            className="h-dvh max-h-dvh w-full gap-0 overflow-hidden p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md xl:hidden"
           >
             <SheetHeader className="border-b">
               <SheetTitle>
