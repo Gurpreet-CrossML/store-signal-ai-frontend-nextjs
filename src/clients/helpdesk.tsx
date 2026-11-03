@@ -1577,6 +1577,26 @@ function ConversationPanel({
                     <div className="rich-text-render text-sm leading-6 [overflow-wrap:anywhere] text-foreground">
                       <ReactMarkdown>{message.message}</ReactMarkdown>
                     </div>
+                    {/* What the customer actually received, so a wrong
+                        language is caught and fixed via the language chip. */}
+                    {message.metadata?.translated_message ? (
+                      <div className="mt-2 border-t border-primary/20 pt-2">
+                        <Typography
+                          variant="caption"
+                          as="p"
+                          className="mb-1 flex items-center gap-1.5"
+                        >
+                          <IconLanguage className="size-3.5" />
+                          Sent in{" "}
+                          {message.metadata.translated_message.language_name}
+                        </Typography>
+                        <div className="rich-text-render text-sm leading-6 [overflow-wrap:anywhere] text-foreground">
+                          <ReactMarkdown>
+                            {message.metadata.translated_message.message}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    ) : null}
                     <Typography
                       variant="caption"
                       as="div"
