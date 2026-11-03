@@ -118,6 +118,10 @@ import {
   HiddenTagsBadge,
   TagBadge,
 } from "@/components/custom/helpdesk/tag-badge";
+import {
+  TicketSla,
+  TicketSlaIndicator,
+} from "@/components/custom/helpdesk/ticket-sla";
 import { DateRangePicker } from "@/components/custom/date-range-picker";
 import { LoadingState } from "@/components/custom/loading-state";
 import { SearchInput } from "@/components/custom/search-input";
@@ -277,9 +281,15 @@ function TicketRow({
         ticket.last_message_at || ticket.created_at,
       )}
       indicator={
-        ticket.is_snoozed ? (
-          <IconAlarmSnoozeFilled className="size-3 text-primary" />
-        ) : null
+        <>
+          {/* Only a ticket being worked on can be late. */}
+          {ticket.status === "open" || ticket.status === "reopen" ? (
+            <TicketSlaIndicator sla={ticket.sla} />
+          ) : null}
+          {ticket.is_snoozed ? (
+            <IconAlarmSnoozeFilled className="size-3 text-primary" />
+          ) : null}
+        </>
       }
       // Who it is from, and nothing else. The subject above already says
       // what the ticket is about, so a teaser of the latest message only
@@ -1460,6 +1470,9 @@ function ConversationPanel({
             </Popover>
           </div>
         </div>
+
+        {/* The SLA the ticket follows, and the tag that triggered it. */}
+        <TicketSla sla={ticket.sla} />
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
@@ -2415,6 +2428,24 @@ export default function HelpDesk() {
 
         if (!payload.ticket) return;
 
+        // An agent's reply or a status change moved the ticket's SLA: update
+        // its timers on the list and in the open ticket's header, nothing else.
+        if (payload.event === "ticket_sla_updated") {
+          const slaTicketId = payload.ticket.id;
+          const sla = payload.ticket.sla ?? null;
+          setTicketRows((currentRows) =>
+            currentRows.map((row) =>
+              row.id === slaTicketId ? { ...row, sla } : row,
+            ),
+          );
+          setActiveSupportTicket((current) =>
+            current && current.id === slaTicketId
+              ? { ...current, sla }
+              : current,
+          );
+          return;
+        }
+
         dispatch(refreshFilterCounts());
 
         if (payload.event === "ticket_created") {
@@ -2497,6 +2528,13 @@ export default function HelpDesk() {
           if (currentActiveSupportTicketIdRef.current === incomingTicket.id) {
             appendSocketMessage(incomingTicket.id, incomingMessage);
             void handleSupportTicketMarkRead();
+            // The message may have started a new wait for a reply: the open
+            // ticket's header follows its list row.
+            setActiveSupportTicket((current) =>
+              current && current.id === incomingTicket.id
+                ? { ...current, sla: incomingTicket.sla ?? null }
+                : current,
+            );
           }
         }
       };
@@ -2963,7 +3001,11 @@ export default function HelpDesk() {
           current.map((ticket) =>
             ticket.id === currentActiveSupportTicketIdRef.current &&
             !ticket.tags.some((existing) => existing.id === assignedTag.id)
-              ? { ...ticket, tags: [...ticket.tags, assignedTag] }
+              ? {
+                  ...ticket,
+                  tags: [...ticket.tags, assignedTag],
+                  sla: assignedTag.ticket_sla ?? null,
+                }
               : ticket,
           ),
         );
@@ -2978,6 +3020,8 @@ export default function HelpDesk() {
           return {
             ...current,
             tags: [...current.tags, assignedTag],
+            // The tag may change which SLA the ticket follows.
+            sla: assignedTag.ticket_sla ?? null,
           };
         });
 
@@ -3013,6 +3057,7 @@ export default function HelpDesk() {
               ? {
                   ...ticket,
                   tags: ticket.tags.filter((tag) => tag.id !== tagId),
+                  sla: assignedTag.ticket_sla ?? null,
                 }
               : ticket,
           ),
@@ -3023,6 +3068,7 @@ export default function HelpDesk() {
             ? {
                 ...current,
                 tags: current.tags.filter((tag) => tag.id !== assignedTag.id),
+                sla: assignedTag.ticket_sla ?? null,
               }
             : current,
         );
