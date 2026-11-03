@@ -278,33 +278,49 @@ function ReassignAgentSelect({
   if (agents.length === 0) return null;
 
   return (
-    // Shows who the chat is assigned to ("Unassigned" while the AI has it);
-    // picking an agent assigns or reassigns it.
-    <Select
-      value={currentAgent ?? ""}
-      onValueChange={(email) => {
-        if (email !== currentAgent) onReassign(email);
-      }}
-      disabled={disabled}
-    >
-      <SelectTrigger size="sm" aria-label="Reassign chat" className="w-fit">
-        <SelectValue placeholder="Unassigned" />
-      </SelectTrigger>
-      <SelectContent>
-        {agents.map((agent) => (
-          <SelectItem
-            key={agent.email}
-            value={agent.email}
-            disabled={agent.disabled}
-          >
-            <span className="flex items-center gap-2">
-              {agent.name}
-              {agent.isAdmin && <AdminBadge />}
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="flex items-center gap-3">
+      {!currentAgent && (
+        <span className="text-sm font-medium text-muted-foreground">
+          Assignee
+        </span>
+      )}
+      <Select
+        value={currentAgent ?? ""}
+        onValueChange={(email) => {
+          if (email !== currentAgent) onReassign(email);
+        }}
+        disabled={disabled}
+      >
+        <SelectTrigger
+          size={currentAgent ? "sm" : "default"}
+          aria-label="Reassign chat"
+          className={cn(
+            "w-fit",
+            !currentAgent &&
+              "h-12 rounded-full border-border px-4 text-base [&_svg]:size-5",
+          )}
+        >
+          {!currentAgent && (
+            <span className="size-7 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40" />
+          )}
+          <SelectValue placeholder="Unassigned" />
+        </SelectTrigger>
+        <SelectContent>
+          {agents.map((agent) => (
+            <SelectItem
+              key={agent.email}
+              value={agent.email}
+              disabled={agent.disabled}
+            >
+              <span className="flex items-center gap-2">
+                {agent.name}
+                {agent.isAdmin && <AdminBadge />}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
@@ -488,9 +504,9 @@ function ThreadChatControls({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="mt-2 space-y-2"
           >
-            <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm">
-              <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-3 py-1.5 text-xs font-bold text-muted-foreground">
-                <IconLock className="size-3.5 text-primary" />
+            <div className="overflow-hidden rounded-xl border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30">
+              <div className="flex items-center gap-1.5 border-b border-amber-300/80 bg-amber-100/60 px-3 py-1.5 text-xs font-bold text-amber-800 dark:border-amber-700/70 dark:bg-amber-950/40 dark:text-amber-100">
+                <IconLock className="size-3.5 text-amber-700 dark:text-amber-300" />
                 Internal note only — visible to your team, never to the customer
               </div>
               <div className="px-3 pt-1">
@@ -513,7 +529,7 @@ function ThreadChatControls({
                 <Typography
                   variant="muted"
                   as="span"
-                  className="ml-1 hidden truncate font-semibold sm:inline"
+                  className="ml-1 hidden truncate font-semibold text-amber-800 sm:inline dark:text-amber-100"
                 >
                   Enter to save note · Shift + Enter for a new line
                 </Typography>
@@ -528,6 +544,7 @@ function ThreadChatControls({
                       transitionState !== "idle"
                     }
                     title="Save internal note"
+                    className="bg-amber-700 text-white hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-500"
                   >
                     {isSavingInternalNote ? (
                       <Spinner className="size-4" />
