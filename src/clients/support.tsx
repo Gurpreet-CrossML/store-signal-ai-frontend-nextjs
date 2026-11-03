@@ -76,17 +76,20 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { FetchStaff } from "@/redux/api-slice/tenancy-slice";
 import { type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import {
   IconAlertTriangle,
   IconArrowLeft,
+  IconChevronDown,
+  IconChevronUp,
   IconFilter,
   IconHeadset,
   IconLock,
@@ -263,6 +266,24 @@ function AdminBadge() {
 // permission). Viewers and content managers can't be assigned a chat.
 const CHAT_HANDLER_ROLES = ["supervisor", "agent"];
 
+const ASSIGNEE_AVATAR_STYLES = [
+  "bg-blue-600",
+  "bg-teal-600",
+  "bg-violet-600",
+  "bg-orange-600",
+  "bg-rose-600",
+  "bg-cyan-600",
+  "bg-emerald-600",
+];
+
+function getAssigneeAvatarStyle(value: string) {
+  const hash = Array.from(value).reduce(
+    (total, character) => total + character.charCodeAt(0),
+    0,
+  );
+  return ASSIGNEE_AVATAR_STYLES[hash % ASSIGNEE_AVATAR_STYLES.length];
+}
+
 // /** Admin and supervisor control to hand a taken chat to another agent. */
 function ReassignAgentSelect({
   agents,
@@ -275,6 +296,8 @@ function ReassignAgentSelect({
   disabled: boolean;
   onReassign: (email: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+
   if (agents.length === 0) return null;
 
   const currentAgentOption = agents.find(
@@ -286,48 +309,106 @@ function ReassignAgentSelect({
     .join("")
     .slice(0, 2)
     .toUpperCase();
+  const currentAgentAvatarStyle = currentAgent
+    ? getAssigneeAvatarStyle(currentAgent)
+    : "";
 
   return (
     <div className="flex items-center gap-3">
       <span className="text-sm font-medium text-muted-foreground">
         Assignee
       </span>
-      <Select
-        value={currentAgent ?? ""}
-        onValueChange={(email) => {
-          if (email !== currentAgent) onReassign(email);
-        }}
-        disabled={disabled}
-      >
-        <SelectTrigger
-          size="sm"
-          aria-label="Reassign chat"
-          className="h-10 w-fit rounded-full border-border px-2.5 text-sm [&_svg]:size-4"
-        >
-          {currentAgent ? (
-            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
-              {currentAgentInitials}
-            </span>
-          ) : (
-            <span className="size-6 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40" />
-          )}
-          <SelectValue placeholder="Unassigned" />
-        </SelectTrigger>
-        <SelectContent>
-          {agents.map((agent) => (
-            <SelectItem
-              key={agent.email}
-              value={agent.email}
-              disabled={agent.disabled}
-            >
-              <span className="flex items-center gap-2">
-                {agent.name}
-                {agent.isAdmin && <AdminBadge />}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            aria-label="Choose assignee"
+            className={cn(
+              "h-10 rounded-full border-border px-2.5 text-sm",
+              open && "border-primary ring-2 ring-primary/15",
+            )}
+          >
+            {currentAgent ? (
+              <span
+                className={cn(
+                  "flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white",
+                  currentAgentAvatarStyle,
+                )}
+              >
+                {currentAgentInitials}
               </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+            ) : (
+              <span className="size-6 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40" />
+            )}
+            <span className="max-w-45 truncate">
+              {currentAgentOption?.name || "Unassigned"}
+            </span>
+            {open ? (
+              <IconChevronUp className="size-4 shrink-0" />
+            ) : (
+              <IconChevronDown className="size-4 shrink-0" />
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-90 p-1">
+          <Command>
+            <CommandInput placeholder="Search teammates" />
+            <CommandList>
+              <CommandEmpty>No teammates found.</CommandEmpty>
+              <CommandItem
+                value="Unassigned"
+                onSelect={() => {
+                  if (currentAgent) onReassign("");
+                  setOpen(false);
+                }}
+                className="gap-3 py-2"
+              >
+                <span className="size-8 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40" />
+                <span className="flex-1">Unassigned</span>
+                {!currentAgent && <span className="text-primary">✓</span>}
+              </CommandItem>
+              <CommandGroup heading="Team">
+                {agents.map((agent) => (
+                  <CommandItem
+                    key={agent.email}
+                    value={`${agent.name} ${agent.email}`}
+                    disabled={agent.disabled}
+                    onSelect={() => {
+                      if (agent.email !== currentAgent) onReassign(agent.email);
+                      setOpen(false);
+                    }}
+                    className="gap-3 py-2"
+                  >
+                    <span
+                      className={cn(
+                        "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white",
+                        getAssigneeAvatarStyle(agent.email),
+                      )}
+                    >
+                      {agent.name
+                        .split(" ")
+                        .map((part) => part[0])
+                        .join("")
+                        .slice(0, 2)
+                        .toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {agent.name}
+                    </span>
+                    {agent.isAdmin && <AdminBadge />}
+                    {agent.email === currentAgent && (
+                      <span className="text-primary">✓</span>
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
@@ -1578,12 +1659,13 @@ export default function Support() {
       }
 
       try {
-        setTransitionState("taking_over");
+        const assigningToAI = !email;
+        setTransitionState(assigningToAI ? "returning_to_ai" : "taking_over");
         wsRef.current.send(
           JSON.stringify({
             action_type: "handler_change",
-            chat_handler: "human",
-            chat_handler_user: email,
+            chat_handler: assigningToAI ? "ai" : "human",
+            ...(assigningToAI ? {} : { chat_handler_user: email }),
           }),
         );
       } catch (error) {
