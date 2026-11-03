@@ -80,13 +80,17 @@ function showDesktopNotification(
   notification: AgentNotification,
   onOpen: () => void,
 ) {
-  // Native notifications are only useful when the agent has moved away from
-  // this tab. The in-app toast remains the notification while it is visible.
   if (
     typeof window === "undefined" ||
-    document.visibilityState === "visible" ||
+    !("Notification" in window) ||
     Notification.permission !== "granted"
   ) {
+    return;
+  }
+
+  const isLiveSupportPage = window.location.pathname.startsWith("/support");
+
+  if (isLiveSupportPage && document.visibilityState === "visible") {
     return;
   }
 
