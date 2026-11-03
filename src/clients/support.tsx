@@ -277,13 +277,21 @@ function ReassignAgentSelect({
 }) {
   if (agents.length === 0) return null;
 
+  const currentAgentOption = agents.find(
+    (agent) => agent.email === currentAgent,
+  );
+  const currentAgentInitials = (currentAgentOption?.name || "A")
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <div className="flex items-center gap-3">
-      {!currentAgent && (
-        <span className="text-sm font-medium text-muted-foreground">
-          Assignee
-        </span>
-      )}
+      <span className="text-sm font-medium text-muted-foreground">
+        Assignee
+      </span>
       <Select
         value={currentAgent ?? ""}
         onValueChange={(email) => {
@@ -292,16 +300,16 @@ function ReassignAgentSelect({
         disabled={disabled}
       >
         <SelectTrigger
-          size={currentAgent ? "sm" : "default"}
+          size="sm"
           aria-label="Reassign chat"
-          className={cn(
-            "w-fit",
-            !currentAgent &&
-              "h-12 rounded-full border-border px-4 text-base [&_svg]:size-5",
-          )}
+          className="h-10 w-fit rounded-full border-border px-2.5 text-sm [&_svg]:size-4"
         >
-          {!currentAgent && (
-            <span className="size-7 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40" />
+          {currentAgent ? (
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+              {currentAgentInitials}
+            </span>
+          ) : (
+            <span className="size-6 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40" />
           )}
           <SelectValue placeholder="Unassigned" />
         </SelectTrigger>
@@ -430,7 +438,7 @@ function ThreadChatControls({
 
   return (
     <div
-      className={`relative border-t border-border/50 bg-background/95 p-4 ${className ?? ""}`}
+      className={`relative flex flex-col gap-2 border-t border-border/50 bg-background/95 p-4 ${className ?? ""}`}
     >
       {/* The three states of this bar are one thing changing, not three
           things appearing. AnimatePresence keeps the outgoing state
@@ -445,7 +453,7 @@ function ThreadChatControls({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="rounded-xl border bg-muted/30 p-3"
+            className="order-1 rounded-xl border bg-muted/30 p-3"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
@@ -461,33 +469,39 @@ function ThreadChatControls({
                   </Typography>
                 </div>
               </div>
-              {canReassign && (
-                <ReassignAgentSelect
-                  agents={agents}
-                  currentAgent={null}
-                  disabled={transitionState !== "idle" || !chatSocketReady}
-                  onReassign={onReassign}
-                />
-              )}
-              {activeThreadId && !canReassign && connectedAgent !== user && (
-                // Same layoutId as Return to AI: framer treats the two as one
-                // element and slides it from here into the composer, so the
-                // control an agent just pressed is visibly where it went.
-                <motion.div layoutId={HANDOVER_ACTION_ID} className="shrink-0">
-                  <Button
-                    type="button"
-                    onClick={onTakeOver}
-                    disabled={
-                      transitionState !== "idle" ||
-                      !chatSocketReady ||
-                      !!(connectedAgent && connectedAgent !== user)
-                    }
+              <div className="ml-auto flex shrink-0 items-center gap-3">
+                {canReassign && (
+                  <ReassignAgentSelect
+                    agents={agents}
+                    currentAgent={null}
+                    disabled={transitionState !== "idle" || !chatSocketReady}
+                    onReassign={onReassign}
+                  />
+                )}
+                {activeThreadId && (
+                  // Same layoutId as Return to AI: framer treats the two as one
+                  // element and slides it from here into the composer, so the
+                  // control an agent just pressed is visibly where it went.
+                  <motion.div
+                    layoutId={HANDOVER_ACTION_ID}
+                    className="shrink-0"
                   >
-                    <IconHeadset className="h-4 w-4" />
-                    Take Over
-                  </Button>
-                </motion.div>
-              )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={onTakeOver}
+                      disabled={
+                        transitionState !== "idle" ||
+                        !chatSocketReady ||
+                        !!(connectedAgent && connectedAgent !== user)
+                      }
+                    >
+                      <IconHeadset className="h-4 w-4" />
+                      Take Over
+                    </Button>
+                  </motion.div>
+                )}
+              </div>
             </div>
           </motion.div>
         )}
@@ -495,14 +509,14 @@ function ThreadChatControls({
         {/* LC-02: while the AI handles the chat the composer only takes
             internal notes (staff-only; the customer never sees them). The
             Take Over card above is untouched. */}
-        {!connectedAgent && (
+        {(!connectedAgent || connectedAgent !== user) && (
           <motion.div
-            key="ai-note-composer"
+            key="internal-note-composer"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="mt-2 space-y-2"
+            className="order-2 space-y-2"
           >
             <div className="overflow-hidden rounded-xl border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30">
               <div className="flex items-center gap-1.5 border-b border-amber-300/80 bg-amber-100/60 px-3 py-1.5 text-xs font-bold text-amber-800 dark:border-amber-700/70 dark:bg-amber-950/40 dark:text-amber-100">
@@ -566,7 +580,7 @@ function ThreadChatControls({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 p-3"
+            className="order-1 flex items-center justify-between gap-3 rounded-xl border bg-muted/30 p-3"
           >
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -575,7 +589,7 @@ function ThreadChatControls({
               <div className="min-w-0">
                 <Typography variant="small" as="p" className="leading-normal">
                   <span className="inline-flex items-center gap-2">
-                    Taken by {connectedAgentName || connectedAgent}
+                    {connectedAgentName || connectedAgent} is replying
                     {agents.find((a) => a.email === connectedAgent)
                       ?.isAdmin && <AdminBadge />}
                   </span>
@@ -583,268 +597,67 @@ function ThreadChatControls({
                 <Typography variant="muted">
                   {lockedByAdmin
                     ? "Only an admin can reassign this chat."
-                    : "Only the connected agent can reply right now."}
+                    : canReassign
+                      ? "AI is paused · As an admin, you can take over or reassign."
+                      : `AI is paused · You can add internal notes for ${connectedAgentName || "this agent"}.`}
                 </Typography>
               </div>
             </div>
-            {canReassign && (
-              <ReassignAgentSelect
-                agents={agents}
-                currentAgent={connectedAgent}
-                disabled={
-                  transitionState !== "idle" ||
-                  !chatSocketReady ||
-                  lockedByAdmin
-                }
-                onReassign={onReassign}
-              />
-            )}
+            <div className="ml-auto flex shrink-0 items-center gap-3">
+              {canReassign && (
+                <ReassignAgentSelect
+                  agents={agents}
+                  currentAgent={connectedAgent}
+                  disabled={
+                    transitionState !== "idle" ||
+                    !chatSocketReady ||
+                    lockedByAdmin
+                  }
+                  onReassign={onReassign}
+                />
+              )}
+              {canReassign && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={onTakeOver}
+                  disabled={
+                    transitionState !== "idle" ||
+                    !chatSocketReady ||
+                    lockedByAdmin
+                  }
+                >
+                  <IconHeadset className="h-4 w-4" />
+                  Take over
+                </Button>
+              )}
+            </div>
           </motion.div>
         )}
 
         {connectedAgent === user && (
-          <motion.div
-            key="composer"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm"
-          >
-            {isEmojiPickerOpen && (
-              <div className="border-b border-border/50 p-2">
-                <EmojiPicker
-                  onEmojiClick={handleEmojiClick}
-                  width="100%"
-                  height={320}
-                  theme={Theme.AUTO}
-                  previewConfig={{ showPreview: false }}
-                  searchPlaceholder="Search emoji…"
-                />
-              </div>
-            )}
-
-            {attachedProducts.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 border-b border-border/50 p-2">
-                {attachedProducts.map((product, idx) => (
-                  <div
-                    key={`${product.id}-${idx}`}
-                    className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/60 py-1 pl-1.5 pr-2 text-xs text-foreground"
-                  >
-                    {product.image ? (
-                      <Image
-                        src={product.image}
-                        alt={product.name}
-                        width={20}
-                        height={20}
-                        unoptimized
-                        className="size-5 rounded object-contain bg-background shrink-0"
-                      />
-                    ) : (
-                      <IconShoppingBag className="size-4 text-muted-foreground shrink-0" />
-                    )}
-                    <span className="max-w-[120px] truncate font-medium">
-                      {product.name}
-                    </span>
-                    {product.price && (
-                      <span className="text-muted-foreground text-[10px]">
-                        {product.price}
-                      </span>
-                    )}
-                    {setAttachedProducts && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAttachedProducts(
-                            attachedProducts.filter((p) => p.id !== product.id),
-                          )
-                        }
-                        className="ml-0.5 text-muted-foreground hover:text-foreground"
-                      >
-                        <IconX className="size-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {attachments.length > 0 && (
-              <div className="flex flex-wrap gap-2 border-b border-border/50 p-2">
-                {attachments.map((attachment) => {
-                  const isImage = attachment.file.type.startsWith("image/");
-                  const isUploading = attachment.status === "uploading";
-                  const isError = attachment.status === "error";
-
-                  return (
-                    <div
-                      key={attachment.id}
-                      className="group relative flex items-center gap-2 rounded-xl border border-border/60 bg-muted/60 py-1.5 pl-1.5 pr-2.5 text-xs text-muted-foreground"
-                    >
-                      <div className="relative h-8 w-8 shrink-0">
-                        {isImage ? (
-                          <Image
-                            src={attachment.previewUrl}
-                            alt={attachment.file.name}
-                            width={32}
-                            height={32}
-                            unoptimized
-                            className={`h-8 w-8 rounded-lg object-cover ${
-                              isUploading ? "opacity-40" : ""
-                            } ${isError ? "opacity-60" : ""}`}
-                          />
-                        ) : (
-                          <div
-                            className={`flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 ${
-                              isUploading ? "opacity-40" : ""
-                            }`}
-                          >
-                            <IconPaperclip className="h-4 w-4" />
-                          </div>
-                        )}
-                        {isUploading && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Spinner className="size-4" />
-                          </div>
-                        )}
-                        {isError && (
-                          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/60">
-                            <IconAlertTriangle className="size-4 text-destructive" />
-                          </div>
-                        )}
-                      </div>
-                      <span className="max-w-35 truncate">
-                        {attachment.file.name}
-                      </span>
-                      {isError && (
-                        <button
-                          type="button"
-                          className="font-medium text-primary underline-offset-2 hover:underline"
-                          onClick={() => onRetryAttachment(attachment.id)}
-                        >
-                          Retry
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        disabled={isUploading}
-                        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-0"
-                        onClick={() => onRemoveAttachment(attachment.id)}
-                        title={isUploading ? "Uploading…" : "Remove attachment"}
-                      >
-                        <IconX className="h-3 w-3" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Text input row */}
-            <div className="px-3 pt-3">
-              <textarea
-                ref={textareaRef}
-                rows={1}
-                placeholder={
-                  isUploadingAttachments
-                    ? "Uploading image…"
-                    : "Type your reply…"
-                }
-                value={composerMessage}
-                disabled={inputsDisabled}
-                onChange={(event) => setComposerMessage(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    onSendAgentMessage();
-                  }
-                }}
-                className="max-h-30 w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
-              />
-            </div>
-
-            {/* Toolbar: emoji + attach + hint on the left, send on the right */}
-            <div className="flex items-center gap-1 p-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon-sm"
-                disabled={inputsDisabled}
-                aria-pressed={isEmojiPickerOpen}
-                className={
-                  isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined
-                }
-                onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                title="Add emoji"
-              >
-                <IconMoodSmile className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon-sm"
-                disabled={inputsDisabled}
-                onClick={() => fileInputRef.current?.click()}
-                title="Attach image or file"
-              >
-                <IconPaperclip className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon-sm"
-                disabled={inputsDisabled}
-                onClick={() => setIsProductPickerOpen(true)}
-                title="Attach products (max 10)"
-                className={
-                  attachedProducts.length > 0
-                    ? "text-primary border-primary/40 ring-1 ring-primary/40"
-                    : undefined
-                }
-              >
-                <IconShoppingBag className="size-4" />
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*"
-                disabled={inputsDisabled}
-                onChange={onFileSelection}
-                className="hidden"
-              />
-              {setAttachedProducts && storeCode && (
-                <AttachProductsDialog
-                  open={isProductPickerOpen}
-                  onOpenChange={setIsProductPickerOpen}
-                  storeCode={storeCode}
-                  selectedProducts={attachedProducts}
-                  onApplyProducts={setAttachedProducts}
-                  maxProducts={10}
-                />
-              )}
-              <Typography
-                variant="muted"
-                as="span"
-                className="ml-2 hidden truncate sm:inline"
-              >
-                {isUploadingAttachments
-                  ? "Uploading attachment…"
-                  : "Enter to send · Shift + Enter for a new line"}
-              </Typography>
-              <div className="ml-auto flex shrink-0 items-center gap-2">
-                {attachedProducts.length > 0 && (
-                  <Typography variant="muted" as="span">
-                    {attachedProducts.length} product
-                    {attachedProducts.length > 1 ? "s" : ""}
+          <>
+            <motion.div
+              key="agent-status"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="order-1 flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 p-3"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <IconHeadset className="size-5" />
+                </div>
+                <div className="min-w-0">
+                  <Typography variant="small" as="p" className="leading-normal">
+                    You&apos;re replying
                   </Typography>
-                )}
-                {attachments.length > 0 && (
-                  <Typography variant="muted" as="span">
-                    {attachments.length} attached
-                  </Typography>
-                )}
-                {canReassign && connectedAgent && (
+                  <Typography variant="muted">AI is paused</Typography>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                {canReassign && (
                   <ReassignAgentSelect
                     agents={agents}
                     currentAgent={connectedAgent}
@@ -852,49 +665,296 @@ function ThreadChatControls({
                     onReassign={onReassign}
                   />
                 )}
-                {/* Sits beside Send because it's the other thing an agent can
-                  do from here: hand the conversation back instead of
-                  replying. Outline keeps Send the primary action. */}
                 <motion.div layoutId={HANDOVER_ACTION_ID} className="shrink-0">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="border-primary text-primary hover:bg-primary/10 hover:text-primary"
                     onClick={onReturnToAI}
                     disabled={transitionState !== "idle" || !chatSocketReady}
                   >
                     <IconRobot className="size-4" />
-                    Return to AI
+                    Hand back to AI
                   </Button>
                 </motion.div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              key="composer"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="order-2 overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm"
+            >
+              {isEmojiPickerOpen && (
+                <div className="border-b border-border/50 p-2">
+                  <EmojiPicker
+                    onEmojiClick={handleEmojiClick}
+                    width="100%"
+                    height={320}
+                    theme={Theme.AUTO}
+                    previewConfig={{ showPreview: false }}
+                    searchPlaceholder="Search emoji…"
+                  />
+                </div>
+              )}
+
+              {attachedProducts.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 border-b border-border/50 p-2">
+                  {attachedProducts.map((product, idx) => (
+                    <div
+                      key={`${product.id}-${idx}`}
+                      className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/60 py-1 pl-1.5 pr-2 text-xs text-foreground"
+                    >
+                      {product.image ? (
+                        <Image
+                          src={product.image}
+                          alt={product.name}
+                          width={20}
+                          height={20}
+                          unoptimized
+                          className="size-5 rounded object-contain bg-background shrink-0"
+                        />
+                      ) : (
+                        <IconShoppingBag className="size-4 text-muted-foreground shrink-0" />
+                      )}
+                      <span className="max-w-[120px] truncate font-medium">
+                        {product.name}
+                      </span>
+                      {product.price && (
+                        <span className="text-muted-foreground text-[10px]">
+                          {product.price}
+                        </span>
+                      )}
+                      {setAttachedProducts && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAttachedProducts(
+                              attachedProducts.filter(
+                                (p) => p.id !== product.id,
+                              ),
+                            )
+                          }
+                          className="ml-0.5 text-muted-foreground hover:text-foreground"
+                        >
+                          <IconX className="size-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 border-b border-border/50 p-2">
+                  {attachments.map((attachment) => {
+                    const isImage = attachment.file.type.startsWith("image/");
+                    const isUploading = attachment.status === "uploading";
+                    const isError = attachment.status === "error";
+
+                    return (
+                      <div
+                        key={attachment.id}
+                        className="group relative flex items-center gap-2 rounded-xl border border-border/60 bg-muted/60 py-1.5 pl-1.5 pr-2.5 text-xs text-muted-foreground"
+                      >
+                        <div className="relative h-8 w-8 shrink-0">
+                          {isImage ? (
+                            <Image
+                              src={attachment.previewUrl}
+                              alt={attachment.file.name}
+                              width={32}
+                              height={32}
+                              unoptimized
+                              className={`h-8 w-8 rounded-lg object-cover ${
+                                isUploading ? "opacity-40" : ""
+                              } ${isError ? "opacity-60" : ""}`}
+                            />
+                          ) : (
+                            <div
+                              className={`flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 ${
+                                isUploading ? "opacity-40" : ""
+                              }`}
+                            >
+                              <IconPaperclip className="h-4 w-4" />
+                            </div>
+                          )}
+                          {isUploading && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Spinner className="size-4" />
+                            </div>
+                          )}
+                          {isError && (
+                            <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/60">
+                              <IconAlertTriangle className="size-4 text-destructive" />
+                            </div>
+                          )}
+                        </div>
+                        <span className="max-w-35 truncate">
+                          {attachment.file.name}
+                        </span>
+                        {isError && (
+                          <button
+                            type="button"
+                            className="font-medium text-primary underline-offset-2 hover:underline"
+                            onClick={() => onRetryAttachment(attachment.id)}
+                          >
+                            Retry
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={isUploading}
+                          className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-0"
+                          onClick={() => onRemoveAttachment(attachment.id)}
+                          title={
+                            isUploading ? "Uploading…" : "Remove attachment"
+                          }
+                        >
+                          <IconX className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Text input row */}
+              <div className="px-3 pt-3">
+                <textarea
+                  ref={textareaRef}
+                  rows={1}
+                  placeholder={
+                    isUploadingAttachments
+                      ? "Uploading image…"
+                      : "Type your reply…"
+                  }
+                  value={composerMessage}
+                  disabled={inputsDisabled}
+                  onChange={(event) => setComposerMessage(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      onSendAgentMessage();
+                    }
+                  }}
+                  className="max-h-30 w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </div>
+
+              {/* Toolbar: emoji + attach + hint on the left, send on the right */}
+              <div className="flex items-center gap-1 p-2">
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={onSendInternalNote}
-                  disabled={!canSaveInternalNote || isSavingInternalNote}
-                  title="Save this text as an internal note"
+                  variant="secondary"
+                  size="icon-sm"
+                  disabled={inputsDisabled}
+                  aria-pressed={isEmojiPickerOpen}
+                  className={
+                    isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined
+                  }
+                  onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                  title="Add emoji"
                 >
-                  <IconNote className="size-4" />
-                  Send as Internal Note
+                  <IconMoodSmile className="size-4" />
                 </Button>
                 <Button
                   type="button"
-                  size="sm"
-                  onClick={onSendAgentMessage}
-                  disabled={!canSend}
-                  title={
-                    isUploadingAttachments
-                      ? "Waiting for upload…"
-                      : "Send reply to customer"
+                  variant="secondary"
+                  size="icon-sm"
+                  disabled={inputsDisabled}
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Attach image or file"
+                >
+                  <IconPaperclip className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon-sm"
+                  disabled={inputsDisabled}
+                  onClick={() => setIsProductPickerOpen(true)}
+                  title="Attach products (max 10)"
+                  className={
+                    attachedProducts.length > 0
+                      ? "text-primary border-primary/40 ring-1 ring-primary/40"
+                      : undefined
                   }
                 >
-                  <IconSend className="size-4" />
-                  Send
+                  <IconShoppingBag className="size-4" />
                 </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  disabled={inputsDisabled}
+                  onChange={onFileSelection}
+                  className="hidden"
+                />
+                {setAttachedProducts && storeCode && (
+                  <AttachProductsDialog
+                    open={isProductPickerOpen}
+                    onOpenChange={setIsProductPickerOpen}
+                    storeCode={storeCode}
+                    selectedProducts={attachedProducts}
+                    onApplyProducts={setAttachedProducts}
+                    maxProducts={10}
+                  />
+                )}
+                <Typography
+                  variant="muted"
+                  as="span"
+                  className="ml-2 hidden truncate sm:inline"
+                >
+                  {isUploadingAttachments
+                    ? "Uploading attachment…"
+                    : "Enter to send · Shift + Enter for a new line"}
+                </Typography>
+                <div className="ml-auto flex shrink-0 items-center gap-2">
+                  {attachedProducts.length > 0 && (
+                    <Typography variant="muted" as="span">
+                      {attachedProducts.length} product
+                      {attachedProducts.length > 1 ? "s" : ""}
+                    </Typography>
+                  )}
+                  {attachments.length > 0 && (
+                    <Typography variant="muted" as="span">
+                      {attachments.length} attached
+                    </Typography>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={onSendInternalNote}
+                    disabled={!canSaveInternalNote || isSavingInternalNote}
+                    title="Save this text as an internal note"
+                  >
+                    <IconNote className="size-4" />
+                    Send as Internal Note
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={onSendAgentMessage}
+                    disabled={!canSend}
+                    title={
+                      isUploadingAttachments
+                        ? "Waiting for upload…"
+                        : "Send reply to customer"
+                    }
+                  >
+                    <IconSend className="size-4" />
+                    Send
+                  </Button>
+                </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
