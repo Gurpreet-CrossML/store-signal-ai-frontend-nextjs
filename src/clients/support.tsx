@@ -302,23 +302,27 @@ function getAgentInitials(name: string) {
 function ReassignAgentSelect({
   agents,
   currentAgent,
+  currentAgentName,
   disabled,
   onReassign,
 }: {
   agents: AgentOption[];
   currentAgent: string | null;
+  currentAgentName?: string | null;
   disabled: boolean;
   onReassign: (email: string) => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(false);
 
-  if (agents.length === 0) return null;
+  if (agents.length === 0 && !currentAgent) return null;
 
   const currentAgentOption = agents.find(
     (agent) => agent.email === currentAgent,
   );
-  const currentAgentInitials = (currentAgentOption?.name || "A")
+  const currentAgentDisplayName =
+    currentAgentOption?.name || currentAgentName || currentAgent || "Unassigned";
+  const currentAgentInitials = currentAgentDisplayName
     .split(" ")
     .map((part) => part[0])
     .join("")
@@ -345,9 +349,11 @@ function ReassignAgentSelect({
         <span className="size-5 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40 sm:size-6" />
       )}
       <span className="min-w-0 flex-1 truncate text-left sm:max-w-45 sm:flex-none">
-        {currentAgentOption?.name || "Unassigned"}
+        {currentAgentDisplayName}
       </span>
-      {open ? (
+      {disabled ? (
+        <IconLock className="size-4 shrink-0" />
+      ) : open ? (
         <IconChevronUp className="size-4 shrink-0" />
       ) : (
         <IconChevronDown className="size-4 shrink-0" />
@@ -495,6 +501,7 @@ function ThreadChatControls({
   connectedAgent,
   connectedAgentName,
   user,
+  userRole,
   canReassign = false,
   agents = [],
   chatSocketReady,
@@ -525,6 +532,7 @@ function ThreadChatControls({
   connectedAgent: string | null;
   connectedAgentName?: string | null;
   user: string | null;
+  userRole?: string | null;
   canReassign?: boolean;
   agents?: AgentOption[];
   chatSocketReady: boolean;
@@ -569,6 +577,7 @@ function ThreadChatControls({
   const heldByAdmin = !!agents.find((a) => a.email === connectedAgent)?.isAdmin;
   const iAmAdmin = !!agents.find((a) => a.email === user)?.isAdmin;
   const lockedByAdmin = heldByAdmin && !iAmAdmin;
+  const reassignRoleLabel = userRole === "supervisor" ? "supervisor" : "admin";
 
   const isUploadingAttachments = attachments.some(
     (attachment) => attachment.status === "uploading",
@@ -798,17 +807,19 @@ function ThreadChatControls({
                   {lockedByAdmin
                     ? "Only an admin can reassign this chat."
                     : canReassign
-                      ? "AI is paused · As an admin, you can take over or reassign."
+                      ? `AI is paused · As a ${reassignRoleLabel}, you can take over or reassign.`
                       : `AI is paused · You can add internal notes for ${connectedAgentName || "this agent"}.`}
                 </Typography>
               </div>
             </div>
             <div className="flex w-full min-w-0 shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:gap-3">
-              {canReassign && (
+              {(canReassign || Boolean(connectedAgent)) && (
                 <ReassignAgentSelect
                   agents={agents}
                   currentAgent={connectedAgent}
+                  currentAgentName={connectedAgentName}
                   disabled={
+                    !canReassign ||
                     transitionState !== "idle" ||
                     !chatSocketReady ||
                     lockedByAdmin
@@ -865,11 +876,16 @@ function ThreadChatControls({
               </div>
             </div>
             <div className="flex w-full min-w-0 shrink-0 items-center justify-end gap-1.5 sm:w-auto sm:gap-3">
-              {canReassign && (
+              {(canReassign || Boolean(connectedAgent)) && (
                 <ReassignAgentSelect
                   agents={agents}
                   currentAgent={connectedAgent}
-                  disabled={transitionState !== "idle" || !chatSocketReady}
+                  currentAgentName={connectedAgentName}
+                  disabled={
+                    !canReassign ||
+                    transitionState !== "idle" ||
+                    !chatSocketReady
+                  }
                   onReassign={onReassign}
                 />
               )}
@@ -3275,6 +3291,7 @@ export default function Support() {
                         connectedAgent={displayedConnectedAgent}
                         connectedAgentName={displayedConnectedAgentName}
                         user={session?.user?.email || null}
+                        userRole={session?.user?.role}
                         canReassign={canReassign}
                         agents={agents}
                         chatSocketReady={chatSocketReady}
