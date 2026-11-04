@@ -30,6 +30,16 @@ import type {
   UserMetadata,
 } from "@/redux/api-slice/thread-slice";
 
+function formatCustomerSince(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    year: "numeric",
+  });
+}
+
 /**
  * Opens the details as a sheet. Shown only below `xl`, where the docked
  * pane has no room and is hidden — without it the customer's orders,

@@ -164,6 +164,7 @@ type ThreadListRow = {
   customer_last_name: string | null;
   customer_email: string | null;
   customer_phone: string | null;
+  customer_registered_at: string | null;
   customer_past_threads_count: number;
   chat_handler: string;
   chat_handler_user_id: number | null;
@@ -185,6 +186,7 @@ export type ThreadListItem = {
     name: string | null;
     email: string | null;
     phone: string;
+    registered_at: string | null;
     past_threads_count: number;
   };
   followup_level: number;
@@ -286,6 +288,7 @@ export async function list_threads(
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
       customer_phone: chatCustomer.phone,
+      customer_registered_at: chatCustomer.registeredAt,
       customer_past_threads_count: pastThreadsCount,
       chat_handler: chatThread.chatHandler,
       chat_handler_user_id: authUser.id,
@@ -306,6 +309,7 @@ export async function list_threads(
       chatCustomer.lastName,
       chatCustomer.email,
       chatCustomer.phone,
+      chatCustomer.registeredAt,
       authUser.id,
       authUser.firstName,
       authUser.lastName,
@@ -414,6 +418,7 @@ export async function list_threads(
         name: hasCustomer ? customerName : null,
         email: row.customer_email,
         phone: row.customer_phone || "",
+        registered_at: row.customer_registered_at,
         past_threads_count: Number(row.customer_past_threads_count ?? 0),
       },
       followup_level: row.followup_level,
