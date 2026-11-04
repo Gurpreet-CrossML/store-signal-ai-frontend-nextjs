@@ -612,19 +612,15 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               </h3>
               <div className="space-y-3.5">
                 {improvements.map((item, index) => (
-                  <button
-                    type="button"
-                    className="flex w-full items-start gap-3 text-left text-sm leading-5 text-muted-foreground hover:text-foreground"
+                  <div
+                    className="flex w-full items-start gap-3 text-left text-sm leading-5 text-muted-foreground"
                     key={index}
                   >
                     <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
                       {index + 1}
                     </span>
-                    <span>
-                      {item}{" "}
-                      <span className="font-medium text-primary">Jump</span>
-                    </span>
-                  </button>
+                    <span>{item}</span>
+                  </div>
                 ))}
               </div>
             </div>
@@ -783,7 +779,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             size="icon-sm"
             aria-label="Back to Threads"
             onClick={() => router.back()}
-            className="mt-1.5 hidden lg:inline-flex"
+            className="mt-3 hidden lg:inline-flex"
           >
             <IconArrowLeft />
           </Button>

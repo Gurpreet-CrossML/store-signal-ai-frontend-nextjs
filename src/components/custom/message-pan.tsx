@@ -312,7 +312,7 @@ export default function MessagePan({
                     className={
                       isInternalNote
                         ? "flex max-w-[82%] items-start gap-2 rounded-lg border border-dashed border-amber-300/80 bg-amber-50 px-3 py-2 text-xs text-amber-950 dark:border-amber-700/70 dark:bg-amber-950/30 dark:text-amber-100"
-                        : "flex items-center gap-2 text-sm font-semibold text-foreground"
+                        : "flex items-center gap-2 text-sm font-semibold text-muted-foreground"
                     }
                   >
                     {isInternalNote ? (
