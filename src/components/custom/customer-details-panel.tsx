@@ -133,35 +133,46 @@ export function CustomerDetailsPanel({
   const [tab, setTab] = useState<"details" | "copilot">("details");
   const canUseCopilot = useCan("copilot");
   const showCopilot = Boolean(copilot) && canUseCopilot;
+  const customerSince = formatCustomerSince(customerData?.registered_at);
 
   const details = (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <OrdersCard
-        orders={orders}
-        loading={ordersLoading}
-        handleOrdersSync={onOrdersSync}
-        orderSyncLoading={orderSyncLoading}
-        customerData={customerData}
-        isDisabled={ordersDisabled}
-      />
-      {tickets ? (
-        <SupportTicketsCard tickets={tickets.data} loading={tickets.loading} />
-      ) : null}
-      {cart ? (
-        <>
-          <CartDetailsCard cartData={cart.data} loading={cart.loading} />
-          <ViewedProductsCard
-            viewedProducts={userMetadata?.viewed_products}
-            loading={userMetadataLoading}
-          />
-          <SessionDataCard
-            userMetadata={userMetadata}
-            customer={customerData}
-            currentThreadId={currentThreadId}
-            loading={userMetadataLoading}
-          />
-        </>
-      ) : null}
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-14 shrink-0 items-center justify-between border-b bg-background px-4 py-3 sm:px-5">
+        <h2 className="min-w-0 truncate text-base font-semibold tracking-tight sm:text-lg">
+          Customer overview
+        </h2>
+        <span className="ml-3 shrink-0 text-xs text-muted-foreground sm:text-sm">
+          Since {customerSince}
+        </span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <OrdersCard
+          orders={orders}
+          loading={ordersLoading}
+          handleOrdersSync={onOrdersSync}
+          orderSyncLoading={orderSyncLoading}
+          customerData={customerData}
+          isDisabled={ordersDisabled}
+        />
+        {tickets ? (
+          <SupportTicketsCard tickets={tickets.data} loading={tickets.loading} />
+        ) : null}
+        {cart ? (
+          <>
+            <CartDetailsCard cartData={cart.data} loading={cart.loading} />
+            <ViewedProductsCard
+              viewedProducts={userMetadata?.viewed_products}
+              loading={userMetadataLoading}
+            />
+            <SessionDataCard
+              userMetadata={userMetadata}
+              customer={customerData}
+              currentThreadId={currentThreadId}
+              loading={userMetadataLoading}
+            />
+          </>
+        ) : null}
+      </div>
     </div>
   );
 
