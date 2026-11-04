@@ -15,6 +15,14 @@ import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -304,7 +312,8 @@ function ReassignAgentSelect({
   disabled: boolean;
   onReassign: (email: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopOpen, setDesktopOpen] = useState(false);
 
   if (agents.length === 0) return null;
 
@@ -321,12 +330,129 @@ function ReassignAgentSelect({
     ? getAssigneeAvatarStyle(currentAgent)
     : "";
 
+  const selectAgent = (email: string) => {
+    if (email !== currentAgent) onReassign(email);
+    setMobileOpen(false);
+    setDesktopOpen(false);
+  };
+
+  const renderTriggerContent = (open: boolean) => (
+    <>
+      {currentAgent ? (
+        <span
+          className={cn(
+            "flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-white sm:size-6 sm:text-[10px]",
+            currentAgentAvatarStyle,
+          )}
+        >
+          {currentAgentInitials}
+        </span>
+      ) : (
+        <span className="size-5 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40 sm:size-6" />
+      )}
+      <span className="min-w-0 flex-1 truncate text-left sm:max-w-45 sm:flex-none">
+        {currentAgentOption?.name || "Unassigned"}
+      </span>
+      {open ? (
+        <IconChevronUp className="size-4 shrink-0" />
+      ) : (
+        <IconChevronDown className="size-4 shrink-0" />
+      )}
+    </>
+  );
+
+  const renderOptions = () => (
+    <>
+      <CommandEmpty>No teammates found.</CommandEmpty>
+      <CommandGroup forceMount className="p-1">
+        <CommandItem
+          forceMount
+          value="Unassigned"
+          onSelect={() => selectAgent("")}
+          className="gap-3 py-2"
+        >
+          <span className="size-8 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40" />
+          <span className="flex-1">Unassigned</span>
+          {!currentAgent && <span className="text-primary">✓</span>}
+        </CommandItem>
+      </CommandGroup>
+      <CommandGroup heading="Team">
+        {agents.map((agent) => (
+          <CommandItem
+            key={agent.email}
+            value={`${agent.name} ${agent.email}`}
+            disabled={agent.disabled}
+            onSelect={() => selectAgent(agent.email)}
+            className="gap-3 py-2"
+          >
+            <span
+              className={cn(
+                "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white",
+                getAssigneeAvatarStyle(agent.email),
+              )}
+            >
+              {agent.name
+                .split(" ")
+                .map((part) => part[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase()}
+            </span>
+            <span className="min-w-0 flex-1 truncate">{agent.name}</span>
+            {agent.isAdmin && <AdminBadge />}
+            {agent.email === currentAgent && (
+              <span className="text-primary">✓</span>
+            )}
+          </CommandItem>
+        ))}
+      </CommandGroup>
+    </>
+  );
+
   return (
     <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:flex-none sm:gap-3">
-      <span className="shrink-0 text-xs font-medium text-muted-foreground sm:text-sm">
+      <span className="hidden shrink-0 text-xs font-medium text-muted-foreground sm:inline sm:text-sm">
         Assignee
       </span>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            aria-label="Choose assignee"
+            className={cn(
+              "h-9 min-w-0 flex-1 rounded-full border-border px-2 text-xs sm:hidden",
+              mobileOpen && "border-primary ring-2 ring-primary/15",
+            )}
+          >
+            {renderTriggerContent(mobileOpen)}
+          </Button>
+        </SheetTrigger>
+        <SheetContent
+          side="bottom"
+          className="max-h-[85dvh] gap-0 overflow-hidden rounded-t-3xl p-0 data-[side=bottom]:h-[65dvh] sm:hidden"
+        >
+          <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-muted-foreground/30" />
+          <SheetHeader className="border-b px-4 pb-3 pt-4 text-left">
+            <SheetTitle className="text-lg">Assign chat</SheetTitle>
+            <SheetDescription className="sr-only">
+              Search for a teammate and assign this conversation.
+            </SheetDescription>
+          </SheetHeader>
+          <Command className="h-auto! min-h-0 flex-1 rounded-none!">
+            <div className="px-4 pb-2 pt-3">
+              <CommandInput placeholder="Search teammates" />
+            </div>
+            <CommandList className="min-h-0 max-h-none flex-1 px-2 pb-4">
+              {renderOptions()}
+            </CommandList>
+          </Command>
+        </SheetContent>
+      </Sheet>
+
+      <Popover open={desktopOpen} onOpenChange={setDesktopOpen}>
         <PopoverTrigger asChild>
           <Button
             type="button"
@@ -335,30 +461,11 @@ function ReassignAgentSelect({
             disabled={disabled}
             aria-label="Choose assignee"
             className={cn(
-              "h-10 min-w-0 flex-1 rounded-full border-border px-2 text-sm sm:flex-none sm:px-2.5",
-              open && "border-primary ring-2 ring-primary/15",
+              "hidden h-10 min-w-0 rounded-full border-border px-2.5 text-sm sm:flex sm:flex-none",
+              desktopOpen && "border-primary ring-2 ring-primary/15",
             )}
           >
-            {currentAgent ? (
-              <span
-                className={cn(
-                  "flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white",
-                  currentAgentAvatarStyle,
-                )}
-              >
-                {currentAgentInitials}
-              </span>
-            ) : (
-              <span className="size-6 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40" />
-            )}
-            <span className="max-w-20 truncate sm:max-w-45">
-              {currentAgentOption?.name || "Unassigned"}
-            </span>
-            {open ? (
-              <IconChevronUp className="size-4 shrink-0" />
-            ) : (
-              <IconChevronDown className="size-4 shrink-0" />
-            )}
+            {renderTriggerContent(desktopOpen)}
           </Button>
         </PopoverTrigger>
         <PopoverContent
@@ -367,56 +474,7 @@ function ReassignAgentSelect({
         >
           <Command>
             <CommandInput placeholder="Search teammates" />
-            <CommandList>
-              <CommandEmpty>No teammates found.</CommandEmpty>
-              <CommandItem
-                value="Unassigned"
-                onSelect={() => {
-                  if (currentAgent) onReassign("");
-                  setOpen(false);
-                }}
-                className="gap-3 py-2"
-              >
-                <span className="size-8 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40" />
-                <span className="flex-1">Unassigned</span>
-                {!currentAgent && <span className="text-primary">✓</span>}
-              </CommandItem>
-              <CommandGroup heading="Team">
-                {agents.map((agent) => (
-                  <CommandItem
-                    key={agent.email}
-                    value={`${agent.name} ${agent.email}`}
-                    disabled={agent.disabled}
-                    onSelect={() => {
-                      if (agent.email !== currentAgent) onReassign(agent.email);
-                      setOpen(false);
-                    }}
-                    className="gap-3 py-2"
-                  >
-                    <span
-                      className={cn(
-                        "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white",
-                        getAssigneeAvatarStyle(agent.email),
-                      )}
-                    >
-                      {agent.name
-                        .split(" ")
-                        .map((part) => part[0])
-                        .join("")
-                        .slice(0, 2)
-                        .toUpperCase()}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">
-                      {agent.name}
-                    </span>
-                    {agent.isAdmin && <AdminBadge />}
-                    {agent.email === currentAgent && (
-                      <span className="text-primary">✓</span>
-                    )}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
+            <CommandList>{renderOptions()}</CommandList>
           </Command>
         </PopoverContent>
       </Popover>
@@ -545,23 +603,47 @@ function ThreadChatControls({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="order-1 rounded-xl border bg-muted/30 p-2.5 sm:p-3"
+            className="order-1 rounded-xl border bg-muted/30 p-2 sm:p-3"
           >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div
+              className={cn(
+                "flex gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3",
+                canReassign
+                  ? "flex-col"
+                  : "flex-row items-center justify-between",
+              )}
+            >
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <IconMessageChatbot className="size-5" />
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:size-9">
+                  <IconMessageChatbot className="size-4 sm:size-5" />
                 </div>
                 <div className="min-w-0">
-                  <Typography variant="small" as="p" className="leading-normal">
-                    AI Assistant is handling this conversation
+                  <Typography
+                    variant="small"
+                    as="p"
+                    className="text-xs leading-normal sm:text-sm"
+                  >
+                    <span className="sm:hidden">AI Assistant is replying</span>
+                    <span className="hidden sm:inline">
+                      AI Assistant is handling this conversation
+                    </span>
                   </Typography>
-                  <Typography variant="muted">
-                    Take over anytime to reply as a human agent.
+                  <Typography variant="muted" className="text-xs sm:text-sm">
+                    <span className="sm:hidden">
+                      Unassigned · take over to reply
+                    </span>
+                    <span className="hidden sm:inline">
+                      Take over anytime to reply as a human agent.
+                    </span>
                   </Typography>
                 </div>
               </div>
-              <div className="flex w-full min-w-0 items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:shrink-0 sm:gap-3">
+              <div
+                className={cn(
+                  "flex min-w-0 items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:shrink-0 sm:gap-3",
+                  canReassign ? "w-full" : "ml-auto w-auto shrink-0",
+                )}
+              >
                 {canReassign && (
                   <ReassignAgentSelect
                     agents={agents}
@@ -581,6 +663,7 @@ function ThreadChatControls({
                     <Button
                       type="button"
                       size="sm"
+                      className="h-9 rounded-lg px-3 text-xs sm:h-8 sm:rounded-md sm:px-3 sm:text-sm"
                       onClick={onTakeOver}
                       disabled={
                         transitionState !== "idle" ||
@@ -588,8 +671,9 @@ function ThreadChatControls({
                         !!(connectedAgent && connectedAgent !== user)
                       }
                     >
-                      <IconHeadset className="h-4 w-4" />
-                      Take Over
+                      <IconHeadset className="hidden h-4 w-4 sm:block" />
+                      <span className="sm:hidden">Take over</span>
+                      <span className="hidden sm:inline">Take Over</span>
                     </Button>
                   </motion.div>
                 )}
@@ -611,14 +695,14 @@ function ThreadChatControls({
             className="order-2 space-y-2"
           >
             <div className="overflow-hidden rounded-xl border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30">
-              <div className="flex items-start gap-1.5 border-b border-amber-300/80 bg-amber-100/60 px-3 py-1.5 text-xs font-bold leading-snug text-amber-800 dark:border-amber-700/70 dark:bg-amber-950/40 dark:text-amber-100">
-                <IconLock className="mt-0.5 size-3.5 shrink-0 text-amber-700 dark:text-amber-300" />
+              <div className="flex items-start gap-1.5 border-b border-amber-300/80 bg-amber-100/60 px-2.5 py-1 text-[11px] font-bold leading-snug text-amber-800 sm:px-3 sm:py-1.5 sm:text-xs dark:border-amber-700/70 dark:bg-amber-950/40 dark:text-amber-100">
+                <IconLock className="mt-0.5 size-3 shrink-0 text-amber-700 sm:size-3.5 dark:text-amber-300" />
                 <span>
                   Internal note only — visible to your team, never to the
                   customer
                 </span>
               </div>
-              <div className="px-3 pt-1">
+              <div className="px-2.5 pt-0.5 sm:px-3 sm:pt-1">
                 <textarea
                   rows={1}
                   placeholder="Write an internal note (customer won't see it)…"
@@ -631,10 +715,10 @@ function ThreadChatControls({
                       onSendInternalNote();
                     }
                   }}
-                  className="max-h-30 w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  className="max-h-30 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:py-1 sm:text-sm sm:leading-6"
                 />
               </div>
-              <div className="flex items-center gap-1 px-2 py-1">
+              <div className="flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1">
                 <Typography
                   variant="muted"
                   as="span"
@@ -653,12 +737,12 @@ function ThreadChatControls({
                       transitionState !== "idle"
                     }
                     title="Save internal note"
-                    className="bg-amber-700 text-white hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-500"
+                    className="h-7 bg-amber-700 px-2 text-xs text-white hover:bg-amber-800 sm:h-8 sm:px-3 sm:text-sm dark:bg-amber-600 dark:hover:bg-amber-500"
                   >
                     {isSavingInternalNote ? (
-                      <Spinner className="size-4" />
+                      <Spinner className="size-3.5 sm:size-4" />
                     ) : (
-                      <IconNote className="size-4" />
+                      <IconNote className="size-3.5 sm:size-4" />
                     )}
                     Add note
                   </Button>
@@ -739,17 +823,23 @@ function ThreadChatControls({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="order-1 flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/30 p-2.5 sm:flex-row sm:items-center sm:justify-between sm:p-3"
+              className="order-1 flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/30 p-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-3"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <IconHeadset className="size-5" />
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:size-9">
+                  <IconHeadset className="size-4 sm:size-5" />
                 </div>
                 <div className="min-w-0">
-                  <Typography variant="small" as="p" className="leading-normal">
+                  <Typography
+                    variant="small"
+                    as="p"
+                    className="text-xs leading-normal sm:text-sm"
+                  >
                     You&apos;re replying
                   </Typography>
-                  <Typography variant="muted">AI is paused</Typography>
+                  <Typography variant="muted" className="text-xs sm:text-sm">
+                    AI is paused
+                  </Typography>
                 </div>
               </div>
               <div className="flex w-full min-w-0 items-center justify-end gap-1.5 sm:w-auto sm:shrink-0 sm:gap-3">
@@ -766,11 +856,11 @@ function ThreadChatControls({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="border-primary text-primary hover:bg-primary/10 hover:text-primary"
+                    className="h-8 px-2 text-xs border-primary text-primary hover:bg-primary/10 hover:text-primary sm:px-3 sm:text-sm"
                     onClick={onReturnToAI}
                     disabled={transitionState !== "idle" || !chatSocketReady}
                   >
-                    <IconRobot className="size-4" />
+                    <IconRobot className="size-3.5 sm:size-4" />
                     Hand back to AI
                   </Button>
                 </motion.div>
@@ -919,7 +1009,7 @@ function ThreadChatControls({
               )}
 
               {/* Text input row */}
-              <div className="px-3 pt-3">
+              <div className="px-2.5 pt-2 sm:px-3 sm:pt-3">
                 <textarea
                   ref={textareaRef}
                   rows={1}
@@ -937,21 +1027,22 @@ function ThreadChatControls({
                       onSendAgentMessage();
                     }
                   }}
-                  className="max-h-30 w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  className="max-h-30 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:py-1 sm:text-sm sm:leading-6"
                 />
               </div>
 
               {/* Toolbar: emoji + attach + hint on the left, send on the right */}
-              <div className="flex flex-wrap items-center gap-1 p-2">
+              <div className="flex flex-nowrap items-center gap-1 p-1.5 sm:flex-wrap sm:p-2">
                 <Button
                   type="button"
                   variant="secondary"
                   size="icon-sm"
                   disabled={inputsDisabled}
                   aria-pressed={isEmojiPickerOpen}
-                  className={
-                    isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined
-                  }
+                  className={cn(
+                    "size-7 sm:size-8",
+                    isEmojiPickerOpen && "ring-2 ring-ring/40",
+                  )}
                   onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
                   title="Add emoji"
                 >
@@ -964,6 +1055,7 @@ function ThreadChatControls({
                   disabled={inputsDisabled}
                   onClick={() => fileInputRef.current?.click()}
                   title="Attach image or file"
+                  className="size-7 sm:size-8"
                 >
                   <IconPaperclip className="size-4" />
                 </Button>
@@ -974,11 +1066,11 @@ function ThreadChatControls({
                   disabled={inputsDisabled}
                   onClick={() => setIsProductPickerOpen(true)}
                   title="Attach products (max 10)"
-                  className={
-                    attachedProducts.length > 0
-                      ? "text-primary border-primary/40 ring-1 ring-primary/40"
-                      : undefined
-                  }
+                  className={cn(
+                    "size-7 sm:size-8",
+                    attachedProducts.length > 0 &&
+                      "text-primary border-primary/40 ring-1 ring-primary/40",
+                  )}
                 >
                   <IconShoppingBag className="size-4" />
                 </Button>
@@ -1010,7 +1102,7 @@ function ThreadChatControls({
                     ? "Uploading attachment…"
                     : "Enter to send · Shift + Enter for a new line"}
                 </Typography>
-                <div className="flex w-full min-w-0 items-center justify-end gap-2 border-t border-border/50 pt-2 sm:ml-auto sm:w-auto sm:shrink-0 sm:border-0 sm:pt-0">
+                <div className="ml-auto flex w-auto min-w-0 shrink-0 items-center justify-end gap-1.5 sm:gap-2">
                   {attachedProducts.length > 0 && (
                     <Typography
                       variant="muted"
@@ -1034,11 +1126,12 @@ function ThreadChatControls({
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
                     onClick={onSendInternalNote}
                     disabled={!canSaveInternalNote || isSavingInternalNote}
                     title="Save this text as an internal note"
                   >
-                    <IconNote className="size-4" />
+                    <IconNote className="size-3.5 sm:size-4" />
                     <span className="hidden sm:inline">
                       Send as Internal Note
                     </span>
@@ -1047,6 +1140,7 @@ function ThreadChatControls({
                   <Button
                     type="button"
                     size="sm"
+                    className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
                     onClick={onSendAgentMessage}
                     disabled={!canSend}
                     title={
@@ -1055,7 +1149,7 @@ function ThreadChatControls({
                         : "Send reply to customer"
                     }
                   >
-                    <IconSend className="size-4" />
+                    <IconSend className="size-3.5 sm:size-4" />
                     Send
                   </Button>
                 </div>
