@@ -287,6 +287,12 @@ export function CartDetailsCard({
 }) {
   const cart = cartData?.updated_cart_data;
   const items = cart?.items ?? [];
+  const {
+    visible: visibleItems,
+    hiddenCount: hiddenItemCount,
+    expanded: itemsExpanded,
+    toggle: toggleItems,
+  } = useCollapsibleList(items);
 
   return (
     <section className="flex flex-col gap-4 border-b p-4 sm:p-5">
@@ -310,7 +316,7 @@ export function CartDetailsCard({
         <Typography variant="muted">Nothing in the cart right now.</Typography>
       ) : (
         <div className="flex flex-col gap-2.5">
-          {items.map((item: CartData, index: number) => (
+          {visibleItems.map((item: CartData, index: number) => (
             <ProductRow
               key={index}
               image={item.product_image}
@@ -319,6 +325,14 @@ export function CartDetailsCard({
               price={formatCartPrice(item.price) ?? "-"}
             />
           ))}
+          <ShowMoreToggle
+            hiddenCount={hiddenItemCount}
+            expanded={itemsExpanded}
+            onToggle={toggleItems}
+            noun="product"
+            collapsedLabel={`View all ${items.length} products`}
+            className="text-primary hover:text-primary"
+          />
           <div className="mt-1 flex items-center justify-between gap-3 border-t border-dashed pt-3">
             <Typography variant="muted" as="span">
               Subtotal
