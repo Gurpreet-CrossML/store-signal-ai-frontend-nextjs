@@ -104,14 +104,52 @@ function HandlerEventRow({
 }) {
   return (
     <div className="flex justify-center py-1">
-      <span className="rounded-full border border-dashed border-border bg-background px-3 py-1 text-center text-xs text-muted-foreground">
+      <span className="max-w-full wrap-anywhere rounded-full border border-dashed border-border bg-background px-3 py-1 text-center text-xs text-muted-foreground">
         {describeHandlerEvent(event, me)}
       </span>
     </div>
   );
 }
 
-export default function MessagePan({
+function HandlerEventGroupRow({
+  events,
+  me,
+}: {
+  events: HandlerEvent[];
+  me: string | null | undefined;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const start = new Date(events[0].created_at);
+  const end = new Date(events[events.length - 1].created_at);
+  const formatTime = (date: Date) =>
+    date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+  return (
+    <div className="flex flex-col items-center gap-1 py-1">
+      <span className="max-w-full wrap-anywhere rounded-full border border-dashed border-border bg-background px-3 py-1 text-center text-xs text-muted-foreground">
+        ↔ {events.length} handoffs, {formatTime(start)}–{formatTime(end)}{" "}
+        <button
+          type="button"
+          className="font-medium text-primary hover:underline"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? "Hide" : "Show"}
+        </button>
+      </span>
+      {expanded
+        ? events.map((event) => (
+            <HandlerEventRow
+              key={`expanded-handler-event-${event.id}`}
+              event={event}
+              me={me}
+            />
+          ))
+        : null}
+    </div>
+  );
+}
+
+export function MessagePan({
   messages,
   handlerEvents,
   customerName,
@@ -175,6 +213,16 @@ export default function MessagePan({
       <HandlerEventRow event={event} me={me} />
     </motion.div>
   );
+  const eventRows = (events: HandlerEvent[], keyPrefix: string) =>
+    events.length > 1
+      ? [
+          <HandlerEventGroupRow
+            key={`${keyPrefix}-handler-event-group`}
+            events={events}
+            me={me}
+          />,
+        ]
+      : events.map(eventRow);
 
   useEffect(() => {
     const scrollToBottom = () => {
@@ -206,7 +254,7 @@ export default function MessagePan({
           Keyed by message id, so AnimatePresence can tell a new message
           from a re-render of an existing one. */}
       <AnimatePresence>
-        {eventsBefore.map(eventRow)}
+        {eventRows(eventsBefore, "before")}
         {messages?.flatMap((message: ThreadMessage, index: number) => {
           if (
             canCollapseMessages &&
@@ -255,6 +303,14 @@ export default function MessagePan({
           const isAgentMessage = Boolean(
             message.agent_name || message.messaged_by,
           );
+          const senderLabel =
+            message.role === "assistant" && !message.agent_name
+              ? "AI Assistant"
+              : message.messaged_by_email &&
+                  me &&
+                  message.messaged_by_email.toLowerCase() === me.toLowerCase()
+                ? "You"
+                : message.messaged_by || message.role;
           // Bot responses normally carry the display name "StoreSignal AI".
           // That is not a human assignment, and should still receive the
           // distinct AI avatar, confidence, and source treatment.
@@ -335,8 +391,8 @@ export default function MessagePan({
                     <div className="min-w-0">
                       {isInternalNote ? (
                         <>
-                          <div className="flex items-baseline justify-between gap-3">
-                            <span className="font-medium">
+                          <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+                            <span className="wrap-anywhere font-medium">
                               Internal note ·{" "}
                               {message.agent_name ||
                                 message.messaged_by ||
@@ -357,7 +413,7 @@ export default function MessagePan({
                   </div>
                 </div>
               </MessageAppear>,
-              ...(eventsAfter.get(index) ?? []).map(eventRow),
+              ...eventRows(eventsAfter.get(index) ?? [], `after-${index}`),
             ];
           }
 
@@ -396,12 +452,7 @@ export default function MessagePan({
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div className="mb-1 flex flex-wrap items-center gap-x-2 justify-start">
                       <span className="text-xs font-medium text-foreground capitalize">
-                        {message.messaged_by_email &&
-                        me &&
-                        message.messaged_by_email.toLowerCase() ===
-                          me.toLowerCase()
-                          ? "You"
-                          : message.messaged_by || message.role}
+                        {senderLabel}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {formatDateTime(message.created_at)}
@@ -535,7 +586,7 @@ export default function MessagePan({
                                 return (
                                   <div
                                     key={idx}
-                                    className="flex items-start justify-between gap-3 text-sm"
+                                    className="flex min-w-0 items-start justify-between gap-2 text-sm"
                                   >
                                     <div className="flex min-w-0 flex-1 items-center gap-2">
                                       <Avatar>
@@ -560,7 +611,7 @@ export default function MessagePan({
                                         </span>
                                       </span>
                                     </div>
-                                    <span className="text-xs text-muted-foreground">
+                                    <span className="shrink-0 text-xs text-muted-foreground">
                                       {item.price}
                                     </span>
                                   </div>
@@ -649,7 +700,7 @@ export default function MessagePan({
                     {message.image_url && (
                       <div className="mt-2 flex flex-wrap justify-end gap-2 md:justify-start">
                         {Array.isArray(message.image_url) ? (
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                             {message.image_url.map((url, idx) => (
                               <HoverZoomImage
                                 key={idx}
@@ -702,7 +753,7 @@ export default function MessagePan({
                 </div>
               </div>
             </MessageAppear>,
-            ...(eventsAfter.get(index) ?? []).map(eventRow),
+            ...eventRows(eventsAfter.get(index) ?? [], `after-${index}`),
           ];
         })}
         {closedAt ? (
@@ -726,6 +777,460 @@ export default function MessagePan({
             </div>
           </div>
         ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+export function LiveMessagePan({
+  messages,
+  handlerEvents,
+  customerName,
+  onReplyWithAI,
+  replyWithAILoadingId,
+}: {
+  messages: ThreadMessage[];
+  handlerEvents?: HandlerEvent[];
+  customerName?: string | null;
+  onReplyWithAI?: (message_id: number | string) => void;
+  replyWithAILoadingId?: string | number | null;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { data: session } = useSession();
+  const me = session?.user?.email;
+
+  // Slot each handover after the message it followed; events with no (or an
+  // unknown) anchor go after the last message sent at or before their time.
+  const eventsBefore: HandlerEvent[] = [];
+  const eventsAfter = new Map<number, HandlerEvent[]>();
+  for (const event of handlerEvents ?? []) {
+    let at = event.after_message_id
+      ? messages.findIndex(
+          (m) => String(m.id) === String(event.after_message_id),
+        )
+      : -1;
+    if (at === -1) {
+      const time = new Date(event.created_at).getTime();
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (new Date(messages[i].created_at).getTime() <= time) {
+          at = i;
+          break;
+        }
+      }
+    }
+    if (at === -1) {
+      eventsBefore.push(event);
+    } else {
+      eventsAfter.set(at, [...(eventsAfter.get(at) ?? []), event]);
+    }
+  }
+  const eventRow = (event: HandlerEvent) => (
+    <motion.div
+      key={`handler-event-${event.id}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+    >
+      <HandlerEventRow event={event} me={me} />
+    </motion.div>
+  );
+
+  const eventRows = (events: HandlerEvent[], keyPrefix: string) =>
+    events.length > 1
+      ? [
+          <HandlerEventGroupRow
+            key={`${keyPrefix}-handler-event-group`}
+            events={events}
+            me={me}
+          />,
+        ]
+      : events.map(eventRow);
+
+  useEffect(() => {
+    const scrollToBottom = () => {
+      if (containerRef.current) {
+        containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      }
+    };
+
+    // Scroll immediately
+    scrollToBottom();
+
+    // Also scroll after a brief delay to ensure DOM is fully updated
+    const timer = setTimeout(scrollToBottom, 100);
+
+    return () => clearTimeout(timer);
+  }, [messages]);
+
+  return (
+    <div className="h-full space-y-4 p-2 overflow-y-auto" ref={containerRef}>
+      {/* Animates on mount as well as on append. The panel is only
+          rendered once a thread has messages, so the very first message of
+          a conversation arrives as a mount, not an append — suppressing
+          mount meant the one message an agent most wants to see land was
+          the only one that appeared without motion.
+
+          Keyed by message id, so AnimatePresence can tell a new message
+          from a re-render of an existing one. */}
+      <AnimatePresence>
+        {eventRows(eventsBefore, "before")}
+        {messages?.flatMap((message: ThreadMessage, index: number) => {
+          const isLastMessage = index === messages.length - 1;
+          // New responses carry message_type.  Treat a system row from an
+          // older/cached history payload as an internal note too, so a reload
+          // can never turn a staff-only note into a normal AI chat bubble.
+          const isSystemMessage = message.role === "system";
+          const isAiAction =
+            message.message_type === "ai_action" ||
+            (isSystemMessage &&
+              /^AI (looked up|performed)\b/.test(message.message));
+          const isInternalNote =
+            message.message_type === "internal" ||
+            (isSystemMessage && !isAiAction);
+          const isSystemEvent = isInternalNote || isAiAction;
+          const isAgentMessage = Boolean(
+            message.agent_name || message.messaged_by,
+          );
+          const senderLabel =
+            message.role === "assistant" && !message.agent_name
+              ? "AI Assistant"
+              : message.messaged_by_email &&
+                  me &&
+                  message.messaged_by_email.toLowerCase() === me.toLowerCase()
+                ? "You"
+                : message.messaged_by || message.role;
+          const showReplyWithAI =
+            isLastMessage && message.role === "user" && !!onReplyWithAI;
+          const isCustomer = message.role === "user";
+          const isOutgoing = isCustomer;
+          const avatarLabel = isCustomer
+            ? getInitials(customerName || message.messaged_by) || "C"
+            : isAgentMessage
+              ? getInitials(message.agent_name || message.messaged_by) || "A"
+              : "AI";
+
+          if (isSystemEvent) {
+            return [
+              <MessageAppear
+                key={message.id ?? index}
+                outgoing={false}
+                index={index}
+                total={messages.length}
+                className="py-1"
+              >
+                <div className="flex justify-center">
+                  <div
+                    className={
+                      isInternalNote
+                        ? "flex max-w-[82%] items-start gap-2 rounded-lg border border-dashed border-amber-300/80 bg-amber-50 px-3 py-2 text-xs text-amber-950 dark:border-amber-700/70 dark:bg-amber-950/30 dark:text-amber-100"
+                        : "flex max-w-[82%] items-center gap-2 rounded-full border border-dashed bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground"
+                    }
+                  >
+                    {isInternalNote ? (
+                      <IconLock className="mt-0.5 size-3.5 shrink-0" />
+                    ) : (
+                      <IconSparkles className="size-3.5 shrink-0 text-primary" />
+                    )}
+                    <div className="min-w-0">
+                      {isInternalNote ? (
+                        <>
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="font-medium">
+                              Internal note ·{" "}
+                              {message.agent_name ||
+                                message.messaged_by ||
+                                "Agent"}
+                            </span>
+                            <span className="shrink-0 opacity-60">
+                              {formatDateTime(message.created_at)}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 whitespace-pre-wrap wrap-break-word">
+                            {message.message}
+                          </p>
+                        </>
+                      ) : (
+                        <span>{message.message}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </MessageAppear>,
+              ...eventRows(eventsAfter.get(index) ?? [], `live-after-${index}`),
+            ];
+          }
+
+          return [
+            <MessageAppear
+              key={message.id ?? index}
+              outgoing={isOutgoing}
+              index={index}
+              total={messages.length}
+              className="space-y-2 pb-2"
+            >
+              <div
+                className={`flex ${isCustomer ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`flex min-w-0 gap-2.5 max-w-[82%] ${
+                    isCustomer ? "flex-row-reverse" : "flex-row"
+                  } ${
+                    message.json_content?.products?.length ||
+                    message.json_content?.related_products?.length
+                      ? "w-full"
+                      : ""
+                  }`}
+                >
+                  <Avatar className="h-7 w-7 shrink-0 mt-1">
+                    <AvatarFallback
+                      className={
+                        isCustomer
+                          ? "bg-muted text-muted-foreground text-xs"
+                          : "bg-primary/10 text-primary text-xs"
+                      }
+                    >
+                      {avatarLabel}
+                    </AvatarFallback>
+                  </Avatar>
+                  {/* min-w-0: a flex child will not shrink below its content
+                      (a product carousel, a long URL) unless told it may,
+                      which pushed the whole pane into sideways scrolling. */}
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <div
+                      className={`flex flex-wrap items-center gap-x-2 mb-1 ${isCustomer ? "justify-end" : "justify-start"}`}
+                    >
+                      <span className="text-xs font-medium text-foreground capitalize">
+                        {senderLabel}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDateTime(message.created_at)}
+                      </span>
+                      {!isCustomer &&
+                      !isAgentMessage &&
+                      message.confidence != null ? (
+                        <span className="text-xs text-primary">
+                          {Math.round(message.confidence * 100)}%
+                        </span>
+                      ) : null}
+                    </div>
+                    {!message.message.trim() ? (
+                      <></>
+                    ) : (
+                      <div
+                        id="markdown-message-bubble"
+                        style={{ borderRadius: "0.7rem" }}
+                        className={`min-w-0 max-w-full p-3 text-sm wrap-anywhere ${isCustomer ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-secondary border border-border rounded-tl-none"}`}
+                      >
+                        {message.role === "assistant" ? (
+                          (() => {
+                            if (
+                              message?.json_content?.order_details &&
+                              message.json_content.order_details?.items
+                                ?.length > 0
+                            ) {
+                              return (
+                                <>
+                                  <ReactMarkdown>
+                                    {message.message}
+                                  </ReactMarkdown>
+                                  <div className="mt-3">
+                                    <OrderBillCard
+                                      order={message.json_content.order_details}
+                                    />
+                                  </div>
+                                </>
+                              );
+                            }
+
+                            // Strategy 2: plain markdown fallback
+                            return (
+                              <ReactMarkdown>{message.message}</ReactMarkdown>
+                            );
+                          })()
+                        ) : (
+                          <span className="whitespace-pre-wrap">
+                            {message.message}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {message.role === "assistant" &&
+                    !isAgentMessage &&
+                    message.source_used ? (
+                      <div className="mt-1 text-xs font-medium text-primary">
+                        <span>Source: {message.source_used}</span>
+                      </div>
+                    ) : null}
+
+                    {/* "Reply with AI" — only for user messages, only when a
+                    handler is supplied by the parent. Shown on row hover
+                    so it doesn't clutter the transcript by default. */}
+                    {showReplyWithAI && (
+                      <div className="mt-1 flex justify-end transition-opacity group-hover:opacity-100">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 gap-1 px-2 text-[11px] text-muted-foreground hover:text-primary"
+                          onClick={() => onReplyWithAI(message.id)}
+                          disabled={
+                            replyWithAILoadingId !== null &&
+                            replyWithAILoadingId !== undefined
+                          }
+                        >
+                          {replyWithAILoadingId === message.id ? (
+                            <>
+                              <Spinner className="size-3" />
+                              Generating…
+                            </>
+                          ) : (
+                            <>
+                              <IconSparkles className="h-3 w-3" />
+                              <CreditLabel>Reply with AI</CreditLabel>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+
+                    {message.role === "assistant" &&
+                      message?.json_content?.products &&
+                      message.json_content.products.length > 0 && (
+                        <ProductCarousel
+                          products={message.json_content.products}
+                          comparisonBlock={
+                            message.json_content.comparison_block
+                          }
+                        />
+                      )}
+
+                    {message.role === "assistant" &&
+                      message?.json_content?.related_products &&
+                      message.json_content.related_products.length > 0 && (
+                        <div className="mt-2">
+                          <h4 className="text-xs font-semibold text-muted-foreground">
+                            Related Products
+                          </h4>
+                          <ProductCarousel
+                            products={message.json_content.related_products}
+                          />
+                        </div>
+                      )}
+
+                    {message.role === "assistant" &&
+                      message?.json_content?.cart_details &&
+                      message.json_content.cart_details.items.length > 0 && (
+                        <Card className="mt-2 px-0">
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <IconShoppingBag className="size-4" />
+                              Cart Details
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="flex flex-col gap-3">
+                            {message.json_content.cart_details.items.map(
+                              (item: CartItem, idx: number) => {
+                                return (
+                                  <div
+                                    key={idx}
+                                    className="flex items-start justify-between gap-3 text-sm"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <Avatar>
+                                        {item.image ? (
+                                          <AvatarImage
+                                            src={item.image}
+                                            alt={item.name}
+                                            className="h-full w-full object-contain"
+                                          />
+                                        ) : (
+                                          <AvatarFallback className="bg-muted text-muted-foreground text-xs">
+                                            N/A
+                                          </AvatarFallback>
+                                        )}
+                                      </Avatar>
+                                      <span className="flex flex-col items-start">
+                                        <span>{item.name}</span>
+                                        <span className="text-muted-foreground text-xs">
+                                          Qty: {item.quantity}
+                                        </span>
+                                      </span>
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                      {item.price}
+                                    </span>
+                                  </div>
+                                );
+                              },
+                            )}
+                          </CardContent>
+                          <CardFooter>
+                            <div className="flex justify-between w-full">
+                              Grand Total:{" "}
+                              <span className="text-sm font-semibold text-primary">
+                                {message.json_content.cart_details.sub_total}
+                              </span>
+                            </div>
+                          </CardFooter>
+                        </Card>
+                      )}
+
+                    {message.role === "assistant" &&
+                      message.json_content?.ticket_details && (
+                        <TicketCard
+                          ticket={message.json_content.ticket_details}
+                        />
+                      )}
+
+                    {message.role === "assistant" &&
+                      message.json_content?.suggestions &&
+                      message.json_content.suggestions.length > 0 && (
+                        <div className="flex justify-start mt-2">
+                          <div className="flex flex-wrap gap-2">
+                            {message.json_content.suggestions.map(
+                              (s: string, idx: number) => (
+                                <Button
+                                  key={idx}
+                                  variant="outline"
+                                  className="text-xs hover:bg-primary/25 hover:text-primary hover:border-primary rounded-full"
+                                >
+                                  {s}
+                                </Button>
+                              ),
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                    {message.image_url && (
+                      <div className="flex flex-wrap gap-2 mt-2 justify-end">
+                        {Array.isArray(message.image_url) ? (
+                          <div className="flex gap-2">
+                            {message.image_url.map((url, idx) => (
+                              <HoverZoomImage
+                                key={idx}
+                                src={url}
+                                alt={`User uploaded ${idx + 1}`}
+                                className="h-14 w-14 object-contain shrink-0 bg-muted"
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <HoverZoomImage
+                            src={message.image_url}
+                            alt="User uploaded"
+                            className="h-14 w-14 object-contain shrink-0 bg-muted"
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </MessageAppear>,
+            ...eventRows(eventsAfter.get(index) ?? [], `live-after-${index}`),
+          ];
+        })}
       </AnimatePresence>
     </div>
   );

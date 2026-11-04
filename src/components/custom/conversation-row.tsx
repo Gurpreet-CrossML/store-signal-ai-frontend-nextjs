@@ -17,10 +17,14 @@ import { cn } from "@/lib/utils";
  * person, so it cannot use ConversationRow's slots, but it must look like
  * it belongs to the same product.
  */
-export function listRowClassName(active?: boolean) {
+export function listRowClassName(
+  active?: boolean,
+  activeClassName = "bg-accent",
+  hoverClassName = "hover:bg-muted/60",
+) {
   return cn(
     "flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left transition-colors",
-    active ? "bg-accent" : "hover:bg-muted/60",
+    active ? activeClassName : hoverClassName,
   );
 }
 
@@ -48,6 +52,8 @@ export function ConversationRow({
   previewLines = 1,
   footer,
   active = false,
+  activeClassName,
+  hoverClassName,
   onSelect,
 }: {
   /**
@@ -73,6 +79,10 @@ export function ConversationRow({
   /** The row's last line — tags, a message count. */
   footer?: React.ReactNode;
   active?: boolean;
+  /** Optional selected-row background for list-specific statuses. */
+  activeClassName?: string;
+  /** Optional hover background for list-specific statuses. */
+  hoverClassName?: string;
   onSelect: () => void;
 }) {
   return (
@@ -83,7 +93,7 @@ export function ConversationRow({
       // slot positions its own online dot against a `relative` wrapper, and
       // under the flex default of `stretch` that wrapper grows to the row's
       // full height, dropping the dot to the bottom of the card.
-      className={listRowClassName(active)}
+      className={listRowClassName(active, activeClassName, hoverClassName)}
     >
       {accent}
       {avatar}

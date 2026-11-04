@@ -100,7 +100,7 @@ export function SupportTicketCard({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.18, delay: Math.min(index, 5) * 0.04 }}
         className={cn(
-          "flex items-stretch gap-2.5 rounded-xl border border-border/50 p-2.5 transition-colors",
+          "flex items-stretch gap-2.5 rounded-xl border border-border/60 p-3 transition-colors",
           isLive && "hover:bg-muted/50",
         )}
       >
@@ -115,7 +115,10 @@ export function SupportTicketCard({
           </div>
 
           {ticket.description && (
-            <Typography variant="muted" className="mt-1 line-clamp-2">
+            <Typography
+              variant="muted"
+              className="mt-1 line-clamp-2 leading-snug"
+            >
               {ticket.description}
             </Typography>
           )}

@@ -70,7 +70,7 @@ export function ProductCarousel({
           {products.map((product) => (
             <CarouselItem
               key={product.id}
-              className="basis-1/2 pl-2 sm:basis-1/3"
+              className="basis-full pl-2 min-[380px]:basis-1/2 sm:basis-1/3"
             >
               <ProductCard
                 product={product}
