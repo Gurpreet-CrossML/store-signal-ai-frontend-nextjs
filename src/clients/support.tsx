@@ -15,6 +15,28 @@ import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
@@ -47,7 +69,7 @@ import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
 import { SearchInput } from "@/components/custom/search-input";
 import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
-import MessagePan from "@/components/custom/message-pan";
+import { LiveMessagePan } from "@/components/custom/message-pan";
 import {
   FetchCart,
   FetchFreshdeskTicketId,
@@ -67,7 +89,10 @@ import {
   CreateSupportTicket,
   FetchThreadTicketDraft,
 } from "@/redux/api-slice/support-ticket-slice";
-import { SyncCustomerOrders } from "@/redux/api-slice/order-slice";
+import {
+  FetchCustomerOrders,
+  SyncCustomerOrders,
+} from "@/redux/api-slice/order-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -76,26 +101,30 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { FetchStaff } from "@/redux/api-slice/tenancy-slice";
 import { type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import {
   IconAlertTriangle,
   IconArrowLeft,
+  IconChevronDown,
+  IconChevronUp,
   IconFilter,
   IconHeadset,
   IconLock,
   IconMessage2,
-  IconMessageChatbot,
   IconMoodSmile,
+  IconDotsVertical,
+  IconId,
   IconNote,
   IconPaperclip,
-  IconRobot,
+  IconArrowBackUp,
   IconSend,
   IconShieldCheck,
   IconShoppingBag,
@@ -263,58 +292,222 @@ function AdminBadge() {
 // permission). Viewers and content managers can't be assigned a chat.
 const CHAT_HANDLER_ROLES = ["supervisor", "agent"];
 
+function getAgentInitials(name: string) {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 // /** Admin and supervisor control to hand a taken chat to another agent. */
 function ReassignAgentSelect({
   agents,
   currentAgent,
+  currentAgentName,
   disabled,
   onReassign,
 }: {
   agents: AgentOption[];
   currentAgent: string | null;
+  currentAgentName?: string | null;
   disabled: boolean;
   onReassign: (email: string) => void;
 }) {
-  if (agents.length === 0) return null;
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopOpen, setDesktopOpen] = useState(false);
+
+  if (agents.length === 0 && !currentAgent) return null;
+
+  const currentAgentOption = agents.find(
+    (agent) => agent.email === currentAgent,
+  );
+  const currentAgentDisplayName =
+    currentAgentOption?.name ||
+    currentAgentName ||
+    currentAgent ||
+    "Unassigned";
+  const currentAgentInitials = currentAgentDisplayName
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const selectAgent = (email: string) => {
+    if (email !== currentAgent) onReassign(email);
+    setMobileOpen(false);
+    setDesktopOpen(false);
+  };
+
+  const renderTriggerContent = (open: boolean) => (
+    <>
+      {currentAgent ? (
+        <span
+          className={cn(
+            "flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground sm:size-6 sm:text-[10px]",
+          )}
+        >
+          {currentAgentInitials}
+        </span>
+      ) : (
+        <span className="size-5 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40 sm:size-6" />
+      )}
+      <span className="min-w-0 flex-1 truncate text-left sm:max-w-45 sm:flex-none">
+        {currentAgentDisplayName}
+      </span>
+      {disabled ? (
+        <IconLock className="size-4 shrink-0" />
+      ) : open ? (
+        <IconChevronUp className="size-4 shrink-0" />
+      ) : (
+        <IconChevronDown className="size-4 shrink-0" />
+      )}
+    </>
+  );
+
+  const renderOptions = () => (
+    <>
+      <CommandEmpty>No teammates found.</CommandEmpty>
+      <CommandGroup forceMount className="p-1">
+        <CommandItem
+          forceMount
+          value="Unassigned"
+          onSelect={() => selectAgent("")}
+          className="gap-3 py-2"
+        >
+          <span className="size-8 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40" />
+          <span className="flex-1">Unassigned</span>
+          {!currentAgent && <span className="text-primary">✓</span>}
+        </CommandItem>
+      </CommandGroup>
+      <CommandGroup heading="Team">
+        {agents.map((agent) => (
+          <CommandItem
+            key={agent.email}
+            value={`${agent.name} ${agent.email}`}
+            disabled={agent.disabled}
+            onSelect={() => selectAgent(agent.email)}
+            className="gap-3 py-2"
+          >
+            <span
+              className={cn(
+                "flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground",
+              )}
+            >
+              {agent.name
+                .split(" ")
+                .map((part) => part[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase()}
+            </span>
+            <span className="min-w-0 flex-1 truncate">{agent.name}</span>
+            {agent.isAdmin && <AdminBadge />}
+            {agent.email === currentAgent && (
+              <span className="text-primary">✓</span>
+            )}
+          </CommandItem>
+        ))}
+      </CommandGroup>
+    </>
+  );
 
   return (
-    // Shows who the chat is assigned to ("Unassigned" while the AI has it);
-    // picking an agent assigns or reassigns it.
-    <Select
-      value={currentAgent ?? ""}
-      onValueChange={(email) => {
-        if (email !== currentAgent) onReassign(email);
-      }}
-      disabled={disabled}
-    >
-      <SelectTrigger size="sm" aria-label="Reassign chat" className="w-fit">
-        <SelectValue placeholder="Unassigned" />
-      </SelectTrigger>
-      <SelectContent>
-        {agents.map((agent) => (
-          <SelectItem
-            key={agent.email}
-            value={agent.email}
-            disabled={agent.disabled}
+    <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:flex-none sm:gap-3">
+      <span className="hidden shrink-0 text-xs font-medium text-muted-foreground sm:inline sm:text-sm">
+        Assignee
+      </span>
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            aria-label="Choose assignee"
+            className={cn(
+              "h-9 min-w-0 flex-1 rounded-full border-border px-2 text-xs sm:hidden",
+              mobileOpen && "border-primary ring-2 ring-primary/15",
+            )}
           >
-            <span className="flex items-center gap-2">
-              {agent.name}
-              {agent.isAdmin && <AdminBadge />}
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+            {renderTriggerContent(mobileOpen)}
+          </Button>
+        </SheetTrigger>
+        <SheetContent
+          side="bottom"
+          className="max-h-[85dvh] gap-0 overflow-hidden rounded-t-3xl p-0 data-[side=bottom]:h-[65dvh] sm:hidden"
+        >
+          <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-muted-foreground/30" />
+          <SheetHeader className="border-b px-4 pb-3 pt-4 text-left">
+            <SheetTitle className="text-lg">Assign chat</SheetTitle>
+            <SheetDescription className="sr-only">
+              Search for a teammate and assign this conversation.
+            </SheetDescription>
+          </SheetHeader>
+          <Command className="h-auto! min-h-0 flex-1 rounded-none!">
+            <div className="px-4 pb-2 pt-3">
+              <CommandInput placeholder="Search teammates" />
+            </div>
+            <CommandList className="min-h-0 max-h-none flex-1 px-2 pb-4">
+              {renderOptions()}
+            </CommandList>
+          </Command>
+        </SheetContent>
+      </Sheet>
+
+      <Dialog open={desktopOpen} onOpenChange={setDesktopOpen}>
+        <DialogTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            aria-label="Choose assignee"
+            className={cn(
+              "hidden h-10 min-w-0 rounded-full border-border px-2.5 text-sm sm:flex sm:flex-none",
+              desktopOpen && "border-primary ring-2 ring-primary/15",
+            )}
+          >
+            {renderTriggerContent(desktopOpen)}
+          </Button>
+        </DialogTrigger>
+        <DialogContent
+          showCloseButton
+          className="w-[calc(100vw-2rem)] max-w-90 gap-0 overflow-hidden rounded-xl p-2"
+        >
+          <DialogHeader className="sr-only">
+            <DialogTitle>Assign chat</DialogTitle>
+            <DialogDescription>
+              Search for a teammate and assign this conversation.
+            </DialogDescription>
+          </DialogHeader>
+          <Command className="rounded-lg!">
+            <CommandInput placeholder="Search teammates" />
+            <CommandList className="max-h-[60vh] px-1 pb-1">
+              {renderOptions()}
+            </CommandList>
+          </Command>
+          <div className="border-t border-border/60 px-3 py-3 text-xs leading-relaxed text-muted-foreground sm:px-4 sm:text-sm">
+            Assigning a teammate hands them the chat and pauses the AI. They get
+            an email and an in-app alert.
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
 function ThreadChatControls({
   activeThreadId,
   isThreadActive = true,
+  hasMessages = true,
   className,
   connectedAgent,
   connectedAgentName,
   user,
+  userRole,
   canReassign = false,
   agents = [],
   chatSocketReady,
@@ -340,10 +533,12 @@ function ThreadChatControls({
 }: {
   activeThreadId?: string | null;
   isThreadActive?: boolean;
+  hasMessages?: boolean;
   className?: string;
   connectedAgent: string | null;
   connectedAgentName?: string | null;
   user: string | null;
+  userRole?: string | null;
   canReassign?: boolean;
   agents?: AgentOption[];
   chatSocketReady: boolean;
@@ -388,6 +583,7 @@ function ThreadChatControls({
   const heldByAdmin = !!agents.find((a) => a.email === connectedAgent)?.isAdmin;
   const iAmAdmin = !!agents.find((a) => a.email === user)?.isAdmin;
   const lockedByAdmin = heldByAdmin && !iAmAdmin;
+  const reassignRoleLabel = userRole === "supervisor" ? "supervisor" : "admin";
 
   const isUploadingAttachments = attachments.some(
     (attachment) => attachment.status === "uploading",
@@ -414,64 +610,110 @@ function ThreadChatControls({
 
   return (
     <div
-      className={`relative border-t border-border/50 bg-background/95 p-4 ${className ?? ""}`}
+      className={`relative mx-2 mb-2 flex flex-col gap-0 overflow-hidden rounded-xl border border-border/60 bg-background/95 shadow-xs sm:mx-3 sm:mb-3 ${className ?? ""}`}
     >
       {/* The three states of this bar are one thing changing, not three
           things appearing. AnimatePresence keeps the outgoing state
           mounted while the incoming one arrives — which is what lets the
           handover button below morph between them rather than one
           disappearing and another popping in somewhere else. */}
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} mode="popLayout">
         {!connectedAgent && (
           <motion.div
             key="ai-handling"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="rounded-xl border bg-muted/30 p-3"
+            className="order-1 border-b border-border/60 bg-background px-3 py-2 sm:px-4 sm:py-2.5"
           >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <IconMessageChatbot className="size-5" />
+            <div
+              className={cn(
+                "flex gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3",
+                canReassign
+                  ? "flex-col"
+                  : "flex-row items-center justify-between",
+              )}
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary sm:size-9">
+                  AI
                 </div>
                 <div className="min-w-0">
-                  <Typography variant="small" as="p" className="leading-normal">
-                    AI Assistant is handling this conversation
+                  <Typography
+                    variant="small"
+                    as="p"
+                    className="text-xs leading-normal sm:text-sm"
+                  >
+                    {hasMessages ? (
+                      <>
+                        <span className="sm:hidden">
+                          AI Assistant is replying
+                        </span>
+                        <span className="hidden sm:inline">
+                          AI Assistant is handling this conversation
+                        </span>
+                      </>
+                    ) : (
+                      "AI Assistant is ready"
+                    )}
                   </Typography>
-                  <Typography variant="muted">
-                    Take over anytime to reply as a human agent.
+                  <Typography variant="muted" className="text-xs sm:text-sm">
+                    {hasMessages ? (
+                      <>
+                        <span className="sm:hidden">
+                          Unassigned · take over to reply
+                        </span>
+                        <span className="hidden sm:inline">
+                          Take over anytime to reply as a human agent.
+                        </span>
+                      </>
+                    ) : (
+                      "It replies as soon as the customer sends a message. You can add internal notes anytime."
+                    )}
                   </Typography>
                 </div>
               </div>
-              {canReassign && (
-                <ReassignAgentSelect
-                  agents={agents}
-                  currentAgent={null}
-                  disabled={transitionState !== "idle" || !chatSocketReady}
-                  onReassign={onReassign}
-                />
-              )}
-              {activeThreadId && !canReassign && connectedAgent !== user && (
-                // Same layoutId as Return to AI: framer treats the two as one
-                // element and slides it from here into the composer, so the
-                // control an agent just pressed is visibly where it went.
-                <motion.div layoutId={HANDOVER_ACTION_ID} className="shrink-0">
-                  <Button
-                    type="button"
-                    onClick={onTakeOver}
-                    disabled={
-                      transitionState !== "idle" ||
-                      !chatSocketReady ||
-                      !!(connectedAgent && connectedAgent !== user)
-                    }
+              <div
+                className={cn(
+                  "flex min-w-0 items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:shrink-0 sm:gap-3",
+                  canReassign ? "w-full" : "ml-auto w-auto shrink-0",
+                )}
+              >
+                {canReassign && (
+                  <ReassignAgentSelect
+                    agents={agents}
+                    currentAgent={null}
+                    disabled={transitionState !== "idle" || !chatSocketReady}
+                    onReassign={onReassign}
+                  />
+                )}
+                {activeThreadId && (
+                  // Same layoutId as Return to AI: framer treats the two as one
+                  // element and slides it from here into the composer, so the
+                  // control an agent just pressed is visibly where it went.
+                  <motion.div
+                    layoutId={HANDOVER_ACTION_ID}
+                    className="shrink-0"
                   >
-                    <IconHeadset className="h-4 w-4" />
-                    Take Over
-                  </Button>
-                </motion.div>
-              )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-9 rounded-lg px-3 text-xs sm:h-8 sm:rounded-md sm:px-3 sm:text-sm"
+                      onClick={onTakeOver}
+                      disabled={
+                        transitionState !== "idle" ||
+                        !chatSocketReady ||
+                        !!(connectedAgent && connectedAgent !== user)
+                      }
+                    >
+                      <IconHeadset className="hidden h-4 w-4 sm:block" />
+                      <span className="sm:hidden">Take over</span>
+                      <span className="hidden sm:inline">Take Over</span>
+                    </Button>
+                  </motion.div>
+                )}
+              </div>
             </div>
           </motion.div>
         )}
@@ -479,21 +721,24 @@ function ThreadChatControls({
         {/* LC-02: while the AI handles the chat the composer only takes
             internal notes (staff-only; the customer never sees them). The
             Take Over card above is untouched. */}
-        {!connectedAgent && (
+        {(!connectedAgent || connectedAgent !== user) && (
           <motion.div
-            key="ai-note-composer"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            key="internal-note-composer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="mt-2 space-y-2"
+            className="order-2 p-2 sm:p-2.5"
           >
-            <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm">
-              <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-3 py-1.5 text-xs font-bold text-muted-foreground">
-                <IconLock className="size-3.5 text-primary" />
-                Internal note only — visible to your team, never to the customer
+            <div className="overflow-hidden rounded-lg border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30">
+              <div className="flex items-start gap-1.5 border-b border-amber-300/80 bg-amber-100/60 px-2.5 py-1 text-[11px] font-bold leading-snug text-amber-800 sm:px-3 sm:py-1.5 sm:text-xs dark:border-amber-700/70 dark:bg-amber-950/40 dark:text-amber-100">
+                <IconLock className="mt-0.5 size-3 shrink-0 text-amber-700 sm:size-3.5 dark:text-amber-300" />
+                <span>
+                  Internal note only — visible to your team, never to the
+                  customer
+                </span>
               </div>
-              <div className="px-3 pt-1">
+              <div className="px-2.5 pt-0.5 sm:px-3 sm:pt-1">
                 <textarea
                   rows={1}
                   placeholder="Write an internal note (customer won't see it)…"
@@ -506,14 +751,14 @@ function ThreadChatControls({
                       onSendInternalNote();
                     }
                   }}
-                  className="max-h-30 w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  className="max-h-30 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:py-1 sm:text-sm sm:leading-6"
                 />
               </div>
-              <div className="flex items-center gap-1 px-2 py-1">
+              <div className="flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1">
                 <Typography
                   variant="muted"
                   as="span"
-                  className="ml-1 hidden truncate font-semibold sm:inline"
+                  className="ml-1 hidden truncate font-semibold text-amber-800 sm:inline dark:text-amber-100"
                 >
                   Enter to save note · Shift + Enter for a new line
                 </Typography>
@@ -528,11 +773,12 @@ function ThreadChatControls({
                       transitionState !== "idle"
                     }
                     title="Save internal note"
+                    className="h-7 bg-amber-700 px-2 text-xs text-white hover:bg-amber-800 sm:h-8 sm:px-3 sm:text-sm dark:bg-amber-600 dark:hover:bg-amber-500"
                   >
                     {isSavingInternalNote ? (
-                      <Spinner className="size-4" />
+                      <Spinner className="size-3.5 sm:size-4" />
                     ) : (
-                      <IconNote className="size-4" />
+                      <IconNote className="size-3.5 sm:size-4" />
                     )}
                     Add note
                   </Button>
@@ -545,20 +791,20 @@ function ThreadChatControls({
         {connectedAgent && connectedAgent !== user && (
           <motion.div
             key="other-agent"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 p-3"
+            className="order-1 flex flex-col gap-2 border-b border-border/60 bg-background px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5"
           >
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <IconHeadset className="size-5" />
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                {getAgentInitials(connectedAgentName || connectedAgent)}
               </div>
               <div className="min-w-0">
                 <Typography variant="small" as="p" className="leading-normal">
                   <span className="inline-flex items-center gap-2">
-                    Taken by {connectedAgentName || connectedAgent}
+                    {connectedAgentName || connectedAgent} is replying
                     {agents.find((a) => a.email === connectedAgent)
                       ?.isAdmin && <AdminBadge />}
                   </span>
@@ -566,33 +812,114 @@ function ThreadChatControls({
                 <Typography variant="muted">
                   {lockedByAdmin
                     ? "Only an admin can reassign this chat."
-                    : "Only the connected agent can reply right now."}
+                    : canReassign
+                      ? `AI is paused · As a ${reassignRoleLabel}, you can take over or reassign.`
+                      : `AI is paused · You can add internal notes for ${connectedAgentName || "this agent"}.`}
                 </Typography>
               </div>
             </div>
-            {canReassign && (
-              <ReassignAgentSelect
-                agents={agents}
-                currentAgent={connectedAgent}
-                disabled={
-                  transitionState !== "idle" ||
-                  !chatSocketReady ||
-                  lockedByAdmin
-                }
-                onReassign={onReassign}
-              />
-            )}
+            <div className="flex w-full min-w-0 shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:gap-3">
+              {(canReassign || Boolean(connectedAgent)) && (
+                <ReassignAgentSelect
+                  agents={agents}
+                  currentAgent={connectedAgent}
+                  currentAgentName={connectedAgentName}
+                  disabled={
+                    !canReassign ||
+                    transitionState !== "idle" ||
+                    !chatSocketReady ||
+                    lockedByAdmin
+                  }
+                  onReassign={onReassign}
+                />
+              )}
+              {canReassign && (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={onTakeOver}
+                  disabled={
+                    transitionState !== "idle" ||
+                    !chatSocketReady ||
+                    lockedByAdmin
+                  }
+                >
+                  <IconHeadset className="h-4 w-4" />
+                  Take over
+                </Button>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {connectedAgent === user && (
+          <motion.div
+            key="agent-status"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="order-1 flex flex-col gap-2 border-b border-border/60 bg-background px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5"
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground sm:size-9">
+                {getAgentInitials(
+                  agents.find((agent) => agent.email === user)?.name || "You",
+                )}
+              </div>
+              <div className="min-w-0">
+                <Typography
+                  variant="small"
+                  as="p"
+                  className="text-xs leading-normal sm:text-sm"
+                >
+                  You&apos;re replying
+                </Typography>
+                <Typography variant="muted" className="text-xs sm:text-sm">
+                  AI is paused
+                </Typography>
+              </div>
+            </div>
+            <div className="flex w-full min-w-0 shrink-0 items-center justify-end gap-1.5 sm:w-auto sm:gap-3">
+              {(canReassign || Boolean(connectedAgent)) && (
+                <ReassignAgentSelect
+                  agents={agents}
+                  currentAgent={connectedAgent}
+                  currentAgentName={connectedAgentName}
+                  disabled={
+                    !canReassign ||
+                    transitionState !== "idle" ||
+                    !chatSocketReady
+                  }
+                  onReassign={onReassign}
+                />
+              )}
+              <motion.div layoutId={HANDOVER_ACTION_ID} className="shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs border-primary text-primary hover:bg-primary/10 hover:text-primary sm:px-3 sm:text-sm"
+                  onClick={onReturnToAI}
+                  disabled={transitionState !== "idle" || !chatSocketReady}
+                >
+                  <IconArrowBackUp className="size-3.5 sm:size-4" />
+                  Hand back to AI
+                </Button>
+              </motion.div>
+            </div>
           </motion.div>
         )}
 
         {connectedAgent === user && (
           <motion.div
             key="composer"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm"
+            className="order-2 m-2 overflow-hidden rounded-lg border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm sm:m-2.5"
           >
             {isEmojiPickerOpen && (
               <div className="border-b border-border/50 p-2">
@@ -724,7 +1051,7 @@ function ThreadChatControls({
             )}
 
             {/* Text input row */}
-            <div className="px-3 pt-3">
+            <div className="px-2.5 pt-2 sm:px-3 sm:pt-3">
               <textarea
                 ref={textareaRef}
                 rows={1}
@@ -742,21 +1069,22 @@ function ThreadChatControls({
                     onSendAgentMessage();
                   }
                 }}
-                className="max-h-30 w-full resize-none bg-transparent py-1 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                className="max-h-30 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:py-1 sm:text-sm sm:leading-6"
               />
             </div>
 
             {/* Toolbar: emoji + attach + hint on the left, send on the right */}
-            <div className="flex items-center gap-1 p-2">
+            <div className="flex flex-nowrap items-center gap-1 p-1.5 sm:p-2">
               <Button
                 type="button"
                 variant="secondary"
                 size="icon-sm"
                 disabled={inputsDisabled}
                 aria-pressed={isEmojiPickerOpen}
-                className={
-                  isEmojiPickerOpen ? "ring-2 ring-ring/40" : undefined
-                }
+                className={cn(
+                  "size-7 sm:size-8",
+                  isEmojiPickerOpen && "ring-2 ring-ring/40",
+                )}
                 onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
                 title="Add emoji"
               >
@@ -769,6 +1097,7 @@ function ThreadChatControls({
                 disabled={inputsDisabled}
                 onClick={() => fileInputRef.current?.click()}
                 title="Attach image or file"
+                className="size-7 sm:size-8"
               >
                 <IconPaperclip className="size-4" />
               </Button>
@@ -779,11 +1108,11 @@ function ThreadChatControls({
                 disabled={inputsDisabled}
                 onClick={() => setIsProductPickerOpen(true)}
                 title="Attach products (max 10)"
-                className={
-                  attachedProducts.length > 0
-                    ? "text-primary border-primary/40 ring-1 ring-primary/40"
-                    : undefined
-                }
+                className={cn(
+                  "size-7 sm:size-8",
+                  attachedProducts.length > 0 &&
+                    "text-primary border-primary/40 ring-1 ring-primary/40",
+                )}
               >
                 <IconShoppingBag className="size-4" />
               </Button>
@@ -809,61 +1138,51 @@ function ThreadChatControls({
               <Typography
                 variant="muted"
                 as="span"
-                className="ml-2 hidden truncate sm:inline"
+                className="ml-2 hidden min-w-0 flex-1 truncate sm:inline"
               >
                 {isUploadingAttachments
                   ? "Uploading attachment…"
                   : "Enter to send · Shift + Enter for a new line"}
               </Typography>
-              <div className="ml-auto flex shrink-0 items-center gap-2">
+              <div className="ml-auto flex w-auto min-w-0 shrink-0 items-center justify-end gap-1.5 sm:gap-2">
                 {attachedProducts.length > 0 && (
-                  <Typography variant="muted" as="span">
+                  <Typography
+                    variant="muted"
+                    as="span"
+                    className="hidden 2xl:inline"
+                  >
                     {attachedProducts.length} product
                     {attachedProducts.length > 1 ? "s" : ""}
                   </Typography>
                 )}
                 {attachments.length > 0 && (
-                  <Typography variant="muted" as="span">
+                  <Typography
+                    variant="muted"
+                    as="span"
+                    className="hidden 2xl:inline"
+                  >
                     {attachments.length} attached
                   </Typography>
                 )}
-                {canReassign && connectedAgent && (
-                  <ReassignAgentSelect
-                    agents={agents}
-                    currentAgent={connectedAgent}
-                    disabled={transitionState !== "idle" || !chatSocketReady}
-                    onReassign={onReassign}
-                  />
-                )}
-                {/* Sits beside Send because it's the other thing an agent can
-                  do from here: hand the conversation back instead of
-                  replying. Outline keeps Send the primary action. */}
-                <motion.div layoutId={HANDOVER_ACTION_ID} className="shrink-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={onReturnToAI}
-                    disabled={transitionState !== "idle" || !chatSocketReady}
-                  >
-                    <IconRobot className="size-4" />
-                    Return to AI
-                  </Button>
-                </motion.div>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
                   onClick={onSendInternalNote}
                   disabled={!canSaveInternalNote || isSavingInternalNote}
                   title="Save this text as an internal note"
                 >
-                  <IconNote className="size-4" />
-                  Send as Internal Note
+                  <IconNote className="size-3.5 sm:size-4" />
+                  <span className="hidden xl:inline">
+                    Send as Internal Note
+                  </span>
+                  <span className="xl:hidden">Note</span>
                 </Button>
                 <Button
                   type="button"
                   size="sm"
+                  className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
                   onClick={onSendAgentMessage}
                   disabled={!canSend}
                   title={
@@ -872,7 +1191,7 @@ function ThreadChatControls({
                       : "Send reply to customer"
                   }
                 >
-                  <IconSend className="size-4" />
+                  <IconSend className="size-3.5 sm:size-4" />
                   Send
                 </Button>
               </div>
@@ -956,6 +1275,24 @@ export default function Support() {
   const { SyncCustomerOrdersIsLoading } = useAppSelector(
     (state) => state.GetOrderReducer.SyncCustomerOrdersState,
   );
+  const { FetchCustomerOrdersData } = useAppSelector(
+    (state) => state.GetOrderReducer.FetchCustomerOrdersState,
+  );
+
+  const ordersWithAdminUrls = useMemo(() => {
+    const adminUrlsByOrderId = new Map(
+      FetchCustomerOrdersData.results.map((order) => [
+        order.order_id,
+        order.admin_url ?? null,
+      ]),
+    );
+
+    return FetchOrderData.map((order) => ({
+      ...order,
+      admin_url:
+        order.admin_url ?? adminUrlsByOrderId.get(order.order_id) ?? null,
+    }));
+  }, [FetchCustomerOrdersData.results, FetchOrderData]);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -1440,6 +1777,14 @@ export default function Support() {
         }),
       );
       dispatch(FetchOrders(activeThreadId));
+      if (selectedThread?.customer?.id && storeCode) {
+        dispatch(
+          FetchCustomerOrders({
+            storeCode,
+            customerId: selectedThread.customer.id,
+          }),
+        );
+      }
     };
 
     loadThreadData();
@@ -1501,12 +1846,13 @@ export default function Support() {
       }
 
       try {
-        setTransitionState("taking_over");
+        const assigningToAI = !email;
+        setTransitionState(assigningToAI ? "returning_to_ai" : "taking_over");
         wsRef.current.send(
           JSON.stringify({
             action_type: "handler_change",
-            chat_handler: "human",
-            chat_handler_user: email,
+            chat_handler: assigningToAI ? "ai" : "human",
+            ...(assigningToAI ? {} : { chat_handler_user: email }),
           }),
         );
       } catch (error) {
@@ -2417,12 +2763,18 @@ export default function Support() {
         <SidebarHeader className="gap-0 p-0">
           <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
             <CardTitle className="flex items-center gap-2">
-              <IconMessage2 className="size-4" />
-              Active Chats
+              Live chats
             </CardTitle>
-            {localThreads.length > 0 && (
-              <Badge variant="secondary">{localThreads.length}</Badge>
-            )}
+            <Badge
+              variant="outline"
+              className="h-9 rounded-full px-3 text-sm font-normal"
+            >
+              <span
+                aria-hidden="true"
+                className="size-2 rounded-full bg-emerald-500"
+              />
+              Online
+            </Badge>
           </div>
 
           <div className="flex flex-col gap-2.5 border-b px-4 py-2.5">
@@ -2431,7 +2783,7 @@ export default function Support() {
                 <SearchInput
                   value={threadSearch}
                   onChange={setThreadSearch}
-                  placeholder="Search name, message or order ID…"
+                  placeholder="Name, email, phone or order #"
                   label="Search conversations"
                 />
               </div>
@@ -2465,7 +2817,10 @@ export default function Support() {
                     ) : null}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-80 p-0">
+                <PopoverContent
+                  align="end"
+                  className="w-[calc(100vw-2rem)] max-w-80 p-0"
+                >
                   <div className="border-b px-4 py-3">
                     <CardTitle>Filter Conversations</CardTitle>
                   </div>
@@ -2549,12 +2904,12 @@ export default function Support() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="flex flex-wrap items-end gap-x-2 gap-y-1 border-b border-border/80">
+            <div className="grid grid-cols-4 gap-1 rounded-xl bg-muted/60 p-1">
               {(
                 [
-                  { key: "needs_human", label: "Needs human" },
+                  { key: "needs_human", label: "Human" },
                   { key: "ai", label: "AI" },
-                  { key: "with_agent", label: "With agent" },
+                  { key: "with_agent", label: "Agent" },
                   { key: "all", label: "All" },
                 ] as const
               ).map((option) => (
@@ -2586,10 +2941,10 @@ export default function Support() {
                     });
                   }}
                   className={cn(
-                    "-mb-px flex min-w-max grow basis-auto items-center justify-center gap-1 border-b-2 px-0.5 pb-2 pt-1 text-xs font-medium whitespace-nowrap transition-colors",
+                    "flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-xs font-medium whitespace-nowrap transition-colors",
                     activeReadFilter === option.key
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground",
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {option.label}
@@ -2639,6 +2994,16 @@ export default function Support() {
                     <ConversationRow
                       key={thread.id}
                       active={thread.id === activeThreadId}
+                      activeClassName={
+                        thread.need_escalation
+                          ? "-mx-2 w-[calc(100%+1rem)] rounded-none border-l-4 border-red-600 bg-red-50 pl-4! pr-5! hover:bg-red-50 dark:border-red-400 dark:bg-red-950/30 dark:hover:bg-red-950/30"
+                          : "-mx-2 w-[calc(100%+1rem)] rounded-none border-l-4 border-primary bg-primary/5 pl-4! pr-5! hover:bg-primary/[0.03] dark:bg-primary/10 dark:hover:bg-primary/10"
+                      }
+                      hoverClassName={
+                        thread.need_escalation
+                          ? "-mx-2 w-[calc(100%+1rem)] rounded-none pl-5! pr-5! hover:bg-red-50 dark:hover:bg-red-950/30"
+                          : "-mx-2 w-[calc(100%+1rem)] rounded-none pl-5! pr-5! hover:bg-primary/[0.03] dark:hover:bg-primary/10"
+                      }
                       onSelect={() => handleSelectThread(thread.id)}
                       unread={isUnread}
                       avatar={
@@ -2674,12 +3039,15 @@ export default function Support() {
                           </Badge>
                           <Badge
                             variant="secondary"
-                            className="h-5 rounded-md px-1.5 text-xs font-normal"
+                            className={cn(
+                              "h-5 rounded-md border-0 px-1.5 text-xs font-medium",
+                              thread.chat_handler === "human"
+                                ? "bg-blue-100 text-blue-700 hover:bg-blue-100"
+                                : "bg-violet-100 text-violet-700 hover:bg-violet-100",
+                            )}
                           >
-                            {thread.chat_handler === "human" ? (
+                            {thread.chat_handler === "human" && (
                               <IconHeadset className="size-3" />
-                            ) : (
-                              <IconRobot className="size-3" />
                             )}
                             {handlerLabel}
                           </Badge>
@@ -2735,12 +3103,12 @@ export default function Support() {
         {activeThreadId ? (
           <div className="flex h-full min-h-0">
             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-              <header className="flex h-16 shrink-0 items-center border-b bg-background px-4">
-                <div className="flex w-full items-center justify-between gap-3">
+              <header className="flex h-16 shrink-0 items-center border-b bg-background px-2 sm:px-4">
+                <div className="flex min-w-0 w-full items-center justify-between gap-1.5 sm:gap-3">
                   <div className="flex min-w-0 flex-1 items-center gap-2.5">
                     <Button
                       variant="ghost"
-                      size="icon-sm"
+                      size="icon-xs"
                       aria-label="Back to chat list"
                       className="-ml-2 shrink-0 desktop:hidden"
                       onClick={() => {
@@ -2799,38 +3167,83 @@ export default function Support() {
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-3">
-                    <CustomerDetailsButton
-                      onClick={() => setIsDetailsOpen(true)}
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsCreateTicketOpen(true)}
-                    >
-                      <IconTicket className="size-4" />
-                      Create Ticket
-                    </Button>
-                    {selectedThread?.is_active && canHandleChats && (
+                  <div className="shrink-0">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="sm:hidden"
+                          aria-label="Conversation actions"
+                        >
+                          <IconDotsVertical className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-48 sm:hidden"
+                      >
+                        <DropdownMenuItem
+                          onSelect={() => setIsDetailsOpen(true)}
+                        >
+                          <IconId className="size-4" />
+                          Customer details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => setIsCreateTicketOpen(true)}
+                        >
+                          <IconTicket className="size-4" />
+                          Create ticket
+                        </DropdownMenuItem>
+                        {selectedThread?.is_active && canHandleChats ? (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            disabled={
+                              !session?.user?.email ||
+                              displayedConnectedAgent !== session.user.email
+                            }
+                            onSelect={() => setIsCloseChatOpen(true)}
+                          >
+                            <IconMessageOff className="size-4" />
+                            Close chat
+                          </DropdownMenuItem>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <div className="hidden items-center gap-3 sm:flex">
+                      <CustomerDetailsButton
+                        onClick={() => setIsDetailsOpen(true)}
+                      />
                       <Button
                         variant="outline"
                         size="sm"
-                        // Only the agent the chat is assigned to may close it.
-                        disabled={
-                          !session?.user?.email ||
-                          displayedConnectedAgent !== session.user.email
-                        }
-                        title={
-                          displayedConnectedAgent === session?.user?.email
-                            ? "Close this chat"
-                            : "Only the assigned agent can close this chat"
-                        }
-                        onClick={() => setIsCloseChatOpen(true)}
+                        onClick={() => setIsCreateTicketOpen(true)}
                       >
-                        <IconMessageOff className="size-4" />
-                        Close Chat
+                        <IconTicket className="size-4" />
+                        Create Ticket
                       </Button>
-                    )}
+                      {selectedThread?.is_active && canHandleChats && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          // Only the agent the chat is assigned to may close it.
+                          disabled={
+                            !session?.user?.email ||
+                            displayedConnectedAgent !== session.user.email
+                          }
+                          title={
+                            displayedConnectedAgent === session?.user?.email
+                              ? "Close this chat"
+                              : "Only the assigned agent can close this chat"
+                          }
+                          onClick={() => setIsCloseChatOpen(true)}
+                        >
+                          <IconMessageOff className="size-4" />
+                          Close Chat
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </header>
@@ -2841,9 +3254,9 @@ export default function Support() {
                   </div>
                 ) : (
                   <div className="flex min-h-0 flex-1 flex-col">
-                    <div className="flex-1 min-h-0 overflow-y-auto p-3">
+                    <div className="min-h-0 flex-1 overflow-y-auto p-1 sm:p-3">
                       {threadMessages.length > 0 ? (
-                        <MessagePan
+                        <LiveMessagePan
                           messages={threadMessages}
                           handlerEvents={handlerEvents}
                           customerName={selectedThread?.customer?.name}
@@ -2856,12 +3269,21 @@ export default function Support() {
                         />
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
-                          <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />
+                          <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <IconMessage2 className="size-5" />
+                          </div>
                           <Typography variant="small" as="p">
-                            Nothing here yet
+                            No messages yet
                           </Typography>
-                          <Typography variant="muted">
-                            Messages for this thread will show up here.
+                          <Typography
+                            variant="muted"
+                            className="max-w-md leading-relaxed"
+                          >
+                            {selectedThread?.customer?.name ||
+                              selectedThread?.customer?.email ||
+                              "This customer"}{" "}
+                            opened the chat but hasn&apos;t written anything.
+                            The AI Assistant will reply as soon as they do.
                           </Typography>
                         </div>
                       )}
@@ -2903,10 +3325,12 @@ export default function Support() {
                       <ThreadChatControls
                         activeThreadId={activeThreadId}
                         isThreadActive={selectedThread.is_active}
+                        hasMessages={threadMessages.length > 0}
                         className="border-t"
                         connectedAgent={displayedConnectedAgent}
                         connectedAgentName={displayedConnectedAgentName}
                         user={session?.user?.email || null}
+                        userRole={session?.user?.role}
                         canReassign={canReassign}
                         agents={agents}
                         chatSocketReady={chatSocketReady}
@@ -2943,7 +3367,7 @@ export default function Support() {
               customerData={selectedThread?.customer || null}
               userMetadata={FetchUserMetadataData}
               userMetadataLoading={FetchUserMetadataIsLoading}
-              orders={FetchOrderData}
+              orders={ordersWithAdminUrls}
               ordersLoading={FetchOrderDataIsLoading}
               onOrdersSync={handleOrdersSync}
               orderSyncLoading={SyncCustomerOrdersIsLoading}

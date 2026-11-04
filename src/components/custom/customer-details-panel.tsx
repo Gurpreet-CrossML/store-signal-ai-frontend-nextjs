@@ -16,6 +16,7 @@ import { TicketCopilotPanel } from "@/components/custom/ticket-copilot-panel";
 import {
   CartDetailsCard,
   OrdersCard,
+  OrdersSummary,
   SessionDataCard,
   SupportTicketsCard,
   ViewedProductsCard,
@@ -29,6 +30,16 @@ import type {
   ThreadTicketData,
   UserMetadata,
 } from "@/redux/api-slice/thread-slice";
+
+function formatCustomerSince(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    year: "numeric",
+  });
+}
 
 /**
  * Opens the details as a sheet. Shown only below `xl`, where the docked
@@ -122,35 +133,61 @@ export function CustomerDetailsPanel({
   const [tab, setTab] = useState<"details" | "copilot">("details");
   const canUseCopilot = useCan("copilot");
   const showCopilot = Boolean(copilot) && canUseCopilot;
+  const customerSince = formatCustomerSince(customerData?.registered_at);
 
   const details = (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <OrdersCard
-        orders={orders}
-        loading={ordersLoading}
-        handleOrdersSync={onOrdersSync}
-        orderSyncLoading={orderSyncLoading}
-        customerData={customerData}
-        isDisabled={ordersDisabled}
-      />
-      {tickets ? (
-        <SupportTicketsCard tickets={tickets.data} loading={tickets.loading} />
-      ) : null}
-      {cart ? (
-        <>
-          <CartDetailsCard cartData={cart.data} loading={cart.loading} />
-          <ViewedProductsCard
-            viewedProducts={userMetadata?.viewed_products}
-            loading={userMetadataLoading}
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-14 shrink-0 items-center justify-between border-b bg-background px-4 py-3 sm:px-5">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="min-w-0 truncate text-base font-semibold tracking-tight sm:text-lg">
+              Customer overview
+            </h2>
+            {customerData?.id ? (
+              <span className="shrink-0 text-xs text-muted-foreground sm:text-sm">
+                Since {customerSince}
+              </span>
+            ) : null}
+          </div>
+          <OrdersSummary
+            orders={orders}
+            customerData={customerData}
+            loading={ordersLoading}
+            className="mt-3"
           />
-          <SessionDataCard
-            userMetadata={userMetadata}
-            customer={customerData}
-            currentThreadId={currentThreadId}
-            loading={userMetadataLoading}
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <OrdersCard
+          orders={orders}
+          loading={ordersLoading}
+          handleOrdersSync={onOrdersSync}
+          orderSyncLoading={orderSyncLoading}
+          customerData={customerData}
+          isDisabled={ordersDisabled}
+        />
+        {tickets ? (
+          <SupportTicketsCard
+            tickets={tickets.data}
+            loading={tickets.loading}
           />
-        </>
-      ) : null}
+        ) : null}
+        {cart ? (
+          <>
+            <CartDetailsCard cartData={cart.data} loading={cart.loading} />
+            <ViewedProductsCard
+              viewedProducts={userMetadata?.viewed_products}
+              loading={userMetadataLoading}
+            />
+            <SessionDataCard
+              userMetadata={userMetadata}
+              customer={customerData}
+              currentThreadId={currentThreadId}
+              loading={userMetadataLoading}
+            />
+          </>
+        ) : null}
+      </div>
     </div>
   );
 
@@ -204,7 +241,7 @@ export function CustomerDetailsPanel({
         <Sheet open={Boolean(open)} onOpenChange={onOpenChange}>
           <SheetContent
             side="right"
-            className="w-full gap-0 p-0 data-[side=right]:sm:max-w-md xl:hidden"
+            className="h-dvh max-h-dvh w-full gap-0 overflow-hidden p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md xl:hidden"
           >
             <SheetHeader className="border-b">
               <SheetTitle>

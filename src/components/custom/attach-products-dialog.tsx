@@ -150,13 +150,13 @@ export function AttachProductsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[85vh] flex flex-col p-6">
+      <DialogContent className="flex max-h-[calc(100dvh-1rem)] flex-col gap-4 p-3 sm:max-h-[85vh] sm:max-w-xl sm:gap-6 sm:p-6">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <IconShoppingBag className="size-4" />
             </div>
-            <div>
+            <div className="min-w-0 pr-6">
               <DialogTitle>Attach Products</DialogTitle>
               <DialogDescription className="text-xs">
                 Select up to {maxProducts} products to share with the customer.
@@ -195,7 +195,7 @@ export function AttachProductsDialog({
         </div>
 
         {/* Product list */}
-        <div className="flex-1 overflow-y-auto min-h-[260px] max-h-[360px] divide-y border rounded-lg">
+        <div className="min-h-0 flex-1 divide-y overflow-y-auto rounded-lg border sm:min-h-[260px] sm:max-h-[360px]">
           {isLoading ? (
             <div className="flex h-full min-h-[240px] items-center justify-center">
               <Spinner className="size-6 text-primary" />
@@ -256,7 +256,7 @@ export function AttachProductsDialog({
         </div>
 
         {FetchProductsData?.next || FetchProductsData?.previous ? (
-          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
             <span>
               {FetchProductsData.count} products · Page {page}
             </span>
@@ -283,7 +283,7 @@ export function AttachProductsDialog({
           </div>
         ) : null}
 
-        <DialogFooter className="mt-3 flex items-center justify-end gap-2">
+        <DialogFooter className="mt-1 grid grid-cols-2 gap-2 sm:mt-3 sm:flex sm:items-center sm:justify-end">
           <Button
             type="button"
             variant="outline"
