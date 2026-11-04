@@ -160,11 +160,12 @@ export function ViewedProductsCard({
     <section className="flex flex-col gap-4 border-b p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <CardTitle className="flex items-center gap-2">
-        <IconEye className="size-4" />
+          <IconEye className="size-4" />
           Viewed this visit
         </CardTitle>
         <Typography variant="muted" as="span">
-          {viewedProducts.length} {viewedProducts.length === 1 ? "product" : "products"}
+          {viewedProducts.length}{" "}
+          {viewedProducts.length === 1 ? "product" : "products"}
         </Typography>
       </div>
       {loading ? (
@@ -293,8 +294,13 @@ export function CartDetailsCard({
           <IconShoppingBag className="size-4" />
           Cart
         </CardTitle>
-        <Typography variant="small" as="span" className="font-semibold text-emerald-700">
-          {formatCartPrice(cart?.total) ?? "-"} · {items.length} {items.length === 1 ? "item" : "items"}
+        <Typography
+          variant="small"
+          as="span"
+          className="font-semibold text-emerald-700"
+        >
+          {formatCartPrice(cart?.total) ?? "-"} · {items.length}{" "}
+          {items.length === 1 ? "item" : "items"}
         </Typography>
       </div>
       {loading ? (
@@ -484,13 +490,21 @@ export function OrdersCard({
         <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
           <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
             <Typography variant="muted">Lifetime value</Typography>
-            <Typography variant="small" as="p" className="truncate tabular-nums">
+            <Typography
+              variant="small"
+              as="p"
+              className="truncate tabular-nums"
+            >
               {formatPrice(totalSpent, currency)}
             </Typography>
           </div>
           <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
             <Typography variant="muted">Orders</Typography>
-            <Typography variant="small" as="p" className="truncate tabular-nums">
+            <Typography
+              variant="small"
+              as="p"
+              className="truncate tabular-nums"
+            >
               {String(orderList.length)}
             </Typography>
           </div>

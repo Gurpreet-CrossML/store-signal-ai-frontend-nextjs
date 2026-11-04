@@ -115,7 +115,10 @@ export function SupportTicketCard({
           </div>
 
           {ticket.description && (
-            <Typography variant="muted" className="mt-1 line-clamp-2 leading-snug">
+            <Typography
+              variant="muted"
+              className="mt-1 line-clamp-2 leading-snug"
+            >
               {ticket.description}
             </Typography>
           )}
