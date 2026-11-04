@@ -1124,11 +1124,15 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               ))}
             </div>
           </div>
+          {/* Desktop thread actions are intentionally retained for future use.
+              Keep the mobile Create ticket control below unchanged. */}
+          {/*
           <div className="hidden shrink-0 gap-2 lg:flex">
             <Button variant="outline">Export</Button>
             <Button variant="outline">Flag for review</Button>
             <Button>Create ticket</Button>
           </div>
+          */}
         </div>
         <div className="grid w-full grid-cols-3 border-t lg:hidden">
           <div className="flex items-center gap-2 border-r p-3 max-[374px]:flex-col max-[374px]:gap-0">
@@ -1208,7 +1212,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         <Button variant="outline" size="icon" aria-label="Flag for review">
           <IconFlag />
         </Button>
-        <Button className="flex-1">Create ticket</Button>
+        {/* Retained for future mobile ticket flow. */}
+        {/* <Button className="flex-1">Create ticket</Button> */}
       </div>
       {storeCode ? (
         <LinkCustomerDialog

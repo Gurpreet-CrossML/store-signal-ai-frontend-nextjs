@@ -197,7 +197,7 @@ export default function MessagePan({
 
   return (
     <div
-      className="h-full space-y-3 overflow-y-auto p-2 md:space-y-2 md:px-4 md:py-3"
+      className="h-full space-y-3 overflow-y-auto p-2 md:px-4 md:py-3"
       ref={containerRef}
     >
       {/* Animates on mount as well as on append. The panel is only
@@ -405,13 +405,9 @@ export default function MessagePan({
               total={messages.length}
               className="space-y-2 pb-2 md:pb-1"
             >
-              <div
-                className={`flex ${isCustomer ? "justify-end md:justify-start" : "justify-start"}`}
-              >
+              <div className="flex justify-start">
                 <div
-                  className={`flex min-w-0 gap-2.5 md:max-w-none md:w-full ${
-                    isCustomer ? "flex-row-reverse md:flex-row" : "flex-row"
-                  } ${
+                  className={`flex min-w-0 flex-row gap-2.5 md:max-w-none md:w-full ${
                     message.json_content?.products?.length ||
                     message.json_content?.related_products?.length ||
                     hasCartDetails
@@ -434,9 +430,7 @@ export default function MessagePan({
                       (a product carousel, a long URL) unless told it may,
                       which pushed the whole pane into sideways scrolling. */}
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <div
-                      className={`mb-1 flex flex-wrap items-center gap-x-2 ${isCustomer ? "justify-end md:justify-start" : "justify-start"}`}
-                    >
+                    <div className="mb-1 flex flex-wrap items-center gap-x-2 justify-start">
                       <span className="text-xs font-medium text-foreground capitalize">
                         {message.messaged_by_email &&
                         me &&
