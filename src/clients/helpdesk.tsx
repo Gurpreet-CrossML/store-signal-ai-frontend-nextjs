@@ -3914,6 +3914,16 @@ export default function HelpDesk() {
               data: otherCustomerTickets,
               loading: FetchFreshdeskTicketIdIsLoading,
             }}
+            copilot={
+              storeCode
+                ? {
+                    storeCode,
+                    ticketId: activeSupportTicket.id,
+                    refreshKey: activeSupportTicket.status,
+                    onInsertDraft: setReply,
+                  }
+                : undefined
+            }
           />
         )}
       </div>
