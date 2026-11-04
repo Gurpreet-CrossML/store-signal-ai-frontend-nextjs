@@ -339,6 +339,15 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/tickets/${ticket_id}/language-sentiment/`, "django"),
   supportTicketMessagesTranslate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/messages/translate/`, "django"),
+  // Helpdesk Copilot: GET the conversation, POST to run an action.
+  supportTicketCopilot: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/copilot/`, "django"),
+  // PATCH — rate an answer good or bad.
+  supportTicketCopilotFeedback: (ticket_id: number, message_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/copilot/messages/${message_id}/feedback/`,
+      "django",
+    ),
 
   // Helpdesk support ticket websocket (Django)
   supportSocket: (store_code: string, token: string) =>

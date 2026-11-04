@@ -1,6 +1,7 @@
 "use client";
 
-import { IconId } from "@tabler/icons-react";
+import { useState } from "react";
+import { IconId, IconSparkles } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +11,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TicketCopilotPanel } from "@/components/custom/ticket-copilot-panel";
 import {
   CartDetailsCard,
   OrdersCard,
@@ -17,6 +20,7 @@ import {
   SupportTicketsCard,
   ViewedProductsCard,
 } from "@/components/custom/thread-detail-panels";
+import { useCan } from "@/hooks/use-can";
 import { cn } from "@/lib/utils";
 import type {
   CartDataResponse,
@@ -81,6 +85,7 @@ export function CustomerDetailsPanel({
   userMetadataLoading,
   open,
   onOpenChange,
+  copilot,
 }: {
   customerData?: Customer | null;
   userMetadata?: UserMetadata | null;
@@ -102,8 +107,23 @@ export function CustomerDetailsPanel({
    */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /**
+   * Adds a Copilot tab next to Details. Only Help Desk passes it: Copilot
+   * works on one ticket, so Live Support has nothing to offer it.
+   */
+  copilot?: {
+    storeCode: string;
+    ticketId: number;
+    /** Changes whenever the ticket does, so Copilot re-checks its buttons. */
+    refreshKey: string;
+    onInsertDraft: (text: string) => void;
+  };
 }) {
-  const content = (
+  const [tab, setTab] = useState<"details" | "copilot">("details");
+  const canUseCopilot = useCan("copilot");
+  const showCopilot = Boolean(copilot) && canUseCopilot;
+
+  const details = (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <OrdersCard
         orders={orders}
@@ -134,10 +154,51 @@ export function CustomerDetailsPanel({
     </div>
   );
 
+  // The docked pane and the sheet are the same content in two places; the
+  // pane is only hidden below `xl`, not unmounted. Copilot loads and runs
+  // model calls, so it is mounted in just one of them at a time.
+  const sheetOpen = Boolean(open);
+
+  const withTabs = (copilotMounted: boolean) =>
+    showCopilot && copilot ? (
+      <Tabs
+        value={tab}
+        onValueChange={(value) => setTab(value as "details" | "copilot")}
+        className="min-h-0 flex-1 gap-0"
+      >
+        <TabsList variant="line" className="w-full shrink-0 border-b px-2">
+          <TabsTrigger value="details">
+            <IconId />
+            Details
+          </TabsTrigger>
+          <TabsTrigger value="copilot">
+            <IconSparkles />
+            Copilot
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="details" className="flex min-h-0 flex-col">
+          {details}
+        </TabsContent>
+        <TabsContent value="copilot" className="flex min-h-0 flex-col">
+          {copilotMounted ? (
+            <TicketCopilotPanel
+              key={copilot.ticketId}
+              storeCode={copilot.storeCode}
+              ticketId={copilot.ticketId}
+              refreshKey={copilot.refreshKey}
+              onInsertDraft={copilot.onInsertDraft}
+            />
+          ) : null}
+        </TabsContent>
+      </Tabs>
+    ) : (
+      details
+    );
+
   return (
     <>
       <aside className="hidden min-h-0 w-72 shrink-0 flex-col border-l xl:flex 2xl:w-95">
-        {content}
+        {withTabs(!sheetOpen)}
       </aside>
       {onOpenChange ? (
         <Sheet open={Boolean(open)} onOpenChange={onOpenChange}>
@@ -146,12 +207,14 @@ export function CustomerDetailsPanel({
             className="w-full gap-0 p-0 data-[side=right]:sm:max-w-md xl:hidden"
           >
             <SheetHeader className="border-b">
-              <SheetTitle>Customer details</SheetTitle>
+              <SheetTitle>
+                {showCopilot ? "Details and Copilot" : "Customer details"}
+              </SheetTitle>
               <SheetDescription className="sr-only">
                 Orders, tickets and session data for this customer.
               </SheetDescription>
             </SheetHeader>
-            {content}
+            {withTabs(sheetOpen)}
           </SheetContent>
         </Sheet>
       ) : null}
