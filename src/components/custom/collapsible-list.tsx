@@ -39,6 +39,7 @@ export function ShowMoreToggle({
   onToggle,
   noun,
   nounPlural = `${noun}s`,
+  collapsedLabel,
   className,
 }: {
   hiddenCount: number;
@@ -47,6 +48,7 @@ export function ShowMoreToggle({
   /** What is hidden, for the label: "3 more orders". */
   noun: string;
   nounPlural?: string;
+  collapsedLabel?: string;
   className?: string;
 }) {
   if (hiddenCount <= 0) return null;
@@ -59,21 +61,26 @@ export function ShowMoreToggle({
       onClick={onToggle}
       className={cn(
         "w-full text-muted-foreground hover:text-foreground",
+        collapsedLabel && "justify-center underline underline-offset-2",
         className,
       )}
     >
       {expanded ? (
         <>
-          <IconChevronUp className="size-4" />
-          Show Less
+          {!collapsedLabel && <IconChevronUp className="size-4" />}
+          {collapsedLabel ? "Show less" : "Show Less"}
         </>
       ) : (
         <>
-          <IconChevronDown className="size-4" />
+          {!collapsedLabel && <IconChevronDown className="size-4" />}
           {/* Title case like every other button, so the two states of this
               one toggle do not read as two different styles. */}
-          Show {hiddenCount} More{" "}
-          {capitalizeText(hiddenCount === 1 ? noun : nounPlural)}
+          {collapsedLabel ?? (
+            <>
+              Show {hiddenCount} More{" "}
+              {capitalizeText(hiddenCount === 1 ? noun : nounPlural)}
+            </>
+          )}
         </>
       )}
     </Button>

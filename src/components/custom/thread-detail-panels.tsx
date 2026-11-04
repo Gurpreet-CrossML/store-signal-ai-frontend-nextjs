@@ -188,6 +188,7 @@ export function ViewedProductsCard({
             expanded={viewedExpanded}
             onToggle={toggleViewed}
             noun="product"
+            collapsedLabel={`Show ${hiddenViewedCount} more`}
             className="text-primary hover:text-primary"
           />
         </div>
@@ -385,6 +386,7 @@ export function SupportTicketsCard({
             expanded={ticketsExpanded}
             onToggle={toggleTickets}
             noun="ticket"
+            collapsedLabel={`View all tickets (${liveCount} open, ${tickets.length - liveCount} closed)`}
             className="text-primary hover:text-primary"
           />
         </div>
@@ -395,21 +397,24 @@ export function SupportTicketsCard({
 
 export function OrdersSummary({
   orders,
+  customerData,
   loading,
   className,
 }: {
   orders?: OrderData[] | null;
+  customerData?: Customer | null;
   loading?: boolean;
   className?: string;
 }) {
-  if (loading) return null;
-
   const orderList = orders ?? [];
-  const totalSpent = orderList.reduce(
+  const loadedTotalSpent = orderList.reduce(
     (sum, order) => sum + Number(order.total_price ?? 0),
     0,
   );
   const currency = orderList[0]?.currency ?? "USD";
+  if (loading && customerData?.total_spent == null) return null;
+  const totalSpent = customerData?.total_spent ?? loadedTotalSpent;
+  const orderCount = customerData?.orders_count ?? orderList.length;
 
   return (
     <div
@@ -424,7 +429,7 @@ export function OrdersSummary({
       <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
         <Typography variant="muted">Orders</Typography>
         <Typography variant="small" as="p" className="truncate tabular-nums">
-          {String(orderList.length)}
+          {String(orderCount)}
         </Typography>
       </div>
     </div>
@@ -638,6 +643,7 @@ export function OrdersCard({
             expanded={ordersExpanded}
             onToggle={toggleOrders}
             noun="order"
+            collapsedLabel={`View all ${orderList.length} orders`}
             className="text-primary hover:text-primary"
           />
         </div>

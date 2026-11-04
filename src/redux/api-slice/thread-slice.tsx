@@ -70,6 +70,8 @@ export type Customer = {
   email: string;
   phone?: string | null;
   registered_at?: string | null;
+  total_spent?: string | number | null;
+  orders_count?: number | null;
   past_threads_count?: number;
 };
 
