@@ -294,7 +294,12 @@ export const SaveWorkflowPolicy = createAsyncThunk(
       const data = response?.data;
       // Text that couldn't be converted comes back as field errors, which
       // the screen shows under the box; only toast what names no field.
-      if (!Object.keys(serverFieldErrors(data)).length) {
+      // Out of credits (429) names no field either, though its envelope
+      // carries a `type` key that reads like one.
+      if (
+        response?.status === 429 ||
+        !Object.keys(serverFieldErrors(data)).length
+      ) {
         toast.error("Uh oh! Something went wrong.", {
           description: data?.message || "Unable to save this policy.",
         });
