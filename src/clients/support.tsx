@@ -1032,7 +1032,7 @@ function ThreadChatControls({
               </div>
 
               {/* Toolbar: emoji + attach + hint on the left, send on the right */}
-              <div className="flex flex-nowrap items-center gap-1 p-1.5 sm:flex-wrap sm:p-2">
+              <div className="flex flex-nowrap items-center gap-1 p-1.5 sm:p-2">
                 <Button
                   type="button"
                   variant="secondary"
@@ -1096,7 +1096,7 @@ function ThreadChatControls({
                 <Typography
                   variant="muted"
                   as="span"
-                  className="ml-2 hidden truncate sm:inline"
+                  className="ml-2 hidden min-w-0 flex-1 truncate sm:inline"
                 >
                   {isUploadingAttachments
                     ? "Uploading attachment…"
@@ -1107,7 +1107,7 @@ function ThreadChatControls({
                     <Typography
                       variant="muted"
                       as="span"
-                      className="hidden md:inline"
+                      className="hidden 2xl:inline"
                     >
                       {attachedProducts.length} product
                       {attachedProducts.length > 1 ? "s" : ""}
@@ -1117,7 +1117,7 @@ function ThreadChatControls({
                     <Typography
                       variant="muted"
                       as="span"
-                      className="hidden md:inline"
+                      className="hidden 2xl:inline"
                     >
                       {attachments.length} attached
                     </Typography>
@@ -1132,10 +1132,10 @@ function ThreadChatControls({
                     title="Save this text as an internal note"
                   >
                     <IconNote className="size-3.5 sm:size-4" />
-                    <span className="hidden sm:inline">
+                    <span className="hidden xl:inline">
                       Send as Internal Note
                     </span>
-                    <span className="sm:hidden">Note</span>
+                    <span className="xl:hidden">Note</span>
                   </Button>
                   <Button
                     type="button"
