@@ -25,6 +25,7 @@ import {
 } from "@tabler/icons-react";
 
 import MessagePan from "@/components/custom/message-pan";
+import ConversationMap from "@/components/custom/conversation-map";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import {
   CustomerDetailsButton,
@@ -400,7 +401,7 @@ function ResolutionRing({ value }: { value: number }) {
   );
 }
 
-function ConversationMap({
+function LegacyConversationMap({
   messages,
   rate,
   startedAt,
