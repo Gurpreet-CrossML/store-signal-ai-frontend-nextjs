@@ -38,6 +38,8 @@ export type SlaPolicyPayload = {
 /** A new policy: the same targets, given to each of the tags. */
 export type SlaPolicyCreatePayload = SlaPolicyPayload & {
   tags: number[];
+  /** Count old tickets from their history (overdue at once) or from now. */
+  apply_to_existing_tickets: boolean;
 };
 
 export type SlaPoliciesResponse = {
