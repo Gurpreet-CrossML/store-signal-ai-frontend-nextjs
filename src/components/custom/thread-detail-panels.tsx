@@ -393,6 +393,44 @@ export function SupportTicketsCard({
   );
 }
 
+export function OrdersSummary({
+  orders,
+  loading,
+  className,
+}: {
+  orders?: OrderData[] | null;
+  loading?: boolean;
+  className?: string;
+}) {
+  if (loading) return null;
+
+  const orderList = orders ?? [];
+  const totalSpent = orderList.reduce(
+    (sum, order) => sum + Number(order.total_price ?? 0),
+    0,
+  );
+  const currency = orderList[0]?.currency ?? "USD";
+
+  return (
+    <div
+      className={`grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border ${className ?? ""}`}
+    >
+      <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
+        <Typography variant="muted">Lifetime value</Typography>
+        <Typography variant="small" as="p" className="truncate tabular-nums">
+          {formatPrice(totalSpent, currency)}
+        </Typography>
+      </div>
+      <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
+        <Typography variant="muted">Orders</Typography>
+        <Typography variant="small" as="p" className="truncate tabular-nums">
+          {String(orderList.length)}
+        </Typography>
+      </div>
+    </div>
+  );
+}
+
 export function OrdersCard({
   orders,
   loading,
@@ -416,12 +454,6 @@ export function OrdersCard({
     toggle: toggleOrders,
   } = useCollapsibleList(orderList);
   const [expandedId, setExpandedId] = useState<number | null>(null);
-
-  const totalSpent = orderList.reduce(
-    (sum, order) => sum + Number(order.total_price ?? 0),
-    0,
-  );
-  const currency = orderList[0]?.currency ?? "USD";
 
   // Opening a row loads that order from /chat/orders/{id}/.
   //
@@ -486,30 +518,6 @@ export function OrdersCard({
           </TooltipContent>
         </Tooltip>
       </div>
-      {!loading ? (
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
-          <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
-            <Typography variant="muted">Lifetime value</Typography>
-            <Typography
-              variant="small"
-              as="p"
-              className="truncate tabular-nums"
-            >
-              {formatPrice(totalSpent, currency)}
-            </Typography>
-          </div>
-          <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
-            <Typography variant="muted">Orders</Typography>
-            <Typography
-              variant="small"
-              as="p"
-              className="truncate tabular-nums"
-            >
-              {String(orderList.length)}
-            </Typography>
-          </div>
-        </div>
-      ) : null}
       {loading ? (
         <CardLoadingState />
       ) : !orderList || orderList?.length === 0 ? (

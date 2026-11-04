@@ -16,6 +16,7 @@ import { TicketCopilotPanel } from "@/components/custom/ticket-copilot-panel";
 import {
   CartDetailsCard,
   OrdersCard,
+  OrdersSummary,
   SessionDataCard,
   SupportTicketsCard,
   ViewedProductsCard,
