@@ -634,9 +634,16 @@ export function OrdersCard({
                   />
                 </button>
 
-                {latestOrder?.id === order.id && !isExpanded && order.admin_url ? (
+                {latestOrder?.id === order.id &&
+                !isExpanded &&
+                order.admin_url ? (
                   <div className="px-2.5 pb-2.5">
-                    <Button variant="outline" size="sm" className="w-full" asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      asChild
+                    >
                       <a
                         href={order.admin_url}
                         target="_blank"

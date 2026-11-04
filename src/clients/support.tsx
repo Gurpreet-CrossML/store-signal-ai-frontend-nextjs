@@ -324,7 +324,10 @@ function ReassignAgentSelect({
     (agent) => agent.email === currentAgent,
   );
   const currentAgentDisplayName =
-    currentAgentOption?.name || currentAgentName || currentAgent || "Unassigned";
+    currentAgentOption?.name ||
+    currentAgentName ||
+    currentAgent ||
+    "Unassigned";
   const currentAgentInitials = currentAgentDisplayName
     .split(" ")
     .map((part) => part[0])
@@ -1286,7 +1289,8 @@ export default function Support() {
 
     return FetchOrderData.map((order) => ({
       ...order,
-      admin_url: order.admin_url ?? adminUrlsByOrderId.get(order.order_id) ?? null,
+      admin_url:
+        order.admin_url ?? adminUrlsByOrderId.get(order.order_id) ?? null,
     }));
   }, [FetchCustomerOrdersData.results, FetchOrderData]);
 
@@ -3363,7 +3367,7 @@ export default function Support() {
               customerData={selectedThread?.customer || null}
               userMetadata={FetchUserMetadataData}
               userMetadataLoading={FetchUserMetadataIsLoading}
-                        orders={ordersWithAdminUrls}
+              orders={ordersWithAdminUrls}
               ordersLoading={FetchOrderDataIsLoading}
               onOrdersSync={handleOrdersSync}
               orderSyncLoading={SyncCustomerOrdersIsLoading}

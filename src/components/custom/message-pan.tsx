@@ -138,7 +138,11 @@ function HandlerEventGroupRow({
       </span>
       {expanded
         ? events.map((event) => (
-            <HandlerEventRow key={`expanded-handler-event-${event.id}`} event={event} me={me} />
+            <HandlerEventRow
+              key={`expanded-handler-event-${event.id}`}
+              event={event}
+              me={me}
+            />
           ))
         : null}
     </div>
