@@ -15,13 +15,13 @@ import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -312,8 +312,7 @@ function ReassignAgentSelect({
   disabled: boolean;
   onReassign: (email: string) => void;
 }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [desktopOpen, setDesktopOpen] = useState(false);
+  const [open, setOpen] = useState(false);
 
   if (agents.length === 0) return null;
 
@@ -332,8 +331,7 @@ function ReassignAgentSelect({
 
   const selectAgent = (email: string) => {
     if (email !== currentAgent) onReassign(email);
-    setMobileOpen(false);
-    setDesktopOpen(false);
+    setOpen(false);
   };
 
   const renderTriggerContent = (open: boolean) => (
@@ -414,8 +412,8 @@ function ReassignAgentSelect({
       <span className="hidden shrink-0 text-xs font-medium text-muted-foreground sm:inline sm:text-sm">
         Assignee
       </span>
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetTrigger asChild>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
           <Button
             type="button"
             variant="outline"
@@ -423,61 +421,35 @@ function ReassignAgentSelect({
             disabled={disabled}
             aria-label="Choose assignee"
             className={cn(
-              "h-9 min-w-0 flex-1 rounded-full border-border px-2 text-xs sm:hidden",
-              mobileOpen && "border-primary ring-2 ring-primary/15",
+              "h-9 min-w-0 flex-1 rounded-full border-border px-2 text-xs sm:h-10 sm:flex-none sm:px-2.5 sm:text-sm",
+              open && "border-primary ring-2 ring-primary/15",
             )}
           >
-            {renderTriggerContent(mobileOpen)}
+            {renderTriggerContent(open)}
           </Button>
-        </SheetTrigger>
-        <SheetContent
-          side="bottom"
-          className="max-h-[85dvh] gap-0 overflow-hidden rounded-t-3xl p-0 data-[side=bottom]:h-[65dvh] sm:hidden"
+        </DialogTrigger>
+        <DialogContent
+          showCloseButton
+          className="w-[calc(100vw-2rem)] max-w-90 gap-0 overflow-hidden rounded-xl p-2"
         >
-          <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-muted-foreground/30" />
-          <SheetHeader className="border-b px-4 pb-3 pt-4 text-left">
-            <SheetTitle className="text-lg">Assign chat</SheetTitle>
-            <SheetDescription className="sr-only">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Assign chat</DialogTitle>
+            <DialogDescription>
               Search for a teammate and assign this conversation.
-            </SheetDescription>
-          </SheetHeader>
-          <Command className="h-auto! min-h-0 flex-1 rounded-none!">
-            <div className="px-4 pb-2 pt-3">
-              <CommandInput placeholder="Search teammates" />
-            </div>
-            <CommandList className="min-h-0 max-h-none flex-1 px-2 pb-4">
+            </DialogDescription>
+          </DialogHeader>
+          <Command className="rounded-lg!">
+            <CommandInput placeholder="Search teammates" />
+            <CommandList className="max-h-[60vh] px-1 pb-1">
               {renderOptions()}
             </CommandList>
           </Command>
-        </SheetContent>
-      </Sheet>
-
-      <Popover open={desktopOpen} onOpenChange={setDesktopOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={disabled}
-            aria-label="Choose assignee"
-            className={cn(
-              "hidden h-10 min-w-0 rounded-full border-border px-2.5 text-sm sm:flex sm:flex-none",
-              desktopOpen && "border-primary ring-2 ring-primary/15",
-            )}
-          >
-            {renderTriggerContent(desktopOpen)}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="end"
-          className="w-[calc(100vw-2rem)] max-w-90 p-1"
-        >
-          <Command>
-            <CommandInput placeholder="Search teammates" />
-            <CommandList>{renderOptions()}</CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+          <div className="border-t border-border/60 px-3 py-3 text-xs leading-relaxed text-muted-foreground sm:px-4 sm:text-sm">
+            Assigning a teammate hands them the chat and pauses the AI. They
+            get an email and an in-app alert.
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -590,14 +562,14 @@ function ThreadChatControls({
 
   return (
     <div
-      className={`relative flex flex-col gap-2 border-t border-border/50 bg-background/95 p-2 sm:p-4 ${className ?? ""}`}
+      className={`relative mx-2 mb-2 flex flex-col gap-0 overflow-hidden rounded-xl border border-border/60 bg-background/95 shadow-xs sm:mx-3 sm:mb-3 ${className ?? ""}`}
     >
       {/* The three states of this bar are one thing changing, not three
           things appearing. AnimatePresence keeps the outgoing state
           mounted while the incoming one arrives — which is what lets the
           handover button below morph between them rather than one
           disappearing and another popping in somewhere else. */}
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} mode="popLayout">
         {!connectedAgent && (
           <motion.div
             key="ai-handling"
@@ -605,7 +577,7 @@ function ThreadChatControls({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="order-1 rounded-xl border bg-muted/30 p-2 sm:p-3"
+            className="order-1 border-b border-border/60 bg-background px-3 py-2 sm:px-4 sm:py-2.5"
           >
             <div
               className={cn(
@@ -708,9 +680,9 @@ function ThreadChatControls({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="order-2 space-y-2"
+            className="order-2 p-2 sm:p-2.5"
           >
-            <div className="overflow-hidden rounded-xl border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30">
+            <div className="overflow-hidden rounded-lg border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30">
               <div className="flex items-start gap-1.5 border-b border-amber-300/80 bg-amber-100/60 px-2.5 py-1 text-[11px] font-bold leading-snug text-amber-800 sm:px-3 sm:py-1.5 sm:text-xs dark:border-amber-700/70 dark:bg-amber-950/40 dark:text-amber-100">
                 <IconLock className="mt-0.5 size-3 shrink-0 text-amber-700 sm:size-3.5 dark:text-amber-300" />
                 <span>
@@ -775,7 +747,7 @@ function ThreadChatControls({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="order-1 flex flex-col gap-3 rounded-xl border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"
+            className="order-1 flex flex-col gap-2 border-b border-border/60 bg-background px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5"
           >
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -838,7 +810,7 @@ function ThreadChatControls({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="order-1 flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/30 p-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-3"
+            className="order-1 flex flex-col gap-2 border-b border-border/60 bg-background px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5"
           >
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:size-9">
@@ -890,7 +862,7 @@ function ThreadChatControls({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="order-2 overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm"
+            className="order-2 m-2 overflow-hidden rounded-lg border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm sm:m-2.5"
           >
             {isEmojiPickerOpen && (
               <div className="border-b border-border/50 p-2">
