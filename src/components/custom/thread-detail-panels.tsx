@@ -157,11 +157,16 @@ export function ViewedProductsCard({
   } = useCollapsibleList(viewedProducts);
 
   return (
-    <section className="flex flex-col gap-3 border-b p-4">
-      <CardTitle className="flex items-center gap-2">
+    <section className="flex flex-col gap-4 border-b p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <CardTitle className="flex items-center gap-2">
         <IconEye className="size-4" />
-        Products Viewed
-      </CardTitle>
+          Viewed this visit
+        </CardTitle>
+        <Typography variant="muted" as="span">
+          {viewedProducts.length} {viewedProducts.length === 1 ? "product" : "products"}
+        </Typography>
+      </div>
       {loading ? (
         <CardLoadingState />
       ) : viewedProducts.length === 0 ? (
@@ -182,6 +187,7 @@ export function ViewedProductsCard({
             expanded={viewedExpanded}
             onToggle={toggleViewed}
             noun="product"
+            className="text-primary hover:text-primary"
           />
         </div>
       )}
@@ -223,10 +229,10 @@ export function SessionDataCard({
   ];
 
   return (
-    <section className="flex flex-col gap-3 border-b p-4">
+    <section className="flex flex-col gap-4 border-b p-4 sm:p-5">
       <CardTitle className="flex items-center gap-2">
         <IconDeviceLaptop className="size-4" />
-        Session Data
+        Visit details
       </CardTitle>
       {loading ? (
         <CardLoadingState />
@@ -281,11 +287,16 @@ export function CartDetailsCard({
   const items = cart?.items ?? [];
 
   return (
-    <section className="flex flex-col gap-3 border-b p-4">
-      <CardTitle className="flex items-center gap-2">
-        <IconShoppingBag className="size-4" />
-        Cart
-      </CardTitle>
+    <section className="flex flex-col gap-4 border-b p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <CardTitle className="flex items-center gap-2">
+          <IconShoppingBag className="size-4" />
+          Cart
+        </CardTitle>
+        <Typography variant="small" as="span" className="font-semibold text-emerald-700">
+          {formatCartPrice(cart?.total) ?? "-"} · {items.length} {items.length === 1 ? "item" : "items"}
+        </Typography>
+      </div>
       {loading ? (
         <CardLoadingState />
       ) : items.length === 0 ? (
@@ -340,12 +351,18 @@ export function SupportTicketsCard({
   } = useCollapsibleList(sortedTickets);
 
   return (
-    <section className="flex flex-col gap-3 border-b p-4">
-      <CardTitle className="flex items-center gap-2">
-        <IconTicket className="size-4" />
-        Support Tickets
-        {!loading && liveCount ? ` (${liveCount} active)` : ""}
-      </CardTitle>
+    <section className="flex flex-col gap-4 border-b p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <CardTitle className="flex items-center gap-2">
+          <IconTicket className="size-4" />
+          Support tickets
+        </CardTitle>
+        {!loading && liveCount > 0 ? (
+          <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-medium text-orange-700">
+            {liveCount} open
+          </span>
+        ) : null}
+      </div>
       {loading ? (
         <CardLoadingState />
       ) : !tickets.length ? (
@@ -362,22 +379,11 @@ export function SupportTicketsCard({
             expanded={ticketsExpanded}
             onToggle={toggleTickets}
             noun="ticket"
+            className="text-primary hover:text-primary"
           />
         </div>
       )}
     </section>
-  );
-}
-
-/** One figure in the orders summary. */
-function SummaryStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
-      <Typography variant="muted">{label}</Typography>
-      <Typography variant="small" as="p" className="truncate tabular-nums">
-        {value}
-      </Typography>
-    </div>
   );
 }
 
@@ -405,6 +411,12 @@ export function OrdersCard({
   } = useCollapsibleList(orderList);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
+  const totalSpent = orderList.reduce(
+    (sum, order) => sum + Number(order.total_price ?? 0),
+    0,
+  );
+  const currency = orderList[0]?.currency ?? "USD";
+
   // Opening a row loads that order from /chat/orders/{id}/.
   //
   // The lists these panels are handed come from thinner sources — the
@@ -425,12 +437,6 @@ export function OrdersCard({
   // The two figures that used to sit in a card of their own above this
   // one. They are a fact about these orders, so they belong to the section
   // that lists them — and the pane gets a whole card's height back.
-  const totalSpent = orderList.reduce(
-    (sum, order) => sum + Number(order.total_price ?? 0),
-    0,
-  );
-  const currency = orderList[0]?.currency ?? "USD";
-
   const toggleOrder = (id: number) => {
     setExpandedId((prev) => {
       if (prev === id) return null;
@@ -474,20 +480,22 @@ export function OrdersCard({
           </TooltipContent>
         </Tooltip>
       </div>
-      {/* The figures the orders below add up to, in the section that
-          lists them rather than a card of its own above it. A 1px gap over
-          a border-coloured ground gives even separators however the pair
-          wraps. */}
       {!loading ? (
         <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
-          <SummaryStat
-            label="Lifetime value"
-            value={formatPrice(totalSpent, currency)}
-          />
-          <SummaryStat label="Orders" value={String(orderList.length)} />
+          <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
+            <Typography variant="muted">Lifetime value</Typography>
+            <Typography variant="small" as="p" className="truncate tabular-nums">
+              {formatPrice(totalSpent, currency)}
+            </Typography>
+          </div>
+          <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
+            <Typography variant="muted">Orders</Typography>
+            <Typography variant="small" as="p" className="truncate tabular-nums">
+              {String(orderList.length)}
+            </Typography>
+          </div>
         </div>
       ) : null}
-
       {loading ? (
         <CardLoadingState />
       ) : !orderList || orderList?.length === 0 ? (
@@ -608,6 +616,7 @@ export function OrdersCard({
             expanded={ordersExpanded}
             onToggle={toggleOrders}
             noun="order"
+            className="text-primary hover:text-primary"
           />
         </div>
       )}

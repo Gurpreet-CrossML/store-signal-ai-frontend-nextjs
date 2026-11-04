@@ -2680,8 +2680,7 @@ export default function Support() {
         <SidebarHeader className="gap-0 p-0">
           <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
             <CardTitle className="flex items-center gap-2">
-              <IconMessage2 className="size-4" />
-              Active Chats
+              Live chats
             </CardTitle>
             {localThreads.length > 0 && (
               <Badge variant="secondary">{localThreads.length}</Badge>
@@ -2694,7 +2693,7 @@ export default function Support() {
                 <SearchInput
                   value={threadSearch}
                   onChange={setThreadSearch}
-                  placeholder="Search name, message or order ID…"
+                  placeholder="Name, email, phone or order #"
                   label="Search conversations"
                 />
               </div>
@@ -2815,12 +2814,12 @@ export default function Support() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="flex flex-wrap items-end gap-x-2 gap-y-1 border-b border-border/80">
+            <div className="grid grid-cols-4 gap-1 rounded-xl bg-muted/60 p-1">
               {(
                 [
-                  { key: "needs_human", label: "Needs human" },
+                  { key: "needs_human", label: "Human" },
                   { key: "ai", label: "AI" },
-                  { key: "with_agent", label: "With agent" },
+                  { key: "with_agent", label: "Agent" },
                   { key: "all", label: "All" },
                 ] as const
               ).map((option) => (
@@ -2852,10 +2851,10 @@ export default function Support() {
                     });
                   }}
                   className={cn(
-                    "-mb-px flex min-w-max grow basis-auto items-center justify-center gap-1 border-b-2 px-0.5 pb-2 pt-1 text-xs font-medium whitespace-nowrap transition-colors",
+                    "flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-xs font-medium whitespace-nowrap transition-colors",
                     activeReadFilter === option.key
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground",
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {option.label}
