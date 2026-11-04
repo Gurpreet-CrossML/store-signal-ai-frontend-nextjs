@@ -117,7 +117,6 @@ export default function MessagePan({
   customerName,
   closedAt,
   closedCartItemCount,
-  issues = [],
   onReplyWithAI,
   replyWithAILoadingId,
 }: {
@@ -127,8 +126,6 @@ export default function MessagePan({
   /** The recorded close time, shown as the final system event when present. */
   closedAt?: string | null;
   closedCartItemCount?: number;
-  /** AI-review findings, rendered inline only when they match a message. */
-  issues?: string[];
   onReplyWithAI?: (message_id: number | string) => void;
   replyWithAILoadingId?: string | number | null;
 }) {
@@ -282,7 +279,6 @@ export default function MessagePan({
               : isAgentMessage
                 ? getInitials(message.agent_name || message.messaged_by) || "A"
                 : "AI";
-          const messageText = message.message.toLowerCase();
           const cartDetails = message.json_content?.cart_details;
           const hasCartDetails = Boolean(
             message.role === "assistant" && cartDetails?.items?.length,
@@ -296,38 +292,6 @@ export default function MessagePan({
             isAiAction && /clear|remove|deleted?/.test(actionText);
           const isCartAdditionAction =
             isAiAction && /add(?:ed)?\b/.test(actionText);
-          const inlineIssues = isCustomer
-            ? []
-            : issues.filter((issue) => {
-                const finding = issue.toLowerCase();
-                if (/\{[^}]+\}/.test(message.message)) {
-                  return (
-                    finding.includes("placeholder") ||
-                    finding.includes("product name")
-                  );
-                }
-                if (messageText.includes("anything else")) {
-                  return (
-                    finding.includes("generic") ||
-                    finding.includes("confusion") ||
-                    finding.includes("anything else")
-                  );
-                }
-                if (
-                  messageText.includes("we don't have") ||
-                  messageText.includes("we do not have") ||
-                  messageText.includes("not available")
-                ) {
-                  return (
-                    finding.includes("could not fulfil") ||
-                    finding.includes("could not fulfill") ||
-                    finding.includes("escalation") ||
-                    finding.includes("unavailable product")
-                  );
-                }
-                return false;
-              });
-
           if (isSystemEvent) {
             return [
               <MessageAppear
@@ -491,23 +455,6 @@ export default function MessagePan({
                         )}
                       </div>
                     )}
-
-                    {inlineIssues.map((issue) => {
-                      const issueNumber = issues.indexOf(issue) + 1;
-                      return (
-                        <div
-                          key={issue}
-                          className="mt-2 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800"
-                        >
-                          <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
-                            {issueNumber}
-                          </span>
-                          <span>
-                            <strong>Issue:</strong> {issue}
-                          </span>
-                        </div>
-                      );
-                    })}
 
                     {message.role === "assistant" &&
                     isStoreSignalAI &&

@@ -855,7 +855,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             customerName={customerName}
             closedAt={details?.is_active ? null : details?.ended_at}
             closedCartItemCount={cartItems.length}
-            issues={improvements}
           />
         </div>
       ) : (
