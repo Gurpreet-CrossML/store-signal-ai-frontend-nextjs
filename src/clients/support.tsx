@@ -116,13 +116,12 @@ import {
   IconHeadset,
   IconLock,
   IconMessage2,
-  IconMessageChatbot,
   IconMoodSmile,
   IconDotsVertical,
   IconId,
   IconNote,
   IconPaperclip,
-  IconRobot,
+  IconArrowBackUp,
   IconSend,
   IconShieldCheck,
   IconShoppingBag,
@@ -290,22 +289,13 @@ function AdminBadge() {
 // permission). Viewers and content managers can't be assigned a chat.
 const CHAT_HANDLER_ROLES = ["supervisor", "agent"];
 
-const ASSIGNEE_AVATAR_STYLES = [
-  "bg-blue-600",
-  "bg-teal-600",
-  "bg-violet-600",
-  "bg-orange-600",
-  "bg-rose-600",
-  "bg-cyan-600",
-  "bg-emerald-600",
-];
-
-function getAssigneeAvatarStyle(value: string) {
-  const hash = Array.from(value).reduce(
-    (total, character) => total + character.charCodeAt(0),
-    0,
-  );
-  return ASSIGNEE_AVATAR_STYLES[hash % ASSIGNEE_AVATAR_STYLES.length];
+function getAgentInitials(name: string) {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 }
 
 // /** Admin and supervisor control to hand a taken chat to another agent. */
@@ -334,9 +324,6 @@ function ReassignAgentSelect({
     .join("")
     .slice(0, 2)
     .toUpperCase();
-  const currentAgentAvatarStyle = currentAgent
-    ? getAssigneeAvatarStyle(currentAgent)
-    : "";
 
   const selectAgent = (email: string) => {
     if (email !== currentAgent) onReassign(email);
@@ -349,8 +336,7 @@ function ReassignAgentSelect({
       {currentAgent ? (
         <span
           className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-white sm:size-6 sm:text-[10px]",
-            currentAgentAvatarStyle,
+            "flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground sm:size-6 sm:text-[10px]",
           )}
         >
           {currentAgentInitials}
@@ -395,8 +381,7 @@ function ReassignAgentSelect({
           >
             <span
               className={cn(
-                "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white",
-                getAssigneeAvatarStyle(agent.email),
+                "flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground",
               )}
             >
               {agent.name
@@ -636,8 +621,8 @@ function ThreadChatControls({
               )}
             >
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:size-9">
-                  <IconMessageChatbot className="size-4 sm:size-5" />
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary sm:size-9">
+                  AI
                 </div>
                 <div className="min-w-0">
                   <Typography
@@ -798,8 +783,8 @@ function ThreadChatControls({
             className="order-1 flex flex-col gap-2 border-b border-border/60 bg-background px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5"
           >
             <div className="flex min-w-0 flex-1 items-center gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <IconHeadset className="size-5" />
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                {getAgentInitials(connectedAgentName || connectedAgent)}
               </div>
               <div className="min-w-0">
                 <Typography variant="small" as="p" className="leading-normal">
@@ -861,8 +846,10 @@ function ThreadChatControls({
             className="order-1 flex flex-col gap-2 border-b border-border/60 bg-background px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5"
           >
             <div className="flex min-w-0 flex-1 items-center gap-3">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:size-9">
-                <IconHeadset className="size-4 sm:size-5" />
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground sm:size-9">
+                {getAgentInitials(
+                  agents.find((agent) => agent.email === user)?.name || "You",
+                )}
               </div>
               <div className="min-w-0">
                 <Typography
@@ -895,7 +882,7 @@ function ThreadChatControls({
                   onClick={onReturnToAI}
                   disabled={transitionState !== "idle" || !chatSocketReady}
                 >
-                  <IconRobot className="size-3.5 sm:size-4" />
+                  <IconArrowBackUp className="size-3.5 sm:size-4" />
                   Hand back to AI
                 </Button>
               </motion.div>
