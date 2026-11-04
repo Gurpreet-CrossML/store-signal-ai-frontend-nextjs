@@ -90,7 +90,7 @@ const WorkflowPolicyFlow = dynamic(
 const BACK_HREF = "/settings/workflows";
 
 // Same limit the backend enforces on the policy text.
-const POLICY_MAX_LENGTH = 4000;
+const POLICY_MAX_LENGTH = 3000;
 
 /**
  * What a merchant can write about, per workflow code: the facts that
@@ -224,8 +224,10 @@ export default function WorkflowPolicy({ code }: { code: string }) {
         SaveWorkflowPolicy({ storeCode, workflow: code, text }),
       ).unwrap();
       setDraft(null);
+      // Suggestions are off until they work properly.
       // Show anything to check first, else what the AI made of it.
-      setTab(noteCount(saved) ? "suggestions" : "flow");
+      // setTab(noteCount(saved) ? "suggestions" : "flow");
+      setTab("flow");
       toast.success(
         saved.text
           ? `Policy saved as v${saved.policy_version}`
@@ -370,7 +372,9 @@ export default function WorkflowPolicy({ code }: { code: string }) {
                 >
                   {saving
                     ? "This can take up to 20 seconds."
-                    : `${text.length} / ${POLICY_MAX_LENGTH}`}
+                    : tooLong
+                      ? `${text.length} / ${POLICY_MAX_LENGTH}: your policy can be up to ${POLICY_MAX_LENGTH} characters. Please shorten it.`
+                      : `${text.length} / ${POLICY_MAX_LENGTH}`}
                 </Typography>
                 <Button
                   size="sm"
@@ -411,6 +415,7 @@ export default function WorkflowPolicy({ code }: { code: string }) {
                 <IconGitBranch className="max-sm:hidden" />
                 How the AI decides
               </TabsTrigger>
+              {/* Suggestions are off until they work properly.
               <TabsTrigger value="suggestions">
                 <IconBulb className="max-sm:hidden" />
                 Suggestions
@@ -424,6 +429,7 @@ export default function WorkflowPolicy({ code }: { code: string }) {
                   </Badge>
                 )}
               </TabsTrigger>
+              */}
               <TabsTrigger value="history">
                 <IconHistory className="max-sm:hidden" />
                 History
@@ -433,7 +439,8 @@ export default function WorkflowPolicy({ code }: { code: string }) {
             <TabsContent value="flow" className="flex flex-col gap-3">
               <FlowNotes
                 policy={policy}
-                onSuggestions={() => setTab("suggestions")}
+                // Suggestions are off until they work properly.
+                // onSuggestions={() => setTab("suggestions")}
               />
               {/* A new version gets a fresh chart, laid out again. */}
               <WorkflowPolicyFlow
@@ -442,6 +449,7 @@ export default function WorkflowPolicy({ code }: { code: string }) {
               />
             </TabsContent>
 
+            {/* Suggestions are off until they work properly.
             <TabsContent value="suggestions">
               <Suggestions
                 policy={policy}
@@ -455,6 +463,7 @@ export default function WorkflowPolicy({ code }: { code: string }) {
                 }}
               />
             </TabsContent>
+            */}
 
             <TabsContent value="history">
               <History
@@ -620,10 +629,11 @@ function AddButton({
 /** What to know before reading the chart: no policy yet, or a hold. */
 function FlowNotes({
   policy,
-  onSuggestions,
+  // Suggestions are off until they work properly.
+  // onSuggestions,
 }: {
   policy: Policy;
-  onSuggestions: () => void;
+  // onSuggestions: () => void;
 }) {
   if (!policy.text)
     return (
@@ -640,7 +650,9 @@ function FlowNotes({
       <p className="min-w-0 break-words">
         {policy.flow.action} never happens on its own yet: some of your
         sentences can&apos;t be checked, so requests your policy would allow go
-        to your team.{" "}
+        to your team.
+        {/* Suggestions are off until they work properly.
+        {" "}
         <button
           type="button"
           className="font-medium underline underline-offset-2"
@@ -648,6 +660,7 @@ function FlowNotes({
         >
           See which sentences
         </button>
+        */}
       </p>
     </div>
   );
