@@ -69,7 +69,7 @@ import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
 import { SearchInput } from "@/components/custom/search-input";
 import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
-import MessagePan from "@/components/custom/message-pan";
+import { LiveMessagePan } from "@/components/custom/message-pan";
 import {
   FetchCart,
   FetchFreshdeskTicketId,
@@ -3256,7 +3256,7 @@ export default function Support() {
                   <div className="flex min-h-0 flex-1 flex-col">
                     <div className="min-h-0 flex-1 overflow-y-auto p-1 sm:p-3">
                       {threadMessages.length > 0 ? (
-                        <MessagePan
+                        <LiveMessagePan
                           messages={threadMessages}
                           handlerEvents={handlerEvents}
                           customerName={selectedThread?.customer?.name}

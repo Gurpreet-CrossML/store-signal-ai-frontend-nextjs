@@ -167,7 +167,10 @@ export function CustomerDetailsPanel({
           isDisabled={ordersDisabled}
         />
         {tickets ? (
-          <SupportTicketsCard tickets={tickets.data} loading={tickets.loading} />
+          <SupportTicketsCard
+            tickets={tickets.data}
+            loading={tickets.loading}
+          />
         ) : null}
         {cart ? (
           <>
