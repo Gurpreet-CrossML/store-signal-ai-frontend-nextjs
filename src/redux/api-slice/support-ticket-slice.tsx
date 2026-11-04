@@ -67,8 +67,6 @@ export type SupportTicketFilters = {
   search?: string;
   channel?: SupportTicketChannel[];
   tags?: string[];
-  from_date?: string;
-  to_date?: string;
   priority?: SupportTicketPriority[];
   sentiment?: TicketSentiment[];
   is_read?: boolean;
@@ -94,10 +92,14 @@ export type SupportTicketCustomer = {
   email: string;
   store: number | null;
   customer_id: string;
+  /** When the shopper's account was created on the platform. */
+  registered_at?: string | null;
   created_at: string;
   updated_at: string;
   thread_id: string;
   orders: OrderData[];
+  /** The customer's page in the store's own admin (Shopify, Magento). */
+  admin_url?: string | null;
 };
 
 type GetSupportTicketTagsArgs = {

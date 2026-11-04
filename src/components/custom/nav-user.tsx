@@ -1,10 +1,8 @@
 "use client";
 
-import {
-  IconDotsVertical,
-  IconLogout,
-  IconUserCircle,
-} from "@tabler/icons-react";
+import { useState, useSyncExternalStore } from "react";
+import Link from "next/link";
+import { IconCheck, IconLogout, IconSettings } from "@tabler/icons-react";
 
 import {
   AlertDialog,
@@ -20,7 +18,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -32,14 +29,83 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { getInitials } from "@/components/custom/customer-avatar";
+import { isNavItemVisible, sidebarMenus } from "@/lib/sidebar-navs";
+import { capitalizeText } from "@/lib/helpers";
+import { cn } from "@/lib/utils";
 import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
 
+type AgentStatus = "online" | "away";
+
+const STATUS_KEY = "storesignal.agent-status";
+const STATUS_OPTIONS: { value: AgentStatus; label: string; dot: string }[] = [
+  { value: "online", label: "Online", dot: "bg-emerald-500" },
+  { value: "away", label: "Away", dot: "bg-amber-500" },
+];
+
+/*
+ * shortcut: the status lives in this browser only — the backend has no
+ * agent presence yet, so teammates do not see it. Move it to the API when
+ * presence is built.
+ */
+const statusListeners = new Set<() => void>();
+
+function readStatus(): AgentStatus {
+  try {
+    return window.localStorage.getItem(STATUS_KEY) === "away"
+      ? "away"
+      : "online";
+  } catch {
+    return "online";
+  }
+}
+
+function writeStatus(status: AgentStatus) {
+  try {
+    window.localStorage.setItem(STATUS_KEY, status);
+  } catch {
+    // Storage blocked: the choice lasts until the page reloads.
+  }
+  statusListeners.forEach((listener) => listener());
+}
+
+function subscribeStatus(listener: () => void) {
+  statusListeners.add(listener);
+  return () => statusListeners.delete(listener);
+}
+
+const subscribeNothing = () => () => {};
+
+/** The signed-in user's avatar, menu, status choice and log out, in the rail. */
 export function NavUser() {
   const { isMobile } = useSidebar();
   const { data } = useSession();
-
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
+  const status = useSyncExternalStore(
+    subscribeStatus,
+    readStatus,
+    () => "online" as AgentStatus,
+  );
+
+  // The server renders without a session; showing the user only after
+  // hydration keeps the first client render identical to it.
+  const hydrated = useSyncExternalStore(
+    subscribeNothing,
+    () => true,
+    () => false,
+  );
+  const user = hydrated ? data?.user : undefined;
+  const initials = getInitials(user?.name || user?.email) ?? "?";
+  const role = user?.role ? capitalizeText(user.role.replace(/_/g, " ")) : null;
+  const settingsItem = sidebarMenus.nav.find(
+    (item) => item.subSidebarKey === "settings",
+  );
+  const canOpenSettings = settingsItem
+    ? isNavItemVisible(settingsItem, user)
+    : false;
+  const statusDot =
+    STATUS_OPTIONS.find((option) => option.value === status)?.dot ??
+    "bg-emerald-500";
 
   return (
     <>
@@ -49,54 +115,78 @@ export function NavUser() {
             <DropdownMenuTrigger asChild>
               <SidebarMenuButton
                 size="lg"
+                aria-label="Account menu"
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               >
-                <Avatar className="h-8 w-8 grayscale">
-                  <AvatarFallback>CN</AvatarFallback>
-                </Avatar>
+                <span className="relative">
+                  <Avatar className="size-8">
+                    <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-sidebar",
+                      statusDot,
+                    )}
+                  />
+                </span>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">
-                    {data?.user?.name}
-                  </span>
+                  <span className="truncate font-medium">{user?.name}</span>
                   <span className="truncate text-xs text-muted-foreground">
-                    {data?.user?.email}
+                    {user?.email}
                   </span>
                 </div>
-                <IconDotsVertical className="ml-auto size-4" />
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+              className="w-64 rounded-lg p-1.5"
               side={isMobile ? "bottom" : "right"}
               align="end"
-              sideOffset={4}
+              sideOffset={8}
             >
-              <DropdownMenuLabel className="p-0 font-normal capitalize">
-                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback>CN</AvatarFallback>
-                  </Avatar>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">
-                      {data?.user?.name}
-                    </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {data?.user?.email}
-                    </span>
-                  </div>
-                </div>
+              <DropdownMenuLabel className="px-2 py-1.5 font-normal">
+                <span className="block truncate text-base font-semibold">
+                  {user?.name}
+                </span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {[role, user?.email].filter(Boolean).join(" · ")}
+                </span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {/* <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  <IconUserCircle />
-                  Account
+              <DropdownMenuLabel className="px-2 pt-1.5 pb-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                Your status
+              </DropdownMenuLabel>
+              {STATUS_OPTIONS.map((option) => (
+                <DropdownMenuItem
+                  key={option.value}
+                  onSelect={() => writeStatus(option.value)}
+                  className="gap-2.5 py-2"
+                >
+                  <span className={cn("size-2 rounded-full", option.dot)} />
+                  <span className="flex-1">{option.label}</span>
+                  {status === option.value ? (
+                    <IconCheck className="size-4 text-primary" />
+                  ) : null}
                 </DropdownMenuItem>
-              </DropdownMenuGroup> */}
+              ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setShowLogoutAlert(true)}>
+              {canOpenSettings && settingsItem ? (
+                <DropdownMenuItem asChild className="py-2">
+                  <Link href={settingsItem.url}>
+                    <IconSettings />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem
+                variant="destructive"
+                className="py-2"
+                onSelect={() => setShowLogoutAlert(true)}
+              >
                 <IconLogout />
-                Log Out
+                Log out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
