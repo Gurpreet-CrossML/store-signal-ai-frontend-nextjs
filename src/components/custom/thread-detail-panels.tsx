@@ -21,6 +21,7 @@ import {
   IconDeviceLaptop,
   IconEye,
   IconTicket,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import { FulfillmentBadge } from "@/components/ui/status-badge";
 import { OrderDetails } from "@/components/custom/order-details";
@@ -466,6 +467,20 @@ export function OrdersCard({
   isDisabled?: boolean;
 }) {
   const orderList = orders ?? [];
+  const latestOrder = orderList.reduce<OrderData | null>((latest, order) => {
+    if (!latest) return order;
+
+    const latestTime = Date.parse(latest.created_at);
+    const orderTime = Date.parse(order.created_at);
+
+    if (!Number.isFinite(latestTime)) {
+      return Number.isFinite(orderTime) ? order : latest;
+    }
+
+    return Number.isFinite(orderTime) && orderTime > latestTime
+      ? order
+      : latest;
+  }, null);
   const {
     visible: visibleOrders,
     hiddenCount: hiddenOrderCount,
@@ -618,6 +633,21 @@ export function OrdersCard({
                     }`}
                   />
                 </button>
+
+                {latestOrder?.id === order.id && !isExpanded && order.admin_url ? (
+                  <div className="px-2.5 pb-2.5">
+                    <Button variant="outline" size="sm" className="w-full" asChild>
+                      <a
+                        href={order.admin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <IconExternalLink className="size-4" />
+                        Open in store admin
+                      </a>
+                    </Button>
+                  </div>
+                ) : null}
 
                 {/* Height animates from 0 so the orders below slide down
                     rather than jumping, and so collapsing reads as the

@@ -89,7 +89,10 @@ import {
   CreateSupportTicket,
   FetchThreadTicketDraft,
 } from "@/redux/api-slice/support-ticket-slice";
-import { SyncCustomerOrders } from "@/redux/api-slice/order-slice";
+import {
+  FetchCustomerOrders,
+  SyncCustomerOrders,
+} from "@/redux/api-slice/order-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -1269,6 +1272,23 @@ export default function Support() {
   const { SyncCustomerOrdersIsLoading } = useAppSelector(
     (state) => state.GetOrderReducer.SyncCustomerOrdersState,
   );
+  const { FetchCustomerOrdersData } = useAppSelector(
+    (state) => state.GetOrderReducer.FetchCustomerOrdersState,
+  );
+
+  const ordersWithAdminUrls = useMemo(() => {
+    const adminUrlsByOrderId = new Map(
+      FetchCustomerOrdersData.results.map((order) => [
+        order.order_id,
+        order.admin_url ?? null,
+      ]),
+    );
+
+    return FetchOrderData.map((order) => ({
+      ...order,
+      admin_url: order.admin_url ?? adminUrlsByOrderId.get(order.order_id) ?? null,
+    }));
+  }, [FetchCustomerOrdersData.results, FetchOrderData]);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -1753,6 +1773,14 @@ export default function Support() {
         }),
       );
       dispatch(FetchOrders(activeThreadId));
+      if (selectedThread?.customer?.id && storeCode) {
+        dispatch(
+          FetchCustomerOrders({
+            storeCode,
+            customerId: selectedThread.customer.id,
+          }),
+        );
+      }
     };
 
     loadThreadData();
@@ -3328,7 +3356,7 @@ export default function Support() {
               customerData={selectedThread?.customer || null}
               userMetadata={FetchUserMetadataData}
               userMetadataLoading={FetchUserMetadataIsLoading}
-              orders={FetchOrderData}
+                        orders={ordersWithAdminUrls}
               ordersLoading={FetchOrderDataIsLoading}
               onOrdersSync={handleOrdersSync}
               orderSyncLoading={SyncCustomerOrdersIsLoading}
