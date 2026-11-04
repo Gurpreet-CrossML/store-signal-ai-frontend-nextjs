@@ -111,6 +111,40 @@ function HandlerEventRow({
   );
 }
 
+function HandlerEventGroupRow({
+  events,
+  me,
+}: {
+  events: HandlerEvent[];
+  me: string | null | undefined;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const start = new Date(events[0].created_at);
+  const end = new Date(events[events.length - 1].created_at);
+  const formatTime = (date: Date) =>
+    date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+  return (
+    <div className="flex flex-col items-center gap-1 py-1">
+      <span className="max-w-full wrap-anywhere rounded-full border border-dashed border-border bg-background px-3 py-1 text-center text-xs text-muted-foreground">
+        ↔ {events.length} handoffs, {formatTime(start)}–{formatTime(end)}{" "}
+        <button
+          type="button"
+          className="font-medium text-primary hover:underline"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? "Hide" : "Show"}
+        </button>
+      </span>
+      {expanded
+        ? events.map((event) => (
+            <HandlerEventRow key={`expanded-handler-event-${event.id}`} event={event} me={me} />
+          ))
+        : null}
+    </div>
+  );
+}
+
 export default function MessagePan({
   messages,
   handlerEvents,
@@ -175,6 +209,16 @@ export default function MessagePan({
       <HandlerEventRow event={event} me={me} />
     </motion.div>
   );
+  const eventRows = (events: HandlerEvent[], keyPrefix: string) =>
+    events.length > 1
+      ? [
+          <HandlerEventGroupRow
+            key={`${keyPrefix}-handler-event-group`}
+            events={events}
+            me={me}
+          />,
+        ]
+      : events.map(eventRow);
 
   useEffect(() => {
     const scrollToBottom = () => {
@@ -206,7 +250,7 @@ export default function MessagePan({
           Keyed by message id, so AnimatePresence can tell a new message
           from a re-render of an existing one. */}
       <AnimatePresence>
-        {eventsBefore.map(eventRow)}
+        {eventRows(eventsBefore, "before")}
         {messages?.flatMap((message: ThreadMessage, index: number) => {
           if (
             canCollapseMessages &&
@@ -365,7 +409,7 @@ export default function MessagePan({
                   </div>
                 </div>
               </MessageAppear>,
-              ...(eventsAfter.get(index) ?? []).map(eventRow),
+              ...eventRows(eventsAfter.get(index) ?? [], `after-${index}`),
             ];
           }
 
@@ -705,7 +749,7 @@ export default function MessagePan({
                 </div>
               </div>
             </MessageAppear>,
-            ...(eventsAfter.get(index) ?? []).map(eventRow),
+            ...eventRows(eventsAfter.get(index) ?? [], `after-${index}`),
           ];
         })}
         {closedAt ? (
