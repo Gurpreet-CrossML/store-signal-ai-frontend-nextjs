@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -22,6 +22,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  IconCheck,
   IconLock,
   IconShoppingBag,
   IconSparkles,
@@ -114,18 +115,34 @@ export default function MessagePan({
   messages,
   handlerEvents,
   customerName,
+  closedAt,
+  closedCartItemCount,
+  issues = [],
   onReplyWithAI,
   replyWithAILoadingId,
 }: {
   messages: ThreadMessage[];
   handlerEvents?: HandlerEvent[];
   customerName?: string | null;
+  /** The recorded close time, shown as the final system event when present. */
+  closedAt?: string | null;
+  closedCartItemCount?: number;
+  /** AI-review findings, rendered inline only when they match a message. */
+  issues?: string[];
   onReplyWithAI?: (message_id: number | string) => void;
   replyWithAILoadingId?: string | number | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { data: session } = useSession();
   const me = session?.user?.email;
+  const [showAllMessages, setShowAllMessages] = useState(false);
+  const previewHeadCount = 5;
+  const previewTailCount = 5;
+  const canCollapseMessages =
+    messages.length > previewHeadCount + previewTailCount + 1;
+  const hiddenMessageCount = canCollapseMessages
+    ? messages.length - previewHeadCount - previewTailCount
+    : 0;
 
   // Slot each handover after the message it followed; events with no (or an
   // unknown) anchor go after the last message sent at or before their time.
@@ -194,6 +211,36 @@ export default function MessagePan({
       <AnimatePresence>
         {eventsBefore.map(eventRow)}
         {messages?.flatMap((message: ThreadMessage, index: number) => {
+          if (
+            canCollapseMessages &&
+            !showAllMessages &&
+            index === previewHeadCount
+          ) {
+            return (
+              <div
+                key="show-hidden-messages"
+                className="flex items-center gap-3 py-3"
+              >
+                <span className="h-px flex-1 bg-border" />
+                <button
+                  type="button"
+                  onClick={() => setShowAllMessages(true)}
+                  className="rounded-full border bg-background px-4 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                >
+                  Show {hiddenMessageCount} more messages
+                </button>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+            );
+          }
+          if (
+            canCollapseMessages &&
+            !showAllMessages &&
+            index > previewHeadCount &&
+            index < messages.length - previewTailCount
+          ) {
+            return [];
+          }
           const isLastMessage = index === messages.length - 1;
           // New responses carry message_type.  Treat a system row from an
           // older/cached history payload as an internal note too, so a reload
@@ -234,6 +281,38 @@ export default function MessagePan({
               : isAgentMessage
                 ? getInitials(message.agent_name || message.messaged_by) || "A"
                 : "AI";
+          const messageText = message.message.toLowerCase();
+          const inlineIssues = isCustomer
+            ? []
+            : issues.filter((issue) => {
+                const finding = issue.toLowerCase();
+                if (/\{[^}]+\}/.test(message.message)) {
+                  return (
+                    finding.includes("placeholder") ||
+                    finding.includes("product name")
+                  );
+                }
+                if (messageText.includes("anything else")) {
+                  return (
+                    finding.includes("generic") ||
+                    finding.includes("confusion") ||
+                    finding.includes("anything else")
+                  );
+                }
+                if (
+                  messageText.includes("we don't have") ||
+                  messageText.includes("we do not have") ||
+                  messageText.includes("not available")
+                ) {
+                  return (
+                    finding.includes("could not fulfil") ||
+                    finding.includes("could not fulfill") ||
+                    finding.includes("escalation") ||
+                    finding.includes("unavailable product")
+                  );
+                }
+                return false;
+              });
 
           if (isSystemEvent) {
             return [
@@ -385,6 +464,23 @@ export default function MessagePan({
                         )}
                       </div>
                     )}
+
+                    {inlineIssues.map((issue) => {
+                      const issueNumber = issues.indexOf(issue) + 1;
+                      return (
+                        <div
+                          key={issue}
+                          className="mt-2 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800"
+                        >
+                          <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+                            {issueNumber}
+                          </span>
+                          <span>
+                            <strong>Issue:</strong> {issue}
+                          </span>
+                        </div>
+                      );
+                    })}
 
                     {message.role === "assistant" &&
                     isStoreSignalAI &&
@@ -633,6 +729,27 @@ export default function MessagePan({
             ...(eventsAfter.get(index) ?? []).map(eventRow),
           ];
         })}
+        {closedAt ? (
+          <div className="flex items-start gap-2.5 pt-3 md:pt-4">
+            <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground md:size-6">
+              <IconCheck className="size-3.5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">
+                Chat closed after inactivity{" "}
+                <span className="font-normal text-muted-foreground">
+                  · {formatDateTime(closedAt)}
+                </span>
+              </p>
+              {closedCartItemCount !== undefined ? (
+                <span className="mt-1 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {closedCartItemCount} item
+                  {closedCartItemCount === 1 ? "" : "s"} left in cart
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </AnimatePresence>
     </div>
   );

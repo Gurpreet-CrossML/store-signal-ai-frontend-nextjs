@@ -387,12 +387,15 @@ function ResolutionRing({ value }: { value: number }) {
   return (
     <span
       aria-label={`${rate}% resolution score`}
-      className="inline-flex size-14 shrink-0 items-center justify-center rounded-full"
+      className="relative inline-flex size-14 shrink-0 items-center justify-center rounded-full text-primary"
       style={{
-        background: `conic-gradient(hsl(var(--primary)) ${rate}%, hsl(var(--muted)) 0)`,
+        background: `conic-gradient(#7c22ce ${rate}%, #ede9fe 0)`,
       }}
     >
-      <span className="size-9 rounded-full bg-background" />
+      <span className="size-11 rounded-full bg-background" />
+      <span className="absolute text-[13px] font-bold tabular-nums">
+        {rate}%
+      </span>
     </span>
   );
 }
@@ -402,11 +405,15 @@ function ConversationMap({
   rate,
   startedAt,
   endedAt,
+  cartCount,
+  issueCount,
 }: {
   messages: ThreadMessage[];
   rate: number;
   startedAt?: string | null;
   endedAt?: string | null;
+  cartCount: number;
+  issueCount: number;
 }) {
   const first = startedAt
     ? new Date(startedAt)
@@ -453,17 +460,27 @@ function ConversationMap({
       message.json_content?.cart_details
     ) {
       const action = message.json_content.cart_action?.toLowerCase() || "";
+      const isRemoval = action.includes("remove") || action.includes("clear");
+      const isCartView =
+        action.includes("view") || action.includes("show cart");
+      const isCheckout = action.includes("checkout");
       return [
         {
           minute,
-          tone:
-            action.includes("remove") || action.includes("clear")
-              ? "bg-amber-500"
-              : "bg-emerald-500",
-          label:
-            action.includes("remove") || action.includes("clear")
-              ? "Removed from cart"
-              : "Added to cart",
+          tone: isRemoval
+            ? "bg-amber-500"
+            : isCartView
+              ? "bg-sky-500"
+              : isCheckout
+                ? "bg-primary"
+                : "bg-emerald-500",
+          label: isRemoval
+            ? "Removed from cart"
+            : isCartView
+              ? "Cart viewed"
+              : isCheckout
+                ? "Checkout started"
+                : "Added to cart",
         },
       ];
     }
@@ -475,12 +492,19 @@ function ConversationMap({
     (marker, index) =>
       markers.findIndex((item) => item.minute === marker.minute) === index,
   );
+  const hasCartView = markers.some((marker) => marker.label === "Cart viewed");
+  const hasCheckout = markers.some(
+    (marker) => marker.label === "Checkout started",
+  );
+  const removedCount = markers.filter(
+    (marker) => marker.label === "Removed from cart",
+  ).length;
 
   return (
-    <ThreadCard className="hidden lg:block">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5">
-        <h2 className="text-lg font-semibold">Conversation map</h2>
-        <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
+    <ThreadCard className="hidden rounded-xl lg:block">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4">
+        <h2 className="text-sm font-semibold">Conversation map</h2>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span>
             <i className="mr-2 inline-block size-2 rounded-full bg-primary" />
             Products shown
@@ -497,34 +521,65 @@ function ConversationMap({
             <i className="mr-2 inline-block size-2 rotate-45 rounded-[2px] bg-red-600" />
             AI issue
           </span>
+          {hasCartView ? (
+            <span>
+              <i className="mr-2 inline-block size-2 rounded-full bg-sky-500" />
+              Cart viewed
+            </span>
+          ) : null}
+          {hasCheckout ? (
+            <span>
+              <i className="mr-2 inline-block size-2 rounded-full bg-primary" />
+              Checkout started
+            </span>
+          ) : null}
         </div>
       </div>
-      <div className="mx-5 mt-5 grid grid-cols-5 overflow-hidden rounded-xl border">
+      <div className="mx-5 mt-4 grid grid-cols-5 overflow-hidden rounded-lg border">
         {[
           ["Resolution score", `${rate || "—"}%`, "text-primary"],
           ["Messages", String(messages.length), ""],
-          ["Cart at close", "—", ""],
-          ["Removed by AI", "—", ""],
-          ["AI issues", "—", "text-red-600"],
+          ["Cart at close", `${cartCount} items`, ""],
+          ["Removed by AI", `${removedCount} items`, ""],
+          ["AI issues", String(issueCount), "text-red-600"],
         ].map(([label, value, color]) => (
-          <div key={label} className="border-r p-4 last:border-r-0">
-            <p className="text-sm text-muted-foreground">{label}</p>
-            <p className={cn("text-2xl font-bold", color)}>{value}</p>
+          <div key={label} className="border-r px-3 py-2.5 last:border-r-0">
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className={cn("text-lg font-bold leading-tight", color)}>
+              {value}
+            </p>
           </div>
         ))}
       </div>
-      <div className="relative mx-5 mt-7 h-40 border-b border-primary/20 pb-7">
+      <div className="relative mx-5 mt-5 h-28 border-b border-primary/20 pb-5">
+        {endedAt ? (
+          <div className="absolute bottom-0 right-0 z-10 flex flex-col items-center">
+            <span className="mb-1 text-[10px] font-medium text-foreground">
+              Closed
+            </span>
+            <span className="h-8 w-px bg-border" />
+            <span className="size-3 rounded-full border-2 border-background bg-muted-foreground shadow-sm" />
+          </div>
+        ) : null}
         {visibleMarkers.map((marker) => (
-          <span
+          <div
             key={`${marker.minute}-${marker.label}`}
-            title={marker.label}
-            aria-label={marker.label}
-            className={cn(
-              "absolute top-1 z-10 size-3 -translate-x-1/2 rounded-full border-2 border-background shadow-sm",
-              marker.tone,
-            )}
+            className="absolute bottom-0 z-10 flex -translate-x-1/2 flex-col items-center"
             style={{ left: `${((marker.minute + 0.5) / minutes) * 100}%` }}
-          />
+          >
+            <span className="mb-1 whitespace-nowrap text-[10px] font-medium text-foreground">
+              {marker.label}
+            </span>
+            <span className="h-8 w-px bg-border" />
+            <span
+              title={marker.label}
+              aria-label={marker.label}
+              className={cn(
+                "size-3 rounded-full border-2 border-background shadow-sm",
+                marker.tone,
+              )}
+            />
+          </div>
         ))}
         <div className="flex h-full items-end gap-1">
           {volume.map((count, index) => (
@@ -542,7 +597,7 @@ function ConversationMap({
           {last ? formatDateTime(last.toISOString()) : "—"}
         </span>
       </div>
-      <p className="px-5 pb-5 pt-8 text-xs text-muted-foreground">
+      <p className="px-5 pb-4 pt-7 text-[10px] text-muted-foreground">
         Each bar shows messages sent in that minute. Markers identify
         significant events during the conversation.
       </p>
@@ -725,6 +780,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const actions = FetchAIInsightData?.next_actionable_items ?? [];
   const started = formatDateTime(details?.created_at || null) || "—";
   const ended = details?.ended_at ? formatDateTime(details.ended_at) : "—";
+  const duration =
+    getDuration(details?.created_at ?? null, details?.ended_at ?? null) || "—";
 
   const transcript = (
     <ThreadCard
@@ -746,6 +803,9 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             messages={threadMessages}
             handlerEvents={details?.handler_events}
             customerName={customerName}
+            closedAt={details?.is_active ? null : details?.ended_at}
+            closedCartItemCount={cartItems.length}
+            issues={improvements}
           />
         </div>
       ) : (
@@ -968,8 +1028,16 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               />
               <div className="min-w-0">
                 <h1 className="truncate text-2xl font-bold">{customerName}</h1>
-                <p className="truncate text-sm text-muted-foreground">
-                  Web chat · {started}
+                <p className="flex flex-wrap gap-x-5 gap-y-0 text-sm text-muted-foreground">
+                  <span>Web chat</span>
+                  <span>
+                    {started}
+                    {details?.ended_at ? `–${ended.split(", ").at(-1)}` : ""}
+                  </span>
+                  <span className="hidden lg:inline">{duration}</span>
+                  <span className="hidden lg:inline">
+                    {details?.total_messages ?? threadMessages.length} messages
+                  </span>
                 </p>
               </div>
             </div>
@@ -1030,6 +1098,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           rate={resolutionRate}
           startedAt={details?.created_at}
           endedAt={details?.ended_at}
+          cartCount={cartItems.length}
+          issueCount={improvements.length}
         />
         <div className="mt-5 hidden gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
           {transcript}
