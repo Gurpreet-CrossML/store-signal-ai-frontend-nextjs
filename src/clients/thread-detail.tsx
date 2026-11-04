@@ -10,6 +10,8 @@ import {
   IconCalendarTime,
   IconCheck,
   IconClockHour4,
+  IconDotsVertical,
+  IconFlag,
   IconHash,
   IconListCheck,
   IconMessage2,
@@ -54,6 +56,7 @@ import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
@@ -75,6 +78,7 @@ import {
   FetchUserMetadata,
   ThreadCustomerLink,
   type ThreadMessage,
+  type ThreadTagData,
 } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
@@ -351,6 +355,202 @@ function AIInsightsSection({
 }
 
 /* ------------------------------------------------------------------ */
+/* Thread-detail presentation                                          */
+/* ------------------------------------------------------------------ */
+
+function ThreadCard({
+  title,
+  children,
+  className,
+}: {
+  title?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={cn(
+        "overflow-hidden rounded-2xl border bg-background",
+        className,
+      )}
+    >
+      {title ? (
+        <div className="border-b px-5 py-4 text-lg font-semibold">{title}</div>
+      ) : null}
+      {children}
+    </section>
+  );
+}
+
+function ResolutionRing({ value }: { value: number }) {
+  const rate = Math.max(0, Math.min(100, value || 0));
+  return (
+    <span
+      aria-label={`${rate}% resolution score`}
+      className="inline-flex size-14 shrink-0 items-center justify-center rounded-full"
+      style={{
+        background: `conic-gradient(hsl(var(--primary)) ${rate}%, hsl(var(--muted)) 0)`,
+      }}
+    >
+      <span className="size-9 rounded-full bg-background" />
+    </span>
+  );
+}
+
+function ConversationMap({
+  messages,
+  rate,
+  startedAt,
+  endedAt,
+}: {
+  messages: ThreadMessage[];
+  rate: number;
+  startedAt?: string | null;
+  endedAt?: string | null;
+}) {
+  const first = startedAt
+    ? new Date(startedAt)
+    : messages[0]
+      ? new Date(messages[0].created_at)
+      : null;
+  // Keep rendering quiet minutes after the final message. The close time is
+  // the end of this chart, not the last chat event.
+  const last = endedAt
+    ? new Date(endedAt)
+    : messages.at(-1)
+      ? new Date(messages.at(-1)!.created_at)
+      : first;
+  const minutes =
+    first && last
+      ? Math.max(1, Math.ceil((last.getTime() - first.getTime()) / 60000))
+      : 1;
+  const volume = Array.from(
+    { length: minutes },
+    (_, minute) =>
+      messages.filter(
+        (message) =>
+          first &&
+          Math.floor(
+            (new Date(message.created_at).getTime() - first.getTime()) / 60000,
+          ) === minute,
+      ).length,
+  );
+  const max = Math.max(...volume, 1);
+  const markers = messages.flatMap((message) => {
+    if (!first) return [];
+    const minute = Math.floor(
+      (new Date(message.created_at).getTime() - first.getTime()) / 60000,
+    );
+    if (minute < 0 || minute >= minutes) return [];
+    if (
+      message.json_content?.products?.length ||
+      message.json_content?.related_products?.length
+    ) {
+      return [{ minute, tone: "bg-primary", label: "Products shown" }];
+    }
+    if (
+      message.json_content?.cart_action ||
+      message.json_content?.cart_details
+    ) {
+      const action = message.json_content.cart_action?.toLowerCase() || "";
+      return [
+        {
+          minute,
+          tone:
+            action.includes("remove") || action.includes("clear")
+              ? "bg-amber-500"
+              : "bg-emerald-500",
+          label:
+            action.includes("remove") || action.includes("clear")
+              ? "Removed from cart"
+              : "Added to cart",
+        },
+      ];
+    }
+    return [];
+  });
+  // Overlapping markers hide each other at minute-level resolution, so retain
+  // the first meaningful event in each minute.
+  const visibleMarkers = markers.filter(
+    (marker, index) =>
+      markers.findIndex((item) => item.minute === marker.minute) === index,
+  );
+
+  return (
+    <ThreadCard className="hidden lg:block">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5">
+        <h2 className="text-lg font-semibold">Conversation map</h2>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
+          <span>
+            <i className="mr-2 inline-block size-2 rounded-full bg-primary" />
+            Products shown
+          </span>
+          <span>
+            <i className="mr-2 inline-block size-2 rounded-full bg-emerald-500" />
+            Added to cart
+          </span>
+          <span>
+            <i className="mr-2 inline-block size-2 rounded-full bg-amber-500" />
+            Removed from cart
+          </span>
+          <span>
+            <i className="mr-2 inline-block size-2 rotate-45 rounded-[2px] bg-red-600" />
+            AI issue
+          </span>
+        </div>
+      </div>
+      <div className="mx-5 mt-5 grid grid-cols-5 overflow-hidden rounded-xl border">
+        {[
+          ["Resolution score", `${rate || "—"}%`, "text-primary"],
+          ["Messages", String(messages.length), ""],
+          ["Cart at close", "—", ""],
+          ["Removed by AI", "—", ""],
+          ["AI issues", "—", "text-red-600"],
+        ].map(([label, value, color]) => (
+          <div key={label} className="border-r p-4 last:border-r-0">
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className={cn("text-2xl font-bold", color)}>{value}</p>
+          </div>
+        ))}
+      </div>
+      <div className="relative mx-5 mt-7 h-40 border-b border-primary/20 pb-7">
+        {visibleMarkers.map((marker) => (
+          <span
+            key={`${marker.minute}-${marker.label}`}
+            title={marker.label}
+            aria-label={marker.label}
+            className={cn(
+              "absolute top-1 z-10 size-3 -translate-x-1/2 rounded-full border-2 border-background shadow-sm",
+              marker.tone,
+            )}
+            style={{ left: `${((marker.minute + 0.5) / minutes) * 100}%` }}
+          />
+        ))}
+        <div className="flex h-full items-end gap-1">
+          {volume.map((count, index) => (
+            <span
+              key={index}
+              className="min-w-0 flex-1 rounded-t-sm bg-primary/20"
+              style={{ height: `${Math.max(5, (count / max) * 65)}%` }}
+            />
+          ))}
+        </div>
+        <span className="absolute bottom-[-1.65rem] left-0 text-xs text-muted-foreground">
+          {first ? formatDateTime(first.toISOString()) : "—"}
+        </span>
+        <span className="absolute bottom-[-1.65rem] right-0 text-xs text-muted-foreground">
+          {last ? formatDateTime(last.toISOString()) : "—"}
+        </span>
+      </div>
+      <p className="px-5 pb-5 pt-8 text-xs text-muted-foreground">
+        Each bar shows messages sent in that minute. Markers identify
+        significant events during the conversation.
+      </p>
+    </ThreadCard>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -392,12 +592,15 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     (state) =>
       (
         state.GetThreadReducer.FetchTagsState as {
-          FetchTags?: { tags?: string[] };
+          FetchTags?: { tags?: (string | ThreadTagData)[] };
         }
       ).FetchTags?.tags ?? [],
   );
   const tagsLoading = useAppSelector(
     (state) => state.GetThreadReducer.FetchTagsState.FetchTagsIsLoading,
+  );
+  const threadTagLabels = threadTags.map((tag) =>
+    typeof tag === "string" ? tag : tag.name,
   );
 
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
@@ -509,295 +712,379 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     );
   }
 
-  return (
-    // The same shell as Live Support and Help Desk: the thread on one
-    // side, who it is with on the other. It used to be one long column, so
-    // reading a conversation meant scrolling past the customer and then
-    // back down for their cart and tickets.
-    <div className="flex h-svh min-h-0 flex-col overflow-hidden border-y">
-      {/* Who the agent is talking to comes first — the same header Live
-          Support and Help Desk lead with, so a customer reads identically
-          whichever screen you reach them from. The thread's own subject
-          titles the Conversation card below, where it names the thing it
-          is the subject of. */}
-      <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Back to Threads"
-          onClick={() => router.back()}
-        >
-          <IconArrowLeft />
-        </Button>
+  const resolutionRate = Math.min(
+    100,
+    Math.max(
+      0,
+      parseInt(FetchAIInsightData?.resolution_success_rate || "0") || 0,
+    ),
+  );
+  const cartItems = FetchCartData?.updated_cart_data?.items ?? [];
+  const improvements = FetchAIInsightData?.underperforming_cases ?? [];
+  const successes = FetchAIInsightData?.overperforming_cases ?? [];
+  const actions = FetchAIInsightData?.next_actionable_items ?? [];
+  const started = formatDateTime(details?.created_at || null) || "—";
+  const ended = details?.ended_at ? formatDateTime(details.ended_at) : "—";
 
-        <div className="flex min-w-0 items-center gap-2.5">
-          <CustomerAvatar name={customerName} online={details?.is_active} />
-          <div className="min-w-0">
-            <div className="flex items-center gap-1">
-              {detailsLoading ? (
-                <Skeleton className="h-5 w-32" />
-              ) : (
-                <CardTitle className="truncate leading-tight">
-                  {customerName}
-                </CardTitle>
-              )}
-              <CrmLinkButton
-                customerId={details?.customer?.id}
-                onLinkCustomer={
-                  details?.customer?.id
-                    ? undefined
-                    : () => setIsLinkCustomerOpen(true)
-                }
-              />
+  const transcript = (
+    <ThreadCard
+      title={
+        <div className="flex items-center justify-between gap-3">
+          <span>Conversation</span>
+          <span className="text-sm font-normal text-muted-foreground">
+            {details?.total_messages ?? threadMessages.length} messages · full
+            transcript
+          </span>
+        </div>
+      }
+    >
+      {detailsLoading ? (
+        <LoadingState label="Loading conversation…" />
+      ) : threadMessages.length ? (
+        <div className="p-3">
+          <MessagePan
+            messages={threadMessages}
+            handlerEvents={details?.handler_events}
+            customerName={customerName}
+          />
+        </div>
+      ) : (
+        <div className="p-10 text-center text-sm text-muted-foreground">
+          No messages in this conversation
+        </div>
+      )}
+    </ThreadCard>
+  );
+  const review = (
+    <div className="space-y-4">
+      <ThreadCard>
+        <div className="flex items-center gap-4 border-b px-5 py-5">
+          <ResolutionRing value={resolutionRate} />
+          <div>
+            <h2 className="text-lg font-semibold">AI review</h2>
+            <p className="text-sm text-muted-foreground">
+              {FetchAIInsightData?.reason_for_score ||
+                "Conversation quality and resolution analysis."}
+            </p>
+          </div>
+        </div>
+        <div>
+          <div className="border-b px-5 py-5">
+            <p className="text-sm leading-6 text-muted-foreground">
+              {FetchConversationSummaryData?.conversation_summary ||
+                "No summary available for this conversation."}
+            </p>
+          </div>
+          {successes.length > 0 && (
+            <div className="border-b px-5 py-5">
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-emerald-700">
+                Went well
+              </h3>
+              <ul className="space-y-3.5">
+                {successes.map((item, index) => (
+                  <li
+                    className="flex gap-3 text-sm leading-5 text-muted-foreground"
+                    key={index}
+                  >
+                    <IconCheck className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
             </div>
+          )}
+          {improvements.length > 0 && (
+            <div className="px-5 py-5">
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-red-700">
+                To improve
+              </h3>
+              <div className="space-y-3.5">
+                {improvements.map((item, index) => (
+                  <button
+                    type="button"
+                    className="flex w-full items-start gap-3 text-left text-sm leading-5 text-muted-foreground hover:text-foreground"
+                    key={index}
+                  >
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
+                      {index + 1}
+                    </span>
+                    <span>
+                      {item}{" "}
+                      <span className="font-medium text-primary">Jump</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </ThreadCard>
+      {actions.length > 0 && (
+        <ThreadCard
+          title={
+            <div className="flex items-center justify-between">
+              <span>Suggested actions</span>
+              <span className="text-sm font-normal text-muted-foreground">
+                {actions.length} actions
+              </span>
+            </div>
+          }
+        >
+          <div>
+            {actions.map((action, index) => (
+              <button
+                type="button"
+                key={index}
+                className="flex w-full items-start justify-between border-b p-5 text-left last:border-b-0 hover:bg-muted/30"
+              >
+                <span>
+                  <strong className="block">{action}</strong>
+                  <small className="mt-1 block leading-5 text-muted-foreground">
+                    Open suggested action
+                  </small>
+                </span>
+                <span className="text-muted-foreground">›</span>
+              </button>
+            ))}
+          </div>
+        </ThreadCard>
+      )}
+    </div>
+  );
+  const customer = (
+    <div className="space-y-4">
+      <ThreadCard title="Customer">
+        <div className="space-y-4 p-5">
+          <div>
+            <p className="font-semibold">{customerName}</p>
             <CustomerContact
               email={details?.customer_email}
               phone={details?.customer?.phone}
-              // Orders keep the last thread's rows until the new ones land;
-              // reading them sooner would show the previous customer's phone.
-              orders={
-                detailsLoading || FetchOrderDataIsLoading
-                  ? null
-                  : FetchOrderData
-              }
+              orders={FetchOrderData}
             />
           </div>
-        </div>
-
-        {/* Its own full row below xl, so the badges never squeeze the name and
-            the Details button; beside them from xl up. */}
-        <div className="order-last flex min-w-0 basis-full flex-wrap items-center gap-2 xl:order-none xl:flex-1 xl:basis-auto">
-          {details && (
-            <>
-              <Badge variant={details.is_active ? "default" : "secondary"}>
-                {details.is_active ? "Active" : "Closed"}
-              </Badge>
-              {!details.is_active && closeReasonLabel(details.close_reason) && (
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "font-normal",
-                    BADGE_TONE_STYLES[
-                      closeReasonTone(details.close_reason) ?? "neutral"
-                    ],
-                  )}
-                >
-                  {closeReasonLabel(details.close_reason)}
-                </Badge>
-              )}
-              {!details.is_active &&
-                closedByLabel(
-                  details.closed_by_type,
-                  details.closed_by_name,
-                ) && (
-                  <Badge variant="outline" className="font-normal">
-                    <IconUserCheck data-icon="inline-start" />
-                    Closed by:{" "}
-                    {closedByLabel(
-                      details.closed_by_type,
-                      details.closed_by_name,
-                    )}
-                  </Badge>
-                )}
-              {showVerdict && (
-                <Badge
-                  className={cn(
-                    "font-normal",
-                    isResolved
-                      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
-                      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
-                  )}
-                >
-                  {isResolved ? (
-                    <IconCheck data-icon="inline-start" />
-                  ) : (
-                    <IconX data-icon="inline-start" />
-                  )}
-                  {isResolved ? "Resolved" : "Unresolved"}
-                </Badge>
-              )}
-              {!FetchFeedbackSequenceIsLoading && feedbackLabel && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge variant="secondary" className="font-normal">
-                      {feedbackLabel}
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {feedback?.feedback_message ||
-                        "No feedback message provided."}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              {!tagsLoading && !detailsLoading && threadTags.length > 0 && (
-                <TagsCell tags={threadTags} />
-              )}
-            </>
+          <div className="grid grid-cols-2 overflow-hidden rounded-xl border sm:grid-cols-3">
+            <div className="border-r p-3">
+              <p className="text-xs text-muted-foreground">Orders</p>
+              <p className="font-semibold">{FetchOrderData?.length ?? 0}</p>
+            </div>
+            <div className="p-3">
+              <p className="text-xs text-muted-foreground">Past chats</p>
+              <p className="font-semibold">
+                {details?.customer?.past_threads_count ?? 0}
+              </p>
+            </div>
+          </div>
+          {details?.customer?.id && (
+            <Button variant="outline" className="w-full" asChild>
+              <Link href={`/crm/customers/${details.customer.id}`}>
+                Open full profile
+              </Link>
+            </Button>
           )}
         </div>
-        <CustomerDetailsButton
-          className="ml-auto xl:ml-0"
-          onClick={() => setIsDetailsOpen(true)}
-        />
-      </header>
-
-      <div className="flex min-h-0 flex-1">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {/* When and how long, on one muted line. The device and location
-              half of this strip now sits in the header beside the name, so
-              what is left is the session's own timing. */}
-          <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b px-4 py-2">
-            <MetaCell
-              icon={<IconHash className="size-3.5" />}
-              label="Session ID"
-              value={threadId}
-              mono
-            />
-            <MetaCell
-              icon={<IconCalendarTime className="size-3.5" />}
-              label="Started"
-              value={formatDateTime(details?.created_at || null) || "—"}
-              loading={detailsLoading}
-            />
-            <MetaCell
-              icon={<IconCalendarTime className="size-3.5" />}
-              label="Ended"
-              value={
-                details?.ended_at
-                  ? formatDateTime(details.ended_at)
-                  : details?.is_active
-                    ? "Ongoing"
-                    : "—"
-              }
-              loading={detailsLoading}
-            />
-            <MetaCell
-              icon={<IconClockHour4 className="size-3.5" />}
-              label="Duration"
-              value={
-                getDuration(
-                  details?.created_at ?? null,
-                  details?.ended_at ?? null,
-                ) || "—"
-              }
-              loading={detailsLoading}
-            />
+      </ThreadCard>
+      <ThreadCard
+        title={
+          <div className="flex justify-between">
+            <span>Cart when the chat closed</span>
+            <span className="text-sm font-normal text-muted-foreground">
+              {cartItems.length} items
+            </span>
           </div>
+        }
+      >
+        <div className="space-y-3 p-5">
+          {cartItems.length ? (
+            cartItems.map((item, index) => (
+              <div
+                className="flex items-center gap-3"
+                key={`${item.product_id}-${index}`}
+              >
+                <div className="size-11 shrink-0 overflow-hidden rounded-lg bg-muted">
+                  {item.product_image ? (
+                    <img
+                      src={item.product_image}
+                      alt=""
+                      className="size-full object-contain"
+                    />
+                  ) : null}
+                </div>
+                <p className="min-w-0 flex-1 truncate text-sm">{item.name}</p>
+                <p className="text-sm font-semibold">{item.price}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Nothing in the cart.
+            </p>
+          )}
+        </div>
+      </ThreadCard>
+      <ThreadCard title="Thread details">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-3 p-5 text-sm">
+          <dt className="text-muted-foreground">Thread ID</dt>
+          <dd className="truncate text-right font-mono">{threadId}</dd>
+          <dt className="text-muted-foreground">Channel</dt>
+          <dd className="text-right">Web chat</dd>
+          <dt className="text-muted-foreground">Started</dt>
+          <dd className="text-right">{started}</dd>
+          <dt className="text-muted-foreground">Ended</dt>
+          <dd className="text-right">{ended}</dd>
+          <dt className="text-muted-foreground">Duration</dt>
+          <dd className="text-right">
+            {getDuration(
+              details?.created_at ?? null,
+              details?.ended_at ?? null,
+            ) || "—"}
+          </dd>
+        </dl>
+      </ThreadCard>
+    </div>
+  );
 
-          {/* One column, insights above the transcript. The two used to sit
-              side by side in boxes, which split the reading width in half
-              and asked an agent to choose where to look first. */}
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <AIInsightsSection
-              summary={FetchConversationSummaryData?.conversation_summary || ""}
-              summaryLoading={
-                detailsLoading || FetchConversationSummaryIsLoading
-              }
-              nextActionableItems={
-                FetchAIInsightData?.next_actionable_items || []
-              }
-              resolutionSuccessRate={
-                FetchAIInsightData?.resolution_success_rate || "0"
-              }
-              reasonForScore={FetchAIInsightData?.reason_for_score || ""}
-              overperformingCases={
-                FetchAIInsightData?.overperforming_cases || []
-              }
-              underperformingCases={
-                FetchAIInsightData?.underperforming_cases || []
-              }
-              insightsLoading={detailsLoading || FetchAIInsightIsLoading}
-            />
-
-            <section>
-              <SectionHeader
-                icon={IconMessages}
-                // The thread's subject names the exchange it is the
-                // subject of; full text on hover when it truncates.
-                title={
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>{details?.name || "Conversation"}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {details?.name || "Conversation"}
-                    </TooltipContent>
-                  </Tooltip>
-                }
-                info="The full exchange between the customer and the AI assistant for this session."
-                action={
-                  detailsLoading ? null : (
-                    <Badge variant="secondary" className="font-normal">
-                      {details?.total_messages ?? threadMessages.length}{" "}
-                      Messages
-                    </Badge>
-                  )
-                }
+  return (
+    <div className="min-h-svh bg-muted/50">
+      <header className="border-b bg-background">
+        <div className="flex w-full items-start gap-3 px-4 py-4 lg:px-10">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Back to Threads"
+            onClick={() => router.back()}
+          >
+            <IconArrowLeft />
+          </Button>
+          <div className="min-w-0 flex-1">
+            <p className="hidden text-sm text-muted-foreground lg:block">
+              Threads <span className="mx-2">/</span>{" "}
+              {details?.name || "Conversation"}
+            </p>
+            <div className="mt-1 flex min-w-0 items-center gap-3">
+              <CustomerAvatar
+                name={customerName}
+                size="h-14 w-14"
+                online={details?.is_active}
               />
-
-              {detailsLoading ? (
-                <LoadingState label="Loading conversation…" />
-              ) : threadMessages.length > 0 ? (
-                <div className="p-2">
-                  <MessagePan
-                    messages={threadMessages}
-                    handlerEvents={details?.handler_events}
-                  />
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-                  <IconMessage2 className="size-8 text-muted-foreground/50" />
-                  <Typography variant="small" as="p">
-                    No messages in this conversation
-                  </Typography>
-                  <Typography variant="muted">
-                    The session was opened but the customer never sent a
-                    message.
-                  </Typography>
-                </div>
-              )}
-            </section>
+              <div className="min-w-0">
+                <h1 className="truncate text-2xl font-bold">{customerName}</h1>
+                <p className="truncate text-sm text-muted-foreground">
+                  Web chat · {started}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+                {isResolved ? "Resolved by AI" : "AI review"}
+              </Badge>
+              <Badge variant="secondary">
+                {details?.is_active ? "Active" : "Closed"}
+              </Badge>
+              {threadTagLabels.slice(0, 1).map((tag) => (
+                <Badge
+                  key={tag}
+                  className="bg-primary/10 text-primary hover:bg-primary/10"
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          <div className="hidden shrink-0 gap-2 lg:flex">
+            <Button variant="outline">Export</Button>
+            <Button variant="outline">Flag for review</Button>
+            <Button>Create ticket</Button>
+          </div>
+          <Button variant="ghost" size="icon-sm" className="lg:hidden">
+            <IconDotsVertical />
+          </Button>
+        </div>
+        <div className="grid w-full grid-cols-3 border-t lg:hidden">
+          <div className="flex items-center gap-2 border-r p-3">
+            <ResolutionRing value={resolutionRate} />
+            <span>
+              <b className="block text-xl text-primary">{resolutionRate}%</b>
+              <small className="text-muted-foreground">Resolution</small>
+            </span>
+          </div>
+          <div className="border-r p-3">
+            <b className="block text-xl">
+              {details?.total_messages ?? threadMessages.length}
+            </b>
+            <small className="text-muted-foreground">Messages</small>
+          </div>
+          <div className="p-3">
+            <b className="block text-xl">
+              {getDuration(
+                details?.created_at ?? null,
+                details?.ended_at ?? null,
+              ) || "—"}
+            </b>
+            <small className="text-muted-foreground">Duration</small>
           </div>
         </div>
-
-        <CustomerDetailsPanel
-          open={isDetailsOpen}
-          onOpenChange={setIsDetailsOpen}
-          currentThreadId={threadId}
-          // The detail response carries the customer's id and their name
-          // and email as separate fields; the panel wants them together.
-          customerData={{
-            id: details?.customer?.id ?? null,
-            name: customerName,
-            email: details?.customer_email ?? "",
-            phone: details?.customer?.phone ?? "",
-            past_threads_count: details?.customer?.past_threads_count ?? 0,
-          }}
-          userMetadata={FetchUserMetadataData}
-          userMetadataLoading={detailsLoading || FetchUserMetadataIsLoading}
-          orders={FetchOrderData}
-          ordersLoading={detailsLoading || FetchOrderDataIsLoading}
-          onOrdersSync={() => dispatch(FetchOrders(threadId))}
-          tickets={{
-            data: FetchFreshdeskTicketIdData ?? [],
-            loading: detailsLoading || FetchFreshdeskTicketIdIsLoading,
-          }}
-          cart={{
-            data: FetchCartData,
-            loading: detailsLoading || FetchCartDataIsLoading,
-          }}
+      </header>
+      <main className="w-full px-4 py-5 pb-24 lg:px-10 lg:py-6">
+        <ConversationMap
+          messages={threadMessages}
+          rate={resolutionRate}
+          startedAt={details?.created_at}
+          endedAt={details?.ended_at}
         />
+        <div className="mt-5 hidden gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
+          {transcript}
+          <aside className="space-y-4">
+            {review}
+            {customer}
+          </aside>
+        </div>
+        <Tabs defaultValue="chat" className="lg:hidden">
+          <TabsList
+            variant="line"
+            className="sticky top-0 z-10 -mx-4 mb-4 flex h-12 w-[calc(100%+2rem)] justify-around border-y bg-background px-2"
+          >
+            <TabsTrigger
+              value="chat"
+              className="text-base data-active:after:bg-primary"
+            >
+              Chat
+            </TabsTrigger>
+            <TabsTrigger
+              value="review"
+              className="text-base data-active:after:bg-primary"
+            >
+              AI review{" "}
+              {improvements.length ? (
+                <span className="rounded-full bg-red-100 px-1.5 text-xs text-red-700">
+                  {improvements.length}
+                </span>
+              ) : null}
+            </TabsTrigger>
+            <TabsTrigger
+              value="customer"
+              className="text-base data-active:after:bg-primary"
+            >
+              Customer
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="chat">{transcript}</TabsContent>
+          <TabsContent value="review">{review}</TabsContent>
+          <TabsContent value="customer">{customer}</TabsContent>
+        </Tabs>
+      </main>
+      <div className="fixed inset-x-0 bottom-0 z-20 flex gap-3 border-t bg-background p-3 lg:hidden">
+        <Button variant="outline" size="icon" aria-label="Flag for review">
+          <IconFlag />
+        </Button>
+        <Button className="flex-1">Create ticket</Button>
       </div>
-
       {storeCode ? (
         <LinkCustomerDialog
           open={isLinkCustomerOpen}
           onOpenChange={setIsLinkCustomerOpen}
           storeCode={storeCode}
           linking={isLinkingCustomer}
-          onLink={(customer) => handleLinkCustomer(customer.id)}
+          onLink={(linkedCustomer) => handleLinkCustomer(linkedCustomer.id)}
         />
       ) : null}
     </div>

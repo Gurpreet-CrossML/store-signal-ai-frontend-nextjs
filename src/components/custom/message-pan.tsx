@@ -179,7 +179,10 @@ export default function MessagePan({
   }, [messages]);
 
   return (
-    <div className="h-full space-y-4 p-2 overflow-y-auto" ref={containerRef}>
+    <div
+      className="h-full space-y-3 overflow-y-auto p-2 md:space-y-2 md:px-4 md:py-3"
+      ref={containerRef}
+    >
       {/* Animates on mount as well as on append. The panel is only
           rendered once a thread has messages, so the very first message of
           a conversation arrives as a mount, not an append — suppressing
@@ -207,6 +210,11 @@ export default function MessagePan({
           const isAgentMessage = Boolean(
             message.agent_name || message.messaged_by,
           );
+          // Bot responses normally carry the display name "StoreSignal AI".
+          // That is not a human assignment, and should still receive the
+          // distinct AI avatar, confidence, and source treatment.
+          const isStoreSignalAI =
+            message.role === "assistant" && !message.agent_name;
           const showReplyWithAI =
             isLastMessage && message.role === "user" && !!onReplyWithAI;
           const isCustomer = message.role === "user";
@@ -221,9 +229,11 @@ export default function MessagePan({
           const feedbackMessage = message.feedback_message?.trim();
           const avatarLabel = isCustomer
             ? getInitials(customerName || message.messaged_by) || "C"
-            : isAgentMessage
-              ? getInitials(message.agent_name || message.messaged_by) || "A"
-              : "AI";
+            : isStoreSignalAI
+              ? "AI"
+              : isAgentMessage
+                ? getInitials(message.agent_name || message.messaged_by) || "A"
+                : "AI";
 
           if (isSystemEvent) {
             return [
@@ -282,14 +292,14 @@ export default function MessagePan({
               outgoing={isOutgoing}
               index={index}
               total={messages.length}
-              className="space-y-2 pb-2"
+              className="space-y-2 pb-2 md:pb-1"
             >
               <div
-                className={`flex ${isCustomer ? "justify-end" : "justify-start"}`}
+                className={`flex ${isCustomer ? "justify-end md:justify-start" : "justify-start"}`}
               >
                 <div
-                  className={`flex min-w-0 gap-2.5 max-w-[82%] ${
-                    isCustomer ? "flex-row-reverse" : "flex-row"
+                  className={`flex min-w-0 max-w-[82%] gap-2.5 md:max-w-none md:w-full ${
+                    isCustomer ? "flex-row-reverse md:flex-row" : "flex-row"
                   } ${
                     message.json_content?.products?.length ||
                     message.json_content?.related_products?.length
@@ -297,12 +307,12 @@ export default function MessagePan({
                       : ""
                   }`}
                 >
-                  <Avatar className="h-7 w-7 shrink-0 mt-1">
+                  <Avatar className="mt-1 h-7 w-7 shrink-0 md:h-6 md:w-6">
                     <AvatarFallback
                       className={
                         isCustomer
-                          ? "bg-muted text-muted-foreground text-xs"
-                          : "bg-primary/10 text-primary text-xs"
+                          ? "bg-primary text-xs text-primary-foreground"
+                          : "bg-foreground text-xs text-background"
                       }
                     >
                       {avatarLabel}
@@ -313,7 +323,7 @@ export default function MessagePan({
                       which pushed the whole pane into sideways scrolling. */}
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div
-                      className={`flex flex-wrap items-center gap-x-2 mb-1 ${isCustomer ? "justify-end" : "justify-start"}`}
+                      className={`mb-1 flex flex-wrap items-center gap-x-2 ${isCustomer ? "justify-end md:justify-start" : "justify-start"}`}
                     >
                       <span className="text-xs font-medium text-foreground capitalize">
                         {message.messaged_by_email &&
@@ -327,7 +337,7 @@ export default function MessagePan({
                         {formatDateTime(message.created_at)}
                       </span>
                       {!isCustomer &&
-                      !isAgentMessage &&
+                      isStoreSignalAI &&
                       message.confidence != null ? (
                         <span className="text-xs text-primary">
                           {Math.round(message.confidence * 100)}%
@@ -340,7 +350,7 @@ export default function MessagePan({
                       <div
                         id="markdown-message-bubble"
                         style={{ borderRadius: "0.7rem" }}
-                        className={`min-w-0 max-w-full p-3 text-sm wrap-anywhere ${isCustomer ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-secondary border border-border rounded-tl-none"}`}
+                        className={`min-w-0 max-w-full wrap-anywhere p-3 text-sm ${isCustomer ? "rounded-tr-none bg-primary text-primary-foreground md:rounded-none md:bg-transparent md:p-0 md:text-foreground" : "rounded-tl-none border border-border bg-secondary md:rounded-none md:border-0 md:bg-transparent md:p-0"}`}
                       >
                         {message.role === "assistant" ? (
                           (() => {
@@ -377,7 +387,7 @@ export default function MessagePan({
                     )}
 
                     {message.role === "assistant" &&
-                    !isAgentMessage &&
+                    isStoreSignalAI &&
                     message.source_used ? (
                       <div className="mt-1 text-xs font-medium text-primary">
                         <span>Source: {message.source_used}</span>
@@ -388,7 +398,7 @@ export default function MessagePan({
                     handler is supplied by the parent. Shown on row hover
                     so it doesn't clutter the transcript by default. */}
                     {showReplyWithAI && (
-                      <div className="mt-1 flex justify-end transition-opacity group-hover:opacity-100">
+                      <div className="mt-1 flex justify-end md:justify-start transition-opacity group-hover:opacity-100">
                         <Button
                           type="button"
                           variant="ghost"
@@ -547,7 +557,7 @@ export default function MessagePan({
                     {message.role === "assistant" &&
                       message.json_content?.suggestions &&
                       message.json_content.suggestions.length > 0 && (
-                        <div className="flex justify-start mt-2">
+                        <div className="mt-2 flex justify-start">
                           <div className="flex flex-wrap gap-2">
                             {message.json_content.suggestions.map(
                               (s: string, idx: number) => (
@@ -565,7 +575,7 @@ export default function MessagePan({
                       )}
 
                     {message.image_url && (
-                      <div className="flex flex-wrap gap-2 mt-2 justify-end">
+                      <div className="mt-2 flex flex-wrap justify-end gap-2 md:justify-start">
                         {Array.isArray(message.image_url) ? (
                           <div className="flex gap-2">
                             {message.image_url.map((url, idx) => (
