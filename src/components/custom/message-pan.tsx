@@ -249,7 +249,8 @@ export default function MessagePan({
           const isAiAction =
             message.message_type === "ai_action" ||
             (isSystemMessage &&
-              /^AI (looked up|performed)\b/.test(message.message));
+              (/^AI (looked up|performed)\b/.test(message.message) ||
+                Boolean(message.json_content?.cart_action)));
           const isInternalNote =
             message.message_type === "internal" ||
             (isSystemMessage && !isAiAction);
@@ -282,6 +283,19 @@ export default function MessagePan({
                 ? getInitials(message.agent_name || message.messaged_by) || "A"
                 : "AI";
           const messageText = message.message.toLowerCase();
+          const cartDetails = message.json_content?.cart_details;
+          const hasCartDetails = Boolean(
+            message.role === "assistant" && cartDetails?.items?.length,
+          );
+          // AI cart events are rendered as compact timeline rows instead of
+          // ordinary system pills. Keep the action detection local to the
+          // current message so the transcript order and payload stay intact.
+          const actionText =
+            `${message.message} ${message.json_content?.cart_action ?? ""}`.toLowerCase();
+          const isCartRemovalAction =
+            isAiAction && /clear|remove|deleted?/.test(actionText);
+          const isCartAdditionAction =
+            isAiAction && /add(?:ed)?\b/.test(actionText);
           const inlineIssues = isCustomer
             ? []
             : issues.filter((issue) => {
@@ -323,18 +337,36 @@ export default function MessagePan({
                 total={messages.length}
                 className="py-1"
               >
-                <div className="flex justify-center">
+                <div
+                  className={
+                    isInternalNote
+                      ? "flex justify-center"
+                      : "flex justify-start"
+                  }
+                >
                   <div
                     className={
                       isInternalNote
                         ? "flex max-w-[82%] items-start gap-2 rounded-lg border border-dashed border-amber-300/80 bg-amber-50 px-3 py-2 text-xs text-amber-950 dark:border-amber-700/70 dark:bg-amber-950/30 dark:text-amber-100"
-                        : "flex max-w-[82%] items-center gap-2 rounded-full border border-dashed bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground"
+                        : "flex items-center gap-2 text-sm font-semibold text-foreground"
                     }
                   >
                     {isInternalNote ? (
                       <IconLock className="mt-0.5 size-3.5 shrink-0" />
+                    ) : isCartRemovalAction || isCartAdditionAction ? (
+                      <span
+                        className={`flex size-6 shrink-0 items-center justify-center rounded-full text-base font-bold ${
+                          isCartRemovalAction
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-emerald-50 text-emerald-700"
+                        }`}
+                      >
+                        {isCartRemovalAction ? "−" : "+"}
+                      </span>
                     ) : (
-                      <IconSparkles className="size-3.5 shrink-0 text-primary" />
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <IconSparkles className="size-3.5" />
+                      </span>
                     )}
                     <div className="min-w-0">
                       {isInternalNote ? (
@@ -377,13 +409,14 @@ export default function MessagePan({
                 className={`flex ${isCustomer ? "justify-end md:justify-start" : "justify-start"}`}
               >
                 <div
-                  className={`flex min-w-0 max-w-[82%] gap-2.5 md:max-w-none md:w-full ${
+                  className={`flex min-w-0 gap-2.5 md:max-w-none md:w-full ${
                     isCustomer ? "flex-row-reverse md:flex-row" : "flex-row"
                   } ${
                     message.json_content?.products?.length ||
-                    message.json_content?.related_products?.length
-                      ? "w-full"
-                      : ""
+                    message.json_content?.related_products?.length ||
+                    hasCartDetails
+                      ? "w-full max-w-full"
+                      : "max-w-[82%]"
                   }`}
                 >
                   <Avatar className="mt-1 h-7 w-7 shrink-0 md:h-6 md:w-6">
@@ -546,24 +579,24 @@ export default function MessagePan({
                       )}
 
                     {message.role === "assistant" &&
-                      message?.json_content?.cart_details &&
-                      message.json_content.cart_details.items.length > 0 && (
-                        <Card className="mt-2 px-0">
+                      hasCartDetails &&
+                      cartDetails && (
+                        <Card className="mt-2 w-full px-0">
                           <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                               <IconShoppingBag className="size-4" />
                               Cart Details
                             </CardTitle>
                           </CardHeader>
-                          <CardContent className="flex flex-col gap-3">
-                            {message.json_content.cart_details.items.map(
+                          <CardContent className="flex max-h-72 flex-col gap-3 overflow-y-auto pr-3 md:max-h-none md:overflow-visible">
+                            {cartDetails.items.map(
                               (item: CartItem, idx: number) => {
                                 return (
                                   <div
                                     key={idx}
                                     className="flex items-start justify-between gap-3 text-sm"
                                   >
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex min-w-0 flex-1 items-center gap-2">
                                       <Avatar>
                                         {item.image ? (
                                           <AvatarImage
@@ -577,8 +610,10 @@ export default function MessagePan({
                                           </AvatarFallback>
                                         )}
                                       </Avatar>
-                                      <span className="flex flex-col items-start">
-                                        <span>{item.name}</span>
+                                      <span className="flex min-w-0 flex-col items-start">
+                                        <span className="break-words">
+                                          {item.name}
+                                        </span>
                                         <span className="text-muted-foreground text-xs">
                                           Qty: {item.quantity}
                                         </span>
@@ -596,7 +631,7 @@ export default function MessagePan({
                             <div className="flex justify-between w-full">
                               Grand Total:{" "}
                               <span className="text-sm font-semibold text-primary">
-                                {message.json_content.cart_details.sub_total}
+                                {cartDetails.sub_total}
                               </span>
                             </div>
                           </CardFooter>

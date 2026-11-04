@@ -415,18 +415,28 @@ function ConversationMap({
   cartCount: number;
   issueCount: number;
 }) {
-  const first = startedAt
-    ? new Date(startedAt)
-    : messages[0]
-      ? new Date(messages[0].created_at)
-      : null;
-  // Keep rendering quiet minutes after the final message. The close time is
-  // the end of this chart, not the last chat event.
-  const last = endedAt
-    ? new Date(endedAt)
-    : messages.at(-1)
-      ? new Date(messages.at(-1)!.created_at)
-      : first;
+  const validDate = (value?: string | null) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+  const messageDates = messages
+    .map((message) => validDate(message.created_at))
+    .filter((date): date is Date => date !== null);
+  // Some historical sessions contain a stale `ended_at` that predates the
+  // messages. Build the range from every valid event instead of trusting that
+  // one field, so a short chat cannot render as a long timeline.
+  const rangeDates = [
+    validDate(startedAt),
+    validDate(endedAt),
+    ...messageDates,
+  ].filter((date): date is Date => date !== null);
+  const first = rangeDates.length
+    ? new Date(Math.min(...rangeDates.map((date) => date.getTime())))
+    : null;
+  const last = rangeDates.length
+    ? new Date(Math.max(...rangeDates.map((date) => date.getTime())))
+    : first;
   const minutes =
     first && last
       ? Math.max(1, Math.ceil((last.getTime() - first.getTime()) / 60000))
@@ -457,12 +467,17 @@ function ConversationMap({
     }
     if (
       message.json_content?.cart_action ||
-      message.json_content?.cart_details
+      message.json_content?.cart_details ||
+      (message.message_type === "ai_action" &&
+        /(?:view(?:ed)?|show(?:ed)?)\s+(?:the )?cart/i.test(message.message))
     ) {
-      const action = message.json_content.cart_action?.toLowerCase() || "";
+      const action =
+        `${message.json_content?.cart_action ?? ""} ${message.message}`.toLowerCase();
       const isRemoval = action.includes("remove") || action.includes("clear");
       const isCartView =
-        action.includes("view") || action.includes("show cart");
+        action.includes("view") ||
+        action.includes("show cart") ||
+        action.includes("cart viewed");
       const isCheckout = action.includes("checkout");
       return [
         {
@@ -492,13 +507,25 @@ function ConversationMap({
     (marker, index) =>
       markers.findIndex((item) => item.minute === marker.minute) === index,
   );
-  const hasCartView = markers.some((marker) => marker.label === "Cart viewed");
-  const hasCheckout = markers.some(
-    (marker) => marker.label === "Checkout started",
-  );
   const removedCount = markers.filter(
     (marker) => marker.label === "Removed from cart",
   ).length;
+  const timeTicks = [0, 0.25, 0.5, 0.75, 1].map((position) => {
+    const timestamp =
+      first && last
+        ? first.getTime() + (last.getTime() - first.getTime()) * position
+        : null;
+    return {
+      position,
+      label: timestamp
+        ? new Date(timestamp).toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          })
+        : "—",
+    };
+  });
 
   return (
     <ThreadCard className="hidden rounded-xl lg:block">
@@ -518,21 +545,13 @@ function ConversationMap({
             Removed from cart
           </span>
           <span>
+            <i className="mr-2 inline-block size-2 rounded-full bg-sky-500" />
+            Cart viewed
+          </span>
+          <span>
             <i className="mr-2 inline-block size-2 rotate-45 rounded-[2px] bg-red-600" />
             AI issue
           </span>
-          {hasCartView ? (
-            <span>
-              <i className="mr-2 inline-block size-2 rounded-full bg-sky-500" />
-              Cart viewed
-            </span>
-          ) : null}
-          {hasCheckout ? (
-            <span>
-              <i className="mr-2 inline-block size-2 rounded-full bg-primary" />
-              Checkout started
-            </span>
-          ) : null}
         </div>
       </div>
       <div className="mx-5 mt-4 grid grid-cols-5 overflow-hidden rounded-lg border">
@@ -551,36 +570,56 @@ function ConversationMap({
           </div>
         ))}
       </div>
-      <div className="relative mx-5 mt-5 h-28 border-b border-primary/20 pb-5">
-        {endedAt ? (
-          <div className="absolute bottom-0 right-0 z-10 flex flex-col items-center">
-            <span className="mb-1 text-[10px] font-medium text-foreground">
+      <div className="relative mx-5 mt-5 h-32 border-b border-primary/20 pb-5">
+        {last ? (
+          <div className="absolute inset-y-0 right-2 z-10 w-px">
+            <span className="absolute right-0 top-5 whitespace-nowrap text-[10px] font-medium text-foreground">
               Closed
             </span>
-            <span className="h-8 w-px bg-border" />
-            <span className="size-3 rounded-full border-2 border-background bg-muted-foreground shadow-sm" />
+            <span className="absolute bottom-1 left-0 top-9 w-px bg-border" />
+            <span className="absolute bottom-0 left-1/2 size-3 -translate-x-1/2 rounded-full border-2 border-background bg-muted-foreground shadow-sm" />
           </div>
         ) : null}
-        {visibleMarkers.map((marker) => (
-          <div
-            key={`${marker.minute}-${marker.label}`}
-            className="absolute bottom-0 z-10 flex -translate-x-1/2 flex-col items-center"
-            style={{ left: `${((marker.minute + 0.5) / minutes) * 100}%` }}
-          >
-            <span className="mb-1 whitespace-nowrap text-[10px] font-medium text-foreground">
-              {marker.label}
-            </span>
-            <span className="h-8 w-px bg-border" />
-            <span
-              title={marker.label}
-              aria-label={marker.label}
-              className={cn(
-                "size-3 rounded-full border-2 border-background shadow-sm",
-                marker.tone,
-              )}
-            />
-          </div>
-        ))}
+        {visibleMarkers.map((marker, index) => {
+          const position = ((marker.minute + 0.5) / minutes) * 100;
+          const labelTop = [0, 22, 44][index % 3];
+          const labelClass =
+            position > 84
+              ? "right-0"
+              : position < 16
+                ? "left-0"
+                : "left-1/2 -translate-x-1/2";
+
+          return (
+            <div
+              key={`${marker.minute}-${marker.label}`}
+              className="absolute inset-y-0 z-10 w-px -translate-x-1/2"
+              style={{ left: `${position}%` }}
+            >
+              <span
+                className={cn(
+                  "absolute whitespace-nowrap text-[10px] font-medium text-foreground",
+                  labelClass,
+                )}
+                style={{ top: `${labelTop}px` }}
+              >
+                {marker.label}
+              </span>
+              <span
+                className="absolute bottom-1 w-px bg-border"
+                style={{ top: `${labelTop + 17}px` }}
+              />
+              <span
+                title={marker.label}
+                aria-label={marker.label}
+                className={cn(
+                  "absolute bottom-0 left-1/2 size-3 -translate-x-1/2 rounded-full border-2 border-background shadow-sm",
+                  marker.tone,
+                )}
+              />
+            </div>
+          );
+        })}
         <div className="flex h-full items-end gap-1">
           {volume.map((count, index) => (
             <span
@@ -590,12 +629,23 @@ function ConversationMap({
             />
           ))}
         </div>
-        <span className="absolute bottom-[-1.65rem] left-0 text-xs text-muted-foreground">
-          {first ? formatDateTime(first.toISOString()) : "—"}
-        </span>
-        <span className="absolute bottom-[-1.65rem] right-0 text-xs text-muted-foreground">
-          {last ? formatDateTime(last.toISOString()) : "—"}
-        </span>
+        {timeTicks.map((tick) => (
+          <span
+            key={tick.position}
+            className="absolute bottom-[-1.65rem] whitespace-nowrap text-xs text-muted-foreground"
+            style={{
+              left: `${tick.position * 100}%`,
+              transform:
+                tick.position === 0
+                  ? "none"
+                  : tick.position === 1
+                    ? "translateX(-100%)"
+                    : "translateX(-50%)",
+            }}
+          >
+            {tick.label}
+          </span>
+        ))}
       </div>
       <p className="px-5 pb-4 pt-7 text-[10px] text-muted-foreground">
         Each bar shows messages sent in that minute. Markers identify
@@ -1006,7 +1056,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   return (
     <div className="min-h-svh bg-muted/50">
       <header className="border-b bg-background">
-        <div className="flex w-full items-start gap-3 px-4 py-4 lg:px-10">
+        <div className="flex h-14 items-center border-b px-4 lg:hidden">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -1015,12 +1065,28 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           >
             <IconArrowLeft />
           </Button>
+          <h1 className="ml-3 text-2xl font-bold">Thread</h1>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="ml-auto"
+            aria-label="More thread options"
+          >
+            <IconDotsVertical />
+          </Button>
+        </div>
+        <div className="flex w-full items-start gap-3 px-4 py-8 lg:px-10 lg:py-4">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Back to Threads"
+            onClick={() => router.back()}
+            className="mt-1.5 hidden lg:inline-flex"
+          >
+            <IconArrowLeft />
+          </Button>
           <div className="min-w-0 flex-1">
-            <p className="hidden text-sm text-muted-foreground lg:block">
-              Threads <span className="mx-2">/</span>{" "}
-              {details?.name || "Conversation"}
-            </p>
-            <div className="mt-1 flex min-w-0 items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               <CustomerAvatar
                 name={customerName}
                 size="h-14 w-14"
@@ -1063,15 +1129,11 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             <Button variant="outline">Flag for review</Button>
             <Button>Create ticket</Button>
           </div>
-          <Button variant="ghost" size="icon-sm" className="lg:hidden">
-            <IconDotsVertical />
-          </Button>
         </div>
         <div className="grid w-full grid-cols-3 border-t lg:hidden">
-          <div className="flex items-center gap-2 border-r p-3">
+          <div className="flex items-center gap-2 border-r p-3 max-[374px]:flex-col max-[374px]:gap-0">
             <ResolutionRing value={resolutionRate} />
             <span>
-              <b className="block text-xl text-primary">{resolutionRate}%</b>
               <small className="text-muted-foreground">Resolution</small>
             </span>
           </div>
