@@ -601,9 +601,9 @@ function ThreadChatControls({
         {!connectedAgent && (
           <motion.div
             key="ai-handling"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="order-1 rounded-xl border bg-muted/30 p-2 sm:p-3"
           >
@@ -704,9 +704,9 @@ function ThreadChatControls({
         {(!connectedAgent || connectedAgent !== user) && (
           <motion.div
             key="internal-note-composer"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="order-2 space-y-2"
           >
@@ -771,9 +771,9 @@ function ThreadChatControls({
         {connectedAgent && connectedAgent !== user && (
           <motion.div
             key="other-agent"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="order-1 flex flex-col gap-3 rounded-xl border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"
           >
@@ -832,346 +832,342 @@ function ThreadChatControls({
         )}
 
         {connectedAgent === user && (
-          <>
-            <motion.div
-              key="agent-status"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="order-1 flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/30 p-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-3"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:size-9">
-                  <IconHeadset className="size-4 sm:size-5" />
-                </div>
-                <div className="min-w-0">
-                  <Typography
-                    variant="small"
-                    as="p"
-                    className="text-xs leading-normal sm:text-sm"
-                  >
-                    You&apos;re replying
-                  </Typography>
-                  <Typography variant="muted" className="text-xs sm:text-sm">
-                    AI is paused
-                  </Typography>
-                </div>
+          <motion.div
+            key="agent-status"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="order-1 flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/30 p-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-3"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:size-9">
+                <IconHeadset className="size-4 sm:size-5" />
               </div>
-              <div className="flex w-full min-w-0 items-center justify-end gap-1.5 sm:w-auto sm:shrink-0 sm:gap-3">
-                {canReassign && (
-                  <ReassignAgentSelect
-                    agents={agents}
-                    currentAgent={connectedAgent}
-                    disabled={transitionState !== "idle" || !chatSocketReady}
-                    onReassign={onReassign}
-                  />
-                )}
-                <motion.div layoutId={HANDOVER_ACTION_ID} className="shrink-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 px-2 text-xs border-primary text-primary hover:bg-primary/10 hover:text-primary sm:px-3 sm:text-sm"
-                    onClick={onReturnToAI}
-                    disabled={transitionState !== "idle" || !chatSocketReady}
-                  >
-                    <IconRobot className="size-3.5 sm:size-4" />
-                    Hand back to AI
-                  </Button>
-                </motion.div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              key="composer"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="order-2 overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm"
-            >
-              {isEmojiPickerOpen && (
-                <div className="border-b border-border/50 p-2">
-                  <EmojiPicker
-                    onEmojiClick={handleEmojiClick}
-                    width="100%"
-                    height={320}
-                    theme={Theme.AUTO}
-                    previewConfig={{ showPreview: false }}
-                    searchPlaceholder="Search emoji…"
-                  />
-                </div>
-              )}
-
-              {attachedProducts.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 border-b border-border/50 p-2">
-                  {attachedProducts.map((product, idx) => (
-                    <div
-                      key={`${product.id}-${idx}`}
-                      className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/60 py-1 pl-1.5 pr-2 text-xs text-foreground"
-                    >
-                      {product.image ? (
-                        <Image
-                          src={product.image}
-                          alt={product.name}
-                          width={20}
-                          height={20}
-                          unoptimized
-                          className="size-5 rounded object-contain bg-background shrink-0"
-                        />
-                      ) : (
-                        <IconShoppingBag className="size-4 text-muted-foreground shrink-0" />
-                      )}
-                      <span className="max-w-[120px] truncate font-medium">
-                        {product.name}
-                      </span>
-                      {product.price && (
-                        <span className="text-muted-foreground text-[10px]">
-                          {product.price}
-                        </span>
-                      )}
-                      {setAttachedProducts && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setAttachedProducts(
-                              attachedProducts.filter(
-                                (p) => p.id !== product.id,
-                              ),
-                            )
-                          }
-                          className="ml-0.5 text-muted-foreground hover:text-foreground"
-                        >
-                          <IconX className="size-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {attachments.length > 0 && (
-                <div className="flex flex-wrap gap-2 border-b border-border/50 p-2">
-                  {attachments.map((attachment) => {
-                    const isImage = attachment.file.type.startsWith("image/");
-                    const isUploading = attachment.status === "uploading";
-                    const isError = attachment.status === "error";
-
-                    return (
-                      <div
-                        key={attachment.id}
-                        className="group relative flex items-center gap-2 rounded-xl border border-border/60 bg-muted/60 py-1.5 pl-1.5 pr-2.5 text-xs text-muted-foreground"
-                      >
-                        <div className="relative h-8 w-8 shrink-0">
-                          {isImage ? (
-                            <Image
-                              src={attachment.previewUrl}
-                              alt={attachment.file.name}
-                              width={32}
-                              height={32}
-                              unoptimized
-                              className={`h-8 w-8 rounded-lg object-cover ${
-                                isUploading ? "opacity-40" : ""
-                              } ${isError ? "opacity-60" : ""}`}
-                            />
-                          ) : (
-                            <div
-                              className={`flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 ${
-                                isUploading ? "opacity-40" : ""
-                              }`}
-                            >
-                              <IconPaperclip className="h-4 w-4" />
-                            </div>
-                          )}
-                          {isUploading && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <Spinner className="size-4" />
-                            </div>
-                          )}
-                          {isError && (
-                            <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/60">
-                              <IconAlertTriangle className="size-4 text-destructive" />
-                            </div>
-                          )}
-                        </div>
-                        <span className="max-w-35 truncate">
-                          {attachment.file.name}
-                        </span>
-                        {isError && (
-                          <button
-                            type="button"
-                            className="font-medium text-primary underline-offset-2 hover:underline"
-                            onClick={() => onRetryAttachment(attachment.id)}
-                          >
-                            Retry
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          disabled={isUploading}
-                          className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-0"
-                          onClick={() => onRemoveAttachment(attachment.id)}
-                          title={
-                            isUploading ? "Uploading…" : "Remove attachment"
-                          }
-                        >
-                          <IconX className="h-3 w-3" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Text input row */}
-              <div className="px-2.5 pt-2 sm:px-3 sm:pt-3">
-                <textarea
-                  ref={textareaRef}
-                  rows={1}
-                  placeholder={
-                    isUploadingAttachments
-                      ? "Uploading image…"
-                      : "Type your reply…"
-                  }
-                  value={composerMessage}
-                  disabled={inputsDisabled}
-                  onChange={(event) => setComposerMessage(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      onSendAgentMessage();
-                    }
-                  }}
-                  className="max-h-30 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:py-1 sm:text-sm sm:leading-6"
-                />
-              </div>
-
-              {/* Toolbar: emoji + attach + hint on the left, send on the right */}
-              <div className="flex flex-nowrap items-center gap-1 p-1.5 sm:p-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="icon-sm"
-                  disabled={inputsDisabled}
-                  aria-pressed={isEmojiPickerOpen}
-                  className={cn(
-                    "size-7 sm:size-8",
-                    isEmojiPickerOpen && "ring-2 ring-ring/40",
-                  )}
-                  onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                  title="Add emoji"
-                >
-                  <IconMoodSmile className="size-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="icon-sm"
-                  disabled={inputsDisabled}
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Attach image or file"
-                  className="size-7 sm:size-8"
-                >
-                  <IconPaperclip className="size-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="icon-sm"
-                  disabled={inputsDisabled}
-                  onClick={() => setIsProductPickerOpen(true)}
-                  title="Attach products (max 10)"
-                  className={cn(
-                    "size-7 sm:size-8",
-                    attachedProducts.length > 0 &&
-                      "text-primary border-primary/40 ring-1 ring-primary/40",
-                  )}
-                >
-                  <IconShoppingBag className="size-4" />
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  disabled={inputsDisabled}
-                  onChange={onFileSelection}
-                  className="hidden"
-                />
-                {setAttachedProducts && storeCode && (
-                  <AttachProductsDialog
-                    open={isProductPickerOpen}
-                    onOpenChange={setIsProductPickerOpen}
-                    storeCode={storeCode}
-                    selectedProducts={attachedProducts}
-                    onApplyProducts={setAttachedProducts}
-                    maxProducts={10}
-                  />
-                )}
+              <div className="min-w-0">
                 <Typography
-                  variant="muted"
-                  as="span"
-                  className="ml-2 hidden min-w-0 flex-1 truncate sm:inline"
+                  variant="small"
+                  as="p"
+                  className="text-xs leading-normal sm:text-sm"
                 >
-                  {isUploadingAttachments
-                    ? "Uploading attachment…"
-                    : "Enter to send · Shift + Enter for a new line"}
+                  You&apos;re replying
                 </Typography>
-                <div className="ml-auto flex w-auto min-w-0 shrink-0 items-center justify-end gap-1.5 sm:gap-2">
-                  {attachedProducts.length > 0 && (
-                    <Typography
-                      variant="muted"
-                      as="span"
-                      className="hidden 2xl:inline"
-                    >
-                      {attachedProducts.length} product
-                      {attachedProducts.length > 1 ? "s" : ""}
-                    </Typography>
-                  )}
-                  {attachments.length > 0 && (
-                    <Typography
-                      variant="muted"
-                      as="span"
-                      className="hidden 2xl:inline"
-                    >
-                      {attachments.length} attached
-                    </Typography>
-                  )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
-                    onClick={onSendInternalNote}
-                    disabled={!canSaveInternalNote || isSavingInternalNote}
-                    title="Save this text as an internal note"
-                  >
-                    <IconNote className="size-3.5 sm:size-4" />
-                    <span className="hidden xl:inline">
-                      Send as Internal Note
-                    </span>
-                    <span className="xl:hidden">Note</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
-                    onClick={onSendAgentMessage}
-                    disabled={!canSend}
-                    title={
-                      isUploadingAttachments
-                        ? "Waiting for upload…"
-                        : "Send reply to customer"
-                    }
-                  >
-                    <IconSend className="size-3.5 sm:size-4" />
-                    Send
-                  </Button>
-                </div>
+                <Typography variant="muted" className="text-xs sm:text-sm">
+                  AI is paused
+                </Typography>
               </div>
-            </motion.div>
-          </>
+            </div>
+            <div className="flex w-full min-w-0 items-center justify-end gap-1.5 sm:w-auto sm:shrink-0 sm:gap-3">
+              {canReassign && (
+                <ReassignAgentSelect
+                  agents={agents}
+                  currentAgent={connectedAgent}
+                  disabled={transitionState !== "idle" || !chatSocketReady}
+                  onReassign={onReassign}
+                />
+              )}
+              <motion.div layoutId={HANDOVER_ACTION_ID} className="shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs border-primary text-primary hover:bg-primary/10 hover:text-primary sm:px-3 sm:text-sm"
+                  onClick={onReturnToAI}
+                  disabled={transitionState !== "idle" || !chatSocketReady}
+                >
+                  <IconRobot className="size-3.5 sm:size-4" />
+                  Hand back to AI
+                </Button>
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+
+        {connectedAgent === user && (
+          <motion.div
+            key="composer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="order-2 overflow-hidden rounded-xl border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm"
+          >
+            {isEmojiPickerOpen && (
+              <div className="border-b border-border/50 p-2">
+                <EmojiPicker
+                  onEmojiClick={handleEmojiClick}
+                  width="100%"
+                  height={320}
+                  theme={Theme.AUTO}
+                  previewConfig={{ showPreview: false }}
+                  searchPlaceholder="Search emoji…"
+                />
+              </div>
+            )}
+
+            {attachedProducts.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 border-b border-border/50 p-2">
+                {attachedProducts.map((product, idx) => (
+                  <div
+                    key={`${product.id}-${idx}`}
+                    className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/60 py-1 pl-1.5 pr-2 text-xs text-foreground"
+                  >
+                    {product.image ? (
+                      <Image
+                        src={product.image}
+                        alt={product.name}
+                        width={20}
+                        height={20}
+                        unoptimized
+                        className="size-5 rounded object-contain bg-background shrink-0"
+                      />
+                    ) : (
+                      <IconShoppingBag className="size-4 text-muted-foreground shrink-0" />
+                    )}
+                    <span className="max-w-[120px] truncate font-medium">
+                      {product.name}
+                    </span>
+                    {product.price && (
+                      <span className="text-muted-foreground text-[10px]">
+                        {product.price}
+                      </span>
+                    )}
+                    {setAttachedProducts && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAttachedProducts(
+                            attachedProducts.filter((p) => p.id !== product.id),
+                          )
+                        }
+                        className="ml-0.5 text-muted-foreground hover:text-foreground"
+                      >
+                        <IconX className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 border-b border-border/50 p-2">
+                {attachments.map((attachment) => {
+                  const isImage = attachment.file.type.startsWith("image/");
+                  const isUploading = attachment.status === "uploading";
+                  const isError = attachment.status === "error";
+
+                  return (
+                    <div
+                      key={attachment.id}
+                      className="group relative flex items-center gap-2 rounded-xl border border-border/60 bg-muted/60 py-1.5 pl-1.5 pr-2.5 text-xs text-muted-foreground"
+                    >
+                      <div className="relative h-8 w-8 shrink-0">
+                        {isImage ? (
+                          <Image
+                            src={attachment.previewUrl}
+                            alt={attachment.file.name}
+                            width={32}
+                            height={32}
+                            unoptimized
+                            className={`h-8 w-8 rounded-lg object-cover ${
+                              isUploading ? "opacity-40" : ""
+                            } ${isError ? "opacity-60" : ""}`}
+                          />
+                        ) : (
+                          <div
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 ${
+                              isUploading ? "opacity-40" : ""
+                            }`}
+                          >
+                            <IconPaperclip className="h-4 w-4" />
+                          </div>
+                        )}
+                        {isUploading && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Spinner className="size-4" />
+                          </div>
+                        )}
+                        {isError && (
+                          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/60">
+                            <IconAlertTriangle className="size-4 text-destructive" />
+                          </div>
+                        )}
+                      </div>
+                      <span className="max-w-35 truncate">
+                        {attachment.file.name}
+                      </span>
+                      {isError && (
+                        <button
+                          type="button"
+                          className="font-medium text-primary underline-offset-2 hover:underline"
+                          onClick={() => onRetryAttachment(attachment.id)}
+                        >
+                          Retry
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={isUploading}
+                        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-0"
+                        onClick={() => onRemoveAttachment(attachment.id)}
+                        title={isUploading ? "Uploading…" : "Remove attachment"}
+                      >
+                        <IconX className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Text input row */}
+            <div className="px-2.5 pt-2 sm:px-3 sm:pt-3">
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                placeholder={
+                  isUploadingAttachments
+                    ? "Uploading image…"
+                    : "Type your reply…"
+                }
+                value={composerMessage}
+                disabled={inputsDisabled}
+                onChange={(event) => setComposerMessage(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    onSendAgentMessage();
+                  }
+                }}
+                className="max-h-30 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:py-1 sm:text-sm sm:leading-6"
+              />
+            </div>
+
+            {/* Toolbar: emoji + attach + hint on the left, send on the right */}
+            <div className="flex flex-nowrap items-center gap-1 p-1.5 sm:p-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                disabled={inputsDisabled}
+                aria-pressed={isEmojiPickerOpen}
+                className={cn(
+                  "size-7 sm:size-8",
+                  isEmojiPickerOpen && "ring-2 ring-ring/40",
+                )}
+                onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                title="Add emoji"
+              >
+                <IconMoodSmile className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                disabled={inputsDisabled}
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach image or file"
+                className="size-7 sm:size-8"
+              >
+                <IconPaperclip className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                disabled={inputsDisabled}
+                onClick={() => setIsProductPickerOpen(true)}
+                title="Attach products (max 10)"
+                className={cn(
+                  "size-7 sm:size-8",
+                  attachedProducts.length > 0 &&
+                    "text-primary border-primary/40 ring-1 ring-primary/40",
+                )}
+              >
+                <IconShoppingBag className="size-4" />
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                disabled={inputsDisabled}
+                onChange={onFileSelection}
+                className="hidden"
+              />
+              {setAttachedProducts && storeCode && (
+                <AttachProductsDialog
+                  open={isProductPickerOpen}
+                  onOpenChange={setIsProductPickerOpen}
+                  storeCode={storeCode}
+                  selectedProducts={attachedProducts}
+                  onApplyProducts={setAttachedProducts}
+                  maxProducts={10}
+                />
+              )}
+              <Typography
+                variant="muted"
+                as="span"
+                className="ml-2 hidden min-w-0 flex-1 truncate sm:inline"
+              >
+                {isUploadingAttachments
+                  ? "Uploading attachment…"
+                  : "Enter to send · Shift + Enter for a new line"}
+              </Typography>
+              <div className="ml-auto flex w-auto min-w-0 shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+                {attachedProducts.length > 0 && (
+                  <Typography
+                    variant="muted"
+                    as="span"
+                    className="hidden 2xl:inline"
+                  >
+                    {attachedProducts.length} product
+                    {attachedProducts.length > 1 ? "s" : ""}
+                  </Typography>
+                )}
+                {attachments.length > 0 && (
+                  <Typography
+                    variant="muted"
+                    as="span"
+                    className="hidden 2xl:inline"
+                  >
+                    {attachments.length} attached
+                  </Typography>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
+                  onClick={onSendInternalNote}
+                  disabled={!canSaveInternalNote || isSavingInternalNote}
+                  title="Save this text as an internal note"
+                >
+                  <IconNote className="size-3.5 sm:size-4" />
+                  <span className="hidden xl:inline">
+                    Send as Internal Note
+                  </span>
+                  <span className="xl:hidden">Note</span>
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
+                  onClick={onSendAgentMessage}
+                  disabled={!canSend}
+                  title={
+                    isUploadingAttachments
+                      ? "Waiting for upload…"
+                      : "Send reply to customer"
+                  }
+                >
+                  <IconSend className="size-3.5 sm:size-4" />
+                  Send
+                </Button>
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
