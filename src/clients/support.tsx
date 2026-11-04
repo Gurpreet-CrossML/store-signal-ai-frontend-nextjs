@@ -485,6 +485,7 @@ function ReassignAgentSelect({
 function ThreadChatControls({
   activeThreadId,
   isThreadActive = true,
+  hasMessages = true,
   className,
   connectedAgent,
   connectedAgentName,
@@ -514,6 +515,7 @@ function ThreadChatControls({
 }: {
   activeThreadId?: string | null;
   isThreadActive?: boolean;
+  hasMessages?: boolean;
   className?: string;
   connectedAgent: string | null;
   connectedAgentName?: string | null;
@@ -623,18 +625,32 @@ function ThreadChatControls({
                     as="p"
                     className="text-xs leading-normal sm:text-sm"
                   >
-                    <span className="sm:hidden">AI Assistant is replying</span>
-                    <span className="hidden sm:inline">
-                      AI Assistant is handling this conversation
-                    </span>
+                    {hasMessages ? (
+                      <>
+                        <span className="sm:hidden">
+                          AI Assistant is replying
+                        </span>
+                        <span className="hidden sm:inline">
+                          AI Assistant is handling this conversation
+                        </span>
+                      </>
+                    ) : (
+                      "AI Assistant is ready"
+                    )}
                   </Typography>
                   <Typography variant="muted" className="text-xs sm:text-sm">
-                    <span className="sm:hidden">
-                      Unassigned · take over to reply
-                    </span>
-                    <span className="hidden sm:inline">
-                      Take over anytime to reply as a human agent.
-                    </span>
+                    {hasMessages ? (
+                      <>
+                        <span className="sm:hidden">
+                          Unassigned · take over to reply
+                        </span>
+                        <span className="hidden sm:inline">
+                          Take over anytime to reply as a human agent.
+                        </span>
+                      </>
+                    ) : (
+                      "It replies as soon as the customer sends a message. You can add internal notes anytime."
+                    )}
                   </Typography>
                 </div>
               </div>
@@ -2923,13 +2939,13 @@ export default function Support() {
                       active={thread.id === activeThreadId}
                       activeClassName={
                         thread.need_escalation
-                          ? "border-l-4 border-red-600 bg-red-50 hover:bg-red-50 dark:border-red-400 dark:bg-red-950/30 dark:hover:bg-red-950/30"
-                          : "border-l-4 border-primary bg-primary/10 hover:bg-primary/10 dark:bg-primary/20 dark:hover:bg-primary/20"
+                          ? "-mx-2 w-[calc(100%+1rem)] rounded-none border-l-4 border-red-600 bg-red-50 pl-4! pr-5! hover:bg-red-50 dark:border-red-400 dark:bg-red-950/30 dark:hover:bg-red-950/30"
+                          : "-mx-2 w-[calc(100%+1rem)] rounded-none border-l-4 border-primary bg-primary/10 pl-4! pr-5! hover:bg-primary/10 dark:bg-primary/20 dark:hover:bg-primary/20"
                       }
                       hoverClassName={
                         thread.need_escalation
-                          ? "hover:bg-red-50 dark:hover:bg-red-950/30"
-                          : "hover:bg-primary/5 dark:hover:bg-primary/15"
+                          ? "-mx-2 w-[calc(100%+1rem)] rounded-none pl-5! pr-5! hover:bg-red-50 dark:hover:bg-red-950/30"
+                          : "-mx-2 w-[calc(100%+1rem)] rounded-none pl-5! pr-5! hover:bg-primary/5 dark:hover:bg-primary/15"
                       }
                       onSelect={() => handleSelectThread(thread.id)}
                       unread={isUnread}
@@ -3196,12 +3212,21 @@ export default function Support() {
                         />
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
-                          <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />
+                          <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <IconMessage2 className="size-5" />
+                          </div>
                           <Typography variant="small" as="p">
-                            Nothing here yet
+                            No messages yet
                           </Typography>
-                          <Typography variant="muted">
-                            Messages for this thread will show up here.
+                          <Typography
+                            variant="muted"
+                            className="max-w-md leading-relaxed"
+                          >
+                            {selectedThread?.customer?.name ||
+                              selectedThread?.customer?.email ||
+                              "This customer"}{" "}
+                            opened the chat but hasn&apos;t written anything.
+                            The AI Assistant will reply as soon as they do.
                           </Typography>
                         </div>
                       )}
@@ -3243,6 +3268,7 @@ export default function Support() {
                       <ThreadChatControls
                         activeThreadId={activeThreadId}
                         isThreadActive={selectedThread.is_active}
+                        hasMessages={threadMessages.length > 0}
                         className="border-t"
                         connectedAgent={displayedConnectedAgent}
                         connectedAgentName={displayedConnectedAgentName}

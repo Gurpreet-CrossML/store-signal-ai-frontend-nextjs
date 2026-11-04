@@ -301,6 +301,14 @@ export function CartDetailsCard({
               price={formatCartPrice(item.price) ?? "-"}
             />
           ))}
+          <div className="mt-1 flex items-center justify-between gap-3 border-t border-dashed pt-3">
+            <Typography variant="muted" as="span">
+              Subtotal
+            </Typography>
+            <Typography variant="small" as="span" className="font-semibold">
+              {formatCartPrice(cart?.total) ?? "-"}
+            </Typography>
+          </div>
         </div>
       )}
     </section>
