@@ -138,12 +138,24 @@ export function CustomerDetailsPanel({
   const details = (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex min-h-14 shrink-0 items-center justify-between border-b bg-background px-4 py-3 sm:px-5">
-        <h2 className="min-w-0 truncate text-base font-semibold tracking-tight sm:text-lg">
-          Customer overview
-        </h2>
-        <span className="ml-3 shrink-0 text-xs text-muted-foreground sm:text-sm">
-          Since {customerSince}
-        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="min-w-0 truncate text-base font-semibold tracking-tight sm:text-lg">
+              Customer overview
+            </h2>
+            {customerData?.id ? (
+              <span className="shrink-0 text-xs text-muted-foreground sm:text-sm">
+                Since {customerSince}
+              </span>
+            ) : null}
+          </div>
+          <OrdersSummary
+            orders={orders}
+            customerData={customerData}
+            loading={ordersLoading}
+            className="mt-3"
+          />
+        </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <OrdersCard
