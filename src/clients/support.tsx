@@ -2761,9 +2761,16 @@ export default function Support() {
             <CardTitle className="flex items-center gap-2">
               Live chats
             </CardTitle>
-            {localThreads.length > 0 && (
-              <Badge variant="secondary">{localThreads.length}</Badge>
-            )}
+            <Badge
+              variant="outline"
+              className="h-9 rounded-full px-3 text-sm font-normal"
+            >
+              <span
+                aria-hidden="true"
+                className="size-2 rounded-full bg-emerald-500"
+              />
+              Online
+            </Badge>
           </div>
 
           <div className="flex flex-col gap-2.5 border-b px-4 py-2.5">
@@ -2986,12 +2993,12 @@ export default function Support() {
                       activeClassName={
                         thread.need_escalation
                           ? "-mx-2 w-[calc(100%+1rem)] rounded-none border-l-4 border-red-600 bg-red-50 pl-4! pr-5! hover:bg-red-50 dark:border-red-400 dark:bg-red-950/30 dark:hover:bg-red-950/30"
-                          : "-mx-2 w-[calc(100%+1rem)] rounded-none border-l-4 border-primary bg-primary/10 pl-4! pr-5! hover:bg-primary/10 dark:bg-primary/20 dark:hover:bg-primary/20"
+                          : "-mx-2 w-[calc(100%+1rem)] rounded-none border-l-4 border-primary bg-primary/5 pl-4! pr-5! hover:bg-primary/[0.03] dark:bg-primary/10 dark:hover:bg-primary/10"
                       }
                       hoverClassName={
                         thread.need_escalation
                           ? "-mx-2 w-[calc(100%+1rem)] rounded-none pl-5! pr-5! hover:bg-red-50 dark:hover:bg-red-950/30"
-                          : "-mx-2 w-[calc(100%+1rem)] rounded-none pl-5! pr-5! hover:bg-primary/5 dark:hover:bg-primary/15"
+                          : "-mx-2 w-[calc(100%+1rem)] rounded-none pl-5! pr-5! hover:bg-primary/[0.03] dark:hover:bg-primary/10"
                       }
                       onSelect={() => handleSelectThread(thread.id)}
                       unread={isUnread}

@@ -260,6 +260,14 @@ export default function MessagePan({
           // distinct AI avatar, confidence, and source treatment.
           const isStoreSignalAI =
             message.role === "assistant" && !message.agent_name;
+          const senderLabel =
+            message.role === "assistant" && !message.agent_name
+              ? "AI Assistant"
+              : message.messaged_by_email &&
+                  me &&
+                  message.messaged_by_email.toLowerCase() === me.toLowerCase()
+                ? "You"
+                : message.messaged_by || message.role;
           const showReplyWithAI =
             isLastMessage && message.role === "user" && !!onReplyWithAI;
           const isCustomer = message.role === "user";
@@ -396,12 +404,7 @@ export default function MessagePan({
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div className="mb-1 flex flex-wrap items-center gap-x-2 justify-start">
                       <span className="text-xs font-medium text-foreground capitalize">
-                        {message.messaged_by_email &&
-                        me &&
-                        message.messaged_by_email.toLowerCase() ===
-                          me.toLowerCase()
-                          ? "You"
-                          : message.messaged_by || message.role}
+                        {senderLabel}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {formatDateTime(message.created_at)}
