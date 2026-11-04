@@ -14,6 +14,7 @@ import { SearchInput } from "@/components/custom/search-input";
 import { getSlaPolicyColumns } from "@/components/custom/helpdesk/sla-policy-columns";
 import { TagBadge } from "@/components/custom/helpdesk/tag-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -77,6 +78,8 @@ type PolicyFormValues = {
   resolution: string;
   resolutionUnit: SlaUnit;
   isActive: boolean;
+  /** Creating only: count old tickets from their history, not from now. */
+  applyToExisting: boolean;
 };
 
 // The three targets as the form lays them out: the box holding the number,
@@ -129,6 +132,7 @@ function initialValues(policy: SlaPolicy | null): PolicyFormValues {
     resolution: resolution.value,
     resolutionUnit: resolution.unit,
     isActive: policy?.is_active ?? true,
+    applyToExisting: true,
   };
 }
 
@@ -371,6 +375,7 @@ export default function SlaPolicies() {
         const createPayload: SlaPolicyCreatePayload = {
           ...payload,
           tags: values.tags.map(Number),
+          apply_to_existing_tickets: values.applyToExisting,
         };
         const created = await dispatch(
           SlaPolicyCreate({ storeCode, payload: createPayload }),
@@ -509,9 +514,8 @@ export default function SlaPolicies() {
                 aria-hidden
               />
               <p>
-                Tickets that already carry these tags follow the policy straight
-                away. Counted from when each ticket was created, the ones
-                already past a target show as overdue.
+                Tickets that already carry these tags follow the policy. Use the
+                checkbox at the bottom to choose when their clocks start.
               </p>
             </div>
           )}
@@ -672,6 +676,32 @@ export default function SlaPolicies() {
                       }
                     />
                   </div>
+
+                  {creating ? (
+                    <div className="flex items-start gap-3 rounded-md border p-3">
+                      <Checkbox
+                        id="applyToExisting"
+                        checked={values.applyToExisting}
+                        onCheckedChange={(checked) =>
+                          setFieldValue("applyToExisting", checked === true)
+                        }
+                        className="mt-0.5"
+                      />
+                      <div className="space-y-0.5">
+                        <Label htmlFor="applyToExisting">
+                          Apply to existing tickets immediately
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Checked: tickets that already carry these tags are
+                          counted from when they were created, so the ones past
+                          a target become overdue right away. Unchecked: their
+                          clocks start now, and a ticket is overdue only after
+                          the full time has passed. This only applies now; a tag
+                          added to a ticket later takes effect at once.
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
 
                   <DialogFooter>
                     <Button
