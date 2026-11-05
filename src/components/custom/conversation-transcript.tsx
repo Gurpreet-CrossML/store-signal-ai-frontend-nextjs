@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 
-import MessagePan from "@/components/custom/message-pan";
+import { MessagePan } from "@/components/custom/message-pan";
 import { LoadingState } from "@/components/custom/loading-state";
 import { ThreadCard } from "@/components/custom/thread-card";
 import type { ThreadMessage } from "@/redux/api-slice/thread-slice";

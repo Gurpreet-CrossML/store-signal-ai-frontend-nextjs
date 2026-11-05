@@ -16,9 +16,9 @@ export default function TicketCard({ ticket }: { ticket: TicketDetails }) {
           <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <IconUser className="size-4" />
           </div>
-          <div className="flex flex-col gap-0.5">
+          <div className="min-w-0 flex flex-col gap-0.5">
             {ticket.customer_email && (
-              <div className="text-[13px] font-semibold text-foreground">
+              <div className="wrap-anywhere text-[13px] font-semibold text-foreground">
                 {ticket.customer_email}
               </div>
             )}
