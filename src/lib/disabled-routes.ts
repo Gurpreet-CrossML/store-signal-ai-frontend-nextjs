@@ -10,6 +10,10 @@ const DISABLED_PREFIXES = [
   "/campaign/segments",
   "/campaign/campaigns",
   "/social-ai",
+  "/settings/social-ai/comment-handling",
+  "/settings/social-ai/dm-automation",
+  "/settings/social-ai/guardrails",
+  "/settings/social-ai/meta-compliance",
 ];
 
 export function isDisabledRoute(pathname: string): boolean {
