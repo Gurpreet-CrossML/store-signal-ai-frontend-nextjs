@@ -488,7 +488,10 @@ export function CreateTicketDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent ref={setContentEl} className="sm:max-w-lg">
+      <DialogContent
+        ref={setContentEl}
+        className="max-h-[calc(100dvh-1rem)] gap-4 overflow-hidden p-3 sm:max-w-lg sm:gap-6 sm:p-6"
+      >
         <DialogHeader>
           <DialogTitle>Create Ticket</DialogTitle>
           <DialogDescription>
@@ -500,13 +503,13 @@ export function CreateTicketDialog({
 
         <form
           onSubmit={formik.handleSubmit}
-          className="flex max-h-[60vh] flex-col gap-6 overflow-y-auto px-1"
+          className="flex max-h-[calc(100dvh-12rem)] min-h-0 flex-col gap-5 overflow-y-auto px-1 sm:max-h-[60vh] sm:gap-6"
         >
           {/* Above the fields it writes, and separated by a rule rather
               than sitting in a box of its own — it is an action on this
               form, not a section of it. */}
           {onDraft ? (
-            <div className="flex items-center justify-between gap-3 border-b border-border pb-4">
+            <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <Typography variant="small" as="p">
                   Draft from Conversation
@@ -520,7 +523,7 @@ export function CreateTicketDialog({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="shrink-0"
+                className="w-full shrink-0 sm:w-auto"
                 disabled={drafting || busy}
                 onClick={handleDraft}
               >
@@ -628,7 +631,7 @@ export function CreateTicketDialog({
             </Select>
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="ticket-priority">Priority</FieldLabel>
               <Select

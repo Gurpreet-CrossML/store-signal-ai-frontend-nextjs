@@ -45,6 +45,7 @@ export type OrderListRow = {
   tracking_number: string | null;
   cancelled_at: string | null;
   created_at: string;
+  admin_url?: string | null;
 };
 
 /**

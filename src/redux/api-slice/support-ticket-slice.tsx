@@ -11,6 +11,13 @@ import type { TicketLanguage, TicketSentiment } from "@/lib/ticket-options";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 import { OrderData } from "@/redux/api-slice/thread-slice";
+import type {
+  CopilotAction,
+  CopilotActions,
+  CopilotConversation,
+  CopilotFeedback,
+  CopilotMessage,
+} from "@/lib/copilot";
 
 export type SupportTicketStatus =
   | "open"
@@ -52,7 +59,11 @@ export type SupportSocketPayload = {
   message?: SupportTicketMessage;
 };
 
-export type SupportTicketOrdering = "newest" | "oldest" | "last_updated";
+export type SupportTicketOrdering =
+  | "newest"
+  | "oldest"
+  | "last_updated"
+  | "priority";
 
 export type SupportTicketFilters = {
   status?: SupportTicketStatus;
@@ -60,8 +71,6 @@ export type SupportTicketFilters = {
   search?: string;
   channel?: SupportTicketChannel[];
   tags?: string[];
-  from_date?: string;
-  to_date?: string;
   priority?: SupportTicketPriority[];
   sentiment?: TicketSentiment[];
   is_read?: boolean;
@@ -87,10 +96,14 @@ export type SupportTicketCustomer = {
   email: string;
   store: number | null;
   customer_id: string;
+  /** When the shopper's account was created on the platform. */
+  registered_at?: string | null;
   created_at: string;
   updated_at: string;
   thread_id: string;
   orders: OrderData[];
+  /** The customer's page in the store's own admin (Shopify, Magento). */
+  admin_url?: string | null;
 };
 
 type GetSupportTicketTagsArgs = {
@@ -1212,6 +1225,110 @@ export const SupportTicketMessagesTranslate = createAsyncThunk<
   },
 );
 
+// Helpdesk Copilot. The GET goes straight to Django (`useBackend`): the
+// local Next API has no Copilot route.
+export const FetchCopilotConversation = createAsyncThunk<
+  CopilotConversation,
+  { storeCode: string; ticketId: number }
+>("FetchCopilotConversation", async ({ storeCode, ticketId }, thunkAPI) => {
+  try {
+    const response = await axiosInstance.get(
+      `${ENDPOINTS.supportTicketCopilot(ticketId)}?store_code=${storeCode}`,
+      { useBackend: true },
+    );
+    const data = response.data.data;
+
+    return data;
+  } catch (error) {
+    const response = isAxiosError(error) ? error.response : undefined;
+    const data = response?.data;
+
+    return thunkAPI.rejectWithValue(data || "Couldn't load Copilot.");
+  }
+});
+
+export const CopilotActionRun = createAsyncThunk<
+  { reused: boolean; message?: CopilotMessage; actions: CopilotActions },
+  { storeCode: string; ticketId: number; action: CopilotAction }
+>("CopilotActionRun", async ({ storeCode, ticketId, action }, thunkAPI) => {
+  try {
+    const response = await axiosInstance.post(
+      `${ENDPOINTS.supportTicketCopilot(ticketId)}?store_code=${storeCode}`,
+      { action },
+      // A model call, with a knowledge search for two of the three actions.
+      { timeout: 90_000 },
+    );
+    const data = response.data.data;
+
+    if (data.reused) {
+      // Nothing changed, so the server saved nothing; say why.
+      toast.info("Nothing new to run", { description: response.data.message });
+    }
+    // Reload either way: for a new answer, the agent's request and Copilot's
+    // reply; otherwise, anything another agent added in the meantime.
+    thunkAPI.dispatch(FetchCopilotConversation({ storeCode, ticketId }));
+
+    return data;
+  } catch (error) {
+    const response = isAxiosError(error) ? error.response : undefined;
+    const data = response?.data;
+
+    if (response?.status === 409) {
+      toast.info("Not available right now", { description: data?.message });
+      // The refusal means the ticket moved on (resolved, already running).
+      thunkAPI.dispatch(FetchCopilotConversation({ storeCode, ticketId }));
+    } else if (response?.status === 429) {
+      toast.error("Out of AI credits", {
+        description: "Ask an admin to top up credits to use Copilot.",
+      });
+    } else {
+      toast.error("Copilot couldn't finish.", {
+        description: data?.message || "Please try again later.",
+      });
+    }
+
+    return thunkAPI.rejectWithValue(data || "Copilot couldn't finish.");
+  }
+});
+
+export const CopilotMessageRate = createAsyncThunk<
+  { message: CopilotMessage; actions: CopilotActions },
+  {
+    storeCode: string;
+    ticketId: number;
+    messageId: number;
+    feedback: CopilotFeedback;
+    feedbackMessage?: string;
+  }
+>(
+  "CopilotMessageRate",
+  async (
+    { storeCode, ticketId, messageId, feedback, feedbackMessage = "" },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.supportTicketCopilotFeedback(ticketId, messageId)}?store_code=${storeCode}`,
+        { feedback, feedback_message: feedbackMessage },
+      );
+      const data = response.data.data;
+
+      if (feedback === "good") toast.success("Thanks for the feedback");
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't save your feedback.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't save your feedback.");
+    }
+  },
+);
+
 // Everything that moves a ticket between the left panel's views, so the
 // counts are fetched again after it.
 const ticketChangeThunks = isAnyOf(
@@ -1425,6 +1542,22 @@ const SupportTicketsSlice = createSlice({
         | object
         | unknown,
       SupportTicketMessagesTranslateData: {} as SupportTicketTranslateResponse,
+    },
+    FetchCopilotConversationState: {
+      FetchCopilotConversationIsLoading: false,
+      FetchCopilotConversationIsSuccess: false,
+      FetchCopilotConversationIsError: null as null | string | object | unknown,
+      // Kept per ticket, so reopening a ticket shows its answers at once
+      // while they reload.
+      FetchCopilotConversationData: {} as Record<number, CopilotConversation>,
+    },
+    CopilotActionRunState: {
+      CopilotActionRunIsLoading: false,
+      CopilotActionRunTicketId: null as number | null,
+      CopilotActionRunAction: null as CopilotAction | null,
+    },
+    CopilotMessageRateState: {
+      CopilotMessageRateIsLoading: false,
     },
   },
   reducers: {
@@ -1888,6 +2021,59 @@ const SupportTicketsSlice = createSlice({
         state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsError =
           action.payload;
         state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsSuccess = false;
+      })
+      .addCase(FetchCopilotConversation.pending, (state) => {
+        state.FetchCopilotConversationState.FetchCopilotConversationIsLoading = true;
+        state.FetchCopilotConversationState.FetchCopilotConversationIsError =
+          null;
+        state.FetchCopilotConversationState.FetchCopilotConversationIsSuccess = false;
+      })
+      .addCase(FetchCopilotConversation.fulfilled, (state, action) => {
+        state.FetchCopilotConversationState.FetchCopilotConversationIsLoading = false;
+        state.FetchCopilotConversationState.FetchCopilotConversationData[
+          action.meta.arg.ticketId
+        ] = action.payload;
+        state.FetchCopilotConversationState.FetchCopilotConversationIsSuccess = true;
+      })
+      .addCase(FetchCopilotConversation.rejected, (state, action) => {
+        state.FetchCopilotConversationState.FetchCopilotConversationIsLoading = false;
+        state.FetchCopilotConversationState.FetchCopilotConversationIsError =
+          action.payload;
+        state.FetchCopilotConversationState.FetchCopilotConversationIsSuccess = false;
+      })
+      .addCase(CopilotActionRun.pending, (state, action) => {
+        state.CopilotActionRunState.CopilotActionRunIsLoading = true;
+        state.CopilotActionRunState.CopilotActionRunTicketId =
+          action.meta.arg.ticketId;
+        state.CopilotActionRunState.CopilotActionRunAction =
+          action.meta.arg.action;
+      })
+      .addCase(CopilotActionRun.fulfilled, (state) => {
+        state.CopilotActionRunState.CopilotActionRunIsLoading = false;
+      })
+      .addCase(CopilotActionRun.rejected, (state) => {
+        state.CopilotActionRunState.CopilotActionRunIsLoading = false;
+      })
+      .addCase(CopilotMessageRate.pending, (state) => {
+        state.CopilotMessageRateState.CopilotMessageRateIsLoading = true;
+      })
+      .addCase(CopilotMessageRate.fulfilled, (state, action) => {
+        state.CopilotMessageRateState.CopilotMessageRateIsLoading = false;
+        const conversation =
+          state.FetchCopilotConversationState.FetchCopilotConversationData[
+            action.meta.arg.ticketId
+          ];
+        if (conversation) {
+          conversation.messages = conversation.messages.map((message) =>
+            message.id === action.payload.message.id
+              ? action.payload.message
+              : message,
+          );
+          conversation.actions = action.payload.actions;
+        }
+      })
+      .addCase(CopilotMessageRate.rejected, (state) => {
+        state.CopilotMessageRateState.CopilotMessageRateIsLoading = false;
       })
       .addMatcher(ticketChangeThunks, (state) => {
         state.FilterCountsRefreshKey += 1;
