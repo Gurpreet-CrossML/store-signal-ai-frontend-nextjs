@@ -488,8 +488,7 @@ export function MessagePan({
                     ) : (
                       <div
                         id="markdown-message-bubble"
-                        style={{ borderRadius: "0.7rem" }}
-                        className={`min-w-0 max-w-full wrap-anywhere p-3 text-sm md:text-base ${isCustomer ? "rounded-tr-none bg-primary text-primary-foreground md:rounded-none md:bg-transparent md:p-0 md:text-foreground" : "rounded-tl-none border border-border bg-secondary md:rounded-none md:border-0 md:bg-transparent md:p-0"}`}
+                        className="min-w-0 max-w-full wrap-anywhere text-sm text-foreground md:text-base"
                       >
                         {message.role === "assistant" ? (
                           (() => {
