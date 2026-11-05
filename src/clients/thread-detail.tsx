@@ -11,7 +11,6 @@ import {
   IconCheck,
   IconChevronLeft,
   IconClockHour4,
-  IconDotsVertical,
   IconFlag,
   IconHash,
   IconListCheck,
@@ -870,14 +869,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             <IconArrowLeft />
           </Button>
           <h1 className="ml-3 text-xl font-bold">Thread</h1>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="ml-auto"
-            aria-label="More thread options"
-          >
-            <IconDotsVertical />
-          </Button>
         </div>
         <div className="flex w-full items-start gap-3 px-5 py-7 lg:px-6 lg:py-4">
           <div className="min-w-0 flex-1">
