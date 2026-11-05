@@ -27,6 +27,7 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 
+import { AssigneeSelect } from "@/components/custom/assignee-select";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { LoadingState } from "@/components/custom/loading-state";
 import { TicketCopilotPanel } from "@/components/custom/ticket-copilot-panel";
@@ -876,7 +877,6 @@ export type TicketDetailsProps = TagProps & {
   onPriorityChange: (priority: SupportTicketPriority) => void;
   staff: StaffMember[];
   canAssign: boolean;
-  currentUserEmail?: string | null;
   onAssign: (staffId: number | null) => void;
   onLanguageSentimentChange: (payload: {
     language?: TicketLanguage;
@@ -901,146 +901,27 @@ function AssigneePicker({
   staff,
   canAssign,
   isClosed,
-  currentUserEmail,
   onAssign,
 }: Pick<
   TicketDetailsProps,
-  | "ticket"
-  | "staff"
-  | "canAssign"
-  | "isClosed"
-  | "currentUserEmail"
-  | "onAssign"
+  "ticket" | "staff" | "canAssign" | "isClosed" | "onAssign"
 >) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
   const assignee = ticket.internal_assignee;
-  const me = staff.find(
-    (member) => member.email.toLowerCase() === currentUserEmail?.toLowerCase(),
-  );
-  const term = search.trim().toLowerCase();
-  const team = staff.filter((member) =>
-    `${member.first_name} ${member.last_name} ${member.email}`
-      .toLowerCase()
-      .includes(term),
-  );
-  const choose = (staffId: number | null) => {
-    setOpen(false);
-    if (staffId !== (assignee?.id ?? null)) onAssign(staffId);
-  };
-  const phone = useContext(PhoneLayout);
-
-  const trigger = (
-    <span className="flex min-w-0 items-center gap-1.5">
-      {assignee ? (
-        <CustomerAvatar name={assignee.name} size="size-5" />
-      ) : (
-        <span className="size-5 shrink-0 rounded-full border border-dashed border-muted-foreground/60" />
-      )}
-      <span className="truncate">{assignee?.name ?? "Unassigned"}</span>
-    </span>
-  );
-
-  if (!canAssign || isClosed) {
-    return (
-      <span
-        className={cn(
-          phone ? phoneValueClass : pillClass,
-          !phone && "hover:bg-background",
-        )}
-      >
-        {trigger}
-      </span>
-    );
-  }
-
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) setSearch("");
-      }}
-    >
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={phone ? phoneValueClass : cn(pillClass, "rounded-full")}
-        >
-          {trigger}
-          <MenuChevron />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-0">
-        <div className="p-2">
-          <input
-            autoFocus
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search teammates"
-            aria-label="Search teammates"
-            className="h-9 w-full rounded-md border border-primary/60 bg-background px-3 text-sm outline-none focus:ring-3 focus:ring-primary/20"
-          />
-        </div>
-        <div className="max-h-80 overflow-x-hidden overflow-y-auto px-1 pb-1">
-          {me ? (
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-md bg-primary/5 px-2 py-2 text-left text-sm font-medium text-primary hover:bg-primary/10"
-              onClick={() => choose(me.id)}
-            >
-              <IconUserPlus className="size-4" />
-              Assign to me
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm hover:bg-muted"
-            onClick={() => choose(null)}
-          >
-            <span className="size-7 shrink-0 rounded-full border border-dashed border-muted-foreground/60" />
-            <span className="flex-1">Unassigned</span>
-            {!assignee ? <IconCheck className="size-4 text-primary" /> : null}
-          </button>
-          <p className="px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-            Team
-          </p>
-          {team.length === 0 ? (
-            <p className="px-2 py-3 text-sm text-muted-foreground">
-              No teammates found.
-            </p>
-          ) : (
-            team.map((member) => {
-              const name = `${member.first_name} ${member.last_name}`.trim();
-              const isMe = member.id === me?.id;
-              return (
-                <button
-                  key={member.id}
-                  type="button"
-                  title={member.email}
-                  className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left hover:bg-muted"
-                  onClick={() => choose(member.id)}
-                >
-                  <CustomerAvatar name={name || member.email} size="size-7" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
-                      {name || member.email}
-                      {isMe ? " (you)" : ""}
-                    </span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {capitalizeText(member.role.replace(/_/g, " "))}
-                    </span>
-                  </span>
-                  {assignee?.id === member.id ? (
-                    <IconCheck className="size-4 shrink-0 text-primary" />
-                  ) : null}
-                </button>
-              );
-            })
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
+    <AssigneeSelect
+      noun="ticket"
+      hideLabel
+      agents={staff.map((member) => ({
+        email: member.email,
+        name: `${member.first_name} ${member.last_name}`.trim() || member.email,
+      }))}
+      currentAgent={assignee?.email ?? null}
+      currentAgentName={assignee?.name}
+      disabled={!canAssign || isClosed}
+      onReassign={(email) =>
+        onAssign(staff.find((member) => member.email === email)?.id ?? null)
+      }
+    />
   );
 }
 

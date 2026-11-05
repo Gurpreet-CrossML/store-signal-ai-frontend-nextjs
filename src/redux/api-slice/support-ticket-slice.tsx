@@ -59,7 +59,11 @@ export type SupportSocketPayload = {
   message?: SupportTicketMessage;
 };
 
-export type SupportTicketOrdering = "newest" | "oldest" | "last_updated";
+export type SupportTicketOrdering =
+  | "newest"
+  | "oldest"
+  | "last_updated"
+  | "priority";
 
 export type SupportTicketFilters = {
   status?: SupportTicketStatus;

@@ -46,6 +46,9 @@ import { FetchThreadCounts } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useSupportDashboardEvents } from "@/hooks/use-support-dashboard-events";
 
+// Nothing to subscribe to: only tells hydration apart from later renders.
+const noopSubscribe = () => () => {};
+
 export function AppSidebar({
   className,
   subSidebarItems: staticSubSidebarItems,
@@ -112,9 +115,15 @@ export function AppSidebar({
 
   // One ordered list, filtered rather than concatenated — a hidden entry
   // leaves the rest in their order. Admins see everything; staff see what
-  // their role allows.
+  // their role allows. The server renders without a session, so hydration
+  // filters the same way and the user's own entries follow right after.
+  const hydrated = React.useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
   const navMain = sidebarMenus.nav.filter((item) =>
-    isNavItemVisible(item, session?.user),
+    isNavItemVisible(item, hydrated ? session?.user : undefined),
   );
 
   return (

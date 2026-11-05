@@ -381,6 +381,7 @@ const SORT_OPTIONS: { key: SupportTicketOrdering; label: string }[] = [
   { key: "last_updated", label: "Last updated" },
   { key: "newest", label: "Newest first" },
   { key: "oldest", label: "Oldest first" },
+  { key: "priority", label: "Priority, highest first" },
 ];
 
 /**
@@ -810,13 +811,6 @@ function TicketListPanel({
                   ) : null}
                 </DropdownMenuItem>
               ))}
-              {/* Shown as designed; the list API cannot order by priority yet. */}
-              <DropdownMenuItem disabled className="justify-between py-2">
-                Priority, highest first
-                <span className="text-[10px] tracking-wide text-muted-foreground uppercase">
-                  Soon
-                </span>
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <CreateTicketAction variant="fab" className="md:hidden" />
@@ -3767,7 +3761,6 @@ export default function HelpDesk() {
             onPriorityChange={handleSupportTicketPriorityUpdate}
             staff={staff}
             canAssign={canAssign}
-            currentUserEmail={session?.user?.email}
             onAssign={handleStaffAssign}
             onLanguageSentimentChange={
               handleSupportTicketLanguageSentimentUpdate
