@@ -77,7 +77,7 @@ export default function CustomizationAiInfo({
   const titleLength = Array.from(state.title).length;
   const descriptionLength = richTextLength(state.description, false);
   const outOfRange = (length: number, limits: { min: number; max: number }) =>
-    length > 0 && (length < limits.min || length > limits.max);
+    length < limits.min || length > limits.max;
 
   const update = (next: EditorState) => {
     setState(next);
