@@ -122,11 +122,6 @@ export default function CustomizationAiInfo({
             {titleLength}/{AI_TITLE_LIMITS.max} characters (minimum{" "}
             {AI_TITLE_LIMITS.min})
           </Typography>
-          {fieldErrors?.ai_disclaimer_title ? (
-            <Typography variant="caption" className="text-destructive">
-              {fieldErrors.ai_disclaimer_title}
-            </Typography>
-          ) : null}
         </Field>
 
         <Field className="gap-2">
@@ -151,11 +146,6 @@ export default function CustomizationAiInfo({
             {descriptionLength}/{AI_DESCRIPTION_LIMITS.max} characters (minimum{" "}
             {AI_DESCRIPTION_LIMITS.min})
           </Typography>
-          {fieldErrors?.ai_disclaimer_description ? (
-            <Typography variant="caption" className="text-destructive">
-              {fieldErrors.ai_disclaimer_description}
-            </Typography>
-          ) : null}
         </Field>
       </CardContent>
     </Card>
