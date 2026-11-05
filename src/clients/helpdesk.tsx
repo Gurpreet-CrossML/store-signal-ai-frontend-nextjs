@@ -110,12 +110,10 @@ import {
   DEFAULT_TICKET_LANGUAGE,
   CHANNEL_META,
   SUPPORTED_LANGUAGES,
-  TICKET_SENTIMENTS,
   type TicketLanguage,
   type TicketSentiment,
 } from "@/lib/ticket-options";
 import {
-  helpdeskChannelRows,
   helpdeskFilterToQuery,
   helpdeskViewCount,
   helpdeskViewLabel,
@@ -146,7 +144,6 @@ import {
   TicketTagCreate,
   type SupportTicket,
   type SupportTicketActivityItem,
-  type SupportTicketChannel,
   type SupportTicketCreatedBy,
   type SupportTicketPriority,
   type SupportTicketMessage,
@@ -245,12 +242,16 @@ function TicketRow({
   onSelect: () => void;
 }) {
   const customerName = customerLabel(ticket.customer);
+  // List rows carry the order's total; a row added from the ticket's details
+  // (a deep link) carries the customer's orders instead.
   const order = findLinkedOrder(
     ticket.order_id,
     ticket.customer && typeof ticket.customer === "object"
       ? ticket.customer.orders
       : null,
   );
+  const orderTotal = ticket.order_total ?? order?.total_price;
+  const orderCurrency = ticket.order_currency ?? order?.currency;
   const unread = !ticket.is_read;
   const priorityChip = ROW_PRIORITY_CHIP[ticket.priority];
   const tags = ticket.tags ?? [];
@@ -339,8 +340,8 @@ function TicketRow({
         <div className="mt-1.5 flex min-w-0 items-center gap-1.5 overflow-hidden text-xs text-muted-foreground">
           <span className="shrink-0">
             {ticket.order_id ? `#${ticket.order_id}` : "No order linked"}
-            {order
-              ? ` · ${formatMoney(order.total_price, order.currency).replace(/\.00$/, "")}`
+            {orderTotal
+              ? ` · ${formatMoney(orderTotal, orderCurrency).replace(/\.00$/, "")}`
               : ""}
           </span>
           <span aria-hidden>·</span>
@@ -381,7 +382,6 @@ const SORT_OPTIONS: { key: SupportTicketOrdering; label: string }[] = [
   { key: "last_updated", label: "Last updated" },
   { key: "newest", label: "Newest first" },
   { key: "oldest", label: "Oldest first" },
-  { key: "priority", label: "Priority, highest first" },
 ];
 
 /**
@@ -429,19 +429,11 @@ const STATUS_CONFIRMATIONS = {
 } as const;
 
 type TicketFilterSelection = {
-  channels: SupportTicketChannel[];
   priorities: SupportTicketPriority[];
-  sentiments: TicketSentiment[];
-  assignees: AssigneeChoice[];
 };
 
-type AssigneeChoice = "me" | "unassigned" | "teammates";
-
 const emptyTicketFilters: TicketFilterSelection = {
-  channels: [],
   priorities: [],
-  sentiments: [],
-  assignees: [],
 };
 
 /** The known values of a comma-separated param; a hand-edited URL may hold others. */
@@ -461,36 +453,6 @@ const priorityOptions: { value: SupportTicketPriority; label: string }[] = [
   { value: "high", label: "High" },
   { value: "urgent", label: "Urgent" },
 ];
-
-const assigneeOptions: { value: AssigneeChoice; label: string }[] = [
-  { value: "me", label: "Me" },
-  { value: "unassigned", label: "Unassigned" },
-  { value: "teammates", label: "Teammates" },
-];
-
-/** Sidebar views that already decide the assignee, so the chips stay off. */
-const ASSIGNEE_VIEWS = ["unassigned", "assigned_to_me"];
-
-/** "Me" with "Unassigned" has no API equivalent, so picking one disables the other. */
-const EXCLUSIVE_ASSIGNEE: Partial<Record<string, AssigneeChoice>> = {
-  me: "unassigned",
-  unassigned: "me",
-};
-
-/** The assignee chips as the list API's two assignment filters. */
-function assigneeQuery(choices: AssigneeChoice[]): SupportTicketFilters {
-  const me = choices.includes("me");
-  const unassigned = choices.includes("unassigned");
-  const teammates = choices.includes("teammates");
-  // Never offered together (see EXCLUSIVE_ASSIGNEE); a hand-edited URL with
-  // both is not filtered, as all three chips would not be.
-  if (me && unassigned) return {};
-  if (me) return teammates ? { is_assigned: true } : { assigned_to_me: true };
-  if (unassigned) {
-    return teammates ? { assigned_to_me: false } : { is_assigned: false };
-  }
-  return teammates ? { is_assigned: true, assigned_to_me: false } : {};
-}
 
 /** The open view's ticket count, for the list's title. */
 function viewCount(
@@ -566,23 +528,7 @@ function TicketListPanel({
   const subSidebar = useSubSidebar();
   const isPhone = useIsMobile();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const activeFilterCount =
-    Object.values(filters).flat().length -
-    (ASSIGNEE_VIEWS.includes(activeFilter) ? filters.assignees.length : 0);
-  const filterGroups: {
-    key: keyof TicketFilterSelection;
-    label: string;
-    options: readonly { value: string; label: string }[];
-  }[] = [
-    {
-      key: "channels",
-      label: "Channel",
-      options: helpdeskChannelRows(filterCounts),
-    },
-    { key: "priorities", label: "Priority", options: priorityOptions },
-    { key: "sentiments", label: "Sentiment", options: TICKET_SENTIMENTS },
-    { key: "assignees", label: "Assignee", options: assigneeOptions },
-  ];
+  const activeFilterCount = filters.priorities.length;
   const title = helpdeskViewLabel(activeFilter, filterCounts);
   const count = viewCount(
     activeFilter,
@@ -651,71 +597,46 @@ function TicketListPanel({
             Clear all
           </button>
         </div>
-        <div className="max-h-[65vh] divide-y overflow-y-auto">
-          {filterGroups.map((group) => {
-            const selected: string[] = filters[group.key];
-            const isAssignee = group.key === "assignees";
-            const setByView =
-              isAssignee && ASSIGNEE_VIEWS.includes(activeFilter);
-            return (
-              <div
-                key={group.key}
-                role="group"
-                aria-labelledby={`ticket-filter-${group.key}`}
-                className="px-4 py-3"
-              >
-                <p
-                  id={`ticket-filter-${group.key}`}
-                  className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+        <div
+          role="group"
+          aria-labelledby="ticket-filter-priority"
+          className="px-4 py-3"
+        >
+          <p
+            id="ticket-filter-priority"
+            className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+          >
+            Priority
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {priorityOptions.map((option) => {
+              const active = filters.priorities.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    onFiltersChange({
+                      priorities: active
+                        ? filters.priorities.filter(
+                            (value) => value !== option.value,
+                          )
+                        : [...filters.priorities, option.value],
+                    })
+                  }
+                  className={cn(
+                    "h-8 rounded-full border px-3 text-sm transition-colors",
+                    active
+                      ? "border-primary bg-primary/10 font-medium text-primary"
+                      : "bg-background text-foreground hover:bg-muted",
+                  )}
                 >
-                  {group.label}
-                  {setByView ? (
-                    <span className="ml-1 font-normal tracking-normal normal-case">
-                      · Set by the {title} view
-                    </span>
-                  ) : null}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {group.options.map((option) => {
-                    const active =
-                      !setByView && selected.includes(option.value);
-                    const exclusive = EXCLUSIVE_ASSIGNEE[option.value];
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-pressed={active}
-                        disabled={
-                          setByView ||
-                          (isAssignee &&
-                            !!exclusive &&
-                            selected.includes(exclusive))
-                        }
-                        onClick={() =>
-                          onFiltersChange({
-                            ...filters,
-                            [group.key]: active
-                              ? selected.filter(
-                                  (value) => value !== option.value,
-                                )
-                              : [...selected, option.value],
-                          })
-                        }
-                        className={cn(
-                          "h-8 rounded-full border px-3 text-sm transition-colors disabled:pointer-events-none disabled:opacity-50",
-                          active
-                            ? "border-primary bg-primary/10 font-medium text-primary"
-                            : "bg-background text-foreground hover:bg-muted",
-                        )}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div className="flex justify-end gap-2 border-t p-3">
           <Button
@@ -1991,32 +1912,17 @@ export default function HelpDesk() {
   // they survive a refresh and a shared link, and stay put while the sidebar
   // view changes (its links carry them along). Read as plain strings first so
   // the objects below keep their identity until one really changes.
-  const channelParam = searchParams?.get("channel") ?? "";
   const priorityParam = searchParams?.get("priority") ?? "";
-  const sentimentParam = searchParams?.get("sentiment") ?? "";
-  const assigneeParam = searchParams?.get("assignee") ?? "";
   const sortParam = searchParams?.get("sort");
 
   const appliedFilters = useMemo<TicketFilterSelection>(
     () => ({
-      channels: pickParam(
-        channelParam,
-        Object.keys(CHANNEL_META) as SupportTicketChannel[],
-      ),
       priorities: pickParam(
         priorityParam,
         priorityOptions.map((option) => option.value),
       ),
-      sentiments: pickParam(
-        sentimentParam,
-        TICKET_SENTIMENTS.map((option) => option.value),
-      ),
-      assignees: pickParam(
-        assigneeParam,
-        assigneeOptions.map((option) => option.value),
-      ),
     }),
-    [channelParam, priorityParam, sentimentParam, assigneeParam],
+    [priorityParam],
   );
   const sortOrder: SupportTicketOrdering =
     SORT_OPTIONS.find((option) => option.key === sortParam)?.key ??
@@ -2467,19 +2373,9 @@ export default function HelpDesk() {
       status: activeQueue,
       ordering: sortOrder,
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
-      ...(appliedFilters.channels.length
-        ? { channel: appliedFilters.channels }
-        : {}),
       ...(appliedFilters.priorities.length
         ? { priority: appliedFilters.priorities }
         : {}),
-      ...(appliedFilters.sentiments.length
-        ? { sentiment: appliedFilters.sentiments }
-        : {}),
-      // An assignee view decides the assignee itself; see ASSIGNEE_VIEWS.
-      ...(ASSIGNEE_VIEWS.includes(activeFilter)
-        ? {}
-        : assigneeQuery(appliedFilters.assignees)),
     };
 
     // The sidebar view is the narrower of the two: it replaces, rather than
@@ -3597,10 +3493,7 @@ export default function HelpDesk() {
 
   const handleApplyFilters = () => {
     updateQueryParams({
-      channel: draftFilters.channels.join(",") || null,
       priority: draftFilters.priorities.join(",") || null,
-      sentiment: draftFilters.sentiments.join(",") || null,
-      assignee: draftFilters.assignees.join(",") || null,
     });
     setIsFilterOpen(false);
   };
