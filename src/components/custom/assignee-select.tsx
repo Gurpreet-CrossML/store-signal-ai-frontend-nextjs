@@ -133,7 +133,7 @@ export function AssigneeSelect({
           forceMount
           value="Unassigned"
           onSelect={() => selectAgent("")}
-          className="gap-3 py-2"
+          className="items-start gap-3 py-2"
         >
           <span className="size-8 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40" />
           <span className="flex-1">Unassigned</span>
@@ -147,7 +147,7 @@ export function AssigneeSelect({
             value={`${agent.name} ${agent.email}`}
             disabled={agent.disabled}
             onSelect={() => selectAgent(agent.email)}
-            className="gap-3 py-2"
+            className="items-start gap-3 py-2"
           >
             <span
               className={cn(
@@ -161,7 +161,12 @@ export function AssigneeSelect({
                 .slice(0, 2)
                 .toUpperCase()}
             </span>
-            <span className="min-w-0 flex-1 truncate">{agent.name}</span>
+            <span className="flex min-w-0 flex-1 flex-col items-start leading-tight">
+              <span className="max-w-full truncate">{agent.name}</span>
+              <span className="max-w-full truncate text-xs text-muted-foreground">
+                {agent.email}
+              </span>
+            </span>
             {agent.isAdmin && <AdminBadge />}
             {agent.email === currentAgent && (
               <span className="text-primary">✓</span>

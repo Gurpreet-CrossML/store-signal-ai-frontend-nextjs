@@ -292,7 +292,7 @@ export const ENDPOINTS = {
   // with different owners.
   // NOTE: pending confirmation from the backend team.
   threadCustomerLink: (threadId: string) =>
-    createAPIUrl(`/chat/threads/${threadId}/customer/`, "django"),
+    createAPIUrl(`/chat/threads/${threadId}/update/customer/`, "django"),
   supportTicketStaffAssign: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/assignee/`, "django"),
   supportTicketAgentDraftSave: (ticket_id: number) =>
