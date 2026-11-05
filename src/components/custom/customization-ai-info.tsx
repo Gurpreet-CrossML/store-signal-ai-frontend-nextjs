@@ -77,7 +77,7 @@ export default function CustomizationAiInfo({
   const titleLength = Array.from(state.title).length;
   const descriptionLength = richTextLength(state.description, false);
   const outOfRange = (length: number, limits: { min: number; max: number }) =>
-    length > 0 && (length < limits.min || length > limits.max);
+    length < limits.min || length > limits.max;
 
   const update = (next: EditorState) => {
     setState(next);
@@ -122,7 +122,8 @@ export default function CustomizationAiInfo({
             {titleLength}/{AI_TITLE_LIMITS.max} characters (minimum{" "}
             {AI_TITLE_LIMITS.min})
           </Typography>
-          {fieldErrors?.ai_disclaimer_title ? (
+          {fieldErrors?.ai_disclaimer_title &&
+          !outOfRange(titleLength, AI_TITLE_LIMITS) ? (
             <Typography variant="caption" className="text-destructive">
               {fieldErrors.ai_disclaimer_title}
             </Typography>
@@ -151,7 +152,8 @@ export default function CustomizationAiInfo({
             {descriptionLength}/{AI_DESCRIPTION_LIMITS.max} characters (minimum{" "}
             {AI_DESCRIPTION_LIMITS.min})
           </Typography>
-          {fieldErrors?.ai_disclaimer_description ? (
+          {fieldErrors?.ai_disclaimer_description &&
+          !outOfRange(descriptionLength, AI_DESCRIPTION_LIMITS) ? (
             <Typography variant="caption" className="text-destructive">
               {fieldErrors.ai_disclaimer_description}
             </Typography>
