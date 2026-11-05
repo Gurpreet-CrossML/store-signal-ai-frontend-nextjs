@@ -31,6 +31,7 @@ import {
 } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
+import { ProductCarousel } from "@/components/custom/product-carousel";
 import { ProductStrip } from "@/components/custom/product-strip";
 import { getInitials } from "@/components/custom/customer-avatar";
 import { Spinner } from "../ui/spinner";
