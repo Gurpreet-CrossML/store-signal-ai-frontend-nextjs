@@ -8,6 +8,7 @@ import {
   useState,
   type ChangeEvent,
   type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
@@ -1105,8 +1106,39 @@ export default function Support() {
   const [isCloseChatOpen, setIsCloseChatOpen] = useState(false);
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [threadListWidth, setThreadListWidth] = useState(320);
+  const [customerPanelWidth, setCustomerPanelWidth] = useState(380);
   const [threadSearch, setThreadSearch] = useState("");
   const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
+
+  const startResize = useCallback(
+    (side: "threads" | "customer", event: ReactPointerEvent) => {
+      event.preventDefault();
+      const startX = event.clientX;
+      const initialWidth =
+        side === "threads" ? threadListWidth : customerPanelWidth;
+      const handleMove = (moveEvent: PointerEvent) => {
+        const delta = moveEvent.clientX - startX;
+        const nextWidth =
+          side === "threads" ? initialWidth + delta : initialWidth - delta;
+        const boundedWidth = Math.min(
+          side === "threads" ? 420 : 520,
+          Math.max(side === "threads" ? 260 : 280, nextWidth),
+        );
+        if (side === "threads") setThreadListWidth(boundedWidth);
+        else setCustomerPanelWidth(boundedWidth);
+      };
+      const stopResize = () => {
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", stopResize);
+        document.body.style.cursor = "";
+      };
+      document.body.style.cursor = "col-resize";
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", stopResize, { once: true });
+    },
+    [customerPanelWidth, threadListWidth],
+  );
   const [readFilter, setReadFilter] = useState<ThreadFilter>(() => {
     const filter = searchParams?.get("filter");
     return filter === "needs_human" ||
@@ -2505,9 +2537,7 @@ export default function Support() {
       // The chat list scales with the screen: 350px on a large monitor, but
       // about 280px at a 1280px laptop width, where a fixed 350px left the
       // conversation squeezed between the list and the details panel.
-      style={
-        { "--sidebar-width": "clamp(17rem, 22vw, 350px)" } as CSSProperties
-      }
+      style={{ "--sidebar-width": `${threadListWidth}px` } as CSSProperties}
       className="h-svh min-h-0 w-full overflow-hidden"
     >
       {/* Conversations list — the nested sidebar from the sidebar-09 block. */}
@@ -2517,10 +2547,16 @@ export default function Support() {
       <Sidebar
         collapsible="none"
         className={cn(
-          "w-full border-r bg-background desktop:flex desktop:w-(--sidebar-width)",
+          "relative w-full border-r bg-background desktop:flex desktop:w-(--sidebar-width)",
           showConversationBelowLg ? "hidden" : "flex",
         )}
       >
+        <div
+          role="separator"
+          aria-label="Resize thread list"
+          onPointerDown={(event) => startResize("threads", event)}
+          className="absolute inset-y-0 right-[-3px] z-20 hidden w-1 cursor-col-resize desktop:block"
+        />
         <SidebarHeader className="gap-0 p-0">
           <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
             <CardTitle className="flex items-center gap-2">
@@ -3134,6 +3170,8 @@ export default function Support() {
                 loading: FetchFreshdeskTicketIdIsLoading,
               }}
               cart={{ data: FetchCartData, loading: FetchCartDataIsLoading }}
+              dockedWidth={customerPanelWidth}
+              onResizeStart={(event) => startResize("customer", event)}
             />
           </div>
         ) : (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type PointerEvent } from "react";
 import { IconId, IconSparkles } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,8 @@ export function CustomerDetailsPanel({
   userMetadataLoading,
   open,
   onOpenChange,
+  dockedWidth,
+  onResizeStart,
   copilot,
 }: {
   customerData?: Customer | null;
@@ -118,6 +120,8 @@ export function CustomerDetailsPanel({
    */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  dockedWidth?: number;
+  onResizeStart?: (event: PointerEvent) => void;
   /**
    * Adds a Copilot tab next to Details. Only Help Desk passes it: Copilot
    * works on one ticket, so Live Support has nothing to offer it.
@@ -234,7 +238,18 @@ export function CustomerDetailsPanel({
 
   return (
     <>
-      <aside className="hidden min-h-0 w-72 shrink-0 flex-col border-l xl:flex 2xl:w-95">
+      <aside
+        style={dockedWidth ? { width: dockedWidth } : undefined}
+        className="relative hidden min-h-0 w-72 shrink-0 flex-col border-l xl:flex"
+      >
+        {onResizeStart ? (
+          <div
+            role="separator"
+            aria-label="Resize customer details"
+            onPointerDown={onResizeStart}
+            className="absolute inset-y-0 left-[-3px] z-20 hidden w-1 cursor-col-resize xl:block"
+          />
+        ) : null}
         {withTabs(!sheetOpen)}
       </aside>
       {onOpenChange ? (
