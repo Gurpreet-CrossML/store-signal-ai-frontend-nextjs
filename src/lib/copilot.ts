@@ -12,7 +12,8 @@ export type CopilotReason =
   | "up_to_date"
   | "running"
   | "ticket_resolved"
-  | "no_customer_message";
+  | "nothing_to_reply_to"
+  | "already_replied";
 
 export type CopilotActionState = {
   reason: CopilotReason;

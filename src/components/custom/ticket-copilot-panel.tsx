@@ -546,7 +546,9 @@ function FeedbackRow({
           aria-label="Good answer"
           aria-pressed={message.feedback === "good"}
           className={cn(message.feedback === "good" && "text-primary")}
-          onClick={() => onRate(message.id, "good")}
+          onClick={() => {
+            if (message.feedback !== "good") onRate(message.id, "good");
+          }}
         >
           <IconThumbUp className="size-4" />
         </Button>
@@ -560,7 +562,11 @@ function FeedbackRow({
             message.feedback === "bad" &&
               "text-rose-600 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-400",
           )}
-          onClick={() => onRate(message.id, "bad", message.feedback_message)}
+          onClick={() => {
+            if (message.feedback !== "bad") {
+              onRate(message.id, "bad", message.feedback_message);
+            }
+          }}
         >
           <IconThumbDown className="size-4" />
         </Button>
@@ -575,7 +581,11 @@ function FeedbackRow({
               key={reason}
               type="button"
               aria-pressed={message.feedback_message === reason}
-              onClick={() => onRate(message.id, "bad", reason)}
+              onClick={() => {
+                if (message.feedback_message !== reason) {
+                  onRate(message.id, "bad", reason);
+                }
+              }}
               className={cn(
                 "rounded-full border bg-background px-2.5 py-0.5 text-xs text-foreground transition-colors hover:bg-muted",
                 message.feedback_message === reason &&
