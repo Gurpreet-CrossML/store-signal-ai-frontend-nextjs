@@ -10,15 +10,23 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { EXPANDED_MENU_BUTTON } from "@/components/custom/nav-main";
+import {
+  EXPANDED_MENU_BUTTON,
+  SidebarMenuItemWrapper,
+} from "@/components/custom/nav-main";
 import { keepHelpdeskListParams } from "@/lib/helpdesk-filters";
-import type { SideBarMenuItem } from "@/lib/sidebar-navs";
+import {
+  isBranchActive,
+  type SideBarMenuItem,
+  type SubSidebarMenuItem,
+} from "@/lib/sidebar-navs";
 import { cn, titleWhenClipped } from "@/lib/utils";
 
 /**
@@ -129,5 +137,64 @@ export function CollapsibleMenuItem({
         </CollapsibleContent>
       </SidebarMenuItem>
     </Collapsible>
+  );
+}
+
+/**
+ * An area's sub-navigation: its action button, then its screens, with
+ * nested groups collapsible. Shared by the docked sub-sidebar and the
+ * phone drawer so the two cannot list different things.
+ */
+export function SubSidebarList({
+  menu,
+  pathname,
+  search,
+  activeUrl,
+}: {
+  menu: SubSidebarMenuItem;
+  pathname: string | null;
+  /** The current query string, without the leading "?". */
+  search: string;
+  /** The one open entry, as `activeNavUrl` decided it. */
+  activeUrl: string | null;
+}) {
+  return (
+    <>
+      {menu.action && <menu.action />}
+      <SidebarMenu>
+        {menu.items.map((item) => {
+          if (item.items && item.items.length > 0) {
+            return (
+              <CollapsibleMenuItem
+                key={item.title}
+                activeUrl={activeUrl}
+                title={item.title}
+                count={item.count}
+                icon={item.icon}
+                // Open when anything inside is the current screen — the
+                // parent is a heading, not a link, so it is never the
+                // active url itself.
+                defaultOpen={isBranchActive(item, pathname, search)}
+                items={item.items}
+              />
+            );
+          }
+          return (
+            <SidebarMenuItemWrapper
+              key={item.title}
+              // Which one is active is decided on the plain url; only the
+              // link carries the list's filter and sort along.
+              item={{
+                ...item,
+                url: keepHelpdeskListParams(item.url, search),
+              }}
+              pathname={pathname}
+              isActive={item.url === activeUrl}
+              expanded
+            />
+          );
+        })}
+      </SidebarMenu>
+    </>
   );
 }

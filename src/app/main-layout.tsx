@@ -1,6 +1,7 @@
 "use client";
 
 import { AppSidebar } from "@/components/custom/app-sidebar";
+import { MobileTopBar } from "@/components/custom/mobile-nav";
 import { OnboardingDrawer } from "@/components/custom/onboarding-drawer";
 import { ShopifyOauthReturn } from "@/components/custom/shopify-oauth-return";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -146,6 +147,8 @@ export default function MainLayout({
         />
       </Suspense>
       <SidebarInset>
+        {/* Phone only: the hamburger that opens the navigation drawer. */}
+        <MobileTopBar pathname={pathname} />
         {/* Reads Shopify's OAuth return params from the query string. */}
         <Suspense fallback={null}>
           <ShopifyOauthReturn />

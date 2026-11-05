@@ -3549,7 +3549,7 @@ export default function HelpDesk() {
     activeSupportTicket?.status === "resolved";
 
   return (
-    <div className="flex h-svh min-h-0 flex-col overflow-hidden">
+    <div className="flex h-app-screen min-h-0 flex-col overflow-hidden">
       <div className="flex min-h-0 flex-1">
         <TicketListPanel
           className={showConversationBelowLg ? "hidden" : "flex"}

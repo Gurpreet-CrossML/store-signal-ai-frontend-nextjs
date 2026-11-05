@@ -2,8 +2,9 @@
 
 import * as React from "react";
 
-import { NavMain, SidebarMenuItemWrapper } from "@/components/custom/nav-main";
-import { CollapsibleMenuItem } from "@/components/custom/sub-sidebar-menu";
+import { NavMain } from "@/components/custom/nav-main";
+import { SubSidebarList } from "@/components/custom/sub-sidebar-menu";
+import { MobileNavDrawer } from "@/components/custom/mobile-nav";
 import { HelpdeskNavPanel } from "@/components/custom/helpdesk/helpdesk-nav-panel";
 import { StoreSwitcher } from "@/components/custom/store-switcher";
 import { NavSecondary } from "@/components/custom/nav-secondary";
@@ -11,7 +12,6 @@ import { NavUser } from "@/components/custom/nav-user";
 import { NotificationBell } from "@/components/custom/notification-bell";
 import { DashboardSetupChecklist } from "@/components/custom/dashboard-setup-checklist";
 import { useHelpdeskSidebar } from "@/hooks/use-helpdesk-sidebar";
-import { keepHelpdeskListParams } from "@/lib/helpdesk-filters";
 import {
   Sidebar,
   SidebarContent,
@@ -22,11 +22,11 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   activeNavUrl,
   flattenMenuItems,
-  isBranchActive,
   isNavItemVisible,
   sidebarMenus,
   SubSidebarMenuItem,
@@ -66,6 +66,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { isMobile } = useSidebar();
   // The help desk's views come with their ticket counts; any other area's
   // sub-sidebar is the static one.
   const subSidebarItems = useHelpdeskSidebar(staticSubSidebarItems);
@@ -125,6 +126,25 @@ export function AppSidebar({
   const navMain = sidebarMenus.nav.filter((item) =>
     isNavItemVisible(item, hydrated ? session?.user : undefined),
   );
+
+  // A phone has no room for the rail and sub-sidebar side by side: one
+  // drawer, opened from the top bar, holds both.
+  if (isMobile) {
+    return (
+      <MobileNavDrawer
+        navItems={navMain}
+        pathname={pathname}
+        currentAreaKey={
+          staticSubSidebarItems
+            ? (Object.entries(sidebarMenus.navSubSidebar ?? {}).find(
+                ([, menu]) => menu === staticSubSidebarItems,
+              )?.[0] ?? null)
+            : null
+        }
+        liveSupportBadgeCount={FetchThreadCountsData.needsHuman}
+      />
+    );
+  }
 
   return (
     <Sidebar
@@ -250,48 +270,12 @@ export function AppSidebar({
               <SidebarContent className="group-data-[collapsible=icon]:overflow-y-auto">
                 <SidebarGroup>
                   <SidebarGroupContent className="flex flex-col gap-2">
-                    {subSidebarItems.action && <subSidebarItems.action />}
-                    <SidebarMenu>
-                      {subSidebarItems.items.map((item) => {
-                        if (item.items && item.items?.length > 0) {
-                          return (
-                            <CollapsibleMenuItem
-                              key={item.title}
-                              activeUrl={activeSubNavUrl}
-                              title={item.title}
-                              count={item.count}
-                              icon={item.icon}
-                              // Open when anything inside is the current
-                              // screen — the parent is a heading, not a link,
-                              // so it is never the active url itself.
-                              defaultOpen={isBranchActive(
-                                item,
-                                pathname,
-                                subNavSearch,
-                              )}
-                              items={item.items}
-                            />
-                          );
-                        }
-                        return (
-                          <SidebarMenuItemWrapper
-                            key={item.title}
-                            // Which one is active is decided on the plain url; only
-                            // the link carries the list's filter and sort along.
-                            item={{
-                              ...item,
-                              url: keepHelpdeskListParams(
-                                item.url,
-                                subNavSearch,
-                              ),
-                            }}
-                            pathname={pathname}
-                            isActive={item.url === activeSubNavUrl}
-                            expanded
-                          />
-                        );
-                      })}
-                    </SidebarMenu>
+                    <SubSidebarList
+                      menu={subSidebarItems}
+                      pathname={pathname}
+                      search={subNavSearch}
+                      activeUrl={activeSubNavUrl}
+                    />
                   </SidebarGroupContent>
                 </SidebarGroup>
               </SidebarContent>
