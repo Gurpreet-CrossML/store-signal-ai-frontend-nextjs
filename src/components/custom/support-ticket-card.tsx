@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
 import {
-  TicketPriorityBar,
   TICKET_PRIORITY_TONES,
   ticketRef,
 } from "@/components/custom/ticket-priority-bar";
@@ -100,15 +99,17 @@ export function SupportTicketCard({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.18, delay: Math.min(index, 5) * 0.04 }}
         className={cn(
-          "flex items-stretch gap-2.5 rounded-xl border border-border/60 p-3 transition-colors",
+          "rounded-xl border border-border/60 p-3 transition-colors",
           isLive && "hover:bg-muted/50",
         )}
       >
-        <TicketPriorityBar priority={ticket.priority} />
-
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <Typography variant="small" as="p" className="truncate">
+            <Typography
+              variant="small"
+              as="p"
+              className="truncate text-base font-semibold"
+            >
               {ticket.subject || "Untitled ticket"}
             </Typography>
             <StatusBadge status={ticket.status} />
@@ -117,7 +118,7 @@ export function SupportTicketCard({
           {ticket.description && (
             <Typography
               variant="muted"
-              className="mt-1 line-clamp-2 leading-snug"
+              className="mt-1 line-clamp-1 leading-snug"
             >
               {ticket.description}
             </Typography>
@@ -128,7 +129,7 @@ export function SupportTicketCard({
               <Typography variant="muted" as="span">
                 {ticketRef(ticket.ticket_id)} · {formatDate(ticket.created_at)}
               </Typography>
-              {ticket.priority === "high" || ticket.priority === "urgent" ? (
+              {ticket.priority ? (
                 <Badge
                   variant="outline"
                   className={cn(
