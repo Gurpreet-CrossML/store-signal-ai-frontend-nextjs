@@ -503,7 +503,7 @@ function ThreadChatControls({
               <div className="min-h-16 px-3 pt-1 sm:min-h-20 sm:pt-1.5">
                 <textarea
                   rows={1}
-                  placeholder="Add a note for your team. Type @ to mention a teammate."
+                  placeholder="Add a note for your team."
                   value={composerMessage}
                   disabled={isSavingInternalNote || transitionState !== "idle"}
                   onChange={(event) => setComposerMessage(event.target.value)}
@@ -517,15 +517,7 @@ function ThreadChatControls({
                 />
               </div>
               <div className="flex items-center gap-3 bg-amber-50 px-3 py-1.5 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-100 sm:py-2">
-                <span className="hidden truncate sm:inline">
-                  Notes only. Take over to reply to the customer.
-                </span>
                 <div className="ml-auto flex shrink-0 items-center gap-2">
-                  <span className="relative inline-flex h-5 w-9 rounded-full bg-amber-400/90">
-                    <span className="absolute top-0.5 right-0.5 size-4 rounded-full bg-white shadow-sm" />
-                  </span>
-                  <span className="hidden sm:inline">Internal note</span>
-                  <IconLock className="size-3.5" />
                   <Button
                     type="button"
                     size="sm"
