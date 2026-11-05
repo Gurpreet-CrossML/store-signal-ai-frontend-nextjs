@@ -3259,15 +3259,19 @@ export default function Support() {
                         />
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
-                          <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <IconMessage2 className="size-5" />
+                          <div className="mb-3 flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <IconMessage2 className="size-8" />
                           </div>
-                          <Typography variant="small" as="p">
+                          <Typography
+                            variant="small"
+                            as="p"
+                            className="text-lg font-semibold"
+                          >
                             No messages yet
                           </Typography>
                           <Typography
                             variant="muted"
-                            className="max-w-md leading-relaxed"
+                            className="max-w-md text-sm leading-relaxed"
                           >
                             {selectedThread?.customer?.name ||
                               selectedThread?.customer?.email ||
@@ -3370,13 +3374,13 @@ export default function Support() {
           </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
-            <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <IconMessage2 className="size-6" />
+            <div className="mb-3 flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <IconMessage2 className="size-8" />
             </div>
             <Typography
               variant="small"
               as="p"
-              className="text-base font-semibold"
+              className="text-lg font-semibold"
             >
               No active chats
             </Typography>
