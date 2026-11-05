@@ -70,6 +70,7 @@ import { SearchInput } from "@/components/custom/search-input";
 import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
 import { LiveMessagePan } from "@/components/custom/message-pan";
+import { MessageIconCircular } from "@/components/icons/MessageIconCircular";
 import {
   FetchCart,
   FetchFreshdeskTicketId,
@@ -118,7 +119,6 @@ import {
   IconFilter,
   IconHeadset,
   IconLock,
-  IconMessage2,
   IconMoodSmile,
   IconDotsVertical,
   IconId,
@@ -2765,16 +2765,6 @@ export default function Support() {
             <CardTitle className="flex items-center gap-2">
               Live chats
             </CardTitle>
-            <Badge
-              variant="outline"
-              className="h-9 rounded-full px-3 text-sm font-normal"
-            >
-              <span
-                aria-hidden="true"
-                className="size-2 rounded-full bg-emerald-500"
-              />
-              Online
-            </Badge>
           </div>
 
           <div className="flex flex-col gap-2.5 border-b px-4 py-2.5">
@@ -3269,21 +3259,28 @@ export default function Support() {
                         />
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
-                          <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <IconMessage2 className="size-5" />
+                          <div className="mb-3 flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <MessageIconCircular className="size-8" />
                           </div>
-                          <Typography variant="small" as="p">
+                          <Typography
+                            variant="small"
+                            as="p"
+                            className="text-lg font-semibold"
+                          >
                             No messages yet
                           </Typography>
                           <Typography
                             variant="muted"
-                            className="max-w-md leading-relaxed"
+                            className="max-w-md text-sm leading-relaxed"
                           >
                             {selectedThread?.customer?.name ||
                               selectedThread?.customer?.email ||
                               "This customer"}{" "}
                             opened the chat but hasn&apos;t written anything.
-                            The AI Assistant will reply as soon as they do.
+                            {selectedThread?.chat_handler === "human" &&
+                            selectedThread.chat_handler_user?.name
+                              ? ` ${selectedThread.chat_handler_user.email?.toLowerCase() === session?.user?.email?.toLowerCase() ? "You" : selectedThread.chat_handler_user.name} will reply as soon as they do.`
+                              : "The AI Assistant will reply as soon as they do."}
                           </Typography>
                         </div>
                       )}
@@ -3380,12 +3377,27 @@ export default function Support() {
           </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
-            <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />
-            <Typography variant="small" as="p">
+            <div className="mb-3 flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <MessageIconCircular className="size-8" />
+            </div>
+            <Typography
+              variant="small"
+              as="p"
+              className="text-lg font-semibold"
+            >
               No active chats
             </Typography>
-            <Typography variant="muted">
-              New active chats will appear here when customers message in.
+            <Typography
+              variant="muted"
+              className="max-w-md text-sm leading-relaxed"
+            >
+              {activeReadFilter === "needs_human"
+                ? "Chats needing human help will appear here."
+                : activeReadFilter === "ai"
+                  ? "AI-handled chats will appear here."
+                  : activeReadFilter === "with_agent"
+                    ? "Chats assigned to agents will appear here."
+                    : "New active chats will appear here when customers message in."}
             </Typography>
           </div>
         )}
