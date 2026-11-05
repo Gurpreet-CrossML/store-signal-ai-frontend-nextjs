@@ -9,41 +9,36 @@ import {
   startTransition,
   type ChangeEvent,
 } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import {
   IconAlarmSnoozeFilled,
-  IconCalendarPlus,
+  IconArrowsSort,
+  IconCheck,
+  IconChevronDown,
+  IconChevronLeft,
   IconCircleCheck,
   IconCircleX,
-  IconChevronDown,
   IconDeviceFloppy,
   IconFilter,
   IconInbox,
   IconInfoCircle,
-  type Icon,
   IconLanguage,
-  IconMessageChatbot,
-  IconMoodSmile,
-  IconPaperclip,
+  IconLayoutSidebar,
+  IconLayoutSidebarRight,
   IconLock,
-  IconNote,
-  IconPencil,
-  IconBolt,
-  IconPlus,
-  IconArrowLeft,
-  IconArrowsSort,
+  IconMessageChatbot,
+  IconPaperclip,
   IconReload,
   IconSend,
   IconSparkles,
-  IconUser,
   IconX,
 } from "@tabler/icons-react";
 import ReactMarkdown from "react-markdown";
 
-import { useFormik } from "formik";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,21 +52,13 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { Badge, badgeVariants } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from "@/components/ui/combobox";
+import { Switch } from "@/components/ui/switch";
 import {
   Popover,
   PopoverContent,
@@ -82,56 +69,39 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Typography } from "@/components/ui/typography";
-import { CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { isBelowLg } from "@/hooks/use-narrow-viewport";
-import {
-  ACTION_TONE_STYLES,
-  BADGE_TONE_STYLES,
-  type BadgeTone,
-} from "@/lib/badge-tones";
+import { useSubSidebar } from "@/hooks/use-sub-sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-import { ConversationRow } from "@/components/custom/conversation-row";
-import { CreditLabel } from "@/components/custom/credit-label";
-import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
 import { SyncCustomerOrders } from "@/redux/api-slice/order-slice";
-import {
-  TicketPriorityBar,
-  TICKET_PRIORITY_TONES,
-  ticketRef,
-} from "@/components/custom/ticket-priority-bar";
-import {
-  CustomerDetailsButton,
-  CustomerDetailsPanel,
-} from "@/components/custom/customer-details-panel";
-import { TicketActivityDrawer } from "@/components/custom/ticket-activity-drawer";
-import { CrmLinkButton } from "@/components/custom/customer-header";
+import { ticketRef } from "@/components/custom/ticket-priority-bar";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
-import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import {
+  CustomerAvatar,
+  getInitials,
+} from "@/components/custom/customer-avatar";
 import { MessageAttachments } from "@/components/custom/helpdesk/message-attachments";
+import { HiddenTagsBadge, tint } from "@/components/custom/helpdesk/tag-badge";
+import { TicketSlaIndicator } from "@/components/custom/helpdesk/ticket-sla";
+import { CreateTicketAction } from "@/components/custom/helpdesk/create-ticket-action";
+import { HelpdeskViewsMenuItems } from "@/components/custom/helpdesk/helpdesk-nav-panel";
 import {
-  HiddenTagsBadge,
-  TagBadge,
-} from "@/components/custom/helpdesk/tag-badge";
-import {
-  TicketSla,
-  TicketSlaIndicator,
-} from "@/components/custom/helpdesk/ticket-sla";
-import { DateRangePicker } from "@/components/custom/date-range-picker";
+  PRIORITY_META,
+  STATUS_META,
+  TicketDetailsPanel,
+  TicketDetailsPlaceholder,
+  findLinkedOrder,
+  formatMoney,
+  formatTicketDateTime,
+  formatTicketTime,
+} from "@/components/custom/helpdesk/ticket-details-panel";
 import { LoadingState } from "@/components/custom/loading-state";
 import { SearchInput } from "@/components/custom/search-input";
 
-import {
-  ACTIVE_ASSIGNEE_STYLE,
-  ACTIVE_QUEUE_STYLE,
-  DEFAULT_HELPDESK_QUEUE,
-  ENDPOINTS,
-} from "@/lib/config";
+import { DEFAULT_HELPDESK_QUEUE, ENDPOINTS } from "@/lib/config";
 import {
   SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS,
   prepareSupportAttachments,
@@ -139,14 +109,16 @@ import {
 import {
   DEFAULT_TICKET_LANGUAGE,
   CHANNEL_META,
-  DEFAULT_TICKET_SENTIMENT,
   SUPPORTED_LANGUAGES,
   TICKET_SENTIMENTS,
   type TicketLanguage,
   type TicketSentiment,
 } from "@/lib/ticket-options";
 import {
+  helpdeskChannelRows,
   helpdeskFilterToQuery,
+  helpdeskViewCount,
+  helpdeskViewLabel,
   ticketBelongsToHelpdeskFilter,
 } from "@/lib/helpdesk-filters";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -170,15 +142,18 @@ import {
   SupportTicketPriorityUpdate,
   SupportTicketLanguageSentimentUpdate,
   SupportTicketMessagesTranslate,
+  SupportTicketActivityFetch,
+  TicketTagCreate,
   type SupportTicket,
+  type SupportTicketActivityItem,
+  type SupportTicketChannel,
   type SupportTicketCreatedBy,
   type SupportTicketPriority,
-  type SupportTicketTagData,
   type SupportTicketMessage,
-  type SupportTicketDraftMessage,
   type SupportTicketCustomer,
   type SupportTicketOrdering,
   type SupportTicketStatus,
+  type SupportTicketFilterCounts,
   type SupportTicketFilters,
   type SupportTicketStatusCounts,
   type SupportSocketPayload,
@@ -186,13 +161,7 @@ import {
 import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import { can } from "@/lib/access-rules";
 import { FetchFreshdeskTicketId } from "@/redux/api-slice/thread-slice";
-import {
-  capitalizeText,
-  endOfDay,
-  formatDateTime,
-  formatRelativeDateTime,
-  startOfDay,
-} from "@/lib/helpers";
+import { capitalizeText, formatRelativeDateTime } from "@/lib/helpers";
 
 const RichTextArea = dynamic(
   () => import("@/components/custom/rich-text-area"),
@@ -201,36 +170,24 @@ const RichTextArea = dynamic(
   },
 );
 
-// Max tags to show in ticket row for `TicketListPanel`
+// Max tags to show in a ticket row, before a "+N".
 const MAX_VISIBLE_TKT_ROW_TAGS = 2;
+// Narrower rows on a phone.
+const MAX_VISIBLE_TKT_ROW_TAGS_MOBILE = 1;
 
-// Max tags to show in ticket conversation for `ConversationPanel`
-const MAX_VISIBLE_TKT_CONV_TAGS = 4;
-
-// Snooze time presets
-const SNOOZE_PRESETS = [
-  { label: "5 minutes", ms: 5 * 60 * 1000 },
-  { label: "10 minutes", ms: 10 * 60 * 1000 },
-  { label: "30 minutes", ms: 30 * 60 * 1000 },
-  { label: "1 day", ms: 24 * 60 * 60 * 1000 },
-  { label: "1 week", ms: 7 * 24 * 60 * 60 * 1000 },
-  { label: "1 month", ms: 30 * 24 * 60 * 60 * 1000 },
-];
+/** Hides a horizontal scrollbar while keeping the strip scrollable. */
+const NO_SCROLLBAR = "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 /**
- * Priority reuses the shared badge palette rather than its own greens and
- * ambers, so "urgent" here reads the same as any other alarming badge in
- * the app — and so both themes are covered.
+ * A phone: one pane at a time, list or conversation. From `md` (an iPad,
+ * either way up) the list stays beside the conversation.
  */
-const STATUS_TONE: Record<SupportTicketStatus, BadgeTone> = {
-  open: "info",
-  reopen: "danger",
-  snoozed: "warning",
-  resolved: "success",
-  closed: "neutral",
-};
-
-const PRIORITY_TONE = TICKET_PRIORITY_TONES;
+function isPhoneWidth() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 767px)").matches
+  );
+}
 
 /**
  * How a customer is named on screen. The API sends either a customer object
@@ -245,9 +202,37 @@ function customerLabel(
   return customer.name?.trim() || customer.email?.trim() || "Guest";
 }
 
-/** "3 tags" / "1 tag" — plural agreement for the count rows. */
-function pluralize(count: number, noun: string) {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+/** How a channel reads in a ticket row and the conversation. */
+function channelLabel(channel: SupportTicket["channel"]) {
+  return CHANNEL_META[channel]?.label ?? capitalizeText(channel);
+}
+
+/** A high or urgent ticket says so in its row; the others stay quiet. */
+const ROW_PRIORITY_CHIP: Partial<Record<SupportTicketPriority, string>> = {
+  high: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
+  urgent: "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300",
+};
+
+function RowChip({
+  children,
+  className,
+  style,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex max-w-28 shrink-0 items-center truncate rounded px-1.5 py-0.5 text-[11px] font-medium leading-none",
+        className,
+      )}
+      style={style}
+    >
+      {children}
+    </span>
+  );
 }
 
 function TicketRow({
@@ -259,75 +244,125 @@ function TicketRow({
   active?: boolean;
   onSelect: () => void;
 }) {
-  const visibleTags = ticket.tags?.slice(0, MAX_VISIBLE_TKT_ROW_TAGS) ?? [];
-  const hiddenTags = ticket.tags?.slice(MAX_VISIBLE_TKT_ROW_TAGS) ?? [];
   const customerName = customerLabel(ticket.customer);
-  // Falls back like the ticket header does, for a channel the backend adds
-  // before CHANNEL_META hears about it.
-  const ChannelIcon = CHANNEL_META[ticket.channel]?.icon ?? IconInbox;
-  const channelLabel =
-    CHANNEL_META[ticket.channel]?.label ?? capitalizeText(ticket.channel);
+  const order = findLinkedOrder(
+    ticket.order_id,
+    ticket.customer && typeof ticket.customer === "object"
+      ? ticket.customer.orders
+      : null,
+  );
+  const unread = !ticket.is_read;
+  const priorityChip = ROW_PRIORITY_CHIP[ticket.priority];
+  const tags = ticket.tags ?? [];
+
+  const renderTags = (max: number, showHidden = true) => (
+    <>
+      {tags.slice(0, max).map((tag) => (
+        <RowChip
+          key={tag.id}
+          style={
+            tag.color
+              ? { color: tag.color, backgroundColor: tint(tag.color, 0.12) }
+              : undefined
+          }
+          className={tag.color ? undefined : "bg-muted text-muted-foreground"}
+        >
+          {tag.name}
+        </RowChip>
+      ))}
+      {showHidden && tags.length > max ? (
+        <HiddenTagsBadge
+          tags={tags.slice(max)}
+          label={`+${tags.length - max}`}
+        />
+      ) : null}
+    </>
+  );
 
   return (
-    <ConversationRow
-      active={active}
-      onSelect={onSelect}
-      unread={!ticket.is_read}
-      accent={<TicketPriorityBar priority={ticket.priority} />}
-      avatar={<CustomerAvatar name={customerName} />}
-      title={ticket.subject}
-      titleTooltip={ticket.subject}
-      timestamp={formatRelativeDateTime(
-        ticket.last_message_at || ticket.created_at,
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-current={active ? "true" : undefined}
+      className={cn(
+        "relative flex w-full items-start gap-3 border-b px-4 py-3.5 text-left transition-colors",
+        active ? "bg-primary/5" : "hover:bg-muted/50",
       )}
-      indicator={
-        <>
-          {/* Only a ticket being worked on can be late. */}
-          {ticket.status === "open" || ticket.status === "reopen" ? (
-            <TicketSlaIndicator sla={ticket.sla} />
-          ) : null}
-          {ticket.is_snoozed ? (
-            <IconAlarmSnoozeFilled className="size-3 text-primary" />
-          ) : null}
-        </>
-      }
-      // Who it is from, and nothing else. The subject above already says
-      // what the ticket is about, so a teaser of the latest message only
-      // competed with it — and trailing off mid-sentence after an email
-      // address read as one run-on string.
-      preview={
-        <span className="flex items-center gap-1.5 text-foreground/70">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                role="img"
-                aria-label={channelLabel}
-                className="flex shrink-0 items-center"
-              >
-                <ChannelIcon className="size-3.5" />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>{channelLabel}</TooltipContent>
-          </Tooltip>
-          <span className="truncate">{customerName}</span>
-        </span>
-      }
-      footer={
-        visibleTags.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-1">
-            {visibleTags.map((tag) => (
-              <TagBadge key={tag.id} tag={tag} />
-            ))}
-            {hiddenTags.length > 0 ? (
-              <HiddenTagsBadge
-                tags={hiddenTags}
-                label={`+${hiddenTags.length}`}
-              />
+    >
+      {active ? (
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 w-[3px] bg-primary"
+        />
+      ) : null}
+      <span className="relative shrink-0">
+        <CustomerAvatar name={customerName} size="size-9" />
+        {unread ? (
+          <span
+            aria-label="Unread"
+            className="absolute -top-0.5 -left-1 size-3 rounded-[3px] bg-primary ring-2 ring-background"
+          />
+        ) : null}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="truncate text-[15px] font-semibold text-foreground">
+            {customerName}
+          </span>
+          <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+            {/* Only a ticket being worked on can be late. */}
+            {ticket.status === "open" || ticket.status === "reopen" ? (
+              <TicketSlaIndicator sla={ticket.sla} />
             ) : null}
-          </div>
-        ) : null
-      }
-    />
+            {ticket.is_snoozed ? (
+              <IconAlarmSnoozeFilled className="size-3 text-primary" />
+            ) : null}
+            {formatRelativeDateTime(
+              ticket.last_message_at || ticket.created_at,
+            )}
+          </span>
+        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <p
+              className={cn(
+                "mt-0.5 truncate text-sm",
+                unread ? "font-semibold text-foreground" : "text-foreground/80",
+              )}
+            >
+              {ticket.subject}
+            </p>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-80">{ticket.subject}</TooltipContent>
+        </Tooltip>
+        <div className="mt-1.5 flex min-w-0 items-center gap-1.5 overflow-hidden text-xs text-muted-foreground">
+          <span className="shrink-0">
+            {ticket.order_id ? `#${ticket.order_id}` : "No order linked"}
+            {order
+              ? ` · ${formatMoney(order.total_price, order.currency).replace(/\.00$/, "")}`
+              : ""}
+          </span>
+          <span aria-hidden>·</span>
+          <span className="shrink-0">{channelLabel(ticket.channel)}</span>
+          {priorityChip ? (
+            <RowChip className={priorityChip}>
+              {capitalizeText(ticket.priority)}
+            </RowChip>
+          ) : null}
+          <span className="hidden min-w-0 items-center gap-1.5 md:flex">
+            {renderTags(MAX_VISIBLE_TKT_ROW_TAGS)}
+          </span>
+          {/* A phone row has room for one chip: the priority, else a tag. */}
+          <span className="flex min-w-0 items-center gap-1.5 md:hidden">
+            {renderTags(
+              priorityChip ? 0 : MAX_VISIBLE_TKT_ROW_TAGS_MOBILE,
+              false,
+            )}
+          </span>
+        </div>
+      </div>
+    </button>
   );
 }
 
@@ -344,8 +379,9 @@ const DEFAULT_SORT_ORDER: SupportTicketOrdering = "last_updated";
 
 const SORT_OPTIONS: { key: SupportTicketOrdering; label: string }[] = [
   { key: "last_updated", label: "Last updated" },
-  { key: "newest", label: "Newest" },
-  { key: "oldest", label: "Oldest" },
+  { key: "newest", label: "Newest first" },
+  { key: "oldest", label: "Oldest first" },
+  { key: "priority", label: "Priority, highest first" },
 ];
 
 /**
@@ -393,35 +429,30 @@ const STATUS_CONFIRMATIONS = {
 } as const;
 
 type TicketFilterSelection = {
+  channels: SupportTicketChannel[];
   priorities: SupportTicketPriority[];
-  fromDate: string;
-  toDate: string;
+  sentiments: TicketSentiment[];
+  assignees: AssigneeChoice[];
 };
+
+type AssigneeChoice = "me" | "unassigned" | "teammates";
 
 const emptyTicketFilters: TicketFilterSelection = {
+  channels: [],
   priorities: [],
-  fromDate: "",
-  toDate: "",
+  sentiments: [],
+  assignees: [],
 };
 
-/** A date from the URL is only used if it parses; a hand-edited one may not. */
-const isValidDateParam = (value: string) =>
-  value !== "" && !Number.isNaN(new Date(value).getTime());
+/** The known values of a comma-separated param; a hand-edited URL may hold others. */
+const pickParam = <T extends string>(param: string, known: readonly T[]) =>
+  known.filter((value) => param.split(",").includes(value));
 
-/** Who opened a ticket, as the header shows it. */
-const CREATED_BY_META: Record<
-  SupportTicketCreatedBy,
-  { label: string; icon: Icon }
-> = {
-  ai: { label: "AI", icon: IconSparkles },
-  agent: { label: "Agent", icon: IconUser },
-  rule: { label: "Rule", icon: IconBolt },
-};
-
-const SENTIMENT_TONE: Record<TicketSentiment, BadgeTone> = {
-  positive: "success",
-  neutral: "neutral",
-  negative: "danger",
+/** Who opened a ticket, as the conversation's opening card says it. */
+const CREATED_BY_LABEL: Record<SupportTicketCreatedBy, string> = {
+  ai: "AI",
+  agent: "an agent",
+  rule: "a rule",
 };
 
 const priorityOptions: { value: SupportTicketPriority; label: string }[] = [
@@ -431,11 +462,64 @@ const priorityOptions: { value: SupportTicketPriority; label: string }[] = [
   { value: "urgent", label: "Urgent" },
 ];
 
+const assigneeOptions: { value: AssigneeChoice; label: string }[] = [
+  { value: "me", label: "Me" },
+  { value: "unassigned", label: "Unassigned" },
+  { value: "teammates", label: "Teammates" },
+];
+
+/** Sidebar views that already decide the assignee, so the chips stay off. */
+const ASSIGNEE_VIEWS = ["unassigned", "assigned_to_me"];
+
+/** "Me" with "Unassigned" has no API equivalent, so picking one disables the other. */
+const EXCLUSIVE_ASSIGNEE: Partial<Record<string, AssigneeChoice>> = {
+  me: "unassigned",
+  unassigned: "me",
+};
+
+/** The assignee chips as the list API's two assignment filters. */
+function assigneeQuery(choices: AssigneeChoice[]): SupportTicketFilters {
+  const me = choices.includes("me");
+  const unassigned = choices.includes("unassigned");
+  const teammates = choices.includes("teammates");
+  // Never offered together (see EXCLUSIVE_ASSIGNEE); a hand-edited URL with
+  // both is not filtered, as all three chips would not be.
+  if (me && unassigned) return {};
+  if (me) return teammates ? { is_assigned: true } : { assigned_to_me: true };
+  if (unassigned) {
+    return teammates ? { assigned_to_me: false } : { is_assigned: false };
+  }
+  return teammates ? { is_assigned: true, assigned_to_me: false } : {};
+}
+
+/** The open view's ticket count, for the list's title. */
+function viewCount(
+  filter: string,
+  counts: SupportTicketFilterCounts | null,
+  fallback: number,
+) {
+  const fixed = helpdeskViewCount(filter, counts);
+  if (fixed !== undefined) return fixed;
+  const [param, ...rest] = filter.split(":");
+  const value = rest.join(":");
+  if (param === "tags") {
+    return counts?.tags.find((tag) => tag.name === value)?.count ?? fallback;
+  }
+  if (param === "channel") {
+    return (
+      counts?.channels.find((channel) => channel.value === value)?.count ??
+      fallback
+    );
+  }
+  return fallback;
+}
+
 function TicketListPanel({
   rows,
   activeTicketId,
   activeQueue,
-  queueLabel,
+  activeFilter,
+  filterCounts,
   onQueueChange,
   sortOrder,
   onSortChange,
@@ -451,18 +535,17 @@ function TicketListPanel({
   onFilterOpenChange,
   onFiltersChange,
   onApplyFilters,
-  onClearFilters,
-  dateError,
   supportTicketStatusCount,
   className,
 }: {
   /** Visibility below `lg`, where list and conversation take turns. */
   className?: string;
-  // ...same prop types as before, unchanged
   rows: SupportTicket[];
   activeTicketId: number | null;
   activeQueue: SupportTicketStatus;
-  queueLabel: string;
+  /** The left panel's view (`?filter=`), which names the list. */
+  activeFilter: string;
+  filterCounts: SupportTicketFilterCounts | null;
   onQueueChange: (queue: SupportTicketStatus) => void;
   sortOrder: SupportTicketOrdering;
   onSortChange: (order: SupportTicketOrdering) => void;
@@ -478,13 +561,34 @@ function TicketListPanel({
   onFilterOpenChange: (open: boolean) => void;
   onFiltersChange: (filters: TicketFilterSelection) => void;
   onApplyFilters: () => void;
-  onClearFilters: () => void;
-  dateError?: string;
   supportTicketStatusCount: SupportTicketStatusCounts;
 }) {
+  const subSidebar = useSubSidebar();
+  const isPhone = useIsMobile();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const activeFilterCount =
-    filters.priorities.length +
-    Number(Boolean(filters.fromDate || filters.toDate));
+    Object.values(filters).flat().length -
+    (ASSIGNEE_VIEWS.includes(activeFilter) ? filters.assignees.length : 0);
+  const filterGroups: {
+    key: keyof TicketFilterSelection;
+    label: string;
+    options: readonly { value: string; label: string }[];
+  }[] = [
+    {
+      key: "channels",
+      label: "Channel",
+      options: helpdeskChannelRows(filterCounts),
+    },
+    { key: "priorities", label: "Priority", options: priorityOptions },
+    { key: "sentiments", label: "Sentiment", options: TICKET_SENTIMENTS },
+    { key: "assignees", label: "Assignee", options: assigneeOptions },
+  ];
+  const title = helpdeskViewLabel(activeFilter, filterCounts);
+  const count = viewCount(
+    activeFilter,
+    filterCounts,
+    supportTicketStatusCount?.[activeQueue] ?? 0,
+  );
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
@@ -494,151 +598,191 @@ function TicketListPanel({
     }
   };
 
+  const viewsMenu = (withTags: boolean) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="flex min-w-0 items-center gap-1.5 rounded-md text-left"
+        >
+          <span className="truncate text-xl font-semibold tracking-tight">
+            {title}
+          </span>
+          <span className="text-xl font-normal text-muted-foreground">
+            {count}
+          </span>
+          <IconChevronDown className="size-4 shrink-0 text-muted-foreground" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-68 p-1.5">
+        <HelpdeskViewsMenuItems
+          onCreateTicket={() => setIsCreateOpen(true)}
+          withTags={withTags}
+        />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const filterButton = (
+    <Popover open={isFilterOpen} onOpenChange={onFilterOpenChange}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          className="relative"
+          aria-label="Filter Tickets"
+        >
+          <IconFilter className="size-4" />
+          {activeFilterCount > 0 ? (
+            <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+              {activeFilterCount}
+            </span>
+          ) : null}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0">
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <p className="text-sm font-semibold">Filter tickets</p>
+          <button
+            type="button"
+            className="text-sm font-medium text-primary"
+            onClick={() => onFiltersChange(emptyTicketFilters)}
+          >
+            Clear all
+          </button>
+        </div>
+        <div className="max-h-[65vh] divide-y overflow-y-auto">
+          {filterGroups.map((group) => {
+            const selected: string[] = filters[group.key];
+            const isAssignee = group.key === "assignees";
+            const setByView =
+              isAssignee && ASSIGNEE_VIEWS.includes(activeFilter);
+            return (
+              <div
+                key={group.key}
+                role="group"
+                aria-labelledby={`ticket-filter-${group.key}`}
+                className="px-4 py-3"
+              >
+                <p
+                  id={`ticket-filter-${group.key}`}
+                  className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+                >
+                  {group.label}
+                  {setByView ? (
+                    <span className="ml-1 font-normal tracking-normal normal-case">
+                      · Set by the {title} view
+                    </span>
+                  ) : null}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {group.options.map((option) => {
+                    const active =
+                      !setByView && selected.includes(option.value);
+                    const exclusive = EXCLUSIVE_ASSIGNEE[option.value];
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={active}
+                        disabled={
+                          setByView ||
+                          (isAssignee &&
+                            !!exclusive &&
+                            selected.includes(exclusive))
+                        }
+                        onClick={() =>
+                          onFiltersChange({
+                            ...filters,
+                            [group.key]: active
+                              ? selected.filter(
+                                  (value) => value !== option.value,
+                                )
+                              : [...selected, option.value],
+                          })
+                        }
+                        className={cn(
+                          "h-8 rounded-full border px-3 text-sm transition-colors disabled:pointer-events-none disabled:opacity-50",
+                          active
+                            ? "border-primary bg-primary/10 font-medium text-primary"
+                            : "bg-background text-foreground hover:bg-muted",
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex justify-end gap-2 border-t p-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onFilterOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button size="sm" onClick={onApplyFilters}>
+            Show results
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+
   return (
     <section
       className={cn(
-        "h-full min-h-0 w-full min-w-0 flex-col border-r desktop:flex desktop:w-72 desktop:shrink-0 2xl:w-84",
+        "h-full min-h-0 w-full min-w-0 flex-col border-r bg-background md:flex md:w-[300px] md:shrink-0 desktop:w-[340px] 2xl:w-[380px]",
         className,
       )}
     >
-      {/* One header, not two: the queue switcher is the inbox's title, so a
-          separate "Your inbox" line above it said nothing extra. */}
-      <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
-        <div className="flex min-w-0 items-center gap-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "-ml-2 gap-1",
-                  activeQueue !== DEFAULT_HELPDESK_QUEUE && ACTIVE_QUEUE_STYLE,
-                )}
-              >
-                <CardTitle>
-                  {queueLabel}
-                  <span className="ml-1.5 font-normal text-muted-foreground">
-                    {supportTicketStatusCount?.[activeQueue] ?? 0}
-                  </span>
-                </CardTitle>
-                <IconChevronDown className="size-3.5 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-40">
-              {queues.map((queue) => (
-                <DropdownMenuItem
-                  key={queue.key}
-                  onClick={() =>
-                    queue.key !== activeQueue && onQueueChange(queue.key)
-                  }
-                  className={cn(
-                    "justify-between",
-                    activeQueue === queue.key && "font-medium text-primary",
-                  )}
-                >
-                  {queue.label}
-                  <span className="text-muted-foreground">
-                    {supportTicketStatusCount?.[queue.key] ?? 0}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+      <header className="flex h-16 shrink-0 items-center justify-between gap-2 px-4 md:border-b">
+        <div className="flex min-w-0 items-center gap-2">
+          {/* Below xl (iPad, phone) the panel stays shut and its views live
+              in this menu — with tags on a phone only, as designed. On a
+              desktop they move here only once the panel is hidden. */}
+          <div className="min-w-0 md:hidden">{viewsMenu(true)}</div>
+          <div className="hidden min-w-0 md:block xl:hidden">
+            {viewsMenu(false)}
+          </div>
+          {subSidebar.hidden ? (
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label="Show Help Desk menu"
+              className="hidden shrink-0 xl:inline-flex"
+              onClick={subSidebar.toggle}
+            >
+              <IconLayoutSidebar className="size-4" />
+            </Button>
+          ) : null}
+          <div className="hidden min-w-0 xl:block">
+            {subSidebar.hidden ? (
+              viewsMenu(false)
+            ) : (
+              <h1 className="flex items-baseline gap-1.5 text-xl font-semibold tracking-tight">
+                <span className="truncate">{title}</span>
+                <span className="font-normal text-muted-foreground">
+                  {count}
+                </span>
+              </h1>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Popover open={isFilterOpen} onOpenChange={onFilterOpenChange}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="relative"
-                aria-label="Filter Tickets"
-              >
-                <IconFilter className="size-4" />
-                {activeFilterCount > 0 ? (
-                  <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                    {activeFilterCount}
-                  </span>
-                ) : null}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-80 p-0">
-              <div className="border-b px-4 py-3">
-                <CardTitle>Filter Tickets</CardTitle>
-              </div>
-              <div className="max-h-[65vh] space-y-5 overflow-y-auto p-4">
-                <fieldset>
-                  <legend className="mb-2">
-                    <Typography variant="small" as="span">
-                      Last message date
-                    </Typography>
-                  </legend>
-                  {/* One range, picked on a calendar. Two datetime-local
-                    boxes made the reader assemble the range themselves and
-                    let them pick a "to" before the "from"; the calendar
-                    can't express either mistake. */}
-                  <DateRangePicker
-                    from={filters.fromDate}
-                    to={filters.toDate}
-                    disabled={{ after: new Date() }}
-                    onRangeChange={(fromDate, toDate) =>
-                      onFiltersChange({ ...filters, fromDate, toDate })
-                    }
-                  />
-                  {dateError ? (
-                    <Typography
-                      variant="caption"
-                      as="p"
-                      className="mt-2 text-destructive"
-                    >
-                      {dateError}
-                    </Typography>
-                  ) : null}
-                </fieldset>
-
-                <fieldset>
-                  <legend className="mb-2">
-                    <Typography variant="small" as="span">
-                      Priority
-                    </Typography>
-                  </legend>
-                  <MultiSelectCombobox
-                    options={priorityOptions}
-                    value={filters.priorities}
-                    onValueChange={(priorities) =>
-                      onFiltersChange({
-                        ...filters,
-                        priorities: priorities as SupportTicketPriority[],
-                      })
-                    }
-                    placeholder="Search priorities…"
-                    emptyMessage="No priorities found."
-                  />
-                </fieldset>
-              </div>
-              <div className="flex justify-between border-t p-3">
-                {activeFilterCount > 0 ? (
-                  <Button variant="ghost" size="sm" onClick={onClearFilters}>
-                    Clear
-                  </Button>
-                ) : (
-                  <span />
-                )}
-                <Button size="sm" onClick={onApplyFilters}>
-                  Apply Filters
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
-
+        <div className="flex shrink-0 items-center gap-2">
+          {filterButton}
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    size="icon-sm"
+                    size="icon"
                     aria-label="Sort tickets"
                   >
                     <IconArrowsSort className="size-4" />
@@ -649,54 +793,114 @@ function TicketListPanel({
                 Sort: {SORT_OPTIONS.find((o) => o.key === sortOrder)?.label}
               </TooltipContent>
             </Tooltip>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-              <DropdownMenuSeparator />
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                Sort by
+              </DropdownMenuLabel>
               {SORT_OPTIONS.map((option) => (
                 <DropdownMenuItem
                   key={option.key}
-                  onClick={() =>
+                  onSelect={() =>
                     option.key !== sortOrder && onSortChange(option.key)
                   }
-                  className={cn(
-                    option.key === sortOrder && "font-medium text-primary",
-                  )}
+                  className="justify-between py-2"
                 >
                   {option.label}
+                  {option.key === sortOrder ? (
+                    <IconCheck className="size-4 text-primary" />
+                  ) : null}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          <CreateTicketAction variant="fab" className="md:hidden" />
         </div>
       </header>
 
-      {/* h-20, matching the two-row ticket strip opposite so the second
-          rule across the screen meets. The height comes from the busier
-          side; this one takes the extra as padding rather than making the
-          ticket strip give up a row it needs. */}
-      <div className="flex h-20 shrink-0 items-center border-b px-4">
+      <div className="shrink-0 px-4 pt-1 pb-3 md:pt-3">
         <SearchInput
           className="w-full"
           value={searchValue}
           onChange={onSearchChange}
-          placeholder="Search tickets…"
+          placeholder={
+            isPhone
+              ? "Search name, ticket or order #"
+              : "Search name, email, ticket or order #"
+          }
           label="Search tickets"
         />
       </div>
 
+      {/* Status tabs: a segmented control from `md`, scrolling pills on a
+          phone — never a visible scrollbar or clipped labels. */}
+      <div className="shrink-0 px-4 pb-3">
+        <div className="hidden gap-0.5 rounded-lg bg-muted p-1 md:flex">
+          {queues.map((queue) => {
+            const active = queue.key === activeQueue;
+            return (
+              <button
+                key={queue.key}
+                type="button"
+                aria-pressed={active}
+                onClick={() => !active && onQueueChange(queue.key)}
+                className={cn(
+                  // Sized to fit all four in the narrowest list (300px at `md`).
+                  "flex h-8 flex-auto items-center justify-center gap-1 rounded-md px-1 text-xs whitespace-nowrap transition-colors desktop:px-1.5 desktop:text-[13px]",
+                  active
+                    ? "bg-background font-medium text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {queue.label}
+                <span className={cn(active ? "text-primary" : undefined)}>
+                  {supportTicketStatusCount?.[queue.key] ?? 0}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div
+          className={cn(
+            "-mx-4 flex gap-2 overflow-x-auto px-4 md:hidden",
+            NO_SCROLLBAR,
+          )}
+        >
+          {queues.map((queue) => {
+            const active = queue.key === activeQueue;
+            return (
+              <button
+                key={queue.key}
+                type="button"
+                aria-pressed={active}
+                onClick={() => !active && onQueueChange(queue.key)}
+                className={cn(
+                  "flex h-9 shrink-0 items-center gap-1 rounded-full border px-4 text-sm whitespace-nowrap",
+                  active
+                    ? "border-foreground bg-foreground font-medium text-background"
+                    : "bg-background text-foreground",
+                )}
+              >
+                {queue.label} {supportTicketStatusCount?.[queue.key] ?? 0}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div
-        className="min-h-0 flex-1 overflow-y-auto px-2 py-1"
+        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto border-t"
         onScroll={handleScroll}
       >
         {isLoading && rows?.length === 0 ? (
-          <LoadingState label="Loading tickets…" />
+          <LoadingState label="Loading tickets…" className="py-10" />
         ) : !rows || rows?.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
+          <div className="flex flex-col items-center justify-center gap-1 px-6 py-12 text-center">
+            <IconInbox className="mb-1 size-7 text-muted-foreground opacity-40" />
             <Typography variant="small" as="p">
               No tickets found
             </Typography>
             <Typography variant="muted">
-              Try a different queue, search, or filter.
+              Try a different view, search, or filter.
             </Typography>
           </div>
         ) : (
@@ -713,62 +917,133 @@ function TicketListPanel({
           <LoadingState label="Loading more tickets…" className="py-4" />
         ) : null}
       </div>
+
+      <CreateTicketAction
+        variant="dialog"
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+      />
     </section>
   );
 }
 
+/** The first message of a day says the date as well as the time. */
+function messageTime(value: string, withDate: boolean) {
+  const date = new Date(value);
+  const time = formatTicketTime(value);
+  return withDate
+    ? `${date.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}, ${time}`
+    : time;
+}
+
+/** A status change, as one line between the messages. */
+type ThreadEvent = {
+  kind: "event";
+  id: string;
+  created_at: string;
+  text: string;
+};
+
+const STATUS_VERBS: Record<string, string> = {
+  open: "opened",
+  reopen: "reopened",
+  resolved: "resolved",
+  closed: "closed",
+  snoozed: "snoozed",
+};
+
+/**
+ * The ticket's status changes as lines for the conversation, oldest first.
+ * Two changes by the same person within two minutes read as one line:
+ * "resolved and closed this ticket".
+ */
+function threadEvents(activity: SupportTicketActivityItem[]): ThreadEvent[] {
+  const changes = activity
+    .filter((item) => item.type === "status_changed" && item.to_value)
+    .sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+  const events: ThreadEvent[] = [];
+  let last: { actor: string | null; at: number; verbs: string[] } | null = null;
+  changes.forEach((item, index) => {
+    const at = new Date(item.created_at).getTime();
+    const verb =
+      STATUS_VERBS[item.to_value ?? ""] ?? `moved to ${item.to_value}`;
+    if (last && last.actor === item.actor && at - last.at < 2 * 60000) {
+      last.verbs.push(verb);
+      last.at = at;
+      const event = events[events.length - 1];
+      event.text = `${item.actor ?? "Someone"} ${last.verbs.join(" and ")} this ticket`;
+      return;
+    }
+    last = { actor: item.actor, at, verbs: [verb] };
+    events.push({
+      kind: "event",
+      id: `event-${index}-${item.created_at}`,
+      created_at: item.created_at,
+      text: `${item.actor ?? "Someone"} ${verb} this ticket`,
+    });
+  });
+  return events;
+}
+
+/**
+ * Staff names in a note, wrapped so the markdown renderer can colour them
+ * as mentions. Only real teammates' names are matched, so an email address
+ * or a stray "@" stays as typed.
+ */
+function markMentions(text: string, names: string[]) {
+  return names
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+    .reduce(
+      (current, name) =>
+        current.replace(
+          new RegExp(
+            `@${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w*])`,
+            "g",
+          ),
+          `**@${name}**`,
+        ),
+      text,
+    );
+}
+
 function ConversationPanel({
-  storeCode,
   ticket,
   messages,
+  staff,
+  currentUser,
+  activity,
   reply,
   attachments,
   onAttachmentsChange,
   isSending,
   onReplyChange,
   onSend,
-  onAcceptDraft,
   onSaveDraft,
-  availableTags,
-  isTagPickerOpen,
-  isTagPickerLoading,
-  isLoadingMoreTags,
-  hasMoreTags,
-  onLoadMoreTags,
-  tagSearch,
-  onTagSearchChange,
-  onToggleTagPicker,
-  onAddTag,
-  onRemoveTag,
-  availableStaff,
-  canAssign,
-  onAssignStaff,
-  // onMessageImprove,
-  // isMessageImproving,
-  onTicketSnooze,
-  onTicketStatusUpdate,
-  onTicketPriorityUpdate,
-  onTicketLanguageSentimentUpdate,
-  onAIDraftGenerate,
-  isAIDraftLoading,
-  aiDraft,
   isClosed,
   onTranslate,
   isTranslating,
   translatedLanguage,
-  onLinkCustomer,
+  onRequestStatus,
   onBack,
   onShowDetails,
   className,
 }: {
-  /** Opens the customer details sheet, for widths where the pane is not docked. */
+  /** Opens the details drawer, for widths where the panel is not docked. */
   onShowDetails: () => void;
   /** Returns to the ticket list. Only offered below `lg`, where the two panes take turns. */
   onBack: () => void;
   className?: string;
-  storeCode: string;
   ticket: SupportTicket;
   messages: SupportTicketMessage[];
+  /** Who wrote the agent messages and notes. */
+  staff: StaffMember[];
+  currentUser: { name?: string | null; email?: string | null };
+  /** The ticket's history, for the status lines between messages. */
+  activity: SupportTicketActivityItem[];
   reply: string;
   attachments: File[];
   onAttachmentsChange: (files: File[]) => void;
@@ -778,69 +1053,30 @@ function ConversationPanel({
   onSend: (
     mode: "reply" | "note" | "customer_language" | "reply_and_resolve",
   ) => void;
-  onAcceptDraft: () => void;
   onSaveDraft: () => void;
-  availableTags: SupportTicketTagData[];
-  isTagPickerOpen: boolean;
-  isTagPickerLoading: boolean;
-  /** True while a further page is loading, as opposed to a first page or a new search. */
-  isLoadingMoreTags: boolean;
-  hasMoreTags: boolean;
-  onLoadMoreTags: () => void;
-  /** The picker's search box. The search itself runs on the server. */
-  tagSearch: string;
-  onTagSearchChange: (value: string) => void;
-  onToggleTagPicker: () => void;
-  onAddTag: (tagId: number) => void;
-  onRemoveTag: (tagId: number) => void;
-  availableStaff: StaffMember[];
-  // Admins and supervisors assign tickets; others only see the assignee.
-  canAssign: boolean;
-  onAssignStaff: (staffId: number | null) => void;
-  // onMessageImprove: (action: string) => void;
-  // isMessageImproving: boolean;
-  onTicketSnooze: (snoozeTime: number | null) => void;
-  onTicketStatusUpdate: (status: SupportTicketStatus) => void;
-  onTicketPriorityUpdate: (priority: SupportTicketPriority) => void;
-  onTicketLanguageSentimentUpdate: (payload: {
-    language?: TicketLanguage;
-    sentiment?: TicketSentiment;
-  }) => void;
-  onAIDraftGenerate: () => void;
-  isAIDraftLoading: boolean;
-  aiDraft: SupportTicketDraftMessage | null;
   isClosed: boolean;
   onTranslate: (code: string) => void;
   isTranslating: boolean;
   /** Language the messages are currently shown in, if translated. */
   translatedLanguage: { code: string; name: string } | null;
-  /** Offered beside the name when a guest raised this ticket. */
-  onLinkCustomer: () => void;
+  /** Asks first: every status change emails the customer. */
+  onRequestStatus: (status: SupportTicketStatus) => void;
 }) {
-  // Every status change waits for a yes, since each one emails the customer.
-  const [pendingStatus, setPendingStatus] = useState<
-    keyof typeof STATUS_CONFIRMATIONS | null
-  >(null);
-  const pendingConfirmation = pendingStatus
-    ? STATUS_CONFIRMATIONS[pendingStatus]
-    : null;
-  // Taking a tag off changes the ticket's SLA, so it waits for a yes too.
-  const [pendingTagRemoval, setPendingTagRemoval] = useState<{
-    id: number;
-    name: string;
-  } | null>(null);
-  const requestTagRemoval = (tagId: number) => {
-    const tag = ticket.tags?.find((candidate) => candidate.id === tagId);
-    setPendingTagRemoval({ id: tagId, name: tag?.name ?? "this tag" });
-  };
   const [selectedSendMode, setSelectedSendMode] = useState<
     "reply" | "customer_language" | "reply_and_resolve"
   >("reply");
+  const [noteMode, setNoteMode] = useState(false);
+  // Opening another ticket goes back to replying, so a note meant for one
+  // ticket is never sent to the next one's customer by mistake, or the reverse.
+  const [noteTicketId, setNoteTicketId] = useState(ticket.id);
+  if (noteTicketId !== ticket.id) {
+    setNoteTicketId(ticket.id);
+    setNoteMode(false);
+  }
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const transitions = STATUS_TRANSITIONS[ticket.status] ?? [];
   // Only offered while resolving is a legal move for the ticket's status.
-  const canResolve = (STATUS_TRANSITIONS[ticket.status] ?? []).includes(
-    "resolved",
-  );
+  const canResolve = transitions.includes("resolved");
   // The ticket may have moved on since "send and resolve" was picked.
   const effectiveSendMode =
     selectedSendMode === "reply_and_resolve" && !canResolve
@@ -856,669 +1092,366 @@ function ConversationPanel({
     onAttachmentsChange(result.files);
     event.target.value = "";
   };
-  const selectedSendLabel =
-    effectiveSendMode === "customer_language"
-      ? "Send in Customer Language"
-      : effectiveSendMode === "reply_and_resolve"
-        ? "Send and Mark Resolved"
-        : "Send";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
   }, [ticket.id, messages.length]);
+  const isPhone = useIsMobile();
 
   // Tickets from before these fields existed come back without them.
   const ticketLanguage = ticket.language ?? DEFAULT_TICKET_LANGUAGE;
-  const ticketSentiment = ticket.sentiment ?? DEFAULT_TICKET_SENTIMENT;
-  const languageName =
-    SUPPORTED_LANGUAGES.find((language) => language.code === ticketLanguage)
-      ?.name ?? ticketLanguage;
-
   const customerName = customerLabel(ticket.customer);
-  // Shown in brackets beside the status — only while the ticket is in the
-  // reopen status. The count is lifetime, so a reopened ticket that has since
-  // been closed or resolved still carries it, and must not show it.
-  const reopenCount =
-    ticket.status === "reopen" ? (ticket.reopen_count ?? 0) : 0;
-  const customerEmail =
+  const firstName = customerName.split(" ")[0];
+  const chatThreadId =
     ticket.customer && typeof ticket.customer === "object"
-      ? ticket.customer.email
+      ? ticket.customer.thread_id
       : null;
+  const staffNames = staff.map((member) =>
+    `${member.first_name} ${member.last_name}`.trim(),
+  );
 
-  const totalAttachments =
-    ticket.messages?.reduce(
-      (count, message) => count + (message.attachments?.length ?? 0),
-      0,
-    ) ?? 0;
+  /** Who wrote an agent message or note. */
+  const authorOf = (message: SupportTicketMessage) => {
+    if (message.id < 0) return currentUser.name || "You";
+    const member = staff.find((candidate) => candidate.id === message.agent);
+    return member
+      ? `${member.first_name} ${member.last_name}`.trim() || member.email
+      : "Agent";
+  };
+  // Your own messages carry the accent colour; a teammate's are blue.
+  const isMine = (message: SupportTicketMessage) =>
+    message.id < 0 ||
+    (Boolean(currentUser.email) &&
+      staff
+        .find((candidate) => candidate.id === message.agent)
+        ?.email?.toLowerCase() === currentUser.email?.toLowerCase());
+  // A phone has room for first names only.
+  const shortName = (name: string) => (isPhone ? name.split(" ")[0] : name);
 
-  // Icon + value, so the facts cost one line rather than a labelled list.
-  // Attachments only earn their place when there are some.
-  const facts = [
-    {
-      // Falls back to the inbox icon and the raw value for a channel the
-      // backend adds before this map hears about it.
-      icon: CHANNEL_META[ticket.channel]?.icon ?? IconInbox,
-      label: "Channel",
-      value:
-        CHANNEL_META[ticket.channel]?.label ?? capitalizeText(ticket.channel),
-    },
-    {
-      icon: IconCalendarPlus,
-      label: "Created",
-      value: `Created ${formatDateTime(ticket.created_at)}`,
-    },
-    ...(ticket.created_by_type
-      ? [
-          {
-            icon: CREATED_BY_META[ticket.created_by_type]?.icon ?? IconUser,
-            label: "Created by",
-            value: `Created by ${
-              ticket.created_by?.name ||
-              ticket.created_by?.email ||
-              CREATED_BY_META[ticket.created_by_type]?.label ||
-              capitalizeText(ticket.created_by_type)
-            }`,
-            // Two agents can share a name, so the tooltip adds the email.
-            detail: ticket.created_by
-              ? [ticket.created_by.name, ticket.created_by.email]
-                  .filter(Boolean)
-                  .join(" · ")
-              : undefined,
-          },
-        ]
-      : []),
-    ...(totalAttachments > 0
-      ? [
-          {
-            icon: IconPaperclip,
-            label: "Attachments",
-            value: pluralize(totalAttachments, "attachment"),
-          },
-        ]
-      : []),
-  ];
+  // Messages and status lines in one timeline, oldest first.
+  const timeline: (
+    | { kind: "message"; message: SupportTicketMessage; index: number }
+    | ThreadEvent
+  )[] = [
+    ...messages.map((message, index) => ({
+      kind: "message" as const,
+      message,
+      index,
+    })),
+    ...threadEvents(activity),
+  ].sort((a, b) => {
+    const at = (item: typeof a) =>
+      new Date(
+        item.kind === "message" ? item.message.created_at : item.created_at,
+      ).getTime();
+    return at(a) - at(b);
+  });
 
-  const visibleTags = ticket.tags?.slice(0, MAX_VISIBLE_TKT_CONV_TAGS);
-  const hiddenTags = ticket.tags?.slice(MAX_VISIBLE_TKT_CONV_TAGS);
+  const sendLabel = noteMode
+    ? "Add note"
+    : effectiveSendMode === "customer_language"
+      ? "Send translated"
+      : effectiveSendMode === "reply_and_resolve"
+        ? "Send & resolve"
+        : "Send";
+  // Replies on a non-English ticket are always translated, so billed.
+  const sendCostsCredit =
+    !noteMode &&
+    (effectiveSendMode === "customer_language" ||
+      ticketLanguage !== DEFAULT_TICKET_LANGUAGE);
+  const composerDisabled = isSending || isClosed || isTranslating;
 
-  const snoozeLabel = (() => {
-    if (!ticket?.is_snoozed || !ticket.snoozed_until) {
-      return "Snooze";
-    }
+  const statusButtons = (
+    <>
+      {canResolve ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400"
+          onClick={() => onRequestStatus("resolved")}
+        >
+          <IconCheck data-icon="inline-start" />
+          Resolve
+        </Button>
+      ) : null}
+      {transitions.includes("open") ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400"
+          onClick={() => onRequestStatus("open")}
+        >
+          <IconInbox data-icon="inline-start" />
+          Open
+        </Button>
+      ) : null}
+      {transitions.includes("closed") ? (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onRequestStatus("closed")}
+        >
+          <IconCircleX data-icon="inline-start" />
+          Close
+        </Button>
+      ) : null}
+      {transitions.includes("reopen") ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400"
+          onClick={() => onRequestStatus("reopen")}
+        >
+          <IconReload data-icon="inline-start" />
+          Reopen
+        </Button>
+      ) : null}
+    </>
+  );
 
-    const snoozedUntil = new Date(ticket.snoozed_until);
-    const now = new Date();
+  const translateMenu = (trigger: React.ReactNode) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild disabled={isClosed || isTranslating}>
+        {trigger}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-72 p-0">
+        <div className="border-b px-3 py-2.5">
+          <p className="text-sm font-semibold">Translate the conversation</p>
+          <p className="text-xs text-muted-foreground">
+            Shows the messages in another language. Uses 1 AI credit.
+          </p>
+        </div>
+        <div className="max-h-64 overflow-y-auto p-1">
+          {SUPPORTED_LANGUAGES.map((language) => (
+            <DropdownMenuItem
+              key={language.code}
+              onSelect={() => onTranslate(language.code)}
+              className="justify-between py-2"
+            >
+              {language.name}
+              {language.code === translatedLanguage?.code ? (
+                <IconCheck className="size-4 text-primary" />
+              ) : language.code === ticketLanguage ? (
+                <span className="text-xs font-medium text-primary">
+                  Customer&apos;s language
+                </span>
+              ) : null}
+            </DropdownMenuItem>
+          ))}
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
-    const isToday = snoozedUntil.toDateString() === now.toDateString();
+  const attachButton = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Attach files"
+      title="Attach files"
+      disabled={composerDisabled}
+      onClick={() => attachmentInputRef.current?.click()}
+    >
+      <IconPaperclip className="size-4" />
+    </Button>
+  );
 
-    const tomorrow = new Date();
-    tomorrow.setDate(now.getDate() + 1);
-
-    const isTomorrow = snoozedUntil.toDateString() === tomorrow.toDateString();
-
-    const timeFormatter = new Intl.DateTimeFormat("en-IN", {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-
-    if (isToday) {
-      return `Snoozed until ${timeFormatter.format(snoozedUntil)}`;
-    }
-
-    if (isTomorrow) {
-      return `Snoozed until Tomorrow, ${timeFormatter.format(snoozedUntil)}`;
-    }
-
-    return `Snoozed until ${new Intl.DateTimeFormat("en-IN", {
-      day: "numeric",
-      month: "short",
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(snoozedUntil)}`;
-  })();
+  const sendButton = (
+    <ButtonGroup>
+      <Button
+        size="sm"
+        className="h-9 px-3.5"
+        onClick={() => onSend(noteMode ? "note" : effectiveSendMode)}
+        disabled={composerDisabled}
+        title={sendCostsCredit ? "Uses 1 AI credit" : undefined}
+      >
+        {isSending ? (
+          <Spinner className="size-4" />
+        ) : (
+          <IconSend className="size-4" />
+        )}
+        {isSending ? "Sending…" : sendLabel}
+      </Button>
+      {!noteMode ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="sm"
+              className="h-9 border-l border-primary-foreground/20 px-2"
+              disabled={composerDisabled}
+              aria-label="Choose send option"
+            >
+              <IconChevronDown className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-72 p-1.5">
+            {(
+              [
+                { mode: "reply", label: "Send", icon: IconSend },
+                {
+                  mode: "customer_language",
+                  label: "Send in customer's language",
+                  icon: IconLanguage,
+                  credit: true,
+                },
+                ...(canResolve
+                  ? [
+                      {
+                        mode: "reply_and_resolve",
+                        label: "Send and resolve",
+                        icon: IconCircleCheck,
+                      },
+                    ]
+                  : []),
+              ] as {
+                mode: typeof selectedSendMode;
+                label: string;
+                icon: typeof IconSend;
+                credit?: boolean;
+              }[]
+            ).map((option) => (
+              <DropdownMenuItem
+                key={option.mode}
+                onSelect={() => setSelectedSendMode(option.mode)}
+                className="items-start gap-3 py-2.5"
+              >
+                <option.icon className="mt-0.5 size-4" />
+                <span className="flex-1">
+                  <span className="block text-sm">{option.label}</span>
+                  {option.credit ? (
+                    <span className="block text-xs text-destructive">
+                      1 AI credit
+                    </span>
+                  ) : null}
+                </span>
+                {option.mode === effectiveSendMode ? (
+                  <IconCheck className="mt-0.5 size-4 text-primary" />
+                ) : null}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+    </ButtonGroup>
+  );
 
   return (
-    // `@container/conv`: the facts below size themselves to this pane, not
-    // the viewport — the pane is what the ticket list and the details panel
-    // leave over, which on a wide monitor can still be narrow.
     <main
-      className={cn(
-        "@container/conv min-w-0 flex-1 flex-col desktop:flex",
-        className,
-      )}
+      className={cn("min-w-0 flex-1 flex-col bg-background md:flex", className)}
     >
-      {/* Same 4rem header as the two side panels, so all three borders line
-          up across the screen. The customer leads — who you are talking to
-          is the first thing you need — and the subject follows below. */}
-      <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b px-4 py-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5 @3xl/conv:order-1">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Back to ticket list"
-            className="-ml-2 shrink-0 desktop:hidden"
-            onClick={onBack}
-          >
-            <IconArrowLeft />
-          </Button>
-          <CustomerAvatar name={customerName} />
-          <div className="min-w-0">
-            <div className="flex items-center gap-1">
-              <CardTitle className="truncate leading-tight">
-                {customerName}
-              </CardTitle>
-              {/* Open their record, or attach one when a guest raised this.
-                  No session facts here: a ticket can arrive by email,
-                  phone or social, so there is no browsing session. */}
-              <CrmLinkButton
-                customerId={
-                  ticket.customer && typeof ticket.customer === "object"
-                    ? ticket.customer.id
-                    : null
-                }
-                onLinkCustomer={onLinkCustomer}
-              />
-            </div>
-            {customerEmail ? (
-              <Typography variant="muted" className="truncate">
-                {customerEmail}
-              </Typography>
-            ) : null}
+      {/* Desktop and tablet header. */}
+      <header className="hidden h-16 shrink-0 items-center gap-3 border-b px-4 md:flex md:px-6">
+        <CustomerAvatar name={customerName} size="size-9" />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <h2 className="truncate text-base font-semibold">
+              {ticket.subject}
+            </h2>
+            <span className="shrink-0 font-mono text-xs text-muted-foreground">
+              {ticketRef(ticket.ticket_id)}
+            </span>
           </div>
+          <p className="truncate text-xs text-muted-foreground">
+            {customerName} · opened {formatTicketDateTime(ticket.created_at)}
+          </p>
         </div>
-
-        <div className="shrink-0 @3xl/conv:order-3">
-          {/* Staff are matched by id, not name: several people can share
-              a name, and only the assigned one should carry the check. */}
-          <Combobox
-            items={availableStaff}
-            value={
-              availableStaff.find(
-                (member) => member.id === ticket?.internal_assignee?.id,
-              ) ?? null
-            }
-            isItemEqualToValue={(item, value) => item?.id === value?.id}
-            itemToStringLabel={(member) =>
-              `${member.first_name} ${member.last_name}`
-            }
-          >
-            <ComboboxInput
-              className={cn(
-                "h-8 w-28 2xl:w-40",
-                ticket?.internal_assignee?.id && ACTIVE_ASSIGNEE_STYLE,
-              )}
-              placeholder={
-                ticket?.internal_assignee?.id
-                  ? ticket?.internal_assignee?.name
-                  : "Assign to…"
-              }
-              disabled={isClosed || !canAssign}
-            />
-            <ComboboxContent>
-              <ComboboxEmpty>No staff found.</ComboboxEmpty>
-              <div className="p-1">
-                {ticket?.internal_assignee?.id && (
-                  <ComboboxItem
-                    className="hover:bg-muted"
-                    onClick={() => onAssignStaff(null)}
-                  >
-                    Unassign
-                  </ComboboxItem>
-                )}
-              </div>
-              <ComboboxList>
-                {(staff: StaffMember) => (
-                  // The email tells same-name staff apart, on hover only so
-                  // the list keeps its width.
-                  <Tooltip key={staff.id}>
-                    <TooltipTrigger asChild>
-                      <ComboboxItem
-                        value={staff}
-                        onClick={() =>
-                          staff.id !== ticket?.internal_assignee?.id &&
-                          onAssignStaff(staff.id)
-                        }
-                      >
-                        {staff.first_name} {staff.last_name}
-                      </ComboboxItem>
-                    </TooltipTrigger>
-                    <TooltipContent side="left">{staff.email}</TooltipContent>
-                  </Tooltip>
-                )}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
-        </div>
-
-        {/* Narrow panes: the assignee stays on the customer row and the
-            rest wraps onto a row of its own, right-aligned. Wide panes
-            (`contents`) put everything back on one row, via `order`. */}
-        <div className="flex basis-full items-center justify-end gap-2 @3xl/conv:contents">
-          <TicketActivityDrawer
-            storeCode={storeCode}
-            ticketId={ticket.id}
-            className="@3xl/conv:order-2"
-          />
-          <CustomerDetailsButton
-            className="@3xl/conv:order-2"
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="xl:hidden"
             onClick={onShowDetails}
-          />
-
-          {/* Status is changed from here, per the ticket's current status:
-              open/reopen → Resolve, resolved → Open or Close, closed →
-              Reopen. Offered from STATUS_TRANSITIONS so the buttons can
-              never drift from what the API accepts. */}
-          {(STATUS_TRANSITIONS[ticket.status] ?? []).includes("resolved") ? (
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label="Mark as resolved"
-              className={cn(ACTION_TONE_STYLES.success, "@3xl/conv:order-4")}
-              onClick={() => setPendingStatus("resolved")}
-            >
-              <IconCircleCheck className="size-4" />
-              Resolve
-            </Button>
-          ) : null}
-
-          {(STATUS_TRANSITIONS[ticket.status] ?? []).includes("open") ? (
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label="Open ticket"
-              className={cn(ACTION_TONE_STYLES.info, "@3xl/conv:order-4")}
-              onClick={() => setPendingStatus("open")}
-            >
-              <IconInbox className="size-4" />
-              Open
-            </Button>
-          ) : null}
-
-          {(STATUS_TRANSITIONS[ticket.status] ?? []).includes("closed") ? (
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label="Close ticket"
-              className={cn(ACTION_TONE_STYLES.danger, "@3xl/conv:order-5")}
-              onClick={() => setPendingStatus("closed")}
-            >
-              <IconCircleX className="size-4" />
-              Close
-            </Button>
-          ) : null}
-
-          {(STATUS_TRANSITIONS[ticket.status] ?? []).includes("reopen") ? (
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label="Reopen ticket"
-              className={cn(ACTION_TONE_STYLES.info, "@3xl/conv:order-4")}
-              onClick={() => setPendingStatus("reopen")}
-            >
-              <IconReload className="size-4" />
-              Reopen
-            </Button>
-          ) : null}
-
-          {/* <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild disabled={isClosed}>
-                  <Button
-                    variant="outline"
-                    size={ticket?.is_snoozed ? "sm" : "icon-sm"}
-                    aria-label="Snooze ticket"
-                    className={ACTION_TONE_STYLES.warning}
-                  >
-                    <IconAlarmSnoozeFilled className="size-4" />
-                    {ticket?.is_snoozed ? snoozeLabel : null}
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>{snoozeLabel}</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Snooze for</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {SNOOZE_PRESETS.map((preset) => (
-                <DropdownMenuItem
-                  key={preset.label}
-                  onClick={() => onTicketSnooze(preset.ms)}
-                >
-                  {preset.label}
-                </DropdownMenuItem>
-              ))}
-              {ticket?.is_snoozed && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onClick={() => onTicketSnooze(null)}
-                  >
-                    <IconAlarmSnoozeFilled className="size-4" />
-                    Remove snooze
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu> */}
+          >
+            <IconLayoutSidebarRight data-icon="inline-start" />
+            Details
+          </Button>
+          {statusButtons}
         </div>
       </header>
 
-      {/* The subject needs a line of its own — sharing one with the status
-          chips left it truncated to a few words. The height follows the
-          layout, not the data: the subject truncates, the tag list is
-          capped with a +N, and the only thing that adds a row is the pane's
-          width (the tags wrap to their own row when it runs short), so a
-          ticket with nine tags is exactly as tall as one with none. */}
-      <div className="flex min-h-20 shrink-0 flex-col justify-center gap-2 overflow-hidden border-b px-4 py-3">
-        <div className="flex items-baseline gap-3">
-          <div className="flex min-w-0 flex-1 items-baseline gap-2 overflow-hidden">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Typography variant="small" as="h3" className="truncate">
-                  {ticket.subject}
-                </Typography>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-80">
-                <p>{ticket.subject}</p>
-              </TooltipContent>
-            </Tooltip>
-            <Typography variant="caption" className="shrink-0">
-              {ticketRef(ticket.ticket_id)}
-            </Typography>
-            {ticket.order_id ? (
-              <Typography variant="caption" className="shrink-0">
-                ORDER-#{ticket.order_id}
-              </Typography>
-            ) : null}
+      {/* Phone header: back, the ticket, and its state as chips. */}
+      <header className="shrink-0 border-b md:hidden">
+        <div className="flex items-center gap-2 px-2 pt-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Back to ticket list"
+            onClick={onBack}
+          >
+            <IconChevronLeft className="size-5" />
+          </Button>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-base font-semibold">
+              {ticket.subject}
+            </h2>
+            <p className="truncate text-xs text-muted-foreground">
+              {customerName} · {ticketRef(ticket.ticket_id)}
+            </p>
           </div>
-
-          {/* Facts close the subject line, and say what each date is — two
-              bare timestamps side by side told you nothing. They write
-              their values out only when the pane is wide enough (64rem);
-              narrower, they collapse to their icons (the tooltip carries
-              the value), so the subject keeps the line. */}
-          <div className="hidden shrink-0 items-center gap-3 desktop:flex 2xl:gap-4">
-            {facts.map((fact) => (
-              <TicketFact key={fact.label} {...fact} />
-            ))}
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Ticket details"
+            onClick={onShowDetails}
+          >
+            <IconInfoCircle className="size-5" />
+          </Button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {statusButtons}
           </div>
         </div>
-
-        {/* Below `lg` there is no room for the facts on the subject line, and
-            hover tooltips do not exist on a touch screen — so they get a row
-            of their own with the values written out. Scrolls sideways
-            rather than wrapping, to keep the header's height fixed. */}
-        <div className="scrollbar-none flex items-center gap-4 overflow-x-auto *:shrink-0 desktop:hidden">
-          {facts.map((fact) => (
-            <TicketFact key={fact.label} {...fact} showValue />
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-          <div className="flex shrink-0 items-center gap-2">
-            {/* A plain tag: status is changed with the action buttons in the
-              header, not from here. Priority is still set on its badge. */}
-            <Badge
-              variant="outline"
-              title={
-                reopenCount > 0
-                  ? `Reopened ${pluralize(reopenCount, "time")}`
-                  : undefined
-              }
+        <div className="flex items-center gap-2 px-4 pt-1 pb-2.5">
+          <div
+            className={cn(
+              "flex min-w-0 flex-1 gap-2 overflow-x-auto",
+              NO_SCROLLBAR,
+            )}
+          >
+            <button
+              type="button"
+              onClick={onShowDetails}
               className={cn(
-                "capitalize",
-                BADGE_TONE_STYLES[STATUS_TONE[ticket.status]],
+                "shrink-0 rounded-full px-3 py-1 text-sm font-medium",
+                ticket.status === "closed"
+                  ? "bg-zinc-100 text-zinc-600"
+                  : ticket.status === "resolved"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : ticket.status === "reopen"
+                      ? "bg-pink-50 text-pink-700"
+                      : "bg-blue-50 text-blue-700",
               )}
             >
-              {capitalizeText(ticket.status)}
-              {reopenCount > 0 ? ` (${reopenCount})` : null}
-            </Badge>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label="Change priority"
-                disabled={isClosed}
-                className={cn(
-                  badgeVariants({ variant: "outline" }),
-                  "cursor-pointer capitalize disabled:cursor-default disabled:opacity-60",
-                  BADGE_TONE_STYLES[PRIORITY_TONE[ticket.priority]],
-                )}
-              >
-                {capitalizeText(ticket.priority)}
-                {!isClosed ? <IconChevronDown /> : null}
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuLabel>Priority</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {priorityOptions.map((option) => (
-                  <DropdownMenuItem
-                    key={option.value}
-                    onClick={() =>
-                      option.value !== ticket.priority &&
-                      onTicketPriorityUpdate(option.value)
-                    }
-                    className={cn(
-                      option.value === ticket.priority && "font-medium",
-                    )}
-                  >
-                    {option.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Detected from the conversation; the agent can correct it, and
-                replies sent in the customer's language follow it. */}
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label="Change language"
-                disabled={isClosed}
-                className={cn(
-                  badgeVariants({ variant: "outline" }),
-                  "cursor-pointer disabled:cursor-default disabled:opacity-60",
-                )}
-              >
-                <IconLanguage />
-                {languageName}
-                {!isClosed ? <IconChevronDown /> : null}
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="max-h-72">
-                <DropdownMenuLabel>Language</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {SUPPORTED_LANGUAGES.map((language) => (
-                  <DropdownMenuItem
-                    key={language.code}
-                    onClick={() =>
-                      language.code !== ticketLanguage &&
-                      onTicketLanguageSentimentUpdate({
-                        language: language.code,
-                      })
-                    }
-                    className={cn(
-                      language.code === ticketLanguage && "font-medium",
-                    )}
-                  >
-                    {language.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label="Change sentiment"
-                disabled={isClosed}
-                className={cn(
-                  badgeVariants({ variant: "outline" }),
-                  "cursor-pointer capitalize disabled:cursor-default disabled:opacity-60",
-                  BADGE_TONE_STYLES[SENTIMENT_TONE[ticketSentiment]],
-                )}
-              >
-                {capitalizeText(ticketSentiment)}
-                {!isClosed ? <IconChevronDown /> : null}
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuLabel>Sentiment</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {TICKET_SENTIMENTS.map((option) => (
-                  <DropdownMenuItem
-                    key={option.value}
-                    onClick={() =>
-                      option.value !== ticketSentiment &&
-                      onTicketLanguageSentimentUpdate({
-                        sentiment: option.value,
-                      })
-                    }
-                    className={cn(
-                      option.value === ticketSentiment && "font-medium",
-                    )}
-                  >
-                    {option.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* {!ticket.internal_assignee && ticket.status === "open" ? (
-              <Badge variant="outline" className={BADGE_TONE_STYLES.accent}>
-                Unassigned
-              </Badge>
-            ) : null} */}
-          </div>
-
-          {/* Tags and the add button share a group that sits beside the
-              status chips while there is room for it, and wraps onto its own
-              row the moment there is not — so it follows the pane's real
-              width (sidebar open or closed, ticket list shown or hidden)
-              rather than a breakpoint. Beside four chips, a narrow pane left
-              the tags a sliver, and they showed half-cut. */}
-          <div className="flex min-w-64 flex-1 items-center gap-2">
-            <div className="scrollbar-none flex min-w-0 flex-1 items-center gap-2 overflow-x-auto *:shrink-0">
-              {visibleTags?.map((tag) => {
-                const tagId = tag.id;
-                return (
-                  <TagBadge
-                    key={tagId}
-                    tag={tag}
-                    onRemove={
-                      tagId && !isClosed
-                        ? () => requestTagRemoval(tagId)
-                        : undefined
-                    }
-                  />
-                );
-              })}
-              {hiddenTags?.length > 0 ? (
-                <HiddenTagsBadge
-                  tags={hiddenTags}
-                  label={`+${hiddenTags.length} more`}
-                  onRemoveTag={isClosed ? undefined : requestTagRemoval}
-                />
-              ) : null}
-            </div>
-
-            <Popover
-              open={isTagPickerOpen}
-              onOpenChange={() => onToggleTagPicker()}
+              {STATUS_META[ticket.status].label}
+            </button>
+            <button
+              type="button"
+              onClick={onShowDetails}
+              className="shrink-0 rounded-full bg-muted px-3 py-1 text-sm"
             >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      disabled={isClosed}
-                      aria-label="Add Tag"
-                      className="shrink-0"
-                    >
-                      <IconPlus className="size-4" />
-                    </Button>
-                  </PopoverTrigger>
-                </TooltipTrigger>
-                <TooltipContent>Add tag</TooltipContent>
-              </Tooltip>
-              <PopoverContent align="start" className="w-65 p-0">
-                <div className="border-b px-3 py-2.5">
-                  <CardTitle>Add tag</CardTitle>
-                  <Typography variant="muted">
-                    Label this ticket so it is easy to find.
-                  </Typography>
-                </div>
-                <div className="p-2">
-                  <SearchInput
-                    value={tagSearch}
-                    onChange={onTagSearchChange}
-                    placeholder="Search tags…"
-                    label="Search tags"
-                  />
-                </div>
-                {isTagPickerLoading && !isLoadingMoreTags ? (
-                  <LoadingState label="Loading tags…" className="py-6" />
-                ) : availableTags.length === 0 ? (
-                  <div className="px-3 pb-4 text-center">
-                    <Typography variant="muted">
-                      {tagSearch.trim()
-                        ? "No matching tags."
-                        : "No tags available."}
-                    </Typography>
-                  </div>
-                ) : (
-                  <div className="max-h-56 space-y-1 overflow-y-auto p-2 pt-0">
-                    {availableTags.map((tag) => {
-                      const alreadyAdded = ticket.tags.some(
-                        (existingTag) => existingTag.id === tag.id,
-                      );
-                      return (
-                        <button
-                          key={tag.id}
-                          type="button"
-                          className={cn(
-                            "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors",
-                            alreadyAdded
-                              ? "text-muted-foreground line-through"
-                              : "text-foreground hover:bg-muted",
-                          )}
-                          onClick={() =>
-                            !alreadyAdded && tag.id && onAddTag(tag.id)
-                          }
-                          disabled={alreadyAdded}
-                        >
-                          <span className="truncate">{tag.name}</span>
-                          <span
-                            className="size-2.5 shrink-0 rounded-full"
-                            style={{ backgroundColor: tag.color }}
-                          />
-                        </button>
-                      );
-                    })}
-                    {hasMoreTags ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={onLoadMoreTags}
-                        disabled={isLoadingMoreTags}
-                      >
-                        {isLoadingMoreTags ? "Loading…" : "Load More"}
-                      </Button>
-                    ) : null}
-                  </div>
-                )}
-              </PopoverContent>
-            </Popover>
+              {PRIORITY_META[ticket.priority].label}
+            </button>
+            <button
+              type="button"
+              onClick={onShowDetails}
+              className="shrink-0 truncate rounded-full bg-muted px-3 py-1 text-sm"
+            >
+              {ticket.internal_assignee?.name ?? "Unassigned"}
+            </button>
           </div>
+          <button
+            type="button"
+            onClick={onShowDetails}
+            className="shrink-0 text-sm font-medium text-primary"
+          >
+            Details
+          </button>
         </div>
+      </header>
 
-        {/* Shown only while a target of the ticket's SLA is overdue. */}
-        <TicketSla sla={ticket.sla} />
-      </div>
-
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-3 p-4">
-          {messages.length === 0 ? (
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-muted/30">
+        <div className="flex flex-col gap-5 px-4 py-5 md:px-6">
+          {timeline.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
               <IconMessageChatbot className="mb-1 size-6 text-muted-foreground opacity-40" />
               <Typography variant="small" as="p">
@@ -1529,113 +1462,207 @@ function ConversationPanel({
               </Typography>
             </div>
           ) : (
-            messages.map((message) => {
-              // A "system" message (the ticket summary, or an issue the AI
-              // adds later) deliberately shares the customer bubble: it is
-              // anything that is not a note or an agent reply.
-              const SystemIcon =
-                ticket.channel === "web"
-                  ? IconSparkles
-                  : (CHANNEL_META[ticket.channel]?.icon ?? IconSparkles);
-              const isNote = message.message_type === "internal";
-              // Notes are written by staff, so they sit on the staff side.
-              const isOutgoing = isNote || message.sender_type === "agent";
-
-              return (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex items-end gap-2",
-                    isOutgoing && "flex-row-reverse",
-                  )}
-                >
-                  {isNote ? (
-                    // A sticky note, not a pencil: a pencil in a circle
-                    // beside a message reads as an edit button, and this
-                    // is a label, not something you can press.
-                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-amber-500/60 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
-                      <IconNote className="size-3.5" />
-                    </div>
-                  ) : isOutgoing ? (
-                    <Avatar className="size-7 shrink-0">
-                      <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
-                        A
-                      </AvatarFallback>
-                    </Avatar>
-                  ) : message.sender_type === "system" ? (
-                    // Nobody wrote it, so no initials: the channel the
-                    // ticket came in on, sparkles for the web assistant.
-                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                      <SystemIcon className="size-3.5" />
-                    </div>
-                  ) : (
-                    <CustomerAvatar name={customerName} size="size-7" />
-                  )}
-
-                  {/* Wide bubbles with the time tucked inside: a support
-                      reply is a paragraph, not a chat line, and a separate
-                      meta row under every bubble doubled the spacing. */}
-                  <div
-                    className={cn(
-                      "min-w-0 max-w-4/5 rounded-2xl px-4 py-3",
-                      isNote
-                        ? // Dashed and tinted: an internal note is the one
-                          // thing here the customer never sees, so it has
-                          // to be unmistakable at a glance. The old
-                          // border-on-background was so faint it read as a
-                          // rendering fault.
-                          "rounded-br-md border border-dashed border-amber-500/60 bg-amber-50 dark:bg-amber-500/10"
-                        : isOutgoing
-                          ? "rounded-br-md bg-primary/10"
-                          : "rounded-bl-md bg-muted",
-                    )}
+            timeline.map((item, position) => {
+              if (item.kind === "event") {
+                return (
+                  <p
+                    key={item.id}
+                    className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground"
                   >
-                    {isNote ? (
-                      <Typography
-                        variant="small"
-                        as="p"
-                        className="mb-1 flex items-center gap-1.5 text-primary"
-                      >
-                        <IconLock className="size-3.5" />
-                        Internal note
-                      </Typography>
-                    ) : null}
-                    <MessageAttachments
-                      attachments={message.attachments}
-                      pendingFiles={message.pendingFiles}
-                    />
-                    <div className="rich-text-render text-sm leading-6 [overflow-wrap:anywhere] text-foreground">
-                      <ReactMarkdown>{message.message}</ReactMarkdown>
-                    </div>
-                    {/* What the customer actually received, so a wrong
-                        language is caught and fixed via the language chip. */}
-                    {message.metadata?.translated_message ? (
-                      <div className="mt-2 border-t border-primary/20 pt-2">
-                        <Typography
-                          variant="caption"
-                          as="p"
-                          className="mb-1 flex items-center gap-1.5"
-                        >
-                          <IconLanguage className="size-3.5" />
-                          Sent in{" "}
-                          {message.metadata.translated_message.language_name}
-                        </Typography>
-                        <div className="rich-text-render text-sm leading-6 [overflow-wrap:anywhere] text-foreground">
-                          <ReactMarkdown>
-                            {message.metadata.translated_message.message}
-                          </ReactMarkdown>
-                        </div>
-                      </div>
-                    ) : null}
-                    <Typography
-                      variant="caption"
-                      as="div"
-                      className="mt-1 text-right"
+                    <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+                    {item.text} · {messageTime(item.created_at, true)}
+                  </p>
+                );
+              }
+
+              const { message, index } = item;
+              const previous = timeline
+                .slice(0, position)
+                .reverse()
+                .find((entry) => entry.kind === "message");
+              const newDay =
+                !previous ||
+                previous.kind !== "message" ||
+                new Date(previous.message.created_at).toDateString() !==
+                  new Date(message.created_at).toDateString();
+              const time =
+                message.id < 0
+                  ? "Sending…"
+                  : messageTime(message.created_at, newDay);
+              const isNote = message.message_type === "internal";
+              const isAgent = !isNote && message.sender_type === "agent";
+              const isSystem = message.sender_type === "system";
+
+              const body = (
+                <>
+                  <MessageAttachments
+                    attachments={message.attachments}
+                    pendingFiles={message.pendingFiles}
+                  />
+                  <div className="rich-text-render text-[15px] leading-6 [overflow-wrap:anywhere] text-foreground">
+                    <ReactMarkdown
+                      components={{
+                        // A note's mentions read as names, in the accent colour.
+                        strong: ({ children }) => {
+                          const text = String(children ?? "");
+                          return text.startsWith("@") ? (
+                            <strong className="font-semibold text-primary">
+                              {children}
+                            </strong>
+                          ) : (
+                            <strong>{children}</strong>
+                          );
+                        },
+                      }}
                     >
-                      {message.id < 0
-                        ? "Sending..."
-                        : formatDateTime(message.created_at)}
-                    </Typography>
+                      {isNote
+                        ? markMentions(message.message, staffNames)
+                        : message.message}
+                    </ReactMarkdown>
+                  </div>
+                  {/* What the customer actually received, so a wrong
+                      language is caught and fixed from the language field. */}
+                  {message.metadata?.translated_message ? (
+                    <div className="mt-2 border-t border-primary/20 pt-2">
+                      <p className="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <IconLanguage className="size-3.5" />
+                        Sent in{" "}
+                        {message.metadata.translated_message.language_name}
+                      </p>
+                      <div className="rich-text-render text-[15px] leading-6 [overflow-wrap:anywhere] text-foreground">
+                        <ReactMarkdown>
+                          {message.metadata.translated_message.message}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              );
+
+              // The issue a ticket opens with: the card heading the thread.
+              if (isSystem && index === 0) {
+                const creator = ticket.created_by_type
+                  ? CREATED_BY_LABEL[ticket.created_by_type]
+                  : "AI";
+                const source =
+                  ticket.channel === "web"
+                    ? "a live chat"
+                    : channelLabel(ticket.channel);
+                return (
+                  <div
+                    key={message.id}
+                    className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 md:mr-12"
+                  >
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <p className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-primary">
+                        <IconSparkles className="size-3.5 shrink-0" />
+                        <span className="truncate">
+                          {isPhone
+                            ? `Created by ${creator} from ${source.replace(/^a /, "")}`
+                            : `Ticket created by ${creator} from ${source}`}{" "}
+                          · {time}
+                        </span>
+                      </p>
+                      {chatThreadId ? (
+                        <Link
+                          href={`/support/?chat=${chatThreadId}`}
+                          className="hidden shrink-0 text-xs font-medium text-primary underline md:inline"
+                        >
+                          View chat
+                        </Link>
+                      ) : null}
+                    </div>
+                    {body}
+                    {chatThreadId ? (
+                      <Link
+                        href={`/support/?chat=${chatThreadId}`}
+                        className="mt-1 inline-block text-sm font-medium text-primary underline md:hidden"
+                      >
+                        View chat
+                      </Link>
+                    ) : null}
+                  </div>
+                );
+              }
+
+              if (isNote || isAgent) {
+                const author = shortName(authorOf(message));
+                return (
+                  <div
+                    key={message.id}
+                    className="flex items-start justify-end gap-3"
+                  >
+                    <div
+                      className={cn(
+                        "min-w-0 max-w-full md:max-w-[75%]",
+                        isNote
+                          ? "rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10"
+                          : "",
+                      )}
+                    >
+                      {isNote ? (
+                        <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                          <IconLock className="size-3.5" />
+                          Internal note · {author} · {time}
+                        </p>
+                      ) : (
+                        <p className="mb-1 text-right text-xs text-muted-foreground">
+                          <span className="font-semibold text-foreground">
+                            {author}
+                          </span>{" "}
+                          · {time}
+                        </p>
+                      )}
+                      {isNote ? (
+                        body
+                      ) : (
+                        <div className="rounded-2xl bg-primary/10 px-4 py-3">
+                          {body}
+                        </div>
+                      )}
+                    </div>
+                    <span className="hidden md:block">
+                      <Avatar className="size-9">
+                        <AvatarFallback
+                          className={cn(
+                            "text-xs font-semibold text-white",
+                            isMine(message) ? "bg-primary" : "bg-blue-600",
+                          )}
+                        >
+                          {getInitials(author) ?? "A"}
+                        </AvatarFallback>
+                      </Avatar>
+                    </span>
+                  </div>
+                );
+              }
+
+              // The customer: their own words, or an issue the AI summarised.
+              return (
+                <div key={message.id} className="flex items-start gap-3">
+                  <span className="hidden md:block">
+                    <CustomerAvatar name={customerName} size="size-9" />
+                  </span>
+                  <div className="min-w-0 max-w-full md:max-w-[75%]">
+                    <p className="mb-1 text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground">
+                        {shortName(customerName)}
+                      </span>{" "}
+                      · {time}
+                      {isSystem
+                        ? " · summarised by AI"
+                        : ticket.channel !== "web"
+                          ? ` · by ${channelLabel(ticket.channel).toLowerCase()}`
+                          : ""}
+                    </p>
+                    <div
+                      className={cn(
+                        "rounded-2xl px-4 py-3",
+                        isSystem ? "bg-muted" : "border bg-background",
+                      )}
+                    >
+                      {body}
+                    </div>
                   </div>
                 </div>
               );
@@ -1643,434 +1670,168 @@ function ConversationPanel({
           )}
           <div ref={messagesEndRef} />
         </div>
-      </ScrollArea>
-
-      <div className="shrink-0 border-t p-4">
-        {attachments.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-2">
-            {attachments.map((file, index) => (
-              <div
-                key={`${file.name}-${index}`}
-                className="flex max-w-full items-center gap-2 rounded-md border px-2 py-1 text-sm"
-              >
-                <IconPaperclip className="size-4 shrink-0" />
-                <span className="max-w-48 truncate" title={file.name}>
-                  {file.name}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Remove ${file.name}`}
-                  title="Remove attachment"
-                  disabled={isSending}
-                  onClick={() =>
-                    onAttachmentsChange(
-                      attachments.filter((_, fileIndex) => fileIndex !== index),
-                    )
-                  }
-                >
-                  <IconX className="size-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-        <RichTextArea
-          id="ticket-reply-editor"
-          value={reply}
-          onChange={onReplyChange}
-          useMarkdown
-          disabled={
-            // isMessageImproving ||
-            isSending || isClosed || isTranslating
-          }
-          placeholder="Write a reply…"
-          minHeight="6rem"
-        />
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label="Attach files"
-                disabled={isSending || isClosed || isTranslating}
-                onClick={() => attachmentInputRef.current?.click()}
-              >
-                <IconPaperclip className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Attach files</TooltipContent>
-          </Tooltip>
-          <input
-            ref={attachmentInputRef}
-            type="file"
-            multiple
-            accept={SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS.join(",")}
-            className="hidden"
-            aria-label="Choose attachments"
-            onChange={handleAttachmentChange}
-          />
-          {/* AI tools stay icons — the two sends are what need words. */}
-          {/* <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label={
-                  aiDraft?.message ? "Use AI draft" : "Generate AI draft"
-                }
-                onClick={() =>
-                  aiDraft?.message ? onAcceptDraft() : onAIDraftGenerate()
-                }
-                disabled={
-                  isAIDraftLoading ||
-                  // isMessageImproving ||
-                  isClosed ||
-                  isTranslating
-                }
-              >
-                {isAIDraftLoading ? (
-                  <Spinner className="size-4" />
-                ) : (
-                  <IconMessageChatbot className="size-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {isAIDraftLoading
-                ? "Generating AI draft…"
-                : aiDraft?.message
-                  ? "Use AI draft"
-                  : "Generate AI draft"}
-            </TooltipContent>
-          </Tooltip> */}
-
-          {/*
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    aria-label="Improve the reply"
-                    disabled={isMessageImproving || isClosed || isTranslating}
-                  >
-                    {isMessageImproving ? (
-                      <Spinner className="size-4" />
-                    ) : (
-                      <IconSparkles className="size-4" />
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isMessageImproving ? "Improving…" : "Improve"}
-              </TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel>Improve the reply</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onMessageImprove("rephrase")}>
-                <IconReload className="size-4" />
-                Rephrase
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onMessageImprove("warmer")}>
-                <IconMoodSmile className="size-4" />
-                Warmer
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          */}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              {/* Small text and tight padding, so the label and its cost fit
-                  the button's normal height and the toolbar's one line. */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-0.5 px-1.5 text-xs"
-                title={
-                  translatedLanguage
-                    ? `Translated to ${translatedLanguage.name}`
-                    : undefined
-                }
-                disabled={isClosed || isTranslating}
-              >
-                {isTranslating ? (
-                  <Spinner className="size-3.5" />
-                ) : (
-                  <IconLanguage className="size-3.5" />
-                )}
-                <CreditLabel className="text-[9px]">
-                  {translatedLanguage
-                    ? `Translated to ${translatedLanguage.name}`
-                    : "Translate"}
-                </CreditLabel>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="start"
-              className="max-h-72 overflow-y-auto"
-            >
-              <DropdownMenuLabel>Translate to</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {SUPPORTED_LANGUAGES.map((language) => (
-                <DropdownMenuItem
-                  key={language.code}
-                  onClick={() => onTranslate(language.code)}
-                  className={cn(
-                    language.code === translatedLanguage?.code && "font-medium",
-                  )}
-                >
-                  {language.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <div className="ml-auto flex items-center gap-2">
-            {/* Below 2xl the secondary actions keep their icons and hand
-                the label to a tooltip — same rule as the header actions. */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onSaveDraft}
-                  disabled={isClosed || isTranslating}
-                  aria-label="Save Draft"
-                >
-                  <IconDeviceFloppy className="size-4" />
-                  <span className="hidden 2xl:inline">Save Draft</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Save Draft</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onSend("note")}
-                  disabled={
-                    isSending ||
-                    // isMessageImproving ||
-                    isClosed ||
-                    isTranslating
-                  }
-                  aria-label="Send as Internal Note"
-                >
-                  <IconPencil className="size-4" />
-                  <span className="hidden 2xl:inline">
-                    Send as Internal Note
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Send as Internal Note</TooltipContent>
-            </Tooltip>
-            <ButtonGroup>
-              <Button
-                size="sm"
-                onClick={() => onSend(effectiveSendMode)}
-                disabled={
-                  isSending ||
-                  // isMessageImproving ||
-                  isClosed ||
-                  isTranslating
-                }
-              >
-                {isSending ? (
-                  <Spinner className="size-4" />
-                ) : (
-                  <IconSend className="size-4" />
-                )}
-                {isSending ? (
-                  "Sending…"
-                ) : effectiveSendMode === "customer_language" ||
-                  // Replies on a non-English ticket are always translated.
-                  ticketLanguage !== DEFAULT_TICKET_LANGUAGE ? (
-                  // The send itself translates the reply, so it is billed.
-                  <CreditLabel className="text-primary-foreground/80">
-                    {selectedSendLabel}
-                  </CreditLabel>
-                ) : (
-                  selectedSendLabel
-                )}
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    size="sm"
-                    disabled={
-                      isSending ||
-                      // isMessageImproving ||
-                      isClosed ||
-                      isTranslating
-                    }
-                    className="px-2"
-                    aria-label="Choose send option"
-                  >
-                    <IconChevronDown className="size-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-60">
-                  <DropdownMenuItem
-                    onClick={() => setSelectedSendMode("reply")}
-                  >
-                    <IconSend className="size-4" />
-                    Send
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setSelectedSendMode("customer_language")}
-                  >
-                    <IconLanguage className="size-4" />
-                    <CreditLabel>Send in Customer Language</CreditLabel>
-                  </DropdownMenuItem>
-                  {canResolve ? (
-                    <DropdownMenuItem
-                      onClick={() => setSelectedSendMode("reply_and_resolve")}
-                    >
-                      <IconCircleCheck className="size-4" />
-                      Send and Mark Resolved
-                    </DropdownMenuItem>
-                  ) : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </ButtonGroup>
-          </div>
-        </div>
       </div>
 
-      <AlertDialog
-        open={pendingStatus !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingStatus(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{pendingConfirmation?.title}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingConfirmation?.description}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <p className="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
-            <IconInfoCircle className="mt-0.5 size-4 shrink-0" />A mail will be
-            sent to the customer to let them know about this change.
-          </p>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant={pendingStatus === "closed" ? "destructive" : "default"}
-              onClick={() => {
-                if (pendingStatus) onTicketStatusUpdate(pendingStatus);
-              }}
-            >
-              {pendingConfirmation?.action}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
-        open={pendingTagRemoval !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingTagRemoval(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove this tag?</AlertDialogTitle>
-            <AlertDialogDescription>
-              <span className="font-semibold text-foreground">
-                {pendingTagRemoval?.name}
-              </span>{" "}
-              will be taken off this ticket. If it set the ticket&apos;s SLA,
-              the SLA is recalculated from the ticket&apos;s remaining tags, or
-              removed when none sets one.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                if (pendingTagRemoval) onRemoveTag(pendingTagRemoval.id);
-              }}
-            >
-              Remove tag
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </main>
-  );
-}
-
-/** Icon + value, with the field name in a tooltip — the label is the icon. */
-function TicketFact({
-  icon: Icon,
-  label,
-  value,
-  detail,
-  showValue = false,
-}: {
-  /** Write the value out beside the icon at every width, instead of only from `2xl`. */
-  showValue?: boolean;
-  // The shared tabler type rather than one specific icon's: the channel
-  // fact now picks its icon from a map, and every entry has to fit.
-  icon: Icon;
-  label: string;
-  value: string;
-  /** What the tooltip says when it should say more than the value does. */
-  detail?: string;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex min-w-0 items-center gap-1.5">
-          <Icon className="size-4 shrink-0 text-muted-foreground" />
-          <Typography
-            variant="caption"
+      {isClosed ? (
+        <div className="shrink-0 bg-muted/30 p-4 md:px-6">
+          <div className="flex items-center gap-3 rounded-xl border bg-background px-4 py-4">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted">
+              <IconLock className="size-4 text-muted-foreground" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">
+                This ticket is{" "}
+                {ticket.status === "resolved" ? "resolved" : "closed"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {ticket.status === "resolved" ? "Open" : "Reopen"} it to reply
+                to {firstName} or add an internal note.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="shrink-0 bg-muted/30 p-3 md:px-6 md:pt-0 md:pb-4">
+          <div
             className={cn(
-              "truncate",
-              showValue ? "whitespace-nowrap" : "hidden @5xl/conv:inline",
+              "overflow-hidden rounded-2xl border bg-background shadow-xs focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30 md:rounded-xl",
+              noteMode && "border-amber-300 bg-amber-50/40 dark:bg-amber-500/5",
+              // The phone composer has no formatting row.
+              "max-md:[&_[role=toolbar]]:hidden",
             )}
           >
-            {value}
-          </Typography>
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 border-b px-3 py-2">
+                {attachments.map((file, index) => (
+                  <div
+                    key={`${file.name}-${index}`}
+                    className="flex max-w-full items-center gap-2 rounded-md border bg-muted/40 px-2 py-1 text-sm"
+                  >
+                    <IconPaperclip className="size-4 shrink-0" />
+                    <span className="max-w-48 truncate" title={file.name}>
+                      {file.name}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={`Remove ${file.name}`}
+                      disabled={isSending}
+                      onClick={() =>
+                        onAttachmentsChange(
+                          attachments.filter(
+                            (_, fileIndex) => fileIndex !== index,
+                          ),
+                        )
+                      }
+                    >
+                      <IconX className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <RichTextArea
+              id="ticket-reply-editor"
+              value={reply}
+              onChange={onReplyChange}
+              useMarkdown
+              toolbar="compact"
+              toolbarEnd={
+                <>
+                  {attachButton}
+                  {translateMenu(
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 px-2"
+                      title={
+                        translatedLanguage
+                          ? `Translated to ${translatedLanguage.name}`
+                          : undefined
+                      }
+                    >
+                      {isTranslating ? (
+                        <Spinner className="size-4" />
+                      ) : (
+                        <IconLanguage className="size-4" />
+                      )}
+                      {translatedLanguage
+                        ? `Translated to ${translatedLanguage.name}`
+                        : "Translate"}
+                      <span className="text-xs font-normal text-destructive">
+                        1 credit
+                      </span>
+                    </Button>,
+                  )}
+                </>
+              }
+              disabled={composerDisabled}
+              placeholder={
+                noteMode
+                  ? "Write an internal note…"
+                  : `${isPhone ? "Reply" : "Write a reply"} to ${firstName}…`
+              }
+              minHeight="4.5rem"
+              className="bg-transparent"
+            />
+            <input
+              ref={attachmentInputRef}
+              type="file"
+              multiple
+              accept={SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS.join(",")}
+              className="hidden"
+              aria-label="Choose attachments"
+              onChange={handleAttachmentChange}
+            />
+            <div className="flex items-center gap-2 px-3 pt-1 pb-3">
+              {/* The phone's attach and translate, where the toolbar was. */}
+              <span className="flex items-center md:hidden">
+                {attachButton}
+                {translateMenu(
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Translate the conversation"
+                  >
+                    {isTranslating ? (
+                      <Spinner className="size-4" />
+                    ) : (
+                      <IconLanguage className="size-4" />
+                    )}
+                  </Button>,
+                )}
+              </span>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <Switch
+                  checked={noteMode}
+                  onCheckedChange={setNoteMode}
+                  disabled={composerDisabled}
+                  aria-label="Internal note"
+                />
+                <span className="hidden md:inline">Internal note</span>
+                <span className="md:hidden">Note</span>
+              </label>
+              <div className="ml-auto flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9"
+                  onClick={onSaveDraft}
+                  disabled={isClosed || isTranslating}
+                  aria-label="Save draft"
+                >
+                  <IconDeviceFloppy className="size-4 md:hidden" />
+                  <span className="hidden md:inline">Save draft</span>
+                </Button>
+                {sendButton}
+              </div>
+            </div>
+          </div>
         </div>
-      </TooltipTrigger>
-      <TooltipContent>
-        {label}: {detail ?? value}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-/**
- * The orders pane before a ticket is chosen, and while one loads. One
- * component so both states keep the pane exactly as wide as the real one.
- */
-function TicketInsightsPlaceholder({
-  loading,
-  label,
-}: {
-  loading?: boolean;
-  label: string;
-}) {
-  return (
-    <aside className="hidden w-72 shrink-0 flex-col items-center justify-center border-l px-6 text-center xl:flex 2xl:w-95">
-      {loading ? (
-        <LoadingState label={label} />
-      ) : (
-        <Typography variant="muted">{label}</Typography>
       )}
-    </aside>
+    </main>
   );
 }
 
@@ -2171,6 +1932,35 @@ export default function HelpDesk() {
 
   const [showTagPicker, setShowTagPicker] = useState(false);
 
+  // Every status change waits for a yes, since each one emails the customer.
+  // Here rather than in a pane: the header, the details panel and the phone
+  // chips all ask for one.
+  const [pendingStatus, setPendingStatus] = useState<
+    keyof typeof STATUS_CONFIRMATIONS | null
+  >(null);
+  const pendingConfirmation = pendingStatus
+    ? STATUS_CONFIRMATIONS[pendingStatus]
+    : null;
+  // Taking a tag off changes the ticket's SLA, so it waits for a yes too.
+  const [pendingTagRemoval, setPendingTagRemoval] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+
+  // The open ticket's history: the Activity tab, and the status lines in the
+  // conversation. Only shown once it is this ticket's.
+  const [activityTicketId, setActivityTicketId] = useState<number | null>(null);
+  const {
+    SupportTicketActivityFetchData,
+    SupportTicketActivityFetchIsLoading,
+  } = useAppSelector(
+    (state) => state.GetSupportTicketsReducer.SupportTicketActivityFetchState,
+  );
+  const { FetchSupportTicketFilterCountsData } = useAppSelector(
+    (state) =>
+      state.GetSupportTicketsReducer.FetchSupportTicketFilterCountsState,
+  );
+
   // Which language the open ticket's messages are being shown in. Scoped to
   // the ticket: translating rewrites the loaded messages, and opening
   // another ticket loads untranslated ones.
@@ -2201,20 +1991,32 @@ export default function HelpDesk() {
   // they survive a refresh and a shared link, and stay put while the sidebar
   // view changes (its links carry them along). Read as plain strings first so
   // the objects below keep their identity until one really changes.
+  const channelParam = searchParams?.get("channel") ?? "";
   const priorityParam = searchParams?.get("priority") ?? "";
-  const fromDateParam = searchParams?.get("from_date") ?? "";
-  const toDateParam = searchParams?.get("to_date") ?? "";
+  const sentimentParam = searchParams?.get("sentiment") ?? "";
+  const assigneeParam = searchParams?.get("assignee") ?? "";
   const sortParam = searchParams?.get("sort");
 
   const appliedFilters = useMemo<TicketFilterSelection>(
     () => ({
-      priorities: priorityOptions
-        .map((option) => option.value)
-        .filter((value) => priorityParam.split(",").includes(value)),
-      fromDate: isValidDateParam(fromDateParam) ? fromDateParam : "",
-      toDate: isValidDateParam(toDateParam) ? toDateParam : "",
+      channels: pickParam(
+        channelParam,
+        Object.keys(CHANNEL_META) as SupportTicketChannel[],
+      ),
+      priorities: pickParam(
+        priorityParam,
+        priorityOptions.map((option) => option.value),
+      ),
+      sentiments: pickParam(
+        sentimentParam,
+        TICKET_SENTIMENTS.map((option) => option.value),
+      ),
+      assignees: pickParam(
+        assigneeParam,
+        assigneeOptions.map((option) => option.value),
+      ),
     }),
-    [priorityParam, fromDateParam, toDateParam],
+    [channelParam, priorityParam, sentimentParam, assigneeParam],
   );
   const sortOrder: SupportTicketOrdering =
     SORT_OPTIONS.find((option) => option.key === sortParam)?.key ??
@@ -2286,37 +2088,9 @@ export default function HelpDesk() {
     setTicketRows([]);
   }
 
-  const filterFormik = useFormik<TicketFilterSelection>({
-    initialValues: emptyTicketFilters,
-    validate: (values) => {
-      const now = new Date();
-
-      if (values.fromDate && new Date(values.fromDate) > now) {
-        return { fromDate: "The From date/time cannot be in the future" };
-      }
-
-      if (values.toDate && new Date(values.toDate) > now) {
-        return { toDate: "The To date/time cannot be in the future." };
-      }
-
-      if (
-        values.fromDate &&
-        values.toDate &&
-        new Date(values.fromDate) > new Date(values.toDate)
-      ) {
-        return { toDate: "The To date must be after the From date." };
-      }
-      return {};
-    },
-    onSubmit: (values) => {
-      updateQueryParams({
-        priority: values.priorities.join(",") || null,
-        from_date: values.fromDate || null,
-        to_date: values.toDate || null,
-      });
-      setIsFilterOpen(false);
-    },
-  });
+  // The popover's choices until "Show results" puts them in the URL.
+  const [draftFilters, setDraftFilters] =
+    useState<TicketFilterSelection>(emptyTicketFilters);
 
   const ticketTags = FetchSupportTicketTagsData?.results;
 
@@ -2693,18 +2467,19 @@ export default function HelpDesk() {
       status: activeQueue,
       ordering: sortOrder,
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
-      // The picker yields whole days, so the range runs from the start of
-      // the first to the end of the last — otherwise "to: today" would stop
-      // at midnight and miss everything that happened today.
-      ...(appliedFilters.fromDate
-        ? { from_date: startOfDay(appliedFilters.fromDate) }
-        : {}),
-      ...(appliedFilters.toDate
-        ? { to_date: endOfDay(appliedFilters.toDate) }
+      ...(appliedFilters.channels.length
+        ? { channel: appliedFilters.channels }
         : {}),
       ...(appliedFilters.priorities.length
         ? { priority: appliedFilters.priorities }
         : {}),
+      ...(appliedFilters.sentiments.length
+        ? { sentiment: appliedFilters.sentiments }
+        : {}),
+      // An assignee view decides the assignee itself; see ASSIGNEE_VIEWS.
+      ...(ASSIGNEE_VIEWS.includes(activeFilter)
+        ? {}
+        : assigneeQuery(appliedFilters.assignees)),
     };
 
     // The sidebar view is the narrower of the two: it replaces, rather than
@@ -2764,7 +2539,7 @@ export default function HelpDesk() {
           !data.results.some((ticket) => ticket.id === openId);
 
         if (page === 1 && (!openId || openTicketLeftList)) {
-          const next = isBelowLg() ? null : (data.results[0] ?? null);
+          const next = isPhoneWidth() ? null : (data.results[0] ?? null);
           setActiveTicketId(next?.id ?? null);
           setActiveSupportTicket(next);
         }
@@ -2899,6 +2674,38 @@ export default function HelpDesk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [FetchSupportTicketDetailsData]);
 
+  // Loaded with the ticket, not on opening the tab: its count heads the tab
+  // and its status changes are drawn between the messages.
+  const loadActivity = useCallback(
+    (ticketId: number) => {
+      if (!storeCode) return undefined;
+      const request = dispatch(
+        SupportTicketActivityFetch({ storeCode, ticketId }),
+      );
+      // Marked as this ticket's once it has arrived, so another ticket's
+      // history never shows while this one loads.
+      void request.then((result) => {
+        if (SupportTicketActivityFetch.fulfilled.match(result)) {
+          setActivityTicketId(ticketId);
+        }
+      });
+      return request;
+    },
+    [dispatch, storeCode],
+  );
+
+  useEffect(() => {
+    if (!activeTicketId) return;
+    const request = loadActivity(activeTicketId);
+    // A slower answer for the previous ticket must not land on this one.
+    return () => request?.abort();
+  }, [activeTicketId, loadActivity]);
+
+  const ticketActivity: SupportTicketActivityItem[] =
+    activityTicketId === activeTicketId && !SupportTicketActivityFetchIsLoading
+      ? SupportTicketActivityFetchData
+      : [];
+
   // A link can name a ticket that was deleted, belongs to another store,
   // or was simply mistyped. Saying so beats "no ticket selected", which
   // reads as though nothing was asked for.
@@ -2907,11 +2714,6 @@ export default function HelpDesk() {
     !FetchSupportTicketDetailsIsLoading &&
     Boolean(FetchSupportTicketDetailsIsError) &&
     activeSupportTicket?.id !== activeTicketId;
-
-  const activeQueueLabel = useMemo(
-    () => queues.find((queue) => queue.key === activeQueue)?.label ?? "Open",
-    [activeQueue],
-  );
 
   // The customer behind the open ticket, and their other tickets. No
   // session data is requested: a ticket can arrive by email, phone or
@@ -3257,6 +3059,10 @@ export default function HelpDesk() {
             }
           : null,
       });
+      // The assignment is now part of the ticket's history.
+      if (currentActiveSupportTicketIdRef.current === ticketId) {
+        loadActivity(ticketId);
+      }
 
       toast.success(
         staffId === null
@@ -3586,7 +3392,7 @@ export default function HelpDesk() {
 
           // Narrow screens go back to the list rather than opening the
           // next ticket unasked.
-          const narrow = isBelowLg();
+          const narrow = isPhoneWidth();
           if (narrow && ticketId === currentActiveSupportTicketIdRef.current) {
             setPortraitView("list");
           }
@@ -3750,39 +3556,75 @@ export default function HelpDesk() {
     }
   };
 
+  // A tag typed into the picker that does not exist yet: create it, then put
+  // it on the ticket like any other.
+  const handleCreateTag = async (name: string, color: string) => {
+    if (!storeCode) return;
+    try {
+      const created = await dispatch(
+        TicketTagCreate({
+          storeCode,
+          payload: { name, color, description: "" },
+        }),
+      ).unwrap();
+      if (created?.id) {
+        setTagSearchInput("");
+        setTagPage(1);
+        await handleAddTag(created.id);
+      }
+    } catch {
+      // The thunk has already said why.
+    }
+  };
+
+  /** Opens another of the customer's tickets, from the Customer tab. */
+  const handleOpenOtherTicket = (ticketId: number) => {
+    setIsDetailsOpen(false);
+    setPortraitView("conversation");
+    setReply("");
+    setTranslatedLanguage(null);
+    setAttachmentSelection({ ticketId: null, files: [] });
+    setActiveTicketId(ticketId);
+  };
+
   // Support Ticket Filter Utilities
   const handleFilterOpenChange = (open: boolean) => {
     setIsFilterOpen(open);
     if (open) {
-      filterFormik.resetForm({ values: appliedFilters });
+      setDraftFilters(appliedFilters);
     }
   };
 
   const handleApplyFilters = () => {
-    filterFormik.handleSubmit();
-  };
-
-  const handleClearFilters = () => {
-    filterFormik.resetForm({ values: emptyTicketFilters });
-    updateQueryParams({ priority: null, from_date: null, to_date: null });
+    updateQueryParams({
+      channel: draftFilters.channels.join(",") || null,
+      priority: draftFilters.priorities.join(",") || null,
+      sentiment: draftFilters.sentiments.join(",") || null,
+      assignee: draftFilters.assignees.join(",") || null,
+    });
     setIsFilterOpen(false);
   };
 
-  // Below `lg` the conversation pane (and its placeholders) show only when
+  // On a phone the conversation pane (and its placeholders) show only when
   // a ticket is open and the user has chosen it; otherwise the list does.
   const showConversationBelowLg =
     portraitView === "conversation" && activeTicketId !== null;
   const conversationPaneClass = showConversationBelowLg ? "flex" : "hidden";
 
+  const ticketIsClosed =
+    activeSupportTicket?.status === "closed" ||
+    activeSupportTicket?.status === "resolved";
+
   return (
-    <div className="flex h-svh min-h-0 flex-col overflow-hidden border-y">
+    <div className="flex h-svh min-h-0 flex-col overflow-hidden">
       <div className="flex min-h-0 flex-1">
         <TicketListPanel
           className={showConversationBelowLg ? "hidden" : "flex"}
           rows={ticketRows}
           activeTicketId={activeSupportTicket?.id ?? null}
           activeQueue={activeQueue}
-          queueLabel={activeQueueLabel}
+          activeFilter={activeFilter}
+          filterCounts={FetchSupportTicketFilterCountsData}
           onQueueChange={handleQueueChange}
           sortOrder={sortOrder}
           onSortChange={handleSortChange}
@@ -3797,20 +3639,18 @@ export default function HelpDesk() {
           }}
           searchValue={searchValue}
           onSearchChange={setSearchValue}
-          filters={filterFormik.values}
+          filters={draftFilters}
           isFilterOpen={isFilterOpen}
           onFilterOpenChange={handleFilterOpenChange}
-          onFiltersChange={(filters) => filterFormik.setValues(filters)}
+          onFiltersChange={setDraftFilters}
           onApplyFilters={handleApplyFilters}
-          onClearFilters={handleClearFilters}
-          dateError={filterFormik.errors.fromDate ?? filterFormik.errors.toDate}
           supportTicketStatusCount={FetchSupportTicketsListData.status_counts}
         />
         {(FetchSupportTicketsLoading || FetchSupportTicketDetailsIsLoading) &&
         activeSupportTicket?.id !== activeTicketId ? (
           <div
             className={cn(
-              "min-w-0 flex-1 items-center justify-center desktop:flex",
+              "min-w-0 flex-1 items-center justify-center bg-muted/30 md:flex",
               conversationPaneClass,
             )}
           >
@@ -3819,13 +3659,13 @@ export default function HelpDesk() {
         ) : linkedTicketMissing ? (
           <div
             className={cn(
-              "min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center desktop:flex",
+              "min-w-0 flex-1 flex-col items-center justify-center gap-1 bg-muted/30 px-6 text-center md:flex",
               conversationPaneClass,
             )}
           >
-            <IconInbox className="mb-1 size-6 text-muted-foreground opacity-40" />
+            <IconInbox className="mb-1 size-7 text-muted-foreground opacity-40" />
             <Typography variant="small" as="p">
-              Ticket Not Found
+              Ticket not found
             </Typography>
             <Typography variant="muted">
               This ticket could not be opened. It may belong to another store,
@@ -3837,17 +3677,17 @@ export default function HelpDesk() {
               className="mt-3"
               onClick={() => setActiveTicketId(null)}
             >
-              Back to Inbox
+              Back to inbox
             </Button>
           </div>
         ) : !activeSupportTicket ? (
           <div
             className={cn(
-              "min-w-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center desktop:flex",
+              "min-w-0 flex-1 flex-col items-center justify-center gap-1 bg-muted/30 px-6 text-center md:flex",
               conversationPaneClass,
             )}
           >
-            <IconInbox className="mb-1 size-6 text-muted-foreground opacity-40" />
+            <IconInbox className="mb-1 size-7 text-muted-foreground opacity-40" />
             <Typography variant="small" as="p">
               No ticket selected
             </Typography>
@@ -3865,9 +3705,14 @@ export default function HelpDesk() {
               setActiveTicketId(null);
             }}
             onShowDetails={() => setIsDetailsOpen(true)}
-            storeCode={storeCode}
             ticket={activeSupportTicket}
             messages={supportTikcetMessages}
+            staff={staff}
+            currentUser={{
+              name: session?.user?.name,
+              email: session?.user?.email,
+            }}
+            activity={ticketActivity}
             reply={reply}
             attachments={attachments}
             onAttachmentsChange={(files) =>
@@ -3876,76 +3721,26 @@ export default function HelpDesk() {
             isSending={SupportTicketMessageSendIsLoading}
             onReplyChange={setReply}
             onSend={handleSend}
-            onAcceptDraft={handleAcceptDraft}
             onSaveDraft={handleSaveDraft}
-            availableTags={ticketTags}
-            isTagPickerOpen={showTagPicker}
-            isTagPickerLoading={FetchSupportTicketTagsIsLoading}
-            isLoadingMoreTags={FetchSupportTicketTagsIsLoading && tagPage > 1}
-            hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
-            onLoadMoreTags={() => {
-              if (FetchSupportTicketTagsData?.next) {
-                setTagPage((current) => current + 1);
-              }
-            }}
-            tagSearch={tagSearchInput}
-            onTagSearchChange={setTagSearchInput}
-            onToggleTagPicker={handleToggleTagPicker}
-            onAddTag={handleAddTag}
-            onRemoveTag={handleRemoveTag}
-            availableStaff={staff}
-            canAssign={canAssign}
-            onAssignStaff={handleStaffAssign}
-            // onMessageImprove={handleMessageImprove}
-            // isMessageImproving={SupportMessageImproveIsLoading}
-            onTicketSnooze={handleTicketSnooze}
-            onTicketStatusUpdate={handleSupportTicketStatusUpdate}
-            onTicketPriorityUpdate={handleSupportTicketPriorityUpdate}
-            onTicketLanguageSentimentUpdate={
-              handleSupportTicketLanguageSentimentUpdate
-            }
-            onAIDraftGenerate={handleAiDraftGenerate}
-            isAIDraftLoading={SupportTicketAIMessageDraftGenerateIsLoading}
-            aiDraft={
-              activeSupportTicket?.drafts?.find(
-                (draft) => draft.draft_type === "ai",
-              ) ?? null
-            }
-            isClosed={
-              activeSupportTicket.status === "closed" ||
-              activeSupportTicket.status === "resolved"
-            }
+            isClosed={ticketIsClosed}
             onTranslate={handleSupportTicketMessagesTranslate}
             isTranslating={SupportTicketMessagesTranslateIsLoading}
             translatedLanguage={translatedLanguage}
-            onLinkCustomer={() => setIsLinkCustomerOpen(true)}
+            onRequestStatus={(status) =>
+              status !== "snoozed" && setPendingStatus(status)
+            }
           />
         )}
         {(FetchSupportTicketsLoading || FetchSupportTicketDetailsIsLoading) &&
         activeSupportTicket?.id !== activeTicketId ? (
-          <TicketInsightsPlaceholder
-            loading
-            label="Loading customer details…"
-          />
+          <TicketDetailsPlaceholder loading label="Loading ticket details…" />
         ) : !activeSupportTicket ? (
-          <TicketInsightsPlaceholder label="Select a ticket to see the customer's details." />
+          <TicketDetailsPlaceholder label="Select a ticket to see its details." />
         ) : (
-          <CustomerDetailsPanel
+          <TicketDetailsPanel
             open={isDetailsOpen}
             onOpenChange={setIsDetailsOpen}
-            customerData={ticketCustomer}
-            orders={ticketCustomer?.orders}
-            ordersLoading={FetchSupportTicketDetailsIsLoading}
-            onOrdersSync={handleCustomerOrderSync}
-            orderSyncLoading={SyncCustomerOrdersIsLoading}
-            ordersDisabled={
-              activeSupportTicket.status === "closed" ||
-              activeSupportTicket.status === "resolved"
-            }
-            tickets={{
-              data: otherCustomerTickets,
-              loading: FetchFreshdeskTicketIdIsLoading,
-            }}
+            ticket={activeSupportTicket}
             copilot={
               storeCode
                 ? {
@@ -3955,6 +3750,61 @@ export default function HelpDesk() {
                     onInsertDraft: setReply,
                   }
                 : undefined
+            }
+            isClosed={ticketIsClosed}
+            allowedStatuses={
+              STATUS_TRANSITIONS[activeSupportTicket.status] ?? []
+            }
+            onRequestStatus={(status) =>
+              status !== "snoozed" && setPendingStatus(status)
+            }
+            onPriorityChange={handleSupportTicketPriorityUpdate}
+            staff={staff}
+            canAssign={canAssign}
+            onAssign={handleStaffAssign}
+            onLanguageSentimentChange={
+              handleSupportTicketLanguageSentimentUpdate
+            }
+            availableTags={ticketTags ?? []}
+            isTagPickerOpen={showTagPicker}
+            onTagPickerOpenChange={(open) =>
+              open !== showTagPicker && handleToggleTagPicker()
+            }
+            tagsLoading={FetchSupportTicketTagsIsLoading}
+            isLoadingMoreTags={FetchSupportTicketTagsIsLoading && tagPage > 1}
+            hasMoreTags={Boolean(FetchSupportTicketTagsData?.next)}
+            onLoadMoreTags={() => {
+              if (FetchSupportTicketTagsData?.next) {
+                setTagPage((current) => current + 1);
+              }
+            }}
+            tagSearch={tagSearchInput}
+            onTagSearchChange={setTagSearchInput}
+            onAddTag={handleAddTag}
+            onRequestTagRemoval={(tagId) => {
+              const tag = activeSupportTicket.tags?.find(
+                (candidate) => candidate.id === tagId,
+              );
+              setPendingTagRemoval({
+                id: tagId,
+                name: tag?.name ?? "this tag",
+              });
+            }}
+            onCreateTag={handleCreateTag}
+            customer={ticketCustomer}
+            customerName={customerLabel(activeSupportTicket.customer)}
+            ordersLoading={FetchSupportTicketDetailsIsLoading}
+            onOrdersSync={handleCustomerOrderSync}
+            orderSyncLoading={SyncCustomerOrdersIsLoading}
+            ordersDisabled={ticketIsClosed}
+            otherTickets={otherCustomerTickets}
+            otherTicketsLoading={FetchFreshdeskTicketIdIsLoading}
+            onLinkCustomer={() => setIsLinkCustomerOpen(true)}
+            onOpenTicket={handleOpenOtherTicket}
+            activity={ticketActivity}
+            activityLoading={
+              SupportTicketActivityFetchIsLoading ||
+              activityTicketId !== activeTicketId
             }
           />
         )}
@@ -3969,6 +3819,70 @@ export default function HelpDesk() {
           onLink={(customer) => handleLinkCustomer(customer.id)}
         />
       ) : null}
+
+      <AlertDialog
+        open={pendingStatus !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingStatus(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{pendingConfirmation?.title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingConfirmation?.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <p className="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+            <IconInfoCircle className="mt-0.5 size-4 shrink-0" />A mail will be
+            sent to the customer to let them know about this change.
+          </p>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant={pendingStatus === "closed" ? "destructive" : "default"}
+              onClick={() => {
+                if (pendingStatus)
+                  handleSupportTicketStatusUpdate(pendingStatus);
+              }}
+            >
+              {pendingConfirmation?.action}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={pendingTagRemoval !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingTagRemoval(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this tag?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold text-foreground">
+                {pendingTagRemoval?.name}
+              </span>{" "}
+              will be taken off this ticket. If it set the ticket&apos;s SLA,
+              the SLA is recalculated from the ticket&apos;s remaining tags, or
+              removed when none sets one.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (pendingTagRemoval) handleRemoveTag(pendingTagRemoval.id);
+              }}
+            >
+              Remove tag
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

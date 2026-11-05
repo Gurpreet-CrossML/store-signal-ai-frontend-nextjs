@@ -39,6 +39,14 @@ type RichTextAreaProps = {
   minHeight?: string;
   /** Height at which the box stops growing and scrolls. Any CSS length. */
   maxHeight?: string;
+  /**
+   * "compact": bold, italic and the two lists only, with `toolbarEnd` after
+   * them, and no frame of its own — for a composer that draws its own card.
+   * "none": no toolbar and no frame, for the phone composer.
+   */
+  toolbar?: "full" | "compact" | "none";
+  /** Extra controls at the end of a compact toolbar (attach, translate). */
+  toolbarEnd?: React.ReactNode;
 };
 
 const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
@@ -97,9 +105,13 @@ const ToolbarButton = ({
 const Toolbar = ({
   editor,
   disabled,
+  compact,
+  end,
 }: {
   editor: Editor;
   disabled?: boolean;
+  compact?: boolean;
+  end?: React.ReactNode;
 }) => {
   const state = useEditorState({
     editor,
@@ -114,6 +126,55 @@ const Toolbar = ({
         HEADING_LEVELS.find((level) => e.isActive("heading", { level })) ?? 0,
     }),
   });
+
+  if (compact) {
+    return (
+      <div
+        role="toolbar"
+        aria-label="Formatting"
+        className="flex flex-wrap items-center gap-1 border-b border-border px-2 py-1.5"
+      >
+        <ToolbarButton
+          label="Bold"
+          active={state.bold}
+          disabled={disabled}
+          onClick={() => editor.chain().focus().toggleBold().run()}
+        >
+          <IconBold className="size-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Italic"
+          active={state.italic}
+          disabled={disabled}
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+        >
+          <IconItalic className="size-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Bulleted list"
+          active={state.bulletList}
+          disabled={disabled}
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+        >
+          <IconList className="size-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Numbered list"
+          active={state.orderedList}
+          disabled={disabled}
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        >
+          <IconListNumbers className="size-4" />
+        </ToolbarButton>
+        {end ? (
+          <>
+            <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+            {end}
+          </>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -213,8 +274,12 @@ const RichTextArea: React.FC<RichTextAreaProps> = ({
   className,
   minHeight,
   maxHeight,
+  toolbar = "full",
+  toolbarEnd,
 }) => {
   const contentType = useMarkdown ? "markdown" : "html";
+  // Both drop the frame: the composer around them draws its own card.
+  const compact = toolbar !== "full";
 
   // The latest value this editor emitted, so the sync effect below can tell
   // an echo of the user's own typing from a genuine external change.
@@ -259,6 +324,20 @@ const RichTextArea: React.FC<RichTextAreaProps> = ({
     [useMarkdown],
   );
 
+  // The editor is made once, so a new placeholder (another customer's name,
+  // a note instead of a reply) is set on the extension and redrawn.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const extension = editor.extensionManager.extensions.find(
+      (candidate) => candidate.name === "placeholder",
+    );
+    const next = placeholder || "Type or paste your content here!";
+    if (!extension || extension.options.placeholder === next) return;
+    extension.options.placeholder = next;
+    // An empty transaction redraws the placeholder decoration.
+    editor.view.dispatch(editor.state.tr);
+  }, [editor, placeholder]);
+
   useEffect(() => {
     // `false`: by default setEditable fires an update event, which would echo
     // the editor's stale text back through onChange the moment a send disables
@@ -282,7 +361,10 @@ const RichTextArea: React.FC<RichTextAreaProps> = ({
     // wherever it lands.
     <div
       className={cn(
-        "rich-text-shell w-full rounded-md border border-input bg-background text-sm transition-[color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
+        "rich-text-shell w-full bg-background text-sm transition-[color,box-shadow]",
+        compact
+          ? "rounded-none border-0"
+          : "rounded-md border border-input focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
         disabled && "opacity-60",
         className,
       )}
@@ -293,7 +375,14 @@ const RichTextArea: React.FC<RichTextAreaProps> = ({
         } as React.CSSProperties
       }
     >
-      {editor && <Toolbar editor={editor} disabled={disabled} />}
+      {editor && toolbar !== "none" && (
+        <Toolbar
+          editor={editor}
+          disabled={disabled}
+          compact={compact}
+          end={toolbarEnd}
+        />
+      )}
       <EditorContent editor={editor} />
     </div>
   );
