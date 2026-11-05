@@ -369,18 +369,32 @@ function AIInsightsSection({
 /* Thread-detail presentation                                          */
 /* ------------------------------------------------------------------ */
 
-function ResolutionRing({ value }: { value: number }) {
+function ResolutionRing({
+  value,
+  compact = false,
+}: {
+  value: number;
+  compact?: boolean;
+}) {
   const rate = Math.max(0, Math.min(100, value || 0));
   return (
     <span
       aria-label={`${rate}% resolution score`}
-      className="relative inline-flex size-14 shrink-0 items-center justify-center rounded-full text-primary"
+      className={`relative inline-flex shrink-0 items-center justify-center rounded-full text-primary ${
+        compact ? "size-11" : "size-14"
+      }`}
       style={{
         background: `conic-gradient(#7c22ce ${rate}%, #ede9fe 0)`,
       }}
     >
-      <span className="size-11 rounded-full bg-background" />
-      <span className="absolute text-[13px] font-bold tabular-nums">
+      <span
+        className={`rounded-full bg-background ${compact ? "size-9" : "size-11"}`}
+      />
+      <span
+        className={`absolute font-bold tabular-nums ${
+          compact ? "text-[11px]" : "text-[13px]"
+        }`}
+      >
         {rate}%
       </span>
     </span>
@@ -846,7 +860,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   return (
     <div className="min-h-svh bg-muted/50">
       <header className="border-b bg-background">
-        <div className="flex h-14 items-center border-b px-4 lg:hidden">
+        <div className="flex h-16 items-center border-b px-6 lg:hidden">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -855,7 +869,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           >
             <IconArrowLeft />
           </Button>
-          <h1 className="ml-3 text-2xl font-bold">Thread</h1>
+          <h1 className="ml-3 text-xl font-bold">Thread</h1>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -865,7 +879,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             <IconDotsVertical />
           </Button>
         </div>
-        <div className="flex w-full items-start gap-3 px-4 py-8 lg:px-6 lg:py-4">
+        <div className="flex w-full items-start gap-3 px-5 py-7 lg:px-6 lg:py-4">
           <div className="min-w-0 flex-1">
             <nav
               aria-label="Breadcrumb"
@@ -884,7 +898,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             <div className="flex min-w-0 items-center gap-3">
               <span
                 aria-hidden
-                className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-primary text-lg font-semibold text-primary-foreground"
+                className="flex size-[70px] shrink-0 items-center justify-center rounded-2xl bg-primary text-xl font-semibold text-primary-foreground lg:size-14 lg:rounded-xl lg:text-lg"
               >
                 {getInitials(customerName) ?? "?"}
               </span>
@@ -893,45 +907,63 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                   <h1 className="truncate text-2xl font-bold">
                     {customerName}
                   </h1>
-                  <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
-                    {isResolved ? "Resolved by AI" : "AI review"}
-                  </Badge>
-                  <Badge variant="secondary">
-                    {details?.is_active ? "Active" : "Closed"}
-                  </Badge>
-                  {threadTagLabels.slice(0, 1).map((tag) => (
-                    <Badge
-                      key={tag}
-                      className="bg-primary/10 text-primary hover:bg-primary/10"
-                    >
-                      {tag}
+                  <div className="hidden items-center gap-2 lg:flex">
+                    <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+                      {isResolved ? "Resolved by AI" : "AI review"}
                     </Badge>
-                  ))}
+                    <Badge variant="secondary">
+                      {details?.is_active ? "Active" : "Closed"}
+                    </Badge>
+                    {threadTagLabels.slice(0, 1).map((tag) => (
+                      <Badge
+                        key={tag}
+                        className="bg-primary/10 text-primary hover:bg-primary/10"
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="flex w-full flex-wrap gap-x-5 gap-y-0 text-sm text-muted-foreground">
+                    <span className="lg:hidden">
+                      Web chat ·{" "}
+                      {formatHeaderRange(
+                        details?.created_at,
+                        details?.ended_at,
+                        false,
+                      )}
+                    </span>
+                    <span className="hidden lg:inline">Web chat</span>
+                    <span className="hidden lg:inline">
+                      {formatHeaderRange(details?.created_at, details?.ended_at)}
+                    </span>
+                    <span className="hidden lg:inline">
+                      {formatHeaderDuration(
+                        details?.created_at,
+                        details?.ended_at,
+                      )}
+                    </span>
+                    <span className="hidden lg:inline">
+                      {details?.total_messages ?? threadMessages.length} messages
+                    </span>
+                  </p>
                 </div>
-                <p className="flex flex-wrap gap-x-5 gap-y-0 text-sm text-muted-foreground">
-                  <span className="lg:hidden">
-                    Web chat ·{" "}
-                    {formatHeaderRange(
-                      details?.created_at,
-                      details?.ended_at,
-                      false,
-                    )}
-                  </span>
-                  <span className="hidden lg:inline">Web chat</span>
-                  <span className="hidden lg:inline">
-                    {formatHeaderRange(details?.created_at, details?.ended_at)}
-                  </span>
-                  <span className="hidden lg:inline">
-                    {formatHeaderDuration(
-                      details?.created_at,
-                      details?.ended_at,
-                    )}
-                  </span>
-                  <span className="hidden lg:inline">
-                    {details?.total_messages ?? threadMessages.length} messages
-                  </span>
-                </p>
               </div>
+            </div>
+            <div className="mt-5 flex flex-wrap items-center gap-2 lg:hidden">
+              <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+                {isResolved ? "Resolved by AI" : "AI review"}
+              </Badge>
+              <Badge variant="secondary">
+                {details?.is_active ? "Active" : "Closed"}
+              </Badge>
+              {threadTagLabels.slice(0, 1).map((tag) => (
+                <Badge
+                  key={tag}
+                  className="bg-primary/10 text-primary hover:bg-primary/10"
+                >
+                  {tag}
+                </Badge>
+              ))}
             </div>
           </div>
           {/* Desktop thread actions. The mobile Create ticket control below is
@@ -948,27 +980,27 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             </Button>
           </div>
         </div>
-        <div className="grid w-full grid-cols-3 border-t lg:hidden">
-          <div className="flex items-center gap-2 border-r p-3 max-[374px]:flex-col max-[374px]:gap-0">
-            <ResolutionRing value={resolutionRate} />
-            <span>
-              <small className="text-muted-foreground">Resolution</small>
-            </span>
+        <div className="mx-6 mb-3 grid grid-cols-[1.1fr_.85fr_1.05fr] overflow-hidden rounded-xl border lg:hidden">
+          <div className="flex flex-col items-start gap-1 border-r px-2 py-2 leading-tight">
+            <small className="text-muted-foreground">Resolution</small>
+            <div className="flex self-center items-center gap-1.5">
+              <ResolutionRing value={resolutionRate} compact />
+            </div>
           </div>
-          <div className="border-r p-3">
-            <b className="block text-xl">
+          <div className="flex flex-col items-start gap-1 border-r px-2 py-2 leading-tight">
+            <small className="text-muted-foreground">Messages</small>
+            <b className="flex min-h-8 items-center whitespace-nowrap text-base">
               {details?.total_messages ?? threadMessages.length}
             </b>
-            <small className="text-muted-foreground">Messages</small>
           </div>
-          <div className="p-3">
-            <b className="block text-xl">
+          <div className="flex flex-col items-start gap-1 px-2 py-2 leading-tight">
+            <small className="text-muted-foreground">Duration</small>
+            <b className="flex min-h-8 items-center whitespace-nowrap text-sm">
               {getDuration(
                 details?.created_at ?? null,
                 details?.ended_at ?? null,
               ) || "—"}
             </b>
-            <small className="text-muted-foreground">Duration</small>
           </div>
         </div>
       </header>
