@@ -70,6 +70,7 @@ import { SearchInput } from "@/components/custom/search-input";
 import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
 import { LiveMessagePan } from "@/components/custom/message-pan";
+import { MessageIconCircular } from "@/components/icons/MessageIconCircular";
 import {
   FetchCart,
   FetchFreshdeskTicketId,
@@ -118,7 +119,6 @@ import {
   IconFilter,
   IconHeadset,
   IconLock,
-  IconMessage2,
   IconMoodSmile,
   IconDotsVertical,
   IconId,
@@ -3260,7 +3260,7 @@ export default function Support() {
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
                           <div className="mb-3 flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <IconMessage2 className="size-8" />
+                            <MessageIconCircular className="size-8" />
                           </div>
                           <Typography
                             variant="small"
@@ -3375,7 +3375,7 @@ export default function Support() {
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
             <div className="mb-3 flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <IconMessage2 className="size-8" />
+              <MessageIconCircular className="size-8" />
             </div>
             <Typography
               variant="small"
