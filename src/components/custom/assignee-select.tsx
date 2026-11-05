@@ -6,6 +6,7 @@ import {
   IconChevronUp,
   IconLock,
   IconShieldCheck,
+  IconX,
 } from "@tabler/icons-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/command";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -235,7 +237,7 @@ export function AssigneeSelect({
           </Button>
         </DialogTrigger>
         <DialogContent
-          showCloseButton
+          showCloseButton={false}
           className="w-[calc(100vw-2rem)] max-w-90 gap-0 overflow-hidden rounded-xl p-2"
         >
           <DialogHeader className="sr-only">
@@ -246,7 +248,23 @@ export function AssigneeSelect({
             </DialogDescription>
           </DialogHeader>
           <Command className="rounded-lg!">
-            <CommandInput placeholder="Search teammates" />
+            {/* The close button sits beside the search, not over it. */}
+            <div className="flex items-start gap-1">
+              <div className="min-w-0 flex-1">
+                <CommandInput placeholder="Search teammates" />
+              </div>
+              <DialogClose asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="mt-1.5"
+                  aria-label="Close"
+                >
+                  <IconX />
+                </Button>
+              </DialogClose>
+            </div>
             <CommandList className="max-h-[60vh] px-1 pb-1">
               {renderOptions()}
             </CommandList>

@@ -20,7 +20,6 @@ import {
   IconCheck,
   IconChevronDown,
   IconChevronLeft,
-  IconCircleCheck,
   IconCircleX,
   IconDeviceFloppy,
   IconFilter,
@@ -222,7 +221,7 @@ function RowChip({
   return (
     <span
       className={cn(
-        "inline-flex max-w-28 shrink-0 items-center truncate rounded px-1.5 py-0.5 text-[11px] font-medium leading-none",
+        "inline-block max-w-28 shrink-0 truncate rounded px-1.5 text-[11px] leading-4 font-medium",
         className,
       )}
       style={style}
@@ -241,7 +240,8 @@ function TicketRow({
   active?: boolean;
   onSelect: () => void;
 }) {
-  const customerName = customerLabel(ticket.customer);
+  const customerName =
+    ticket.customer_name?.trim() || customerLabel(ticket.customer);
   // List rows carry the order's total; a row added from the ticket's details
   // (a deep link) carries the customer's orders instead.
   const order = findLinkedOrder(
@@ -266,7 +266,10 @@ function TicketRow({
               ? { color: tag.color, backgroundColor: tint(tag.color, 0.12) }
               : undefined
           }
-          className={tag.color ? undefined : "bg-muted text-muted-foreground"}
+          className={cn(
+            "min-w-0 shrink",
+            !tag.color && "bg-muted text-muted-foreground",
+          )}
         >
           {tag.name}
         </RowChip>
@@ -780,12 +783,7 @@ function TicketListPanel({
             );
           })}
         </div>
-        <div
-          className={cn(
-            "-mx-4 flex gap-2 overflow-x-auto px-4 md:hidden",
-            NO_SCROLLBAR,
-          )}
-        >
+        <div className="flex gap-1.5 md:hidden">
           {queues.map((queue) => {
             const active = queue.key === activeQueue;
             return (
@@ -795,7 +793,7 @@ function TicketListPanel({
                 aria-pressed={active}
                 onClick={() => !active && onQueueChange(queue.key)}
                 className={cn(
-                  "flex h-9 shrink-0 items-center gap-1 rounded-full border px-4 text-sm whitespace-nowrap",
+                  "flex h-9 min-w-0 flex-auto items-center justify-center gap-1 rounded-full border px-2 text-[13px] whitespace-nowrap",
                   active
                     ? "border-foreground bg-foreground font-medium text-background"
                     : "bg-background text-foreground",
@@ -1024,9 +1022,10 @@ function ConversationPanel({
   const customerName = customerLabel(ticket.customer);
   const firstName = customerName.split(" ")[0];
   const chatThreadId =
-    ticket.customer && typeof ticket.customer === "object"
+    ticket.thread ??
+    (ticket.customer && typeof ticket.customer === "object"
       ? ticket.customer.thread_id
-      : null;
+      : null);
   const staffNames = staff.map((member) =>
     `${member.first_name} ${member.last_name}`.trim(),
   );
@@ -1221,7 +1220,7 @@ function ConversationPanel({
                       {
                         mode: "reply_and_resolve",
                         label: "Send and resolve",
-                        icon: IconCircleCheck,
+                        icon: IconCheck,
                       },
                     ]
                   : []),
@@ -1310,14 +1309,6 @@ function ConversationPanel({
               {customerName} · {ticketRef(ticket.ticket_id)}
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Ticket details"
-            onClick={onShowDetails}
-          >
-            <IconInfoCircle className="size-5" />
-          </Button>
           <div className="flex shrink-0 items-center gap-1.5">
             {statusButtons}
           </div>
@@ -1410,6 +1401,10 @@ function ConversationPanel({
                 message.id < 0
                   ? "Sending…"
                   : messageTime(message.created_at, newDay);
+              const clock =
+                message.id < 0
+                  ? "Sending…"
+                  : formatTicketTime(message.created_at);
               const isNote = message.message_type === "internal";
               const isAgent = !isNote && message.sender_type === "agent";
               const isSystem = message.sender_type === "system";
@@ -1481,7 +1476,7 @@ function ConversationPanel({
                           {isPhone
                             ? `Created by ${creator} from ${source.replace(/^a /, "")}`
                             : `Ticket created by ${creator} from ${source}`}{" "}
-                          · {time}
+                          · {clock}
                         </span>
                       </p>
                       {chatThreadId ? (
@@ -1524,7 +1519,7 @@ function ConversationPanel({
                       {isNote ? (
                         <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
                           <IconLock className="size-3.5" />
-                          Internal note · {author} · {time}
+                          Internal note · {author} · {clock}
                         </p>
                       ) : (
                         <p className="mb-1 text-right text-xs text-muted-foreground">

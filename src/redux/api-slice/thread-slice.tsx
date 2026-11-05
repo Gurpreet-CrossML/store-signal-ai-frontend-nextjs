@@ -465,6 +465,8 @@ export type OrderData = {
    * the button simply does not render.
    */
   admin_url?: string | null;
+  /** Product image per ordered variant (`product_id` of an item). */
+  item_images?: Record<string, string>;
 };
 
 export type ThreadCounts = {

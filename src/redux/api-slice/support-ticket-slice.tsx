@@ -248,6 +248,10 @@ export type SupportTicket = {
   order_total?: string | null;
   order_currency?: string | null;
   customer: string | SupportTicketCustomer | null;
+  /** The customer's full name; sent by the ticket list only. */
+  customer_name?: string | null;
+  /** The chat the ticket was raised from; sent by the ticket's details. */
+  thread?: string | null;
   internal_assignee: SupportTicketAssignee | null;
 
   subject: string;

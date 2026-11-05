@@ -17,6 +17,7 @@ import {
   IconPhone,
   IconPlus,
   IconRefresh,
+  IconShoppingBag,
   IconSparkles,
   IconTag,
   IconUserPlus,
@@ -721,7 +722,20 @@ function OrderCard({
               key={`${item.sku}-${index}`}
               className="flex items-start gap-3 py-1.5"
             >
-              <span className="size-9 shrink-0 rounded-md border bg-background" />
+              <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-background">
+                {order.item_images?.[String(item.product_id)] ? (
+                  // Product images come from arbitrary store CDNs, so
+                  // next/image's domain allowlist can't cover them.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={order.item_images[String(item.product_id)]}
+                    alt={item.name}
+                    className="size-full object-contain"
+                  />
+                ) : (
+                  <IconShoppingBag className="size-4 text-muted-foreground" />
+                )}
+              </span>
               <div className="min-w-0 flex-1">
                 <p className="font-medium leading-tight">{item.name}</p>
                 <p className="text-xs text-muted-foreground">
