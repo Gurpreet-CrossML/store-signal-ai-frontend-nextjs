@@ -66,7 +66,9 @@ export default function ConversationMap({
       message.json_content?.products?.length ||
       message.json_content?.related_products?.length
     ) {
-      return [{ minute, tone: "bg-primary", label: "Products shown" }];
+      return [
+        { minute, tone: "bg-primary ring-primary", label: "Products shown" },
+      ];
     }
     if (
       message.json_content?.cart_action ||
@@ -86,12 +88,12 @@ export default function ConversationMap({
         {
           minute,
           tone: isRemoval
-            ? "bg-amber-500"
+            ? "bg-amber-500 ring-amber-500"
             : isCartView
-              ? "bg-sky-500"
+              ? "bg-sky-500 ring-sky-500"
               : isCheckout
-                ? "bg-primary"
-                : "bg-emerald-500",
+                ? "bg-primary ring-primary"
+                : "bg-emerald-500 ring-emerald-500",
           label: isRemoval
             ? "Removed from cart"
             : isCartView
@@ -180,7 +182,7 @@ export default function ConversationMap({
               Closed
             </span>
             <span className="absolute bottom-1 left-0 top-9 w-px bg-border" />
-            <span className="absolute bottom-0 left-1/2 size-3 -translate-x-1/2 rounded-full border-2 border-background bg-muted-foreground shadow-sm" />
+            <span className="absolute bottom-0 left-1/2 size-4 -translate-x-1/2 rounded-[5px] border-2 border-background bg-muted-foreground ring-1 ring-muted-foreground" />
           </div>
         ) : null}
         {visibleMarkers.map((marker, index) => {
@@ -216,7 +218,7 @@ export default function ConversationMap({
                 title={marker.label}
                 aria-label={marker.label}
                 className={cn(
-                  "absolute bottom-0 left-1/2 size-3 -translate-x-1/2 rounded-full border-2 border-background shadow-sm",
+                  "absolute bottom-0 left-1/2 size-4 -translate-x-1/2 rounded-[5px] border-2 border-background ring-1",
                   marker.tone,
                 )}
               />
@@ -250,10 +252,7 @@ export default function ConversationMap({
           </span>
         ))}
       </div>
-      <p className="px-5 pb-4 pt-7 text-[10px] text-muted-foreground">
-        Each bar shows messages sent in that minute. Markers identify
-        significant events during the conversation.
-      </p>
+      <div className="h-14" />
     </section>
   );
 }
