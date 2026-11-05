@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormik } from "formik";
 import { z } from "zod";
 import {
@@ -123,7 +123,7 @@ const schema = z.object({
     .min(10, "Describe the problem in at least 10 characters."),
   priority: z.enum(["low", "normal", "high", "urgent"]),
   orderId: z.string(),
-  tagNames: z.array(z.string()),
+  tagNames: z.array(z.string()).min(1, "Select at least one tag."),
   language: z.string(),
 });
 
@@ -318,6 +318,7 @@ export function CreateTicketDialog({
   // render that matters.
   const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
   const [drafting, setDrafting] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const { CreateSupportTicketIsLoading } = useAppSelector(
     (state) => state.GetSupportTicketsReducer.CreateSupportTicketState,
@@ -445,6 +446,21 @@ export function CreateTicketDialog({
     };
   }, [dispatch, open, storeCode, customerId]);
 
+  // The form scrolls inside the dialog and the footer button sits outside
+  // it, so a failed submit can leave the error out of sight — bring the first
+  // one into view. Waits a frame so the error has rendered.
+  const handleCreate = async () => {
+    try {
+      await formik.submitForm();
+    } finally {
+      requestAnimationFrame(() => {
+        formRef.current
+          ?.querySelector("[data-field-error]")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+  };
+
   const handleDraft = async () => {
     if (!onDraft) return;
     setDrafting(true);
@@ -502,6 +518,7 @@ export function CreateTicketDialog({
         </DialogHeader>
 
         <form
+          ref={formRef}
           onSubmit={formik.handleSubmit}
           className="flex max-h-[calc(100dvh-12rem)] min-h-0 flex-col gap-5 overflow-y-auto px-1 sm:max-h-[60vh] sm:gap-6"
         >
@@ -571,7 +588,12 @@ export function CreateTicketDialog({
               placeholder="Refund not received for order #1042"
             />
             {formik.touched.subject && formik.errors.subject && (
-              <Typography variant="caption" as="p" className="text-destructive">
+              <Typography
+                variant="caption"
+                as="p"
+                className="text-destructive"
+                data-field-error
+              >
                 {formik.errors.subject}
               </Typography>
             )}
@@ -592,7 +614,12 @@ export function CreateTicketDialog({
               placeholder="What the customer asked for, and anything the next agent needs to know."
             />
             {formik.touched.description && formik.errors.description && (
-              <Typography variant="caption" as="p" className="text-destructive">
+              <Typography
+                variant="caption"
+                as="p"
+                className="text-destructive"
+                data-field-error
+              >
                 {formik.errors.description}
               </Typography>
             )}
@@ -680,9 +707,12 @@ export function CreateTicketDialog({
           </div>
 
           <Field>
-            <FieldLabel>Tags</FieldLabel>
+            <FieldLabel>
+              Tags
+              <span className="-ml-1 text-xs text-destructive">*</span>
+            </FieldLabel>
             <FieldDescription>
-              Choose from the store&apos;s tags.
+              Choose at least one of the store&apos;s tags.
             </FieldDescription>
             <MultiSelectCombobox
               options={tagOptions}
@@ -693,11 +723,17 @@ export function CreateTicketDialog({
               isLoading={FetchSupportTicketTagsIsLoading}
               portalContainer={contentEl}
             />
-            {formik.touched.tagNames && formik.errors.tagNames && (
-              <Typography variant="caption" as="p" className="text-destructive">
-                {formik.errors.tagNames}
-              </Typography>
-            )}
+            {formik.touched.tagNames &&
+              typeof formik.errors.tagNames === "string" && (
+                <Typography
+                  variant="caption"
+                  as="p"
+                  className="text-destructive"
+                  data-field-error
+                >
+                  {formik.errors.tagNames}
+                </Typography>
+              )}
           </Field>
         </form>
 
@@ -718,7 +754,7 @@ export function CreateTicketDialog({
             // there is nobody to raise it for, and the message would have
             // to point at a field the form cannot highlight.
             disabled={!customer || busy}
-            onClick={() => formik.handleSubmit()}
+            onClick={handleCreate}
           >
             {busy ? (
               <Spinner className="size-4" />
