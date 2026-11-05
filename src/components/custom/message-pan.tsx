@@ -32,6 +32,7 @@ import {
 import { Button } from "@/components/ui/button";
 import HoverZoomImage from "@/components/custom/hover-zoom-image";
 import { ProductCarousel } from "@/components/custom/product-carousel";
+import { ProductStrip } from "@/components/custom/product-strip";
 import { getInitials } from "@/components/custom/customer-avatar";
 import { Spinner } from "../ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
@@ -48,6 +49,18 @@ function whoIs(
     return start ? "You" : "you";
   }
   return name ?? fallback;
+}
+
+/** Transcript headers show the time only; the conversation date is shown once elsewhere. */
+function formatMessageTime(value?: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
 /** One line for a handover, e.g. "Priya took over from AI at 1:32 pm · AI paused". */
@@ -399,7 +412,7 @@ export function MessagePan({
                                 "Agent"}
                             </span>
                             <span className="shrink-0 opacity-60">
-                              {formatDateTime(message.created_at)}
+                              {formatMessageTime(message.created_at)}
                             </span>
                           </div>
                           <p className="mt-0.5 whitespace-pre-wrap wrap-break-word">
@@ -435,12 +448,12 @@ export function MessagePan({
                       : "max-w-[82%]"
                   }`}
                 >
-                  <Avatar className="mt-1 h-7 w-7 shrink-0 md:h-6 md:w-6">
+                  <Avatar className="mt-1 h-7 w-7 shrink-0 rounded-lg md:h-8 md:w-8">
                     <AvatarFallback
                       className={
                         isCustomer
-                          ? "bg-primary text-xs text-primary-foreground"
-                          : "bg-foreground text-xs text-background"
+                          ? "rounded-lg bg-primary text-xs font-semibold text-primary-foreground"
+                          : "rounded-lg bg-foreground text-xs font-semibold text-background"
                       }
                     >
                       {avatarLabel}
@@ -451,11 +464,16 @@ export function MessagePan({
                       which pushed the whole pane into sideways scrolling. */}
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div className="mb-1 flex flex-wrap items-center gap-x-2 justify-start">
-                      <span className="text-xs font-medium text-foreground capitalize">
+                      <span className="text-sm font-semibold text-foreground capitalize">
                         {senderLabel}
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDateTime(message.created_at)}
+                      {!isCustomer && isStoreSignalAI ? (
+                        <span className="rounded bg-primary/10 px-1.5 py-px text-[10px] font-semibold text-primary">
+                          AI
+                        </span>
+                      ) : null}
+                      <span className="text-sm text-muted-foreground">
+                        {formatMessageTime(message.created_at)}
                       </span>
                       {!isCustomer &&
                       isStoreSignalAI &&
@@ -471,7 +489,7 @@ export function MessagePan({
                       <div
                         id="markdown-message-bubble"
                         style={{ borderRadius: "0.7rem" }}
-                        className={`min-w-0 max-w-full wrap-anywhere p-3 text-sm ${isCustomer ? "rounded-tr-none bg-primary text-primary-foreground md:rounded-none md:bg-transparent md:p-0 md:text-foreground" : "rounded-tl-none border border-border bg-secondary md:rounded-none md:border-0 md:bg-transparent md:p-0"}`}
+                        className={`min-w-0 max-w-full wrap-anywhere p-3 text-sm md:text-base ${isCustomer ? "rounded-tr-none bg-primary text-primary-foreground md:rounded-none md:bg-transparent md:p-0 md:text-foreground" : "rounded-tl-none border border-border bg-secondary md:rounded-none md:border-0 md:bg-transparent md:p-0"}`}
                       >
                         {message.role === "assistant" ? (
                           (() => {
@@ -549,7 +567,7 @@ export function MessagePan({
                     {message.role === "assistant" &&
                       message?.json_content?.products &&
                       message.json_content.products.length > 0 && (
-                        <ProductCarousel
+                        <ProductStrip
                           products={message.json_content.products}
                           comparisonBlock={
                             message.json_content.comparison_block
@@ -564,7 +582,7 @@ export function MessagePan({
                           <h4 className="text-xs font-semibold text-muted-foreground">
                             Related Products
                           </h4>
-                          <ProductCarousel
+                          <ProductStrip
                             products={message.json_content.related_products}
                           />
                         </div>
@@ -681,13 +699,16 @@ export function MessagePan({
                       message.json_content?.suggestions &&
                       message.json_content.suggestions.length > 0 && (
                         <div className="mt-2 flex justify-start">
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm text-muted-foreground">
+                              Suggested replies:
+                            </span>
                             {message.json_content.suggestions.map(
                               (s: string, idx: number) => (
                                 <Button
                                   key={idx}
                                   variant="outline"
-                                  className="text-xs hover:bg-primary/25 hover:text-primary hover:border-primary rounded-full"
+                                  className="h-7 rounded-full px-3 text-sm font-normal hover:border-primary hover:bg-primary/25 hover:text-primary"
                                 >
                                   {s}
                                 </Button>

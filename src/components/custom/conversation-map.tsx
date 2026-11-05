@@ -1,6 +1,13 @@
 import { cn } from "@/lib/utils";
 import type { ThreadMessage } from "@/redux/api-slice/thread-slice";
 
+type Marker = {
+  minute: number;
+  tone: string;
+  label: string;
+  shape?: "diamond";
+};
+
 type ConversationMapProps = {
   messages: ThreadMessage[];
   rate: number;
@@ -56,7 +63,7 @@ export default function ConversationMap({
       ).length,
   );
   const max = Math.max(...volume, 1);
-  const markers = messages.flatMap((message) => {
+  const markers = messages.flatMap<Marker>((message) => {
     if (!first) return [];
     const minute = Math.floor(
       (new Date(message.created_at).getTime() - first.getTime()) / 60000,
@@ -66,7 +73,9 @@ export default function ConversationMap({
       message.json_content?.products?.length ||
       message.json_content?.related_products?.length
     ) {
-      return [{ minute, tone: "bg-primary", label: "Products shown" }];
+      return [
+        { minute, tone: "bg-primary ring-primary", label: "Products shown" },
+      ];
     }
     if (
       message.json_content?.cart_action ||
@@ -86,12 +95,12 @@ export default function ConversationMap({
         {
           minute,
           tone: isRemoval
-            ? "bg-amber-500"
+            ? "bg-amber-500 ring-amber-500"
             : isCartView
-              ? "bg-sky-500"
+              ? "bg-sky-500 ring-sky-500"
               : isCheckout
-                ? "bg-primary"
-                : "bg-emerald-500",
+                ? "bg-primary ring-primary"
+                : "bg-emerald-500 ring-emerald-500",
           label: isRemoval
             ? "Removed from cart"
             : isCartView
@@ -106,10 +115,44 @@ export default function ConversationMap({
   });
   // Overlapping markers hide each other at minute-level resolution, so retain
   // the first meaningful event in each minute.
-  const visibleMarkers = markers.filter(
+  const dedupedMarkers = markers.filter(
     (marker, index) =>
       markers.findIndex((item) => item.minute === marker.minute) === index,
   );
+  // AI issues carry no timestamp, so the diamond sits on the AI reply it was
+  // least sure about (the last reply when none has a score), on a free minute.
+  const issueReply = messages
+    .filter((message) => message.role === "assistant" && !message.agent_name)
+    .reduce<
+      ThreadMessage | undefined
+    >((worst, message) => (!worst || (message.confidence ?? 1) <= (worst.confidence ?? 1) ? message : worst), undefined);
+  const issueMarkers: Marker[] = [];
+  if (issueCount > 0 && issueReply && first) {
+    const taken = new Set([
+      ...dedupedMarkers.map((marker) => marker.minute),
+      minutes - 1, // the "Closed" marker
+    ]);
+    let minute = Math.min(
+      minutes - 1,
+      Math.max(
+        0,
+        Math.floor(
+          (new Date(issueReply.created_at).getTime() - first.getTime()) / 60000,
+        ),
+      ),
+    );
+    const step = minute >= minutes - 1 ? -1 : 1;
+    while (taken.has(minute) && minute + step >= 0 && minute + step < minutes) {
+      minute += step;
+    }
+    issueMarkers.push({
+      minute,
+      tone: "bg-red-600 ring-red-600",
+      label: "AI issue",
+      shape: "diamond",
+    });
+  }
+  const visibleMarkers = [...dedupedMarkers, ...issueMarkers];
   const removedCount = markers.filter(
     (marker) => marker.label === "Removed from cart",
   ).length;
@@ -173,14 +216,14 @@ export default function ConversationMap({
           </div>
         ))}
       </div>
-      <div className="relative mx-5 mt-5 h-32 border-b border-primary/20 pb-5">
+      <div className="relative mx-5 mt-5 h-28 pb-1">
         {last ? (
-          <div className="absolute inset-y-0 right-2 z-10 w-px">
+          <div className="absolute top-0 bottom-1 right-2 z-10 w-px">
             <span className="absolute right-0 top-5 whitespace-nowrap text-[10px] font-medium text-foreground">
               Closed
             </span>
             <span className="absolute bottom-1 left-0 top-9 w-px bg-border" />
-            <span className="absolute bottom-0 left-1/2 size-3 -translate-x-1/2 rounded-full border-2 border-background bg-muted-foreground shadow-sm" />
+            <span className="absolute bottom-0.5 left-1/2 size-4 -translate-x-1/2 rounded-[5px] border-2 border-background bg-muted-foreground ring-1 ring-muted-foreground" />
           </div>
         ) : null}
         {visibleMarkers.map((marker, index) => {
@@ -196,7 +239,7 @@ export default function ConversationMap({
           return (
             <div
               key={`${marker.minute}-${marker.label}`}
-              className="absolute inset-y-0 z-10 w-px -translate-x-1/2"
+              className="absolute top-0 bottom-1 z-10 w-px -translate-x-1/2"
               style={{ left: `${position}%` }}
             >
               <span
@@ -216,7 +259,8 @@ export default function ConversationMap({
                 title={marker.label}
                 aria-label={marker.label}
                 className={cn(
-                  "absolute bottom-0 left-1/2 size-3 -translate-x-1/2 rounded-full border-2 border-background shadow-sm",
+                  "absolute bottom-0.5 left-1/2 size-4 -translate-x-1/2 rounded-[5px] border-2 border-background ring-1",
+                  marker.shape === "diamond" && "rotate-45 rounded-[2px]",
                   marker.tone,
                 )}
               />
@@ -235,7 +279,7 @@ export default function ConversationMap({
         {timeTicks.map((tick) => (
           <span
             key={tick.position}
-            className="absolute bottom-[-1.65rem] whitespace-nowrap text-xs text-muted-foreground"
+            className="absolute bottom-[-1.25rem] whitespace-nowrap text-xs text-muted-foreground"
             style={{
               left: `${tick.position * 100}%`,
               transform:
@@ -250,10 +294,7 @@ export default function ConversationMap({
           </span>
         ))}
       </div>
-      <p className="px-5 pb-4 pt-7 text-[10px] text-muted-foreground">
-        Each bar shows messages sent in that minute. Markers identify
-        significant events during the conversation.
-      </p>
+      <div className="h-14" />
     </section>
   );
 }
