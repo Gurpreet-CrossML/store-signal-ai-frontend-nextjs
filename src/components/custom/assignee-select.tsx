@@ -247,23 +247,22 @@ export function AssigneeSelect({
               {noun === "chat" ? "conversation" : "ticket"}.
             </DialogDescription>
           </DialogHeader>
+          {/* Level with the search field (its 32px box starts 12px down) and
+              clear of it: the field stops short to leave this room. */}
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="absolute top-3 right-2"
+              aria-label="Close"
+            >
+              <IconX />
+            </Button>
+          </DialogClose>
           <Command className="rounded-lg!">
-            {/* The close button sits beside the search, not over it. */}
-            <div className="flex items-start gap-1">
-              <div className="min-w-0 flex-1">
-                <CommandInput placeholder="Search teammates" />
-              </div>
-              <DialogClose asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="mt-1.5"
-                  aria-label="Close"
-                >
-                  <IconX />
-                </Button>
-              </DialogClose>
+            <div className="pr-8">
+              <CommandInput placeholder="Search teammates" />
             </div>
             <CommandList className="max-h-[60vh] px-1 pb-1">
               {renderOptions()}

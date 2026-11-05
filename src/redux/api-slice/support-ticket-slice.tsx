@@ -252,6 +252,8 @@ export type SupportTicket = {
   customer_name?: string | null;
   /** The chat the ticket was raised from; sent by the ticket's details. */
   thread?: string | null;
+  /** Whether that chat is still open; null when there is none. */
+  thread_is_active?: boolean | null;
   internal_assignee: SupportTicketAssignee | null;
 
   subject: string;

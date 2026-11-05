@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   useRef,
@@ -49,6 +50,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
@@ -149,6 +151,7 @@ import {
   type SupportTicketCustomer,
   type SupportTicketOrdering,
   type SupportTicketStatus,
+  type SupportTicketTagData,
   type SupportTicketFilterCounts,
   type SupportTicketFilters,
   type SupportTicketStatusCounts,
@@ -166,10 +169,13 @@ const RichTextArea = dynamic(
   },
 );
 
-// Max tags to show in a ticket row, before a "+N".
-const MAX_VISIBLE_TKT_ROW_TAGS = 2;
-// Narrower rows on a phone.
-const MAX_VISIBLE_TKT_ROW_TAGS_MOBILE = 1;
+// One empty list for every untagged row, so it compares equal across renders.
+const NO_TAGS: SupportTicketTagData[] = [];
+
+// Most tags a ticket row shows; the rest go behind a "+N" chip.
+const MAX_ROW_TAGS = 2;
+// The row's chip gap (gap-1.5), in pixels.
+const ROW_TAG_GAP = 6;
 
 /** Hides a horizontal scrollbar while keeping the strip scrollable. */
 const NO_SCROLLBAR = "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
@@ -221,7 +227,7 @@ function RowChip({
   return (
     <span
       className={cn(
-        "inline-block max-w-28 shrink-0 truncate rounded px-1.5 text-[11px] leading-4 font-medium",
+        "inline-block shrink-0 rounded px-1.5 text-[11px] leading-4 font-medium whitespace-nowrap",
         className,
       )}
       style={style}
@@ -254,33 +260,57 @@ function TicketRow({
   const orderCurrency = ticket.order_currency ?? order?.currency;
   const unread = !ticket.is_read;
   const priorityChip = ROW_PRIORITY_CHIP[ticket.priority];
-  const tags = ticket.tags ?? [];
+  const tags = ticket.tags ?? NO_TAGS;
 
-  const renderTags = (max: number, showHidden = true) => (
-    <>
-      {tags.slice(0, max).map((tag) => (
-        <RowChip
-          key={tag.id}
-          style={
-            tag.color
-              ? { color: tag.color, backgroundColor: tint(tag.color, 0.12) }
-              : undefined
-          }
-          className={cn(
-            "min-w-0 shrink",
-            !tag.color && "bg-muted text-muted-foreground",
-          )}
-        >
-          {tag.name}
-        </RowChip>
-      ))}
-      {showHidden && tags.length > max ? (
-        <HiddenTagsBadge
-          tags={tags.slice(max)}
-          label={`+${tags.length - max}`}
-        />
-      ) : null}
-    </>
+  // Whole tags only, as many as the line has room for (up to MAX_ROW_TAGS),
+  // then "+N". Measured, since the room depends on the list's width and on
+  // what else the line carries.
+  const tagsBoxRef = useRef<HTMLSpanElement>(null);
+  const tagsMeasureRef = useRef<HTMLSpanElement>(null);
+  const [shownTags, setShownTags] = useState(
+    Math.min(tags.length, MAX_ROW_TAGS),
+  );
+  useLayoutEffect(() => {
+    const box = tagsBoxRef.current;
+    const measure = tagsMeasureRef.current;
+    if (!box || !measure) return;
+    const fit = () => {
+      // The measuring copy holds the first tags, then the "+N" chip.
+      const widths = Array.from(
+        measure.children,
+        (child) => (child as HTMLElement).offsetWidth,
+      );
+      const plus = widths.pop() ?? 0;
+      const width = (count: number) => {
+        const chips = widths.slice(0, count);
+        if (count < tags.length) chips.push(plus);
+        return (
+          chips.reduce((sum, chip) => sum + chip, 0) +
+          Math.max(0, chips.length - 1) * ROW_TAG_GAP
+        );
+      };
+      let count = Math.min(tags.length, MAX_ROW_TAGS);
+      while (count > 0 && width(count) > box.clientWidth) count -= 1;
+      setShownTags(count);
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [tags]);
+
+  const tagChip = (tag: SupportTicketTagData) => (
+    <RowChip
+      key={tag.id}
+      style={
+        tag.color
+          ? { color: tag.color, backgroundColor: tint(tag.color, 0.12) }
+          : undefined
+      }
+      className={tag.color ? undefined : "bg-muted text-muted-foreground"}
+    >
+      {tag.name}
+    </RowChip>
   );
 
   return (
@@ -354,16 +384,29 @@ function TicketRow({
               {capitalizeText(ticket.priority)}
             </RowChip>
           ) : null}
-          <span className="hidden min-w-0 items-center gap-1.5 md:flex">
-            {renderTags(MAX_VISIBLE_TKT_ROW_TAGS)}
-          </span>
-          {/* A phone row has room for one chip: the priority, else a tag. */}
-          <span className="flex min-w-0 items-center gap-1.5 md:hidden">
-            {renderTags(
-              priorityChip ? 0 : MAX_VISIBLE_TKT_ROW_TAGS_MOBILE,
-              false,
-            )}
-          </span>
+          {tags.length > 0 ? (
+            <span
+              ref={tagsBoxRef}
+              className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden"
+            >
+              {tags.slice(0, shownTags).map(tagChip)}
+              {tags.length > shownTags ? (
+                <HiddenTagsBadge
+                  tags={tags.slice(shownTags)}
+                  label={`+${tags.length - shownTags}`}
+                />
+              ) : null}
+              {/* Off-screen copy the room is measured against. */}
+              <span
+                ref={tagsMeasureRef}
+                aria-hidden
+                className="pointer-events-none invisible absolute flex gap-1.5"
+              >
+                {tags.slice(0, MAX_ROW_TAGS).map(tagChip)}
+                <Badge variant="outline">+{tags.length}</Badge>
+              </span>
+            </span>
+          ) : null}
         </div>
       </div>
     </button>
@@ -795,7 +838,7 @@ function TicketListPanel({
                 className={cn(
                   "flex h-9 min-w-0 flex-auto items-center justify-center gap-1 rounded-full border px-2 text-[13px] whitespace-nowrap",
                   active
-                    ? "border-foreground bg-foreground font-medium text-background"
+                    ? "border-primary bg-primary font-medium text-primary-foreground"
                     : "bg-background text-foreground",
                 )}
               >
@@ -1021,11 +1064,13 @@ function ConversationPanel({
   const ticketLanguage = ticket.language ?? DEFAULT_TICKET_LANGUAGE;
   const customerName = customerLabel(ticket.customer);
   const firstName = customerName.split(" ")[0];
-  const chatThreadId =
-    ticket.thread ??
-    (ticket.customer && typeof ticket.customer === "object"
-      ? ticket.customer.thread_id
-      : null);
+  // The chat the ticket came from: live support while it is open, the
+  // threads page once closed, and no link when there is none.
+  const chatHref = ticket.thread
+    ? ticket.thread_is_active
+      ? `/support/?chat=${ticket.thread}`
+      : `/threads/${ticket.thread}`
+    : null;
   const staffNames = staff.map((member) =>
     `${member.first_name} ${member.last_name}`.trim(),
   );
@@ -1479,9 +1524,9 @@ function ConversationPanel({
                           · {clock}
                         </span>
                       </p>
-                      {chatThreadId ? (
+                      {chatHref ? (
                         <Link
-                          href={`/support/?chat=${chatThreadId}`}
+                          href={chatHref}
                           className="hidden shrink-0 text-xs font-medium text-primary underline md:inline"
                         >
                           View chat
@@ -1489,9 +1534,9 @@ function ConversationPanel({
                       ) : null}
                     </div>
                     {body}
-                    {chatThreadId ? (
+                    {chatHref ? (
                       <Link
-                        href={`/support/?chat=${chatThreadId}`}
+                        href={chatHref}
                         className="mt-1 inline-block text-sm font-medium text-primary underline md:hidden"
                       >
                         View chat
