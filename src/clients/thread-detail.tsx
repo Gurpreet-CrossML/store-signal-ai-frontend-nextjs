@@ -934,7 +934,10 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                     </span>
                     <span className="hidden lg:inline">Web chat</span>
                     <span className="hidden lg:inline">
-                      {formatHeaderRange(details?.created_at, details?.ended_at)}
+                      {formatHeaderRange(
+                        details?.created_at,
+                        details?.ended_at,
+                      )}
                     </span>
                     <span className="hidden lg:inline">
                       {formatHeaderDuration(
@@ -943,7 +946,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                       )}
                     </span>
                     <span className="hidden lg:inline">
-                      {details?.total_messages ?? threadMessages.length} messages
+                      {details?.total_messages ?? threadMessages.length}{" "}
+                      messages
                     </span>
                   </p>
                 </div>
@@ -980,12 +984,12 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             </Button>
           </div>
         </div>
-        <div className="mx-6 mb-3 grid grid-cols-[1.1fr_.85fr_1.05fr] overflow-hidden rounded-xl border lg:hidden">
+        <div className="mx-6 mb-3 grid grid-cols-3 overflow-hidden rounded-xl border lg:hidden">
           <div className="flex flex-col items-start gap-1 border-r px-2 py-2 leading-tight">
             <small className="text-muted-foreground">Resolution</small>
-            <div className="flex self-center items-center gap-1.5">
+            <span className="self-center">
               <ResolutionRing value={resolutionRate} compact />
-            </div>
+            </span>
           </div>
           <div className="flex flex-col items-start gap-1 border-r px-2 py-2 leading-tight">
             <small className="text-muted-foreground">Messages</small>
