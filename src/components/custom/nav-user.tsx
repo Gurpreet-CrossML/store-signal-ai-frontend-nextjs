@@ -34,11 +34,21 @@ import {
 } from "@/components/ui/sidebar";
 import { getInitials } from "@/components/custom/customer-avatar";
 import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
-  const { data } = useSession();
+  const { data: session } = useSession();
+  // The server renders without a session, but the browser can already have
+  // it on its first render, and that mismatch fails hydration.
+  // `hydrated` is false on the server and on the browser's first render,
+  // then true, so the user's initials, name and email follow right after.
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  const data = hydrated ? session : null;
 
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
   const initials = getInitials(data?.user?.name || data?.user?.email) || "U";
