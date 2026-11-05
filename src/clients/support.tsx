@@ -8,6 +8,7 @@ import {
   useState,
   type ChangeEvent,
   type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
@@ -491,18 +492,18 @@ function ThreadChatControls({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="order-2 p-2 sm:p-2.5"
           >
-            <div className="overflow-hidden rounded-lg border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30">
-              <div className="flex items-start gap-1.5 border-b border-amber-300/80 bg-amber-100/60 px-2.5 py-1 text-[11px] font-bold leading-snug text-amber-800 sm:px-3 sm:py-1.5 sm:text-xs dark:border-amber-700/70 dark:bg-amber-950/40 dark:text-amber-100">
-                <IconLock className="mt-0.5 size-3 shrink-0 text-amber-700 sm:size-3.5 dark:text-amber-300" />
+            <div className="overflow-hidden rounded-xl border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30">
+              <div className="flex items-start gap-2 bg-amber-50 px-3 py-1.5 text-xs leading-snug text-amber-800 sm:text-xsm dark:bg-amber-950/30 dark:text-amber-100">
+                <IconLock className="mt-0.5 size-3 shrink-0 text-amber-700 sm:size-3 dark:text-amber-300" />
                 <span>
                   Internal note only — visible to your team, never to the
                   customer
                 </span>
               </div>
-              <div className="px-2.5 pt-0.5 sm:px-3 sm:pt-1">
+              <div className="min-h-16 px-3 pt-1 sm:min-h-20 sm:pt-1.5">
                 <textarea
                   rows={1}
-                  placeholder="Write an internal note (customer won't see it)…"
+                  placeholder="Add a note for your team. Type @ to mention a teammate."
                   value={composerMessage}
                   disabled={isSavingInternalNote || transitionState !== "idle"}
                   onChange={(event) => setComposerMessage(event.target.value)}
@@ -512,18 +513,19 @@ function ThreadChatControls({
                       onSendInternalNote();
                     }
                   }}
-                  className="max-h-30 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:py-1 sm:text-sm sm:leading-6"
+                  className="min-h-12 max-h-20 w-full resize-none bg-transparent py-0.5 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </div>
-              <div className="flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1">
-                <Typography
-                  variant="muted"
-                  as="span"
-                  className="ml-1 hidden truncate font-semibold text-amber-800 sm:inline dark:text-amber-100"
-                >
-                  Enter to save note · Shift + Enter for a new line
-                </Typography>
+              <div className="flex items-center gap-3 bg-amber-50 px-3 py-1.5 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-100 sm:py-2">
+                <span className="hidden truncate sm:inline">
+                  Notes only. Take over to reply to the customer.
+                </span>
                 <div className="ml-auto flex shrink-0 items-center gap-2">
+                  <span className="relative inline-flex h-5 w-9 rounded-full bg-amber-400/90">
+                    <span className="absolute top-0.5 right-0.5 size-4 rounded-full bg-white shadow-sm" />
+                  </span>
+                  <span className="hidden sm:inline">Internal note</span>
+                  <IconLock className="size-3.5" />
                   <Button
                     type="button"
                     size="sm"
@@ -534,7 +536,7 @@ function ThreadChatControls({
                       transitionState !== "idle"
                     }
                     title="Save internal note"
-                    className="h-7 bg-amber-700 px-2 text-xs text-white hover:bg-amber-800 sm:h-8 sm:px-3 sm:text-sm dark:bg-amber-600 dark:hover:bg-amber-500"
+                    className="h-8 bg-amber-700 px-3 text-xs text-white hover:bg-amber-800 sm:text-sm dark:bg-amber-600 dark:hover:bg-amber-500"
                   >
                     {isSavingInternalNote ? (
                       <Spinner className="size-3.5 sm:size-4" />
@@ -812,7 +814,7 @@ function ThreadChatControls({
             )}
 
             {/* Text input row */}
-            <div className="px-2.5 pt-2 sm:px-3 sm:pt-3">
+            <div className="min-h-16 px-2.5 pt-2 sm:min-h-20 sm:px-3 sm:pt-3">
               <textarea
                 ref={textareaRef}
                 rows={1}
@@ -830,7 +832,7 @@ function ThreadChatControls({
                     onSendAgentMessage();
                   }
                 }}
-                className="max-h-30 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:py-1 sm:text-sm sm:leading-6"
+                className="min-h-12 max-h-24 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm sm:leading-6"
               />
             </div>
 
@@ -1105,8 +1107,39 @@ export default function Support() {
   const [isCloseChatOpen, setIsCloseChatOpen] = useState(false);
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [threadListWidth, setThreadListWidth] = useState(320);
+  const [customerPanelWidth, setCustomerPanelWidth] = useState(380);
   const [threadSearch, setThreadSearch] = useState("");
   const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
+
+  const startResize = useCallback(
+    (side: "threads" | "customer", event: ReactPointerEvent) => {
+      event.preventDefault();
+      const startX = event.clientX;
+      const initialWidth =
+        side === "threads" ? threadListWidth : customerPanelWidth;
+      const handleMove = (moveEvent: PointerEvent) => {
+        const delta = moveEvent.clientX - startX;
+        const nextWidth =
+          side === "threads" ? initialWidth + delta : initialWidth - delta;
+        const boundedWidth = Math.min(
+          side === "threads" ? 420 : 520,
+          Math.max(side === "threads" ? 260 : 280, nextWidth),
+        );
+        if (side === "threads") setThreadListWidth(boundedWidth);
+        else setCustomerPanelWidth(boundedWidth);
+      };
+      const stopResize = () => {
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", stopResize);
+        document.body.style.cursor = "";
+      };
+      document.body.style.cursor = "col-resize";
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", stopResize, { once: true });
+    },
+    [customerPanelWidth, threadListWidth],
+  );
   const [readFilter, setReadFilter] = useState<ThreadFilter>(() => {
     const filter = searchParams?.get("filter");
     return filter === "needs_human" ||
@@ -1300,7 +1333,7 @@ export default function Support() {
       ? desiredThreadId
       : null;
 
-  const handleLinkCustomer = async (customerId: number) => {
+  const handleLinkCustomer = async (customerId: string) => {
     if (!storeCode || !activeThreadId) return;
     setIsLinkingCustomer(true);
     try {
@@ -1779,10 +1812,6 @@ export default function Support() {
   const handleSendInternalNote = useCallback(async () => {
     const message = composerMessage.trim();
     if (!message || !activeThreadId) return;
-    // Notes are allowed while the AI handles the chat (nobody holds it) or
-    // when you hold it; never on a chat another agent holds.
-    if (connectedAgent && connectedAgent !== session?.user?.email) return;
-
     try {
       const note = await dispatch(
         CreateInternalNote({ threadId: activeThreadId, message }),
@@ -1793,14 +1822,7 @@ export default function Support() {
     } catch {
       // The thunk displays the API error and keeps the note available to retry.
     }
-  }, [
-    activeThreadId,
-    connectedAgent,
-    dispatch,
-    handleThreadMessageAdded,
-    composerMessage,
-    session?.user?.email,
-  ]);
+  }, [activeThreadId, dispatch, handleThreadMessageAdded, composerMessage]);
 
   const handleReplyWithAI = useCallback(
     (message_id: number | string) => {
@@ -2505,9 +2527,7 @@ export default function Support() {
       // The chat list scales with the screen: 350px on a large monitor, but
       // about 280px at a 1280px laptop width, where a fixed 350px left the
       // conversation squeezed between the list and the details panel.
-      style={
-        { "--sidebar-width": "clamp(17rem, 22vw, 350px)" } as CSSProperties
-      }
+      style={{ "--sidebar-width": `${threadListWidth}px` } as CSSProperties}
       className="h-svh min-h-0 w-full overflow-hidden"
     >
       {/* Conversations list — the nested sidebar from the sidebar-09 block. */}
@@ -2517,10 +2537,16 @@ export default function Support() {
       <Sidebar
         collapsible="none"
         className={cn(
-          "w-full border-r bg-background desktop:flex desktop:w-(--sidebar-width)",
+          "relative w-full border-r bg-background desktop:flex desktop:w-(--sidebar-width)",
           showConversationBelowLg ? "hidden" : "flex",
         )}
       >
+        <div
+          role="separator"
+          aria-label="Resize thread list"
+          onPointerDown={(event) => startResize("threads", event)}
+          className="absolute inset-y-0 right-[-3px] z-20 hidden w-1 cursor-col-resize desktop:block"
+        />
         <SidebarHeader className="gap-0 p-0">
           <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
             <CardTitle className="flex items-center gap-2">
@@ -3134,6 +3160,8 @@ export default function Support() {
                 loading: FetchFreshdeskTicketIdIsLoading,
               }}
               cart={{ data: FetchCartData, loading: FetchCartDataIsLoading }}
+              dockedWidth={customerPanelWidth}
+              onResizeStart={(event) => startResize("customer", event)}
             />
           </div>
         ) : (
@@ -3237,7 +3265,7 @@ export default function Support() {
           onOpenChange={setIsLinkCustomerOpen}
           storeCode={storeCode}
           linking={isLinkingCustomer}
-          onLink={(customer) => handleLinkCustomer(customer.id)}
+          onLink={(customer) => handleLinkCustomer(customer.customer_id)}
         />
       ) : null}
     </SidebarProvider>

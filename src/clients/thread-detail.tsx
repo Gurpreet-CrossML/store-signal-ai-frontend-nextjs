@@ -522,7 +522,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     loadData();
   }, [dispatch, storeCode, threadId]);
 
-  const handleLinkCustomer = async (customerId: number) => {
+  const handleLinkCustomer = async (customerId: string) => {
     if (!storeCode || !threadId) return;
     setIsLinkingCustomer(true);
     try {
@@ -1082,7 +1082,9 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           onOpenChange={setIsLinkCustomerOpen}
           storeCode={storeCode}
           linking={isLinkingCustomer}
-          onLink={(linkedCustomer) => handleLinkCustomer(linkedCustomer.id)}
+          onLink={(linkedCustomer) =>
+            handleLinkCustomer(linkedCustomer.customer_id)
+          }
         />
       ) : null}
     </div>

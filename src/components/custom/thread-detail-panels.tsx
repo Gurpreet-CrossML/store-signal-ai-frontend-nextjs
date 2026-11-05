@@ -158,11 +158,11 @@ export function ViewedProductsCard({
   } = useCollapsibleList(viewedProducts);
 
   return (
-    <section className="flex flex-col gap-4 border-b p-4 sm:p-5">
+    <section className="flex min-w-0 flex-col gap-4 border-b p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <CardTitle className="flex items-center gap-2">
           <IconEye className="size-4" />
-          Viewed this visit
+          Viewed product
         </CardTitle>
         <Typography variant="muted" as="span">
           {viewedProducts.length}{" "}
@@ -244,7 +244,7 @@ export function SessionDataCard({
           {facts.map((fact) => (
             <div
               key={fact.label}
-              className="flex items-center justify-between gap-3"
+              className="flex min-w-0 items-center justify-between gap-3"
             >
               <Typography variant="muted" className="shrink-0">
                 {fact.label}
@@ -252,23 +252,27 @@ export function SessionDataCard({
               <Typography
                 variant="small"
                 as="span"
-                className="text-right leading-snug"
+                className="min-w-0 flex-1 truncate text-right leading-snug"
               >
                 {fact.value}
               </Typography>
             </div>
           ))}
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center justify-between gap-3">
             <Typography variant="muted">Past chats</Typography>
             {customer?.email && currentThreadId && pastThreadsCount > 0 ? (
               <Link
                 href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
-                className="text-sm font-medium text-primary hover:underline"
+                className="min-w-0 truncate text-right text-sm font-medium text-primary hover:underline"
               >
                 {pastChatsLabel}
               </Link>
             ) : (
-              <Typography variant="small" as="span">
+              <Typography
+                variant="small"
+                as="span"
+                className="min-w-0 truncate text-right"
+              >
                 {pastChatsLabel}
               </Typography>
             )}
@@ -481,12 +485,8 @@ export function OrdersCard({
       ? order
       : latest;
   }, null);
-  const {
-    visible: visibleOrders,
-    hiddenCount: hiddenOrderCount,
-    expanded: ordersExpanded,
-    toggle: toggleOrders,
-  } = useCollapsibleList(orderList);
+  const { visible: visibleOrders, hiddenCount: hiddenOrderCount } =
+    useCollapsibleList(orderList);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   // Opening a row loads that order from /chat/orders/{id}/.
@@ -689,14 +689,14 @@ export function OrdersCard({
               </motion.div>
             );
           })}
-          <ShowMoreToggle
-            hiddenCount={hiddenOrderCount}
-            expanded={ordersExpanded}
-            onToggle={toggleOrders}
-            noun="order"
-            collapsedLabel={`View all ${orderList.length} orders`}
-            className="text-primary hover:text-primary"
-          />
+          {hiddenOrderCount > 0 && customerData?.id ? (
+            <Link
+              href={`/crm/orders?customer=${customerData.id}`}
+              className="text-center text-primary underline underline-offset-2 hover:text-primary"
+            >
+              View all orders
+            </Link>
+          ) : null}
         </div>
       )}
     </section>

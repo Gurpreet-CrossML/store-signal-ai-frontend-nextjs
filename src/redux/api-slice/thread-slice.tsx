@@ -779,13 +779,13 @@ export const ThreadCustomerLink = createAsyncThunk(
       storeCode,
       threadId,
       customerId,
-    }: { storeCode: string; threadId: string; customerId: number },
+    }: { storeCode: string; threadId: string; customerId: string },
     thunkAPI,
   ) => {
     try {
-      const response = await axiosInstance.patch(
+      const response = await axiosInstance.post(
         `${ENDPOINTS.threadCustomerLink(threadId)}?store_code=${storeCode}`,
-        { customer: customerId },
+        { customer_id: customerId },
         { useBackend: true },
       );
       toast.success("Customer linked to this conversation.");
