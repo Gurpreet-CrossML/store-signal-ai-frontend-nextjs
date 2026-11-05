@@ -1300,7 +1300,7 @@ export default function Support() {
       ? desiredThreadId
       : null;
 
-  const handleLinkCustomer = async (customerId: number) => {
+  const handleLinkCustomer = async (customerId: string) => {
     if (!storeCode || !activeThreadId) return;
     setIsLinkingCustomer(true);
     try {
@@ -3237,7 +3237,7 @@ export default function Support() {
           onOpenChange={setIsLinkCustomerOpen}
           storeCode={storeCode}
           linking={isLinkingCustomer}
-          onLink={(customer) => handleLinkCustomer(customer.id)}
+          onLink={(customer) => handleLinkCustomer(customer.customer_id)}
         />
       ) : null}
     </SidebarProvider>

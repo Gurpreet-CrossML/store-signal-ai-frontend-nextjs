@@ -158,7 +158,7 @@ export function ViewedProductsCard({
   } = useCollapsibleList(viewedProducts);
 
   return (
-    <section className="flex flex-col gap-4 border-b p-4 sm:p-5">
+    <section className="flex min-w-0 flex-col gap-4 border-b p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <CardTitle className="flex items-center gap-2">
           <IconEye className="size-4" />
@@ -244,7 +244,7 @@ export function SessionDataCard({
           {facts.map((fact) => (
             <div
               key={fact.label}
-              className="flex items-center justify-between gap-3"
+              className="flex min-w-0 items-center justify-between gap-3"
             >
               <Typography variant="muted" className="shrink-0">
                 {fact.label}
@@ -252,23 +252,27 @@ export function SessionDataCard({
               <Typography
                 variant="small"
                 as="span"
-                className="text-right leading-snug"
+                className="min-w-0 flex-1 truncate text-right leading-snug"
               >
                 {fact.value}
               </Typography>
             </div>
           ))}
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center justify-between gap-3">
             <Typography variant="muted">Past chats</Typography>
             {customer?.email && currentThreadId && pastThreadsCount > 0 ? (
               <Link
                 href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
-                className="text-sm font-medium text-primary hover:underline"
+                className="min-w-0 truncate text-right text-sm font-medium text-primary hover:underline"
               >
                 {pastChatsLabel}
               </Link>
             ) : (
-              <Typography variant="small" as="span">
+              <Typography
+                variant="small"
+                as="span"
+                className="min-w-0 truncate text-right"
+              >
                 {pastChatsLabel}
               </Typography>
             )}
