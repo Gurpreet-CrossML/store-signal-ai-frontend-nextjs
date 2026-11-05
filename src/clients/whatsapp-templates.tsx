@@ -452,12 +452,12 @@ export default function WhatsAppTemplates() {
           </Select>
         </div>
 
-        <Button
+        {/* <Button
           onClick={() => router.push("/campaign/whatsapp-templates/create")}
         >
           <IconPlus className="size-4" />
           Create Template
-        </Button>
+        </Button> */}
       </div>
 
       <DataTable
