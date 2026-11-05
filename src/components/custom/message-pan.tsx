@@ -380,7 +380,7 @@ export function MessagePan({
                   <div
                     className={
                       isInternalNote
-                        ? "flex max-w-[82%] items-start gap-2 rounded-lg border border-dashed border-amber-300/80 bg-amber-50 px-3 py-2 text-xs text-amber-950 dark:border-amber-700/70 dark:bg-amber-950/30 dark:text-amber-100"
+                        ? "flex min-w-0 max-w-[90%] items-start gap-2 rounded-lg border border-dashed border-amber-300/80 bg-amber-50 px-3 py-2 text-xs text-amber-950 sm:max-w-[82%] dark:border-amber-700/70 dark:bg-amber-950/30 dark:text-amber-100"
                         : "flex items-center gap-2 text-sm font-semibold text-muted-foreground"
                     }
                   >
@@ -404,7 +404,7 @@ export function MessagePan({
                     <div className="min-w-0">
                       {isInternalNote ? (
                         <>
-                          <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+                          <div className="flex min-w-0 items-baseline gap-1">
                             <span className="wrap-anywhere font-medium">
                               Internal note ·{" "}
                               {message.agent_name ||
@@ -949,7 +949,7 @@ export function LiveMessagePan({
                   <div
                     className={
                       isInternalNote
-                        ? "flex max-w-[82%] items-start gap-2 rounded-lg border border-dashed border-amber-300/80 bg-amber-50 px-3 py-2 text-xs text-amber-950 dark:border-amber-700/70 dark:bg-amber-950/30 dark:text-amber-100"
+                        ? "flex min-w-0 max-w-[90%] items-start gap-2 rounded-lg border border-dashed border-amber-300/80 bg-amber-50 px-3 py-2 text-xs text-amber-950 sm:max-w-[82%] dark:border-amber-700/70 dark:bg-amber-950/30 dark:text-amber-100"
                         : "flex max-w-[82%] items-center gap-2 rounded-full border border-dashed bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground"
                     }
                   >
@@ -969,7 +969,7 @@ export function LiveMessagePan({
                                 "Agent"}
                             </span>
                             <span className="shrink-0 opacity-60">
-                              {formatDateTime(message.created_at)}
+                              {formatMessageTime(message.created_at)}
                             </span>
                           </div>
                           <p className="mt-0.5 whitespace-pre-wrap wrap-break-word">
