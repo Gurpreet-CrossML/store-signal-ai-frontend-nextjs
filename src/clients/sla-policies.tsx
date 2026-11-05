@@ -481,6 +481,9 @@ export default function SlaPolicies() {
       >
         <DialogContent
           ref={setDialogEl}
+          // Only the close (X) button dismisses on click; clicking the
+          // backdrop must not discard the form.
+          onInteractOutside={(e) => e.preventDefault()}
           className="max-h-[90vh] overflow-y-auto sm:max-w-[460px]"
         >
           <DialogHeader>
