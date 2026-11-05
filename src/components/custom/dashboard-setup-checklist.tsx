@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { IconCheck, IconX } from "@tabler/icons-react";
 
 import { StoreSnippet } from "@/components/custom/go-live-card";
@@ -142,6 +144,19 @@ export function DashboardSetupChecklist() {
     (state) => state.GetStoresReducer.selectedStore,
   );
   const pathname = usePathname();
+  // Steps finished without leaving the page: the wizard's last step (the
+  // session's onboarding step moves on) and a brand voice save.
+  const { data: session } = useSession();
+  const onboardingStep = session?.user?.onboarding_step;
+  const savedPersona = useAppSelector(
+    (state) =>
+      state.GetBrandVoiceReducer.CreatePersonaIdentityState
+        .CreatePersonaIdentityData,
+  );
+  const savedTone = useAppSelector(
+    (state) =>
+      state.GetBrandVoiceReducer.CreateToneStyleState.CreateToneStyleData,
+  );
 
   // Re-fetches on every navigation (not just store switches) so a step
   // finished on another page (e.g. picking a tone preset) shows as done
@@ -149,7 +164,42 @@ export function DashboardSetupChecklist() {
   // sidebar that renders this never unmounts between pages.
   useEffect(() => {
     if (selectedStore) void dispatch(FetchDashboardChecklist(selectedStore));
-  }, [dispatch, selectedStore, pathname]);
+  }, [
+    dispatch,
+    selectedStore,
+    pathname,
+    onboardingStep,
+    savedPersona,
+    savedTone,
+  ]);
+
+  // The widget goes live in another tab (the storefront), so check again
+  // when the merchant comes back to this one.
+  useEffect(() => {
+    if (!selectedStore) return;
+    const refetch = () => void dispatch(FetchDashboardChecklist(selectedStore));
+    window.addEventListener("focus", refetch);
+    return () => window.removeEventListener("focus", refetch);
+  }, [dispatch, selectedStore]);
+
+  // The ring hides at 3/3, so say so when the last step is finished — only
+  // on that change for the same store, not on load or a store switch.
+  const previous = useRef<{ code: string; pending: number } | null>(null);
+  useEffect(() => {
+    if (!checklist) return;
+    const { code } = checklist.store;
+    const pending = checklist.pending.length;
+    if (
+      pending === 0 &&
+      previous.current?.code === code &&
+      previous.current.pending > 0
+    ) {
+      toast.success("Setup complete", {
+        description: "Your assistant is ready for shoppers.",
+      });
+    }
+    previous.current = { code, pending };
+  }, [checklist]);
 
   if (!checklist || checklist.pending.length === 0) return null;
 
