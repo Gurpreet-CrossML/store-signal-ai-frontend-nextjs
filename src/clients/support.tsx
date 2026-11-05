@@ -2536,7 +2536,7 @@ export default function Support() {
       // about 280px at a 1280px laptop width, where a fixed 350px left the
       // conversation squeezed between the list and the details panel.
       style={{ "--sidebar-width": `${threadListWidth}px` } as CSSProperties}
-      className="h-svh min-h-0 w-full overflow-hidden"
+      className="h-app-screen min-h-0 w-full overflow-hidden"
     >
       {/* Conversations list — the nested sidebar from the sidebar-09 block. */}
       {/* The list panel is content, not chrome: white like Help Desk's
