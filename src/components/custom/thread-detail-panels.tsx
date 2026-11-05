@@ -485,10 +485,8 @@ export function OrdersCard({
       ? order
       : latest;
   }, null);
-  const {
-    visible: visibleOrders,
-    hiddenCount: hiddenOrderCount,
-  } = useCollapsibleList(orderList);
+  const { visible: visibleOrders, hiddenCount: hiddenOrderCount } =
+    useCollapsibleList(orderList);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   // Opening a row loads that order from /chat/orders/{id}/.
@@ -696,7 +694,7 @@ export function OrdersCard({
               href={`/crm/orders?customer=${customerData.id}`}
               className="text-center text-primary underline underline-offset-2 hover:text-primary"
             >
-              View all   orders
+              View all orders
             </Link>
           ) : null}
         </div>

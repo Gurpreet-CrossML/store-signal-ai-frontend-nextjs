@@ -492,18 +492,18 @@ function ThreadChatControls({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="order-2 p-2 sm:p-2.5"
           >
-            <div className="overflow-hidden rounded-lg border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30">
-              <div className="flex items-start gap-1.5 border-b border-amber-300/80 bg-amber-100/60 px-2.5 py-1 text-[11px] font-bold leading-snug text-amber-800 sm:px-3 sm:py-1.5 sm:text-xs dark:border-amber-700/70 dark:bg-amber-950/40 dark:text-amber-100">
-                <IconLock className="mt-0.5 size-3 shrink-0 text-amber-700 sm:size-3.5 dark:text-amber-300" />
+            <div className="overflow-hidden rounded-xl border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30">
+              <div className="flex items-start gap-2 bg-amber-50 px-3 py-1.5 text-xs leading-snug text-amber-800 sm:text-xsm dark:bg-amber-950/30 dark:text-amber-100">
+                <IconLock className="mt-0.5 size-3 shrink-0 text-amber-700 sm:size-3 dark:text-amber-300" />
                 <span>
                   Internal note only — visible to your team, never to the
                   customer
                 </span>
               </div>
-              <div className="px-2.5 pt-0.5 sm:px-3 sm:pt-1">
+              <div className="min-h-16 px-3 pt-1 sm:min-h-20 sm:pt-1.5">
                 <textarea
                   rows={1}
-                  placeholder="Write an internal note (customer won't see it)…"
+                  placeholder="Add a note for your team. Type @ to mention a teammate."
                   value={composerMessage}
                   disabled={isSavingInternalNote || transitionState !== "idle"}
                   onChange={(event) => setComposerMessage(event.target.value)}
@@ -513,18 +513,19 @@ function ThreadChatControls({
                       onSendInternalNote();
                     }
                   }}
-                  className="max-h-30 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:py-1 sm:text-sm sm:leading-6"
+                  className="min-h-12 max-h-20 w-full resize-none bg-transparent py-0.5 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </div>
-              <div className="flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1">
-                <Typography
-                  variant="muted"
-                  as="span"
-                  className="ml-1 hidden truncate font-semibold text-amber-800 sm:inline dark:text-amber-100"
-                >
-                  Enter to save note · Shift + Enter for a new line
-                </Typography>
+              <div className="flex items-center gap-3 bg-amber-50 px-3 py-1.5 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-100 sm:py-2">
+                <span className="hidden truncate sm:inline">
+                  Notes only. Take over to reply to the customer.
+                </span>
                 <div className="ml-auto flex shrink-0 items-center gap-2">
+                  <span className="relative inline-flex h-5 w-9 rounded-full bg-amber-400/90">
+                    <span className="absolute top-0.5 right-0.5 size-4 rounded-full bg-white shadow-sm" />
+                  </span>
+                  <span className="hidden sm:inline">Internal note</span>
+                  <IconLock className="size-3.5" />
                   <Button
                     type="button"
                     size="sm"
@@ -535,7 +536,7 @@ function ThreadChatControls({
                       transitionState !== "idle"
                     }
                     title="Save internal note"
-                    className="h-7 bg-amber-700 px-2 text-xs text-white hover:bg-amber-800 sm:h-8 sm:px-3 sm:text-sm dark:bg-amber-600 dark:hover:bg-amber-500"
+                    className="h-8 bg-amber-700 px-3 text-xs text-white hover:bg-amber-800 sm:text-sm dark:bg-amber-600 dark:hover:bg-amber-500"
                   >
                     {isSavingInternalNote ? (
                       <Spinner className="size-3.5 sm:size-4" />
@@ -813,7 +814,7 @@ function ThreadChatControls({
             )}
 
             {/* Text input row */}
-            <div className="px-2.5 pt-2 sm:px-3 sm:pt-3">
+            <div className="min-h-16 px-2.5 pt-2 sm:min-h-20 sm:px-3 sm:pt-3">
               <textarea
                 ref={textareaRef}
                 rows={1}
@@ -831,7 +832,7 @@ function ThreadChatControls({
                     onSendAgentMessage();
                   }
                 }}
-                className="max-h-30 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:py-1 sm:text-sm sm:leading-6"
+                className="min-h-12 max-h-24 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm sm:leading-6"
               />
             </div>
 
@@ -1811,10 +1812,6 @@ export default function Support() {
   const handleSendInternalNote = useCallback(async () => {
     const message = composerMessage.trim();
     if (!message || !activeThreadId) return;
-    // Notes are allowed while the AI handles the chat (nobody holds it) or
-    // when you hold it; never on a chat another agent holds.
-    if (connectedAgent && connectedAgent !== session?.user?.email) return;
-
     try {
       const note = await dispatch(
         CreateInternalNote({ threadId: activeThreadId, message }),
@@ -1825,14 +1822,7 @@ export default function Support() {
     } catch {
       // The thunk displays the API error and keeps the note available to retry.
     }
-  }, [
-    activeThreadId,
-    connectedAgent,
-    dispatch,
-    handleThreadMessageAdded,
-    composerMessage,
-    session?.user?.email,
-  ]);
+  }, [activeThreadId, dispatch, handleThreadMessageAdded, composerMessage]);
 
   const handleReplyWithAI = useCallback(
     (message_id: number | string) => {
