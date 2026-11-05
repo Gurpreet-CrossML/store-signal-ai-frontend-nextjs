@@ -6,6 +6,7 @@ import {
   IconChevronUp,
   IconLock,
   IconShieldCheck,
+  IconX,
 } from "@tabler/icons-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/command";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -240,7 +242,7 @@ export function AssigneeSelect({
           </Button>
         </DialogTrigger>
         <DialogContent
-          showCloseButton
+          showCloseButton={false}
           className="w-[calc(100vw-2rem)] max-w-90 gap-0 overflow-hidden rounded-xl p-2"
         >
           <DialogHeader className="sr-only">
@@ -250,8 +252,23 @@ export function AssigneeSelect({
               {noun === "chat" ? "conversation" : "ticket"}.
             </DialogDescription>
           </DialogHeader>
+          {/* Level with the search field (its 32px box starts 12px down) and
+              clear of it: the field stops short to leave this room. */}
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="absolute top-3 right-2"
+              aria-label="Close"
+            >
+              <IconX />
+            </Button>
+          </DialogClose>
           <Command className="rounded-lg!">
-            <CommandInput placeholder="Search teammates" />
+            <div className="pr-8">
+              <CommandInput placeholder="Search teammates" />
+            </div>
             <CommandList className="max-h-[60vh] px-1 pb-1">
               {renderOptions()}
             </CommandList>

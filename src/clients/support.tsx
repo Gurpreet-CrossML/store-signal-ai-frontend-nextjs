@@ -1072,6 +1072,11 @@ export default function Support() {
   const [localThreads, setLocalThreads] = useState<ThreadWithReadState[]>(() =>
     normalizeThreads(FetchThreadsListData?.results),
   );
+  // The list Redux holds on arrival can be another page's (the Threads page
+  // shares it). Picking a chat from it falls back to its first one and
+  // rewrites ?chat= before this page's own list lands, so a deep link to a
+  // chat lost its target.
+  const [listOnArrival] = useState(FetchThreadsListData);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   // Below `lg` there is room for the chat list or the conversation, not
   // both. This only picks which one shows there. A chat id in the URL (a
@@ -1276,7 +1281,10 @@ export default function Support() {
     setLocalThreads(normalizeThreads(FetchThreadsListData?.results));
   }
 
-  const threadsReady = FetchThreadsIsSuccess && !FetchThreadsIsLoading;
+  const threadsReady =
+    FetchThreadsIsSuccess &&
+    !FetchThreadsIsLoading &&
+    FetchThreadsListData !== listOnArrival;
   const hasAppliedFilters = hasAppliedThreadFilters(appliedThreadFilters);
   const activeReadFilter =
     threadsReady &&

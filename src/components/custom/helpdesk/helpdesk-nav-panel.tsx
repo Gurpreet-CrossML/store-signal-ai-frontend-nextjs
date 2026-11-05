@@ -192,7 +192,7 @@ export function HelpdeskNavPanel({ onCollapse }: { onCollapse: () => void }) {
             {tags.length > VISIBLE_TAGS ? (
               <button
                 type="button"
-                className="mt-1 ml-3 py-1 text-left text-sm font-medium text-primary hover:underline"
+                className="mt-1 ml-[2.125rem] py-1 text-left text-sm font-medium text-primary hover:underline"
                 onClick={() => setShowAllTags((shown) => !shown)}
               >
                 {showAllTags
