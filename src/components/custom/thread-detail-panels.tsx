@@ -162,7 +162,7 @@ export function ViewedProductsCard({
       <div className="flex items-center justify-between gap-3">
         <CardTitle className="flex items-center gap-2">
           <IconEye className="size-4" />
-          Viewed this visit
+          Viewed product
         </CardTitle>
         <Typography variant="muted" as="span">
           {viewedProducts.length}{" "}
@@ -488,8 +488,6 @@ export function OrdersCard({
   const {
     visible: visibleOrders,
     hiddenCount: hiddenOrderCount,
-    expanded: ordersExpanded,
-    toggle: toggleOrders,
   } = useCollapsibleList(orderList);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
@@ -693,14 +691,14 @@ export function OrdersCard({
               </motion.div>
             );
           })}
-          <ShowMoreToggle
-            hiddenCount={hiddenOrderCount}
-            expanded={ordersExpanded}
-            onToggle={toggleOrders}
-            noun="order"
-            collapsedLabel={`View all ${orderList.length} orders`}
-            className="text-primary hover:text-primary"
-          />
+          {hiddenOrderCount > 0 && customerData?.id ? (
+            <Link
+              href={`/crm/orders?customer=${customerData.id}`}
+              className="text-center text-primary underline underline-offset-2 hover:text-primary"
+            >
+              View all   orders
+            </Link>
+          ) : null}
         </div>
       )}
     </section>
