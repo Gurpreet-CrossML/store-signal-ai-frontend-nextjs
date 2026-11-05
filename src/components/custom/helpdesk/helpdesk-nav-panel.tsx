@@ -122,7 +122,13 @@ function SectionHeading({
  * Drawn in the app's sub-sidebar slot. `onCollapse` hides it; the ticket
  * list then offers the same views from its title.
  */
-export function HelpdeskNavPanel({ onCollapse }: { onCollapse: () => void }) {
+export function HelpdeskNavPanel({
+  onCollapse,
+}: {
+  /** Omit it to draw the panel bare, with no header: inside the phone
+   *  drawer, where the area's own row already names it. */
+  onCollapse?: () => void;
+}) {
   const { counts, activeFilter, hrefFor } = useHelpdeskViews();
   const [showAllTags, setShowAllTags] = useState(false);
 
@@ -132,20 +138,27 @@ export function HelpdeskNavPanel({ onCollapse }: { onCollapse: () => void }) {
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
-      <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
-        <h2 className="text-lg font-semibold tracking-tight">Help Desk</h2>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          aria-label="Hide Help Desk menu"
-          onClick={onCollapse}
-        >
-          <IconLayoutSidebar className="size-4" />
-        </Button>
-      </header>
+      {onCollapse ? (
+        <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
+          <h2 className="text-lg font-semibold tracking-tight">Help Desk</h2>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label="Hide Help Desk menu"
+            onClick={onCollapse}
+          >
+            <IconLayoutSidebar className="size-4" />
+          </Button>
+        </header>
+      ) : null}
 
-      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-4">
+      <div
+        className={cn(
+          "min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-4",
+          !onCollapse && "overflow-y-visible px-0 py-2",
+        )}
+      >
         <CreateTicketAction variant="panel" />
 
         <nav

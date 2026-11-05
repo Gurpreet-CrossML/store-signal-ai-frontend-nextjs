@@ -1205,7 +1205,7 @@ export default function DmsInbox({
             beside the open thread, filling the viewport below the header. */}
         <SidebarProvider
           style={{ "--sidebar-width": "350px" } as CSSProperties}
-          className="h-svh min-h-0 w-full overflow-hidden"
+          className="h-app-screen min-h-0 w-full overflow-hidden"
         >
           <Sidebar
             collapsible="none"

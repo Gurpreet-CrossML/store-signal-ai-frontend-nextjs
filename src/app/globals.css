@@ -17,6 +17,21 @@
   }
 }
 
+/* Height of the phone top bar (see MobileTopBar). Zero from `md` up, where
+   the docked sidebar replaces it. Screens that fill the viewport use
+   `h-app-screen` so the bar does not push them past the bottom edge. */
+:root {
+  --app-topbar-height: 3.5rem;
+}
+@media (min-width: 768px) {
+  :root {
+    --app-topbar-height: 0px;
+  }
+}
+@utility h-app-screen {
+  height: calc(100svh - var(--app-topbar-height));
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
