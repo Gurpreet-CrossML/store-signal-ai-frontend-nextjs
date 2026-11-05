@@ -849,8 +849,8 @@ export async function get_thread_details(
       message_type: chatHistory.messageType,
       agent_name: sql<string | null>`case
         when nullif(concat_ws(' ', ${authUser.firstName}, ${authUser.lastName}), '') is not null
-          then concat(concat_ws(' ', ${authUser.firstName}, ${authUser.lastName}), ' (', ${authUser.email}, ')')
-        else nullif(${authUser.email}, '')
+          then concat_ws(' ', ${authUser.firstName}, ${authUser.lastName})
+        else nullif(${authUser.username}, '')
       end`,
       confidence: chatHistory.confidence,
       source_used: chatHistory.sourceUsed,
