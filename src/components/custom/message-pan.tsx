@@ -892,7 +892,7 @@ export function LiveMessagePan({
           Keyed by message id, so AnimatePresence can tell a new message
           from a re-render of an existing one. */}
       <AnimatePresence>
-        {eventRows(eventsBefore, "before")}
+        {eventsBefore.map(eventRow)}
         {messages?.flatMap((message: ThreadMessage, index: number) => {
           const isLastMessage = index === messages.length - 1;
           // New responses carry message_type.  Treat a system row from an
@@ -922,6 +922,14 @@ export function LiveMessagePan({
             isLastMessage && message.role === "user" && !!onReplyWithAI;
           const isCustomer = message.role === "user";
           const isOutgoing = isCustomer;
+          const feedbackRating = message.feedback_rating;
+          const hasPositiveFeedback = ["good", "excellent"].includes(
+            feedbackRating ?? "",
+          );
+          const feedbackLabel = feedbackRating
+            ? feedbackRating.replaceAll("_", " ")
+            : null;
+          const feedbackMessage = message.feedback_message?.trim();
           const avatarLabel = isCustomer
             ? getInitials(customerName || message.messaged_by) || "C"
             : isAgentMessage
@@ -1284,6 +1292,36 @@ export function LiveMessagePan({
                         )}
                       </div>
                     )}
+
+                    {message.role === "assistant" && feedbackLabel ? (
+                      <Tooltip
+                        open={
+                          hasPositiveFeedback || !feedbackMessage
+                            ? false
+                            : undefined
+                        }
+                      >
+                        <TooltipTrigger asChild>
+                          <div className="mt-2 flex w-fit cursor-help items-center gap-1 text-xs font-medium text-primary">
+                            {hasPositiveFeedback ? (
+                              <IconThumbUp
+                                className="size-3.5"
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <IconThumbDown
+                                className="size-3.5"
+                                aria-hidden="true"
+                              />
+                            )}
+                            <span className="capitalize">{feedbackLabel}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-80">
+                          {feedbackMessage}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : null}
                   </div>
                 </div>
               </div>
