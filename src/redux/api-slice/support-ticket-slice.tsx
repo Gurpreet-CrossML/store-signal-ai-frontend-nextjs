@@ -59,11 +59,7 @@ export type SupportSocketPayload = {
   message?: SupportTicketMessage;
 };
 
-export type SupportTicketOrdering =
-  | "newest"
-  | "oldest"
-  | "last_updated"
-  | "priority";
+export type SupportTicketOrdering = "newest" | "oldest" | "last_updated";
 
 export type SupportTicketFilters = {
   status?: SupportTicketStatus;
@@ -248,7 +244,16 @@ export type SupportTicket = {
   language?: TicketLanguage;
   sentiment?: TicketSentiment;
   order_id?: string | null;
+  /** The linked order's total and currency; sent by the ticket list only. */
+  order_total?: string | null;
+  order_currency?: string | null;
   customer: string | SupportTicketCustomer | null;
+  /** The customer's full name; sent by the ticket list only. */
+  customer_name?: string | null;
+  /** The chat the ticket was raised from; sent by the ticket's details. */
+  thread?: string | null;
+  /** Whether that chat is still open; null when there is none. */
+  thread_is_active?: boolean | null;
   internal_assignee: SupportTicketAssignee | null;
 
   subject: string;

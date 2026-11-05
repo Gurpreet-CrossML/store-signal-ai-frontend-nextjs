@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion, useReducedMotion } from "framer-motion";
 import { toast } from "sonner";
 import {
   IconBell,
+  IconChevronRight,
   IconHeadset,
   IconMessageDots,
   IconUserPlus,
@@ -16,10 +17,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@/components/ui/popover";
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import {
   Empty,
   EmptyDescription,
@@ -28,6 +32,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSupportDashboardEvents } from "@/hooks/use-support-dashboard-events";
 import { formatRelativeTime } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
@@ -62,15 +67,6 @@ const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 /** Badge text: exact up to the hundreds, then capped so it stays a pill. */
 function badgeText(count: number) {
   return count > 999 ? "999+" : String(count);
-}
-
-/** "12 min ago", "21 h ago": the relative time as the notifications list says it. */
-function timeAgo(value: string) {
-  const short = formatRelativeTime(value);
-  const match = /^(d+)(mo|m|h|d|w)$/.exec(short);
-  if (!match) return short;
-  const unit = { m: "min", h: "h", d: "d", w: "w", mo: "mo" }[match[2]];
-  return `${match[1]} ${unit} ago`;
 }
 
 /** A message notification quotes the customer; the others read as is. */
@@ -192,33 +188,31 @@ function NotificationRow({
         initial={live && !reduceMotion ? { y: -16 } : false}
         animate={{ y: 0 }}
         transition={{ duration: 0.4, ease: EASE_OUT }}
-        className="border-b last:border-b-0"
+        className="pb-2"
       >
         <button
           type="button"
           onClick={() => onOpen(notification)}
-          className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none"
+          className={cn(
+            "flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors hover:bg-primary/5 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+            !notification.is_read && "border-primary/15 bg-primary/5",
+          )}
         >
-          <span
-            aria-hidden
-            className={cn(
-              "mt-1.5 size-2 shrink-0 rounded-full",
-              notification.is_read ? "bg-transparent" : "bg-primary",
-            )}
-          />
+          <NotificationIcon type={notification.notification_type} />
           <span className="min-w-0 flex-1">
-            <span className="block text-sm leading-snug text-foreground">
-              {notification.title}
-            </span>
-            {notification.message ? (
-              <span className="mt-0.5 block truncate text-sm text-muted-foreground">
-                {previewText(notification)}
+            <span className="flex items-baseline justify-between gap-2">
+              <span className="truncate text-sm font-semibold">
+                {notification.title}
               </span>
-            ) : null}
-            <span className="mt-0.5 block text-xs text-muted-foreground">
-              {timeAgo(notification.created_at)}
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {formatRelativeTime(notification.created_at)} ago
+              </span>
+            </span>
+            <span className="mt-0.5 block truncate text-sm text-muted-foreground">
+              {previewText(notification)}
             </span>
           </span>
+          <IconChevronRight className="size-4 shrink-0 text-muted-foreground" />
         </button>
       </motion.div>
     </motion.li>
@@ -362,108 +356,73 @@ export function NotificationBell() {
   };
 
   const isFirstLoad = FetchNotificationsIsLoading && results.length === 0;
-  // The bell toggles the popover itself, so a click on it is not "outside".
-  const bellRef = useRef<HTMLDivElement | null>(null);
-
-  // There is no "mark all" endpoint: the unread ones on screen are marked
-  // one by one, then the counts and the page are fetched again.
-  const markAllRead = async () => {
-    if (!selectedStore) return;
-    const unread = results.filter((notification) => !notification.is_read);
-    await Promise.all(
-      unread.map((notification) =>
-        dispatch(
-          MarkNotificationRead({
-            storeCode: selectedStore,
-            id: notification.id,
-          }),
-        ),
-      ),
-    );
-    loadCounts();
-    loadTab(tab);
-  };
 
   return (
     <>
       {/* overflow-visible: the badge hangs off the button's corner. No text
           label, which would spill out of the 36px rail button; the tooltip
           and aria-label name it instead. */}
-      <Popover open={open} onOpenChange={handleOpenChange}>
-        {/* An anchor, not a trigger: with its tooltip the rail button renders
-            a tooltip wrapper, which a trigger cannot attach to. */}
-        <PopoverAnchor asChild>
-          <div ref={bellRef}>
-            <SidebarMenuButton
-              onClick={() => handleOpenChange(!open)}
-              tooltip="Notifications"
-              className="relative overflow-visible"
-              aria-label={
-                unreadCount
-                  ? `Notifications, ${unreadCount} unread`
-                  : "Notifications"
-              }
-            >
-              <IconBell />
-              {unreadCount > 0 && (
-                // Centred on the bell icon's top-right corner (left-7 is the icon's
-                // right edge in the 36px rail button), so a longer count spreads
-                // both ways: "3" sits on the corner, "999+" covers only the bell's
-                // top and still fits inside the rail.
-                <span className="absolute -top-1.5 left-7 flex h-4.5 min-w-4.5 -translate-x-1/2 items-center justify-center rounded-full bg-destructive px-1 text-[10px] leading-none font-semibold text-white tabular-nums ring-2 ring-sidebar">
-                  {badgeText(unreadCount)}
-                </span>
-              )}
-            </SidebarMenuButton>
-          </div>
-        </PopoverAnchor>
-        <PopoverContent
-          side="right"
-          align="end"
-          sideOffset={12}
-          onInteractOutside={(event) => {
-            if (bellRef.current?.contains(event.target as Node)) {
-              event.preventDefault();
-            }
-          }}
-          className="flex max-h-[min(32rem,80vh)] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden p-0"
-        >
-          <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
-            <h2 className="text-base font-semibold">Notifications</h2>
-            <button
-              type="button"
-              className="text-sm font-medium text-primary hover:underline disabled:pointer-events-none disabled:opacity-50"
-              disabled={unreadCount === 0}
-              onClick={() => void markAllRead()}
-            >
-              Mark all as read
-            </button>
-          </div>
-          <div
-            role="tablist"
-            aria-label="Notification types"
-            className="flex gap-1 overflow-x-auto border-b px-3 py-2 [scrollbar-width:none]"
-          >
-            {TABS.map(({ value, label }) => (
-              <button
-                key={value}
+      <SidebarMenuButton
+        tooltip="Notifications"
+        className="relative overflow-visible"
+        aria-label={
+          unreadCount ? `Notifications, ${unreadCount} unread` : "Notifications"
+        }
+        onClick={() => handleOpenChange(true)}
+      >
+        <IconBell />
+        {unreadCount > 0 && (
+          // Centred on the bell icon's top-right corner (left-7 is the icon's
+          // right edge in the 36px rail button), so a longer count spreads
+          // both ways: "3" sits on the corner, "999+" covers only the bell's
+          // top and still fits inside the rail.
+          <span className="absolute -top-1.5 left-7 flex h-4.5 min-w-4.5 -translate-x-1/2 items-center justify-center rounded-full bg-destructive px-1 text-[10px] leading-none font-semibold text-white tabular-nums ring-2 ring-sidebar">
+            {badgeText(unreadCount)}
+          </span>
+        )}
+      </SidebarMenuButton>
+
+      <Drawer direction="right" open={open} onOpenChange={handleOpenChange}>
+        <DrawerContent className="data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:rounded-none data-[vaul-drawer-direction=right]:sm:max-w-md">
+          <DrawerHeader className="flex-row items-center justify-between gap-2 pb-2">
+            <DrawerTitle className="text-xl font-semibold">
+              Notifications
+            </DrawerTitle>
+            <DrawerDescription className="sr-only">
+              Your ticket and live chat notifications, newest first.
+            </DrawerDescription>
+            <DrawerClose asChild>
+              <Button
                 type="button"
-                role="tab"
-                aria-selected={tab === value}
-                onClick={() => tab !== value && loadTab(value)}
-                className={cn(
-                  "shrink-0 rounded-md px-2 py-1 text-xs whitespace-nowrap transition-colors",
-                  tab === value
-                    ? "bg-primary/10 font-medium text-primary"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Close notifications"
               >
-                {label} ({counts[value]})
-              </button>
-            ))}
-          </div>
+                <IconX />
+              </Button>
+            </DrawerClose>
+          </DrawerHeader>
+
+          <Tabs
+            value={tab}
+            onValueChange={(value) => loadTab(value as NotificationTab)}
+            className="px-4 pb-3"
+          >
+            <TabsList className="h-auto w-full gap-2 bg-transparent p-0">
+              {TABS.map(({ value, label }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className="rounded-lg border-border bg-muted/40 py-1.5 data-active:border-primary/20 data-active:bg-primary/10 data-active:text-primary data-active:shadow-none"
+                >
+                  {label} ({counts[value]})
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+
           <div
-            className="min-h-0 flex-1 overflow-y-auto"
+            className="min-h-0 flex-1 overflow-y-auto px-3 pb-4"
             onScroll={handleScroll}
           >
             {isFirstLoad ? (
@@ -502,8 +461,8 @@ export function NotificationBell() {
               </div>
             )}
           </div>
-        </PopoverContent>
-      </Popover>
+        </DrawerContent>
+      </Drawer>
     </>
   );
 }

@@ -701,7 +701,9 @@ export function CreateTicketDialog({
           </Field>
         </form>
 
-        <DialogFooter>
+        {/* One row on a phone too: stacked, the two buttons push Cancel
+            past the bottom of the screen. */}
+        <DialogFooter className="flex-row justify-end">
           <Button
             type="button"
             variant="outline"

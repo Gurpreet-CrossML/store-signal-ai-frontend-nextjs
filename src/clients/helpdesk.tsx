@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   useRef,
@@ -20,7 +21,6 @@ import {
   IconCheck,
   IconChevronDown,
   IconChevronLeft,
-  IconCircleCheck,
   IconCircleX,
   IconDeviceFloppy,
   IconFilter,
@@ -50,6 +50,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
@@ -110,12 +111,10 @@ import {
   DEFAULT_TICKET_LANGUAGE,
   CHANNEL_META,
   SUPPORTED_LANGUAGES,
-  TICKET_SENTIMENTS,
   type TicketLanguage,
   type TicketSentiment,
 } from "@/lib/ticket-options";
 import {
-  helpdeskChannelRows,
   helpdeskFilterToQuery,
   helpdeskViewCount,
   helpdeskViewLabel,
@@ -146,13 +145,13 @@ import {
   TicketTagCreate,
   type SupportTicket,
   type SupportTicketActivityItem,
-  type SupportTicketChannel,
   type SupportTicketCreatedBy,
   type SupportTicketPriority,
   type SupportTicketMessage,
   type SupportTicketCustomer,
   type SupportTicketOrdering,
   type SupportTicketStatus,
+  type SupportTicketTagData,
   type SupportTicketFilterCounts,
   type SupportTicketFilters,
   type SupportTicketStatusCounts,
@@ -170,10 +169,13 @@ const RichTextArea = dynamic(
   },
 );
 
-// Max tags to show in a ticket row, before a "+N".
-const MAX_VISIBLE_TKT_ROW_TAGS = 2;
-// Narrower rows on a phone.
-const MAX_VISIBLE_TKT_ROW_TAGS_MOBILE = 1;
+// One empty list for every untagged row, so it compares equal across renders.
+const NO_TAGS: SupportTicketTagData[] = [];
+
+// Most tags a ticket row shows; the rest go behind a "+N" chip.
+const MAX_ROW_TAGS = 2;
+// The row's chip gap (gap-1.5), in pixels.
+const ROW_TAG_GAP = 6;
 
 /** Hides a horizontal scrollbar while keeping the strip scrollable. */
 const NO_SCROLLBAR = "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
@@ -225,7 +227,7 @@ function RowChip({
   return (
     <span
       className={cn(
-        "inline-flex max-w-28 shrink-0 items-center truncate rounded px-1.5 py-0.5 text-[11px] font-medium leading-none",
+        "inline-block shrink-0 rounded px-1.5 text-[11px] leading-4 font-medium whitespace-nowrap",
         className,
       )}
       style={style}
@@ -244,39 +246,71 @@ function TicketRow({
   active?: boolean;
   onSelect: () => void;
 }) {
-  const customerName = customerLabel(ticket.customer);
+  const customerName =
+    ticket.customer_name?.trim() || customerLabel(ticket.customer);
+  // List rows carry the order's total; a row added from the ticket's details
+  // (a deep link) carries the customer's orders instead.
   const order = findLinkedOrder(
     ticket.order_id,
     ticket.customer && typeof ticket.customer === "object"
       ? ticket.customer.orders
       : null,
   );
+  const orderTotal = ticket.order_total ?? order?.total_price;
+  const orderCurrency = ticket.order_currency ?? order?.currency;
   const unread = !ticket.is_read;
   const priorityChip = ROW_PRIORITY_CHIP[ticket.priority];
-  const tags = ticket.tags ?? [];
+  const tags = ticket.tags ?? NO_TAGS;
 
-  const renderTags = (max: number, showHidden = true) => (
-    <>
-      {tags.slice(0, max).map((tag) => (
-        <RowChip
-          key={tag.id}
-          style={
-            tag.color
-              ? { color: tag.color, backgroundColor: tint(tag.color, 0.12) }
-              : undefined
-          }
-          className={tag.color ? undefined : "bg-muted text-muted-foreground"}
-        >
-          {tag.name}
-        </RowChip>
-      ))}
-      {showHidden && tags.length > max ? (
-        <HiddenTagsBadge
-          tags={tags.slice(max)}
-          label={`+${tags.length - max}`}
-        />
-      ) : null}
-    </>
+  // Whole tags only, as many as the line has room for (up to MAX_ROW_TAGS),
+  // then "+N". Measured, since the room depends on the list's width and on
+  // what else the line carries.
+  const tagsBoxRef = useRef<HTMLSpanElement>(null);
+  const tagsMeasureRef = useRef<HTMLSpanElement>(null);
+  const [shownTags, setShownTags] = useState(
+    Math.min(tags.length, MAX_ROW_TAGS),
+  );
+  useLayoutEffect(() => {
+    const box = tagsBoxRef.current;
+    const measure = tagsMeasureRef.current;
+    if (!box || !measure) return;
+    const fit = () => {
+      // The measuring copy holds the first tags, then the "+N" chip.
+      const widths = Array.from(
+        measure.children,
+        (child) => (child as HTMLElement).offsetWidth,
+      );
+      const plus = widths.pop() ?? 0;
+      const width = (count: number) => {
+        const chips = widths.slice(0, count);
+        if (count < tags.length) chips.push(plus);
+        return (
+          chips.reduce((sum, chip) => sum + chip, 0) +
+          Math.max(0, chips.length - 1) * ROW_TAG_GAP
+        );
+      };
+      let count = Math.min(tags.length, MAX_ROW_TAGS);
+      while (count > 0 && width(count) > box.clientWidth) count -= 1;
+      setShownTags(count);
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [tags]);
+
+  const tagChip = (tag: SupportTicketTagData) => (
+    <RowChip
+      key={tag.id}
+      style={
+        tag.color
+          ? { color: tag.color, backgroundColor: tint(tag.color, 0.12) }
+          : undefined
+      }
+      className={tag.color ? undefined : "bg-muted text-muted-foreground"}
+    >
+      {tag.name}
+    </RowChip>
   );
 
   return (
@@ -339,8 +373,8 @@ function TicketRow({
         <div className="mt-1.5 flex min-w-0 items-center gap-1.5 overflow-hidden text-xs text-muted-foreground">
           <span className="shrink-0">
             {ticket.order_id ? `#${ticket.order_id}` : "No order linked"}
-            {order
-              ? ` · ${formatMoney(order.total_price, order.currency).replace(/\.00$/, "")}`
+            {orderTotal
+              ? ` · ${formatMoney(orderTotal, orderCurrency).replace(/\.00$/, "")}`
               : ""}
           </span>
           <span aria-hidden>·</span>
@@ -350,16 +384,29 @@ function TicketRow({
               {capitalizeText(ticket.priority)}
             </RowChip>
           ) : null}
-          <span className="hidden min-w-0 items-center gap-1.5 md:flex">
-            {renderTags(MAX_VISIBLE_TKT_ROW_TAGS)}
-          </span>
-          {/* A phone row has room for one chip: the priority, else a tag. */}
-          <span className="flex min-w-0 items-center gap-1.5 md:hidden">
-            {renderTags(
-              priorityChip ? 0 : MAX_VISIBLE_TKT_ROW_TAGS_MOBILE,
-              false,
-            )}
-          </span>
+          {tags.length > 0 ? (
+            <span
+              ref={tagsBoxRef}
+              className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden"
+            >
+              {tags.slice(0, shownTags).map(tagChip)}
+              {tags.length > shownTags ? (
+                <HiddenTagsBadge
+                  tags={tags.slice(shownTags)}
+                  label={`+${tags.length - shownTags}`}
+                />
+              ) : null}
+              {/* Off-screen copy the room is measured against. */}
+              <span
+                ref={tagsMeasureRef}
+                aria-hidden
+                className="pointer-events-none invisible absolute flex gap-1.5"
+              >
+                {tags.slice(0, MAX_ROW_TAGS).map(tagChip)}
+                <Badge variant="outline">+{tags.length}</Badge>
+              </span>
+            </span>
+          ) : null}
         </div>
       </div>
     </button>
@@ -381,7 +428,6 @@ const SORT_OPTIONS: { key: SupportTicketOrdering; label: string }[] = [
   { key: "last_updated", label: "Last updated" },
   { key: "newest", label: "Newest first" },
   { key: "oldest", label: "Oldest first" },
-  { key: "priority", label: "Priority, highest first" },
 ];
 
 /**
@@ -429,19 +475,11 @@ const STATUS_CONFIRMATIONS = {
 } as const;
 
 type TicketFilterSelection = {
-  channels: SupportTicketChannel[];
   priorities: SupportTicketPriority[];
-  sentiments: TicketSentiment[];
-  assignees: AssigneeChoice[];
 };
 
-type AssigneeChoice = "me" | "unassigned" | "teammates";
-
 const emptyTicketFilters: TicketFilterSelection = {
-  channels: [],
   priorities: [],
-  sentiments: [],
-  assignees: [],
 };
 
 /** The known values of a comma-separated param; a hand-edited URL may hold others. */
@@ -461,36 +499,6 @@ const priorityOptions: { value: SupportTicketPriority; label: string }[] = [
   { value: "high", label: "High" },
   { value: "urgent", label: "Urgent" },
 ];
-
-const assigneeOptions: { value: AssigneeChoice; label: string }[] = [
-  { value: "me", label: "Me" },
-  { value: "unassigned", label: "Unassigned" },
-  { value: "teammates", label: "Teammates" },
-];
-
-/** Sidebar views that already decide the assignee, so the chips stay off. */
-const ASSIGNEE_VIEWS = ["unassigned", "assigned_to_me"];
-
-/** "Me" with "Unassigned" has no API equivalent, so picking one disables the other. */
-const EXCLUSIVE_ASSIGNEE: Partial<Record<string, AssigneeChoice>> = {
-  me: "unassigned",
-  unassigned: "me",
-};
-
-/** The assignee chips as the list API's two assignment filters. */
-function assigneeQuery(choices: AssigneeChoice[]): SupportTicketFilters {
-  const me = choices.includes("me");
-  const unassigned = choices.includes("unassigned");
-  const teammates = choices.includes("teammates");
-  // Never offered together (see EXCLUSIVE_ASSIGNEE); a hand-edited URL with
-  // both is not filtered, as all three chips would not be.
-  if (me && unassigned) return {};
-  if (me) return teammates ? { is_assigned: true } : { assigned_to_me: true };
-  if (unassigned) {
-    return teammates ? { assigned_to_me: false } : { is_assigned: false };
-  }
-  return teammates ? { is_assigned: true, assigned_to_me: false } : {};
-}
 
 /** The open view's ticket count, for the list's title. */
 function viewCount(
@@ -566,23 +574,7 @@ function TicketListPanel({
   const subSidebar = useSubSidebar();
   const isPhone = useIsMobile();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const activeFilterCount =
-    Object.values(filters).flat().length -
-    (ASSIGNEE_VIEWS.includes(activeFilter) ? filters.assignees.length : 0);
-  const filterGroups: {
-    key: keyof TicketFilterSelection;
-    label: string;
-    options: readonly { value: string; label: string }[];
-  }[] = [
-    {
-      key: "channels",
-      label: "Channel",
-      options: helpdeskChannelRows(filterCounts),
-    },
-    { key: "priorities", label: "Priority", options: priorityOptions },
-    { key: "sentiments", label: "Sentiment", options: TICKET_SENTIMENTS },
-    { key: "assignees", label: "Assignee", options: assigneeOptions },
-  ];
+  const activeFilterCount = filters.priorities.length;
   const title = helpdeskViewLabel(activeFilter, filterCounts);
   const count = viewCount(
     activeFilter,
@@ -651,71 +643,46 @@ function TicketListPanel({
             Clear all
           </button>
         </div>
-        <div className="max-h-[65vh] divide-y overflow-y-auto">
-          {filterGroups.map((group) => {
-            const selected: string[] = filters[group.key];
-            const isAssignee = group.key === "assignees";
-            const setByView =
-              isAssignee && ASSIGNEE_VIEWS.includes(activeFilter);
-            return (
-              <div
-                key={group.key}
-                role="group"
-                aria-labelledby={`ticket-filter-${group.key}`}
-                className="px-4 py-3"
-              >
-                <p
-                  id={`ticket-filter-${group.key}`}
-                  className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+        <div
+          role="group"
+          aria-labelledby="ticket-filter-priority"
+          className="px-4 py-3"
+        >
+          <p
+            id="ticket-filter-priority"
+            className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+          >
+            Priority
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {priorityOptions.map((option) => {
+              const active = filters.priorities.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    onFiltersChange({
+                      priorities: active
+                        ? filters.priorities.filter(
+                            (value) => value !== option.value,
+                          )
+                        : [...filters.priorities, option.value],
+                    })
+                  }
+                  className={cn(
+                    "h-8 rounded-full border px-3 text-sm transition-colors",
+                    active
+                      ? "border-primary bg-primary/10 font-medium text-primary"
+                      : "bg-background text-foreground hover:bg-muted",
+                  )}
                 >
-                  {group.label}
-                  {setByView ? (
-                    <span className="ml-1 font-normal tracking-normal normal-case">
-                      · Set by the {title} view
-                    </span>
-                  ) : null}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {group.options.map((option) => {
-                    const active =
-                      !setByView && selected.includes(option.value);
-                    const exclusive = EXCLUSIVE_ASSIGNEE[option.value];
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-pressed={active}
-                        disabled={
-                          setByView ||
-                          (isAssignee &&
-                            !!exclusive &&
-                            selected.includes(exclusive))
-                        }
-                        onClick={() =>
-                          onFiltersChange({
-                            ...filters,
-                            [group.key]: active
-                              ? selected.filter(
-                                  (value) => value !== option.value,
-                                )
-                              : [...selected, option.value],
-                          })
-                        }
-                        className={cn(
-                          "h-8 rounded-full border px-3 text-sm transition-colors disabled:pointer-events-none disabled:opacity-50",
-                          active
-                            ? "border-primary bg-primary/10 font-medium text-primary"
-                            : "bg-background text-foreground hover:bg-muted",
-                        )}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div className="flex justify-end gap-2 border-t p-3">
           <Button
@@ -859,12 +826,7 @@ function TicketListPanel({
             );
           })}
         </div>
-        <div
-          className={cn(
-            "-mx-4 flex gap-2 overflow-x-auto px-4 md:hidden",
-            NO_SCROLLBAR,
-          )}
-        >
+        <div className="flex gap-1.5 md:hidden">
           {queues.map((queue) => {
             const active = queue.key === activeQueue;
             return (
@@ -874,9 +836,9 @@ function TicketListPanel({
                 aria-pressed={active}
                 onClick={() => !active && onQueueChange(queue.key)}
                 className={cn(
-                  "flex h-9 shrink-0 items-center gap-1 rounded-full border px-4 text-sm whitespace-nowrap",
+                  "flex h-9 min-w-0 flex-auto items-center justify-center gap-1 rounded-full border px-2 text-[13px] whitespace-nowrap",
                   active
-                    ? "border-foreground bg-foreground font-medium text-background"
+                    ? "border-primary bg-primary font-medium text-primary-foreground"
                     : "bg-background text-foreground",
                 )}
               >
@@ -1102,10 +1064,13 @@ function ConversationPanel({
   const ticketLanguage = ticket.language ?? DEFAULT_TICKET_LANGUAGE;
   const customerName = customerLabel(ticket.customer);
   const firstName = customerName.split(" ")[0];
-  const chatThreadId =
-    ticket.customer && typeof ticket.customer === "object"
-      ? ticket.customer.thread_id
-      : null;
+  // The chat the ticket came from: live support while it is open, the
+  // threads page once closed, and no link when there is none.
+  const chatHref = ticket.thread
+    ? ticket.thread_is_active
+      ? `/support/?chat=${ticket.thread}`
+      : `/threads/${ticket.thread}`
+    : null;
   const staffNames = staff.map((member) =>
     `${member.first_name} ${member.last_name}`.trim(),
   );
@@ -1300,7 +1265,7 @@ function ConversationPanel({
                       {
                         mode: "reply_and_resolve",
                         label: "Send and resolve",
-                        icon: IconCircleCheck,
+                        icon: IconCheck,
                       },
                     ]
                   : []),
@@ -1389,14 +1354,6 @@ function ConversationPanel({
               {customerName} · {ticketRef(ticket.ticket_id)}
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Ticket details"
-            onClick={onShowDetails}
-          >
-            <IconInfoCircle className="size-5" />
-          </Button>
           <div className="flex shrink-0 items-center gap-1.5">
             {statusButtons}
           </div>
@@ -1489,6 +1446,10 @@ function ConversationPanel({
                 message.id < 0
                   ? "Sending…"
                   : messageTime(message.created_at, newDay);
+              const clock =
+                message.id < 0
+                  ? "Sending…"
+                  : formatTicketTime(message.created_at);
               const isNote = message.message_type === "internal";
               const isAgent = !isNote && message.sender_type === "agent";
               const isSystem = message.sender_type === "system";
@@ -1560,12 +1521,12 @@ function ConversationPanel({
                           {isPhone
                             ? `Created by ${creator} from ${source.replace(/^a /, "")}`
                             : `Ticket created by ${creator} from ${source}`}{" "}
-                          · {time}
+                          · {clock}
                         </span>
                       </p>
-                      {chatThreadId ? (
+                      {chatHref ? (
                         <Link
-                          href={`/support/?chat=${chatThreadId}`}
+                          href={chatHref}
                           className="hidden shrink-0 text-xs font-medium text-primary underline md:inline"
                         >
                           View chat
@@ -1573,9 +1534,9 @@ function ConversationPanel({
                       ) : null}
                     </div>
                     {body}
-                    {chatThreadId ? (
+                    {chatHref ? (
                       <Link
-                        href={`/support/?chat=${chatThreadId}`}
+                        href={chatHref}
                         className="mt-1 inline-block text-sm font-medium text-primary underline md:hidden"
                       >
                         View chat
@@ -1603,7 +1564,7 @@ function ConversationPanel({
                       {isNote ? (
                         <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
                           <IconLock className="size-3.5" />
-                          Internal note · {author} · {time}
+                          Internal note · {author} · {clock}
                         </p>
                       ) : (
                         <p className="mb-1 text-right text-xs text-muted-foreground">
@@ -1991,32 +1952,17 @@ export default function HelpDesk() {
   // they survive a refresh and a shared link, and stay put while the sidebar
   // view changes (its links carry them along). Read as plain strings first so
   // the objects below keep their identity until one really changes.
-  const channelParam = searchParams?.get("channel") ?? "";
   const priorityParam = searchParams?.get("priority") ?? "";
-  const sentimentParam = searchParams?.get("sentiment") ?? "";
-  const assigneeParam = searchParams?.get("assignee") ?? "";
   const sortParam = searchParams?.get("sort");
 
   const appliedFilters = useMemo<TicketFilterSelection>(
     () => ({
-      channels: pickParam(
-        channelParam,
-        Object.keys(CHANNEL_META) as SupportTicketChannel[],
-      ),
       priorities: pickParam(
         priorityParam,
         priorityOptions.map((option) => option.value),
       ),
-      sentiments: pickParam(
-        sentimentParam,
-        TICKET_SENTIMENTS.map((option) => option.value),
-      ),
-      assignees: pickParam(
-        assigneeParam,
-        assigneeOptions.map((option) => option.value),
-      ),
     }),
-    [channelParam, priorityParam, sentimentParam, assigneeParam],
+    [priorityParam],
   );
   const sortOrder: SupportTicketOrdering =
     SORT_OPTIONS.find((option) => option.key === sortParam)?.key ??
@@ -2467,19 +2413,9 @@ export default function HelpDesk() {
       status: activeQueue,
       ordering: sortOrder,
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
-      ...(appliedFilters.channels.length
-        ? { channel: appliedFilters.channels }
-        : {}),
       ...(appliedFilters.priorities.length
         ? { priority: appliedFilters.priorities }
         : {}),
-      ...(appliedFilters.sentiments.length
-        ? { sentiment: appliedFilters.sentiments }
-        : {}),
-      // An assignee view decides the assignee itself; see ASSIGNEE_VIEWS.
-      ...(ASSIGNEE_VIEWS.includes(activeFilter)
-        ? {}
-        : assigneeQuery(appliedFilters.assignees)),
     };
 
     // The sidebar view is the narrower of the two: it replaces, rather than
@@ -3597,10 +3533,7 @@ export default function HelpDesk() {
 
   const handleApplyFilters = () => {
     updateQueryParams({
-      channel: draftFilters.channels.join(",") || null,
       priority: draftFilters.priorities.join(",") || null,
-      sentiment: draftFilters.sentiments.join(",") || null,
-      assignee: draftFilters.assignees.join(",") || null,
     });
     setIsFilterOpen(false);
   };

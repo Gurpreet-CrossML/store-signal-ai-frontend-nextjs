@@ -43,10 +43,6 @@ const FIXED_VIEWS: Record<
     count: (counts) => counts.assigned_to_me,
   },
   unread: { query: { is_read: false }, count: (counts) => counts.unread },
-  high_priority: {
-    query: { priority: ["urgent", "high"] },
-    count: (counts) => counts.high_priority,
-  },
   negative_sentiment: {
     query: { sentiment: ["negative"] },
     count: (counts) => counts.negative_sentiment,
@@ -145,13 +141,7 @@ const COUNT_GROUPS: {
  * menu) keep in the URL. They narrow whichever view is open, so moving to
  * another view carries them along.
  */
-export const HELPDESK_LIST_PARAMS = [
-  "channel",
-  "priority",
-  "sentiment",
-  "assignee",
-  "sort",
-] as const;
+export const HELPDESK_LIST_PARAMS = ["priority", "sort"] as const;
 
 /**
  * `href`, if it is a help desk view, with the list params of `search`
@@ -203,7 +193,7 @@ export function helpdeskFilterToQuery(filter: string): SupportTicketFilters {
  */
 export function ticketBelongsToHelpdeskFilter(
   filter: string,
-  ticket: Pick<SupportTicket, "internal_assignee" | "sentiment" | "priority">,
+  ticket: Pick<SupportTicket, "internal_assignee" | "sentiment">,
   userEmail?: string | null,
 ) {
   const assignee = ticket.internal_assignee;
@@ -218,8 +208,6 @@ export function ticketBelongsToHelpdeskFilter(
       );
     case "negative_sentiment":
       return ticket.sentiment === "negative";
-    case "high_priority":
-      return ticket.priority === "high" || ticket.priority === "urgent";
     default:
       return true;
   }
@@ -234,7 +222,6 @@ export const HELPDESK_VIEWS = [
   { filter: "assigned_to_me", label: "Assigned to me", dot: "bg-blue-500" },
   { filter: "unassigned", label: "Unassigned", dot: "bg-zinc-400" },
   { filter: "unread", label: "Unread", dot: "bg-violet-600" },
-  { filter: "high_priority", label: "High & urgent", dot: "bg-red-500" },
   {
     filter: "negative_sentiment",
     label: "Negative sentiment",
