@@ -72,7 +72,7 @@ const ALL = "all";
 export const CHANNEL_OPTIONS = [
   { value: "", label: "All Channels" },
   { value: "web", label: "Web" },
-  // { value: "whatsapp", label: "WhatsApp" },
+  { value: "whatsapp", label: "WhatsApp" },
 ];
 
 export function FilterSelect({
