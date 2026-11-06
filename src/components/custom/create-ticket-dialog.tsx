@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormik } from "formik";
 import { z } from "zod";
 import {
@@ -123,7 +123,7 @@ const schema = z.object({
     .min(10, "Describe the problem in at least 10 characters."),
   priority: z.enum(["low", "normal", "high", "urgent"]),
   orderId: z.string(),
-  tagNames: z.array(z.string()),
+  tagNames: z.array(z.string()).min(1, "Select at least one tag."),
   language: z.string(),
 });
 
@@ -318,6 +318,7 @@ export function CreateTicketDialog({
   // render that matters.
   const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
   const [drafting, setDrafting] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const { CreateSupportTicketIsLoading } = useAppSelector(
     (state) => state.GetSupportTicketsReducer.CreateSupportTicketState,
@@ -445,6 +446,21 @@ export function CreateTicketDialog({
     };
   }, [dispatch, open, storeCode, customerId]);
 
+  // The form scrolls inside the dialog and the footer button sits outside
+  // it, so a failed submit can leave the error out of sight — bring the first
+  // one into view. Waits a frame so the error has rendered.
+  const handleCreate = async () => {
+    try {
+      await formik.submitForm();
+    } finally {
+      requestAnimationFrame(() => {
+        formRef.current
+          ?.querySelector("[data-field-error]")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+  };
+
   const handleDraft = async () => {
     if (!onDraft) return;
     setDrafting(true);
@@ -488,7 +504,10 @@ export function CreateTicketDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent ref={setContentEl} className="sm:max-w-lg">
+      <DialogContent
+        ref={setContentEl}
+        className="max-h-[calc(100dvh-1rem)] gap-4 overflow-hidden p-3 sm:max-w-lg sm:gap-6 sm:p-6"
+      >
         <DialogHeader>
           <DialogTitle>Create Ticket</DialogTitle>
           <DialogDescription>
@@ -499,14 +518,15 @@ export function CreateTicketDialog({
         </DialogHeader>
 
         <form
+          ref={formRef}
           onSubmit={formik.handleSubmit}
-          className="flex max-h-[60vh] flex-col gap-6 overflow-y-auto px-1"
+          className="flex max-h-[calc(100dvh-12rem)] min-h-0 flex-col gap-5 overflow-y-auto px-1 sm:max-h-[60vh] sm:gap-6"
         >
           {/* Above the fields it writes, and separated by a rule rather
               than sitting in a box of its own — it is an action on this
               form, not a section of it. */}
           {onDraft ? (
-            <div className="flex items-center justify-between gap-3 border-b border-border pb-4">
+            <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <Typography variant="small" as="p">
                   Draft from Conversation
@@ -520,7 +540,7 @@ export function CreateTicketDialog({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="shrink-0"
+                className="w-full shrink-0 sm:w-auto"
                 disabled={drafting || busy}
                 onClick={handleDraft}
               >
@@ -568,7 +588,12 @@ export function CreateTicketDialog({
               placeholder="Refund not received for order #1042"
             />
             {formik.touched.subject && formik.errors.subject && (
-              <Typography variant="caption" as="p" className="text-destructive">
+              <Typography
+                variant="caption"
+                as="p"
+                className="text-destructive"
+                data-field-error
+              >
                 {formik.errors.subject}
               </Typography>
             )}
@@ -589,7 +614,12 @@ export function CreateTicketDialog({
               placeholder="What the customer asked for, and anything the next agent needs to know."
             />
             {formik.touched.description && formik.errors.description && (
-              <Typography variant="caption" as="p" className="text-destructive">
+              <Typography
+                variant="caption"
+                as="p"
+                className="text-destructive"
+                data-field-error
+              >
                 {formik.errors.description}
               </Typography>
             )}
@@ -628,7 +658,7 @@ export function CreateTicketDialog({
             </Select>
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="ticket-priority">Priority</FieldLabel>
               <Select
@@ -677,9 +707,12 @@ export function CreateTicketDialog({
           </div>
 
           <Field>
-            <FieldLabel>Tags</FieldLabel>
+            <FieldLabel>
+              Tags
+              <span className="-ml-1 text-xs text-destructive">*</span>
+            </FieldLabel>
             <FieldDescription>
-              Choose from the store&apos;s tags.
+              Choose at least one of the store&apos;s tags.
             </FieldDescription>
             <MultiSelectCombobox
               options={tagOptions}
@@ -690,15 +723,23 @@ export function CreateTicketDialog({
               isLoading={FetchSupportTicketTagsIsLoading}
               portalContainer={contentEl}
             />
-            {formik.touched.tagNames && formik.errors.tagNames && (
-              <Typography variant="caption" as="p" className="text-destructive">
-                {formik.errors.tagNames}
-              </Typography>
-            )}
+            {formik.touched.tagNames &&
+              typeof formik.errors.tagNames === "string" && (
+                <Typography
+                  variant="caption"
+                  as="p"
+                  className="text-destructive"
+                  data-field-error
+                >
+                  {formik.errors.tagNames}
+                </Typography>
+              )}
           </Field>
         </form>
 
-        <DialogFooter>
+        {/* One row on a phone too: stacked, the two buttons push Cancel
+            past the bottom of the screen. */}
+        <DialogFooter className="flex-row justify-end">
           <Button
             type="button"
             variant="outline"
@@ -713,7 +754,7 @@ export function CreateTicketDialog({
             // there is nobody to raise it for, and the message would have
             // to point at a field the form cannot highlight.
             disabled={!customer || busy}
-            onClick={() => formik.handleSubmit()}
+            onClick={handleCreate}
           >
             {busy ? (
               <Spinner className="size-4" />

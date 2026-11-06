@@ -1,7 +1,6 @@
 "use client";
 
 import { Typography } from "@/components/ui/typography";
-import { IconShieldCheck } from "@tabler/icons-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -30,19 +29,6 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           <div className="w-full max-w-md">{children}</div>
         </div>
         <div className="mx-auto flex w-full max-w-md flex-col gap-6">
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <IconShieldCheck className="size-5" />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Typography variant="small">
-                Your data is secure with us
-              </Typography>
-              <Typography variant="muted" className="text-xs">
-                256-bit encryption • SOC 2 Type II • GDPR Compliant
-              </Typography>
-            </div>
-          </div>
           <Typography
             variant="muted"
             as="div"

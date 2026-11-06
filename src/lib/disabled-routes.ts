@@ -5,7 +5,16 @@
  * Read by the proxy. Re-enabling a screen is removing its prefix here and
  * uncommenting its entry in NAV_AREAS / sidebar-navs.
  */
-const DISABLED_PREFIXES = ["/campaign", "/social-ai", "/settings/social-ai"];
+const DISABLED_PREFIXES = [
+  "/campaign/email-templates",
+  "/campaign/segments",
+  "/campaign/campaigns",
+  "/social-ai",
+  "/settings/social-ai/comment-handling",
+  "/settings/social-ai/dm-automation",
+  "/settings/social-ai/guardrails",
+  "/settings/social-ai/meta-compliance",
+];
 
 export function isDisabledRoute(pathname: string): boolean {
   return DISABLED_PREFIXES.some(

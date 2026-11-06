@@ -164,6 +164,9 @@ type ThreadListRow = {
   customer_last_name: string | null;
   customer_email: string | null;
   customer_phone: string | null;
+  customer_registered_at: string | null;
+  customer_total_spent: string | number | null;
+  customer_orders_count: number | null;
   customer_past_threads_count: number;
   chat_handler: string;
   chat_handler_user_id: number | null;
@@ -185,6 +188,9 @@ export type ThreadListItem = {
     name: string | null;
     email: string | null;
     phone: string;
+    registered_at: string | null;
+    total_spent: string | number | null;
+    orders_count: number | null;
     past_threads_count: number;
   };
   followup_level: number;
@@ -286,6 +292,9 @@ export async function list_threads(
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
       customer_phone: chatCustomer.phone,
+      customer_registered_at: chatCustomer.registeredAt,
+      customer_total_spent: chatCustomer.totalSpent,
+      customer_orders_count: chatCustomer.ordersCount,
       customer_past_threads_count: pastThreadsCount,
       chat_handler: chatThread.chatHandler,
       chat_handler_user_id: authUser.id,
@@ -306,6 +315,9 @@ export async function list_threads(
       chatCustomer.lastName,
       chatCustomer.email,
       chatCustomer.phone,
+      chatCustomer.registeredAt,
+      chatCustomer.totalSpent,
+      chatCustomer.ordersCount,
       authUser.id,
       authUser.firstName,
       authUser.lastName,
@@ -414,6 +426,9 @@ export async function list_threads(
         name: hasCustomer ? customerName : null,
         email: row.customer_email,
         phone: row.customer_phone || "",
+        registered_at: row.customer_registered_at,
+        total_spent: row.customer_total_spent,
+        orders_count: row.customer_orders_count,
         past_threads_count: Number(row.customer_past_threads_count ?? 0),
       },
       followup_level: row.followup_level,
@@ -699,6 +714,8 @@ type ThreadMessage = {
   agent_name: string | null;
   confidence: number | null;
   source_used: string;
+  feedback_rating: string | null;
+  feedback_message: string | null;
   created_at: string;
   messaged_by: string;
   messaged_by_email: string | null;
@@ -832,11 +849,23 @@ export async function get_thread_details(
       message_type: chatHistory.messageType,
       agent_name: sql<string | null>`case
         when nullif(concat_ws(' ', ${authUser.firstName}, ${authUser.lastName}), '') is not null
-          then concat(concat_ws(' ', ${authUser.firstName}, ${authUser.lastName}), ' (', ${authUser.email}, ')')
-        else nullif(${authUser.email}, '')
+          then concat_ws(' ', ${authUser.firstName}, ${authUser.lastName})
+        else nullif(${authUser.username}, '')
       end`,
       confidence: chatHistory.confidence,
       source_used: chatHistory.sourceUsed,
+      feedback_rating: sql<string | null>`(
+        SELECT ${chatbotFeedback.rating} FROM ${chatbotFeedback}
+        WHERE ${chatbotFeedback.chatMessageId} = ${chatHistory.id}
+        ORDER BY ${chatbotFeedback.createdAt} DESC
+        LIMIT 1
+      )`,
+      feedback_message: sql<string | null>`(
+        SELECT ${chatbotFeedback.feedbackMessage} FROM ${chatbotFeedback}
+        WHERE ${chatbotFeedback.chatMessageId} = ${chatHistory.id}
+        ORDER BY ${chatbotFeedback.createdAt} DESC
+        LIMIT 1
+      )`,
       created_at: chatHistory.createdAt,
       messaged_by_first_name: authUser.firstName,
       messaged_by_last_name: authUser.lastName,
@@ -861,6 +890,8 @@ export async function get_thread_details(
     agent_name: m.agent_name,
     confidence: m.confidence,
     source_used: m.source_used,
+    feedback_rating: m.feedback_rating,
+    feedback_message: m.feedback_message,
     created_at: m.created_at,
     messaged_by:
       [m.messaged_by_first_name, m.messaged_by_last_name]

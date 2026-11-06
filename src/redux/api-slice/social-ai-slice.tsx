@@ -425,6 +425,8 @@ export type WhatsAppTemplate = {
   id: number;
   meta_template_id: string | null;
   name: string;
+  // Readable name for the dashboard; blank when none was set.
+  display_name: string;
   status: string;
   category: string;
   language: string;
@@ -481,6 +483,7 @@ export type WhatsAppTemplateWritePayload = {
 export type WhatsAppTemplateLibraryItem = {
   id: number;
   name: string;
+  display_name: string;
   description: string;
   category: string;
   language: string;

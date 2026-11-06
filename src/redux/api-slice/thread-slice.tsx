@@ -69,6 +69,9 @@ export type Customer = {
   name: string;
   email: string;
   phone?: string | null;
+  registered_at?: string | null;
+  total_spent?: string | number | null;
+  orders_count?: number | null;
   past_threads_count?: number;
 };
 
@@ -156,7 +159,16 @@ export type TicketDetails = {
   created_at: string;
 };
 
+/** One question from the card shown to a shopper in the widget. */
+export type ClarifyingQuestion = {
+  question: string;
+  options: string[];
+  multi_select?: boolean;
+  from_catalogue?: boolean;
+};
+
 export type ThreadJsonContent = {
+  questions?: ClarifyingQuestion[];
   products?: ProductData[];
   related_products?: ProductData[];
   comparison_block?: ProductComparisonBlock[] | null;
@@ -187,6 +199,10 @@ export type ThreadMessage = {
   messaged_by: string;
   /** Sender's email, to show "You" for the signed-in agent. */
   messaged_by_email?: string | null;
+  /** Latest feedback the customer attached to this message. */
+  feedback_rating?: string | null;
+  /** Optional written comment attached to the message feedback. */
+  feedback_message?: string | null;
 };
 
 /** One handover of a chat; a null agent name means the AI. */
@@ -449,6 +465,8 @@ export type OrderData = {
    * the button simply does not render.
    */
   admin_url?: string | null;
+  /** Product image per ordered variant (`product_id` of an item). */
+  item_images?: Record<string, string>;
 };
 
 export type ThreadCounts = {
@@ -763,13 +781,13 @@ export const ThreadCustomerLink = createAsyncThunk(
       storeCode,
       threadId,
       customerId,
-    }: { storeCode: string; threadId: string; customerId: number },
+    }: { storeCode: string; threadId: string; customerId: string },
     thunkAPI,
   ) => {
     try {
-      const response = await axiosInstance.patch(
+      const response = await axiosInstance.post(
         `${ENDPOINTS.threadCustomerLink(threadId)}?store_code=${storeCode}`,
-        { customer: customerId },
+        { customer_id: customerId },
         { useBackend: true },
       );
       toast.success("Customer linked to this conversation.");

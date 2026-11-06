@@ -100,6 +100,9 @@ export const ENDPOINTS = {
   // step + connected stores with their widget keys; PATCH sets
   // `onboarding_step` to "brand_voice", "completed" or "skipped".
   companyOnboarding: () => "/tenancy/company/onboarding/",
+  // Dashboard "finish setup" checklist (Django). GET (needs useBackend,
+  // ?store_code=<code>) returns one store's step statuses; read-only.
+  dashboardChecklist: () => "/tenancy/dashboard/checklist/",
   // Per-store settings (Django) — currently the widget's allowed-IP list.
   // GET returns the settings, PATCH updates them.
   storeAllowedIPsSettings: () =>
@@ -107,6 +110,15 @@ export const ENDPOINTS = {
   // Workflows for a store (Django). GET lists every platform workflow with
   // the store's on/off state; POST turns one on or off.
   storeWorkflows: () => createAPIUrl("/chat/workflows/", "django"),
+  // A store's own policy for one workflow (Django). GET reads it with its
+  // read-back and history; POST converts and saves new text as a version.
+  workflowPolicy: () => createAPIUrl("/chat/workflows/policy/", "django"),
+  // POST re-publishes an earlier policy version as a new one.
+  workflowPolicyRollback: () =>
+    createAPIUrl("/chat/workflows/policy/rollback/", "django"),
+  // DELETE removes an earlier policy version for good (never the live one).
+  workflowPolicyVersion: () =>
+    createAPIUrl("/chat/workflows/policy/version/", "django"),
 
   // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
   // Next.js issues a 308 redirect (an extra round-trip) before each call.
@@ -280,7 +292,7 @@ export const ENDPOINTS = {
   // with different owners.
   // NOTE: pending confirmation from the backend team.
   threadCustomerLink: (threadId: string) =>
-    createAPIUrl(`/chat/threads/${threadId}/customer/`, "django"),
+    createAPIUrl(`/chat/threads/${threadId}/update/customer/`, "django"),
   supportTicketStaffAssign: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/assignee/`, "django"),
   supportTicketAgentDraftSave: (ticket_id: number) =>
@@ -311,6 +323,10 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/ticket-tags/${tag_id}/`, "django"),
   ticketTagDelete: (tag_id: number) =>
     createAPIUrl(`/support/ticket-tags/${tag_id}/delete/`, "django"),
+  slaPolicies: () => createAPIUrl("/support/sla-policies/", "django"),
+  // PATCH to update, DELETE to remove.
+  slaPolicyDetail: (policy_id: number) =>
+    createAPIUrl(`/support/sla-policies/${policy_id}/`, "django"),
   supportTicketAIMessageDraftGenerate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/draft-messages/ai/`, "django"),
   supportTicketStatusUpdate: (ticket_id: number) =>
@@ -323,6 +339,15 @@ export const ENDPOINTS = {
     createAPIUrl(`/support/tickets/${ticket_id}/language-sentiment/`, "django"),
   supportTicketMessagesTranslate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/messages/translate/`, "django"),
+  // Helpdesk Copilot: GET the conversation, POST to run an action.
+  supportTicketCopilot: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/copilot/`, "django"),
+  // PATCH — rate an answer good or bad.
+  supportTicketCopilotFeedback: (ticket_id: number, message_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/copilot/messages/${message_id}/feedback/`,
+      "django",
+    ),
 
   // Helpdesk support ticket websocket (Django)
   supportSocket: (store_code: string, token: string) =>

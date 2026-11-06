@@ -43,10 +43,6 @@ const FIXED_VIEWS: Record<
     count: (counts) => counts.assigned_to_me,
   },
   unread: { query: { is_read: false }, count: (counts) => counts.unread },
-  // high_priority: {
-  //   query: { priority: ["urgent", "high"] },
-  //   count: (counts) => counts.high_priority,
-  // },
   negative_sentiment: {
     query: { sentiment: ["negative"] },
     count: (counts) => counts.negative_sentiment,
@@ -73,7 +69,7 @@ type CountRow = {
 const SHOWN_CHANNELS: readonly string[] = [
   "web",
   // "email",
-  // "whatsapp",
+  "whatsapp",
   // "facebook",
   // "instagram",
 ];
@@ -145,12 +141,7 @@ const COUNT_GROUPS: {
  * menu) keep in the URL. They narrow whichever view is open, so moving to
  * another view carries them along.
  */
-export const HELPDESK_LIST_PARAMS = [
-  "priority",
-  "from_date",
-  "to_date",
-  "sort",
-] as const;
+export const HELPDESK_LIST_PARAMS = ["priority", "sort"] as const;
 
 /**
  * `href`, if it is a help desk view, with the list params of `search`
@@ -220,6 +211,104 @@ export function ticketBelongsToHelpdeskFilter(
     default:
       return true;
   }
+}
+
+/**
+ * The fixed views, in the order the help desk's left panel and its views
+ * menu list them, each with the colour of its dot.
+ */
+export const HELPDESK_VIEWS = [
+  { filter: "", label: "All inboxes", dot: "bg-primary" },
+  { filter: "assigned_to_me", label: "Assigned to me", dot: "bg-blue-500" },
+  { filter: "unassigned", label: "Unassigned", dot: "bg-zinc-400" },
+  { filter: "unread", label: "Unread", dot: "bg-violet-600" },
+  {
+    filter: "negative_sentiment",
+    label: "Negative sentiment",
+    dot: "bg-orange-500",
+  },
+] as const;
+
+/** How the left panel names a channel: the web widget is a live chat. */
+export const HELPDESK_CHANNEL_LABELS: Partial<
+  Record<SupportTicketChannel, string>
+> = { web: "Web chat" };
+
+/** The ring colour of a channel's mark in the left panel. */
+export const HELPDESK_CHANNEL_RINGS: Partial<
+  Record<SupportTicketChannel, string>
+> = {
+  web: "border-zinc-500",
+  whatsapp: "border-emerald-500",
+  email: "border-sky-500",
+  facebook: "border-blue-600",
+  instagram: "border-pink-500",
+};
+
+/** A fixed view's ticket count, once the counts have loaded. */
+export function helpdeskViewCount(
+  filter: string,
+  counts: SupportTicketFilterCounts | null,
+) {
+  return counts ? FIXED_VIEWS[filter]?.count(counts) : undefined;
+}
+
+/** The URL of a fixed view, or of one value of a tag or channel view. */
+export function helpdeskViewUrl(filter: string) {
+  return filter
+    ? `/helpdesk?filter=${encodeURIComponent(filter)}`
+    : "/helpdesk";
+}
+
+/**
+ * The channels the left panel lists: the web chat and WhatsApp always, any
+ * other channel once a ticket has come through it.
+ */
+export function helpdeskChannelRows(counts: SupportTicketFilterCounts | null) {
+  const counted = new Map(
+    (counts?.channels ?? []).map((channel) => [channel.value, channel]),
+  );
+  const values = [
+    "web",
+    "whatsapp",
+    ...(counts?.channels ?? [])
+      .filter(
+        (channel) =>
+          channel.value !== "web" &&
+          channel.value !== "whatsapp" &&
+          channel.count > 0,
+      )
+      .map((channel) => channel.value),
+  ];
+  return values.map((value) => ({
+    filter: `channel:${value}`,
+    value: value as SupportTicketChannel,
+    label:
+      HELPDESK_CHANNEL_LABELS[value as SupportTicketChannel] ??
+      CHANNEL_META[value as SupportTicketChannel]?.label ??
+      counted.get(value)?.label ??
+      value,
+    count: counts ? (counted.get(value)?.count ?? 0) : undefined,
+  }));
+}
+
+/** What the open view is called, for the ticket list's title. */
+export function helpdeskViewLabel(
+  filter: string,
+  counts: SupportTicketFilterCounts | null,
+) {
+  const fixed = HELPDESK_VIEWS.find((view) => view.filter === filter);
+  if (fixed) return fixed.label;
+  const [param, ...rest] = filter.split(":");
+  const value = rest.join(":");
+  if (param === "tags") return value;
+  if (param === "channel") {
+    return (
+      helpdeskChannelRows(counts).find((row) => row.value === value)?.label ??
+      value
+    );
+  }
+  return "All inboxes";
 }
 
 /** The ticket count of the fixed view a sidebar url points at, if it is one. */

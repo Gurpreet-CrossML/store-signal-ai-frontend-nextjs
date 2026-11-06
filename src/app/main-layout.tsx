@@ -1,6 +1,7 @@
 "use client";
 
 import { AppSidebar } from "@/components/custom/app-sidebar";
+import { MobileTopBar } from "@/components/custom/mobile-nav";
 import { OnboardingDrawer } from "@/components/custom/onboarding-drawer";
 import { ShopifyOauthReturn } from "@/components/custom/shopify-oauth-return";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -10,7 +11,8 @@ import {
   SubSidebarMenuItem,
 } from "@/lib/sidebar-navs";
 import { Suspense, useState } from "react";
-import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
+import { useIsBelowLg, useIsBelowXl } from "@/hooks/use-narrow-viewport";
+import { SubSidebarContext } from "@/hooks/use-sub-sidebar";
 import {
   Empty,
   EmptyDescription,
@@ -59,18 +61,25 @@ export default function MainLayout({
   // on the rail still wins, until the viewport crosses the breakpoint
   // (rotating an iPad), when the default for the new size applies again.
   const isNarrow = useIsBelowLg();
-  const [toggled, setToggled] = useState<{
-    atNarrow: boolean;
-    hidden: boolean;
-  } | null>(null);
-  const subSidebarHidden =
-    toggled && toggled.atNarrow === isNarrow ? toggled.hidden : isNarrow;
+  const isBelowXl = useIsBelowXl();
 
   // Derived from the route, so it survives a refresh and works on a deep
   // link. Computed here rather than in AppSidebar because the sidebar's
   // width is a provider-level CSS variable that both the layout gap and the
   // fixed container read.
   const subSidebarKey = resolveSubSidebarKey(pathname);
+
+  // The help desk needs an iPad's whole width for its list and
+  // conversation, so its panel also starts collapsed below 1280px.
+  const startsHidden = isNarrow || (subSidebarKey === "helpdesk" && isBelowXl);
+  const [toggled, setToggled] = useState<{
+    atNarrow: boolean;
+    hidden: boolean;
+  } | null>(null);
+  const subSidebarHidden =
+    toggled && toggled.atNarrow === startsHidden
+      ? toggled.hidden
+      : startsHidden;
   const subSidebarItems: SubSidebarMenuItem | null = subSidebarKey
     ? (sidebarMenus.navSubSidebar?.[subSidebarKey] ?? null)
     : null;
@@ -79,7 +88,7 @@ export default function MainLayout({
   // taking 14rem out of it, and closes once a destination is picked.
   const subSidebarOverlays = isNarrow && hasSubSidebar && !subSidebarHidden;
   const toggleSubSidebar = () =>
-    setToggled({ atNarrow: isNarrow, hidden: !subSidebarHidden });
+    setToggled({ atNarrow: startsHidden, hidden: !subSidebarHidden });
 
   if (isAuthPage(pathname)) {
     return <>{children}</>;
@@ -138,6 +147,8 @@ export default function MainLayout({
         />
       </Suspense>
       <SidebarInset>
+        {/* Phone only: the hamburger that opens the navigation drawer. */}
+        <MobileTopBar pathname={pathname} />
         {/* Reads Shopify's OAuth return params from the query string. */}
         <Suspense fallback={null}>
           <ShopifyOauthReturn />
@@ -150,7 +161,11 @@ export default function MainLayout({
                 live support, social inbox/feed) fill the viewport edge to
                 edge. Padding added here would double up on every page. */}
             <div className={cn("flex flex-col", "h-full")}>
-              {GetStoresIsLoading ? <StoreLoading /> : children}
+              <SubSidebarContext.Provider
+                value={{ hidden: subSidebarHidden, toggle: toggleSubSidebar }}
+              >
+                {GetStoresIsLoading ? <StoreLoading /> : children}
+              </SubSidebarContext.Provider>
             </div>
           </div>
         </div>

@@ -9,7 +9,9 @@ import {
   IconBrain,
   IconCalendarTime,
   IconCheck,
+  IconChevronLeft,
   IconClockHour4,
+  IconFlag,
   IconHash,
   IconListCheck,
   IconMessage2,
@@ -22,8 +24,10 @@ import {
   type Icon,
 } from "@tabler/icons-react";
 
-import MessagePan from "@/components/custom/message-pan";
-import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { ThreadCard } from "@/components/custom/thread-card";
+import { ConversationTranscript } from "@/components/custom/conversation-transcript";
+import ConversationMap from "@/components/custom/conversation-map";
+import { getInitials } from "@/components/custom/customer-avatar";
 import {
   CustomerDetailsButton,
   CustomerDetailsPanel,
@@ -41,6 +45,10 @@ import {
   closeReasonTone,
 } from "@/lib/thread-options";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
+import {
+  CreateTicketDialog,
+  type TicketCustomer,
+} from "@/components/custom/create-ticket-dialog";
 import { LoadingState } from "@/components/custom/loading-state";
 import {
   Empty,
@@ -54,14 +62,14 @@ import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
-import { FEEDBACK_RATINGS } from "@/lib/config";
-import { formatDateTime, getDuration } from "@/lib/helpers";
+import { getDuration } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import {
   FetchAIInsight,
@@ -75,8 +83,14 @@ import {
   FetchUserMetadata,
   ThreadCustomerLink,
   type ThreadMessage,
+  type ThreadTagData,
 } from "@/redux/api-slice/thread-slice";
+import {
+  CreateSupportTicket,
+  FetchThreadTicketDraft,
+} from "@/redux/api-slice/support-ticket-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useCan } from "@/hooks/use-can";
 
 /* ------------------------------------------------------------------ */
 /* Shared bits                                                         */
@@ -351,8 +365,109 @@ function AIInsightsSection({
 }
 
 /* ------------------------------------------------------------------ */
+/* Thread-detail presentation                                          */
+/* ------------------------------------------------------------------ */
+
+function ResolutionRing({
+  value,
+  compact = false,
+}: {
+  value: number;
+  compact?: boolean;
+}) {
+  const rate = Math.max(0, Math.min(100, value || 0));
+  return (
+    <span
+      aria-label={`${rate}% resolution score`}
+      className={`relative inline-flex shrink-0 items-center justify-center rounded-full text-primary ${
+        compact ? "size-11" : "size-14"
+      }`}
+      style={{
+        background: `conic-gradient(#7c22ce ${rate}%, #ede9fe 0)`,
+      }}
+    >
+      <span
+        className={`rounded-full bg-background ${compact ? "size-9" : "size-11"}`}
+      />
+      <span
+        className={`absolute font-bold tabular-nums ${
+          compact ? "text-[11px]" : "text-[13px]"
+        }`}
+      >
+        {rate}%
+      </span>
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
+
+// Stable reference for "no tags yet". A fresh `[]` inside the selector is a new
+// object on every call, which makes react-redux warn and re-render.
+const EMPTY_TAGS: (string | ThreadTagData)[] = [];
+
+/**
+ * Header date range: "15 Oct 2026, 10:57–11:28 AM" (the year is optional).
+ * AM/PM is shown once when the start and end share it, as in the design.
+ */
+function formatHeaderRange(
+  start?: string | null,
+  end?: string | null,
+  withYear = true,
+) {
+  if (!start) return "—";
+  const from = new Date(start);
+  if (Number.isNaN(from.getTime())) return "—";
+
+  const month = from.toLocaleDateString("en-US", { month: "short" });
+  const date = `${from.getDate()} ${month}${withYear ? ` ${from.getFullYear()}` : ""}`;
+  const time = (value: Date) =>
+    value
+      .toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+      .replace(/\s/g, " ");
+
+  const startTime = time(from);
+  const to = end ? new Date(end) : null;
+  if (!to || Number.isNaN(to.getTime())) return `${date}, ${startTime}`;
+
+  const endTime = time(to);
+  const sameMeridiem = startTime.slice(-2) === endTime.slice(-2);
+  return `${date}, ${sameMeridiem ? startTime.slice(0, -3) : startTime}–${endTime}`;
+}
+
+/** "10:57 AM" */
+function formatClock(value: Date) {
+  return value
+    .toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+    .replace(/\s/g, " ");
+}
+
+/** "15 Oct 2026, 10:57 AM", for the Thread details card. */
+function formatDayFirst(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  const month = date.toLocaleDateString("en-US", { month: "short" });
+  return `${date.getDate()} ${month} ${date.getFullYear()}, ${formatClock(date)}`;
+}
+
+/** "31 min", whole minutes, for the header line. */
+function formatHeaderDuration(start?: string | null, end?: string | null) {
+  if (!start || !end) return "—";
+  const diff = new Date(end).getTime() - new Date(start).getTime();
+  if (!Number.isFinite(diff) || diff < 0) return "—";
+  return `${Math.floor(diff / 60000)} min`;
+}
 
 export default function ThreadDetail({ threadId }: { threadId: string }) {
   const dispatch = useAppDispatch();
@@ -364,47 +479,35 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const { FetchThreadDetailsData, FetchThreadDetailsIsError } = useAppSelector(
     (state) => state.GetThreadReducer.FetchThreadDetailsState,
   );
-  const { FetchConversationSummaryData, FetchConversationSummaryIsLoading } =
-    useAppSelector(
-      (state) => state.GetThreadReducer.FetchConversationSummaryState,
-    );
-  const { FetchAIInsightData, FetchAIInsightIsLoading } = useAppSelector(
+  const { FetchConversationSummaryData } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchConversationSummaryState,
+  );
+  const { FetchAIInsightData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchAIInsightState,
   );
-  const { FetchCartData, FetchCartDataIsLoading } = useAppSelector(
+  const { FetchCartData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchCartDataState,
   );
-  const { FetchUserMetadataData, FetchUserMetadataIsLoading } = useAppSelector(
-    (state) => state.GetThreadReducer.FetchUserMetadataState,
-  );
-  const { FetchFeedbackSequenceData, FetchFeedbackSequenceIsLoading } =
-    useAppSelector(
-      (state) => state.GetThreadReducer.FetchFeedbackSequenceState,
-    );
-  const { FetchFreshdeskTicketIdData, FetchFreshdeskTicketIdIsLoading } =
-    useAppSelector(
-      (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
-    );
-  const { FetchOrderData, FetchOrderDataIsLoading } = useAppSelector(
+  const { FetchOrderData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchOrderDataState,
   );
   const threadTags = useAppSelector(
     (state) =>
       (
         state.GetThreadReducer.FetchTagsState as {
-          FetchTags?: { tags?: string[] };
+          FetchTags?: { tags?: (string | ThreadTagData)[] };
         }
-      ).FetchTags?.tags ?? [],
+      ).FetchTags?.tags ?? EMPTY_TAGS,
   );
-  const tagsLoading = useAppSelector(
-    (state) => state.GetThreadReducer.FetchTagsState.FetchTagsIsLoading,
+  const threadTagLabels = threadTags.map((tag) =>
+    typeof tag === "string" ? tag : tag.name,
   );
 
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
   const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
-  // Below `xl` the customer details open as a sheet from the header.
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
+  const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
+  const canCreateTicket = useCan("conversations", { write: true });
 
   useEffect(() => {
     if (!storeCode || !threadId) return;
@@ -432,7 +535,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     loadData();
   }, [dispatch, storeCode, threadId]);
 
-  const handleLinkCustomer = async (customerId: number) => {
+  const handleLinkCustomer = async (customerId: string) => {
     if (!storeCode || !threadId) return;
     setIsLinkingCustomer(true);
     try {
@@ -472,21 +575,21 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   // answer. Each section then falls back to its own request's flag.
   const detailsLoading = !isThisThread;
   const isResolved = details?.verdict?.verdict === "resolved";
-  // A close reason on an active chat is only an agent's pending request, so
-  // the closure badges wait for the chat to close. The verdict badge only adds
-  // something when it is not a second "Resolved" beside the close reason: show it when no reason was recorded or when the
-  // verdict is unresolved. No verdict yet (open, empty or unanalysed thread)
-  // means nothing to show, rather than a misleading "Unresolved".
-  const showVerdict =
-    !!details?.verdict &&
-    (details.is_active || !details.close_reason || !isResolved);
+  // Breadcrumb title: the thread's own name, else what the customer first asked.
+  const threadTitle =
+    details?.name ||
+    threadMessages.find((message) => message.message_type === "user_message")
+      ?.message ||
+    "Conversation";
   const customerName =
     details?.customer_name || details?.customer_email || "Guest";
-  const feedback = FetchFeedbackSequenceData?.feedback;
-  const feedbackLabel = feedback
-    ? (FEEDBACK_RATINGS.find((rating) => rating.value === feedback.rating)
-        ?.label ?? null)
-    : null;
+  // No profile, name or email: an anonymous visitor, so the Customer card has
+  // nothing to show and is hidden. Waits for the thread so it never flashes.
+  const isGuest =
+    !detailsLoading &&
+    !details?.customer &&
+    !details?.customer_name &&
+    !details?.customer_email;
 
   // Only a genuine failure replaces the screen. Everything else renders
   // the shell and fills in section by section.
@@ -509,295 +612,506 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     );
   }
 
-  return (
-    // The same shell as Live Support and Help Desk: the thread on one
-    // side, who it is with on the other. It used to be one long column, so
-    // reading a conversation meant scrolling past the customer and then
-    // back down for their cart and tickets.
-    <div className="flex h-svh min-h-0 flex-col overflow-hidden border-y">
-      {/* Who the agent is talking to comes first — the same header Live
-          Support and Help Desk lead with, so a customer reads identically
-          whichever screen you reach them from. The thread's own subject
-          titles the Conversation card below, where it names the thing it
-          is the subject of. */}
-      <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Back to Threads"
-          onClick={() => router.back()}
-        >
-          <IconArrowLeft />
-        </Button>
+  const resolutionRate = Math.min(
+    100,
+    Math.max(
+      0,
+      parseInt(FetchAIInsightData?.resolution_success_rate || "0") || 0,
+    ),
+  );
+  const cartItems = FetchCartData?.updated_cart_data?.items ?? [];
+  const improvements = FetchAIInsightData?.underperforming_cases ?? [];
+  const successes = FetchAIInsightData?.overperforming_cases ?? [];
+  const actions = FetchAIInsightData?.next_actionable_items ?? [];
+  const started = formatDayFirst(details?.created_at);
+  // "11:28 AM · closed after inactivity". A chat that is still open has no end.
+  const endedAtDate = details?.ended_at ? new Date(details.ended_at) : null;
+  const endedNote = !details
+    ? null
+    : details.closed_by_type === "system"
+      ? "closed after inactivity"
+      : closedByLabel(details.closed_by_type, details.closed_by_name)
+        ? `closed by ${closedByLabel(details.closed_by_type, details.closed_by_name)}`
+        : closeReasonLabel(details.close_reason)
+          ? `closed · ${closeReasonLabel(details.close_reason)}`
+          : "closed";
+  const ended =
+    endedAtDate && !Number.isNaN(endedAtDate.getTime())
+      ? `${formatClock(endedAtDate)}${details?.is_active ? "" : ` · ${endedNote}`}`
+      : "—";
+  // "AI only" until a human agent appears in the handover history.
+  const handlerNames = Array.from(
+    new Set(
+      (details?.handler_events ?? []).flatMap((event) =>
+        [event.from_agent_name, event.to_agent_name].filter(
+          (name): name is string => Boolean(name),
+        ),
+      ),
+    ),
+  );
+  const handledBy = !details
+    ? "—"
+    : handlerNames.length
+      ? `AI + ${handlerNames.join(", ")}`
+      : "AI only";
 
-        <div className="flex min-w-0 items-center gap-2.5">
-          <CustomerAvatar name={customerName} online={details?.is_active} />
-          <div className="min-w-0">
-            <div className="flex items-center gap-1">
-              {detailsLoading ? (
-                <Skeleton className="h-5 w-32" />
-              ) : (
-                <CardTitle className="truncate leading-tight">
-                  {customerName}
-                </CardTitle>
-              )}
-              <CrmLinkButton
-                customerId={details?.customer?.id}
-                onLinkCustomer={
-                  details?.customer?.id
-                    ? undefined
-                    : () => setIsLinkCustomerOpen(true)
-                }
-              />
-            </div>
-            <CustomerContact
-              email={details?.customer_email}
-              phone={details?.customer?.phone}
-              // Orders keep the last thread's rows until the new ones land;
-              // reading them sooner would show the previous customer's phone.
-              orders={
-                detailsLoading || FetchOrderDataIsLoading
-                  ? null
-                  : FetchOrderData
-              }
-            />
+  const transcript = (
+    <ConversationTranscript
+      messages={threadMessages}
+      totalMessages={details?.total_messages}
+      loading={detailsLoading}
+      handlerEvents={details?.handler_events}
+      customerName={customerName}
+      closedAt={details?.is_active ? null : details?.ended_at}
+      closedCartItemCount={cartItems.length}
+    />
+  );
+  const review = (
+    <div className="space-y-4">
+      <ThreadCard>
+        <div className="flex items-center gap-4 border-b px-5 py-5">
+          <ResolutionRing value={resolutionRate} />
+          <div>
+            <h2 className="text-lg font-semibold">AI review</h2>
+            <p className="text-sm text-muted-foreground">
+              {FetchAIInsightData?.reason_for_score ||
+                "Conversation quality and resolution analysis."}
+            </p>
           </div>
         </div>
-
-        {/* Its own full row below xl, so the badges never squeeze the name and
-            the Details button; beside them from xl up. */}
-        <div className="order-last flex min-w-0 basis-full flex-wrap items-center gap-2 xl:order-none xl:flex-1 xl:basis-auto">
-          {details && (
-            <>
-              <Badge variant={details.is_active ? "default" : "secondary"}>
-                {details.is_active ? "Active" : "Closed"}
-              </Badge>
-              {!details.is_active && closeReasonLabel(details.close_reason) && (
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "font-normal",
-                    BADGE_TONE_STYLES[
-                      closeReasonTone(details.close_reason) ?? "neutral"
-                    ],
-                  )}
-                >
-                  {closeReasonLabel(details.close_reason)}
-                </Badge>
-              )}
-              {!details.is_active &&
-                closedByLabel(
-                  details.closed_by_type,
-                  details.closed_by_name,
-                ) && (
-                  <Badge variant="outline" className="font-normal">
-                    <IconUserCheck data-icon="inline-start" />
-                    Closed by:{" "}
-                    {closedByLabel(
-                      details.closed_by_type,
-                      details.closed_by_name,
-                    )}
-                  </Badge>
-                )}
-              {showVerdict && (
-                <Badge
-                  className={cn(
-                    "font-normal",
-                    isResolved
-                      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
-                      : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
-                  )}
-                >
-                  {isResolved ? (
-                    <IconCheck data-icon="inline-start" />
-                  ) : (
-                    <IconX data-icon="inline-start" />
-                  )}
-                  {isResolved ? "Resolved" : "Unresolved"}
-                </Badge>
-              )}
-              {!FetchFeedbackSequenceIsLoading && feedbackLabel && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge variant="secondary" className="font-normal">
-                      {feedbackLabel}
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {feedback?.feedback_message ||
-                        "No feedback message provided."}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              {!tagsLoading && !detailsLoading && threadTags.length > 0 && (
-                <TagsCell tags={threadTags} />
-              )}
-            </>
+        <div>
+          <div className="border-b px-5 py-5">
+            <p className="text-sm leading-6 text-muted-foreground">
+              {FetchConversationSummaryData?.conversation_summary ||
+                "No summary available for this conversation."}
+            </p>
+          </div>
+          {successes.length > 0 && (
+            <div className="border-b px-5 py-5">
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-emerald-700">
+                Went well
+              </h3>
+              <ul className="space-y-3.5">
+                {successes.map((item, index) => (
+                  <li
+                    className="flex gap-3 text-sm leading-5 text-muted-foreground"
+                    key={index}
+                  >
+                    <IconCheck className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {improvements.length > 0 && (
+            <div className="px-5 py-5">
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-red-700">
+                To improve
+              </h3>
+              <div className="space-y-3.5">
+                {improvements.map((item, index) => (
+                  <div
+                    className="flex w-full items-start gap-3 text-left text-sm leading-5 text-muted-foreground"
+                    key={index}
+                  >
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
+                      {index + 1}
+                    </span>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
-        <CustomerDetailsButton
-          className="ml-auto xl:ml-0"
-          onClick={() => setIsDetailsOpen(true)}
-        />
-      </header>
-
-      <div className="flex min-h-0 flex-1">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {/* When and how long, on one muted line. The device and location
-              half of this strip now sits in the header beside the name, so
-              what is left is the session's own timing. */}
-          <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b px-4 py-2">
-            <MetaCell
-              icon={<IconHash className="size-3.5" />}
-              label="Session ID"
-              value={threadId}
-              mono
-            />
-            <MetaCell
-              icon={<IconCalendarTime className="size-3.5" />}
-              label="Started"
-              value={formatDateTime(details?.created_at || null) || "—"}
-              loading={detailsLoading}
-            />
-            <MetaCell
-              icon={<IconCalendarTime className="size-3.5" />}
-              label="Ended"
-              value={
-                details?.ended_at
-                  ? formatDateTime(details.ended_at)
-                  : details?.is_active
-                    ? "Ongoing"
-                    : "—"
-              }
-              loading={detailsLoading}
-            />
-            <MetaCell
-              icon={<IconClockHour4 className="size-3.5" />}
-              label="Duration"
-              value={
-                getDuration(
-                  details?.created_at ?? null,
-                  details?.ended_at ?? null,
-                ) || "—"
-              }
-              loading={detailsLoading}
-            />
+      </ThreadCard>
+      {actions.length > 0 && (
+        <ThreadCard
+          title={
+            <div className="flex items-center justify-between">
+              <span>Suggested actions</span>
+              <span className="text-sm font-normal text-muted-foreground">
+                {actions.length} actions
+              </span>
+            </div>
+          }
+        >
+          <div>
+            {actions.map((action, index) => (
+              <button
+                type="button"
+                key={index}
+                className="flex w-full items-start justify-between border-b p-5 text-left last:border-b-0 hover:bg-muted/30"
+              >
+                <span>
+                  <strong className="block">{action}</strong>
+                  <small className="mt-1 block leading-5 text-muted-foreground">
+                    Open suggested action
+                  </small>
+                </span>
+                <span className="text-muted-foreground">›</span>
+              </button>
+            ))}
           </div>
-
-          {/* One column, insights above the transcript. The two used to sit
-              side by side in boxes, which split the reading width in half
-              and asked an agent to choose where to look first. */}
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <AIInsightsSection
-              summary={FetchConversationSummaryData?.conversation_summary || ""}
-              summaryLoading={
-                detailsLoading || FetchConversationSummaryIsLoading
-              }
-              nextActionableItems={
-                FetchAIInsightData?.next_actionable_items || []
-              }
-              resolutionSuccessRate={
-                FetchAIInsightData?.resolution_success_rate || "0"
-              }
-              reasonForScore={FetchAIInsightData?.reason_for_score || ""}
-              overperformingCases={
-                FetchAIInsightData?.overperforming_cases || []
-              }
-              underperformingCases={
-                FetchAIInsightData?.underperforming_cases || []
-              }
-              insightsLoading={detailsLoading || FetchAIInsightIsLoading}
-            />
-
-            <section>
-              <SectionHeader
-                icon={IconMessages}
-                // The thread's subject names the exchange it is the
-                // subject of; full text on hover when it truncates.
-                title={
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>{details?.name || "Conversation"}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {details?.name || "Conversation"}
-                    </TooltipContent>
-                  </Tooltip>
-                }
-                info="The full exchange between the customer and the AI assistant for this session."
-                action={
-                  detailsLoading ? null : (
-                    <Badge variant="secondary" className="font-normal">
-                      {details?.total_messages ?? threadMessages.length}{" "}
-                      Messages
-                    </Badge>
-                  )
-                }
+        </ThreadCard>
+      )}
+    </div>
+  );
+  const customer = (
+    <div className="space-y-4">
+      {!isGuest && (
+        <ThreadCard title="Customer">
+          <div className="space-y-4 p-5">
+            <div>
+              <p className="font-semibold">{customerName}</p>
+              <CustomerContact
+                email={details?.customer_email}
+                phone={details?.customer?.phone}
+                orders={FetchOrderData}
               />
+            </div>
+            <div className="grid grid-cols-2 overflow-hidden rounded-xl border sm:grid-cols-3">
+              <div className="border-r p-3">
+                <p className="text-xs text-muted-foreground">Orders</p>
+                <p className="font-semibold">{FetchOrderData?.length ?? 0}</p>
+              </div>
+              <div className="p-3">
+                <p className="text-xs text-muted-foreground">Past chats</p>
+                <p className="font-semibold">
+                  {details?.customer?.past_threads_count ?? 0}
+                </p>
+              </div>
+            </div>
+            {details?.customer?.id && (
+              <Button variant="outline" className="w-full" asChild>
+                <Link href={`/crm/customers/${details.customer.id}`}>
+                  Open full profile
+                </Link>
+              </Button>
+            )}
+          </div>
+        </ThreadCard>
+      )}
+      <ThreadCard
+        title={
+          <div className="flex justify-between">
+            <span>Cart when the chat closed</span>
+            <span className="text-sm font-normal text-muted-foreground">
+              {cartItems.length} items
+            </span>
+          </div>
+        }
+      >
+        <div className="space-y-3 p-5">
+          {cartItems.length ? (
+            cartItems.map((item, index) => (
+              <div
+                className="flex items-center gap-3"
+                key={`${item.product_id}-${index}`}
+              >
+                <div className="size-11 shrink-0 overflow-hidden rounded-lg bg-muted">
+                  {item.product_image ? (
+                    <img
+                      src={item.product_image}
+                      alt=""
+                      className="size-full object-contain"
+                    />
+                  ) : null}
+                </div>
+                <p className="min-w-0 flex-1 truncate text-sm">{item.name}</p>
+                <p className="text-sm font-semibold">{item.price}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Nothing in the cart.
+            </p>
+          )}
+        </div>
+      </ThreadCard>
+      <ThreadCard title="Thread details">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1.5 px-5 py-4 text-sm">
+          <dt className="text-muted-foreground">Thread ID</dt>
+          <dd className="truncate text-right font-mono">{threadId}</dd>
+          <dt className="text-muted-foreground">Channel</dt>
+          <dd className="text-right">Web chat</dd>
+          <dt className="text-muted-foreground">Started</dt>
+          <dd className="text-right">{started}</dd>
+          <dt className="text-muted-foreground">Ended</dt>
+          <dd className="text-right">{ended}</dd>
+          <dt className="text-muted-foreground">Duration</dt>
+          <dd className="text-right">
+            {getDuration(
+              details?.created_at ?? null,
+              details?.ended_at ?? null,
+            ) || "—"}
+          </dd>
+          <dt className="text-muted-foreground">Handled by</dt>
+          <dd className="text-right">{handledBy}</dd>
+          <dt className="text-muted-foreground">Category</dt>
+          <dd className="text-right">{threadTagLabels[0] ?? "—"}</dd>
+        </dl>
+      </ThreadCard>
+    </div>
+  );
 
-              {detailsLoading ? (
-                <LoadingState label="Loading conversation…" />
-              ) : threadMessages.length > 0 ? (
-                <div className="p-2">
-                  <MessagePan
-                    messages={threadMessages}
-                    handlerEvents={details?.handler_events}
-                  />
+  return (
+    <div className="min-h-svh bg-muted/50">
+      <header className="border-b bg-background">
+        <div className="flex h-16 items-center border-b px-6 lg:hidden">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Back to Threads"
+            onClick={() => router.back()}
+          >
+            <IconArrowLeft />
+          </Button>
+          <h1 className="ml-3 text-xl font-bold">Thread</h1>
+        </div>
+        <div className="flex w-full items-start gap-3 px-5 py-7 lg:px-6 lg:py-4">
+          <div className="min-w-0 flex-1">
+            <nav
+              aria-label="Breadcrumb"
+              className="mb-3 hidden min-w-0 items-center gap-2 text-sm lg:flex"
+            >
+              <Link
+                href="/threads"
+                className="flex shrink-0 items-center gap-1 text-muted-foreground hover:text-foreground"
+              >
+                <IconChevronLeft className="size-4" />
+                Threads
+              </Link>
+              <span className="text-muted-foreground">/</span>
+              <span className="truncate font-medium">{threadTitle}</span>
+            </nav>
+            <div className="flex min-w-0 items-center gap-3">
+              <span
+                aria-hidden
+                className="flex size-[70px] shrink-0 items-center justify-center rounded-2xl bg-primary text-xl font-semibold text-primary-foreground lg:size-14 lg:rounded-xl lg:text-lg"
+              >
+                {getInitials(customerName) ?? "?"}
+              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <h1 className="truncate text-2xl font-bold">
+                    {customerName}
+                  </h1>
+                  <div className="hidden items-center gap-2 lg:flex">
+                    <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+                      {isResolved ? "Resolved by AI" : "AI review"}
+                    </Badge>
+                    <Badge variant="secondary">
+                      {details?.is_active ? "Active" : "Closed"}
+                    </Badge>
+                    {threadTagLabels.slice(0, 1).map((tag) => (
+                      <Badge
+                        key={tag}
+                        className="bg-primary/10 text-primary hover:bg-primary/10"
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="flex w-full flex-wrap gap-x-5 gap-y-0 text-sm text-muted-foreground">
+                    <span className="lg:hidden">
+                      Web chat ·{" "}
+                      {formatHeaderRange(
+                        details?.created_at,
+                        details?.ended_at,
+                        false,
+                      )}
+                    </span>
+                    <span className="hidden lg:inline">Web chat</span>
+                    <span className="hidden lg:inline">
+                      {formatHeaderRange(
+                        details?.created_at,
+                        details?.ended_at,
+                      )}
+                    </span>
+                    <span className="hidden lg:inline">
+                      {formatHeaderDuration(
+                        details?.created_at,
+                        details?.ended_at,
+                      )}
+                    </span>
+                    <span className="hidden lg:inline">
+                      {details?.total_messages ?? threadMessages.length}{" "}
+                      messages
+                    </span>
+                  </p>
                 </div>
-              ) : (
-                <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-                  <IconMessage2 className="size-8 text-muted-foreground/50" />
-                  <Typography variant="small" as="p">
-                    No messages in this conversation
-                  </Typography>
-                  <Typography variant="muted">
-                    The session was opened but the customer never sent a
-                    message.
-                  </Typography>
-                </div>
-              )}
-            </section>
+              </div>
+            </div>
+            <div className="mt-5 flex flex-wrap items-center gap-2 lg:hidden">
+              <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+                {isResolved ? "Resolved by AI" : "AI review"}
+              </Badge>
+              <Badge variant="secondary">
+                {details?.is_active ? "Active" : "Closed"}
+              </Badge>
+              {threadTagLabels.slice(0, 1).map((tag) => (
+                <Badge
+                  key={tag}
+                  className="bg-primary/10 text-primary hover:bg-primary/10"
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          {/* Desktop thread actions. The mobile Create ticket control below is
+              unchanged. mt-8 lines the buttons up with the avatar row, under
+              the breadcrumb. */}
+          <div className="mt-8 hidden shrink-0 gap-2 lg:flex">
+            {/* <Button variant="outline">Export</Button> */}
+            {/* <Button variant="outline">Flag for review</Button> */}
+            <Button
+              disabled={!storeCode || !canCreateTicket}
+              onClick={() => setIsCreateTicketOpen(true)}
+            >
+              Create ticket
+            </Button>
           </div>
         </div>
-
-        <CustomerDetailsPanel
-          open={isDetailsOpen}
-          onOpenChange={setIsDetailsOpen}
-          currentThreadId={threadId}
-          // The detail response carries the customer's id and their name
-          // and email as separate fields; the panel wants them together.
-          customerData={{
-            id: details?.customer?.id ?? null,
-            name: customerName,
-            email: details?.customer_email ?? "",
-            phone: details?.customer?.phone ?? "",
-            past_threads_count: details?.customer?.past_threads_count ?? 0,
+        <div className="mx-6 mb-3 grid grid-cols-3 overflow-hidden rounded-xl border lg:hidden">
+          <div className="flex flex-col items-start gap-1 border-r px-2 py-2 leading-tight">
+            <small className="text-muted-foreground">Resolution</small>
+            <span className="self-center">
+              <ResolutionRing value={resolutionRate} compact />
+            </span>
+          </div>
+          <div className="flex flex-col items-start gap-1 border-r px-2 py-2 leading-tight">
+            <small className="text-muted-foreground">Messages</small>
+            <b className="flex min-h-8 items-center whitespace-nowrap text-base">
+              {details?.total_messages ?? threadMessages.length}
+            </b>
+          </div>
+          <div className="flex flex-col items-start gap-1 px-2 py-2 leading-tight">
+            <small className="text-muted-foreground">Duration</small>
+            <b className="flex min-h-8 items-center whitespace-nowrap text-sm">
+              {getDuration(
+                details?.created_at ?? null,
+                details?.ended_at ?? null,
+              ) || "—"}
+            </b>
+          </div>
+        </div>
+      </header>
+      <main className="w-full px-4 py-5 pb-24 lg:px-6 lg:py-6">
+        <ConversationMap
+          messages={threadMessages}
+          rate={resolutionRate}
+          startedAt={details?.created_at}
+          endedAt={details?.ended_at}
+          cartCount={cartItems.length}
+          issueCount={improvements.length}
+        />
+        <div className="mt-5 hidden gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
+          {transcript}
+          <aside className="space-y-4">
+            {review}
+            {customer}
+          </aside>
+        </div>
+        <Tabs defaultValue="chat" className="lg:hidden">
+          <TabsList
+            variant="line"
+            className="sticky top-0 z-10 -mx-4 mb-4 flex h-12 w-[calc(100%+2rem)] justify-around border-y bg-background px-2"
+          >
+            <TabsTrigger
+              value="chat"
+              className="text-base data-active:after:bg-primary"
+            >
+              Chat
+            </TabsTrigger>
+            <TabsTrigger
+              value="review"
+              className="text-base data-active:after:bg-primary"
+            >
+              AI review{" "}
+              {improvements.length ? (
+                <span className="rounded-full bg-red-100 px-1.5 text-xs text-red-700">
+                  {improvements.length}
+                </span>
+              ) : null}
+            </TabsTrigger>
+            <TabsTrigger
+              value="customer"
+              className="text-base data-active:after:bg-primary"
+            >
+              Customer
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="chat">{transcript}</TabsContent>
+          <TabsContent value="review">{review}</TabsContent>
+          <TabsContent value="customer">{customer}</TabsContent>
+        </Tabs>
+      </main>
+      <div className="fixed inset-x-0 bottom-0 z-20 flex gap-3 border-t bg-background p-3 lg:hidden">
+        <Button variant="outline" size="icon" aria-label="Flag for review">
+          <IconFlag />
+        </Button>
+        <Button
+          className="flex-1"
+          disabled={!storeCode || !canCreateTicket}
+          onClick={() => setIsCreateTicketOpen(true)}
+        >
+          Create ticket
+        </Button>
+      </div>
+      {storeCode && canCreateTicket ? (
+        <CreateTicketDialog
+          open={isCreateTicketOpen}
+          onOpenChange={setIsCreateTicketOpen}
+          storeCode={storeCode}
+          // The shopper is already known from this conversation, so the agent
+          // does not have to search for them again.
+          initialCustomer={
+            details?.customer?.id && details.customer_email
+              ? ({
+                  kind: "record",
+                  id: details.customer.id,
+                  name: customerName,
+                  email: details.customer_email,
+                } satisfies TicketCustomer)
+              : details?.customer_email
+                ? ({
+                    kind: "email",
+                    email: details.customer_email,
+                  } satisfies TicketCustomer)
+                : null
+          }
+          onDraft={async () => {
+            const result = await dispatch(
+              FetchThreadTicketDraft({ storeCode, threadId }),
+            );
+            return FetchThreadTicketDraft.fulfilled.match(result)
+              ? result.payload
+              : null;
           }}
-          userMetadata={FetchUserMetadataData}
-          userMetadataLoading={detailsLoading || FetchUserMetadataIsLoading}
-          orders={FetchOrderData}
-          ordersLoading={detailsLoading || FetchOrderDataIsLoading}
-          onOrdersSync={() => dispatch(FetchOrders(threadId))}
-          tickets={{
-            data: FetchFreshdeskTicketIdData ?? [],
-            loading: detailsLoading || FetchFreshdeskTicketIdIsLoading,
-          }}
-          cart={{
-            data: FetchCartData,
-            loading: detailsLoading || FetchCartDataIsLoading,
+          // Addressed by this thread, so the ticket keeps a link back to the
+          // conversation that produced it.
+          onSubmit={async (payload) => {
+            const result = await dispatch(
+              CreateSupportTicket({ storeCode, threadId, payload }),
+            );
+            return CreateSupportTicket.fulfilled.match(result)
+              ? { ok: true }
+              : { ok: false, payload: result.payload };
           }}
         />
-      </div>
-
+      ) : null}
       {storeCode ? (
         <LinkCustomerDialog
           open={isLinkCustomerOpen}
           onOpenChange={setIsLinkCustomerOpen}
           storeCode={storeCode}
           linking={isLinkingCustomer}
-          onLink={(customer) => handleLinkCustomer(customer.id)}
+          onLink={(linkedCustomer) =>
+            handleLinkCustomer(linkedCustomer.customer_id)
+          }
         />
       ) : null}
     </div>
