@@ -180,6 +180,17 @@
   border: transparent;
 }
 
+/* Unlayered on purpose: the universal `*` scrollbar rules above are unlayered
+   too, so they beat any Tailwind utility (utilities live in a layer). */
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
 div.editor-container__editor > ol,
 div.editor-container__editor > ul,
 div.editor-container__editor > menu,

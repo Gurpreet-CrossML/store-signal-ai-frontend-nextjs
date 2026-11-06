@@ -69,7 +69,7 @@ type CountRow = {
 const SHOWN_CHANNELS: readonly string[] = [
   "web",
   // "email",
-  // "whatsapp",
+  "whatsapp",
   // "facebook",
   // "instagram",
 ];
@@ -261,8 +261,8 @@ export function helpdeskViewUrl(filter: string) {
 }
 
 /**
- * The channels the left panel lists: the web chat always, any other channel
- * once a ticket has come through it.
+ * The channels the left panel lists: the web chat and WhatsApp always, any
+ * other channel once a ticket has come through it.
  */
 export function helpdeskChannelRows(counts: SupportTicketFilterCounts | null) {
   const counted = new Map(
@@ -270,8 +270,14 @@ export function helpdeskChannelRows(counts: SupportTicketFilterCounts | null) {
   );
   const values = [
     "web",
+    "whatsapp",
     ...(counts?.channels ?? [])
-      .filter((channel) => channel.value !== "web" && channel.count > 0)
+      .filter(
+        (channel) =>
+          channel.value !== "web" &&
+          channel.value !== "whatsapp" &&
+          channel.count > 0,
+      )
       .map((channel) => channel.value),
   ];
   return values.map((value) => ({

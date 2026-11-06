@@ -383,7 +383,7 @@ export function NotificationBell() {
       </SidebarMenuButton>
 
       <Drawer direction="right" open={open} onOpenChange={handleOpenChange}>
-        <DrawerContent className="data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:rounded-none data-[vaul-drawer-direction=right]:sm:max-w-md">
+        <DrawerContent className="data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:rounded-none data-[vaul-drawer-direction=right]:sm:max-w-lg">
           <DrawerHeader className="flex-row items-center justify-between gap-2 pb-2">
             <DrawerTitle className="text-xl font-semibold">
               Notifications
@@ -406,14 +406,17 @@ export function NotificationBell() {
           <Tabs
             value={tab}
             onValueChange={(value) => loadTab(value as NotificationTab)}
-            className="px-4 pb-3"
+            className="min-w-0 px-3 pb-3"
           >
-            <TabsList className="h-auto w-full gap-2 bg-transparent p-0">
+            {/* Tabs scroll horizontally on narrow screens instead of being
+                clipped; justify-start keeps "All" reachable (centering would
+                push it off the left edge). */}
+            <TabsList className="h-auto w-full justify-start gap-2 scrollbar-hidden overflow-x-auto bg-transparent p-1 sm:justify-between">
               {TABS.map(({ value, label }) => (
                 <TabsTrigger
                   key={value}
                   value={value}
-                  className="rounded-lg border-border bg-muted/40 py-1.5 data-active:border-primary/20 data-active:bg-primary/10 data-active:text-primary data-active:shadow-none"
+                  className="flex-none rounded-lg border-border bg-muted/40 px-3 py-1.5 sm:flex-1 data-active:border-primary/20 data-active:bg-primary/10 data-active:text-primary data-active:shadow-none"
                 >
                   {label} ({counts[value]})
                 </TabsTrigger>

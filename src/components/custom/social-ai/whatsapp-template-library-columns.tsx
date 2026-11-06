@@ -105,7 +105,7 @@ export function getWhatsAppTemplateLibraryColumns(
               )}
             </div>
             <span className="truncate" title={item.name}>
-              {item.name}
+              {item.display_name || item.name}
             </span>
           </div>
         );
