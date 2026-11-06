@@ -53,7 +53,7 @@ export function getWhatsAppTemplateColumns(
               <Icon className="size-4" />
             </div>
             <span className="truncate" title={template.name}>
-              {template.name}
+              {template.display_name || template.name}
             </span>
           </div>
         );
