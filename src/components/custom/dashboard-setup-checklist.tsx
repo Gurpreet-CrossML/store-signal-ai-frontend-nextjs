@@ -56,12 +56,23 @@ const stepTitle = (key: ChecklistStepKey) =>
   ONBOARDING_STEPS.find((step) => step.value === ONBOARDING_STEP_KEY[key])!
     .label;
 
-const STEP_DESCRIPTION: Record<ChecklistStepKey, string> = {
-  connected: "Choose your platform and authorize access to your store.",
+const STEP_DESCRIPTION: Record<
+  Exclude<ChecklistStepKey, "connected">,
+  string
+> = {
   widget_live:
     "Paste the widget script into your Shopify theme (layout/theme.liquid, just before </body>) so the chat widget shows on your storefront.",
   brand_voice:
     "Name your assistant and pick how it sounds. Until then it uses the default name and the Customer Support preset.",
+};
+
+/** The extra line a finished step shows under its description. */
+const STEP_DONE_DETAIL: Record<
+  Exclude<ChecklistStepKey, "connected">,
+  string
+> = {
+  widget_live: "Widget detected on your storefront",
+  brand_voice: "Name and tone saved",
 };
 
 /** A circular progress ring, filled proportional to completed/total, with
@@ -201,9 +212,16 @@ export function DashboardSetupChecklist() {
     previous.current = { code, pending };
   }, [checklist]);
 
+  // Nothing left to finish → no ring and no drawer.
   if (!checklist || checklist.pending.length === 0) return null;
 
   const percent = Math.round((checklist.completed / checklist.total) * 100);
+  const platformLabel =
+    STORE_PLATFORMS.find((p) => p.value === checklist.store.platform)?.label ??
+    checklist.store.platform;
+
+  const doneActionClass =
+    "shrink-0 text-sm font-medium text-primary underline underline-offset-4 hover:text-primary/80";
 
   return (
     <>
@@ -214,11 +232,15 @@ export function DashboardSetupChecklist() {
         onClick={() => setOpen(true)}
       >
         <ProgressRing completed={checklist.completed} total={checklist.total} />
+        <span
+          aria-hidden
+          className="absolute top-0.5 right-0.5 size-2.5 rounded-full bg-destructive ring-2 ring-sidebar"
+        />
       </SidebarMenuButton>
 
       <Drawer direction="right" open={open} onOpenChange={setOpen}>
         <DrawerContent className="data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:rounded-none data-[vaul-drawer-direction=right]:sm:w-1/2 data-[vaul-drawer-direction=right]:sm:max-w-none">
-          <DrawerHeader className="gap-3 border-b bg-primary/5 pb-4">
+          <DrawerHeader className="gap-3 border-b bg-primary/5 px-6 py-5">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <DrawerTitle className="text-xl font-semibold">
@@ -240,17 +262,17 @@ export function DashboardSetupChecklist() {
               </Button>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">
+              <span className="text-sm text-muted-foreground">
                 {checklist.completed} of {checklist.total} complete
               </span>
-              <span className="text-xs font-semibold text-primary tabular-nums">
+              <span className="text-sm font-semibold text-primary tabular-nums">
                 {percent}%
               </span>
             </div>
             <Progress value={percent} className="h-2 bg-primary/15" />
           </DrawerHeader>
 
-          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
             {STEP_ORDER.map((key, index) => {
               const step = checklist.steps[key];
               const isCurrent = key === checklist.pending[0];
@@ -258,71 +280,86 @@ export function DashboardSetupChecklist() {
                 <div
                   key={key}
                   className={cn(
-                    "flex flex-col gap-2 rounded-xl border p-3",
-                    isCurrent
-                      ? "border-primary/30 bg-primary/5"
-                      : "border-transparent",
+                    "flex flex-col gap-3 rounded-xl px-2 py-4",
+                    isCurrent && "bg-primary/5",
                   )}
                 >
                   <div className="flex items-start gap-3">
                     <span
                       className={cn(
-                        "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium",
+                        "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
                         step.done
                           ? "border-primary bg-primary text-primary-foreground"
-                          : isCurrent && "border-primary text-primary",
+                          : isCurrent
+                            ? "border-primary text-primary"
+                            : "border-border text-muted-foreground",
                       )}
                     >
                       {step.done ? (
-                        <IconCheck className="size-3.5" />
+                        <IconCheck className="size-3.5" stroke={3.5} />
                       ) : (
                         index + 1
                       )}
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={cn(
-                            "text-sm font-medium",
-                            step.done && "text-muted-foreground line-through",
-                          )}
-                        >
+                        <span className="text-base font-semibold">
                           {stepTitle(key)}
                         </span>
+                        {step.done && (
+                          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                            Done
+                          </span>
+                        )}
                         {!step.done && key === "widget_live" && (
-                          <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+                          <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-bold text-destructive">
                             Widget not detected
                           </span>
                         )}
-                        {step.skipped && (
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        {!step.done && step.skipped && (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
                             Skipped
                           </span>
                         )}
                       </div>
-                      {step.done ? (
-                        key === "connected" ? (
-                          <p className="text-xs text-muted-foreground">
-                            {checklist.store.name} ·{" "}
-                            {STORE_PLATFORMS.find(
-                              (p) => p.value === checklist.store.platform,
-                            )?.label ?? checklist.store.platform}{" "}
-                            connected
-                          </p>
-                        ) : null
-                      ) : (
-                        <p className="text-xs text-muted-foreground">
-                          {STEP_DESCRIPTION[key]}
+                      <p className="mt-0.5 text-sm font-medium text-muted-foreground">
+                        {key === "connected"
+                          ? `Connect your ${platformLabel} store so the assistant can read your products, orders and customers.`
+                          : STEP_DESCRIPTION[key]}
+                      </p>
+                      {step.done && (
+                        <p className="mt-1 text-xs font-medium text-muted-foreground">
+                          {key === "connected"
+                            ? `Connected: ${checklist.store.name} · ${platformLabel}`
+                            : STEP_DONE_DETAIL[key]}
                         </p>
                       )}
                     </div>
                     {step.done && key === "connected" && (
                       <Link
                         href="/settings/store"
-                        className="shrink-0 text-xs font-medium text-primary underline-offset-4 hover:underline"
+                        className={doneActionClass}
                         onClick={() => setOpen(false)}
                       >
                         Manage
+                      </Link>
+                    )}
+                    {step.done && key === "widget_live" && (
+                      <button
+                        type="button"
+                        className={doneActionClass}
+                        onClick={() => setScriptOpen(true)}
+                      >
+                        View script
+                      </button>
+                    )}
+                    {step.done && key === "brand_voice" && (
+                      <Link
+                        href="/brand-voice/persona-identity"
+                        className={doneActionClass}
+                        onClick={() => setOpen(false)}
+                      >
+                        Edit
                       </Link>
                     )}
                   </div>
