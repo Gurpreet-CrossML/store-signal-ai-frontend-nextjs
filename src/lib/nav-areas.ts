@@ -238,40 +238,40 @@ export const NAV_AREAS = {
               "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
             icon: IconSocial,
           },
-          {
-            href: "/settings/social-ai/comment-handling",
-            title: "Comment Handling",
-            description: "How the AI reads, classifies and acts on comments.",
-            pageDescription:
-              "How the AI reads, classifies and acts on every comment on your posts and ads. Each comment is tagged by intent, then handled by the rule you set for that intent.",
-            icon: IconMessageCircle,
-          },
-          {
-            href: "/settings/social-ai/dm-automation",
-            title: "DM Automation",
-            description: "How the AI handles direct messages.",
-            pageDescription:
-              "How the AI handles direct messages — the private, higher-trust channel where orders, support and conversions happen. Meta's messaging rules are applied on top of everything set here.",
-            icon: IconMessages,
-          },
-          {
-            href: "/settings/social-ai/guardrails",
-            title: "Guardrails & Limits",
-            description:
-              "Rate and pacing ceilings that keep every account safe.",
-            pageDescription:
-              "Rate and pacing ceilings, set per connected account, that keep automation well inside spam-safe territory.",
-            icon: IconClockShield,
-          },
-          {
-            href: "/settings/social-ai/meta-compliance",
-            title: "Meta Compliance",
-            description:
-              "The platform rails enforced on every connected account.",
-            pageDescription:
-              "The Meta rules enforced automatically on every connected account, so nothing you configure can put your accounts at risk.",
-            icon: IconShield,
-          },
+          // {
+          //   href: "/settings/social-ai/comment-handling",
+          //   title: "Comment Handling",
+          //   description: "How the AI reads, classifies and acts on comments.",
+          //   pageDescription:
+          //     "How the AI reads, classifies and acts on every comment on your posts and ads. Each comment is tagged by intent, then handled by the rule you set for that intent.",
+          //   icon: IconMessageCircle,
+          // },
+          // {
+          //   href: "/settings/social-ai/dm-automation",
+          //   title: "DM Automation",
+          //   description: "How the AI handles direct messages.",
+          //   pageDescription:
+          //     "How the AI handles direct messages — the private, higher-trust channel where orders, support and conversions happen. Meta's messaging rules are applied on top of everything set here.",
+          //   icon: IconMessages,
+          // },
+          // {
+          //   href: "/settings/social-ai/guardrails",
+          //   title: "Guardrails & Limits",
+          //   description:
+          //     "Rate and pacing ceilings that keep every account safe.",
+          //   pageDescription:
+          //     "Rate and pacing ceilings, set per connected account, that keep automation well inside spam-safe territory.",
+          //   icon: IconClockShield,
+          // },
+          // {
+          //   href: "/settings/social-ai/meta-compliance",
+          //   title: "Meta Compliance",
+          //   description:
+          //     "The platform rails enforced on every connected account.",
+          //   pageDescription:
+          //     "The Meta rules enforced automatically on every connected account, so nothing you configure can put your accounts at risk.",
+          //   icon: IconShield,
+          // },
         ],
       },
       {

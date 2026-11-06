@@ -437,8 +437,23 @@ export function OrdersSummary({
 
   return (
     <div
-      className={`grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border ${className ?? ""}`}
+      className={`relative grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border ${className ?? ""}`}
     >
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="absolute right-1 top-1 z-10 inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="How customer order totals are calculated"
+          >
+            <IconEye className="size-4" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-72 text-center">
+          Lifetime value and total orders are calculated excluding canceled and
+          refunded orders.
+        </TooltipContent>
+      </Tooltip>
       <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
         <Typography variant="muted">Lifetime value</Typography>
         <Typography variant="small" as="p" className="truncate tabular-nums">
