@@ -23,6 +23,24 @@ function subscribe(onChange: () => void) {
   return () => mql.removeEventListener("change", onChange);
 }
 
+/** Below Tailwind's `xl` (1280px): an iPad, even held sideways. */
+const BELOW_XL_QUERY = "(max-width: 1279px)";
+
+function subscribeXl(onChange: () => void) {
+  const mql = window.matchMedia(BELOW_XL_QUERY);
+  mql.addEventListener("change", onChange);
+  return () => mql.removeEventListener("change", onChange);
+}
+
+/** Whether the screen is narrower than `xl`; false on the server. */
+export function useIsBelowXl() {
+  return useSyncExternalStore(
+    subscribeXl,
+    () => window.matchMedia(BELOW_XL_QUERY).matches,
+    () => false,
+  );
+}
+
 /** Reactive version of `isBelowLg`; false on the server. */
 export function useIsBelowLg() {
   return useSyncExternalStore(subscribe, isBelowLg, () => false);

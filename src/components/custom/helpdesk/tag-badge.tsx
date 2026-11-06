@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { IconX } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -89,7 +90,11 @@ export function TagBadge({
   );
 }
 
-/** The "+2" chip revealing the tags that didn't fit. */
+/**
+ * The "+2" chip revealing the tags that didn't fit. Opens on hover and on
+ * click too (touch has no hover); the click stays here, so a chip inside a
+ * clickable row does not also open the row.
+ */
 export function HiddenTagsBadge({
   tags,
   label,
@@ -99,10 +104,28 @@ export function HiddenTagsBadge({
   label: string;
   onRemoveTag?: (tagId: number) => void;
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <HoverCard>
+    <HoverCard open={open} onOpenChange={setOpen}>
       <HoverCardTrigger asChild>
-        <Badge variant="outline" className="cursor-default">
+        <Badge
+          variant="outline"
+          role="button"
+          tabIndex={0}
+          aria-expanded={open}
+          className="cursor-pointer"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpen((current) => !current);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            event.stopPropagation();
+            setOpen((current) => !current);
+          }}
+        >
           {label}
         </Badge>
       </HoverCardTrigger>

@@ -2,14 +2,16 @@
 
 import * as React from "react";
 
-import { NavMain, SidebarMenuItemWrapper } from "@/components/custom/nav-main";
-import { CollapsibleMenuItem } from "@/components/custom/sub-sidebar-menu";
+import { NavMain } from "@/components/custom/nav-main";
+import { SubSidebarList } from "@/components/custom/sub-sidebar-menu";
+import { MobileNavDrawer } from "@/components/custom/mobile-nav";
+import { HelpdeskNavPanel } from "@/components/custom/helpdesk/helpdesk-nav-panel";
 import { StoreSwitcher } from "@/components/custom/store-switcher";
 import { NavSecondary } from "@/components/custom/nav-secondary";
 import { NavUser } from "@/components/custom/nav-user";
 import { NotificationBell } from "@/components/custom/notification-bell";
+import { DashboardSetupChecklist } from "@/components/custom/dashboard-setup-checklist";
 import { useHelpdeskSidebar } from "@/hooks/use-helpdesk-sidebar";
-import { keepHelpdeskListParams } from "@/lib/helpdesk-filters";
 import {
   Sidebar,
   SidebarContent,
@@ -20,11 +22,11 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   activeNavUrl,
   flattenMenuItems,
-  isBranchActive,
   isNavItemVisible,
   sidebarMenus,
   SubSidebarMenuItem,
@@ -44,6 +46,9 @@ import { FetchThreadCounts } from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useSupportDashboardEvents } from "@/hooks/use-support-dashboard-events";
 
+// Nothing to subscribe to: only tells hydration apart from later renders.
+const noopSubscribe = () => () => {};
+
 export function AppSidebar({
   className,
   subSidebarItems: staticSubSidebarItems,
@@ -61,9 +66,14 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { isMobile } = useSidebar();
   // The help desk's views come with their ticket counts; any other area's
   // sub-sidebar is the static one.
   const subSidebarItems = useHelpdeskSidebar(staticSubSidebarItems);
+  // The help desk draws its own panel, with the hide button in its header.
+  const isHelpdesk =
+    staticSubSidebarItems !== null &&
+    staticSubSidebarItems === sidebarMenus.navSubSidebar?.helpdesk;
 
   // Resolved once for the whole group: an entry carrying a query string
   // and its bare-path sibling can both match the path, and only the more
@@ -106,10 +116,35 @@ export function AppSidebar({
 
   // One ordered list, filtered rather than concatenated — a hidden entry
   // leaves the rest in their order. Admins see everything; staff see what
-  // their role allows.
-  const navMain = sidebarMenus.nav.filter((item) =>
-    isNavItemVisible(item, session?.user),
+  // their role allows. The server renders without a session, so hydration
+  // filters the same way and the user's own entries follow right after.
+  const hydrated = React.useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
   );
+  const navMain = sidebarMenus.nav.filter((item) =>
+    isNavItemVisible(item, hydrated ? session?.user : undefined),
+  );
+
+  // A phone has no room for the rail and sub-sidebar side by side: one
+  // drawer, opened from the top bar, holds both.
+  if (isMobile) {
+    return (
+      <MobileNavDrawer
+        navItems={navMain}
+        pathname={pathname}
+        currentAreaKey={
+          staticSubSidebarItems
+            ? (Object.entries(sidebarMenus.navSubSidebar ?? {}).find(
+                ([, menu]) => menu === staticSubSidebarItems,
+              )?.[0] ?? null)
+            : null
+        }
+        liveSupportBadgeCount={FetchThreadCountsData.needsHuman}
+      />
+    );
+  }
 
   return (
     <Sidebar
@@ -128,7 +163,7 @@ export function AppSidebar({
           user their way around for almost no room; the sub-sidebar's 14rem
           is the width actually worth reclaiming. It stays on the rail, so
           bringing the menu back needs no separate control elsewhere. */}
-      {subSidebarItems && (
+      {subSidebarItems && !isHelpdesk && (
         <Button
           type="button"
           variant="outline"
@@ -187,7 +222,10 @@ export function AppSidebar({
         <SidebarFooter>
           {/* Notifications sit with the user's own controls, on every page
               and for every role (agents cannot open the Dashboard). */}
-          <SidebarMenu>
+          <SidebarMenu className="gap-3">
+            <SidebarMenuItem>
+              <DashboardSetupChecklist />
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <NotificationBell />
             </SidebarMenuItem>
@@ -212,64 +250,37 @@ export function AppSidebar({
             }
           }}
         >
-          {/* h-16, matching every panel header to its right, so the rules
+          {isHelpdesk ? (
+            <HelpdeskNavPanel onCollapse={onToggleSubSidebar} />
+          ) : (
+            <>
+              {/* h-16, matching every panel header to its right, so the rules
               across the top of the app are one continuous line. */}
-          <SidebarHeader className="h-16 shrink-0 justify-center border-b px-4 py-0">
-            <div className="flex w-full items-center">
-              {subSidebarItems.icon && (
-                <subSidebarItems.icon className="mr-2 size-5" />
-              )}
-              <CardTitle>{subSidebarItems.title}</CardTitle>
-            </div>
-          </SidebarHeader>
-          {/* This sidebar sits inside one pinned to its icon state, whose
+              <SidebarHeader className="h-16 shrink-0 justify-center border-b px-4 py-0">
+                <div className="flex w-full items-center">
+                  {subSidebarItems.icon && (
+                    <subSidebarItems.icon className="mr-2 size-5" />
+                  )}
+                  <CardTitle>{subSidebarItems.title}</CardTitle>
+                </div>
+              </SidebarHeader>
+              {/* This sidebar sits inside one pinned to its icon state, whose
               rules clip the content. Scrolling is switched back on so a long
               list (the help desk's tags) stays reachable. */}
-          <SidebarContent className="group-data-[collapsible=icon]:overflow-y-auto">
-            <SidebarGroup>
-              <SidebarGroupContent className="flex flex-col gap-2">
-                {subSidebarItems.action && <subSidebarItems.action />}
-                <SidebarMenu>
-                  {subSidebarItems.items.map((item) => {
-                    if (item.items && item.items?.length > 0) {
-                      return (
-                        <CollapsibleMenuItem
-                          key={item.title}
-                          activeUrl={activeSubNavUrl}
-                          title={item.title}
-                          count={item.count}
-                          icon={item.icon}
-                          // Open when anything inside is the current
-                          // screen — the parent is a heading, not a link,
-                          // so it is never the active url itself.
-                          defaultOpen={isBranchActive(
-                            item,
-                            pathname,
-                            subNavSearch,
-                          )}
-                          items={item.items}
-                        />
-                      );
-                    }
-                    return (
-                      <SidebarMenuItemWrapper
-                        key={item.title}
-                        // Which one is active is decided on the plain url; only
-                        // the link carries the list's filter and sort along.
-                        item={{
-                          ...item,
-                          url: keepHelpdeskListParams(item.url, subNavSearch),
-                        }}
-                        pathname={pathname}
-                        isActive={item.url === activeSubNavUrl}
-                        expanded
-                      />
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
+              <SidebarContent className="group-data-[collapsible=icon]:overflow-y-auto">
+                <SidebarGroup>
+                  <SidebarGroupContent className="flex flex-col gap-2">
+                    <SubSidebarList
+                      menu={subSidebarItems}
+                      pathname={pathname}
+                      search={subNavSearch}
+                      activeUrl={activeSubNavUrl}
+                    />
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              </SidebarContent>
+            </>
+          )}
         </Sidebar>
       )}
     </Sidebar>

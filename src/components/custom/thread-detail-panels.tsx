@@ -21,6 +21,7 @@ import {
   IconDeviceLaptop,
   IconEye,
   IconTicket,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import { FulfillmentBadge } from "@/components/ui/status-badge";
 import { OrderDetails } from "@/components/custom/order-details";
@@ -157,11 +158,17 @@ export function ViewedProductsCard({
   } = useCollapsibleList(viewedProducts);
 
   return (
-    <section className="flex flex-col gap-3 border-b p-4">
-      <CardTitle className="flex items-center gap-2">
-        <IconEye className="size-4" />
-        Products Viewed
-      </CardTitle>
+    <section className="flex min-w-0 flex-col gap-4 border-b p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <CardTitle className="flex items-center gap-2">
+          <IconEye className="size-4" />
+          Viewed product
+        </CardTitle>
+        <Typography variant="muted" as="span">
+          {viewedProducts.length}{" "}
+          {viewedProducts.length === 1 ? "product" : "products"}
+        </Typography>
+      </div>
       {loading ? (
         <CardLoadingState />
       ) : viewedProducts.length === 0 ? (
@@ -182,6 +189,8 @@ export function ViewedProductsCard({
             expanded={viewedExpanded}
             onToggle={toggleViewed}
             noun="product"
+            collapsedLabel={`Show ${hiddenViewedCount} more`}
+            className="text-primary hover:text-primary"
           />
         </div>
       )}
@@ -223,10 +232,10 @@ export function SessionDataCard({
   ];
 
   return (
-    <section className="flex flex-col gap-3 border-b p-4">
+    <section className="flex flex-col gap-4 border-b p-4 sm:p-5">
       <CardTitle className="flex items-center gap-2">
         <IconDeviceLaptop className="size-4" />
-        Session Data
+        Visit details
       </CardTitle>
       {loading ? (
         <CardLoadingState />
@@ -235,7 +244,7 @@ export function SessionDataCard({
           {facts.map((fact) => (
             <div
               key={fact.label}
-              className="flex items-center justify-between gap-3"
+              className="flex min-w-0 items-center justify-between gap-3"
             >
               <Typography variant="muted" className="shrink-0">
                 {fact.label}
@@ -243,23 +252,27 @@ export function SessionDataCard({
               <Typography
                 variant="small"
                 as="span"
-                className="text-right leading-snug"
+                className="min-w-0 flex-1 truncate text-right leading-snug"
               >
                 {fact.value}
               </Typography>
             </div>
           ))}
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center justify-between gap-3">
             <Typography variant="muted">Past chats</Typography>
             {customer?.email && currentThreadId && pastThreadsCount > 0 ? (
               <Link
                 href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
-                className="text-sm font-medium text-primary hover:underline"
+                className="min-w-0 truncate text-right text-sm font-medium text-primary hover:underline"
               >
                 {pastChatsLabel}
               </Link>
             ) : (
-              <Typography variant="small" as="span">
+              <Typography
+                variant="small"
+                as="span"
+                className="min-w-0 truncate text-right"
+              >
                 {pastChatsLabel}
               </Typography>
             )}
@@ -279,20 +292,36 @@ export function CartDetailsCard({
 }) {
   const cart = cartData?.updated_cart_data;
   const items = cart?.items ?? [];
+  const {
+    visible: visibleItems,
+    hiddenCount: hiddenItemCount,
+    expanded: itemsExpanded,
+    toggle: toggleItems,
+  } = useCollapsibleList(items);
 
   return (
-    <section className="flex flex-col gap-3 border-b p-4">
-      <CardTitle className="flex items-center gap-2">
-        <IconShoppingBag className="size-4" />
-        Cart
-      </CardTitle>
+    <section className="flex flex-col gap-4 border-b p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <CardTitle className="flex items-center gap-2">
+          <IconShoppingBag className="size-4" />
+          Cart
+        </CardTitle>
+        <Typography
+          variant="small"
+          as="span"
+          className="font-semibold text-emerald-700"
+        >
+          {formatCartPrice(cart?.total) ?? "-"} · {items.length}{" "}
+          {items.length === 1 ? "item" : "items"}
+        </Typography>
+      </div>
       {loading ? (
         <CardLoadingState />
       ) : items.length === 0 ? (
         <Typography variant="muted">Nothing in the cart right now.</Typography>
       ) : (
         <div className="flex flex-col gap-2.5">
-          {items.map((item: CartData, index: number) => (
+          {visibleItems.map((item: CartData, index: number) => (
             <ProductRow
               key={index}
               image={item.product_image}
@@ -301,6 +330,22 @@ export function CartDetailsCard({
               price={formatCartPrice(item.price) ?? "-"}
             />
           ))}
+          <ShowMoreToggle
+            hiddenCount={hiddenItemCount}
+            expanded={itemsExpanded}
+            onToggle={toggleItems}
+            noun="product"
+            collapsedLabel={`View all ${items.length} products`}
+            className="text-primary hover:text-primary"
+          />
+          <div className="mt-1 flex items-center justify-between gap-3 border-t border-dashed pt-3">
+            <Typography variant="muted" as="span">
+              Subtotal
+            </Typography>
+            <Typography variant="small" as="span" className="font-semibold">
+              {formatCartPrice(cart?.total) ?? "-"}
+            </Typography>
+          </div>
         </div>
       )}
     </section>
@@ -332,12 +377,18 @@ export function SupportTicketsCard({
   } = useCollapsibleList(sortedTickets);
 
   return (
-    <section className="flex flex-col gap-3 border-b p-4">
-      <CardTitle className="flex items-center gap-2">
-        <IconTicket className="size-4" />
-        Support Tickets
-        {!loading && liveCount ? ` (${liveCount} active)` : ""}
-      </CardTitle>
+    <section className="flex flex-col gap-4 border-b p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <CardTitle className="flex items-center gap-2">
+          <IconTicket className="size-4" />
+          Support tickets
+        </CardTitle>
+        {!loading && liveCount > 0 ? (
+          <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-medium text-orange-700">
+            {liveCount} open
+          </span>
+        ) : null}
+      </div>
       {loading ? (
         <CardLoadingState />
       ) : !tickets.length ? (
@@ -354,6 +405,8 @@ export function SupportTicketsCard({
             expanded={ticketsExpanded}
             onToggle={toggleTickets}
             noun="ticket"
+            collapsedLabel={`View all tickets (${liveCount} open, ${tickets.length - liveCount} closed)`}
+            className="text-primary hover:text-primary"
           />
         </div>
       )}
@@ -361,14 +414,58 @@ export function SupportTicketsCard({
   );
 }
 
-/** One figure in the orders summary. */
-function SummaryStat({ label, value }: { label: string; value: string }) {
+export function OrdersSummary({
+  orders,
+  customerData,
+  loading,
+  className,
+}: {
+  orders?: OrderData[] | null;
+  customerData?: Customer | null;
+  loading?: boolean;
+  className?: string;
+}) {
+  const orderList = orders ?? [];
+  const loadedTotalSpent = orderList.reduce(
+    (sum, order) => sum + Number(order.total_price ?? 0),
+    0,
+  );
+  const currency = orderList[0]?.currency ?? "USD";
+  if (loading && customerData?.total_spent == null) return null;
+  const totalSpent = customerData?.total_spent ?? loadedTotalSpent;
+  const orderCount = customerData?.orders_count ?? orderList.length;
+
   return (
-    <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
-      <Typography variant="muted">{label}</Typography>
-      <Typography variant="small" as="p" className="truncate tabular-nums">
-        {value}
-      </Typography>
+    <div
+      className={`relative grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border ${className ?? ""}`}
+    >
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="absolute right-1 top-1 z-10 inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="How customer order totals are calculated"
+          >
+            <IconEye className="size-4" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-72 text-center">
+          Lifetime value and total orders are calculated excluding canceled and
+          refunded orders.
+        </TooltipContent>
+      </Tooltip>
+      <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
+        <Typography variant="muted">Lifetime value</Typography>
+        <Typography variant="small" as="p" className="truncate tabular-nums">
+          {formatPrice(totalSpent, currency)}
+        </Typography>
+      </div>
+      <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
+        <Typography variant="muted">Orders</Typography>
+        <Typography variant="small" as="p" className="truncate tabular-nums">
+          {String(orderCount)}
+        </Typography>
+      </div>
     </div>
   );
 }
@@ -389,12 +486,22 @@ export function OrdersCard({
   isDisabled?: boolean;
 }) {
   const orderList = orders ?? [];
-  const {
-    visible: visibleOrders,
-    hiddenCount: hiddenOrderCount,
-    expanded: ordersExpanded,
-    toggle: toggleOrders,
-  } = useCollapsibleList(orderList);
+  const latestOrder = orderList.reduce<OrderData | null>((latest, order) => {
+    if (!latest) return order;
+
+    const latestTime = Date.parse(latest.created_at);
+    const orderTime = Date.parse(order.created_at);
+
+    if (!Number.isFinite(latestTime)) {
+      return Number.isFinite(orderTime) ? order : latest;
+    }
+
+    return Number.isFinite(orderTime) && orderTime > latestTime
+      ? order
+      : latest;
+  }, null);
+  const { visible: visibleOrders, hiddenCount: hiddenOrderCount } =
+    useCollapsibleList(orderList);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   // Opening a row loads that order from /chat/orders/{id}/.
@@ -417,12 +524,6 @@ export function OrdersCard({
   // The two figures that used to sit in a card of their own above this
   // one. They are a fact about these orders, so they belong to the section
   // that lists them — and the pane gets a whole card's height back.
-  const totalSpent = orderList.reduce(
-    (sum, order) => sum + Number(order.total_price ?? 0),
-    0,
-  );
-  const currency = orderList[0]?.currency ?? "USD";
-
   const toggleOrder = (id: number) => {
     setExpandedId((prev) => {
       if (prev === id) return null;
@@ -466,20 +567,6 @@ export function OrdersCard({
           </TooltipContent>
         </Tooltip>
       </div>
-      {/* The figures the orders below add up to, in the section that
-          lists them rather than a card of its own above it. A 1px gap over
-          a border-coloured ground gives even separators however the pair
-          wraps. */}
-      {!loading ? (
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
-          <SummaryStat
-            label="Lifetime value"
-            value={formatPrice(totalSpent, currency)}
-          />
-          <SummaryStat label="Orders" value={String(orderList.length)} />
-        </div>
-      ) : null}
-
       {loading ? (
         <CardLoadingState />
       ) : !orderList || orderList?.length === 0 ? (
@@ -562,6 +649,28 @@ export function OrdersCard({
                   />
                 </button>
 
+                {latestOrder?.id === order.id &&
+                !isExpanded &&
+                order.admin_url ? (
+                  <div className="px-2.5 pb-2.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      asChild
+                    >
+                      <a
+                        href={order.admin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <IconExternalLink className="size-4" />
+                        Open in store admin
+                      </a>
+                    </Button>
+                  </div>
+                ) : null}
+
                 {/* Height animates from 0 so the orders below slide down
                     rather than jumping, and so collapsing reads as the
                     same motion in reverse. */}
@@ -595,12 +704,14 @@ export function OrdersCard({
               </motion.div>
             );
           })}
-          <ShowMoreToggle
-            hiddenCount={hiddenOrderCount}
-            expanded={ordersExpanded}
-            onToggle={toggleOrders}
-            noun="order"
-          />
+          {hiddenOrderCount > 0 && customerData?.id ? (
+            <Link
+              href={`/crm/orders?customer=${customerData.id}`}
+              className="text-center text-primary underline underline-offset-2 hover:text-primary"
+            >
+              View all orders
+            </Link>
+          ) : null}
         </div>
       )}
     </section>

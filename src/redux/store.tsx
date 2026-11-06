@@ -17,6 +17,8 @@ import CustomerSlice from "@/redux/api-slice/customer-slice";
 import OrderSlice from "@/redux/api-slice/order-slice";
 import CampaignSlice from "@/redux/api-slice/campaign-slice";
 import NotificationSlice from "@/redux/api-slice/notification-slice";
+import SlaPolicySlice from "@/redux/api-slice/sla-policy-slice";
+import DashboardChecklistSlice from "@/redux/api-slice/dashboard-checklist-slice";
 
 const store = configureStore({
   reducer: {
@@ -38,6 +40,8 @@ const store = configureStore({
     GetAIUsageReducer: AIUsageSlice,
     GetCampaignReducer: CampaignSlice,
     GetNotificationReducer: NotificationSlice,
+    GetSlaPolicyReducer: SlaPolicySlice,
+    GetDashboardChecklistReducer: DashboardChecklistSlice,
   },
 });
 
