@@ -222,7 +222,7 @@ export function AppSidebar({
         <SidebarFooter>
           {/* Notifications sit with the user's own controls, on every page
               and for every role (agents cannot open the Dashboard). */}
-          <SidebarMenu>
+          <SidebarMenu className="gap-3">
             <SidebarMenuItem>
               <DashboardSetupChecklist />
             </SidebarMenuItem>
