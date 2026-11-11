@@ -138,7 +138,7 @@ export function KnowledgeList({
               Status
             </TableHead>
             <TableHead className="h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Updated
+              Last sync
             </TableHead>
             <TableHead className="h-10 w-12 px-4">
               <span className="sr-only">Actions</span>
