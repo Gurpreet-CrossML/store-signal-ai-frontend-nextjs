@@ -41,7 +41,11 @@ import { formikErrorsFromZod } from "@/lib/form-errors";
 import { isValidUrl as isValidSharedUrl, normalizeUrl } from "@/lib/url";
 
 import { AIScopeField } from "@/components/custom/knowledge/ai-scope-field";
-import { MultiFileUploadDropzone } from "@/components/custom/knowledge/file-upload-dropzone";
+import {
+  formatBytes,
+  KNOWLEDGE_FILE_MAX_SIZE_BYTES,
+  MultiFileUploadDropzone,
+} from "@/components/custom/knowledge/file-upload-dropzone";
 import { MultiSelectCombobox } from "@/components/custom/knowledge/multi-select-combobox";
 import {
   FAQ_ANSWER_MAX_LENGTH,
@@ -70,7 +74,11 @@ const SOURCE_OPTIONS: { value: AddableSource; label: string; hint: string }[] =
   [
     { value: "faq", label: "FAQ", hint: "Question & answer pairs" },
     { value: "url", label: "URL", hint: "A page or policy link" },
-    { value: "file", label: "Document", hint: "PDF or DOCX" },
+    {
+      value: "file",
+      label: "Document",
+      hint: `PDF, DOCX & more · max ${formatBytes(KNOWLEDGE_FILE_MAX_SIZE_BYTES)} each`,
+    },
   ];
 
 /** The four scopes offered on this page — a narrower, more specific set
