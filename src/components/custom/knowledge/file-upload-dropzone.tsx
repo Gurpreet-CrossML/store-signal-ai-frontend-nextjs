@@ -16,8 +16,11 @@ import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
-/** Per-file upload limit for knowledge documents. Keep in sync with the backend. */
+/** Per-file upload limit for knowledge documents. Mirrors KNOWLEDGE_MAX_FILE_SIZE in the backend (core/constants.py). */
 export const KNOWLEDGE_FILE_MAX_SIZE_BYTES = 20 * 1024 * 1024;
+
+/** Longest document allowed, in pages. Mirrors KNOWLEDGE_MAX_PAGES in the backend; the backend enforces it. */
+export const KNOWLEDGE_FILE_MAX_PAGES = 100;
 
 function FileTypeIcon({
   fileType,
@@ -208,7 +211,8 @@ export function MultiFileUploadDropzone({
             XLSX, PPTX, ODT, ODS
           </Typography>
           <Typography variant="muted" className="text-xs font-medium">
-            Maximum file size: {formatBytes(maxFileSizeBytes)} per file
+            Maximum file size: {formatBytes(maxFileSizeBytes)} per file ·{" "}
+            {KNOWLEDGE_FILE_MAX_PAGES} pages per document
             {typeof maxFiles === "number" ? ` · up to ${maxFiles} files` : ""}
           </Typography>
           <input

@@ -43,6 +43,7 @@ import { isValidUrl as isValidSharedUrl, normalizeUrl } from "@/lib/url";
 import { AIScopeField } from "@/components/custom/knowledge/ai-scope-field";
 import {
   formatBytes,
+  KNOWLEDGE_FILE_MAX_PAGES,
   KNOWLEDGE_FILE_MAX_SIZE_BYTES,
   MultiFileUploadDropzone,
 } from "@/components/custom/knowledge/file-upload-dropzone";
@@ -77,7 +78,7 @@ const SOURCE_OPTIONS: { value: AddableSource; label: string; hint: string }[] =
     {
       value: "file",
       label: "Document",
-      hint: `PDF, DOCX & more · max ${formatBytes(KNOWLEDGE_FILE_MAX_SIZE_BYTES)} each`,
+      hint: `PDF, DOCX & more · max ${formatBytes(KNOWLEDGE_FILE_MAX_SIZE_BYTES)} & ${KNOWLEDGE_FILE_MAX_PAGES} pages each`,
     },
   ];
 
@@ -472,7 +473,16 @@ export function NewKnowledgePage() {
     formik.setFieldValue("faqRows", next.length > 0 ? next : [emptyFaqRow()]);
   };
 
+  // A server error describes the value that was submitted; once the row is
+  // edited it is stale, so drop it instead of stacking it on top of the
+  // fresh client-side error.
+  const clearRowServerError = (index: number) =>
+    setRowErrors((prev) =>
+      prev?.[index] ? prev.map((e, i) => (i === index ? {} : e)) : prev,
+    );
+
   const updateUrlRow = (index: number, patch: Partial<UrlRow>) => {
+    clearRowServerError(index);
     formik.setFieldValue(
       "urlRows",
       values.urlRows.map((row, i) =>
@@ -878,7 +888,8 @@ export function NewKnowledgePage() {
                       </Field>
                     )}
                     {rowErrors?.[index] &&
-                      Object.keys(rowErrors[index]).length > 0 && (
+                      Object.keys(rowErrors[index]).length > 0 &&
+                      !(showErrors && urlRowErrors[index]) && (
                         <p className="text-xs text-destructive">
                           {firstErrorMessage(rowErrors[index])}
                         </p>
