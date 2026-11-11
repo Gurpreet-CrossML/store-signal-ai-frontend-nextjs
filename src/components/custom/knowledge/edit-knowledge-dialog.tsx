@@ -147,7 +147,29 @@ export function EditKnowledgeDialog({
         },
       }),
     );
-    if (!UpdateKnowledgeItem.fulfilled.match(result)) return;
+    if (!UpdateKnowledgeItem.fulfilled.match(result)) {
+      // The backend validates the question/answer again (e.g. a question
+      // made only of numbers or emojis) and returns per-field messages.
+      const fieldErrors = (
+        result.payload as { data?: Record<string, unknown> } | undefined
+      )?.data;
+      const fieldMessage = (value: unknown) =>
+        typeof value === "string"
+          ? value
+          : Array.isArray(value)
+            ? value.map(String).find(Boolean)
+            : undefined;
+      if (isFaq && fieldErrors && typeof fieldErrors === "object") {
+        setFaqErrors({
+          question: fieldMessage(fieldErrors.question),
+          answer: fieldMessage(fieldErrors.answer),
+        });
+      }
+      if (isUrl && fieldErrors && typeof fieldErrors === "object") {
+        setUrlError(fieldMessage(fieldErrors.url));
+      }
+      return;
+    }
 
     onOpenChange(false);
     onSaved();
