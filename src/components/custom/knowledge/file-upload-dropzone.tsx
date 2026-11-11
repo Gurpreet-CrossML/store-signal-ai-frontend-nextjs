@@ -10,9 +10,14 @@ import {
   IconX,
 } from "@tabler/icons-react";
 
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
+
+/** Per-file upload limit for knowledge documents. Keep in sync with the backend. */
+export const KNOWLEDGE_FILE_MAX_SIZE_BYTES = 20 * 1024 * 1024;
 
 function FileTypeIcon({
   fileType,
@@ -60,12 +65,15 @@ export function MultiFileUploadDropzone({
   onRemoveFile,
   errors,
   maxFiles,
+  maxFileSizeBytes = KNOWLEDGE_FILE_MAX_SIZE_BYTES,
 }: {
   files: File[];
   onFilesSelected: (files: File[]) => void;
   onRemoveFile: (index: number) => void;
   errors?: (string | undefined)[];
   maxFiles?: number;
+  /** Per-file size limit; larger files are rejected with a toast. */
+  maxFileSizeBytes?: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -73,7 +81,19 @@ export function MultiFileUploadDropzone({
   const handleFileList = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
 
-    const incoming = Array.from(fileList);
+    const allIncoming = Array.from(fileList);
+    const incoming = allIncoming.filter((f) => f.size <= maxFileSizeBytes);
+    const rejected = allIncoming.filter((f) => f.size > maxFileSizeBytes);
+    if (rejected.length > 0) {
+      toast.error(
+        rejected.length === 1 ? "File too large" : "Some files are too large",
+        {
+          description: `${rejected.map((f) => f.name).join(", ")} exceed${
+            rejected.length === 1 ? "s" : ""
+          } the ${formatBytes(maxFileSizeBytes)} limit per file.`,
+        },
+      );
+    }
 
     // Treat files as duplicates when name, size and lastModified match an
     // already-selected file. This reduces false-positives compared to using
@@ -186,6 +206,10 @@ export function MultiFileUploadDropzone({
           <Typography variant="muted" className="text-xs">
             Supported formats: PDF, DOC, DOCX, JPG, JPEG, PNG, JSON, CSV, XLS,
             XLSX, PPTX, ODT, ODS
+          </Typography>
+          <Typography variant="muted" className="text-xs font-medium">
+            Maximum file size: {formatBytes(maxFileSizeBytes)} per file
+            {typeof maxFiles === "number" ? ` · up to ${maxFiles} files` : ""}
           </Typography>
           <input
             ref={inputRef}
