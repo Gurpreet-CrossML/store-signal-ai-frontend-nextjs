@@ -365,6 +365,9 @@ export type BulkKnowledgeItemContent = {
   title?: string;
 };
 
+/** How long the bulk create may take before the browser gives up. */
+const BULK_CREATE_TIMEOUT_MS = 120_000;
+
 /** Bulk-create knowledge items of one `source` in one request
  * (`knowledge/views.py` `KnowledgeItemAPIView.post`). Shared fields
  * (`type`/`ai_scope`/`products`/`categories`/`collections`) are sent once;
@@ -407,7 +410,14 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
       } = input;
 
       let payload: FormData | Record<string, unknown>;
-      let requestConfig: { headers: { "Content-Type": string } } | undefined;
+      // The shared axios instance gives up after 30s, but a big batch (up to
+      // 100 pages, each re-checked and queued for indexing) can take longer.
+      // Giving up early is worse than waiting: the backend still saves
+      // everything, so the user sees an error for items that were added.
+      let requestConfig: {
+        timeout: number;
+        headers?: { "Content-Type": string };
+      } = { timeout: BULK_CREATE_TIMEOUT_MS };
 
       if (source === "file") {
         const formData = new FormData();
@@ -421,7 +431,10 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
         );
         (input.files ?? []).forEach((file) => formData.append("files", file));
         payload = formData;
-        requestConfig = { headers: { "Content-Type": "multipart/form-data" } };
+        requestConfig = {
+          ...requestConfig,
+          headers: { "Content-Type": "multipart/form-data" },
+        };
       } else {
         payload = {
           type,
@@ -449,6 +462,132 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
         description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't add knowledge.");
+    }
+  },
+);
+
+/** One page found while scanning a website. `title` and `wordCount` are
+ * best-effort — the crawler may not be able to read either. */
+export type DiscoveredPage = {
+  url: string;
+  title: string;
+  wordCount: number | null;
+  /** The store already has a URL knowledge item for this page. */
+  alreadyAdded: boolean;
+  /** False when the page has too few words to be worth indexing. */
+  hasEnoughContent: boolean;
+};
+
+type ApiDiscoveredPage = {
+  url: string;
+  title?: string | null;
+  word_count?: number | null;
+  already_added?: boolean;
+  has_enough_content?: boolean;
+};
+
+/** The most specific message in a failed scan response: the `url` field error
+ * (e.g. "can't be scanned" / "couldn't reach this website"), else the
+ * envelope's `message`. */
+function discoveryErrorMessage(payload: unknown): string | undefined {
+  const body = payload as
+    | { message?: string; data?: { url?: unknown } }
+    | undefined;
+  const urlError = body?.data?.url;
+  return (
+    (Array.isArray(urlError) ? String(urlError[0]) : undefined) ||
+    body?.message ||
+    undefined
+  );
+}
+
+/** Scans a website and lists the pages found on it, so the user can choose
+ * which ones to index (`knowledge/views.py` `KnowledgeURLDiscoveryAPIView`).
+ * Resolves `{ data: { pages: [{ url, title, word_count, already_added }],
+ * truncated } }`; `truncated` means the site had more pages than the scan
+ * limit. Validation failures come back as `{ data: { url: ["..."] } }`. */
+export const DiscoverWebsiteUrls = createAsyncThunk(
+  "DiscoverWebsiteUrls",
+  async (
+    { storeCode, websiteUrl }: { storeCode: string; websiteUrl: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.discoverKnowledgeUrls()}?store_code=${storeCode}`,
+        { url: websiteUrl },
+        // Lets the caller cancel the scan (`promise.abort()`), e.g. when the
+        // user leaves the scan view while it is still running.
+        { signal: thunkAPI.signal },
+      );
+      const pages: ApiDiscoveredPage[] = response.data?.data?.pages ?? [];
+      return {
+        pages: pages.map(
+          (page): DiscoveredPage => ({
+            url: page.url,
+            title: page.title?.trim() ?? "",
+            wordCount: page.word_count ?? null,
+            alreadyAdded: Boolean(page.already_added),
+            hasEnoughContent: page.has_enough_content !== false,
+          }),
+        ),
+        truncated: Boolean(response.data?.data?.truncated),
+        throttled: Boolean(response.data?.data?.throttled),
+        websiteUrl: String(response.data?.data?.website_url ?? websiteUrl),
+        minWords: Number(response.data?.data?.min_words) || 0,
+      };
+    } catch (error) {
+      // A cancelled scan isn't a failure — don't toast about it.
+      if (thunkAPI.signal.aborted) return thunkAPI.rejectWithValue(undefined);
+
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't scan the website.", {
+        description: discoveryErrorMessage(data) || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't scan the website.");
+    }
+  },
+);
+
+/** Reads the title/word count of pages a scan listed without details. A scan
+ * can't read every page of a large site in one go — sites rate-limit bursts
+ * (HTTP 429, for roughly 30s) — so the scan view asks for the rest in small
+ * batches (`KnowledgeURLDiscoveryDetailsAPIView`). Resolves `{ pages, throttled }`;
+ * `throttled` means the site limited this batch too, so retry later. A
+ * requested page missing from `pages` no longer exists (or isn't HTML). Failures
+ * are silent: this runs in the background and the page just stays "unknown". */
+export const FetchDiscoveredPageDetails = createAsyncThunk(
+  "FetchDiscoveredPageDetails",
+  async (
+    {
+      storeCode,
+      websiteUrl,
+      urls,
+    }: { storeCode: string; websiteUrl: string; urls: string[] },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.discoverKnowledgeUrlDetails()}?store_code=${storeCode}`,
+        { website_url: websiteUrl, urls },
+        { signal: thunkAPI.signal },
+      );
+      const pages: (ApiDiscoveredPage & { url: string })[] =
+        response.data?.data?.pages ?? [];
+      return {
+        requested: urls,
+        pages: pages.map((page) => ({
+          url: page.url,
+          title: page.title?.trim() ?? "",
+          wordCount: page.word_count ?? null,
+          hasEnoughContent: page.has_enough_content !== false,
+        })),
+        throttled: Boolean(response.data?.data?.throttled),
+      };
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(response?.data);
     }
   },
 );
@@ -680,6 +819,19 @@ const KnowledgeRagSlice = createSlice({
       CreateKnowledgeItemsBulkIsSuccess: false,
       CreateKnowledgeItemsBulkIsError: null as null | string | object,
     },
+    DiscoverWebsiteUrlsState: {
+      DiscoverWebsiteUrlsIsLoading: false,
+      DiscoverWebsiteUrlsIsSuccess: false,
+      DiscoverWebsiteUrlsIsError: null as null | string,
+      DiscoverWebsiteUrlsListData: [] as DiscoveredPage[],
+      DiscoverWebsiteUrlsTruncated: false,
+      DiscoverWebsiteUrlsMinWords: 0,
+      /** The address that was scanned, as the backend saw it. */
+      DiscoverWebsiteUrlsWebsiteUrl: "",
+      /** The scan was rate-limited, so some pages still lack details. */
+      DiscoverWebsiteUrlsThrottled: false,
+      DiscoverWebsiteUrlsDetailsIsLoading: false,
+    },
     UpdateKnowledgeItemState: {
       UpdateKnowledgeItemIsLoading: false,
       UpdateKnowledgeItemIsSuccess: false,
@@ -737,7 +889,22 @@ const KnowledgeRagSlice = createSlice({
       RunTestQueryData: null as TestConsoleResult | null,
     },
   },
-  reducers: {},
+  reducers: {
+    /** Clears the website-scan results (list, flags, errors). */
+    ResetDiscoverWebsiteUrls: (state) => {
+      state.DiscoverWebsiteUrlsState = {
+        DiscoverWebsiteUrlsIsLoading: false,
+        DiscoverWebsiteUrlsIsSuccess: false,
+        DiscoverWebsiteUrlsIsError: null,
+        DiscoverWebsiteUrlsListData: [],
+        DiscoverWebsiteUrlsTruncated: false,
+        DiscoverWebsiteUrlsMinWords: 0,
+        DiscoverWebsiteUrlsWebsiteUrl: "",
+        DiscoverWebsiteUrlsThrottled: false,
+        DiscoverWebsiteUrlsDetailsIsLoading: false,
+      };
+    },
+  },
   extraReducers: (builder) => {
     builder
       // FetchKnowledgeItems
@@ -826,6 +993,73 @@ const KnowledgeRagSlice = createSlice({
         state.DeleteKnowledgeItemState.DeleteKnowledgeItemIsSuccess = false;
         state.DeleteKnowledgeItemState.DeleteKnowledgeItemIsError =
           "Couldn't delete knowledge.";
+      })
+      // DiscoverWebsiteUrls
+      .addCase(DiscoverWebsiteUrls.pending, (state) => {
+        const s = state.DiscoverWebsiteUrlsState;
+        s.DiscoverWebsiteUrlsIsLoading = true;
+        s.DiscoverWebsiteUrlsIsSuccess = false;
+        s.DiscoverWebsiteUrlsIsError = null;
+        s.DiscoverWebsiteUrlsListData = [];
+        s.DiscoverWebsiteUrlsTruncated = false;
+        s.DiscoverWebsiteUrlsMinWords = 0;
+        s.DiscoverWebsiteUrlsWebsiteUrl = "";
+        s.DiscoverWebsiteUrlsThrottled = false;
+        s.DiscoverWebsiteUrlsDetailsIsLoading = false;
+      })
+      .addCase(DiscoverWebsiteUrls.fulfilled, (state, action) => {
+        const s = state.DiscoverWebsiteUrlsState;
+        s.DiscoverWebsiteUrlsIsLoading = false;
+        s.DiscoverWebsiteUrlsIsSuccess = true;
+        s.DiscoverWebsiteUrlsListData = action.payload.pages;
+        s.DiscoverWebsiteUrlsTruncated = action.payload.truncated;
+        s.DiscoverWebsiteUrlsMinWords = action.payload.minWords;
+        s.DiscoverWebsiteUrlsWebsiteUrl = action.payload.websiteUrl;
+        s.DiscoverWebsiteUrlsThrottled = action.payload.throttled;
+      })
+      .addCase(DiscoverWebsiteUrls.rejected, (state, action) => {
+        const s = state.DiscoverWebsiteUrlsState;
+        s.DiscoverWebsiteUrlsIsLoading = false;
+        // Cancelled by the user: back to idle, no error to show.
+        if (action.meta.aborted) return;
+        s.DiscoverWebsiteUrlsIsError =
+          discoveryErrorMessage(action.payload) || "Couldn't scan the website.";
+      })
+      // FetchDiscoveredPageDetails
+      .addCase(FetchDiscoveredPageDetails.pending, (state) => {
+        state.DiscoverWebsiteUrlsState.DiscoverWebsiteUrlsDetailsIsLoading = true;
+      })
+      .addCase(FetchDiscoveredPageDetails.fulfilled, (state, action) => {
+        const s = state.DiscoverWebsiteUrlsState;
+        s.DiscoverWebsiteUrlsDetailsIsLoading = false;
+        s.DiscoverWebsiteUrlsThrottled = action.payload.throttled;
+
+        const requested = new Set(action.payload.requested);
+        const found = new Map(
+          action.payload.pages.map((page) => [page.url, page]),
+        );
+        s.DiscoverWebsiteUrlsListData = s.DiscoverWebsiteUrlsListData.flatMap(
+          (page) => {
+            if (!requested.has(page.url)) return [page];
+            const details = found.get(page.url);
+            // Asked for but not returned: the page is gone or isn't HTML.
+            if (!details) return [];
+            return [
+              {
+                ...page,
+                title: details.title || page.title,
+                wordCount: details.wordCount,
+                hasEnoughContent: details.hasEnoughContent,
+              },
+            ];
+          },
+        );
+      })
+      .addCase(FetchDiscoveredPageDetails.rejected, (state, action) => {
+        state.DiscoverWebsiteUrlsState.DiscoverWebsiteUrlsDetailsIsLoading = false;
+        // Treat a failed batch like a throttled one: wait before trying again.
+        if (!action.meta.aborted)
+          state.DiscoverWebsiteUrlsState.DiscoverWebsiteUrlsThrottled = true;
       })
       // FetchProductOptions
       .addCase(FetchProductOptions.pending, (state) => {
@@ -966,5 +1200,7 @@ const KnowledgeRagSlice = createSlice({
       });
   },
 });
+
+export const { ResetDiscoverWebsiteUrls } = KnowledgeRagSlice.actions;
 
 export default KnowledgeRagSlice.reducer;

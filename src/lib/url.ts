@@ -20,6 +20,18 @@ export function isValidUrl(value: string): boolean {
   }
 }
 
+/** Stricter than `isValidUrl`, for addresses we'll fetch: the host must be a
+ * real domain (with a TLD, e.g. `company.com`) or an IPv4 address. Plain words
+ * like "AGENT" pass `isValidUrl` because a scheme gets prepended to them. */
+export function isValidWebsiteUrl(value: string): boolean {
+  if (!isValidUrl(value)) return false;
+  const { hostname } = new URL(normalizeUrl(value));
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return true;
+  return /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+([a-z]{2,63}|xn--[a-z0-9-]{1,59})$/i.test(
+    hostname,
+  );
+}
+
 /** True only for a complete http/https URL. Unlike isValidUrl, it adds no scheme. */
 export function isSafeHttpUrl(value: string): boolean {
   try {

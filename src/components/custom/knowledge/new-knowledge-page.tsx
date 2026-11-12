@@ -48,6 +48,7 @@ import {
   MultiFileUploadDropzone,
 } from "@/components/custom/knowledge/file-upload-dropzone";
 import { MultiSelectCombobox } from "@/components/custom/knowledge/multi-select-combobox";
+import { WebsiteUrlDiscovery } from "@/components/custom/knowledge/website-url-discovery";
 import {
   FAQ_ANSWER_MAX_LENGTH,
   POLICY_TYPE_OPTIONS,
@@ -60,6 +61,7 @@ import {
   FetchProductOptions,
   type AIScope,
   type BulkKnowledgeItemContent,
+  type DiscoveredPage,
   type KnowledgeType,
   type PolicyType,
   type ProductOption,
@@ -134,7 +136,14 @@ const URL_TYPE_OPTIONS: { value: LocalUrlType; label: string }[] = [
 
 const FAQ_CAP = 20;
 const URL_CAP = 20;
+/** Pages that can be picked in one "Scan my website" request (the backend's
+ * `KNOWLEDGE_MAX_URLS_PER_REQUEST`). */
+const WEBSITE_URL_CAP = 100;
 const FILE_CAP = 15;
+
+/** How URL items are added: typed in one by one, or picked from the pages
+ * found by scanning the user's website. */
+type UrlMode = "manual" | "website";
 
 type FaqRow = { localId: string; question: string; answer: string };
 type UrlRow = {
@@ -165,6 +174,9 @@ type FormValues = {
   collections: ProductOption[];
   faqRows: FaqRow[];
   urlRows: UrlRow[];
+  urlMode: UrlMode;
+  /** URLs ticked in the website-scan table (`urlMode === "website"`). */
+  selectedPageUrls: string[];
   files: File[];
 };
 
@@ -201,6 +213,10 @@ const formSchema = z
     collections: z.array(z.object({ id: z.string(), name: z.string() })),
     faqRows: z.array(faqRowSchema).max(FAQ_CAP, `Maximum ${FAQ_CAP} at a time`),
     urlRows: z.array(urlRowSchema).max(URL_CAP, `Maximum ${URL_CAP} at a time`),
+    urlMode: z.enum(["manual", "website"]),
+    selectedPageUrls: z
+      .array(z.string())
+      .max(WEBSITE_URL_CAP, `Maximum ${WEBSITE_URL_CAP} at a time`),
     files: z
       .array(z.custom<File>((value) => value instanceof File))
       .max(FILE_CAP, `Maximum ${FILE_CAP} at a time`),
@@ -250,7 +266,17 @@ const formSchema = z
       });
     }
 
-    if (values.source === "url") {
+    if (values.source === "url" && values.urlMode === "website") {
+      if (values.selectedPageUrls.length === 0) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["selectedPageUrls"],
+          message: "Scan your website and select at least one page",
+        });
+      }
+    }
+
+    if (values.source === "url" && values.urlMode === "manual") {
       if (values.urlRows.length === 0) {
         ctx.addIssue({
           code: "custom",
@@ -339,6 +365,9 @@ export function NewKnowledgePage() {
     useAppSelector(
       (state) => state.GetKnowledgeRagReducer.FetchCollectionOptionsState,
     );
+  const { DiscoverWebsiteUrlsListData: discoveredPages } = useAppSelector(
+    (state) => state.GetKnowledgeRagReducer.DiscoverWebsiteUrlsState,
+  );
   const { CreateKnowledgeItemsBulkIsLoading } = useAppSelector(
     (state) => state.GetKnowledgeRagReducer.CreateKnowledgeItemsBulkState,
   );
@@ -362,6 +391,8 @@ export function NewKnowledgePage() {
       collections: [],
       faqRows: [emptyFaqRow()],
       urlRows: [emptyUrlRow()],
+      urlMode: "manual",
+      selectedPageUrls: [],
       files: [],
     },
     validate: (values) => {
@@ -389,7 +420,7 @@ export function NewKnowledgePage() {
           ? CreateKnowledgeItemsBulk({ ...shared, files: values.files })
           : CreateKnowledgeItemsBulk({
               ...shared,
-              items: buildItems(values),
+              items: buildItems(values, discoveredPages),
             }),
       );
 
@@ -401,7 +432,23 @@ export function NewKnowledgePage() {
       const payload = result.payload as
         | { data?: unknown; message?: string }
         | undefined;
-      if (Array.isArray(payload?.data)) {
+      if (Array.isArray(payload?.data) && values.urlMode === "website") {
+        // The website table has no per-row error slot, so surface the first
+        // failing page (with its address) in the banner instead.
+        const errors = payload.data as Record<string, unknown>[];
+        const failedIndex = errors.findIndex(
+          (entry) => entry && Object.keys(entry).length > 0,
+        );
+        const failedUrl = values.selectedPageUrls[failedIndex];
+        setBanner(
+          failedIndex >= 0
+            ? `${failedUrl ? `${failedUrl}: ` : ""}${
+                firstErrorMessage(errors[failedIndex]) ??
+                "This page couldn't be added."
+              }`
+            : "We couldn't save your knowledge items. Please try again.",
+        );
+      } else if (Array.isArray(payload?.data)) {
         setRowErrors(payload.data as Record<string, unknown>[]);
       } else {
         setBanner(
@@ -421,13 +468,17 @@ export function NewKnowledgePage() {
     values.source === "faq"
       ? values.faqRows.length
       : values.source === "url"
-        ? values.urlRows.length
+        ? values.urlMode === "website"
+          ? values.selectedPageUrls.length
+          : values.urlRows.length
         : values.files.length;
   const activeCap =
     values.source === "faq"
       ? FAQ_CAP
       : values.source === "url"
-        ? URL_CAP
+        ? values.urlMode === "website"
+          ? WEBSITE_URL_CAP
+          : URL_CAP
         : FILE_CAP;
 
   const faqRowErrors = (formik.errors.faqRows ?? []) as Array<
@@ -446,7 +497,23 @@ export function NewKnowledgePage() {
       source: next,
       faqRows: [emptyFaqRow()],
       urlRows: [emptyUrlRow()],
+      selectedPageUrls: [],
       files: [],
+    });
+  };
+
+  // Switching between typing URLs and scanning a website discards whatever
+  // was entered or scanned in the other mode, so each starts empty. (The
+  // scan view clears its own results and input when it unmounts.)
+  const handleUrlModeChange = (next: UrlMode) => {
+    if (next === values.urlMode) return;
+    setRowErrors(null);
+    setBanner(null);
+    formik.setValues({
+      ...values,
+      urlMode: next,
+      urlRows: [emptyUrlRow()],
+      selectedPageUrls: [],
     });
   };
 
@@ -789,7 +856,48 @@ export function NewKnowledgePage() {
                 </Button>
               )}
 
+              {values.source === "url" && (
+                <div className="flex w-fit gap-1 rounded-lg border border-border/60 p-1">
+                  {(
+                    [
+                      { value: "manual", label: "Enter URLs" },
+                      { value: "website", label: "Scan my website" },
+                    ] as const
+                  ).map((option) => (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      size="sm"
+                      variant={
+                        values.urlMode === option.value ? "secondary" : "ghost"
+                      }
+                      onClick={() => handleUrlModeChange(option.value)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
+
+              {values.source === "url" && values.urlMode === "website" && (
+                <WebsiteUrlDiscovery
+                  storeCode={storeCode}
+                  selectedUrls={values.selectedPageUrls}
+                  onSelectedUrlsChange={(next) =>
+                    formik.setFieldValue("selectedPageUrls", next)
+                  }
+                  maxSelection={WEBSITE_URL_CAP}
+                  error={
+                    showErrors &&
+                    typeof formik.errors.selectedPageUrls === "string"
+                      ? formik.errors.selectedPageUrls
+                      : undefined
+                  }
+                />
+              )}
+
               {values.source === "url" &&
+                values.urlMode === "manual" &&
                 values.urlRows.map((row, index) => (
                   <div
                     key={row.localId}
@@ -897,7 +1005,7 @@ export function NewKnowledgePage() {
                   </div>
                 ))}
 
-              {values.source === "url" && (
+              {values.source === "url" && values.urlMode === "manual" && (
                 <Button
                   type="button"
                   variant="outline"
@@ -982,7 +1090,18 @@ export function NewKnowledgePage() {
 
 /** Builds the `items` array for a non-file bulk submit — pure content
  * per row, matching `BulkKnowledgeItemContent`. */
-function buildItems(values: FormValues): BulkKnowledgeItemContent[] {
+function buildItems(
+  values: FormValues,
+  discoveredPages: DiscoveredPage[],
+): BulkKnowledgeItemContent[] {
+  if (values.source === "url" && values.urlMode === "website") {
+    const byUrl = new Map(discoveredPages.map((page) => [page.url, page]));
+    return values.selectedPageUrls.map((url) => ({
+      url,
+      title: byUrl.get(url)?.title || undefined,
+    }));
+  }
+
   if (values.source === "faq") {
     return values.faqRows.map((row) => ({
       question: row.question.trim(),
