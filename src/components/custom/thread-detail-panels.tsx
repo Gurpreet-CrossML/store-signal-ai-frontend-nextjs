@@ -22,7 +22,7 @@ import {
   IconEye,
   IconTicket,
   IconExternalLink,
-  IconInfoCircle
+  IconInfoCircle,
 } from "@tabler/icons-react";
 import { FulfillmentBadge } from "@/components/ui/status-badge";
 import { OrderDetails } from "@/components/custom/order-details";
