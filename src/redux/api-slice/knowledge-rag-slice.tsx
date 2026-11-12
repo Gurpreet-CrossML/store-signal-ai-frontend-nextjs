@@ -5,14 +5,6 @@ import { isAxiosError } from "axios";
 import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { toPaginatedList } from "@/lib/helpers";
-import {
-  getAIKnowledgeScope as mockGetAIKnowledgeScope,
-  getRagSettings as mockGetRagSettings,
-  runTestQuery as mockRunTestQuery,
-  saveAIKnowledgeScope as mockSaveAIKnowledgeScope,
-  saveRagSettings as mockSaveRagSettings,
-  delay,
-} from "@/mock/knowledge-rag.mock";
 
 // --- Types ------------------------------------------------------------
 // Kept flat (rather than a discriminated union) because the Add/Edit form
@@ -30,7 +22,7 @@ export type KnowledgeType = "general" | "product";
 // | "offer";
 
 export type KnowledgeSource =
-  | "text"
+  | "article"
   | "file"
   | "url"
   | "google_drive"
@@ -40,9 +32,16 @@ export type KnowledgeSource =
   | "offer";
 
 // Mirrors the backend's KnowledgeStatus choices exactly (knowledge/models.py).
-// There is no "active"/"disabled" status on the backend — "completed" is the
+// There is no "active"/"disabled" status on the backend. A new item is a
+// "draft" (never processed); publishing it queues it ("pending" ->
+// "processing") and "published" is the terminal success state. Status is
 // terminal success state, and status is read-only (not settable via the API).
-export type KnowledgeStatus = "completed" | "pending" | "processing" | "failed";
+export type KnowledgeStatus =
+  | "draft"
+  | "published"
+  | "pending"
+  | "processing"
+  | "failed";
 
 export type AIScope = "sales" | "support" | "social" | "internal";
 
@@ -76,6 +75,8 @@ export type KnowledgeItem = {
   tags: string[];
   createdAt: string;
   updatedAt: string;
+  /** Name of the user who last edited the item; unset if never edited by a user. */
+  updatedBy?: string;
 
   // General knowledge
   content?: string;
@@ -128,59 +129,37 @@ export type ProductOption = {
   name: string;
 };
 
+/** Vector storage in bytes: what a store uses in total, its plan's limit, and the split by kind. */
+export type KnowledgeVectorStorage = {
+  total: number;
+  limit: number;
+  remaining: number;
+  products: number;
+  documents: number;
+  urls: number;
+  faqs: number;
+  articles: number;
+};
+
+export type KnowledgeCounts = {
+  products: number;
+  knowledge_items: number;
+  documents: number;
+  urls: number;
+  faqs: number;
+  articles: number;
+};
+
+export type KnowledgeStats = {
+  vector_storage: KnowledgeVectorStorage;
+  counts: KnowledgeCounts;
+};
+
 export type KnowledgeItemListResponse = {
   count: number;
   next: string | null;
   previous: string | null;
   results: KnowledgeItem[];
-};
-
-export type RetrievalSettings = {
-  similarityThreshold: number;
-  topK: number;
-  minMatchingScore: number;
-  hybridSearchEnabled: boolean;
-  rerankingEnabled: boolean;
-  rerankingThreshold: number;
-};
-
-export type GroundingMode = "strict" | "balanced" | "flexible";
-export type UnsupportedAnswerPolicy =
-  | "never_guess"
-  | "limited_inference"
-  | "allow_inference";
-
-export type GroundingSettings = {
-  mode: GroundingMode;
-  unsupportedAnswerPolicy: UnsupportedAnswerPolicy;
-};
-
-export type RagSettings = {
-  retrieval: RetrievalSettings;
-  grounding: GroundingSettings;
-};
-
-export type AIKnowledgeScopeConfig = Record<AIScope, KnowledgeType[]>;
-
-export type RetrievedSource = {
-  knowledgeItemId: string;
-  title: string;
-  type: KnowledgeType;
-  similarityScore: number;
-  matchingScore: number;
-  rerankingScore?: number;
-  excerpt: string;
-};
-
-export type TestConsoleResult = {
-  query: string;
-  aiScope: AIScope;
-  knowledgeScope: KnowledgeType[];
-  retrievedSources: RetrievedSource[];
-  finalContext: string;
-  generatedAnswer: string;
-  grounded: boolean;
-  fallbackReason?: string;
 };
 
 // --- Knowledge item API mapping -----------------------------------------
@@ -216,6 +195,8 @@ type ApiKnowledgeItem = {
   file_name: string;
   file_type: string;
   file_size: number | null;
+  /** Who last edited the item, from the backend's audit metadata. */
+  updated_by: { name: string; username: string } | null;
   created_at: string;
   updated_at: string;
 };
@@ -231,6 +212,7 @@ function mapApiKnowledgeItem(api: ApiKnowledgeItem): KnowledgeItem {
     tags: api.tags ?? [],
     createdAt: api.created_at,
     updatedAt: api.updated_at,
+    updatedBy: api.updated_by?.name || api.updated_by?.username || undefined,
     content: api.content || undefined,
     category: api.category || undefined,
     products: api.products ?? [],
@@ -297,9 +279,7 @@ function buildKnowledgeItemPayload(
 // --- Thunks -------------------------------------------------------------
 // Knowledge items are backed by the real Django `/api/knowledge/knowledge-items/`
 // endpoints. Reads go through `useBackend: true` (not ported to a local API
-// route); writes hit Django by axios-config's default routing. The other
-// thunks below (products/categories/retrieval/grounding/scope/test query)
-// stay on the in-memory mock layer — see the comment above each one.
+// route); writes hit Django by axios-config's default routing.
 
 export const FetchKnowledgeItems = createAsyncThunk(
   "FetchKnowledgeItems",
@@ -350,6 +330,25 @@ export const FetchKnowledgeItems = createAsyncThunk(
         description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load knowledge items.");
+    }
+  },
+);
+
+export const FetchKnowledgeStats = createAsyncThunk(
+  "FetchKnowledgeStats",
+  async ({ storeCode }: { storeCode: string }, thunkAPI) => {
+    try {
+      const params = new URLSearchParams({ store_code: storeCode });
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchKnowledgeStats()}?${params.toString()}`,
+        { useBackend: true },
+      );
+      return response.data?.data as KnowledgeStats;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't load knowledge statistics.",
+      );
     }
   },
 );
@@ -653,6 +652,93 @@ export const DeleteKnowledgeItem = createAsyncThunk(
   },
 );
 
+/**
+ * Deletes several knowledge items one after another (there is no bulk
+ * endpoint) and reports once, rather than one toast per item. Items that
+ * fail stay in `failedIds` so the caller can keep them selected.
+ */
+export const DeleteKnowledgeItems = createAsyncThunk(
+  "DeleteKnowledgeItems",
+  async ({ ids, storeCode }: { ids: string[]; storeCode: string }) => {
+    const deletedIds: string[] = [];
+    const failedIds: string[] = [];
+
+    for (const id of ids) {
+      try {
+        await axiosInstance.delete(
+          `${ENDPOINTS.knowledgeItemDetail(Number(id))}?store_code=${storeCode}`,
+        );
+        deletedIds.push(id);
+      } catch {
+        failedIds.push(id);
+      }
+    }
+
+    if (deletedIds.length > 0) {
+      toast.success(
+        `Deleted ${deletedIds.length} knowledge ${deletedIds.length === 1 ? "item" : "items"}.`,
+      );
+    }
+    if (failedIds.length > 0) {
+      toast.error(
+        `Couldn't delete ${failedIds.length} ${failedIds.length === 1 ? "item" : "items"}.`,
+        { description: "Please try again later." },
+      );
+    }
+
+    return { deletedIds, failedIds };
+  },
+);
+
+/**
+ * Publishes draft knowledge items one after another (there is no bulk
+ * endpoint), which queues each for processing; they become "published" once
+ * that finishes. Reports once rather than per item. It stops at the first
+ * "storage limit reached" answer, since every item after it would get the
+ * same one; items it did not publish come back in `failedIds`.
+ */
+export const PublishKnowledgeItems = createAsyncThunk(
+  "PublishKnowledgeItems",
+  async ({ ids, storeCode }: { ids: string[]; storeCode: string }) => {
+    const publishedIds: string[] = [];
+    const failedIds: string[] = [];
+    let errorMessage = "";
+
+    for (const [index, id] of ids.entries()) {
+      try {
+        await axiosInstance.post(
+          `${ENDPOINTS.knowledgeItemPublish(Number(id))}?store_code=${storeCode}`,
+        );
+        publishedIds.push(id);
+      } catch (error) {
+        const response = isAxiosError(error) ? error.response : undefined;
+        errorMessage ||= response?.data?.message || "";
+        failedIds.push(id);
+
+        if (response?.status === 403) {
+          failedIds.push(...ids.slice(index + 1));
+          break;
+        }
+      }
+    }
+
+    if (publishedIds.length > 0) {
+      toast.success(
+        `Publishing ${publishedIds.length} knowledge ${publishedIds.length === 1 ? "item" : "items"}.`,
+        { description: "They go live once processing finishes." },
+      );
+    }
+    if (failedIds.length > 0) {
+      toast.error(
+        `Couldn't publish ${failedIds.length} ${failedIds.length === 1 ? "item" : "items"}.`,
+        { description: errorMessage || "Please try again later." },
+      );
+    }
+
+    return { publishedIds, failedIds };
+  },
+);
+
 // Product.id is a UUID (products/models.py), not an integer — do not
 // Number() it when building the write payload below.
 type ApiProductOption = { id: string; name: string };
@@ -751,52 +837,6 @@ export const FetchCollectionOptions = createAsyncThunk(
   },
 );
 
-export const FetchRetrievalSettings = createAsyncThunk(
-  "FetchRetrievalSettings",
-  async () => {
-    const data = await delay(mockGetRagSettings());
-    return data;
-  },
-);
-
-export const SaveRetrievalSettings = createAsyncThunk(
-  "SaveRetrievalSettings",
-  async (settings: RagSettings) => {
-    const data = await delay(mockSaveRagSettings(settings));
-    toast.success("Retrieval & matching settings saved!");
-    return data;
-  },
-);
-
-export const FetchAIKnowledgeScope = createAsyncThunk(
-  "FetchAIKnowledgeScope",
-  async () => {
-    const data = await delay(mockGetAIKnowledgeScope());
-    return data;
-  },
-);
-
-export const SaveAIKnowledgeScope = createAsyncThunk(
-  "SaveAIKnowledgeScope",
-  async (config: AIKnowledgeScopeConfig) => {
-    const data = await delay(mockSaveAIKnowledgeScope(config));
-    // toast.success("AI knowledge scope saved!");
-    return data;
-  },
-);
-
-export const RunTestQuery = createAsyncThunk(
-  "RunTestQuery",
-  async (input: {
-    query: string;
-    aiScope: AIScope;
-    knowledgeScope: KnowledgeType[];
-  }) => {
-    const data = await delay(mockRunTestQuery(input), 700);
-    return data;
-  },
-);
-
 // --- Slice ----------------------------------------------------------------
 
 const KnowledgeRagSlice = createSlice({
@@ -842,6 +882,12 @@ const KnowledgeRagSlice = createSlice({
       DeleteKnowledgeItemIsSuccess: false,
       DeleteKnowledgeItemIsError: null as null | string | object,
     },
+    FetchKnowledgeStatsState: {
+      FetchKnowledgeStatsIsLoading: false,
+      FetchKnowledgeStatsIsSuccess: false,
+      FetchKnowledgeStatsIsError: null as null | string | object,
+      FetchKnowledgeStatsData: null as KnowledgeStats | null,
+    },
     FetchProductOptionsState: {
       FetchProductOptionsIsLoading: false,
       FetchProductOptionsIsSuccess: false,
@@ -859,34 +905,6 @@ const KnowledgeRagSlice = createSlice({
       FetchCollectionOptionsIsSuccess: false,
       FetchCollectionOptionsIsError: null as null | string | object,
       FetchCollectionOptionsListData: [] as ProductOption[],
-    },
-    FetchRetrievalSettingsState: {
-      FetchRetrievalSettingsIsLoading: false,
-      FetchRetrievalSettingsIsSuccess: false,
-      FetchRetrievalSettingsIsError: null as null | string | object,
-      FetchRetrievalSettingsData: null as RagSettings | null,
-    },
-    SaveRetrievalSettingsState: {
-      SaveRetrievalSettingsIsLoading: false,
-      SaveRetrievalSettingsIsSuccess: false,
-      SaveRetrievalSettingsIsError: null as null | string | object,
-    },
-    FetchAIKnowledgeScopeState: {
-      FetchAIKnowledgeScopeIsLoading: false,
-      FetchAIKnowledgeScopeIsSuccess: false,
-      FetchAIKnowledgeScopeIsError: null as null | string | object,
-      FetchAIKnowledgeScopeData: null as AIKnowledgeScopeConfig | null,
-    },
-    SaveAIKnowledgeScopeState: {
-      SaveAIKnowledgeScopeIsLoading: false,
-      SaveAIKnowledgeScopeIsSuccess: false,
-      SaveAIKnowledgeScopeIsError: null as null | string | object,
-    },
-    RunTestQueryState: {
-      RunTestQueryIsLoading: false,
-      RunTestQueryIsSuccess: false,
-      RunTestQueryIsError: null as null | string | object,
-      RunTestQueryData: null as TestConsoleResult | null,
     },
   },
   reducers: {
@@ -1061,6 +1079,22 @@ const KnowledgeRagSlice = createSlice({
         if (!action.meta.aborted)
           state.DiscoverWebsiteUrlsState.DiscoverWebsiteUrlsThrottled = true;
       })
+      // FetchKnowledgeStats
+      .addCase(FetchKnowledgeStats.pending, (state) => {
+        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = true;
+        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsError = null;
+      })
+      .addCase(FetchKnowledgeStats.fulfilled, (state, action) => {
+        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = false;
+        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsSuccess = true;
+        state.FetchKnowledgeStatsState.FetchKnowledgeStatsData = action.payload;
+      })
+      .addCase(FetchKnowledgeStats.rejected, (state) => {
+        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = false;
+        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsSuccess = false;
+        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsError =
+          "Couldn't load knowledge statistics.";
+      })
       // FetchProductOptions
       .addCase(FetchProductOptions.pending, (state) => {
         state.FetchProductOptionsState.FetchProductOptionsIsLoading = true;
@@ -1108,95 +1142,6 @@ const KnowledgeRagSlice = createSlice({
         state.FetchCollectionOptionsState.FetchCollectionOptionsIsLoading = false;
         state.FetchCollectionOptionsState.FetchCollectionOptionsIsError =
           "Couldn't load collection options.";
-      })
-      // FetchRetrievalSettings
-      .addCase(FetchRetrievalSettings.pending, (state) => {
-        state.FetchRetrievalSettingsState.FetchRetrievalSettingsIsLoading = true;
-        state.FetchRetrievalSettingsState.FetchRetrievalSettingsIsSuccess = false;
-        state.FetchRetrievalSettingsState.FetchRetrievalSettingsIsError = null;
-      })
-      .addCase(FetchRetrievalSettings.fulfilled, (state, action) => {
-        state.FetchRetrievalSettingsState.FetchRetrievalSettingsIsLoading = false;
-        state.FetchRetrievalSettingsState.FetchRetrievalSettingsIsSuccess = true;
-        state.FetchRetrievalSettingsState.FetchRetrievalSettingsData =
-          action.payload;
-      })
-      .addCase(FetchRetrievalSettings.rejected, (state) => {
-        state.FetchRetrievalSettingsState.FetchRetrievalSettingsIsLoading = false;
-        state.FetchRetrievalSettingsState.FetchRetrievalSettingsIsSuccess = false;
-        state.FetchRetrievalSettingsState.FetchRetrievalSettingsIsError =
-          "Couldn't load retrieval settings.";
-      })
-      // SaveRetrievalSettings
-      .addCase(SaveRetrievalSettings.pending, (state) => {
-        state.SaveRetrievalSettingsState.SaveRetrievalSettingsIsLoading = true;
-        state.SaveRetrievalSettingsState.SaveRetrievalSettingsIsSuccess = false;
-        state.SaveRetrievalSettingsState.SaveRetrievalSettingsIsError = null;
-      })
-      .addCase(SaveRetrievalSettings.fulfilled, (state, action) => {
-        state.SaveRetrievalSettingsState.SaveRetrievalSettingsIsLoading = false;
-        state.SaveRetrievalSettingsState.SaveRetrievalSettingsIsSuccess = true;
-        state.FetchRetrievalSettingsState.FetchRetrievalSettingsData =
-          action.payload;
-      })
-      .addCase(SaveRetrievalSettings.rejected, (state) => {
-        state.SaveRetrievalSettingsState.SaveRetrievalSettingsIsLoading = false;
-        state.SaveRetrievalSettingsState.SaveRetrievalSettingsIsSuccess = false;
-        state.SaveRetrievalSettingsState.SaveRetrievalSettingsIsError =
-          "Couldn't save retrieval settings.";
-      })
-      // FetchAIKnowledgeScope
-      .addCase(FetchAIKnowledgeScope.pending, (state) => {
-        state.FetchAIKnowledgeScopeState.FetchAIKnowledgeScopeIsLoading = true;
-        state.FetchAIKnowledgeScopeState.FetchAIKnowledgeScopeIsSuccess = false;
-        state.FetchAIKnowledgeScopeState.FetchAIKnowledgeScopeIsError = null;
-      })
-      .addCase(FetchAIKnowledgeScope.fulfilled, (state, action) => {
-        state.FetchAIKnowledgeScopeState.FetchAIKnowledgeScopeIsLoading = false;
-        state.FetchAIKnowledgeScopeState.FetchAIKnowledgeScopeIsSuccess = true;
-        state.FetchAIKnowledgeScopeState.FetchAIKnowledgeScopeData =
-          action.payload;
-      })
-      .addCase(FetchAIKnowledgeScope.rejected, (state) => {
-        state.FetchAIKnowledgeScopeState.FetchAIKnowledgeScopeIsLoading = false;
-        state.FetchAIKnowledgeScopeState.FetchAIKnowledgeScopeIsSuccess = false;
-        state.FetchAIKnowledgeScopeState.FetchAIKnowledgeScopeIsError =
-          "Couldn't load AI knowledge scope.";
-      })
-      // SaveAIKnowledgeScope
-      .addCase(SaveAIKnowledgeScope.pending, (state) => {
-        state.SaveAIKnowledgeScopeState.SaveAIKnowledgeScopeIsLoading = true;
-        state.SaveAIKnowledgeScopeState.SaveAIKnowledgeScopeIsSuccess = false;
-        state.SaveAIKnowledgeScopeState.SaveAIKnowledgeScopeIsError = null;
-      })
-      .addCase(SaveAIKnowledgeScope.fulfilled, (state, action) => {
-        state.SaveAIKnowledgeScopeState.SaveAIKnowledgeScopeIsLoading = false;
-        state.SaveAIKnowledgeScopeState.SaveAIKnowledgeScopeIsSuccess = true;
-        state.FetchAIKnowledgeScopeState.FetchAIKnowledgeScopeData =
-          action.payload;
-      })
-      .addCase(SaveAIKnowledgeScope.rejected, (state) => {
-        state.SaveAIKnowledgeScopeState.SaveAIKnowledgeScopeIsLoading = false;
-        state.SaveAIKnowledgeScopeState.SaveAIKnowledgeScopeIsSuccess = false;
-        state.SaveAIKnowledgeScopeState.SaveAIKnowledgeScopeIsError =
-          "Couldn't save AI knowledge scope.";
-      })
-      // RunTestQuery
-      .addCase(RunTestQuery.pending, (state) => {
-        state.RunTestQueryState.RunTestQueryIsLoading = true;
-        state.RunTestQueryState.RunTestQueryIsSuccess = false;
-        state.RunTestQueryState.RunTestQueryIsError = null;
-      })
-      .addCase(RunTestQuery.fulfilled, (state, action) => {
-        state.RunTestQueryState.RunTestQueryIsLoading = false;
-        state.RunTestQueryState.RunTestQueryIsSuccess = true;
-        state.RunTestQueryState.RunTestQueryData = action.payload;
-      })
-      .addCase(RunTestQuery.rejected, (state) => {
-        state.RunTestQueryState.RunTestQueryIsLoading = false;
-        state.RunTestQueryState.RunTestQueryIsSuccess = false;
-        state.RunTestQueryState.RunTestQueryIsError =
-          "Couldn't run the test query.";
       });
   },
 });

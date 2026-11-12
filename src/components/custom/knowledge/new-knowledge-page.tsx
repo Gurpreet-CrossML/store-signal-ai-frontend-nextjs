@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useFormik } from "formik";
 import { z } from "zod";
@@ -342,12 +342,20 @@ function firstErrorMessage(value: unknown): string | undefined {
 export function NewKnowledgePage() {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  // The empty Knowledge screen links here with ?source= to open the form
+  // already on the kind of knowledge the user picked.
+  const sourceParam = useSearchParams()?.get("source");
+  const initialSource: AddableSource = SOURCE_OPTIONS.some(
+    (option) => option.value === sourceParam,
+  )
+    ? (sourceParam as AddableSource)
+    : "faq";
   // The library keeps its filters in its URL, so stepping back in history
-  // (rather than pushing a fresh /knowledge/library) restores the same view.
+  // (rather than pushing a fresh /knowledge) restores the same view.
   // A direct visit has no library entry behind it, so fall back to the link.
   const goToLibrary = () => {
     if (window.history.length > 1) router.back();
-    else router.push("/knowledge/library");
+    else router.push("/knowledge");
   };
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -383,7 +391,7 @@ export function NewKnowledgePage() {
 
   const formik = useFormik<FormValues>({
     initialValues: {
-      source: "faq",
+      source: initialSource,
       scopeKind: "general",
       aiScope: [],
       products: [],
@@ -572,14 +580,15 @@ export function NewKnowledgePage() {
           onClick={goToLibrary}
         >
           <IconArrowLeft className="size-4" />
-          Back to Library
+          Knowledge
         </Button>
         <Typography variant="h4" as="h1">
-          New Knowledge Item
+          Add knowledge
         </Typography>
         <Typography variant="muted">
-          Add one or more items in a single request — every field is on this
-          page, no steps to click through.
+          Choose what to add. Your assistant answers shoppers from your
+          knowledge, plus your Shopify products, which stay synced, and your
+          orders, which it reads live.
         </Typography>
       </div>
 

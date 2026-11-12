@@ -44,7 +44,7 @@ export const KNOWLEDGE_TYPE_META: Record<
 };
 
 export const KNOWLEDGE_SOURCE_LABEL: Record<KnowledgeSource, string> = {
-  text: "Text",
+  article: "Article",
   file: "File Upload",
   url: "URL",
   google_drive: "Google Drive",
@@ -57,7 +57,7 @@ export const KNOWLEDGE_SOURCE_LABEL: Record<KnowledgeSource, string> = {
 export const FAQ_ANSWER_MAX_LENGTH = 10_000;
 
 export const KNOWLEDGE_SOURCE_ICON: Record<KnowledgeSource, Icon> = {
-  text: IconNotes,
+  article: IconNotes,
   file: IconCloudUpload,
   url: IconLink,
   google_drive: IconCloudUpload,
@@ -74,11 +74,17 @@ export const KNOWLEDGE_STATUS_META: Record<
     variant: "default" | "secondary" | "outline" | "destructive";
   }
 > = {
-  completed: { label: "Completed", variant: "outline" },
+  draft: { label: "Draft", variant: "outline" },
+  published: { label: "Published", variant: "outline" },
   pending: { label: "Pending", variant: "secondary" },
   processing: { label: "Processing", variant: "secondary" },
   failed: { label: "Failed", variant: "destructive" },
 };
+
+/** Only drafts and published items can be edited; the rest are mid-pipeline or failed. */
+export function isKnowledgeItemEditable(status: KnowledgeStatus) {
+  return status === "draft" || status === "published";
+}
 
 export const AI_SCOPE_META: Record<
   AIScope,

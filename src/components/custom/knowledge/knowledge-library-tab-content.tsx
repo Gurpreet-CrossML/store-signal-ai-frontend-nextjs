@@ -4,12 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
-  IconCopy,
-  IconFileText,
-  IconLink,
-  IconMessageQuestion,
+  IconMessage2,
   IconPlus,
   IconSearch,
+  IconSend,
+  IconTrash,
   IconX,
   IconRefresh,
 } from "@tabler/icons-react";
@@ -24,16 +23,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
+import { PageHeading } from "@/components/custom/page-heading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useCan } from "@/hooks/use-can";
+import { cn } from "@/lib/utils";
 import {
   DeleteKnowledgeItem,
+  DeleteKnowledgeItems,
   FetchKnowledgeItems,
+  FetchKnowledgeStats,
+  PublishKnowledgeItems,
   type KnowledgeItem,
 } from "@/redux/api-slice/knowledge-rag-slice";
 import {
@@ -41,16 +44,23 @@ import {
   countActiveKnowledgeFilters,
   type KnowledgeFilterSelection,
 } from "@/components/custom/knowledge/knowledge-filters";
-import { KnowledgeList } from "@/components/custom/knowledge/knowledge-list";
+import { KnowledgeStorageCard } from "@/components/custom/knowledge/knowledge-storage-card";
+import { KnowledgeEmptyState } from "@/components/custom/knowledge/knowledge-empty-state";
+import {
+  isKnowledgeItemSelectable,
+  KnowledgeList,
+} from "@/components/custom/knowledge/knowledge-list";
 import { EditKnowledgeDialog } from "@/components/custom/knowledge/edit-knowledge-dialog";
 import { KnowledgeDetailSheet } from "@/components/custom/knowledge/knowledge-detail-sheet";
 import { KnowledgeDataTablePagination } from "@/components/custom/knowledge/knowledge-data-table-pagination";
 import { PAGE_SIZE_OPTIONS } from "@/components/custom/threads-data-table-pagination";
 import {
+  isKnowledgeItemEditable,
   KNOWLEDGE_STATUS_META,
   KNOWLEDGE_TYPE_META,
 } from "@/components/custom/knowledge/knowledge-meta";
 import type {
+  KnowledgeCounts,
   KnowledgeSource,
   KnowledgeStatus,
   KnowledgeType,
@@ -62,12 +72,14 @@ const DEFAULT_PAGE_SIZE = 25;
 const SOURCE_TABS: {
   value: KnowledgeSource | "all";
   label: string;
-  icon: typeof IconCopy;
+  /** Which of the stats endpoint's counts this tab shows. */
+  countKey: keyof KnowledgeCounts;
 }[] = [
-  { value: "all", label: "All", icon: IconCopy },
-  { value: "file", label: "Documents", icon: IconFileText },
-  { value: "url", label: "URLs", icon: IconLink },
-  { value: "faq", label: "FAQs", icon: IconMessageQuestion },
+  { value: "all", label: "All", countKey: "knowledge_items" },
+  { value: "article", label: "Articles", countKey: "articles" },
+  { value: "file", label: "Documents", countKey: "documents" },
+  { value: "url", label: "Website pages", countKey: "urls" },
+  { value: "faq", label: "Q&A", countKey: "faqs" },
 ];
 
 export default function KnowledgeLibraryTabContent() {
@@ -81,13 +93,16 @@ export default function KnowledgeLibraryTabContent() {
     useAppSelector(
       (state) => state.GetKnowledgeRagReducer.FetchKnowledgeItemsState,
     );
+  const { FetchKnowledgeStatsData: stats } = useAppSelector(
+    (state) => state.GetKnowledgeRagReducer.FetchKnowledgeStatsState,
+  );
   const { DeleteKnowledgeItemIsLoading } = useAppSelector(
     (state) => state.GetKnowledgeRagReducer.DeleteKnowledgeItemState,
   );
 
   // All list filters live in the URL (?q=&type=&source=&status=&page=&pageSize=)
   // so a reload, back/forward or a shared link restores the same view.
-  const pathname = usePathname() ?? "/knowledge/library";
+  const pathname = usePathname() ?? "/knowledge";
   const searchParams = useSearchParams();
 
   const pageParam = Number(searchParams?.get("page"));
@@ -104,13 +119,22 @@ export default function KnowledgeLibraryTabContent() {
     type: (typeParam in KNOWLEDGE_TYPE_META ? typeParam : "") as
       | KnowledgeType
       | "",
-    source: (["file", "url", "faq"].includes(sourceParam)
+    source: (["file", "url", "faq", "article"].includes(sourceParam)
       ? sourceParam
       : "") as KnowledgeSource | "",
     status: (statusParam in KNOWLEDGE_STATUS_META ? statusParam : "") as
       | KnowledgeStatus
       | "",
   };
+
+  // Rows ticked for a bulk action, by id. Only ids on the current page count
+  // (see `selectedItems`), and it is emptied whenever the URL params change.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  // Drafts waiting on the publish confirmation; empty when it is closed.
+  const [publishTargets, setPublishTargets] = useState<KnowledgeItem[]>([]);
 
   const updateParams = useCallback(
     (changes: Record<string, string | number | null>) => {
@@ -120,6 +144,8 @@ export default function KnowledgeLibraryTabContent() {
         else next.set(key, String(value));
       }
       const query = next.toString();
+      // A different page, filter or tab shows different rows.
+      setSelectedIds(new Set());
       // Native history API instead of router.replace: Next syncs it into
       // useSearchParams without an RSC round-trip to the server, which is
       // what stalled the tab switch on production after a reload with
@@ -130,7 +156,7 @@ export default function KnowledgeLibraryTabContent() {
         query ? `${pathname}?${query}` : pathname,
       );
     },
-    [pathname, searchParams],
+    [pathname, searchParams, setSelectedIds],
   );
 
   const [searchInput, setSearchInput] = useState(debouncedSearch);
@@ -141,6 +167,12 @@ export default function KnowledgeLibraryTabContent() {
   const [itemToDelete, setItemToDelete] = useState<KnowledgeItem | null>(null);
 
   const items = FetchKnowledgeItemsListData.results;
+  const selectedItems = items.filter(
+    (item) => selectedIds.has(item.id) && isKnowledgeItemSelectable(item),
+  );
+  const selectedDrafts = selectedItems.filter(
+    (item) => item.status === "draft",
+  );
   const totalCount = FetchKnowledgeItemsListData.count;
   const activeFilterCount = countActiveKnowledgeFilters(filters);
   const hasFilters =
@@ -189,13 +221,21 @@ export default function KnowledgeLibraryTabContent() {
     filters.status,
   ]);
 
+  const loadStats = useCallback(() => {
+    if (storeCode) dispatch(FetchKnowledgeStats({ storeCode }));
+  }, [dispatch, storeCode]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
   const handleOpenItem = (item: KnowledgeItem) => {
     setDetailItem(item);
     setDetailOpen(true);
   };
 
   const handleEditItem = (item: KnowledgeItem) => {
-    if (item.status !== "completed") return;
+    if (!isKnowledgeItemEditable(item.status)) return;
     setDetailOpen(false);
     setEditItem(item);
     setEditOpen(true);
@@ -209,181 +249,439 @@ export default function KnowledgeLibraryTabContent() {
     if (DeleteKnowledgeItem.fulfilled.match(result)) {
       setItemToDelete(null);
       loadItems();
+      loadStats();
     }
   };
 
-  return (
-    <div className="flex w-full flex-col gap-4">
-      {!isEmptyLibrary && (
-        <Tabs
-          value={filters.source || "all"}
-          onValueChange={(value) =>
-            updateParams({ source: value === "all" ? null : value, page: null })
-          }
-        >
-          <TabsList variant="line" className="h-10 w-full justify-start">
-            {SOURCE_TABS.map(({ value, label, icon: TabIcon }) => (
-              <TabsTrigger key={value} value={value} className="flex-none px-3">
-                <TabIcon />
-                {label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      )}
-      {!isEmptyLibrary && (
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-full sm:w-72">
-            <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search by title…"
-              className="pl-8"
-              aria-label="Search knowledge"
-            />
-          </div>
+  const handleToggleItem = (item: KnowledgeItem) => {
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(item.id)) next.add(item.id);
+      return next;
+    });
+  };
 
-          <KnowledgeTypeSourceStatusFilters
-            filters={filters}
-            onFiltersChange={(next) =>
+  const handleToggleAll = (checked: boolean) => {
+    setSelectedIds(
+      new Set(
+        checked
+          ? items.filter(isKnowledgeItemSelectable).map((item) => item.id)
+          : [],
+      ),
+    );
+  };
+
+  // Open the publish confirmation. Only drafts can be published, so anything
+  // else in `targets` is left out.
+  const requestPublish = (targets: KnowledgeItem[]) => {
+    setPublishTargets(targets.filter((item) => item.status === "draft"));
+  };
+
+  const handlePublish = async (targets: KnowledgeItem[]) => {
+    const ids = targets
+      .filter((item) => item.status === "draft")
+      .map((item) => item.id);
+    if (ids.length === 0) return;
+
+    setIsPublishing(true);
+    const result = await dispatch(PublishKnowledgeItems({ ids, storeCode }));
+    setIsPublishing(false);
+
+    if (PublishKnowledgeItems.fulfilled.match(result)) {
+      // Whatever was published leaves the selection; the rest stays to retry.
+      const published = new Set(result.payload.publishedIds);
+      setSelectedIds(
+        (previous) => new Set([...previous].filter((id) => !published.has(id))),
+      );
+      loadItems();
+    }
+  };
+
+  const handleConfirmPublish = async () => {
+    await handlePublish(publishTargets);
+    // The sheet shows a draft that is no longer one.
+    if (publishTargets.some((item) => item.id === detailItem?.id)) {
+      setDetailOpen(false);
+    }
+    setPublishTargets([]);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    const result = await dispatch(
+      DeleteKnowledgeItems({
+        ids: selectedItems.map((item) => item.id),
+        storeCode,
+      }),
+    );
+    setIsBulkDeleting(false);
+
+    if (DeleteKnowledgeItems.fulfilled.match(result)) {
+      // Whatever could not be deleted stays selected, to retry.
+      setSelectedIds(new Set(result.payload.failedIds));
+      setBulkDeleteOpen(false);
+      loadItems();
+      loadStats();
+    }
+  };
+
+  // Products take up storage even before any knowledge is added, so an empty
+  // library still shows the card once something is used.
+  const showStorage = stats
+    ? !isEmptyLibrary || stats.vector_storage.total > 0
+    : !isEmptyLibrary;
+
+  const headingActions = (
+    <div className="flex items-center gap-2">
+      {/* Placeholder: not wired to anything yet. */}
+      {!isEmptyLibrary && (
+        <Button type="button" variant="outline" size="sm">
+          <IconMessage2 className="size-4" />
+          Test your AI
+        </Button>
+      )}
+      {canEditKnowledge && (
+        <Button size="sm" asChild>
+          <Link href="/knowledge/new">
+            <IconPlus className="size-4" />
+            <span className="sm:hidden">Add</span>
+            <span className="max-sm:hidden">Add knowledge</span>
+          </Link>
+        </Button>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-6 p-4">
+      <PageHeading
+        title="Knowledge"
+        description="What your AI knows about your store. It answers shoppers using what you add here, plus your Shopify products and orders."
+        action={headingActions}
+        // On a phone the empty library keeps the button on the title's row,
+        // under a rule, and leaves the description to the empty state below.
+        className={cn(
+          isEmptyLibrary &&
+            "max-sm:-mx-4 max-sm:-mt-4 max-sm:flex-row max-sm:items-center max-sm:justify-between max-sm:border-b max-sm:p-4",
+        )}
+        descriptionClassName={cn(isEmptyLibrary && "max-sm:hidden")}
+      />
+      <div className="flex w-full flex-col gap-4">
+        {showStorage && (
+          <KnowledgeStorageCard storage={stats?.vector_storage ?? null} />
+        )}
+        {!isEmptyLibrary && (
+          <Tabs
+            value={filters.source || "all"}
+            onValueChange={(value) =>
               updateParams({
-                type: next.type,
-                status: next.status,
+                source: value === "all" ? null : value,
                 page: null,
               })
             }
-          />
+          >
+            <TabsList variant="line" className="h-10 w-full justify-start">
+              {SOURCE_TABS.map(({ value, label, countKey }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className="group/tab flex-none px-3 data-active:font-semibold data-active:text-primary data-active:after:bg-primary dark:data-active:text-primary"
+                >
+                  {label}
+                  {stats && (
+                    <span className="rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground group-data-active/tab:bg-primary/10 group-data-active/tab:text-primary">
+                      {stats.counts[countKey]}
+                    </span>
+                  )}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        )}
+        {!isEmptyLibrary && (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full sm:w-72">
+              <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Search by titles, links and answers"
+                className="pl-8"
+                aria-label="Search knowledge"
+              />
+            </div>
 
-          {hasClearableFilters && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground"
-              onClick={() => {
-                setSearchInput("");
+            <KnowledgeTypeSourceStatusFilters
+              filters={filters}
+              onFiltersChange={(next) =>
                 updateParams({
-                  q: null,
-                  type: null,
-                  status: null,
+                  type: next.type,
+                  status: next.status,
                   page: null,
+                })
+              }
+            />
+
+            {hasClearableFilters && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={() => {
+                  setSearchInput("");
+                  updateParams({
+                    q: null,
+                    type: null,
+                    status: null,
+                    page: null,
+                  });
+                }}
+              >
+                <IconX />
+                Clear
+              </Button>
+            )}
+
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ml-auto"
+              onClick={loadItems}
+              disabled={FetchKnowledgeItemsIsLoading}
+              aria-label="Refresh knowledge list"
+              title="Refresh"
+            >
+              {FetchKnowledgeItemsIsLoading ? (
+                <Spinner className="size-4" />
+              ) : (
+                <IconRefresh className="size-4" />
+              )}
+            </Button>
+
+            <span className="text-sm text-muted-foreground">
+              {items.length} of {totalCount} items
+            </span>
+          </div>
+        )}
+
+        {isEmptyLibrary && canEditKnowledge ? (
+          <>
+            <KnowledgeEmptyState />
+          </>
+        ) : (
+          <>
+            {selectedItems.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-4 py-2">
+                <span className="text-sm font-medium">
+                  {selectedItems.length} selected
+                </span>
+                {selectedDrafts.length > 0 && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isPublishing}
+                    title="Only drafts are published"
+                    onClick={() => requestPublish(selectedDrafts)}
+                  >
+                    {isPublishing ? (
+                      <Spinner className="size-4" />
+                    ) : (
+                      <IconSend className="size-4" />
+                    )}
+                    {selectedDrafts.length === selectedItems.length
+                      ? "Publish"
+                      : `Publish ${selectedDrafts.length} ${selectedDrafts.length === 1 ? "draft" : "drafts"}`}
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setBulkDeleteOpen(true)}
+                >
+                  <IconTrash className="size-4" />
+                  Delete
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  onClick={() => setSelectedIds(new Set())}
+                >
+                  Clear selection
+                </Button>
+              </div>
+            )}
+
+            <KnowledgeList
+              items={items}
+              isLoading={FetchKnowledgeItemsIsLoading}
+              onOpenItem={handleOpenItem}
+              onEditItem={handleEditItem}
+              onPublish={(item) => requestPublish([item])}
+              onDelete={(item) => setItemToDelete(item)}
+              hasFilters={hasFilters}
+              canEdit={canEditKnowledge}
+              selectedIds={selectedIds}
+              onToggleItem={handleToggleItem}
+              onToggleAll={handleToggleAll}
+            />
+
+            <KnowledgeDataTablePagination
+              items={items}
+              totalCount={totalCount}
+              pageSize={pageSize}
+              page={page}
+              onPaginationChange={(next) => {
+                updateParams({
+                  page: next.page === 1 ? null : next.page,
+                  pageSize:
+                    next.pageSize === DEFAULT_PAGE_SIZE ? null : next.pageSize,
                 });
               }}
-            >
-              <IconX />
-              Clear
-            </Button>
-          )}
+            />
+          </>
+        )}
 
-          <Badge variant="secondary">
-            {items.length} of {totalCount}
-          </Badge>
+        <EditKnowledgeDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          item={editItem}
+          onSaved={loadItems}
+        />
 
-          <Button
-            size="sm"
-            variant="ghost"
-            className="ml-auto mr-2"
-            onClick={loadItems}
-            disabled={FetchKnowledgeItemsIsLoading}
-            aria-label="Refresh knowledge list"
-            title="Refresh"
-          >
-            {FetchKnowledgeItemsIsLoading ? (
-              <Spinner className="size-4" />
-            ) : (
-              <IconRefresh className="size-4" />
-            )}
-          </Button>
+        <KnowledgeDetailSheet
+          item={detailItem}
+          open={detailOpen}
+          onOpenChange={setDetailOpen}
+          onEdit={handleEditItem}
+          onPublish={(item) => requestPublish([item])}
+          onDeleted={loadItems}
+        />
 
-          {canEditKnowledge && (
-            <Button size="sm" asChild>
-              <Link href="/knowledge/library/new">
-                <IconPlus className="size-4" />
-                Add Knowledge
-              </Link>
-            </Button>
-          )}
-        </div>
-      )}
+        <AlertDialog
+          open={itemToDelete !== null}
+          onOpenChange={(open) => {
+            if (!open) setItemToDelete(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this knowledge?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently remove &quot;{itemToDelete?.title}&quot;.
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={DeleteKnowledgeItemIsLoading}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-white hover:bg-destructive/90"
+                disabled={DeleteKnowledgeItemIsLoading}
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleConfirmDelete();
+                }}
+              >
+                {DeleteKnowledgeItemIsLoading ? (
+                  <>
+                    <Spinner data-icon="inline-start" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      <KnowledgeList
-        items={items}
-        isLoading={FetchKnowledgeItemsIsLoading}
-        onOpenItem={handleOpenItem}
-        onEditItem={handleEditItem}
-        onDelete={(item) => setItemToDelete(item)}
-        hasFilters={hasFilters}
-        canEdit={canEditKnowledge}
-      />
+        <AlertDialog
+          open={publishTargets.length > 0}
+          onOpenChange={(open) => {
+            if (!open && !isPublishing) setPublishTargets([]);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {publishTargets.length === 1
+                  ? "Publish this knowledge?"
+                  : `Publish ${publishTargets.length} knowledge items?`}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {publishTargets.length === 1
+                  ? `"${publishTargets[0].title}" will be processed and added to what your AI knows.`
+                  : "They will be processed and added to what your AI knows."}{" "}
+                This uses your vector storage.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isPublishing}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isPublishing}
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleConfirmPublish();
+                }}
+              >
+                {isPublishing ? (
+                  <>
+                    <Spinner data-icon="inline-start" />
+                    Publishing...
+                  </>
+                ) : (
+                  "Publish"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      <KnowledgeDataTablePagination
-        items={items}
-        totalCount={totalCount}
-        pageSize={pageSize}
-        page={page}
-        onPaginationChange={(next) => {
-          updateParams({
-            page: next.page === 1 ? null : next.page,
-            pageSize:
-              next.pageSize === DEFAULT_PAGE_SIZE ? null : next.pageSize,
-          });
-        }}
-      />
-
-      <EditKnowledgeDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        item={editItem}
-        onSaved={loadItems}
-      />
-
-      <KnowledgeDetailSheet
-        item={detailItem}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        onEdit={handleEditItem}
-        onDeleted={loadItems}
-      />
-
-      <AlertDialog
-        open={itemToDelete !== null}
-        onOpenChange={(open) => {
-          if (!open) setItemToDelete(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this knowledge?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove &quot;{itemToDelete?.title}&quot;.
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={DeleteKnowledgeItemIsLoading}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
-              disabled={DeleteKnowledgeItemIsLoading}
-              onClick={(event) => {
-                event.preventDefault();
-                handleConfirmDelete();
-              }}
-            >
-              {DeleteKnowledgeItemIsLoading ? (
-                <>
-                  <Spinner data-icon="inline-start" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Delete {selectedItems.length} knowledge{" "}
+                {selectedItems.length === 1 ? "item" : "items"}?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently remove the selected knowledge. This action
+                cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isBulkDeleting}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-white hover:bg-destructive/90"
+                disabled={isBulkDeleting}
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleConfirmBulkDelete();
+                }}
+              >
+                {isBulkDeleting ? (
+                  <>
+                    <Spinner data-icon="inline-start" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 }

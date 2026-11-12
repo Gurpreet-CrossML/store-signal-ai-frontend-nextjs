@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { IconExternalLink, IconPencil, IconTrash } from "@tabler/icons-react";
+import {
+  IconExternalLink,
+  IconPencil,
+  IconSend,
+  IconTrash,
+} from "@tabler/icons-react";
 
 import {
   AlertDialog,
@@ -39,6 +44,7 @@ import {
   PolicyTypeBadge,
 } from "@/components/custom/knowledge/knowledge-badges";
 import {
+  isKnowledgeItemEditable,
   KNOWLEDGE_SOURCE_LABEL,
   KNOWLEDGE_TYPE_META,
 } from "@/components/custom/knowledge/knowledge-meta";
@@ -106,17 +112,30 @@ function Section({
   );
 }
 
+/**
+ * An article's rich-text HTML as plain text. Shown as text rather than
+ * injected as markup, since the HTML is not sanitized server-side yet.
+ */
+function htmlToText(html: string) {
+  return (
+    new DOMParser().parseFromString(html, "text/html").body.textContent ?? ""
+  );
+}
+
 export function KnowledgeDetailSheet({
   item,
   open,
   onOpenChange,
   onEdit,
+  onPublish,
   onDeleted,
 }: {
   item: KnowledgeItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEdit: (item: KnowledgeItem) => void;
+  /** Ask to publish this draft; the button is only shown for drafts. */
+  onPublish: (item: KnowledgeItem) => void;
   onDeleted: () => void;
 }) {
   const dispatch = useAppDispatch();
@@ -144,7 +163,7 @@ export function KnowledgeDetailSheet({
   };
 
   const isInProgress = item.status === "processing";
-  const isEditable = item.status === "completed";
+  const isEditable = isKnowledgeItemEditable(item.status);
 
   return (
     <>
@@ -248,9 +267,9 @@ export function KnowledgeDetailSheet({
             <Separator />
 
             <Section title="Source information">
-              {item.source === "text" && item.content && (
+              {item.source === "article" && item.content && (
                 <p className="min-w-0 whitespace-pre-wrap break-words py-2 text-sm text-foreground">
-                  {item.content}
+                  {htmlToText(item.content)}
                 </p>
               )}
 
@@ -323,6 +342,12 @@ export function KnowledgeDetailSheet({
           </div>
 
           <SheetFooter className="flex-row">
+            {item.status === "draft" && (
+              <Button className="flex-1" onClick={() => onPublish(item)}>
+                <IconSend />
+                Publish
+              </Button>
+            )}
             <Button
               variant="outline"
               className="flex-1"
@@ -330,7 +355,11 @@ export function KnowledgeDetailSheet({
                 if (isEditable) onEdit(item);
               }}
               disabled={!isEditable}
-              title={isEditable ? "Edit" : "Only completed items can be edited"}
+              title={
+                isEditable
+                  ? "Edit"
+                  : "Only draft or published items can be edited"
+              }
             >
               <IconPencil />
               Edit

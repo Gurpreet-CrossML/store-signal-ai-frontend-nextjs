@@ -2,7 +2,6 @@ import type { ComponentType } from "react";
 
 import {
   IconAdjustmentsSpark,
-  IconBooks,
   IconAutomaticGearbox,
   // IconBrandFacebook,
   // IconBrandInstagram,
@@ -19,7 +18,6 @@ import {
   IconHeadset,
   IconInbox,
   IconMessageCircle,
-  IconLibrary,
   IconMessages,
   IconSocial,
   // IconSend,
@@ -364,24 +362,6 @@ export const NAV_AREAS = {
         pageDescription:
           "How the chat widget looks on your storefront — colors, branding, messages, and quick links.",
         icon: IconImageGeneration,
-      },
-    ],
-  },
-
-  knowledge: {
-    href: "/knowledge",
-    title: "Knowledge",
-    description: "Everything the chatbot knows about your store, in one place.",
-    icon: IconBooks,
-    sections: [
-      {
-        href: "/knowledge/library",
-        title: "Knowledge Library",
-        description:
-          "Every type of knowledge the AI can draw on, in one searchable place.",
-        pageDescription:
-          "General info, product & category knowledge, FAQs, policies, documents, and offers — all in one searchable, filterable library.",
-        icon: IconLibrary,
       },
     ],
   },

@@ -194,6 +194,10 @@ export const ENDPOINTS = {
   fetchKnowledgeItems: () => `/knowledge/knowledge-items/`,
   createKnowledgeItem: () => `/knowledge/knowledge-items/`,
   knowledgeItemDetail: (id: number) => `/knowledge/knowledge-items/${id}/`,
+  knowledgeItemPublish: (id: number) =>
+    `/knowledge/knowledge-items/${id}/publish/`,
+  // Vector storage (used / limit / by kind, in bytes) and item counts. Django.
+  fetchKnowledgeStats: () => `/knowledge/knowledge-items/stats/`,
   // Website URL discovery: POST a site URL, get back the pages found on it
   // (url, title, word count) so the user can pick which to index. Django.
   discoverKnowledgeUrls: () => `/knowledge/knowledge-items/discover-urls/`,

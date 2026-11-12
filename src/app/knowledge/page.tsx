@@ -1,10 +1,18 @@
-import { AreaLanding } from "@/components/custom/area-landing";
-import { NAV_AREAS } from "@/lib/nav-areas";
+import { Suspense } from "react";
+import KnowledgeLibraryTabContent from "@/components/custom/knowledge/knowledge-library-tab-content";
 
 export const metadata = {
-  title: NAV_AREAS.knowledge.title,
+  title: "Knowledge",
 };
 
+// Knowledge is a single screen, so the main sidebar's "Knowledge" entry opens
+// the library directly — no area menu or sub-sidebar in between. The library
+// renders its own heading, because its actions depend on what it has loaded.
 export default function Page() {
-  return <AreaLanding area="knowledge" />;
+  return (
+    // The library reads useSearchParams; prerender needs a Suspense boundary.
+    <Suspense fallback={null}>
+      <KnowledgeLibraryTabContent />
+    </Suspense>
+  );
 }
