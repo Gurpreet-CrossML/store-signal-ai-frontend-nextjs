@@ -253,6 +253,7 @@ function FieldRow({
 
 const pillClass =
   "inline-flex h-8 max-w-full items-center gap-1.5 rounded-md border bg-background px-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:cursor-default disabled:opacity-60 disabled:hover:bg-background";
+const ticketControlClass = cn(pillClass, "w-36 justify-between");
 
 /** A field's value on the phone page: plain text, no pill. */
 const phoneValueClass =
@@ -306,6 +307,7 @@ type SlaRow = {
   key: string;
   label: string;
   value: string;
+  eventAt: string | null;
   tone: "primary" | "warning" | "success" | "danger";
   fraction: number;
   caption: string;
@@ -338,8 +340,9 @@ function slaRows(sla: SupportTicketSla, now: number): SlaRow[] {
         return {
           key,
           label: SLA_LABELS[key],
+          eventAt: target.completed_at || target.breached_at,
           value: late
-            ? `Breached by ${formatSpan((done - due) / 60000, true)}`
+            ? `Overdue by ${formatSpan((done - due) / 60000, true)}`
             : `Met in ${formatSpan((done - start) / 60000, true)}`,
           tone: late ? "danger" : "success",
           fraction: late ? 1 : span ? Math.min(1, (done - start) / span) : 1,
@@ -354,6 +357,7 @@ function slaRows(sla: SupportTicketSla, now: number): SlaRow[] {
       return {
         key,
         label: SLA_LABELS[key],
+        eventAt: target.breached_at || (overdue ? target.due_at : null),
         value: overdue
           ? `Overdue by ${formatSpan(Math.abs(remaining) / 60000, true)}`
           : `Due in ${formatSpan(remaining / 60000, true)}`,
@@ -378,83 +382,17 @@ function slaRows(sla: SupportTicketSla, now: number): SlaRow[] {
     .filter((row): row is SlaRow => row !== null);
 }
 
-const SLA_TONE: Record<SlaRow["tone"], { text: string; bar: string }> = {
-  primary: { text: "text-foreground", bar: "bg-primary" },
-  warning: { text: "text-amber-600", bar: "bg-amber-500" },
-  success: { text: "text-emerald-600", bar: "bg-emerald-500" },
-  danger: { text: "text-red-600", bar: "bg-red-500" },
-};
-
-function SlaSection({
-  sla,
-  priority,
-}: {
-  sla: SupportTicketSla | null | undefined;
-  priority: SupportTicketPriority;
-}) {
-  const now = useNow();
-  const phone = useContext(PhoneLayout);
-  const rows = sla ? slaRows(sla, now) : [];
-  const badge = rows.some((row) => row.tone === "danger")
-    ? { label: "Breached", className: "bg-red-100 text-red-700" }
-    : rows.some((row) => row.tone === "warning")
-      ? { label: "Due soon", className: "bg-amber-100 text-amber-700" }
-      : rows.length > 0 && rows.every((row) => row.tone === "success")
-        ? { label: "Met", className: "bg-emerald-100 text-emerald-700" }
-        : { label: "On track", className: "bg-primary/10 text-primary" };
-
-  return (
-    <Section
-      icon={IconClockHour4}
-      title="SLA"
-      aside={
-        sla ? (
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-xs font-medium",
-              badge.className,
-            )}
-          >
-            {badge.label}
-          </span>
-        ) : null
-      }
-    >
-      {!sla ? (
-        <p className="text-sm text-muted-foreground">
-          No SLA applies to this ticket.
-        </p>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {rows.map((row) => (
-            <div key={row.key}>
-              <div className="flex items-baseline justify-between gap-2 text-sm">
-                <span>{row.label}</span>
-                <span className={cn("font-semibold", SLA_TONE[row.tone].text)}>
-                  {row.value}
-                </span>
-              </div>
-              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  className={cn("h-full rounded-full", SLA_TONE[row.tone].bar)}
-                  style={{ width: `${Math.round(row.fraction * 100)}%` }}
-                />
-              </div>
-              {row.caption && !phone ? (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {row.caption}
-                </p>
-              ) : null}
-            </div>
-          ))}
-          <p className="text-xs text-muted-foreground">
-            {phone ? "" : "Policy: "}
-            {sla.tag.name} · {PRIORITY_META[priority].label} priority
-          </p>
-        </div>
-      )}
-    </Section>
-  );
+function latestBreachedSlaRow(
+  sla: SupportTicketSla | null | undefined,
+  now: number,
+) {
+  return (sla ? slaRows(sla, now) : [])
+    .filter((row) => row.tone === "danger")
+    .sort((a, b) => {
+      const aTime = a.eventAt ? new Date(a.eventAt).getTime() : 0;
+      const bTime = b.eventAt ? new Date(b.eventAt).getTime() : 0;
+      return bTime - aTime;
+    })[0];
 }
 
 // --- Tags ---------------------------------------------------------------
@@ -925,6 +863,8 @@ function AssigneePicker({
     <AssigneeSelect
       noun="ticket"
       hideLabel
+      compact
+      triggerClassName="h-8 w-36 rounded-md justify-between"
       agents={staff.map((member) => ({
         email: member.email,
         name: `${member.first_name} ${member.last_name}`.trim() || member.email,
@@ -970,7 +910,7 @@ function LanguagePicker({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={phone ? phoneValueClass : pillClass}
+          className={phone ? phoneValueClass : ticketControlClass}
           disabled={disabled}
         >
           {!phone ? (
@@ -1046,7 +986,8 @@ function TicketTab(props: TicketDetailsProps) {
         ? capitalizeText(ticket.created_by_type)
         : null);
   const phone = useContext(PhoneLayout);
-  const valueClass = phone ? phoneValueClass : pillClass;
+  const now = useNow();
+  const valueClass = phone ? phoneValueClass : ticketControlClass;
 
   const statusRow = (
     <FieldRow label="Status">
@@ -1150,6 +1091,21 @@ function TicketTab(props: TicketDetailsProps) {
     </FieldRow>
   );
 
+  const latestBreach = latestBreachedSlaRow(ticket.sla, now);
+  const slaRow = (
+    <FieldRow label="SLA" className={insetRow}>
+      <span
+        className={cn(
+          "truncate",
+          textClass,
+          latestBreach ? "font-medium text-red-600" : "text-muted-foreground",
+        )}
+      >
+        {latestBreach ? `${latestBreach.value}` : "—"}
+      </span>
+    </FieldRow>
+  );
+
   const sentimentRow = (
     <FieldRow label="Sentiment" className={insetRow}>
       <DropdownMenu>
@@ -1158,13 +1114,13 @@ function TicketTab(props: TicketDetailsProps) {
             type="button"
             disabled={isClosed}
             className={cn(
-              "group/sentiment inline-flex items-center gap-1 rounded-md px-1 hover:bg-muted disabled:hover:bg-transparent",
+              "relative inline-flex h-8 w-36 items-center justify-center rounded-md border bg-background px-2.5 hover:bg-muted disabled:hover:bg-transparent",
               textClass,
             )}
           >
             {capitalizeText(sentiment)}
             {!isClosed ? (
-              <IconChevronDown className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/sentiment:opacity-100" />
+              <IconChevronDown className="absolute right-2 size-3.5 text-muted-foreground" />
             ) : null}
           </button>
         </DropdownMenuTrigger>
@@ -1200,7 +1156,6 @@ function TicketTab(props: TicketDetailsProps) {
     </FieldRow>
   );
 
-  const sla = <SlaSection sla={ticket.sla} priority={ticket.priority} />;
   const tags = <TagsSection {...props} />;
   const linkedOrder = (
     <LinkedOrderSection
@@ -1223,11 +1178,11 @@ function TicketTab(props: TicketDetailsProps) {
           {assigneeRow}
           {languageRow}
         </div>
-        {sla}
         {tags}
         <div className={cn(PHONE_CARD, "divide-y px-4")}>
-          {channelRow}
           {sentimentRow}
+          {channelRow}
+          {slaRow}
           {createdRow}
         </div>
         {linkedOrder}
@@ -1242,11 +1197,11 @@ function TicketTab(props: TicketDetailsProps) {
         {priorityRow}
         {assigneeRow}
         {languageRow}
-        {channelRow}
         {sentimentRow}
+        {channelRow}
+        {slaRow}
         {createdRow}
       </div>
-      {sla}
       {tags}
       {linkedOrder}
     </>

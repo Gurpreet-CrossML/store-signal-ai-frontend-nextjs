@@ -65,6 +65,8 @@ export function AssigneeSelect({
   onReassign,
   noun = "chat",
   hideLabel = false,
+  triggerClassName,
+  compact = false,
 }: {
   agents: AgentOption[];
   currentAgent: string | null;
@@ -74,6 +76,10 @@ export function AssigneeSelect({
   noun?: "chat" | "ticket";
   /** Leave out the "Assignee" label when the caller already shows one. */
   hideLabel?: boolean;
+  /** Optional styling for the trigger when it is embedded in a field row. */
+  triggerClassName?: string;
+  /** Use the smaller icon scale used by ticket detail controls. */
+  compact?: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(false);
@@ -106,23 +112,35 @@ export function AssigneeSelect({
       {currentAgent ? (
         <span
           className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground sm:size-6 sm:text-[10px]",
+            "flex shrink-0 items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground",
+            compact
+              ? "size-5 text-[9px]"
+              : "size-5 text-[9px] sm:size-6 sm:text-[10px]",
           )}
         >
           {currentAgentInitials}
         </span>
       ) : (
-        <span className="size-5 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40 sm:size-6" />
+        <span
+          className={cn(
+            "shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40",
+            compact ? "size-5" : "size-5 sm:size-6",
+          )}
+        />
       )}
       <span className="min-w-0 flex-1 truncate text-left sm:max-w-45 sm:flex-none">
         {currentAgentDisplayName}
       </span>
       {disabled ? (
-        <IconLock className="size-4 shrink-0" />
+        <IconLock className={cn("shrink-0", compact ? "size-3.5" : "size-4")} />
       ) : open ? (
-        <IconChevronUp className="size-4 shrink-0" />
+        <IconChevronUp
+          className={cn("shrink-0", compact ? "size-3.5" : "size-4")}
+        />
       ) : (
-        <IconChevronDown className="size-4 shrink-0" />
+        <IconChevronDown
+          className={cn("shrink-0", compact ? "size-3.5" : "size-4")}
+        />
       )}
     </>
   );
@@ -197,6 +215,7 @@ export function AssigneeSelect({
             className={cn(
               "h-9 min-w-0 flex-1 rounded-full border-border px-2 text-xs sm:hidden",
               mobileOpen && "border-primary ring-2 ring-primary/15",
+              triggerClassName,
             )}
           >
             {renderTriggerContent(mobileOpen)}
@@ -236,6 +255,7 @@ export function AssigneeSelect({
             className={cn(
               "hidden h-10 min-w-0 rounded-full border-border px-2.5 text-sm sm:flex sm:flex-none",
               desktopOpen && "border-primary ring-2 ring-primary/15",
+              triggerClassName,
             )}
           >
             {renderTriggerContent(desktopOpen)}
