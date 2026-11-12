@@ -22,6 +22,7 @@ import {
   IconEye,
   IconTicket,
   IconExternalLink,
+  IconInfoCircle,
 } from "@tabler/icons-react";
 import { FulfillmentBadge } from "@/components/ui/status-badge";
 import { OrderDetails } from "@/components/custom/order-details";
@@ -446,7 +447,7 @@ export function OrdersSummary({
             className="absolute right-1 top-1 z-10 inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="How customer order totals are calculated"
           >
-            <IconEye className="size-4" />
+            <IconInfoCircle className="size-4" />
           </button>
         </TooltipTrigger>
         <TooltipContent className="max-w-72 text-center">
