@@ -66,7 +66,9 @@ export function ProductCarousel({
           inViewThreshold: 0.6,
         }}
       >
-        <CarouselContent className="-ml-2">
+        <CarouselContent
+          className={`-ml-2 ${products.length < 3 ? "justify-end" : ""}`}
+        >
           {products.map((product) => (
             <CarouselItem
               key={product.id}
@@ -84,7 +86,7 @@ export function ProductCarousel({
       </Carousel>
 
       {snapCount > 1 && (
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-2 flex items-center gap-2 justify-end">
           <Button
             type="button"
             variant="outline"

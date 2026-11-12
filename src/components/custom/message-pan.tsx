@@ -332,7 +332,7 @@ export function MessagePan({
           const showReplyWithAI =
             isLastMessage && message.role === "user" && !!onReplyWithAI;
           const isCustomer = message.role === "user";
-          const isOutgoing = isCustomer;
+          const isOutgoing = !isCustomer;
           const feedbackRating = message.feedback_rating;
           const hasPositiveFeedback = ["good", "excellent"].includes(
             feedbackRating ?? "",
@@ -996,11 +996,11 @@ export function LiveMessagePan({
               className="space-y-2 pb-2"
             >
               <div
-                className={`flex ${isCustomer ? "justify-end" : "justify-start"}`}
+                className={`flex ${isCustomer ? "justify-start" : "justify-end"}`}
               >
                 <div
                   className={`flex min-w-0 gap-2.5 max-w-[82%] ${
-                    isCustomer ? "flex-row-reverse" : "flex-row"
+                    isCustomer ? "flex-row" : "flex-row-reverse"
                   } ${
                     message.json_content?.products?.length ||
                     message.json_content?.related_products?.length
@@ -1022,9 +1022,11 @@ export function LiveMessagePan({
                   {/* min-w-0: a flex child will not shrink below its content
                       (a product carousel, a long URL) unless told it may,
                       which pushed the whole pane into sideways scrolling. */}
-                  <div className="flex min-w-0 flex-1 flex-col">
+                  <div
+                    className={`flex min-w-0 flex-1 flex-col ${isCustomer ? "items-start" : "items-end"}`}
+                  >
                     <div
-                      className={`flex flex-wrap items-center gap-x-2 mb-1 ${isCustomer ? "justify-end" : "justify-start"}`}
+                      className={`flex w-full flex-wrap items-center gap-x-2 mb-1 ${isCustomer ? "justify-start" : "justify-end"}`}
                     >
                       <span className="text-xs font-medium text-foreground capitalize">
                         {senderLabel}
@@ -1046,7 +1048,7 @@ export function LiveMessagePan({
                       <div
                         id="markdown-message-bubble"
                         style={{ borderRadius: "0.7rem" }}
-                        className={`min-w-0 max-w-full p-3 text-sm wrap-anywhere ${isCustomer ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-secondary border border-border rounded-tl-none"}`}
+                        className={`min-w-0 max-w-full p-3 text-sm wrap-anywhere ${isCustomer ? "bg-primary text-primary-foreground rounded-tl-none" : "bg-secondary border border-border rounded-tr-none"}`}
                       >
                         {message.role === "assistant" ? (
                           (() => {
@@ -1094,7 +1096,9 @@ export function LiveMessagePan({
                     handler is supplied by the parent. Shown on row hover
                     so it doesn't clutter the transcript by default. */}
                     {showReplyWithAI && (
-                      <div className="mt-1 flex justify-end transition-opacity group-hover:opacity-100">
+                      <div
+                        className={`mt-1 flex transition-opacity group-hover:opacity-100 ${isCustomer ? "justify-start" : "justify-end"}`}
+                      >
                         <Button
                           type="button"
                           variant="ghost"
@@ -1253,7 +1257,7 @@ export function LiveMessagePan({
                     {message.role === "assistant" &&
                       message.json_content?.suggestions &&
                       message.json_content.suggestions.length > 0 && (
-                        <div className="flex justify-start mt-2">
+                        <div className="flex justify-end mt-2">
                           <div className="flex flex-wrap gap-2">
                             {message.json_content.suggestions.map(
                               (s: string, idx: number) => (
@@ -1271,7 +1275,9 @@ export function LiveMessagePan({
                       )}
 
                     {message.image_url && (
-                      <div className="flex flex-wrap gap-2 mt-2 justify-end">
+                      <div
+                        className={`flex flex-wrap gap-2 mt-2 ${isCustomer ? "justify-start" : "justify-end"}`}
+                      >
                         {Array.isArray(message.image_url) ? (
                           <div className="flex gap-2">
                             {message.image_url.map((url, idx) => (
