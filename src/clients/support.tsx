@@ -1449,6 +1449,8 @@ export default function Support() {
     ? (selectedHandler?.name ?? null)
     : connectedAgentName;
   const showAiResponding = selectedThread?.ai_responding === true;
+  const canCreateTicket =
+    threadMessages.length > 0 && selectedThread?.chat_handler === "human";
 
   useEffect(() => {
     console.log("selectedThread>>>", selectedThread);
@@ -2967,6 +2969,7 @@ export default function Support() {
                           Customer details
                         </DropdownMenuItem>
                         <DropdownMenuItem
+                          disabled={!canCreateTicket}
                           onSelect={() => setIsCreateTicketOpen(true)}
                         >
                           <IconTicket className="size-4" />
@@ -2995,6 +2998,7 @@ export default function Support() {
                       <Button
                         variant="outline"
                         size="sm"
+                        disabled={!canCreateTicket}
                         onClick={() => setIsCreateTicketOpen(true)}
                       >
                         <IconTicket className="size-4" />
