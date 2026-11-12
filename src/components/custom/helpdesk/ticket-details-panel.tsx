@@ -863,6 +863,7 @@ function AssigneePicker({
     <AssigneeSelect
       noun="ticket"
       hideLabel
+      compact
       triggerClassName="h-8 w-36 rounded-md justify-between"
       agents={staff.map((member) => ({
         email: member.email,
