@@ -1456,10 +1456,16 @@ export default function Support() {
     (message) =>
       message.role === "assistant" && message.message_type !== "internal",
   );
+  const isAssignedAgent = Boolean(
+    selectedHandler?.email &&
+    session?.user?.email &&
+    selectedHandler.email.toLowerCase() === session.user.email.toLowerCase(),
+  );
   const canCreateTicket =
     hasCustomerMessage &&
     hasAgentOrAiMessage &&
-    selectedThread?.chat_handler === "human";
+    selectedThread?.chat_handler === "human" &&
+    isAssignedAgent;
 
   useEffect(() => {
     console.log("selectedThread>>>", selectedThread);
