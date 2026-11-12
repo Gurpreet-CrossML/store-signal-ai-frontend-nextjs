@@ -253,6 +253,7 @@ function FieldRow({
 
 const pillClass =
   "inline-flex h-8 max-w-full items-center gap-1.5 rounded-md border bg-background px-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:cursor-default disabled:opacity-60 disabled:hover:bg-background";
+const ticketControlClass = cn(pillClass, "w-36 justify-between");
 
 /** A field's value on the phone page: plain text, no pill. */
 const phoneValueClass =
@@ -925,6 +926,7 @@ function AssigneePicker({
     <AssigneeSelect
       noun="ticket"
       hideLabel
+      triggerClassName="h-8 w-36 rounded-md justify-between"
       agents={staff.map((member) => ({
         email: member.email,
         name: `${member.first_name} ${member.last_name}`.trim() || member.email,
@@ -970,7 +972,7 @@ function LanguagePicker({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={phone ? phoneValueClass : pillClass}
+          className={phone ? phoneValueClass : ticketControlClass}
           disabled={disabled}
         >
           {!phone ? (
@@ -1046,7 +1048,7 @@ function TicketTab(props: TicketDetailsProps) {
         ? capitalizeText(ticket.created_by_type)
         : null);
   const phone = useContext(PhoneLayout);
-  const valueClass = phone ? phoneValueClass : pillClass;
+  const valueClass = phone ? phoneValueClass : ticketControlClass;
 
   const statusRow = (
     <FieldRow label="Status">
@@ -1158,13 +1160,13 @@ function TicketTab(props: TicketDetailsProps) {
             type="button"
             disabled={isClosed}
             className={cn(
-              "group/sentiment inline-flex items-center gap-1 rounded-md px-1 hover:bg-muted disabled:hover:bg-transparent",
+              "relative inline-flex h-8 w-36 items-center justify-center rounded-md border bg-background px-2.5 hover:bg-muted disabled:hover:bg-transparent",
               textClass,
             )}
           >
             {capitalizeText(sentiment)}
             {!isClosed ? (
-              <IconChevronDown className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/sentiment:opacity-100" />
+              <IconChevronDown className="absolute right-2 size-3.5 text-muted-foreground" />
             ) : null}
           </button>
         </DropdownMenuTrigger>
@@ -1242,8 +1244,8 @@ function TicketTab(props: TicketDetailsProps) {
         {priorityRow}
         {assigneeRow}
         {languageRow}
-        {channelRow}
         {sentimentRow}
+        {channelRow}
         {createdRow}
       </div>
       {sla}

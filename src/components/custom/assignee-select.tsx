@@ -65,6 +65,7 @@ export function AssigneeSelect({
   onReassign,
   noun = "chat",
   hideLabel = false,
+  triggerClassName,
 }: {
   agents: AgentOption[];
   currentAgent: string | null;
@@ -74,6 +75,8 @@ export function AssigneeSelect({
   noun?: "chat" | "ticket";
   /** Leave out the "Assignee" label when the caller already shows one. */
   hideLabel?: boolean;
+  /** Optional styling for the trigger when it is embedded in a field row. */
+  triggerClassName?: string;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(false);
@@ -197,6 +200,7 @@ export function AssigneeSelect({
             className={cn(
               "h-9 min-w-0 flex-1 rounded-full border-border px-2 text-xs sm:hidden",
               mobileOpen && "border-primary ring-2 ring-primary/15",
+              triggerClassName,
             )}
           >
             {renderTriggerContent(mobileOpen)}
@@ -236,6 +240,7 @@ export function AssigneeSelect({
             className={cn(
               "hidden h-10 min-w-0 rounded-full border-border px-2.5 text-sm sm:flex sm:flex-none",
               desktopOpen && "border-primary ring-2 ring-primary/15",
+              triggerClassName,
             )}
           >
             {renderTriggerContent(desktopOpen)}
