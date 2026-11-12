@@ -194,6 +194,12 @@ export const ENDPOINTS = {
   fetchKnowledgeItems: () => `/knowledge/knowledge-items/`,
   createKnowledgeItem: () => `/knowledge/knowledge-items/`,
   knowledgeItemDetail: (id: number) => `/knowledge/knowledge-items/${id}/`,
+  // Website URL discovery: POST a site URL, get back the pages found on it
+  // (url, title, word count) so the user can pick which to index. Django.
+  discoverKnowledgeUrls: () => `/knowledge/knowledge-items/discover-urls/`,
+  // Fills in title/word count for pages a scan couldn't read (rate limits).
+  discoverKnowledgeUrlDetails: () =>
+    `/knowledge/knowledge-items/discover-urls/details/`,
   // Product picker for Product Knowledge (Django; GET needs useBackend).
   // Case-insensitive partial match on name via `?search=`, optional — when
   // omitted/blank, returns any 5 products for the store. Results are
