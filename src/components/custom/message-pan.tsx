@@ -332,7 +332,7 @@ export function MessagePan({
           const showReplyWithAI =
             isLastMessage && message.role === "user" && !!onReplyWithAI;
           const isCustomer = message.role === "user";
-          const isOutgoing = !isCustomer;
+          const isOutgoing = isCustomer;
           const feedbackRating = message.feedback_rating;
           const hasPositiveFeedback = ["good", "excellent"].includes(
             feedbackRating ?? "",
