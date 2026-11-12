@@ -1449,8 +1449,17 @@ export default function Support() {
     ? (selectedHandler?.name ?? null)
     : connectedAgentName;
   const showAiResponding = selectedThread?.ai_responding === true;
+  const hasCustomerMessage = threadMessages.some(
+    (message) => message.role === "user",
+  );
+  const hasAgentOrAiMessage = threadMessages.some(
+    (message) =>
+      message.role === "assistant" && message.message_type !== "internal",
+  );
   const canCreateTicket =
-    threadMessages.length > 0 && selectedThread?.chat_handler === "human";
+    hasCustomerMessage &&
+    hasAgentOrAiMessage &&
+    selectedThread?.chat_handler === "human";
 
   useEffect(() => {
     console.log("selectedThread>>>", selectedThread);
