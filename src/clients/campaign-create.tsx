@@ -60,6 +60,7 @@ import {
   fetchWhatsAppTemplates,
   type WhatsAppTemplate,
 } from "@/redux/api-slice/social-ai-slice";
+import { randomId } from "@/lib/utils";
 
 type Channel = "whatsapp" | "email";
 
@@ -76,7 +77,7 @@ type StepForm = {
 
 function newStep(channel: Channel = "whatsapp"): StepForm {
   return {
-    key: crypto.randomUUID(),
+    key: randomId(),
     channel,
     templateId: "",
     delayValue: "60",
@@ -218,7 +219,7 @@ export default function CampaignCreate({
           [...stepsResponse.sequence_steps]
             .sort((a, b) => a.step_order - b.step_order)
             .map((s) => ({
-              key: crypto.randomUUID(),
+              key: randomId(),
               channel: s.whatsapp_template ? "whatsapp" : "email",
               templateId: String(s.whatsapp_template ?? s.email_template ?? ""),
               delayValue: String(s.delay_value ?? 0),
