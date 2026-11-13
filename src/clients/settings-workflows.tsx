@@ -53,7 +53,7 @@ import {
 const EMPTY_CELL = <Typography variant="muted">—</Typography>;
 
 /** A switch the store flipped, waiting for its approval in the dialog. */
-type SwitchChange = { workflow: StoreWorkflow; isEnabled: boolean };
+export type SwitchChange = { workflow: StoreWorkflow; isEnabled: boolean };
 
 /**
  * One row per platform workflow: what it is, the AI it belongs to, its tags,
@@ -349,7 +349,7 @@ const joinNames = (names: string[]) =>
  * answering, and which linked workflows change with it (only the ones not
  * already in that state).
  */
-function ConfirmSwitch({
+export function ConfirmSwitch({
   change,
   workflows,
   saving,
