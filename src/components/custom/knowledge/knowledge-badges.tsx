@@ -1,12 +1,14 @@
 import {
   IconAlertCircle,
+  IconArticle,
   IconClock,
   IconFileText,
   IconLink,
   IconMessageQuestion,
-  IconTag,
   IconCircleCheck,
+  IconFilePencil,
   IconShieldCheck,
+  type Icon,
 } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +32,8 @@ import {
 } from "@/components/custom/knowledge/knowledge-meta";
 
 const STATUS_ICON: Record<KnowledgeStatus, React.ReactNode> = {
-  completed: <IconCircleCheck className="size-3.5" />,
+  draft: <IconFilePencil className="size-3.5" />,
+  published: <IconCircleCheck className="size-3.5" />,
   pending: <IconClock className="size-3.5" />,
   processing: <Spinner className="size-3.5" />,
   failed: <IconAlertCircle className="size-3.5" />,
@@ -44,7 +47,7 @@ export function KnowledgeStatusBadge({ status }: { status: KnowledgeStatus }) {
       variant={variant}
       className={cn(
         "gap-1 rounded-full font-normal",
-        status === "completed" && BADGE_TONE_STYLES.success,
+        status === "published" && BADGE_TONE_STYLES.success,
       )}
     >
       {STATUS_ICON[status]}
@@ -143,25 +146,8 @@ export function KnowledgeTypeIcon({
   );
 }
 
-const EXTENSION_COLORS: Record<string, string> = {
-  pdf: "bg-red-600",
-  doc: "bg-blue-600",
-  docx: "bg-blue-600",
-  xls: "bg-green-600",
-  xlsx: "bg-green-600",
-  ods: "bg-green-600",
-  csv: "bg-emerald-600",
-  ppt: "bg-orange-600",
-  pptx: "bg-orange-600",
-  json: "bg-slate-600",
-  txt: "bg-slate-500",
-  png: "bg-violet-600",
-  jpg: "bg-violet-600",
-  jpeg: "bg-violet-600",
-};
-
-/** Uppercase-able file extension of an uploaded item, from its name, URL or MIME type. */
-function fileExtension(item: KnowledgeItem): string | null {
+/** Lower-case file extension of an uploaded item, from its name, URL or MIME type. */
+export function fileExtension(item: KnowledgeItem): string | null {
   const fromName = (value?: string) => {
     const path = value?.split(/[?#]/)[0] ?? "";
     const match = /\.([a-z0-9]{1,5})$/i.exec(path);
@@ -177,54 +163,41 @@ function fileExtension(item: KnowledgeItem): string | null {
   );
 }
 
-/**
- * Icon for a knowledge item by its source: a document for uploads (with a
- * coloured file-extension tag on the corner), a link for URLs, a question
- * mark for FAQs.
- */
+/** Icon and colours for each kind of knowledge item, shown at the start of its list row. */
+const ITEM_ICON: Record<string, { Icon: Icon; tone: string }> = {
+  article: {
+    Icon: IconArticle,
+    tone: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300",
+  },
+  file: {
+    Icon: IconFileText,
+    tone: "bg-violet-50 text-violet-600 dark:bg-violet-950 dark:text-violet-300",
+  },
+  url: {
+    Icon: IconLink,
+    tone: "bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-300",
+  },
+  faq: {
+    Icon: IconMessageQuestion,
+    tone: "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-300",
+  },
+};
+
+/** Icon for a knowledge item by its source: article, document, link or question mark. */
 export function KnowledgeItemIcon({ item }: { item: KnowledgeItem }) {
-  const isFile = item.source === "file";
-  const extension = isFile ? fileExtension(item) : null;
-  const Icon =
-    item.source === "url"
-      ? IconLink
-      : item.source === "faq"
-        ? IconMessageQuestion
-        : IconFileText;
-  const tone =
-    item.source === "url"
-      ? "bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-300"
-      : item.source === "faq"
-        ? "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-300"
-        : "bg-muted text-muted-foreground";
+  const { Icon, tone } = ITEM_ICON[item.source] ?? {
+    Icon: IconFileText,
+    tone: "bg-muted text-muted-foreground",
+  };
 
   return (
     <div
       className={cn(
-        "relative flex size-10 shrink-0 items-center justify-center rounded-xl",
+        "flex size-9 shrink-0 items-center justify-center rounded-lg",
         tone,
       )}
     >
-      <Icon className="size-5" />
-      {extension && (
-        <span
-          className={cn(
-            "absolute -bottom-1.5 -right-1.5 rounded px-1 text-[9px] font-semibold uppercase leading-4 text-white",
-            EXTENSION_COLORS[extension] ?? "bg-slate-500",
-          )}
-        >
-          {extension}
-        </span>
-      )}
+      <Icon className="size-4.5" />
     </div>
-  );
-}
-
-export function ProductTag({ name }: { name: string }) {
-  return (
-    <span className="inline-flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-      <IconTag className="size-3 shrink-0" />
-      <span className="truncate">{name}</span>
-    </span>
   );
 }

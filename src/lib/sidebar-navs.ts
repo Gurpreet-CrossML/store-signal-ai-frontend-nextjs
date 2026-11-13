@@ -3,6 +3,7 @@ import {
   IconMessage2,
   IconMessageUser,
   IconDashboard,
+  IconBooks,
   type Icon,
 } from "@tabler/icons-react";
 
@@ -317,7 +318,12 @@ export const sidebarMenus: SideBarMenus = {
     areaMenuItem("campaign", { adminOnly: true }),
     areaMenuItem("brandVoice", { adminOnly: true }),
     areaMenuItem("settings", { adminOnly: true }),
-    areaMenuItem("knowledge", { permission: "knowledge" }),
+    {
+      title: "Knowledge",
+      url: "/knowledge",
+      icon: IconBooks,
+      permission: "knowledge",
+    },
   ],
 
   navSubSidebar: {

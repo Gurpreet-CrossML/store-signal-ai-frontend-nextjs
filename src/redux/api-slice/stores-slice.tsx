@@ -19,6 +19,8 @@ export type Store = {
   id: string;
   name: string;
   code: string;
+  /** The storefront's address. */
+  url?: string;
 };
 
 export const SELECTED_STORE_KEY = "selectedStore";

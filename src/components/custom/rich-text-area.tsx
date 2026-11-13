@@ -1,9 +1,13 @@
 import { useEffect, useRef } from "react";
+import { Extension } from "@tiptap/core";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import type { Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Markdown } from "@tiptap/markdown";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import {
   IconArrowBackUp,
   IconArrowForwardUp,
@@ -47,7 +51,135 @@ type RichTextAreaProps = {
   toolbar?: "full" | "compact" | "none";
   /** Extra controls at the end of a compact toolbar (attach, translate). */
   toolbarEnd?: React.ReactNode;
+  /**
+   * Places to mark in the text, found by the backend: `start`/`end` count
+   * in `marksSource` (the Markdown they were found in, JavaScript string
+   * units), and `count` is how many things point there. A place edited
+   * since loses its mark.
+   */
+  marks?: TextMark[];
+  /** The Markdown `marks` count places in. */
+  marksSource?: string;
 };
+
+/** A place in the text to mark, and how many things point at it. */
+export type TextMark = { start: number; end: number; count: number };
+
+// The places to mark and their drawn marks, in the editor's state.
+type MarkState = {
+  marks: TextMark[];
+  source: string;
+  decorations: DecorationSet;
+};
+const MARKS_KEY = new PluginKey<MarkState>("marks");
+
+/**
+ * Where each of the editor's text pieces sits in the Markdown it came from
+ * (`at`). Pieces are looked up in order, so one edited since isn't found
+ * and is left out.
+ */
+function textPlaces(doc: ProseMirrorNode, source: string) {
+  const places: { at: number; pos: number; length: number }[] = [];
+  let cursor = 0;
+  doc.descendants((node, pos) => {
+    if (!node.isText || !node.text) return true;
+    const at = source.indexOf(node.text, cursor);
+    if (at >= 0) {
+      places.push({ at, pos, length: node.text.length });
+      cursor = at + node.text.length;
+    }
+    return false;
+  });
+  return places;
+}
+
+/** The "⚠ N" shown after a marked place. */
+function markCount(count: number) {
+  const badge = document.createElement("span");
+  badge.className = "rich-text-flag-count";
+  badge.contentEditable = "false";
+  badge.textContent = `⚠ ${count}`;
+  return badge;
+}
+
+/** Draw each place: a tint over its text, then its count. */
+function markDecorations(
+  doc: ProseMirrorNode,
+  marks: TextMark[],
+  source: string,
+) {
+  if (!marks.length || !source) return DecorationSet.empty;
+  const places = textPlaces(doc, source);
+  const decorations: Decoration[] = [];
+  for (const mark of marks) {
+    let end = -1;
+    // A place can span several text pieces (bold words inside it).
+    for (const place of places) {
+      const from = Math.max(mark.start, place.at);
+      const to = Math.min(mark.end, place.at + place.length);
+      if (from >= to) continue;
+      decorations.push(
+        Decoration.inline(
+          place.pos + from - place.at,
+          place.pos + to - place.at,
+          {
+            class: "rich-text-flag",
+            "data-mark": String(mark.start),
+          },
+        ),
+      );
+      end = place.pos + to - place.at;
+    }
+    if (end >= 0)
+      decorations.push(
+        Decoration.widget(end, () => markCount(mark.count), {
+          side: 1,
+          key: `mark-${mark.start}-${mark.count}`,
+        }),
+      );
+  }
+  return DecorationSet.create(doc, decorations);
+}
+
+/**
+ * Marks places in the text. They come in on a transaction (see the effect
+ * in RichTextArea) and are redrawn on every edit.
+ */
+const Marks = Extension.create({
+  name: "marks",
+  addProseMirrorPlugins() {
+    return [
+      new Plugin<MarkState>({
+        key: MARKS_KEY,
+        state: {
+          init: () => ({
+            marks: [],
+            source: "",
+            decorations: DecorationSet.empty,
+          }),
+          apply: (tr, old) => {
+            const next: Omit<MarkState, "decorations"> | undefined =
+              tr.getMeta(MARKS_KEY);
+            if (next)
+              return {
+                ...next,
+                decorations: markDecorations(tr.doc, next.marks, next.source),
+              };
+            return tr.docChanged
+              ? {
+                  ...old,
+                  decorations: markDecorations(tr.doc, old.marks, old.source),
+                }
+              : old;
+          },
+        },
+        props: {
+          decorations: (state) => MARKS_KEY.getState(state)?.decorations,
+        },
+      }),
+    ];
+  },
+});
 
 const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
 
@@ -276,10 +408,17 @@ const RichTextArea: React.FC<RichTextAreaProps> = ({
   maxHeight,
   toolbar = "full",
   toolbarEnd,
+  marks,
+  marksSource,
 }) => {
   const contentType = useMarkdown ? "markdown" : "html";
   // Both drop the frame: the composer around them draws its own card.
   const compact = toolbar !== "full";
+  // One string, so new arrays with the same places change nothing.
+  const marksKey = JSON.stringify({
+    marks: marks ?? [],
+    source: marksSource ?? "",
+  });
 
   // The latest value this editor emitted, so the sync effect below can tell
   // an echo of the user's own typing from a genuine external change.
@@ -298,6 +437,7 @@ const RichTextArea: React.FC<RichTextAreaProps> = ({
         Placeholder.configure({
           placeholder: placeholder || "Type or paste your content here!",
         }),
+        Marks,
         ...(useMarkdown ? [Markdown] : []),
       ],
       content: value ?? "",
@@ -337,6 +477,14 @@ const RichTextArea: React.FC<RichTextAreaProps> = ({
     // An empty transaction redraws the placeholder decoration.
     editor.view.dispatch(editor.state.tr);
   }, [editor, placeholder]);
+
+  // New places to mark: redraw the marks without touching the text.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.view.dispatch(
+      editor.state.tr.setMeta(MARKS_KEY, JSON.parse(marksKey)),
+    );
+  }, [editor, marksKey]);
 
   useEffect(() => {
     // `false`: by default setEditable fires an update event, which would echo

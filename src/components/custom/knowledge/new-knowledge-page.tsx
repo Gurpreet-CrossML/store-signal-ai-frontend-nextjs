@@ -1,31 +1,17 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { useFormik } from "formik";
-import { z } from "zod";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   IconArrowLeft,
-  IconDeviceFloppy,
+  IconCircleCheck,
   IconPlus,
   IconTrash,
+  IconX,
 } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-  FieldSeparator,
-} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -34,298 +20,88 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Typography } from "@/components/ui/typography";
-import { formikErrorsFromZod } from "@/lib/form-errors";
-import { isValidUrl as isValidSharedUrl, normalizeUrl } from "@/lib/url";
+import { isValidUrl, normalizeUrl } from "@/lib/url";
+import { randomId } from "@/lib/utils";
 
-import { AIScopeField } from "@/components/custom/knowledge/ai-scope-field";
 import {
-  formatBytes,
-  KNOWLEDGE_FILE_MAX_PAGES,
+  AddKnowledgeStepper,
+  ContentLayout,
+  ExistingKnowledge,
+  PrimaryAction,
+  ShopifySyncedNote,
+  SOURCE_META,
+  SourceCards,
+  StepFooter,
+  TipCard,
+  type AddableSource,
+  type AddStep,
+} from "@/components/custom/knowledge/add-knowledge-parts";
+import {
   KNOWLEDGE_FILE_MAX_SIZE_BYTES,
   MultiFileUploadDropzone,
 } from "@/components/custom/knowledge/file-upload-dropzone";
-import { MultiSelectCombobox } from "@/components/custom/knowledge/multi-select-combobox";
-import { WebsiteUrlDiscovery } from "@/components/custom/knowledge/website-url-discovery";
+import { KnowledgeScopePanel } from "@/components/custom/knowledge/knowledge-scope-panel";
+import {
+  DEFAULT_KNOWLEDGE_SCOPE,
+  scopeToPayload,
+  validateScope,
+  type KnowledgeScope,
+} from "@/components/custom/knowledge/knowledge-scope";
 import {
   FAQ_ANSWER_MAX_LENGTH,
   POLICY_TYPE_OPTIONS,
 } from "@/components/custom/knowledge/knowledge-meta";
+import { WebsiteUrlDiscovery } from "@/components/custom/knowledge/website-url-discovery";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   CreateKnowledgeItemsBulk,
-  FetchCategoryOptions,
-  FetchCollectionOptions,
-  FetchProductOptions,
-  type AIScope,
+  FetchKnowledgeStats,
   type BulkKnowledgeItemContent,
   type DiscoveredPage,
-  type KnowledgeType,
-  type PolicyType,
-  type ProductOption,
 } from "@/redux/api-slice/knowledge-rag-slice";
 
-/** The three sources this page can create — a narrower set than the full
- * `KnowledgeSource` union, which also carries legacy/unreachable values
- * (`product`, `category`, `offer`, `google_drive`) and `text`, not
- * offered here "for now". */
-type AddableSource = "faq" | "url" | "file";
-
-const SOURCE_OPTIONS: { value: AddableSource; label: string; hint: string }[] =
-  [
-    { value: "faq", label: "FAQ", hint: "Question & answer pairs" },
-    { value: "url", label: "URL", hint: "A page or policy link" },
-    {
-      value: "file",
-      label: "Document",
-      hint: `PDF, DOCX & more · max ${formatBytes(KNOWLEDGE_FILE_MAX_SIZE_BYTES)} & ${KNOWLEDGE_FILE_MAX_PAGES} pages each`,
-    },
-  ];
-
-/** The four scopes offered on this page — a narrower, more specific set
- * than the API's `KnowledgeType` union (`"general" | "product"`). Only
- * `"general"` maps straight across; the other three all map to the API's
- * `"product"` and differ only in which single picker (products,
- * categories, or collections) is shown and populated below. */
-type ScopeKind = "general" | "product" | "category" | "collection";
-
-const SCOPE_OPTIONS: {
-  value: ScopeKind;
-  label: string;
-  hint: string;
-}[] = [
-  {
-    value: "general",
-    label: "General",
-    hint: "Store-wide — policies, FAQs, brand info.",
-  },
-  {
-    value: "product",
-    label: "Product Specific",
-    hint: "Tied to specific products.",
-  },
-  {
-    value: "category",
-    label: "Product Category",
-    hint: "Tied to specific product categories.",
-  },
-  {
-    value: "collection",
-    label: "Product Collection",
-    hint: "Tied to specific product collections.",
-  },
-];
-
-function scopeKindToType(scope: ScopeKind): KnowledgeType {
-  return scope === "general" ? "general" : "product";
-}
-
-/** Local, page-scoped variant of the shared `POLICY_TYPE_OPTIONS` — drops
- * `generic_link` in favor of an "Other" option that reveals a manual
- * title input. Deliberately NOT merged into `knowledge-meta.ts`'s shared
- * list: `policy-manager.tsx` (a separate, untouched feature) depends on
- * that exact list including `generic_link`. */
-type LocalUrlType = PolicyType | "other";
-
-const URL_TYPE_OPTIONS: { value: LocalUrlType; label: string }[] = [
-  ...POLICY_TYPE_OPTIONS.filter((option) => option.value !== "generic_link"),
-  { value: "other", label: "Other" },
-];
-
 const FAQ_CAP = 20;
-const URL_CAP = 20;
-/** Pages that can be picked in one "Scan my website" request (the backend's
+/** Pages and links that can be added in one request (the backend's
  * `KNOWLEDGE_MAX_URLS_PER_REQUEST`). */
 const WEBSITE_URL_CAP = 100;
 const FILE_CAP = 15;
 
-/** How URL items are added: typed in one by one, or picked from the pages
- * found by scanning the user's website. */
-type UrlMode = "manual" | "website";
+type ContentSource = Exclude<AddableSource, "article">;
 
 type FaqRow = { localId: string; question: string; answer: string };
-type UrlRow = {
-  localId: string;
-  url: string;
-  urlType: LocalUrlType | "";
-  title: string;
-};
+/** A link typed in under "Add a link", beside the pages found by the scan. */
+type LinkRow = { localId: string; url: string; pageType: string };
 
-function emptyFaqRow(): FaqRow {
-  return { localId: crypto.randomUUID(), question: "", answer: "" };
-}
-
-function emptyUrlRow(): UrlRow {
-  return { localId: crypto.randomUUID(), url: "", urlType: "", title: "" };
-}
-
-function isValidUrl(value: string): boolean {
-  return isValidSharedUrl(value);
-}
-
-type FormValues = {
-  source: AddableSource;
-  scopeKind: ScopeKind;
-  aiScope: AIScope[];
-  products: ProductOption[];
-  categories: ProductOption[];
-  collections: ProductOption[];
-  faqRows: FaqRow[];
-  urlRows: UrlRow[];
-  urlMode: UrlMode;
-  /** URLs ticked in the website-scan table (`urlMode === "website"`). */
-  selectedPageUrls: string[];
-  files: File[];
-};
-
-// Deliberately loose shape-only schemas (no `.min()`/required checks on
-// individual fields): `faqRows` and `urlRows` both always exist in form
-// state (each starts with one default empty row) regardless of which one
-// is the active `source`, so validating either array unconditionally
-// would permanently fail on the *inactive* array's still-empty default
-// row and block every submission no matter what the user actually filled
-// in. The real per-field "is this required" checks only run, per row,
-// against the currently active source's array — see `superRefine` below.
-const faqRowSchema = z.object({
-  localId: z.string(),
-  question: z.string(),
-  answer: z.string(),
+const emptyFaqRow = (): FaqRow => ({
+  localId: randomId(),
+  question: "",
+  answer: "",
 });
 
-const urlRowSchema = z.object({
-  localId: z.string(),
-  url: z.string(),
-  urlType: z.string(),
-  title: z.string(),
-});
+/** A page type the user can tag a link with; it becomes the item's title. */
+const LINK_TYPE_OPTIONS = POLICY_TYPE_OPTIONS.filter(
+  (option) => option.value !== "generic_link",
+);
 
-const formSchema = z
-  .object({
-    source: z.enum(["faq", "url", "file"]),
-    scopeKind: z.enum(["general", "product", "category", "collection"]),
-    aiScope: z
-      .array(z.enum(["sales", "support", "social", "internal"]))
-      .min(1, "Select at least one AI"),
-    products: z.array(z.object({ id: z.string(), name: z.string() })),
-    categories: z.array(z.object({ id: z.string(), name: z.string() })),
-    collections: z.array(z.object({ id: z.string(), name: z.string() })),
-    faqRows: z.array(faqRowSchema).max(FAQ_CAP, `Maximum ${FAQ_CAP} at a time`),
-    urlRows: z.array(urlRowSchema).max(URL_CAP, `Maximum ${URL_CAP} at a time`),
-    urlMode: z.enum(["manual", "website"]),
-    selectedPageUrls: z
-      .array(z.string())
-      .max(WEBSITE_URL_CAP, `Maximum ${WEBSITE_URL_CAP} at a time`),
-    files: z
-      .array(z.custom<File>((value) => value instanceof File))
-      .max(FILE_CAP, `Maximum ${FILE_CAP} at a time`),
-  })
-  .superRefine((values, ctx) => {
-    if (
-      values.scopeKind !== "general" &&
-      values.products.length === 0 &&
-      values.categories.length === 0 &&
-      values.collections.length === 0
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["products"],
-        message:
-          values.scopeKind === "product"
-            ? "Select at least one product"
-            : values.scopeKind === "category"
-              ? "Select at least one category"
-              : "Select at least one collection",
-      });
-    }
+const TIPS: Record<ContentSource, { title: string; body: string }> = {
+  url: {
+    title: "Pick pages that answer questions",
+    body: "Policies, FAQs, size guides and contact pages work best. Blog posts and job pages rarely help shoppers.",
+  },
+  file: {
+    title: "Scope it tightly",
+    body: "A size guide set to Apparel is only used when shoppers ask about apparel. Store-wide documents are checked for every question.",
+  },
+  faq: {
+    title: "Write it like a reply",
+    body: "Your assistant uses your answer as written, so keep the tone you use with customers.",
+  },
+};
 
-    if (values.source === "faq") {
-      if (values.faqRows.length === 0) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["faqRows"],
-          message: "Add at least one FAQ",
-        });
-      }
-      values.faqRows.forEach((row, index) => {
-        if (!row.question.trim()) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["faqRows", index, "question"],
-            message: "Question is required",
-          });
-        }
-        if (!row.answer.trim()) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["faqRows", index, "answer"],
-            message: "Answer is required",
-          });
-        }
-      });
-    }
-
-    if (values.source === "url" && values.urlMode === "website") {
-      if (values.selectedPageUrls.length === 0) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["selectedPageUrls"],
-          message: "Scan your website and select at least one page",
-        });
-      }
-    }
-
-    if (values.source === "url" && values.urlMode === "manual") {
-      if (values.urlRows.length === 0) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["urlRows"],
-          message: "Add at least one URL",
-        });
-      }
-      values.urlRows.forEach((row, index) => {
-        if (!row.url.trim()) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["urlRows", index, "url"],
-            message: "URL is required",
-          });
-        } else if (!isValidUrl(row.url)) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["urlRows", index, "url"],
-            message: "Enter a valid URL",
-          });
-        }
-        if (!row.urlType) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["urlRows", index, "urlType"],
-            message: "Type is required",
-          });
-        } else if (row.urlType === "other" && !row.title.trim()) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["urlRows", index, "title"],
-            message: "Title is required",
-          });
-        }
-      });
-    }
-
-    if (values.source === "file" && values.files.length === 0) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["files"],
-        message: "Select at least one file",
-      });
-    }
-  });
-
-/** Reads the first message out of whatever shape a server error came
- * back as — a plain string, an array of strings, or a nested object (DRF
- * field-error style). */
+/** The first message in whatever shape a server error came back as: a plain
+ * string, an array of strings, or a nested object (DRF field-error style). */
 function firstErrorMessage(value: unknown): string | undefined {
   if (!value) return undefined;
   if (typeof value === "string") return value;
@@ -339,231 +115,234 @@ function firstErrorMessage(value: unknown): string | undefined {
   return undefined;
 }
 
+const plural = (count: number, one: string, many = `${one}s`) =>
+  `${count} ${count === 1 ? one : many}`;
+
 export function NewKnowledgePage() {
   const dispatch = useAppDispatch();
   const router = useRouter();
-  // The library keeps its filters in its URL, so stepping back in history
-  // (rather than pushing a fresh /knowledge/library) restores the same view.
-  // A direct visit has no library entry behind it, so fall back to the link.
-  const goToLibrary = () => {
-    if (window.history.length > 1) router.back();
-    else router.push("/knowledge/library");
-  };
+  const sourceParam = useSearchParams()?.get("source");
+
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-
-  const { FetchProductOptionsListData, FetchProductOptionsIsLoading } =
-    useAppSelector(
-      (state) => state.GetKnowledgeRagReducer.FetchProductOptionsState,
-    );
-  const { FetchCategoryOptionsListData, FetchCategoryOptionsIsLoading } =
-    useAppSelector(
-      (state) => state.GetKnowledgeRagReducer.FetchCategoryOptionsState,
-    );
-  const { FetchCollectionOptionsListData, FetchCollectionOptionsIsLoading } =
-    useAppSelector(
-      (state) => state.GetKnowledgeRagReducer.FetchCollectionOptionsState,
-    );
+  // Scanning starts from the store's own site; the user can point it elsewhere.
+  const storeUrl = useAppSelector(
+    (state) =>
+      state.GetStoresReducer.GetStoresState.GetStoresListData.find(
+        (store) => store.code === state.GetStoresReducer.selectedStore,
+      )?.url ?? "",
+  );
+  const { FetchKnowledgeStatsData: stats } = useAppSelector(
+    (state) => state.GetKnowledgeRagReducer.FetchKnowledgeStatsState,
+  );
   const { DiscoverWebsiteUrlsListData: discoveredPages } = useAppSelector(
     (state) => state.GetKnowledgeRagReducer.DiscoverWebsiteUrlsState,
   );
-  const { CreateKnowledgeItemsBulkIsLoading } = useAppSelector(
+  const { CreateKnowledgeItemsBulkIsLoading: isSubmitting } = useAppSelector(
     (state) => state.GetKnowledgeRagReducer.CreateKnowledgeItemsBulkState,
   );
 
-  // Server-side errors from the last failed submit — separate from
-  // Formik's client-side (zod) errors, since they come back per-index
-  // after a real request rather than from local validation. Cleared at
-  // the start of every new submit attempt.
-  const [rowErrors, setRowErrors] = useState<Record<string, unknown>[] | null>(
+  // `?source=` (from the empty Knowledge screen) opens straight on that kind.
+  const initialSource = (["url", "file", "faq", "article"] as const).find(
+    (value) => value === sourceParam,
+  );
+  const [source, setSource] = useState<AddableSource | null>(
+    initialSource ?? null,
+  );
+  const [step, setStep] = useState<AddStep>(
+    initialSource && initialSource !== "article" ? "content" : "source",
+  );
+  const [scope, setScope] = useState<KnowledgeScope>(DEFAULT_KNOWLEDGE_SCOPE);
+
+  const [selectedPageUrls, setSelectedPageUrls] = useState<string[]>([]);
+  const [linkRows, setLinkRows] = useState<LinkRow[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [faqRows, setFaqRows] = useState<FaqRow[]>([emptyFaqRow()]);
+
+  const [showErrors, setShowErrors] = useState(false);
+  const [banner, setBanner] = useState<string | null>(null);
+  // Server errors from the last failed submit, one entry per item sent.
+  const [serverErrors, setServerErrors] = useState<
+    Record<string, unknown>[] | null
+  >(null);
+  const [added, setAdded] = useState<{ count: number; label: string } | null>(
     null,
   );
-  const [banner, setBanner] = useState<string | null>(null);
 
-  const formik = useFormik<FormValues>({
-    initialValues: {
-      source: "faq",
-      scopeKind: "general",
-      aiScope: [],
-      products: [],
-      categories: [],
-      collections: [],
-      faqRows: [emptyFaqRow()],
-      urlRows: [emptyUrlRow()],
-      urlMode: "manual",
-      selectedPageUrls: [],
-      files: [],
-    },
-    validate: (values) => {
-      const result = formSchema.safeParse(values);
-      return result.success ? {} : formikErrorsFromZod(result.error.issues);
-    },
-    onSubmit: async (values) => {
-      if (!storeCode) return;
+  useEffect(() => {
+    if (storeCode) dispatch(FetchKnowledgeStats({ storeCode }));
+  }, [dispatch, storeCode]);
 
-      setRowErrors(null);
-      setBanner(null);
+  const goToLibrary = () => {
+    // The library keeps its filters in its URL, so stepping back in history
+    // restores the same view; a direct visit has nothing behind it.
+    if (window.history.length > 1) router.back();
+    else router.push("/knowledge");
+  };
 
-      const shared = {
-        storeCode,
-        type: scopeKindToType(values.scopeKind),
-        source: values.source,
-        aiScope: values.aiScope,
-        productIds: values.products.map((product) => product.id),
-        categoryIds: values.categories.map((category) => category.id),
-        collectionIds: values.collections.map((collection) => collection.id),
-      };
+  // --- What is ready to add -------------------------------------------------
+  const filledFaqs = faqRows.filter(
+    (row) => row.question.trim() || row.answer.trim(),
+  );
+  const completeFaqs = filledFaqs.filter(
+    (row) => row.question.trim() && row.answer.trim(),
+  );
+  const readyCount =
+    source === "url"
+      ? selectedPageUrls.length + linkRows.length
+      : source === "file"
+        ? files.length
+        : completeFaqs.length;
+  const alreadyAdded = discoveredPages.filter(
+    (page) => page.alreadyAdded,
+  ).length;
 
-      const result = await dispatch(
-        values.source === "file"
-          ? CreateKnowledgeItemsBulk({ ...shared, files: values.files })
-          : CreateKnowledgeItemsBulk({
-              ...shared,
-              items: buildItems(values, discoveredPages),
-            }),
+  const scopeErrors = validateScope(scope);
+  const hasScopeError = Boolean(scopeErrors.aiScope || scopeErrors.selection);
+  const hasIncompleteFaq =
+    source === "faq" && filledFaqs.length > completeFaqs.length;
+
+  const resetContent = () => {
+    setSelectedPageUrls([]);
+    setLinkRows([]);
+    setFiles([]);
+    setFaqRows([emptyFaqRow()]);
+    setShowErrors(false);
+    setBanner(null);
+    setServerErrors(null);
+  };
+
+  const handleContinue = () => {
+    if (!source) return;
+    if (source === "article") {
+      router.push("/knowledge/articles/new");
+      return;
+    }
+    setStep("content");
+  };
+
+  const handleSubmit = async () => {
+    if (!storeCode || !source || source === "article") return;
+
+    setShowErrors(true);
+    setBanner(null);
+    setServerErrors(null);
+    if (readyCount === 0 || hasScopeError || hasIncompleteFaq) return;
+
+    // Which row of the form each submitted item came from, so a server error
+    // for item N can be shown on the right row.
+    let items: BulkKnowledgeItemContent[] | undefined;
+    let itemLabels: string[] = [];
+
+    if (source === "url") {
+      const byUrl = new Map(
+        discoveredPages.map((page: DiscoveredPage) => [page.url, page]),
       );
+      items = [
+        ...selectedPageUrls.map((url) => ({
+          url,
+          title: byUrl.get(url)?.title || undefined,
+        })),
+        ...linkRows.map((row) => ({
+          url: normalizeUrl(row.url),
+          title:
+            LINK_TYPE_OPTIONS.find((option) => option.value === row.pageType)
+              ?.label ?? undefined,
+        })),
+      ];
+      itemLabels = [...selectedPageUrls, ...linkRows.map((row) => row.url)];
+    } else if (source === "faq") {
+      items = completeFaqs.map((row) => ({
+        question: row.question.trim(),
+        answer: row.answer.trim(),
+      }));
+    }
 
-      if (CreateKnowledgeItemsBulk.fulfilled.match(result)) {
-        goToLibrary();
-        return;
-      }
+    // Everything but an article goes live as soon as it is added.
+    const result = await dispatch(
+      CreateKnowledgeItemsBulk({
+        storeCode,
+        source,
+        ...scopeToPayload(scope),
+        publish: true,
+        ...(source === "file" ? { files } : { items }),
+      }),
+    );
 
-      const payload = result.payload as
-        | { data?: unknown; message?: string }
-        | undefined;
-      if (Array.isArray(payload?.data) && values.urlMode === "website") {
-        // The website table has no per-row error slot, so surface the first
-        // failing page (with its address) in the banner instead.
-        const errors = payload.data as Record<string, unknown>[];
-        const failedIndex = errors.findIndex(
-          (entry) => entry && Object.keys(entry).length > 0,
-        );
-        const failedUrl = values.selectedPageUrls[failedIndex];
+    if (CreateKnowledgeItemsBulk.fulfilled.match(result)) {
+      setAdded({
+        count: result.payload.length,
+        label:
+          source === "url"
+            ? plural(result.payload.length, "website page")
+            : source === "file"
+              ? plural(result.payload.length, "document")
+              : plural(result.payload.length, "question"),
+      });
+      setStep("done");
+      dispatch(FetchKnowledgeStats({ storeCode }));
+      return;
+    }
+
+    const payload = result.payload as
+      | { data?: unknown; message?: string }
+      | undefined;
+    if (Array.isArray(payload?.data)) {
+      const errors = payload.data as Record<string, unknown>[];
+      setServerErrors(errors);
+      const failed = errors.findIndex(
+        (entry) => entry && Object.keys(entry).length > 0,
+      );
+      if (source === "url" && failed >= 0) {
         setBanner(
-          failedIndex >= 0
-            ? `${failedUrl ? `${failedUrl}: ` : ""}${
-                firstErrorMessage(errors[failedIndex]) ??
-                "This page couldn't be added."
-              }`
-            : "We couldn't save your knowledge items. Please try again.",
-        );
-      } else if (Array.isArray(payload?.data)) {
-        setRowErrors(payload.data as Record<string, unknown>[]);
-      } else {
-        setBanner(
-          firstErrorMessage(payload?.data) ||
-            payload?.message ||
-            "We couldn't save your knowledge items. Please check your entries and try again.",
+          `${itemLabels[failed] ? `${itemLabels[failed]}: ` : ""}${
+            firstErrorMessage(errors[failed]) ?? "This page couldn't be added."
+          }`,
         );
       }
-    },
-  });
-
-  const values = formik.values;
-  const isSubmitting = CreateKnowledgeItemsBulkIsLoading;
-  const showErrors = formik.submitCount > 0;
-
-  const activeCount =
-    values.source === "faq"
-      ? values.faqRows.length
-      : values.source === "url"
-        ? values.urlMode === "website"
-          ? values.selectedPageUrls.length
-          : values.urlRows.length
-        : values.files.length;
-  const activeCap =
-    values.source === "faq"
-      ? FAQ_CAP
-      : values.source === "url"
-        ? values.urlMode === "website"
-          ? WEBSITE_URL_CAP
-          : URL_CAP
-        : FILE_CAP;
-
-  const faqRowErrors = (formik.errors.faqRows ?? []) as Array<
-    Partial<Record<keyof FaqRow, string>>
-  >;
-  const urlRowErrors = (formik.errors.urlRows ?? []) as Array<
-    Partial<Record<keyof UrlRow, string>>
-  >;
-
-  const handleSourceChange = (next: AddableSource) => {
-    if (next === values.source) return;
-    setRowErrors(null);
-    setBanner(null);
-    formik.setValues({
-      ...values,
-      source: next,
-      faqRows: [emptyFaqRow()],
-      urlRows: [emptyUrlRow()],
-      selectedPageUrls: [],
-      files: [],
-    });
+    } else {
+      setBanner(
+        firstErrorMessage(payload?.data) ||
+          payload?.message ||
+          "We couldn't save your knowledge. Please check your entries and try again.",
+      );
+    }
   };
 
-  // Switching between typing URLs and scanning a website discards whatever
-  // was entered or scanned in the other mode, so each starts empty. (The
-  // scan view clears its own results and input when it unmounts.)
-  const handleUrlModeChange = (next: UrlMode) => {
-    if (next === values.urlMode) return;
-    setRowErrors(null);
-    setBanner(null);
-    formik.setValues({
-      ...values,
-      urlMode: next,
-      urlRows: [emptyUrlRow()],
-      selectedPageUrls: [],
-    });
+  const startAgain = () => {
+    resetContent();
+    setSource(null);
+    setAdded(null);
+    setScope(DEFAULT_KNOWLEDGE_SCOPE);
+    setStep("source");
   };
 
-  const handleScopeChange = (next: ScopeKind) => {
-    formik.setValues({
-      ...values,
-      scopeKind: next,
-      products: next === "product" ? values.products : [],
-      categories: next === "category" ? values.categories : [],
-      collections: next === "collection" ? values.collections : [],
-    });
-  };
+  // --- Layout ---------------------------------------------------------------
+  const meta = source && source !== "article" ? SOURCE_META[source] : null;
+  const tip = source && source !== "article" ? TIPS[source] : null;
 
-  const updateFaqRow = (index: number, patch: Partial<FaqRow>) => {
-    formik.setFieldValue(
-      "faqRows",
-      values.faqRows.map((row, i) =>
-        i === index ? { ...row, ...patch } : row,
-      ),
-    );
-  };
-  const removeFaqRow = (index: number) => {
-    const next = values.faqRows.filter((_, i) => i !== index);
-    formik.setFieldValue("faqRows", next.length > 0 ? next : [emptyFaqRow()]);
-  };
-
-  // A server error describes the value that was submitted; once the row is
-  // edited it is stale, so drop it instead of stacking it on top of the
-  // fresh client-side error.
-  const clearRowServerError = (index: number) =>
-    setRowErrors((prev) =>
-      prev?.[index] ? prev.map((e, i) => (i === index ? {} : e)) : prev,
-    );
-
-  const updateUrlRow = (index: number, patch: Partial<UrlRow>) => {
-    clearRowServerError(index);
-    formik.setFieldValue(
-      "urlRows",
-      values.urlRows.map((row, i) =>
-        i === index ? { ...row, ...patch } : row,
-      ),
-    );
-  };
-  const removeUrlRow = (index: number) => {
-    const next = values.urlRows.filter((_, i) => i !== index);
-    formik.setFieldValue("urlRows", next.length > 0 ? next : [emptyUrlRow()]);
-  };
+  const primaryLabel =
+    source === "url"
+      ? `Add ${plural(readyCount, "page")}`
+      : source === "file"
+        ? `Add ${plural(readyCount, "document")}`
+        : `Add ${plural(readyCount, "question")}`;
+  const footerMessage =
+    source === "url"
+      ? `${plural(readyCount, "page")} selected${
+          alreadyAdded > 0 ? ` · ${alreadyAdded} already in your knowledge` : ""
+        }`
+      : source === "file"
+        ? `${plural(files.length, "file")} ready`
+        : `${plural(completeFaqs.length, "question")} ready${
+            faqRows.length > completeFaqs.length && !hasIncompleteFaq
+              ? " · the empty one is skipped"
+              : ""
+          }`;
 
   return (
-    <div className="flex w-full flex-col gap-6 p-4">
+    <div className="flex min-h-full w-full flex-col gap-5 p-4">
       <div className="flex flex-col gap-1">
         <Button
           variant="ghost"
@@ -572,549 +351,485 @@ export function NewKnowledgePage() {
           onClick={goToLibrary}
         >
           <IconArrowLeft className="size-4" />
-          Back to Library
+          Knowledge
         </Button>
         <Typography variant="h4" as="h1">
-          New Knowledge Item
+          Add knowledge
         </Typography>
-        <Typography variant="muted">
-          Add one or more items in a single request — every field is on this
-          page, no steps to click through.
+        <Typography variant="muted" className="max-w-2xl">
+          Choose what to add. Your assistant answers shoppers from your
+          knowledge, plus your Shopify products, which stay synced, and your
+          orders, which it reads live.
         </Typography>
       </div>
 
+      <AddKnowledgeStepper step={step} />
+
       {banner && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+        >
           {banner}
         </div>
       )}
 
-      <form onSubmit={formik.handleSubmit} className="flex flex-col gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Knowledge item details</CardTitle>
-            <CardDescription>
-              Choose a content type, set where it applies, then add your items —
-              all in one place.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6">
-            <FieldGroup>
-              <div>
-                <FieldLabel className="mb-1">What are you adding?</FieldLabel>
-                <p className="text-sm text-muted-foreground">
-                  Pick a content type and where it applies — these settings
-                  apply to every item you add below.
-                </p>
-              </div>
+      {step === "source" && (
+        <>
+          <div className="flex flex-col gap-5">
+            <SourceCards value={source} onChange={setSource} />
+            <ShopifySyncedNote />
+            <ExistingKnowledge stats={stats} />
+          </div>
+          <StepFooter
+            message={
+              source ? "Ready when you are." : "Choose a source to continue."
+            }
+          >
+            <Button type="button" variant="ghost" onClick={goToLibrary}>
+              Cancel
+            </Button>
+            <Button type="button" disabled={!source} onClick={handleContinue}>
+              Continue
+            </Button>
+          </StepFooter>
+        </>
+      )}
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel>Source</FieldLabel>
-                  <Select
-                    value={values.source}
-                    onValueChange={(next) =>
-                      handleSourceChange(next as AddableSource)
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a source" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SOURCE_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FieldDescription>
-                    {
-                      SOURCE_OPTIONS.find((o) => o.value === values.source)
-                        ?.hint
-                    }
-                  </FieldDescription>
-                </Field>
-
-                <Field>
-                  <FieldLabel>Scope</FieldLabel>
-                  <Select
-                    value={values.scopeKind}
-                    onValueChange={(next) =>
-                      handleScopeChange(next as ScopeKind)
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a scope" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SCOPE_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FieldDescription>
-                    {
-                      SCOPE_OPTIONS.find((o) => o.value === values.scopeKind)
-                        ?.hint
-                    }
-                  </FieldDescription>
-                </Field>
-              </div>
-
-              {values.scopeKind === "product" && (
-                <Field>
-                  <FieldLabel>Products</FieldLabel>
-                  <MultiSelectCombobox
-                    items={FetchProductOptionsListData}
-                    value={values.products}
-                    onValueChange={(next) =>
-                      formik.setFieldValue("products", next)
-                    }
-                    onSearch={(search) => {
-                      if (storeCode)
-                        dispatch(FetchProductOptions({ storeCode, search }));
-                    }}
-                    isLoading={FetchProductOptionsIsLoading}
-                    placeholder="Search products…"
-                  />
-                  {showErrors && formik.errors.products && (
-                    <p className="text-xs text-destructive">
-                      {formik.errors.products as string}
-                    </p>
-                  )}
-                </Field>
-              )}
-
-              {values.scopeKind === "category" && (
-                <Field>
-                  <FieldLabel>Categories</FieldLabel>
-                  <MultiSelectCombobox
-                    items={FetchCategoryOptionsListData}
-                    value={values.categories}
-                    onValueChange={(next) =>
-                      formik.setFieldValue("categories", next)
-                    }
-                    onSearch={(search) => {
-                      if (storeCode)
-                        dispatch(FetchCategoryOptions({ storeCode, search }));
-                    }}
-                    isLoading={FetchCategoryOptionsIsLoading}
-                    placeholder="Search categories…"
-                  />
-                  {showErrors && formik.errors.products && (
-                    <p className="text-xs text-destructive">
-                      {formik.errors.products as string}
-                    </p>
-                  )}
-                </Field>
-              )}
-
-              {values.scopeKind === "collection" && (
-                <Field>
-                  <FieldLabel>Collections</FieldLabel>
-                  <MultiSelectCombobox
-                    items={FetchCollectionOptionsListData}
-                    value={values.collections}
-                    onValueChange={(next) =>
-                      formik.setFieldValue("collections", next)
-                    }
-                    onSearch={(search) => {
-                      if (storeCode)
-                        dispatch(FetchCollectionOptions({ storeCode, search }));
-                    }}
-                    isLoading={FetchCollectionOptionsIsLoading}
-                    placeholder="Search collections…"
-                  />
-                  {showErrors && formik.errors.products && (
-                    <p className="text-xs text-destructive">
-                      {formik.errors.products as string}
-                    </p>
-                  )}
-                </Field>
-              )}
-
-              <AIScopeField
-                value={values.aiScope}
-                onChange={(next) => formik.setFieldValue("aiScope", next)}
+      {step === "content" && meta && source && source !== "article" && (
+        <>
+          <ContentLayout
+            title={meta.title}
+            icon={meta.icon}
+            tone={meta.tone}
+            onChangeSource={() => {
+              resetContent();
+              setStep("source");
+            }}
+            side={
+              <>
+                <KnowledgeScopePanel
+                  value={scope}
+                  onChange={setScope}
+                  showErrors={showErrors}
+                />
+                {tip && <TipCard title={tip.title}>{tip.body}</TipCard>}
+              </>
+            }
+          >
+            {source === "url" && (
+              <WebsiteContent
+                storeCode={storeCode}
+                defaultUrl={storeUrl}
+                selectedPageUrls={selectedPageUrls}
+                onSelectedPageUrlsChange={setSelectedPageUrls}
+                linkRows={linkRows}
+                onLinkRowsChange={setLinkRows}
+                pageCap={WEBSITE_URL_CAP}
                 error={
-                  showErrors ? (formik.errors.aiScope as string) : undefined
+                  showErrors && readyCount === 0
+                    ? "Select at least one page, or add a link"
+                    : undefined
                 }
               />
-            </FieldGroup>
-
-            <FieldSeparator />
-
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between gap-2">
-                <FieldLabel className="text-sm">
-                  {SOURCE_OPTIONS.find((o) => o.value === values.source)?.label}{" "}
-                  items
-                </FieldLabel>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {activeCount} / {activeCap} added
-                </span>
-              </div>
-
-              {values.source === "faq" &&
-                values.faqRows.map((row, index) => {
-                  const serverErrors = rowErrors?.[index];
-                  const questionError =
-                    (showErrors ? faqRowErrors[index]?.question : undefined) ??
-                    firstErrorMessage(serverErrors?.question);
-                  const answerError =
-                    (showErrors ? faqRowErrors[index]?.answer : undefined) ??
-                    firstErrorMessage(serverErrors?.answer);
-
-                  return (
-                    <div
-                      key={row.localId}
-                      className="flex flex-col gap-3 rounded-lg border border-border/60 p-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-muted-foreground">
-                          Item {index + 1}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => removeFaqRow(index)}
-                          aria-label="Remove item"
-                        >
-                          <IconTrash className="size-4" />
-                        </Button>
-                      </div>
-                      <div className="flex flex-col gap-3">
-                        <Field>
-                          <FieldLabel>Question</FieldLabel>
-                          <Input
-                            placeholder="Do you offer free shipping?"
-                            autoComplete="off"
-                            value={row.question}
-                            onChange={(event) =>
-                              updateFaqRow(index, {
-                                question: event.target.value,
-                              })
-                            }
-                            aria-invalid={Boolean(questionError)}
-                          />
-                          {questionError && (
-                            <p className="text-xs text-destructive">
-                              {questionError}
-                            </p>
-                          )}
-                        </Field>
-                        <Field>
-                          <FieldLabel>Answer</FieldLabel>
-                          <Textarea
-                            className="max-h-96 resize-none overflow-y-auto"
-                            rows={1}
-                            placeholder="Yes, orders above ₹999 qualify for free shipping."
-                            maxLength={FAQ_ANSWER_MAX_LENGTH}
-                            value={row.answer}
-                            onChange={(event) =>
-                              updateFaqRow(index, {
-                                answer: event.target.value,
-                              })
-                            }
-                            aria-invalid={Boolean(answerError)}
-                          />
-                          <FieldDescription>
-                            {row.answer.length.toLocaleString()} /{" "}
-                            {FAQ_ANSWER_MAX_LENGTH.toLocaleString()} characters
-                          </FieldDescription>
-                          {answerError && (
-                            <p className="text-xs text-destructive">
-                              {answerError}
-                            </p>
-                          )}
-                        </Field>
-                      </div>
-                    </div>
-                  );
-                })}
-
-              {values.source === "faq" && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-fit"
-                  disabled={values.faqRows.length >= FAQ_CAP}
-                  onClick={() =>
-                    formik.setFieldValue("faqRows", [
-                      ...values.faqRows,
-                      emptyFaqRow(),
-                    ])
-                  }
-                >
-                  <IconPlus className="size-4" />
-                  Add another
-                </Button>
-              )}
-
-              {values.source === "url" && (
-                <div className="flex w-fit gap-1 rounded-lg border border-border/60 p-1">
-                  {(
-                    [
-                      { value: "manual", label: "Enter URLs" },
-                      { value: "website", label: "Scan my website" },
-                    ] as const
-                  ).map((option) => (
-                    <Button
-                      key={option.value}
-                      type="button"
-                      size="sm"
-                      variant={
-                        values.urlMode === option.value ? "secondary" : "ghost"
-                      }
-                      onClick={() => handleUrlModeChange(option.value)}
-                    >
-                      {option.label}
-                    </Button>
-                  ))}
-                </div>
-              )}
-
-              {values.source === "url" && values.urlMode === "website" && (
-                <WebsiteUrlDiscovery
-                  storeCode={storeCode}
-                  selectedUrls={values.selectedPageUrls}
-                  onSelectedUrlsChange={(next) =>
-                    formik.setFieldValue("selectedPageUrls", next)
-                  }
-                  maxSelection={WEBSITE_URL_CAP}
-                  error={
-                    showErrors &&
-                    typeof formik.errors.selectedPageUrls === "string"
-                      ? formik.errors.selectedPageUrls
-                      : undefined
-                  }
-                />
-              )}
-
-              {values.source === "url" &&
-                values.urlMode === "manual" &&
-                values.urlRows.map((row, index) => (
-                  <div
-                    key={row.localId}
-                    className="flex flex-col gap-3 rounded-lg border border-border/60 p-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        Item {index + 1}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => removeUrlRow(index)}
-                        aria-label="Remove item"
-                      >
-                        <IconTrash className="size-4" />
-                      </Button>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <Field className="sm:col-span-2">
-                        <FieldLabel>URL</FieldLabel>
-                        <Input
-                          placeholder="https://company.com/pages/shipping"
-                          autoComplete="off"
-                          value={row.url}
-                          onChange={(event) =>
-                            updateUrlRow(index, { url: event.target.value })
-                          }
-                          aria-invalid={
-                            showErrors && Boolean(urlRowErrors[index]?.url)
-                          }
-                        />
-                        {showErrors && urlRowErrors[index]?.url && (
-                          <p className="text-xs text-destructive">
-                            {urlRowErrors[index]?.url}
-                          </p>
-                        )}
-                      </Field>
-                      <Field>
-                        <FieldLabel>Type</FieldLabel>
-                        <Select
-                          value={row.urlType || undefined}
-                          onValueChange={(next) =>
-                            updateUrlRow(index, {
-                              urlType: next as LocalUrlType,
-                            })
-                          }
-                        >
-                          <SelectTrigger
-                            className="w-full"
-                            aria-invalid={
-                              showErrors &&
-                              Boolean(urlRowErrors[index]?.urlType)
-                            }
-                          >
-                            <SelectValue placeholder="Select a type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {URL_TYPE_OPTIONS.map((option) => (
-                              <SelectItem
-                                key={option.value}
-                                value={option.value}
-                              >
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {showErrors && urlRowErrors[index]?.urlType && (
-                          <p className="text-xs text-destructive">
-                            {urlRowErrors[index]?.urlType}
-                          </p>
-                        )}
-                      </Field>
-                    </div>
-                    {row.urlType === "other" && (
-                      <Field>
-                        <FieldLabel>Title</FieldLabel>
-                        <Input
-                          placeholder="Sizing Guide"
-                          autoComplete="off"
-                          value={row.title}
-                          onChange={(event) =>
-                            updateUrlRow(index, { title: event.target.value })
-                          }
-                          aria-invalid={
-                            showErrors && Boolean(urlRowErrors[index]?.title)
-                          }
-                        />
-                        {showErrors && urlRowErrors[index]?.title && (
-                          <p className="text-xs text-destructive">
-                            {urlRowErrors[index]?.title}
-                          </p>
-                        )}
-                      </Field>
-                    )}
-                    {rowErrors?.[index] &&
-                      Object.keys(rowErrors[index]).length > 0 &&
-                      !(showErrors && urlRowErrors[index]) && (
-                        <p className="text-xs text-destructive">
-                          {firstErrorMessage(rowErrors[index])}
-                        </p>
-                      )}
-                  </div>
-                ))}
-
-              {values.source === "url" && values.urlMode === "manual" && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-fit"
-                  disabled={values.urlRows.length >= URL_CAP}
-                  onClick={() =>
-                    formik.setFieldValue("urlRows", [
-                      ...values.urlRows,
-                      emptyUrlRow(),
-                    ])
-                  }
-                >
-                  <IconPlus className="size-4" />
-                  Add another
-                </Button>
-              )}
-
-              {values.source === "file" && (
-                <MultiFileUploadDropzone
-                  files={values.files}
-                  onFilesSelected={(selected) =>
-                    formik.setFieldValue(
-                      "files",
-                      [...values.files, ...selected].slice(0, FILE_CAP),
-                    )
-                  }
-                  onRemoveFile={(index) =>
-                    formik.setFieldValue(
-                      "files",
-                      values.files.filter((_, i) => i !== index),
-                    )
-                  }
-                  errors={values.files.map(
-                    (_, index) =>
-                      (rowErrors?.[index] &&
-                        firstErrorMessage(rowErrors[index])) ||
-                      undefined,
-                  )}
-                  maxFiles={FILE_CAP}
-                />
-              )}
-
-              {showErrors &&
-                ((values.source === "faq" &&
-                  typeof formik.errors.faqRows === "string") ||
-                  (values.source === "url" &&
-                    typeof formik.errors.urlRows === "string") ||
-                  (values.source === "file" &&
-                    typeof formik.errors.files === "string")) && (
-                  <p className="text-xs text-destructive">
-                    {values.source === "faq"
-                      ? (formik.errors.faqRows as string)
-                      : values.source === "url"
-                        ? (formik.errors.urlRows as string)
-                        : (formik.errors.files as string)}
-                  </p>
-                )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex items-center justify-start gap-3 border-t border-border py-3">
-          <Button type="submit" size="lg" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Spinner data-icon="inline-start" />
-                Submitting…
-              </>
-            ) : (
-              <>
-                <IconDeviceFloppy />
-                Submit {activeCount} item{activeCount === 1 ? "" : "s"}
-              </>
             )}
-          </Button>
+            {source === "file" && (
+              <DocumentsContent
+                files={files}
+                onFilesChange={setFiles}
+                serverErrors={serverErrors}
+                error={
+                  showErrors && files.length === 0
+                    ? "Select at least one file"
+                    : undefined
+                }
+              />
+            )}
+            {source === "faq" && (
+              <FaqContent
+                rows={faqRows}
+                onRowsChange={setFaqRows}
+                showErrors={showErrors}
+                serverErrors={serverErrors}
+                completeRows={completeFaqs}
+                error={
+                  showErrors && completeFaqs.length === 0 && !hasIncompleteFaq
+                    ? "Add at least one question and answer"
+                    : undefined
+                }
+              />
+            )}
+          </ContentLayout>
+
+          <StepFooter message={footerMessage}>
+            <Button type="button" variant="ghost" onClick={goToLibrary}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSubmitting}
+              onClick={() => {
+                resetContent();
+                setStep("source");
+              }}
+            >
+              Back
+            </Button>
+            <PrimaryAction
+              type="button"
+              loading={isSubmitting}
+              disabled={readyCount === 0}
+              onClick={() => void handleSubmit()}
+            >
+              {primaryLabel}
+            </PrimaryAction>
+          </StepFooter>
+        </>
+      )}
+
+      {step === "done" && added && (
+        <div className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
+          <IconCircleCheck className="size-12 text-emerald-500" />
+          <Typography variant="h4" as="h2">
+            {added.label} added
+          </Typography>
+          <Typography variant="muted">
+            {source === "faq"
+              ? "Your assistant can use them straight away."
+              : "We're reading them now. Each one goes live in your assistant as soon as it's ready, and you can follow its progress in Knowledge."}
+          </Typography>
+          <div className="mt-2 flex flex-wrap justify-center gap-2">
+            <Button asChild>
+              <Link href="/knowledge">View in Knowledge</Link>
+            </Button>
+            <Button type="button" variant="outline" onClick={startAgain}>
+              Add more
+            </Button>
+          </div>
         </div>
-      </form>
+      )}
     </div>
   );
 }
 
-/** Builds the `items` array for a non-file bulk submit — pure content
- * per row, matching `BulkKnowledgeItemContent`. */
-function buildItems(
-  values: FormValues,
-  discoveredPages: DiscoveredPage[],
-): BulkKnowledgeItemContent[] {
-  if (values.source === "url" && values.urlMode === "website") {
-    const byUrl = new Map(discoveredPages.map((page) => [page.url, page]));
-    return values.selectedPageUrls.map((url) => ({
-      url,
-      title: byUrl.get(url)?.title || undefined,
-    }));
-  }
+/** The website step: pages found by scanning the site, plus links typed in. */
+function WebsiteContent({
+  storeCode,
+  defaultUrl,
+  selectedPageUrls,
+  onSelectedPageUrlsChange,
+  linkRows,
+  onLinkRowsChange,
+  pageCap,
+  error,
+}: {
+  storeCode: string | null | undefined;
+  defaultUrl: string;
+  selectedPageUrls: string[];
+  onSelectedPageUrlsChange: (next: string[]) => void;
+  linkRows: LinkRow[];
+  onLinkRowsChange: (next: LinkRow[]) => void;
+  pageCap: number;
+  error?: string;
+}) {
+  const [linkInput, setLinkInput] = useState("");
+  const [linkError, setLinkError] = useState<string | null>(null);
 
-  if (values.source === "faq") {
-    return values.faqRows.map((row) => ({
-      question: row.question.trim(),
-      answer: row.answer.trim(),
-    }));
-  }
+  const addLink = () => {
+    const value = linkInput.trim();
+    if (!value) return;
+    if (!isValidUrl(value)) {
+      setLinkError(
+        "Enter a valid page address, e.g. https://store.com/pages/faq",
+      );
+      return;
+    }
+    const url = normalizeUrl(value);
+    if (
+      linkRows.some((row) => normalizeUrl(row.url) === url) ||
+      selectedPageUrls.includes(url)
+    ) {
+      setLinkError("This page is already in your list");
+      return;
+    }
+    if (selectedPageUrls.length + linkRows.length >= pageCap) {
+      setLinkError(`You can add up to ${pageCap} pages at a time`);
+      return;
+    }
+    setLinkError(null);
+    setLinkInput("");
+    onLinkRowsChange([...linkRows, { localId: randomId(), url, pageType: "" }]);
+  };
 
-  return values.urlRows.map((row) => {
-    const title =
-      row.urlType === "other"
-        ? row.title.trim() || undefined
-        : URL_TYPE_OPTIONS.find((option) => option.value === row.urlType)
-            ?.label;
-    return { url: normalizeUrl(row.url), title };
-  });
+  return (
+    <div className="flex flex-col gap-5">
+      <WebsiteUrlDiscovery
+        storeCode={storeCode}
+        defaultUrl={defaultUrl}
+        selectedUrls={selectedPageUrls}
+        onSelectedUrlsChange={onSelectedPageUrlsChange}
+        maxSelection={pageCap}
+        error={error}
+      />
+
+      <section className="flex flex-col gap-2 border-t pt-4">
+        <h3 className="text-sm font-semibold">Add a link</h3>
+        <div className="flex gap-2">
+          <Input
+            placeholder="https://store.com/pages/…"
+            autoComplete="off"
+            aria-label="Page address"
+            value={linkInput}
+            onChange={(event) => setLinkInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addLink();
+              }
+            }}
+            aria-invalid={Boolean(linkError)}
+          />
+          <Button type="button" variant="outline" onClick={addLink}>
+            Add
+          </Button>
+        </div>
+        {linkError && <p className="text-xs text-destructive">{linkError}</p>}
+
+        {linkRows.length > 0 && (
+          <ul className="flex flex-col divide-y rounded-lg border">
+            {linkRows.map((row) => (
+              <li
+                key={row.localId}
+                className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5"
+              >
+                <p
+                  className="min-w-0 flex-1 basis-48 truncate text-sm"
+                  title={row.url}
+                >
+                  {row.url}
+                </p>
+                <Select
+                  value={row.pageType || undefined}
+                  onValueChange={(pageType) =>
+                    onLinkRowsChange(
+                      linkRows.map((entry) =>
+                        entry.localId === row.localId
+                          ? { ...entry, pageType }
+                          : entry,
+                      ),
+                    )
+                  }
+                >
+                  <SelectTrigger size="sm" className="w-44">
+                    <SelectValue placeholder="Page type (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LINK_TYPE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Remove ${row.url}`}
+                  onClick={() =>
+                    onLinkRowsChange(
+                      linkRows.filter((entry) => entry.localId !== row.localId),
+                    )
+                  }
+                >
+                  <IconX className="size-4" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-xs text-muted-foreground">
+          One page per link. If a page changes later, use &quot;Read the page
+          again&quot; in Knowledge.
+        </p>
+      </section>
+    </div>
+  );
+}
+
+/** The documents step: the drop area and the files chosen so far. */
+function DocumentsContent({
+  files,
+  onFilesChange,
+  serverErrors,
+  error,
+}: {
+  files: File[];
+  onFilesChange: (next: File[]) => void;
+  serverErrors: Record<string, unknown>[] | null;
+  error?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <MultiFileUploadDropzone
+        files={files}
+        onFilesSelected={(selected) =>
+          onFilesChange([...files, ...selected].slice(0, FILE_CAP))
+        }
+        onRemoveFile={(index) =>
+          onFilesChange(files.filter((_, i) => i !== index))
+        }
+        errors={files.map(
+          (_, index) =>
+            (serverErrors?.[index] && firstErrorMessage(serverErrors[index])) ||
+            undefined,
+        )}
+        maxFiles={FILE_CAP}
+        maxFileSizeBytes={KNOWLEDGE_FILE_MAX_SIZE_BYTES}
+      />
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/** The questions step: one card per question and answer. */
+function FaqContent({
+  rows,
+  onRowsChange,
+  showErrors,
+  serverErrors,
+  completeRows,
+  error,
+}: {
+  rows: FaqRow[];
+  onRowsChange: (next: FaqRow[]) => void;
+  showErrors: boolean;
+  serverErrors: Record<string, unknown>[] | null;
+  /** The rows that are filled in, in the order they are sent. */
+  completeRows: FaqRow[];
+  error?: string;
+}) {
+  const update = (localId: string, patch: Partial<FaqRow>) =>
+    onRowsChange(
+      rows.map((row) => (row.localId === localId ? { ...row, ...patch } : row)),
+    );
+
+  return (
+    <div className="flex flex-col gap-4">
+      {rows.map((row, index) => {
+        const isFilled = Boolean(row.question.trim() || row.answer.trim());
+        // The server only saw the complete rows, so map its errors back.
+        const sentIndex = completeRows.findIndex(
+          (entry) => entry.localId === row.localId,
+        );
+        const serverError = sentIndex >= 0 ? serverErrors?.[sentIndex] : null;
+        const questionError =
+          (showErrors && isFilled && !row.question.trim()
+            ? "Question is required"
+            : undefined) ??
+          firstErrorMessage(
+            (serverError as Record<string, unknown> | null)?.question,
+          );
+        const answerError =
+          (showErrors && isFilled && !row.answer.trim()
+            ? "Answer is required"
+            : undefined) ??
+          firstErrorMessage(
+            (serverError as Record<string, unknown> | null)?.answer,
+          );
+
+        return (
+          <div
+            key={row.localId}
+            className="flex flex-col gap-3 rounded-lg border p-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Question {index + 1}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Remove question ${index + 1}`}
+                onClick={() => {
+                  const next = rows.filter(
+                    (entry) => entry.localId !== row.localId,
+                  );
+                  onRowsChange(next.length > 0 ? next : [emptyFaqRow()]);
+                }}
+              >
+                <IconTrash className="size-4" />
+              </Button>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor={`faq-question-${row.localId}`}
+                className="text-xs font-medium"
+              >
+                Customer asks
+              </label>
+              <Input
+                id={`faq-question-${row.localId}`}
+                placeholder="e.g. Can I exchange a size after delivery?"
+                autoComplete="off"
+                value={row.question}
+                onChange={(event) =>
+                  update(row.localId, { question: event.target.value })
+                }
+                aria-invalid={Boolean(questionError)}
+              />
+              {questionError && (
+                <p className="text-xs text-destructive">{questionError}</p>
+              )}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor={`faq-answer-${row.localId}`}
+                className="text-xs font-medium"
+              >
+                Your answer
+              </label>
+              <Textarea
+                id={`faq-answer-${row.localId}`}
+                className="max-h-96 min-h-20 resize-y"
+                placeholder="Write it the way you'd reply to a customer."
+                maxLength={FAQ_ANSWER_MAX_LENGTH}
+                value={row.answer}
+                onChange={(event) =>
+                  update(row.localId, { answer: event.target.value })
+                }
+                aria-invalid={Boolean(answerError)}
+              />
+              <div className="flex items-center justify-between gap-2">
+                {answerError ? (
+                  <p className="text-xs text-destructive">{answerError}</p>
+                ) : (
+                  <span />
+                )}
+                <span className="text-xs text-muted-foreground">
+                  {row.answer.length.toLocaleString()} /{" "}
+                  {FAQ_ANSWER_MAX_LENGTH.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="w-fit"
+        disabled={rows.length >= FAQ_CAP}
+        onClick={() => onRowsChange([...rows, emptyFaqRow()])}
+      >
+        <IconPlus className="size-4" />
+        Add another question
+      </Button>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
 }

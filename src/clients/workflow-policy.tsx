@@ -5,29 +5,33 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import {
+  IconAlertCircle,
   IconAlertTriangle,
   IconArrowLeft,
+  IconArrowRight,
   IconBulb,
-  IconCircleX,
-  IconDeviceFloppy,
+  IconCheck,
+  IconCircle,
+  IconCircleCheck,
+  IconEye,
   IconFileText,
-  IconGitBranch,
-  IconHelpCircle,
-  IconHistory,
-  IconInfoCircle,
   IconLock,
-  IconPlus,
+  IconRefresh,
   IconRestore,
-  IconSparkles,
   IconTrash,
-  IconX,
+  IconWand,
   type Icon,
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 
+import { ConfirmSwitch, type SwitchChange } from "@/clients/settings-workflows";
 import { FieldError } from "@/components/custom/field-error";
 import { LoadingState } from "@/components/custom/loading-state";
-import { PageHeading } from "@/components/custom/page-heading";
+import type { TextMark } from "@/components/custom/rich-text-area";
+import { useInfiniteScroll } from "@/components/custom/social-ai/use-infinite-scroll";
+import WorkflowPolicyFlow, {
+  OUTCOMES,
+} from "@/components/custom/settings/workflows/workflow-policy-flow";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +54,7 @@ import {
 } from "@/components/ui/empty";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Typography } from "@/components/ui/typography";
 import { BADGE_TONE_STYLES, type BadgeTone } from "@/lib/badge-tones";
@@ -58,12 +63,23 @@ import { formatDateTime } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
+  CheckWorkflowPolicy,
   DeleteWorkflowPolicyVersion,
+  DismissPolicySuggestion,
+  FetchPolicyVersions,
+  FetchStoreWorkflows,
+  FetchWorkflowActivity,
   FetchWorkflowPolicy,
   RollbackWorkflowPolicy,
   SaveWorkflowPolicy,
-  type PolicyFinding,
-  type PolicyIdea,
+  UpdateStoreWorkflow,
+  type PagedList,
+  type PolicyActivity,
+  type PolicyHistoryEntry,
+  type PolicySuggestion,
+  type PolicySuggestionFix,
+  type PolicySuggestionKind,
+  type StoreWorkflow,
   type WorkflowPolicy as Policy,
 } from "@/redux/api-slice/store-settings-slice";
 
@@ -73,69 +89,94 @@ const RichTextArea = dynamic(
   { ssr: false },
 );
 
-// React Flow measures the page, so the flowchart loads on the client only.
-const WorkflowPolicyFlow = dynamic(
-  () => import("@/components/custom/settings/workflows/workflow-policy-flow"),
-  {
-    ssr: false,
-    loading: () => (
-      <LoadingState
-        label="Loading flowchart…"
-        className="h-[560px] rounded-xl border sm:h-[640px]"
-      />
-    ),
-  },
-);
-
 const BACK_HREF = "/settings/workflows";
 
 // Same limit the backend enforces on the policy text.
 const POLICY_MAX_LENGTH = 3000;
 
 /**
- * What a merchant can write about, per workflow code: the facts that
- * workflow's rules can use, and sentences that click into the box. A
- * workflow missing here gets the box alone.
+ * Under the policy box: how the AI reads what the merchant writes. Rules
+ * have no order; the engine settles overlaps by effect (decline, then the
+ * team, then allow).
  */
-const POLICY_GUIDES: Record<string, { topics: string[]; examples: string[] }> =
-  {
-    order_cancellation: {
-      topics: [
-        "Time since the order was placed",
-        "Order total",
-        "Payment method (COD or prepaid)",
-        "A discount code was used",
-        "Number of items",
-        "The customer's reason",
-      ],
-      examples: [
-        "Orders can be cancelled within 12 hours of purchase.",
-        "Cash on delivery orders can be cancelled anytime. Prepaid orders only within 2 hours.",
-        "Orders above 5000 need my approval.",
-      ],
-    },
-  };
+const WRITING_TIPS = [
+  "One rule per line. Say what the AI should do: allow, decline, or send to your team.",
+  "Define words like “high value” with a number.",
+  "When two rules overlap, the stricter one wins: decline, then your team, then allow.",
+];
 
-/** How each finding looks, by how serious it is. */
-const SEVERITY: Record<
-  PolicyFinding["severity"],
-  { tone: BadgeTone; icon: Icon }
+// The tabs as line tabs with the brand underline.
+const TAB_CLASS = "flex-none px-3 after:bg-primary";
+// A count beside a tab's name.
+const TAB_COUNT_CLASS = "min-w-5 rounded-full px-1.5 tabular-nums";
+
+/** How each kind of suggestion looks. */
+const SUGGESTION_KINDS: Record<
+  PolicySuggestionKind,
+  { label: string; tone: BadgeTone; icon: Icon }
 > = {
-  error: { tone: "danger", icon: IconCircleX },
-  warning: { tone: "warning", icon: IconAlertTriangle },
-  info: { tone: "info", icon: IconInfoCircle },
+  contradiction: {
+    label: "Contradiction",
+    tone: "danger",
+    icon: IconAlertTriangle,
+  },
+  never_applies: {
+    label: "Never applies",
+    tone: "danger",
+    icon: IconAlertTriangle,
+  },
+  unclear: { label: "Unclear", tone: "warning", icon: IconAlertCircle },
+  missing: {
+    label: "Missing coverage",
+    tone: "warning",
+    icon: IconAlertCircle,
+  },
 };
 
-/** What the other sentences of a finding are to it. */
-const OTHERS_LABEL: Record<PolicyFinding["kind"], string> = {
-  impossible: "",
-  overridden: "Always decided first by",
-  conflict: "Wins over it",
-  redundant: "Already covered by",
-  gap: "",
+// The icon colour for each tone a suggestion can have.
+const TONE_TEXT: Partial<Record<BadgeTone, string>> = {
+  danger: "text-rose-600 dark:text-rose-400",
+  warning: "text-amber-600 dark:text-amber-400",
 };
 
-type Tab = "flow" | "suggestions" | "history";
+/** How each activity entry reads. */
+const ACTIVITY: Record<
+  PolicyActivity["kind"],
+  { label: string; icon: Icon; color: string }
+> = {
+  status_changed: {
+    label: "Status changed",
+    icon: IconCircleCheck,
+    color: "text-emerald-600 dark:text-emerald-400",
+  },
+  policy_added: {
+    label: "Custom policy added",
+    icon: IconFileText,
+    color: "text-sky-600 dark:text-sky-400",
+  },
+  policy_updated: {
+    label: "Policy updated",
+    icon: IconFileText,
+    color: "text-sky-600 dark:text-sky-400",
+  },
+  policy_removed: {
+    label: "Custom policy removed",
+    icon: IconFileText,
+    color: "text-sky-600 dark:text-sky-400",
+  },
+  policy_restored: {
+    label: "Policy restored",
+    icon: IconRestore,
+    color: "text-sky-600 dark:text-sky-400",
+  },
+  version_deleted: {
+    label: "Version deleted",
+    icon: IconTrash,
+    color: "text-muted-foreground",
+  },
+};
+
+type Tab = "flow" | "suggestions" | "history" | "activity";
 
 /** A yes/no question asked before a save, restore, delete or leaving. */
 type Confirm = {
@@ -148,11 +189,31 @@ type Confirm = {
 };
 
 /**
+ * The saved text with fixes put in at the places the backend gave, the
+ * last place first so the earlier places still hold.
+ */
+function withFixes(saved: string, fixes: PolicySuggestionFix[]) {
+  return [...fixes]
+    .sort((a, b) => b.start_index - a.start_index)
+    .reduce(
+      (out, fix) =>
+        out.slice(0, fix.start_index) + fix.insert + out.slice(fix.end_index),
+      saved,
+    );
+}
+
+/** Two fixes change the same words (two adds at the end never do). */
+const overlaps = (a: PolicySuggestionFix, b: PolicySuggestionFix) =>
+  a.start_index < b.end_index && b.start_index < a.end_index;
+
+/**
  * One workflow's policy for the selected store, opened from its row on
- * Settings → Workflows. The merchant writes on the left; on the right,
- * three tabs: How the AI decides (the saved policy as a flowchart),
- * Suggestions (what code found and the AI's ideas) and History (earlier
- * versions, each restorable or deletable).
+ * Settings → Workflows. The header carries the workflow's on/off switch.
+ * The merchant writes on the left (on top on smaller screens); beside it,
+ * tabs: What the AI will do (the saved policy as numbered steps),
+ * Suggestions (the live policy's check, run after every save), Versions
+ * (earlier versions, each restorable or deletable) and Activity (who
+ * changed what).
  */
 export default function WorkflowPolicy({ code }: { code: string }) {
   const dispatch = useAppDispatch();
@@ -182,26 +243,121 @@ export default function WorkflowPolicy({ code }: { code: string }) {
       state.GetStoreSettingsReducer.DeleteWorkflowPolicyVersionState
         .DeleteWorkflowPolicyVersionPendingVersion,
   );
+  const { CheckWorkflowPolicyPendingWorkflow, CheckWorkflowPolicyIsError } =
+    useAppSelector(
+      (state) => state.GetStoreSettingsReducer.CheckWorkflowPolicyState,
+    );
+  const checking = CheckWorkflowPolicyPendingWorkflow === code;
+  const dismissingKey = useAppSelector(
+    (state) =>
+      state.GetStoreSettingsReducer.DismissPolicySuggestionState
+        .DismissPolicySuggestionPendingKey,
+  );
+  // The workflow's row on Settings → Workflows: its AI, description and
+  // on/off switch for the header.
+  const workflows = useAppSelector(
+    (state) =>
+      state.GetStoreSettingsReducer.FetchStoreWorkflowsState
+        .FetchStoreWorkflowsData,
+  );
+  const workflow = workflows.find((item) => item.code === code);
+  const switching = useAppSelector(
+    (state) =>
+      state.GetStoreSettingsReducer.UpdateStoreWorkflowState
+        .UpdateStoreWorkflowPendingCode !== null,
+  );
+  // Versions and activity come a page at a time from their own endpoints;
+  // pages for another store or workflow are never shown.
+  const owner = `${storeCode}:${code}`;
+  const versionsState = useAppSelector(
+    (state) => state.GetStoreSettingsReducer.FetchPolicyVersionsState,
+  );
+  const activityState = useAppSelector(
+    (state) => state.GetStoreSettingsReducer.FetchWorkflowActivityState,
+  );
+  const versions = versionsState.FetchPolicyVersionsData;
+  const activity = activityState.FetchWorkflowActivityData;
+  const storeName = useAppSelector(
+    (state) =>
+      state.GetStoresReducer.GetStoresState.GetStoresListData.find(
+        (store) => store.code === storeCode,
+      )?.name,
+  );
 
   // Null until the merchant types, so the box shows the saved text.
   const [draft, setDraft] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [tab, setTab] = useState<Tab>("flow");
+  const [change, setChange] = useState<SwitchChange | null>(null);
+  // The suggestion last shown in the policy, and the fixes put into the draft.
+  const [selected, setSelected] = useState<string | null>(null);
+  const [added, setAdded] = useState<Record<string, PolicySuggestionFix>>({});
 
+  const loadVersions = (page = 1) => {
+    if (storeCode)
+      dispatch(FetchPolicyVersions({ storeCode, workflow: code, page }));
+  };
+  const loadActivity = (page = 1) => {
+    if (storeCode)
+      dispatch(FetchWorkflowActivity({ storeCode, workflow: code, page }));
+  };
+  // A save, restore or delete adds a version (or takes one away) and an
+  // activity entry: both lists start again from their newest page.
+  const reloadLists = () => {
+    loadVersions();
+    loadActivity();
+  };
   const load = () => {
-    if (storeCode) dispatch(FetchWorkflowPolicy({ storeCode, workflow: code }));
+    if (!storeCode) return;
+    dispatch(FetchWorkflowPolicy({ storeCode, workflow: code }));
+    reloadLists();
   };
 
+  const check = () => {
+    if (storeCode) dispatch(CheckWorkflowPolicy({ storeCode, workflow: code }));
+  };
+
+  // The policy, its versions and its activity load together.
   useEffect(() => {
-    if (storeCode) dispatch(FetchWorkflowPolicy({ storeCode, workflow: code }));
+    if (!storeCode) return;
+    dispatch(FetchWorkflowPolicy({ storeCode, workflow: code }));
+    dispatch(FetchPolicyVersions({ storeCode, workflow: code, page: 1 }));
+    dispatch(FetchWorkflowActivity({ storeCode, workflow: code, page: 1 }));
+    dispatch(FetchStoreWorkflows(storeCode));
   }, [dispatch, storeCode, code]);
+
+  // Turns the workflow on or off once the merchant approves it in the dialog.
+  const toggle = async ({ workflow: target, isEnabled }: SwitchChange) => {
+    if (!storeCode) return;
+    try {
+      const saved = await dispatch(
+        UpdateStoreWorkflow({ storeCode, code: target.code, isEnabled }),
+      ).unwrap();
+      const others = saved.also_changed.length
+        ? ` with ${saved.also_changed.length} linked workflow${saved.also_changed.length > 1 ? "s" : ""}`
+        : "";
+      toast.success(
+        `${target.name} turned ${isEnabled ? "on" : "off"}${others}`,
+      );
+      // The switch shows up in the activity.
+      loadActivity();
+    } catch {
+      // The thunk already showed the error toast.
+    } finally {
+      setChange(null);
+    }
+  };
 
   const savedText = policy?.text ?? "";
   const text = draft ?? savedText;
   // The backend trims what it saves, so compare trimmed.
   const isDirty = policy !== null && text.trim() !== savedText;
   const tooLong = text.length > POLICY_MAX_LENGTH;
+  // Fixes go in at the backend's places in the saved text, so they can't
+  // once the merchant has edited it by hand.
+  const handEdited =
+    draft !== null && draft !== withFixes(savedText, Object.values(added));
   const busy = saving || restoringVersion !== null || deletingVersion !== null;
 
   // Closing the tab with unsaved edits asks the browser to confirm.
@@ -212,9 +368,12 @@ export default function WorkflowPolicy({ code }: { code: string }) {
     return () => window.removeEventListener("beforeunload", warn);
   }, [isDirty]);
 
-  // Adds a sentence as its own paragraph (a blank line in Markdown).
-  const addSentence = (line: string) =>
-    setDraft(text.trim() ? `${text.trimEnd()}\n\n${line}` : line);
+  // Back to the saved text, with no fixes pending.
+  const discard = () => {
+    setDraft(null);
+    setErrors({});
+    setAdded({});
+  };
 
   const save = async () => {
     if (!storeCode) return;
@@ -224,10 +383,10 @@ export default function WorkflowPolicy({ code }: { code: string }) {
         SaveWorkflowPolicy({ storeCode, workflow: code, text }),
       ).unwrap();
       setDraft(null);
-      // Suggestions are off until they work properly.
-      // Show anything to check first, else what the AI made of it.
-      // setTab(noteCount(saved) ? "suggestions" : "flow");
+      setAdded({});
+      setSelected(null);
       setTab("flow");
+      reloadLists();
       toast.success(
         saved.text
           ? `Policy saved as v${saved.policy_version}`
@@ -259,9 +418,9 @@ export default function WorkflowPolicy({ code }: { code: string }) {
       await dispatch(
         RollbackWorkflowPolicy({ storeCode, workflow: code, version }),
       ).unwrap();
-      setDraft(null);
-      setErrors({});
+      discard();
       setTab("flow");
+      reloadLists();
       toast.success(`v${version} is live again`);
     } catch {
       // The thunk already showed the error toast.
@@ -274,10 +433,44 @@ export default function WorkflowPolicy({ code }: { code: string }) {
       await dispatch(
         DeleteWorkflowPolicyVersion({ storeCode, workflow: code, version }),
       ).unwrap();
+      reloadLists();
       toast.success(`v${version} deleted`);
     } catch {
       // The thunk already showed the error toast.
     }
+  };
+
+  const dismiss = (key: string) => {
+    if (storeCode)
+      dispatch(DismissPolicySuggestion({ storeCode, workflow: code, key }));
+  };
+
+  // Select the card and bring its first marked line into view.
+  const showInPolicy = (suggestion: PolicySuggestion) => {
+    setSelected(suggestion.key);
+    const first = suggestion.lines[0];
+    if (!first) return;
+    document
+      .querySelector(`#workflow-policy-card [data-mark="${first.start_index}"]`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  // Put the fixes chosen so far, and this one, into the saved text.
+  const addFix = (suggestion: PolicySuggestion) => {
+    const fix = suggestion.fix;
+    if (!fix || handEdited) return;
+    const next = { ...added, [suggestion.key]: fix };
+    setDraft(withFixes(savedText, Object.values(next)));
+    setAdded(next);
+    setSelected(suggestion.key);
+  };
+
+  const takeBack = (suggestion: PolicySuggestion) => {
+    if (handEdited) return;
+    const next = { ...added };
+    delete next[suggestion.key];
+    setDraft(withFixes(savedText, Object.values(next)));
+    setAdded(next);
   };
 
   const requestBack = () => {
@@ -293,34 +486,60 @@ export default function WorkflowPolicy({ code }: { code: string }) {
     });
   };
 
+  const items = policy?.suggestions.items ?? [];
+  const marks = Object.values(
+    items
+      .flatMap((item) => item.lines)
+      .reduce<Record<string, TextMark>>((out, line) => {
+        const place = `${line.start_index}:${line.end_index}`;
+        out[place] = {
+          start: line.start_index,
+          end: line.end_index,
+          count: (out[place]?.count ?? 0) + 1,
+        };
+        return out;
+      }, {}),
+  );
+
   return (
     <div className="flex flex-col gap-6 p-4">
-      <div className="flex items-start gap-3">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Back to workflows"
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
           onClick={requestBack}
+          className="flex w-fit items-center gap-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
         >
-          <IconArrowLeft />
-        </Button>
-        <PageHeading
-          className="min-w-0 flex-1"
-          title={policy ? `${policy.name} policy` : "Workflow policy"}
-          description="Tell the AI how to handle these requests, in your own words. It applies to this store only."
-          action={
-            policy &&
-            policy.policy_version > 0 && (
-              <Badge variant="secondary">
-                v{policy.policy_version}
-                {policy.policy_published_at &&
-                  ` · saved ${formatDateTime(policy.policy_published_at)}`}
-                {policy.policy_published_by &&
-                  ` by ${policy.policy_published_by}`}
-              </Badge>
-            )
-          }
-        />
+          <IconArrowLeft className="size-4" />
+          AI workflows
+        </button>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Typography variant="h4" as="h2">
+                {policy?.name ?? workflow?.name ?? "Workflow policy"}
+              </Typography>
+              {workflow && (
+                <Badge variant="secondary">{workflow.agent_label}</Badge>
+              )}
+              {policy && policy.policy_version > 0 && (
+                <Badge variant="outline" className={BADGE_TONE_STYLES.accent}>
+                  Custom policy
+                </Badge>
+              )}
+            </div>
+            <Typography variant="muted">
+              {workflow?.description}
+              {storeName && ` Applies to ${storeName} only.`}
+            </Typography>
+          </div>
+          {workflow && (
+            <WorkflowSwitch
+              workflow={workflow}
+              disabled={switching}
+              onToggle={(isEnabled) => setChange({ workflow, isEnabled })}
+            />
+          )}
+        </div>
       </div>
 
       {!policy && !FetchWorkflowPolicyIsError && (
@@ -348,10 +567,24 @@ export default function WorkflowPolicy({ code }: { code: string }) {
 
       {policy && (
         <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-          <section className="flex flex-col gap-5">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="workflow-policy-text">Your policy</Label>
-              {/* Saved as Markdown, the same as the widget's greeting. */}
+          <section className="flex min-w-0 flex-col gap-4">
+            <div
+              id="workflow-policy-card"
+              className="flex flex-col overflow-hidden rounded-xl border bg-card"
+            >
+              <div className="flex items-center justify-between gap-2 px-4 py-3">
+                <Label htmlFor="workflow-policy-text" className="font-semibold">
+                  Your policy
+                </Label>
+                {policy.policy_version > 0 && (
+                  <Badge variant="secondary">
+                    Version {policy.policy_version} · current
+                  </Badge>
+                )}
+              </div>
+              {/* Saved as Markdown, the same as the widget's greeting. The
+                  card draws the frame, so the editor drops its own. On the
+                  Suggestions tab the lines they are about are marked. */}
               <RichTextArea
                 id="workflow-policy-text"
                 value={text}
@@ -361,113 +594,156 @@ export default function WorkflowPolicy({ code }: { code: string }) {
                 placeholder="e.g. Orders can be cancelled within 12 hours. Orders above 5000 need my approval."
                 minHeight="14rem"
                 maxHeight="32rem"
+                marks={tab === "suggestions" ? marks : undefined}
+                marksSource={savedText}
+                className="rounded-none border-0 border-t border-border focus-within:border-border focus-within:ring-0 [&_[role=toolbar]]:bg-muted/40 [&_[role=toolbar]]:px-3"
               />
-              <FieldError errors={errors} name="text" />
-              <FieldError errors={errors} name="workflow" />
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="px-4 empty:hidden">
+                <FieldError errors={errors} name="text" />
+                <FieldError errors={errors} name="workflow" />
+              </div>
+              <div className="flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-3">
                 {/* Over the limit reads as an error before the server says so. */}
                 <Typography
                   variant="caption"
-                  className={cn(tooLong && !saving && "text-destructive")}
+                  className={cn(
+                    "mr-auto",
+                    tooLong && !saving && "text-destructive",
+                    isDirty &&
+                      !tooLong &&
+                      !saving &&
+                      "text-amber-600 dark:text-amber-400",
+                  )}
                 >
                   {saving
                     ? "This can take up to 20 seconds."
                     : tooLong
                       ? `${text.length} / ${POLICY_MAX_LENGTH}: your policy can be up to ${POLICY_MAX_LENGTH} characters. Please shorten it.`
-                      : `${text.length} / ${POLICY_MAX_LENGTH}`}
+                      : isDirty
+                        ? `Unsaved changes · ${text.length} / ${POLICY_MAX_LENGTH}`
+                        : `${text.length} / ${POLICY_MAX_LENGTH} · plain language works best`}
                 </Typography>
+                {isDirty && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    onClick={discard}
+                  >
+                    Discard
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   onClick={requestSave}
                   // Only a changed text makes a new version.
                   disabled={busy || tooLong || !isDirty}
                 >
-                  {saving ? (
-                    <>
-                      <Spinner data-icon="inline-start" />
-                      Converting your policy…
-                    </>
-                  ) : (
-                    <>
-                      <IconDeviceFloppy data-icon="inline-start" />
-                      Save policy
-                    </>
-                  )}
+                  {saving && <Spinner data-icon="inline-start" />}
+                  {saving
+                    ? "Converting and checking your policy…"
+                    : `Save as version ${policy.next_version}`}
                 </Button>
               </div>
             </div>
 
-            <WritingGuide
-              workflowCode={code}
-              text={text}
-              disabled={busy}
-              onAdd={addSentence}
-            />
+            <div className="flex flex-col gap-2 rounded-xl border bg-card p-4">
+              <h3 className="text-sm font-semibold">Writing tips</h3>
+              <ul className="flex flex-col gap-2">
+                {WRITING_TIPS.map((tip) => (
+                  <li
+                    key={tip}
+                    className="flex items-start gap-2 text-xs leading-[18px] text-muted-foreground"
+                  >
+                    <IconCircle className="mt-0.5 size-3.5 shrink-0" />
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
 
           <Tabs
             value={tab}
             onValueChange={(value) => setTab(value as Tab)}
-            className="flex min-w-0 flex-col gap-4"
+            className="min-w-0 gap-0 overflow-hidden rounded-xl border bg-card"
           >
-            <TabsList variant="line">
-              <TabsTrigger value="flow">
-                <IconGitBranch className="max-sm:hidden" />
-                How the AI decides
+            <TabsList
+              variant="line"
+              className="w-full justify-start overflow-x-auto overflow-y-hidden border-b px-4"
+            >
+              <TabsTrigger value="flow" className={TAB_CLASS}>
+                What the AI will do
               </TabsTrigger>
-              {/* Suggestions are off until they work properly.
-              <TabsTrigger value="suggestions">
-                <IconBulb className="max-sm:hidden" />
+              <TabsTrigger value="suggestions" className={TAB_CLASS}>
                 Suggestions
-                {noteCount(policy) > 0 && (
-                  <Badge
-                    variant="outline"
-                    className={cn("h-4 px-1.5", BADGE_TONE_STYLES.warning)}
-                    aria-label={`${noteCount(policy)} to check`}
-                  >
-                    {noteCount(policy)}
+                {checking ? (
+                  <Spinner className="size-3.5" />
+                ) : (
+                  items.length > 0 && (
+                    <Badge
+                      variant="outline"
+                      className={cn(TAB_COUNT_CLASS, BADGE_TONE_STYLES.danger)}
+                    >
+                      {items.length}
+                    </Badge>
+                  )
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="history" className={TAB_CLASS}>
+                Versions
+                {versions.owner === owner && (
+                  <Badge variant="secondary" className={TAB_COUNT_CLASS}>
+                    {versions.count}
                   </Badge>
                 )}
               </TabsTrigger>
-              */}
-              <TabsTrigger value="history">
-                <IconHistory className="max-sm:hidden" />
-                History
+              <TabsTrigger value="activity" className={TAB_CLASS}>
+                Activity
+                {activity.owner === owner && (
+                  <Badge variant="secondary" className={TAB_COUNT_CLASS}>
+                    {activity.count}
+                  </Badge>
+                )}
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="flow" className="flex flex-col gap-3">
+            <TabsContent value="flow" className="flex flex-col gap-3 p-5">
               <FlowNotes
                 policy={policy}
-                // Suggestions are off until they work properly.
-                // onSuggestions={() => setTab("suggestions")}
+                onSuggestions={() => setTab("suggestions")}
               />
-              {/* A new version gets a fresh chart, laid out again. */}
               <WorkflowPolicyFlow
-                key={policy.policy_version}
                 flow={policy.flow}
+                title={`How the AI handles ${policy.name.toLowerCase()} requests`}
               />
             </TabsContent>
 
-            {/* Suggestions are off until they work properly.
-            <TabsContent value="suggestions">
+            <TabsContent value="suggestions" className="p-5">
               <Suggestions
                 policy={policy}
-                text={text}
+                checking={checking}
+                failed={!checking && CheckWorkflowPolicyIsError !== null}
+                selected={selected}
+                added={added}
+                handEdited={handEdited}
+                dismissingKey={dismissingKey}
                 disabled={busy}
-                onAdd={(idea) => {
-                  addSentence(idea.sentence);
-                  toast.success("Added to your policy", {
-                    description: "Save it to start using it.",
-                  });
-                }}
+                onCheck={check}
+                onDismiss={dismiss}
+                onShow={showInPolicy}
+                onAdd={addFix}
+                onUndo={takeBack}
               />
             </TabsContent>
-            */}
 
-            <TabsContent value="history">
+            <TabsContent value="history" className="p-5">
               <History
-                policy={policy}
+                list={versions}
+                shown={versions.owner === owner}
+                loading={versionsState.FetchPolicyVersionsIsLoading}
+                liveVersion={policy.policy_version}
+                onMore={() => loadVersions(versions.page + 1)}
                 restoringVersion={restoringVersion}
                 deletingVersion={deletingVersion}
                 disabled={busy}
@@ -488,6 +764,16 @@ export default function WorkflowPolicy({ code }: { code: string }) {
                     destructive: true,
                   })
                 }
+              />
+            </TabsContent>
+
+            <TabsContent value="activity" className="p-5">
+              <ActivityLog
+                list={activity}
+                shown={activity.owner === owner}
+                loading={activityState.FetchWorkflowActivityIsLoading}
+                onMore={() => loadActivity(activity.page + 1)}
+                workflows={workflows}
               />
             </TabsContent>
           </Tabs>
@@ -524,116 +810,63 @@ export default function WorkflowPolicy({ code }: { code: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ConfirmSwitch
+        change={change}
+        workflows={workflows}
+        saving={switching}
+        onCancel={() => setChange(null)}
+        onConfirm={toggle}
+      />
     </div>
   );
 }
 
-/** How many things the merchant should look at in the saved version. */
-function noteCount(policy: Policy) {
-  const { warnings, ambiguities, unsupported } = policy.review;
-  return (
-    warnings.length +
-    ambiguities.length +
-    unsupported.length +
-    policy.suggestions.findings.length
-  );
-}
-
-/** What the merchant can write about, and sentences to start from. */
-function WritingGuide({
-  workflowCode,
-  text,
+/** The workflow's on/off switch; a locked workflow shows a lock instead. */
+function WorkflowSwitch({
+  workflow,
   disabled,
-  onAdd,
+  onToggle,
 }: {
-  workflowCode: string;
-  text: string;
+  workflow: StoreWorkflow;
   disabled: boolean;
-  onAdd: (example: string) => void;
+  onToggle: (isEnabled: boolean) => void;
 }) {
-  const guide = POLICY_GUIDES[workflowCode];
-  if (!guide) return null;
+  const on = workflow.is_enabled;
+  const [title, detail] = !workflow.can_disable
+    ? ["Always on", "Core to Store Signal, so it can't be turned off"]
+    : on
+      ? ["Workflow on", "The AI handles these requests"]
+      : ["Workflow off", "The AI offers a support ticket instead"];
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border bg-muted/30 p-4">
-      <div className="flex flex-col gap-2">
-        <Typography variant="small" as="p">
-          You can mention
-        </Typography>
-        <div className="flex flex-wrap gap-1.5">
-          {guide.topics.map((topic) => (
-            <Badge key={topic} variant="outline" className="bg-background">
-              {topic}
-            </Badge>
-          ))}
-        </div>
+    // On a phone only the switch shows, beside the title.
+    <div className="flex shrink-0 items-center gap-3 sm:rounded-xl sm:border sm:bg-card sm:px-4 sm:py-2.5">
+      <div className="flex flex-col max-sm:hidden">
+        <span className="text-[13px] font-semibold">{title}</span>
+        <span className="text-xs text-muted-foreground">{detail}</span>
       </div>
-      <div className="flex flex-col gap-2">
-        <Typography variant="small" as="p">
-          Examples
-          <Typography variant="caption" className="ml-1.5 font-normal">
-            Click to add
-          </Typography>
-        </Typography>
-        <div className="flex flex-col gap-1.5">
-          {guide.examples.map((example) => (
-            <AddButton
-              key={example}
-              text={example}
-              disabled={
-                disabled ||
-                text.includes(example) ||
-                text.length + example.length + 2 > POLICY_MAX_LENGTH
-              }
-              onClick={() => onAdd(example)}
-            />
-          ))}
-        </div>
-      </div>
+      {workflow.can_disable ? (
+        <Switch
+          checked={on}
+          disabled={disabled}
+          onCheckedChange={onToggle}
+          aria-label={`Turn ${workflow.name} ${on ? "off" : "on"}`}
+        />
+      ) : (
+        <IconLock className="size-4 text-muted-foreground" aria-label={title} />
+      )}
     </div>
-  );
-}
-
-/** A sentence that clicks into the policy box. */
-function AddButton({
-  text,
-  hint,
-  disabled,
-  onClick,
-}: {
-  text: string;
-  hint?: string;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="flex items-start gap-2 rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors outline-none hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
-    >
-      <IconPlus className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-      <span className="flex min-w-0 flex-col gap-0.5">
-        <span className="break-words">{text}</span>
-        {hint && (
-          <span className="text-xs break-words text-muted-foreground">
-            {hint}
-          </span>
-        )}
-      </span>
-    </button>
   );
 }
 
 /** What to know before reading the chart: no policy yet, or a hold. */
 function FlowNotes({
   policy,
-  // Suggestions are off until they work properly.
-  // onSuggestions,
+  onSuggestions,
 }: {
   policy: Policy;
-  // onSuggestions: () => void;
+  onSuggestions: () => void;
 }) {
   if (!policy.text)
     return (
@@ -650,9 +883,7 @@ function FlowNotes({
       <p className="min-w-0 break-words">
         {policy.flow.action} never happens on its own yet: some of your
         sentences can&apos;t be checked, so requests your policy would allow go
-        to your team.
-        {/* Suggestions are off until they work properly.
-        {" "}
+        to your team.{" "}
         <button
           type="button"
           className="font-medium underline underline-offset-2"
@@ -660,229 +891,429 @@ function FlowNotes({
         >
           See which sentences
         </button>
-        */}
       </p>
     </div>
   );
 }
 
-/** Why requests go to the team while a sentence can't be used. */
-function HeldNote() {
+/** One thing a suggestion points at: where it is, and what is there. */
+function RefLine({
+  where,
+  text,
+  after,
+}: {
+  where: string;
+  text: string;
+  after?: string;
+}) {
   return (
-    <span className="font-medium">
-      {" "}
-      Until you reword or remove it, requests your policy would allow go to your
-      team.
-    </span>
+    <p className="border-l-2 border-border pl-3 text-[13px] break-words">
+      <span className="text-muted-foreground">{where}: </span>
+      {text}
+      {after && <span className="text-muted-foreground"> {after}</span>}
+    </p>
   );
 }
 
 /**
- * Suggestions for the saved version: sentences the AI can't use, what code
- * found about how the sentences work together (with the AI's read on each
- * overlap), and sentences the AI suggests adding.
+ * The live policy's check, made when it was saved: what to look at, each
+ * with a fix. A card can be dismissed (for everyone), shown in the policy
+ * (its lines are marked while this tab is open), or its fix put into the
+ * draft, to save like any edit; the next save checks again, so a fixed
+ * one is gone.
  */
 function Suggestions({
   policy,
-  text,
+  checking,
+  failed,
+  selected,
+  added,
+  handEdited,
+  dismissingKey,
   disabled,
+  onCheck,
+  onDismiss,
+  onShow,
   onAdd,
+  onUndo,
 }: {
   policy: Policy;
-  text: string;
+  checking: boolean;
+  failed: boolean;
+  selected: string | null;
+  added: Record<string, PolicySuggestionFix>;
+  /** The draft was edited by hand, so fixes can't go in. */
+  handEdited: boolean;
+  dismissingKey: string | null;
   disabled: boolean;
-  onAdd: (idea: PolicyIdea) => void;
+  onCheck: () => void;
+  onDismiss: (key: string) => void;
+  onShow: (suggestion: PolicySuggestion) => void;
+  onAdd: (suggestion: PolicySuggestion) => void;
+  onUndo: (suggestion: PolicySuggestion) => void;
 }) {
-  const { findings, ideas } = policy.suggestions;
-  const { warnings, ambiguities, unsupported } = policy.review;
-  const hasNotes = warnings.length + ambiguities.length + unsupported.length;
+  const { checked_at, items, dismissed } = policy.suggestions;
 
-  if (!hasNotes && !findings.length && !ideas.length)
+  if (!policy.text || policy.policy_version === 0)
     return (
       <Typography variant="muted">
-        {policy.text
-          ? "Nothing to improve: your sentences work together as written."
-          : "Save a policy to get suggestions."}
+        Save a policy of your own and it is checked here: rules that disagree,
+        rules that never apply, and anything unclear.
       </Typography>
     );
+  if (!checked_at)
+    return checking ? (
+      <LoadingState label="Checking your policy… this takes about 10 seconds." />
+    ) : (
+      <div className="flex flex-col items-start gap-2">
+        <Typography variant="muted">
+          {failed
+            ? "Couldn't check your policy just now."
+            : "This version couldn't be checked when it was saved."}
+        </Typography>
+        <Button variant="outline" size="sm" onClick={onCheck}>
+          <IconRefresh data-icon="inline-start" />
+          Check now
+        </Button>
+      </div>
+    );
+
+  // Per kind, for the counts in the header, named like the cards' badges.
+  const counts = (
+    Object.entries(SUGGESTION_KINDS) as [
+      PolicySuggestionKind,
+      (typeof SUGGESTION_KINDS)[PolicySuggestionKind],
+    ][]
+  ).map(([kind, look]) => {
+    const value = items.filter((item) => item.type === kind).length;
+    const plural = kind === "contradiction" && value > 1 ? "s" : "";
+    return {
+      label: `${look.label.toLowerCase()}${plural}`,
+      tone: look.tone,
+      value,
+    };
+  });
 
   return (
-    <div className="flex flex-col gap-6">
-      {hasNotes > 0 && <ReviewNotes review={policy.review} />}
-
-      {findings.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <Typography variant="small" as="h3">
-            How your sentences work together
-          </Typography>
-          <ul className="flex flex-col gap-2">
-            {findings.map((finding) => (
-              <FindingItem key={finding.key} finding={finding} />
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col">
+          <h3 className="text-sm font-semibold">
+            {items.length
+              ? `${items.length} thing${items.length > 1 ? "s" : ""} to check in your policy`
+              : "Nothing to check"}
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            {checking
+              ? "Checking your policy…"
+              : `Checked after every save · last checked ${formatDateTime(checked_at)}`}
+            {dismissed > 0 && ` · ${dismissed} dismissed`}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {counts
+            .filter((entry) => entry.value > 0)
+            .map((entry) => (
+              <Badge
+                key={entry.label}
+                variant="outline"
+                className={BADGE_TONE_STYLES[entry.tone]}
+              >
+                {entry.value} {entry.label}
+              </Badge>
             ))}
-          </ul>
-        </section>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onCheck}
+            disabled={checking}
+          >
+            {checking ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <IconRefresh data-icon="inline-start" />
+            )}
+            Check again
+          </Button>
+        </div>
+      </div>
+
+      {!items.length && (
+        <Typography variant="muted">
+          Your rules work together as written.
+        </Typography>
       )}
 
-      {ideas.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <Typography
-            variant="small"
-            as="h3"
-            className="flex items-center gap-1.5"
-          >
-            <IconSparkles className="size-4 text-primary" />
-            Ideas to add
-            <Typography variant="caption" className="font-normal">
-              Suggested by AI. Click to add, then save.
-            </Typography>
-          </Typography>
+      {items.map((item) => (
+        <SuggestionCard
+          key={item.key}
+          suggestion={item}
+          selected={selected === item.key}
+          added={added[item.key]}
+          dismissing={dismissingKey === item.key}
+          disabled={
+            disabled ||
+            handEdited ||
+            Object.entries(added).some(
+              ([key, fix]) =>
+                key !== item.key &&
+                item.fix !== null &&
+                overlaps(fix, item.fix),
+            )
+          }
+          onDismiss={() => onDismiss(item.key)}
+          onShow={() => onShow(item)}
+          onAdd={() => onAdd(item)}
+          onUndo={() => onUndo(item)}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** One suggestion: what was found, where, the fix, and what to do with it. */
+function SuggestionCard({
+  suggestion,
+  selected,
+  added,
+  dismissing,
+  disabled,
+  onDismiss,
+  onShow,
+  onAdd,
+  onUndo,
+}: {
+  suggestion: PolicySuggestion;
+  selected: boolean;
+  added?: PolicySuggestionFix;
+  dismissing: boolean;
+  disabled: boolean;
+  onDismiss: () => void;
+  onShow: () => void;
+  onAdd: () => void;
+  onUndo: () => void;
+}) {
+  const kind = SUGGESTION_KINDS[suggestion.type];
+  const { fix, quote } = suggestion;
+  const KindIcon = kind.icon;
+
+  return (
+    <article
+      className={cn(
+        "flex flex-col rounded-xl border transition-colors",
+        selected && "border-primary ring-1 ring-primary/30",
+      )}
+    >
+      <div className="flex flex-col gap-3 p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <KindIcon className={cn("size-4 shrink-0", TONE_TEXT[kind.tone])} />
+          <Badge variant="outline" className={BADGE_TONE_STYLES[kind.tone]}>
+            {kind.label}
+          </Badge>
+          <h4 className="min-w-0 text-sm font-semibold break-words">
+            {suggestion.name}
+          </h4>
+        </div>
+        <p className="text-[13px] break-words text-muted-foreground">
+          {suggestion.description}
+        </p>
+        {(quote ||
+          suggestion.lines.length > 0 ||
+          suggestion.steps.length > 0) && (
           <div className="flex flex-col gap-1.5">
-            {ideas.map((idea) => (
-              <AddButton
-                key={idea.sentence}
-                text={idea.sentence}
-                hint={idea.why}
-                disabled={
-                  disabled ||
-                  text.includes(idea.sentence) ||
-                  text.length + idea.sentence.length + 2 > POLICY_MAX_LENGTH
-                }
-                onClick={() => onAdd(idea)}
+            {quote && (
+              <RefLine
+                where={`Knowledge · ${quote.source}`}
+                text={`“${quote.text}”`}
+              />
+            )}
+            {suggestion.lines.map((line) => (
+              <RefLine
+                key={line.start_index}
+                where={`Rule ${line.rule}`}
+                text={line.text}
+              />
+            ))}
+            {suggestion.steps.map((step) => (
+              <RefLine
+                key={step.step}
+                where={`Step ${step.step}`}
+                text={step.text}
+                after={`→ ${OUTCOMES[step.effect].title}`}
               />
             ))}
           </div>
-        </section>
-      )}
-    </div>
-  );
-}
-
-/** One thing code found, the sentences it is about, and the AI's read. */
-function FindingItem({ finding }: { finding: PolicyFinding }) {
-  const { tone, icon: SeverityIcon } = SEVERITY[finding.severity];
-  return (
-    <li className="flex items-start gap-2.5 rounded-lg border p-3 text-sm">
-      <span
-        className={cn(
-          "flex size-6 shrink-0 items-center justify-center rounded-full border",
-          BADGE_TONE_STYLES[tone],
         )}
-      >
-        <SeverityIcon className="size-3.5" />
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <p className="break-words">{finding.text}</p>
-        {finding.sentence && (
-          <p className="text-xs break-words text-muted-foreground italic">
-            You wrote: &ldquo;{finding.sentence}&rdquo;
-          </p>
-        )}
-        {finding.others.length > 0 && (
-          <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-            <span>{OTHERS_LABEL[finding.kind]}:</span>
-            {finding.others.map((other) => (
-              <span
-                key={other.text}
-                className="flex items-start gap-1 break-words"
-              >
-                {other.platform && (
-                  <IconLock
-                    className="mt-0.5 size-3 shrink-0"
-                    aria-label="Built-in check"
-                  />
-                )}
-                &ldquo;{other.text}&rdquo;
-              </span>
-            ))}
-          </div>
-        )}
-        {finding.note && (
-          <div className="flex flex-wrap items-start gap-1.5 text-xs">
-            <Badge
-              variant="outline"
-              className={
-                finding.note.verdict === "contradiction"
-                  ? BADGE_TONE_STYLES.danger
-                  : BADGE_TONE_STYLES.success
-              }
-            >
-              {finding.note.verdict === "contradiction"
-                ? "Looks like a contradiction"
-                : "Looks intended"}
-            </Badge>
-            <span className="min-w-0 break-words text-muted-foreground">
-              {finding.note.text}
-            </span>
+        {(suggestion.explanation || fix) && (
+          <div className="flex items-start gap-2 rounded-lg bg-primary/5 px-3 py-2.5 text-[13px] text-primary">
+            <IconBulb className="mt-0.5 size-4 shrink-0" />
+            <p className="min-w-0 break-words">
+              {suggestion.explanation}
+              {fix && (
+                <>
+                  {suggestion.explanation && " "}
+                  {fix.action === "replace"
+                    ? `Change rule ${fix.rule} to`
+                    : "Add"}
+                  : “{fix.text}”
+                </>
+              )}
+            </p>
           </div>
         )}
       </div>
-    </li>
+      <div className="flex flex-wrap items-center gap-2 border-t px-4 py-3">
+        <p className="mr-auto text-xs text-muted-foreground">
+          {suggestion.source === "knowledge"
+            ? "Found by checking your policy against your Knowledge."
+            : "Found by checking your policy against what the AI will do."}
+        </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDismiss}
+          disabled={dismissing}
+        >
+          {dismissing && <Spinner data-icon="inline-start" />}
+          Dismiss
+        </Button>
+        {suggestion.lines.length > 0 && (
+          <Button variant="outline" size="sm" onClick={onShow}>
+            <IconEye data-icon="inline-start" />
+            Show in policy
+          </Button>
+        )}
+        {added ? (
+          <>
+            <span className="flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+              <IconCheck className="size-3.5" />
+              {added.action === "add" ? "Added as" : "Changed"} rule{" "}
+              {added.rule} · save to apply
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onUndo}
+              disabled={disabled}
+            >
+              Undo
+            </Button>
+          </>
+        ) : (
+          fix && (
+            <Button size="sm" onClick={onAdd} disabled={disabled}>
+              <IconWand data-icon="inline-start" />
+              Add suggested fix
+            </Button>
+          )
+        )}
+      </div>
+    </article>
   );
 }
 
-/** Sentences the AI can't use as written. */
-function ReviewNotes({ review }: { review: Policy["review"] }) {
-  const { warnings, ambiguities, unsupported } = review;
+/**
+ * The end of a paged list: loads the next page as it scrolls into view,
+ * with a spinner while it comes.
+ */
+function ListEnd({
+  hasMore,
+  loading,
+  onMore,
+}: {
+  hasMore: boolean;
+  loading: boolean;
+  onMore: () => void;
+}) {
+  const sentinelRef = useInfiniteScroll<HTMLDivElement>({
+    onLoadMore: onMore,
+    hasMore,
+    loading,
+  });
+  if (!hasMore) return null;
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-amber-300/60 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
-      <p className="flex items-center gap-2 font-medium">
-        <IconAlertTriangle className="size-4 shrink-0" />
-        Please check these
-      </p>
-      <ul className="flex flex-col gap-3">
-        {warnings.map((warning, index) => (
-          <li key={`warning-${index}`} className="flex items-start gap-2">
-            <IconAlertTriangle className="mt-0.5 size-4 shrink-0 opacity-70" />
-            <p className="min-w-0 break-words">{warning}</p>
-          </li>
-        ))}
-        {ambiguities.map((ambiguity, index) => (
-          <li key={`ambiguity-${index}`} className="flex items-start gap-2">
-            <IconHelpCircle className="mt-0.5 size-4 shrink-0 opacity-70" />
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <p className="break-words">{ambiguity.question}</p>
-              {ambiguity.options.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {ambiguity.options.map((option, optionIndex) => (
-                    <Badge
-                      key={optionIndex}
-                      variant="outline"
-                      className="h-auto border-amber-300/60 font-normal whitespace-normal text-amber-800 dark:border-amber-900/60 dark:text-amber-300"
-                    >
-                      {option}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              <p className="text-xs text-amber-800 dark:text-amber-300">
-                This sentence isn&apos;t used yet. Reword it to say exactly
-                which one you mean.
-                {ambiguity.limits && <HeldNote />}
-              </p>
-              {ambiguity.source_text && (
-                <p className="text-xs break-words text-amber-800 italic dark:text-amber-300">
-                  You wrote: &ldquo;{ambiguity.source_text}&rdquo;
-                </p>
-              )}
-            </div>
-          </li>
-        ))}
-        {unsupported.map((item, index) => (
-          <li key={`unsupported-${index}`} className="flex items-start gap-2">
-            <IconX className="mt-0.5 size-4 shrink-0 opacity-70" />
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <p className="break-words">
-                The AI won&apos;t act on &ldquo;{item.source_text}&rdquo;
-              </p>
-              <p className="text-xs break-words text-amber-800 dark:text-amber-300">
-                {item.why}
-                {item.limits && <HeldNote />}
-              </p>
-            </div>
-          </li>
-        ))}
-      </ul>
+    <div ref={sentinelRef} className="flex justify-center py-2">
+      {loading && <Spinner />}
     </div>
+  );
+}
+
+/** One side of a change: a version, on/off, or the default rules. */
+function ActivityValue({ value }: { value: string }) {
+  const [label, tone]: [string, BadgeTone] =
+    value === "on"
+      ? ["On", "success"]
+      : value === "off"
+        ? ["Off", "neutral"]
+        : value === "default"
+          ? ["Default rules", "neutral"]
+          : [value, "accent"];
+  return (
+    <Badge variant="outline" className={BADGE_TONE_STYLES[tone]}>
+      {label}
+    </Badge>
+  );
+}
+
+/** Who changed what and when, newest first, as a timeline. */
+function ActivityLog({
+  list,
+  shown,
+  loading,
+  onMore,
+  workflows,
+}: {
+  list: PagedList<PolicyActivity>;
+  /** The list is this page's, not another workflow's still showing. */
+  shown: boolean;
+  loading: boolean;
+  onMore: () => void;
+  workflows: StoreWorkflow[];
+}) {
+  if (!shown) return <LoadingState label="Loading activity…" />;
+  if (!list.items.length)
+    return <Typography variant="muted">No changes yet.</Typography>;
+
+  return (
+    <ol className="flex flex-col">
+      {list.items.map((entry, index) => {
+        const { label, icon: EntryIcon, color } = ACTIVITY[entry.kind];
+        const last = !list.hasMore && index === list.items.length - 1;
+        const linked =
+          entry.metadata.with &&
+          (workflows.find((item) => item.code === entry.metadata.with)?.name ??
+            entry.metadata.with);
+        return (
+          <li key={entry.id} className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full border bg-card">
+                <EntryIcon className={cn("size-4", color)} />
+              </span>
+              {!last && <span className="my-1 w-px flex-1 bg-border" />}
+            </div>
+            <div
+              className={cn("flex min-w-0 flex-col gap-0.5", !last && "pb-4")}
+            >
+              <div className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
+                {label}
+                {entry.from_value && <ActivityValue value={entry.from_value} />}
+                {entry.to_value && (
+                  <>
+                    <IconArrowRight className="size-3 text-muted-foreground" />
+                    <ActivityValue value={entry.to_value} />
+                  </>
+                )}
+              </div>
+              <Typography variant="caption" as="p">
+                {entry.done_by || "System"} · {formatDateTime(entry.created_at)}
+                {linked && ` · with ${linked}`}
+              </Typography>
+            </div>
+          </li>
+        );
+      })}
+      <ListEnd hasMore={list.hasMore} loading={loading} onMore={onMore} />
+    </ol>
   );
 }
 
@@ -924,28 +1355,38 @@ function PolicyText({ text }: { text: string }) {
  * can be restored or deleted.
  */
 function History({
-  policy,
+  list,
+  shown,
+  loading,
+  liveVersion,
+  onMore,
   restoringVersion,
   deletingVersion,
   disabled,
   onRestore,
   onDelete,
 }: {
-  policy: Policy;
+  list: PagedList<PolicyHistoryEntry>;
+  /** The list is this page's, not another workflow's still showing. */
+  shown: boolean;
+  loading: boolean;
+  liveVersion: number;
+  onMore: () => void;
   restoringVersion: number | null;
   deletingVersion: number | null;
   disabled: boolean;
   onRestore: (version: number) => void;
   onDelete: (version: number) => void;
 }) {
-  if (!policy.history.length)
+  if (!shown) return <LoadingState label="Loading versions…" />;
+  if (!list.items.length)
     return <Typography variant="muted">No versions saved yet.</Typography>;
 
   return (
     <ol className="flex flex-col">
-      {policy.history.map((entry, index) => {
-        const current = entry.version === policy.policy_version;
-        const last = index === policy.history.length - 1;
+      {list.items.map((entry, index) => {
+        const current = entry.version === liveVersion;
+        const last = !list.hasMore && index === list.items.length - 1;
         return (
           <li key={entry.version} className="flex gap-3">
             <div className="flex flex-col items-center">
@@ -1034,6 +1475,7 @@ function History({
           </li>
         );
       })}
+      <ListEnd hasMore={list.hasMore} loading={loading} onMore={onMore} />
     </ol>
   );
 }

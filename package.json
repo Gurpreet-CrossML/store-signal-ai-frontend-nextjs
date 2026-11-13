@@ -22,6 +22,7 @@
     "@tabler/icons-react": "^3.44.0",
     "@tanstack/react-table": "^8.21.3",
     "@tiptap/extension-placeholder": "^3.32.0",
+    "@tiptap/extension-table": "^3.32.0",
     "@tiptap/markdown": "^3.32.0",
     "@tiptap/pm": "^3.32.0",
     "@tiptap/react": "^3.32.0",

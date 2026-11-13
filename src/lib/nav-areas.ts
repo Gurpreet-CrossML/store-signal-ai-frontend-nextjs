@@ -2,7 +2,6 @@ import type { ComponentType } from "react";
 
 import {
   IconAdjustmentsSpark,
-  IconBooks,
   IconAutomaticGearbox,
   // IconBrandFacebook,
   // IconBrandInstagram,
@@ -19,7 +18,6 @@ import {
   IconHeadset,
   IconInbox,
   IconMessageCircle,
-  IconLibrary,
   IconMessages,
   IconSocial,
   // IconSend,
@@ -276,7 +274,7 @@ export const NAV_AREAS = {
       },
       {
         href: "/settings/workflows",
-        title: "Workflows",
+        title: "AI workflows",
         description: "Turn the AI's workflows on or off for this store.",
         pageDescription:
           "Everything your Sales AI and Support AI can do for your customers. Turn one off and the AI stops answering those questions for this store only; workflows that depend on it turn off with it.",
@@ -364,24 +362,6 @@ export const NAV_AREAS = {
         pageDescription:
           "How the chat widget looks on your storefront — colors, branding, messages, and quick links.",
         icon: IconImageGeneration,
-      },
-    ],
-  },
-
-  knowledge: {
-    href: "/knowledge",
-    title: "Knowledge",
-    description: "Everything the chatbot knows about your store, in one place.",
-    icon: IconBooks,
-    sections: [
-      {
-        href: "/knowledge/library",
-        title: "Knowledge Library",
-        description:
-          "Every type of knowledge the AI can draw on, in one searchable place.",
-        pageDescription:
-          "General info, product & category knowledge, FAQs, policies, documents, and offers — all in one searchable, filterable library.",
-        icon: IconLibrary,
       },
     ],
   },
