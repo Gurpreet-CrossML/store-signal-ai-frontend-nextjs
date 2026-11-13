@@ -34,6 +34,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { useNow } from "@/hooks/use-now";
+import {
+  EMAIL_CONFIRMATION_WAIT_MS,
+  EMAIL_PATTERN,
+  EMAIL_POLL_MS,
+  EMAIL_TEST_WAIT_MS,
+  GMAIL_STEPS,
+} from "@/lib/config";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   ConnectEmailChannel,
@@ -42,21 +49,6 @@ import {
   SendEmailChannelTest,
   type EmailChannel,
 } from "@/redux/api-slice/email-channel-slice";
-
-const POLL_MS = 3000;
-// How long to wait for each email before suggesting what may be wrong.
-const CONFIRMATION_WAIT_MS = 3 * 60 * 1000;
-const TEST_WAIT_MS = 2 * 60 * 1000;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// Gmail's steps. A new mailbox provider adds its own list here.
-const GMAIL_STEPS = [
-  'In Gmail open Settings → See all settings → "Forwarding and POP/IMAP".',
-  'Click "Add a forwarding address", paste the address above, then Next → Proceed → OK.',
-  "Google emails a confirmation to that address. It appears on this page within a minute.",
-  'Confirm it in Gmail, then select "Forward a copy of incoming mail to" the new address and Save Changes.',
-  "Come back here and send the test email.",
-];
 
 /** The server's message for the email field, whatever shape it came in. */
 function connectMessage(error: unknown): string | null {
@@ -172,11 +164,12 @@ function SetupCard({
 
   const confirmed = channel.status === "confirmation_received";
   const waitedForConfirmation =
-    now - new Date(channel.created_at).getTime() > CONFIRMATION_WAIT_MS;
+    now - new Date(channel.created_at).getTime() > EMAIL_CONFIRMATION_WAIT_MS;
   const testSentAt = channel.test_sent_at
     ? new Date(channel.test_sent_at).getTime()
     : null;
-  const waitingForTest = testSentAt !== null && now - testSentAt < TEST_WAIT_MS;
+  const waitingForTest =
+    testSentAt !== null && now - testSentAt < EMAIL_TEST_WAIT_MS;
   const testLost = testSentAt !== null && !waitingForTest;
 
   return (
@@ -323,7 +316,7 @@ export default function SettingsEmail() {
       if (document.visibilityState === "visible") {
         dispatch(FetchEmailChannel({ storeCode, silent: true }));
       }
-    }, POLL_MS);
+    }, EMAIL_POLL_MS);
     return () => clearInterval(handle);
   }, [dispatch, storeCode, waiting]);
 

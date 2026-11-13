@@ -870,3 +870,20 @@ export const ANY_FILTER_VALUE = "any" as const;
 export const DEFAULT_HELPDESK_QUEUE = "open" as const;
 export const DEFAULT_CUSTOMER_ORDERING = "-total_spent" as const;
 export const DEFAULT_ORDER_ORDERING = "-created_at" as const;
+
+// Settings → Email constants for validating the mailbox, polling for
+// forwarding confirmation and test messages, and showing Gmail setup steps.
+export const EMAIL_POLL_MS = 3000;
+// How long to wait for each email before suggesting what may be wrong.
+export const EMAIL_CONFIRMATION_WAIT_MS = 3 * 60 * 1000;
+export const EMAIL_TEST_WAIT_MS = 2 * 60 * 1000;
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Gmail's steps. A new mailbox provider adds its own list here.
+export const GMAIL_STEPS = [
+  'In Gmail open Settings → See all settings → "Forwarding and POP/IMAP".',
+  'Click "Add a forwarding address", paste the address above, then Next → Proceed → OK.',
+  "Google emails a confirmation to that address. It appears on this page within a minute.",
+  'Confirm it in Gmail, then select "Forward a copy of incoming mail to" the new address and Save Changes.',
+  "Come back here and send the test email.",
+];
