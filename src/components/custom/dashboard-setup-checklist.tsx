@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { usePathname } from "next/navigation";
@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import { IconCheck, IconX } from "@tabler/icons-react";
 
 import { StoreSnippet } from "@/components/custom/go-live-card";
+import { useMetaOAuth } from "@/components/custom/settings/social-ai/use-meta-oauth";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +28,7 @@ import { Progress } from "@/components/ui/progress";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import {
   ONBOARDING_STEPS,
+  SocialAIPlatformOptions,
   STORE_PLATFORMS,
   type OnboardingStep,
 } from "@/lib/config";
@@ -37,24 +39,33 @@ import {
 } from "@/redux/api-slice/dashboard-checklist-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
+// TODO: the knowledge base sync step (in the design) goes before "social"
+// once it is built.
 const STEP_ORDER: ChecklistStepKey[] = [
   "connected",
   "widget_live",
   "brand_voice",
+  "social",
 ];
 
-// Same three steps the onboarding wizard walks through, under its own key
-// names — this maps the checklist's keys onto those so the title text has
-// one source instead of two copies that can drift apart.
-const ONBOARDING_STEP_KEY: Record<ChecklistStepKey, OnboardingStep> = {
+// The first three are the steps the onboarding wizard walks through, under
+// its own key names — this maps the checklist's keys onto those so the
+// title text has one source instead of two copies that can drift apart.
+// Social is checklist-only, so it has no wizard step.
+const ONBOARDING_STEP_KEY: Record<
+  Exclude<ChecklistStepKey, "social">,
+  OnboardingStep
+> = {
   connected: "store_setup",
   widget_live: "go_live",
   brand_voice: "brand_voice",
 };
 
 const stepTitle = (key: ChecklistStepKey) =>
-  ONBOARDING_STEPS.find((step) => step.value === ONBOARDING_STEP_KEY[key])!
-    .label;
+  key === "social"
+    ? "Connect social accounts"
+    : ONBOARDING_STEPS.find((step) => step.value === ONBOARDING_STEP_KEY[key])!
+        .label;
 
 const STEP_DESCRIPTION: Record<
   Exclude<ChecklistStepKey, "connected">,
@@ -64,6 +75,8 @@ const STEP_DESCRIPTION: Record<
     "Paste the widget script into your Shopify theme (layout/theme.liquid, just before </body>) so the chat widget shows on your storefront.",
   brand_voice:
     "Name your assistant and pick how it sounds. Until then it uses the default name and the Customer Support preset.",
+  social:
+    "Sign in with Meta to connect Facebook, Instagram and WhatsApp. You choose which accounts to connect in the Meta window.",
 };
 
 /** The extra line a finished step shows under its description. */
@@ -73,7 +86,66 @@ const STEP_DONE_DETAIL: Record<
 > = {
   widget_live: "Widget detected on your storefront",
   brand_voice: "Name and tone saved",
+  social: "Social accounts connected",
 };
+
+/**
+ * The social step's chips and buttons. Its own component so the Meta popup
+ * listener only lives while the drawer is open — the sidebar ring never
+ * unmounts, and a second always-on listener would double the toast when
+ * connecting from the Social AI settings page.
+ */
+function ConnectSocialActions({
+  storeCode,
+  onSkip,
+}: {
+  storeCode: string;
+  onSkip: () => void;
+}) {
+  const dispatch = useAppDispatch();
+  const refetch = useCallback(
+    () => void dispatch(FetchDashboardChecklist(storeCode)),
+    [dispatch, storeCode],
+  );
+  const { startMetaOAuth, isStarting } = useMetaOAuth(storeCode, refetch);
+
+  return (
+    <div className="flex flex-col gap-3 pl-9">
+      <div className="flex flex-wrap gap-2">
+        {Object.entries(SocialAIPlatformOptions).map(
+          ([key, { label, icon: Icon, color }]) => (
+            <span
+              key={key}
+              className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-sm"
+            >
+              <Icon className={cn("size-4", color)} />
+              {label}
+            </span>
+          ),
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          disabled={isStarting}
+          onClick={() => void startMetaOAuth()}
+        >
+          Connect with Meta
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="border-primary text-primary hover:bg-primary/5 hover:text-primary"
+          onClick={onSkip}
+        >
+          Skip for now
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 /** A circular progress ring, filled proportional to completed/total, with
     the "done/total" count centered inside. */
@@ -134,7 +206,7 @@ function ProgressRing({
 }
 
 /**
- * The "x/3" ring in the sidebar rail and its right-hand checklist drawer —
+ * The "x/4" ring in the sidebar rail and its right-hand checklist drawer —
  * the dashboard's persistent reminder of onboarding steps the wizard lets a
  * merchant click through (or skip) without actually finishing. Independent
  * of that wizard: it reflects each step's real, current state for whichever
@@ -193,7 +265,7 @@ export function DashboardSetupChecklist() {
     return () => window.removeEventListener("focus", refetch);
   }, [dispatch, selectedStore]);
 
-  // The ring hides at 3/3, so say so when the last step is finished — only
+  // The ring hides at 4/4, so say so when the last step is finished — only
   // on that change for the same store, not on load or a store switch.
   const previous = useRef<{ code: string; pending: number } | null>(null);
   useEffect(() => {
@@ -242,15 +314,29 @@ export function DashboardSetupChecklist() {
         <DrawerContent className="data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:rounded-none data-[vaul-drawer-direction=right]:sm:w-1/2 data-[vaul-drawer-direction=right]:sm:max-w-none">
           <DrawerHeader className="gap-3 border-b bg-primary/5 px-6 py-5">
             <div className="flex items-start justify-between gap-2">
-              <div>
-                <DrawerTitle className="text-xl font-semibold">
-                  Finish setting up StoreSignal
-                </DrawerTitle>
-                <DrawerDescription>
-                  Your assistant won&apos;t reach shoppers until these steps are
-                  done.
-                </DrawerDescription>
-              </div>
+              {/* Only social left → the assistant already reaches shoppers. */}
+              {checklist.pending.length === 1 &&
+              checklist.pending[0] === "social" ? (
+                <div>
+                  <DrawerTitle className="text-xl font-semibold">
+                    Almost done
+                  </DrawerTitle>
+                  <DrawerDescription>
+                    Your assistant is live on your store. Connect your social
+                    accounts so it can reply there too.
+                  </DrawerDescription>
+                </div>
+              ) : (
+                <div>
+                  <DrawerTitle className="text-xl font-semibold">
+                    Finish setting up StoreSignal
+                  </DrawerTitle>
+                  <DrawerDescription>
+                    Your assistant won&apos;t reach shoppers until these steps
+                    are done.
+                  </DrawerDescription>
+                </div>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -362,8 +448,23 @@ export function DashboardSetupChecklist() {
                         Edit
                       </Link>
                     )}
+                    {step.done && key === "social" && (
+                      <Link
+                        href="/settings/social-ai/accounts"
+                        className={doneActionClass}
+                        onClick={() => setOpen(false)}
+                      >
+                        Manage
+                      </Link>
+                    )}
                   </div>
-                  {!step.done && (
+                  {!step.done && key === "social" && (
+                    <ConnectSocialActions
+                      storeCode={checklist.store.code}
+                      onSkip={() => setOpen(false)}
+                    />
+                  )}
+                  {!step.done && key !== "social" && (
                     <div className="flex flex-wrap gap-2 pl-9">
                       {key === "widget_live" && (
                         <Button

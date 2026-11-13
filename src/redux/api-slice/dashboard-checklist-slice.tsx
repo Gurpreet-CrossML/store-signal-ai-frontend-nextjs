@@ -4,7 +4,11 @@ import { isAxiosError } from "axios";
 import { ENDPOINTS } from "@/lib/config";
 import { axiosInstance } from "../axios-config";
 
-export type ChecklistStepKey = "connected" | "widget_live" | "brand_voice";
+export type ChecklistStepKey =
+  | "connected"
+  | "widget_live"
+  | "brand_voice"
+  | "social";
 
 export type ChecklistStep = {
   done: boolean;
