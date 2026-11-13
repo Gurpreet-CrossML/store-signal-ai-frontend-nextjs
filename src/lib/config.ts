@@ -350,6 +350,10 @@ export const ENDPOINTS = {
   // PATCH to update, DELETE to remove.
   slaPolicyDetail: (policy_id: number) =>
     createAPIUrl(`/support/sla-policies/${policy_id}/`, "django"),
+  // GET the store's email connection, POST to connect, DELETE to disconnect.
+  emailChannel: () => createAPIUrl("/support/email-channel/", "django"),
+  emailChannelSendTest: () =>
+    createAPIUrl("/support/email-channel/send-test/", "django"),
   supportTicketAIMessageDraftGenerate: (ticket_id: number) =>
     createAPIUrl(`/support/tickets/${ticket_id}/draft-messages/ai/`, "django"),
   supportTicketStatusUpdate: (ticket_id: number) =>
