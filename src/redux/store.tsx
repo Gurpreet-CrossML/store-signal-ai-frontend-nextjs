@@ -18,6 +18,7 @@ import OrderSlice from "@/redux/api-slice/order-slice";
 import CampaignSlice from "@/redux/api-slice/campaign-slice";
 import NotificationSlice from "@/redux/api-slice/notification-slice";
 import SlaPolicySlice from "@/redux/api-slice/sla-policy-slice";
+import EmailChannelSlice from "@/redux/api-slice/email-channel-slice";
 import DashboardChecklistSlice from "@/redux/api-slice/dashboard-checklist-slice";
 
 const store = configureStore({
@@ -41,6 +42,7 @@ const store = configureStore({
     GetCampaignReducer: CampaignSlice,
     GetNotificationReducer: NotificationSlice,
     GetSlaPolicyReducer: SlaPolicySlice,
+    GetEmailChannelReducer: EmailChannelSlice,
     GetDashboardChecklistReducer: DashboardChecklistSlice,
   },
 });
