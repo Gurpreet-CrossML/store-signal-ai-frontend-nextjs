@@ -7,7 +7,7 @@ import {
   // IconBrandInstagram,
   // IconBrandMessenger,
   IconBrandWhatsapp,
-  // IconMail,
+  IconMail,
   IconAddressBook,
   IconBrandMeta,
   IconBuildingSkyscraper,
@@ -203,6 +203,14 @@ export const NAV_AREAS = {
         pageDescription:
           "Set reply and resolution targets per tag. When a ticket has several tags, the policy with the shortest target decides its SLA.",
         icon: IconClockHour4,
+      },
+      {
+        href: "/settings/email",
+        title: "Email Channel",
+        description: "Turn your support mailbox into helpdesk tickets.",
+        pageDescription:
+          "Forward your support mailbox to Store Signal and every customer email becomes a ticket you can answer from the helpdesk.",
+        icon: IconMail,
       },
       // {
       //   href: "/settings/integrations",
