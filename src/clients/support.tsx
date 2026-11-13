@@ -30,7 +30,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
+import { cn, randomId } from "@/lib/utils";
 import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
 import { ConversationRow } from "@/components/custom/conversation-row";
 import { AnimatePresence, motion } from "framer-motion";
@@ -1263,7 +1263,7 @@ export default function Support() {
   const [appliedChatParam, setAppliedChatParam] = useState<string | null>(null);
 
   // Generate a unique client ID for this session. This is used to identify messages sent by this client, so we can ignore them when they come back from the server.
-  const [clientID] = useState<string | null>(crypto.randomUUID());
+  const [clientID] = useState<string | null>(randomId());
 
   // Reset the socket-mutable copy when Redux supplies a new response. React
   // applies this guarded render-time adjustment before committing children,
@@ -1792,7 +1792,7 @@ export default function Support() {
     }
 
     handleThreadMessageAdded({
-      id: crypto.randomUUID(),
+      id: randomId(),
       role: "assistant",
       message: message,
       created_at: new Date().toISOString(),
@@ -1873,7 +1873,7 @@ export default function Support() {
       }
 
       const newAttachments: AttachmentUpload[] = files.map((file) => ({
-        id: crypto.randomUUID(),
+        id: randomId(),
         file,
         previewUrl: URL.createObjectURL(file),
         url: null,
@@ -2350,7 +2350,7 @@ export default function Support() {
           setHandlerEvents((prev) => [
             ...prev,
             {
-              id: crypto.randomUUID(),
+              id: randomId(),
               action: data?.chat_handler === "human" ? "assigned" : "released",
               from_agent_name: previousAgentName,
               to_agent_name: nextAgentName,

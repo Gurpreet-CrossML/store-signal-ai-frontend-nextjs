@@ -40,7 +40,7 @@ import {
   type KnowledgeItem,
 } from "@/redux/api-slice/knowledge-rag-slice";
 import {
-  KnowledgeTypeSourceStatusFilters,
+  KnowledgeFilterPopover,
   countActiveKnowledgeFilters,
   type KnowledgeFilterSelection,
 } from "@/components/custom/knowledge/knowledge-filters";
@@ -55,11 +55,13 @@ import { KnowledgeDetailSheet } from "@/components/custom/knowledge/knowledge-de
 import { KnowledgeDataTablePagination } from "@/components/custom/knowledge/knowledge-data-table-pagination";
 import { PAGE_SIZE_OPTIONS } from "@/components/custom/threads-data-table-pagination";
 import {
+  AI_SCOPE_META,
   isKnowledgeItemEditable,
   KNOWLEDGE_STATUS_META,
   KNOWLEDGE_TYPE_META,
 } from "@/components/custom/knowledge/knowledge-meta";
 import type {
+  AIScope,
   KnowledgeCounts,
   KnowledgeSource,
   KnowledgeStatus,
@@ -81,6 +83,11 @@ const SOURCE_TABS: {
   { value: "url", label: "Website pages", countKey: "urls" },
   { value: "faq", label: "Q&A", countKey: "faqs" },
 ];
+
+/** The values of a comma-separated URL param. */
+function splitParam(value: string) {
+  return value.split(",").filter(Boolean);
+}
 
 export default function KnowledgeLibraryTabContent() {
   const dispatch = useAppDispatch();
@@ -112,19 +119,27 @@ export default function KnowledgeLibraryTabContent() {
     ? pageSizeParam
     : DEFAULT_PAGE_SIZE;
   const debouncedSearch = (searchParams?.get("q") ?? "").trim();
-  const typeParam = searchParams?.get("type") ?? "";
   const sourceParam = searchParams?.get("source") ?? "";
+  // The multi-value filters are comma-separated in the URL; the raw strings
+  // are what the list reloads on, since the arrays are new on every render.
+  const typeParam = searchParams?.get("type") ?? "";
   const statusParam = searchParams?.get("status") ?? "";
+  const aiScopeParam = searchParams?.get("ai_scope") ?? "";
+  const createdByParam = searchParams?.get("created_by") ?? "";
   const filters: KnowledgeFilterSelection = {
-    type: (typeParam in KNOWLEDGE_TYPE_META ? typeParam : "") as
-      | KnowledgeType
-      | "",
     source: (["file", "url", "faq", "article"].includes(sourceParam)
       ? sourceParam
       : "") as KnowledgeSource | "",
-    status: (statusParam in KNOWLEDGE_STATUS_META ? statusParam : "") as
-      | KnowledgeStatus
-      | "",
+    status: splitParam(statusParam).filter(
+      (value): value is KnowledgeStatus => value in KNOWLEDGE_STATUS_META,
+    ),
+    aiScope: splitParam(aiScopeParam).filter(
+      (value): value is AIScope => value in AI_SCOPE_META,
+    ),
+    type: splitParam(typeParam).filter(
+      (value): value is KnowledgeType => value in KNOWLEDGE_TYPE_META,
+    ),
+    createdBy: splitParam(createdByParam),
   };
 
   // Rows ticked for a bulk action, by id. Only ids on the current page count
@@ -178,6 +193,14 @@ export default function KnowledgeLibraryTabContent() {
   const hasFilters =
     activeFilterCount > 0 || filters.source !== "" || debouncedSearch !== "";
   const hasClearableFilters = activeFilterCount > 0 || debouncedSearch !== "";
+  const applyFilters = (next: KnowledgeFilterSelection) =>
+    updateParams({
+      status: next.status.join(","),
+      ai_scope: next.aiScope.join(","),
+      type: next.type.join(","),
+      created_by: next.createdBy.join(","),
+      page: null,
+    });
   // No knowledge exists yet (not just filtered down to nothing) — show only
   // the centered "Add Knowledge" button from the empty state below, not the
   // search/filter toolbar.
@@ -201,9 +224,11 @@ export default function KnowledgeLibraryTabContent() {
         page,
         pageSize,
         search: debouncedSearch,
-        type: filters.type || undefined,
         source: filters.source || undefined,
-        status: filters.status || undefined,
+        status: filters.status,
+        aiScope: filters.aiScope,
+        type: filters.type,
+        createdBy: filters.createdBy,
       }),
     );
   };
@@ -216,9 +241,11 @@ export default function KnowledgeLibraryTabContent() {
     page,
     pageSize,
     debouncedSearch,
-    filters.type,
     filters.source,
-    filters.status,
+    typeParam,
+    statusParam,
+    aiScopeParam,
+    createdByParam,
   ]);
 
   const loadStats = useCallback(() => {
@@ -337,7 +364,8 @@ export default function KnowledgeLibraryTabContent() {
       {!isEmptyLibrary && (
         <Button type="button" variant="outline" size="sm">
           <IconMessage2 className="size-4" />
-          Test your AI
+          <span className="sm:hidden">Test</span>
+          <span className="max-sm:hidden">Test your AI</span>
         </Button>
       )}
       {canEditKnowledge && (
@@ -358,13 +386,14 @@ export default function KnowledgeLibraryTabContent() {
         title="Knowledge"
         description="What your AI knows about your store. It answers shoppers using what you add here, plus your Shopify products and orders."
         action={headingActions}
-        // On a phone the empty library keeps the button on the title's row,
-        // under a rule, and leaves the description to the empty state below.
+        // On a phone the buttons stay on the title's row and the description
+        // is left out; the empty library also sits under a rule.
         className={cn(
+          "max-sm:flex-row max-sm:items-center max-sm:justify-between",
           isEmptyLibrary &&
-            "max-sm:-mx-4 max-sm:-mt-4 max-sm:flex-row max-sm:items-center max-sm:justify-between max-sm:border-b max-sm:p-4",
+            "max-sm:-mx-4 max-sm:-mt-4 max-sm:border-b max-sm:p-4",
         )}
-        descriptionClassName={cn(isEmptyLibrary && "max-sm:hidden")}
+        descriptionClassName="max-sm:hidden"
       />
       <div className="flex w-full flex-col gap-4">
         {showStorage && (
@@ -380,27 +409,35 @@ export default function KnowledgeLibraryTabContent() {
               })
             }
           >
-            <TabsList variant="line" className="h-10 w-full justify-start">
-              {SOURCE_TABS.map(({ value, label, countKey }) => (
-                <TabsTrigger
-                  key={value}
-                  value={value}
-                  className="group/tab flex-none px-3 data-active:font-semibold data-active:text-primary data-active:after:bg-primary dark:data-active:text-primary"
-                >
-                  {label}
-                  {stats && (
-                    <span className="rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground group-data-active/tab:bg-primary/10 group-data-active/tab:text-primary">
-                      {stats.counts[countKey]}
-                    </span>
-                  )}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+            {/* Scrolls sideways when the tabs don't fit (a phone). The padding
+                keeps the active tab's underline, which hangs below the
+                trigger, from being clipped by the scroll container. */}
+            <div className="overflow-x-auto pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <TabsList
+                variant="line"
+                className="h-10 w-max min-w-full justify-start"
+              >
+                {SOURCE_TABS.map(({ value, label, countKey }) => (
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    className="group/tab flex-none px-3 data-active:font-semibold data-active:text-primary data-active:after:bg-primary dark:data-active:text-primary"
+                  >
+                    {label}
+                    {stats && (
+                      <span className="rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground group-data-active/tab:bg-primary/10 group-data-active/tab:text-primary">
+                        {stats.counts[countKey]}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
           </Tabs>
         )}
         {!isEmptyLibrary && (
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative w-full sm:w-72">
+            <div className="relative min-w-0 flex-1 sm:w-72 sm:flex-none">
               <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={searchInput}
@@ -411,15 +448,10 @@ export default function KnowledgeLibraryTabContent() {
               />
             </div>
 
-            <KnowledgeTypeSourceStatusFilters
+            <KnowledgeFilterPopover
               filters={filters}
-              onFiltersChange={(next) =>
-                updateParams({
-                  type: next.type,
-                  status: next.status,
-                  page: null,
-                })
-              }
+              creators={stats?.creators ?? []}
+              onFiltersChange={applyFilters}
             />
 
             {hasClearableFilters && (
@@ -427,13 +459,15 @@ export default function KnowledgeLibraryTabContent() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="text-muted-foreground"
+                className="text-muted-foreground max-sm:hidden"
                 onClick={() => {
                   setSearchInput("");
                   updateParams({
                     q: null,
-                    type: null,
                     status: null,
+                    ai_scope: null,
+                    type: null,
+                    created_by: null,
                     page: null,
                   });
                 }}
@@ -446,7 +480,7 @@ export default function KnowledgeLibraryTabContent() {
             <Button
               size="sm"
               variant="ghost"
-              className="ml-auto"
+              className="ml-auto max-sm:hidden"
               onClick={loadItems}
               disabled={FetchKnowledgeItemsIsLoading}
               aria-label="Refresh knowledge list"
@@ -459,7 +493,7 @@ export default function KnowledgeLibraryTabContent() {
               )}
             </Button>
 
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted-foreground max-sm:hidden">
               {items.length} of {totalCount} items
             </span>
           </div>

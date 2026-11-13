@@ -81,6 +81,7 @@ import {
   updateWhatsAppTemplate,
   type WhatsAppTemplateComponent,
 } from "@/redux/api-slice/social-ai-slice";
+import { randomId } from "@/lib/utils";
 
 /**
  * The rules a submission must clear before it can go to Meta — the
@@ -212,7 +213,7 @@ const MAX_BUTTONS = 1;
 
 function newButtonDraft(): ButtonDraft {
   return {
-    key: crypto.randomUUID(),
+    key: randomId(),
     type: "QUICK_REPLY",
     text: "",
     url: "",
@@ -316,7 +317,7 @@ export default function WhatsAppTemplateCreate({
         if (data.button_type) {
           setButtons([
             {
-              key: crypto.randomUUID(),
+              key: randomId(),
               type: data.button_type as ButtonType,
               text: data.button_text || "",
               url: data.button_url || "",

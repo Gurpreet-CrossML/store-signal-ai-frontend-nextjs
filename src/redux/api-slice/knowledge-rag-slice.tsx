@@ -150,9 +150,16 @@ export type KnowledgeCounts = {
   articles: number;
 };
 
+/** A user who has added knowledge, for the "Added by" filter. */
+export type KnowledgeCreator = {
+  id: number;
+  name: string;
+};
+
 export type KnowledgeStats = {
   vector_storage: KnowledgeVectorStorage;
   counts: KnowledgeCounts;
+  creators: KnowledgeCreator[];
 };
 
 export type KnowledgeItemListResponse = {
@@ -289,17 +296,23 @@ export const FetchKnowledgeItems = createAsyncThunk(
       page = 1,
       pageSize = 25,
       search = "",
-      type,
+      type = [],
       source,
-      status,
+      status = [],
+      aiScope = [],
+      createdBy = [],
     }: {
       storeCode: string;
       page?: number;
       pageSize?: number;
       search?: string;
-      type?: KnowledgeType;
+      /** Each filter keeps an item that matches any of its values. */
+      type?: KnowledgeType[];
       source?: KnowledgeSource;
-      status?: KnowledgeStatus;
+      status?: KnowledgeStatus[];
+      aiScope?: AIScope[];
+      /** Ids of the users who added the items. */
+      createdBy?: string[];
     },
     thunkAPI,
   ) => {
@@ -310,9 +323,12 @@ export const FetchKnowledgeItems = createAsyncThunk(
         page_size: String(pageSize),
       });
       if (search.trim()) params.set("search", search.trim());
-      if (type) params.set("type", type);
       if (source) params.set("source", source);
-      if (status) params.set("status", status);
+      // The API takes several values for one filter, comma-separated.
+      if (type.length) params.set("type", type.join(","));
+      if (status.length) params.set("status", status.join(","));
+      if (aiScope.length) params.set("ai_scope", aiScope.join(","));
+      if (createdBy.length) params.set("created_by", createdBy.join(","));
 
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchKnowledgeItems()}?${params.toString()}`,

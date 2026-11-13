@@ -97,7 +97,7 @@ export function KnowledgeStorageCard({
         )}
       </div>
 
-      <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground sm:flex sm:flex-wrap sm:items-center sm:gap-y-1">
         {segments.map(({ key, label, color }) => (
           <li key={key} className="flex items-center gap-1.5">
             <span className={`size-2 rounded-full ${color}`} />

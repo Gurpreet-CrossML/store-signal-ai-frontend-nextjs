@@ -66,6 +66,7 @@ import {
   type PolicyType,
   type ProductOption,
 } from "@/redux/api-slice/knowledge-rag-slice";
+import { randomId } from "@/lib/utils";
 
 /** The three sources this page can create — a narrower set than the full
  * `KnowledgeSource` union, which also carries legacy/unreachable values
@@ -154,11 +155,11 @@ type UrlRow = {
 };
 
 function emptyFaqRow(): FaqRow {
-  return { localId: crypto.randomUUID(), question: "", answer: "" };
+  return { localId: randomId(), question: "", answer: "" };
 }
 
 function emptyUrlRow(): UrlRow {
-  return { localId: crypto.randomUUID(), url: "", urlType: "", title: "" };
+  return { localId: randomId(), url: "", urlType: "", title: "" };
 }
 
 function isValidUrl(value: string): boolean {
