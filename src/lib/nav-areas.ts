@@ -276,7 +276,7 @@ export const NAV_AREAS = {
       },
       {
         href: "/settings/workflows",
-        title: "Workflows",
+        title: "AI workflows",
         description: "Turn the AI's workflows on or off for this store.",
         pageDescription:
           "Everything your Sales AI and Support AI can do for your customers. Turn one off and the AI stops answering those questions for this store only; workflows that depend on it turn off with it.",

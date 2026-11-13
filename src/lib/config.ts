@@ -111,7 +111,8 @@ export const ENDPOINTS = {
   // the store's on/off state; POST turns one on or off.
   storeWorkflows: () => createAPIUrl("/chat/workflows/", "django"),
   // A store's own policy for one workflow (Django). GET reads it with its
-  // read-back and history; POST converts and saves new text as a version.
+  // read-back and suggestions; POST converts, checks and saves new text as
+  // a version.
   workflowPolicy: () => createAPIUrl("/chat/workflows/policy/", "django"),
   // POST re-publishes an earlier policy version as a new one.
   workflowPolicyRollback: () =>
@@ -119,6 +120,17 @@ export const ENDPOINTS = {
   // DELETE removes an earlier policy version for good (never the live one).
   workflowPolicyVersion: () =>
     createAPIUrl("/chat/workflows/policy/version/", "django"),
+  // GET pages through a workflow's policy versions, newest first.
+  workflowPolicyVersions: () =>
+    createAPIUrl("/chat/workflows/policy/versions/", "django"),
+  // GET pages through a workflow's activity, newest first.
+  workflowActivity: () => createAPIUrl("/chat/workflows/activity/", "django"),
+  // POST checks the live policy again (the Suggestions tab).
+  workflowPolicyCheck: () =>
+    createAPIUrl("/chat/workflows/policy/check/", "django"),
+  // POST hides one suggestion of the live policy's check.
+  workflowPolicyDismiss: () =>
+    createAPIUrl("/chat/workflows/policy/dismiss/", "django"),
 
   // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
   // Next.js issues a 308 redirect (an extra round-trip) before each call.

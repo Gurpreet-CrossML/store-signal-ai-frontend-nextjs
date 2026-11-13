@@ -267,6 +267,22 @@ div#markdown-message-bubble a {
   margin: 0 0 0.5rem;
 }
 
+/* A place a suggestion is about (the `marks` prop): its text tinted, then
+   how many suggestions point at it. */
+.rich-text-content .rich-text-flag {
+  padding: 0.0625rem 0.125rem;
+  border-radius: 0.25rem;
+  background: color-mix(in oklab, var(--destructive) 10%, transparent);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.rich-text-content .rich-text-flag-count {
+  margin-left: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--destructive);
+  user-select: none;
+}
+
 :is(.rich-text-content, .rich-text-render) > :last-child {
   margin-bottom: 0;
 }
