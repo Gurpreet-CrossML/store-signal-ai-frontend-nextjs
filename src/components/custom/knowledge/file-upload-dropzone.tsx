@@ -127,37 +127,6 @@ export function MultiFileUploadDropzone({
 
   return (
     <div className="flex flex-col gap-2">
-      {files.map((file, index) => (
-        <div key={`${file.name}-${index}`} className="flex flex-col gap-1">
-          <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
-            <FileTypeIcon
-              fileType={file.type}
-              className="size-5 shrink-0 text-muted-foreground"
-            />
-            <div className="min-w-0 flex-1">
-              <Typography variant="small" as="p" className="truncate">
-                {file.name}
-              </Typography>
-              <Typography variant="muted" className="text-xs">
-                {formatBytes(file.size)}
-              </Typography>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => onRemoveFile(index)}
-              aria-label="Remove file"
-            >
-              <IconX className="size-4" />
-            </Button>
-          </div>
-          {errors?.[index] && (
-            <p className="text-xs text-destructive">{errors[index]}</p>
-          )}
-        </div>
-      ))}
-
       {typeof maxFiles === "number" && files.length >= maxFiles ? (
         <div className="flex cursor-not-allowed flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-6 py-6 text-center bg-muted/20">
           <IconCloudUpload className="size-7 text-muted-foreground" />
@@ -234,6 +203,43 @@ export function MultiFileUploadDropzone({
               event.target.value = "";
             }}
           />
+        </div>
+      )}
+      {files.length > 0 && (
+        <div className="mt-2 flex flex-col gap-2">
+          <p className="text-xs font-medium text-muted-foreground">
+            {files.length} {files.length === 1 ? "file" : "files"}
+          </p>
+          {files.map((file, index) => (
+            <div key={`${file.name}-${index}`} className="flex flex-col gap-1">
+              <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                <FileTypeIcon
+                  fileType={file.type}
+                  className="size-5 shrink-0 text-muted-foreground"
+                />
+                <div className="min-w-0 flex-1">
+                  <Typography variant="small" as="p" className="truncate">
+                    {file.name}
+                  </Typography>
+                  <Typography variant="muted" className="text-xs">
+                    {formatBytes(file.size)}
+                  </Typography>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => onRemoveFile(index)}
+                  aria-label="Remove file"
+                >
+                  <IconX className="size-4" />
+                </Button>
+              </div>
+              {errors?.[index] && (
+                <p className="text-xs text-destructive">{errors[index]}</p>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { IconSearch, IconWorldSearch } from "@tabler/icons-react";
+import {
+  IconExternalLink,
+  IconRefresh,
+  IconSearch,
+  IconWorldSearch,
+} from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -14,15 +18,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { isValidWebsiteUrl, normalizeUrl } from "@/lib/url";
+import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   DiscoverWebsiteUrls,
@@ -39,6 +36,15 @@ export function pageEndpoint(url: string): string {
     return `${parsed.pathname || "/"}${parsed.search}`;
   } catch {
     return url;
+  }
+}
+
+/** `example.com` for `https://www.example.com/a`; empty when it isn't an address. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host.replace(/^www\./, "");
+  } catch {
+    return "";
   }
 }
 
@@ -67,6 +73,8 @@ type WebsiteUrlDiscoveryProps = {
   /** The most pages that can be indexed in one request. */
   maxSelection: number;
   error?: string;
+  /** The site to scan as soon as this opens (the store's own); it can be changed. */
+  defaultUrl?: string;
 };
 
 export function WebsiteUrlDiscovery({
@@ -75,6 +83,7 @@ export function WebsiteUrlDiscovery({
   onSelectedUrlsChange,
   maxSelection,
   error,
+  defaultUrl = "",
 }: WebsiteUrlDiscoveryProps) {
   const dispatch = useAppDispatch();
   const {
@@ -114,7 +123,9 @@ export function WebsiteUrlDiscovery({
   );
   const [throttledRounds, setThrottledRounds] = useState(0);
 
-  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState(defaultUrl);
+  // The address box is hidden while the default site is being used.
+  const [changingSite, setChangingSite] = useState(!defaultUrl);
   const [inputError, setInputError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
 
@@ -236,13 +247,13 @@ export function WebsiteUrlDiscovery({
   // page details are still loading (it would throw that work away).
   const busy = isLoading || detailsLoading || stillLoadingDetails;
 
-  const scan = async () => {
+  const scan = async (url = websiteUrl) => {
     if (!storeCode || busy) return;
-    if (!websiteUrl.trim()) {
+    if (!url.trim()) {
       setInputError("Enter your website URL");
       return;
     }
-    if (!isValidWebsiteUrl(websiteUrl)) {
+    if (!isValidWebsiteUrl(url)) {
       setInputError("Enter a valid website URL, e.g. https://company.com");
       return;
     }
@@ -255,13 +266,24 @@ export function WebsiteUrlDiscovery({
     const request = dispatch(
       DiscoverWebsiteUrls({
         storeCode,
-        websiteUrl: normalizeUrl(websiteUrl),
+        websiteUrl: normalizeUrl(url),
       }),
     );
     scanRequest.current = request;
     await request;
     if (scanRequest.current === request) scanRequest.current = null;
+    setChangingSite(false);
   };
+
+  // Scan the default site as soon as the view opens, once.
+  const autoScanned = useRef(false);
+  useEffect(() => {
+    if (autoScanned.current || !storeCode || !defaultUrl) return;
+    autoScanned.current = true;
+    void scan(defaultUrl);
+    // Runs once, with whatever the store and default address are by then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeCode, defaultUrl]);
 
   const togglePage = (page: DiscoveredPage, checked: boolean) => {
     if (checked) {
@@ -287,56 +309,96 @@ export function WebsiteUrlDiscovery({
   };
 
   const shownError = inputError ?? scanError;
+  const scannedHost = hostOf(scannedUrl || websiteUrl);
+  const newPages = selectablePages.length;
 
   return (
     <div className="flex flex-col gap-4">
-      <Field>
-        <FieldLabel>Website URL</FieldLabel>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Input
-            placeholder="https://company.com"
-            autoComplete="off"
-            value={websiteUrl}
-            onChange={(event) => setWebsiteUrl(event.target.value)}
-            // This sits inside the page's <form>, so Enter must scan rather
-            // than submit the whole knowledge item.
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                void scan();
-              }
-            }}
-            aria-invalid={Boolean(shownError)}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            className="shrink-0"
-            disabled={busy || !storeCode}
-            onClick={() => void scan()}
-          >
-            {isLoading ? (
-              <>
-                <Spinner data-icon="inline-start" />
-                Scanning…
-              </>
-            ) : (
-              <>
-                <IconWorldSearch className="size-4" />
-                Scan website
-              </>
-            )}
-          </Button>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <p className="text-sm font-semibold">
+          {scannedHost ? `Found on ${scannedHost}` : "Scan a website"}
+        </p>
+        <div className="flex items-center gap-1">
+          {!changingSite && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-primary"
+              onClick={() => setChangingSite(true)}
+            >
+              Change site
+            </Button>
+          )}
+          {scannedUrl && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-primary"
+              disabled={busy}
+              onClick={() => void scan(scannedUrl)}
+            >
+              <IconRefresh className="size-4" />
+              Scan again
+            </Button>
+          )}
         </div>
-        {shownError ? (
-          <p className="text-xs text-destructive">{shownError}</p>
-        ) : (
-          <FieldDescription>
-            We&apos;ll find the pages on your site so you can choose which ones
-            to index.
-          </FieldDescription>
-        )}
-      </Field>
+      </div>
+
+      {changingSite && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              placeholder="https://company.com"
+              autoComplete="off"
+              aria-label="Website to scan"
+              value={websiteUrl}
+              onChange={(event) => setWebsiteUrl(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void scan();
+                }
+              }}
+              aria-invalid={Boolean(shownError)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0"
+              disabled={busy || !storeCode}
+              onClick={() => void scan()}
+            >
+              {isLoading ? (
+                <>
+                  <Spinner data-icon="inline-start" />
+                  Scanning…
+                </>
+              ) : (
+                <>
+                  <IconWorldSearch className="size-4" />
+                  Scan website
+                </>
+              )}
+            </Button>
+          </div>
+          {!shownError && (
+            <p className="text-xs text-muted-foreground">
+              We&apos;ll find the pages on this site so you can choose which
+              ones to add.
+            </p>
+          )}
+        </div>
+      )}
+      {shownError && <p className="text-xs text-destructive">{shownError}</p>}
+
+      {isLoading && (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner className="size-4" />
+          Looking for pages on {scannedHost || "your site"}…
+        </p>
+      )}
 
       {!isLoading && hasScanned && pages.length === 0 && (
         <p className="rounded-lg border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
@@ -346,126 +408,131 @@ export function WebsiteUrlDiscovery({
 
       {!isLoading && readablePages.length > 0 && (
         <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative sm:max-w-xs sm:flex-1">
-              <IconSearch className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="pl-8"
-                placeholder="Filter by title or endpoint…"
-                autoComplete="off"
-                value={filter}
-                onChange={(event) => setFilter(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") event.preventDefault();
-                }}
+          <div className="relative">
+            <IconSearch className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pl-8"
+              placeholder="Filter by title or address…"
+              autoComplete="off"
+              aria-label="Filter pages"
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.preventDefault();
+              }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <label className="flex items-center gap-2 font-medium">
+              <Checkbox
+                aria-label={
+                  allSelected ? "Unselect all pages" : "Select all new pages"
+                }
+                checked={
+                  allSelected
+                    ? true
+                    : selectedUrls.length > 0 && "indeterminate"
+                }
+                disabled={newPages === 0}
+                onCheckedChange={(checked) => toggleAll(checked === true)}
               />
-            </div>
+              Select all new pages
+            </label>
             <span className="text-xs text-muted-foreground">
-              {readablePages.length} page{readablePages.length === 1 ? "" : "s"}{" "}
-              found · {selectedUrls.length} / {maxSelection} selected
+              {selectedUrls.length} of {newPages} selected
             </span>
           </div>
 
-          {/* The table's own container is the single scroll area, so the sticky
-            header stays pinned to it. */}
-          <Table containerClassName="max-h-96 overflow-auto rounded-lg border border-border/60">
-            <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_var(--border)] [&_tr]:border-b-0">
-              <TableRow>
-                <TableHead className="w-10">
-                  <Checkbox
-                    aria-label={
-                      allSelected ? "Unselect all pages" : "Select all pages"
-                    }
-                    checked={allSelected}
-                    disabled={selectablePages.length === 0}
-                    onCheckedChange={(checked) => toggleAll(checked === true)}
-                  />
-                </TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Endpoint</TableHead>
-                <TableHead className="text-right">Words</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visiblePages.length === 0 && (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell
-                    colSpan={4}
-                    className="py-8 text-center text-muted-foreground"
-                  >
-                    No pages match your filter.
-                  </TableCell>
-                </TableRow>
-              )}
-              {visiblePages.map((page) => {
-                const isSelected = selected.has(page.url);
-                return (
-                  <TableRow
-                    key={page.url}
-                    data-state={isSelected ? "selected" : undefined}
-                    className={isDisabledPage(page) ? "opacity-60" : undefined}
-                  >
-                    <TableCell>
-                      {disabledReason(page, isSelected) ? (
-                        // A disabled checkbox swallows hover, so the tooltip
-                        // hangs off a wrapper and the checkbox lets events through.
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="inline-flex cursor-not-allowed">
-                              <Checkbox
-                                className="pointer-events-none"
-                                aria-label={`Can't select ${page.title || page.url}: ${disabledReason(page, isSelected)}`}
-                                checked={isSelected}
-                                disabled
-                              />
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="right">
-                            {disabledReason(page, isSelected)}
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <Checkbox
-                          aria-label={`Select ${page.title || page.url}`}
-                          checked={isSelected}
-                          onCheckedChange={(checked) =>
-                            togglePage(page, checked === true)
-                          }
-                        />
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-64 truncate font-medium">
-                      {page.title || pageEndpoint(page.url)}
+          {/* One scroll area, so a long list never pushes the rest off screen. */}
+          <ul className="max-h-[28rem] divide-y overflow-auto rounded-lg border">
+            {visiblePages.length === 0 && (
+              <li className="px-4 py-8 text-center text-sm text-muted-foreground">
+                No pages match your filter.
+              </li>
+            )}
+            {visiblePages.map((page) => {
+              const isSelected = selected.has(page.url);
+              const reason = disabledReason(page, isSelected);
+              return (
+                <li
+                  key={page.url}
+                  data-state={isSelected ? "selected" : undefined}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5",
+                    isDisabledPage(page) && "bg-muted/30",
+                  )}
+                >
+                  {reason ? (
+                    // A disabled checkbox swallows hover, so the tooltip
+                    // hangs off a wrapper and the checkbox lets events through.
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex cursor-not-allowed">
+                          <Checkbox
+                            className="pointer-events-none"
+                            aria-label={`Can't select ${page.title || page.url}: ${reason}`}
+                            checked={isSelected || page.alreadyAdded}
+                            disabled
+                          />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{reason}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Checkbox
+                      aria-label={`Select ${page.title || page.url}`}
+                      checked={isSelected}
+                      onCheckedChange={(checked) =>
+                        togglePage(page, checked === true)
+                      }
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
+                      <span className="truncate">
+                        {page.title || pageEndpoint(page.url)}
+                      </span>
                       {page.alreadyAdded ? (
-                        <Badge variant="secondary" className="ml-2">
+                        <Badge variant="secondary" className="font-normal">
                           Already added
                         </Badge>
                       ) : (
                         !page.hasEnoughContent && (
                           <Badge
                             variant="secondary"
-                            className="ml-2"
+                            className="font-normal"
                             title={`Fewer than ${minWords} words — not enough content to index`}
                           >
                             Not enough content
                           </Badge>
                         )
                       )}
-                    </TableCell>
-                    <TableCell
-                      className="max-w-72 truncate font-mono text-xs text-muted-foreground"
+                    </p>
+                    <p
+                      className="truncate text-xs text-muted-foreground"
                       title={page.url}
                     >
+                      {hostOf(page.url)}
                       {pageEndpoint(page.url)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {(page.wordCount ?? 0).toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                    </p>
+                  </div>
+                  <span className="hidden shrink-0 text-xs text-muted-foreground tabular-nums sm:inline">
+                    {(page.wordCount ?? 0).toLocaleString()} words
+                  </span>
+                  <a
+                    href={page.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Open ${page.title || page.url} in a new tab`}
+                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <IconExternalLink className="size-4" />
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
 
           {truncated && (
             <p className="text-xs text-muted-foreground">

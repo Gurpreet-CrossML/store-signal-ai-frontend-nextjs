@@ -194,6 +194,7 @@ export const ENDPOINTS = {
   fetchKnowledgeItems: () => `/knowledge/knowledge-items/`,
   createKnowledgeItem: () => `/knowledge/knowledge-items/`,
   knowledgeItemDetail: (id: number) => `/knowledge/knowledge-items/${id}/`,
+  knowledgeItemsBulkScope: () => `/knowledge/knowledge-items/bulk-scope/`,
   knowledgeItemPublish: (id: number) =>
     `/knowledge/knowledge-items/${id}/publish/`,
   // Vector storage (used / limit / by kind, in bytes) and item counts. Django.

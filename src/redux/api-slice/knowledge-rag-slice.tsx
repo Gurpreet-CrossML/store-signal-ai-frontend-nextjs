@@ -77,6 +77,11 @@ export type KnowledgeItem = {
   updatedAt: string;
   /** Name of the user who last edited the item; unset if never edited by a user. */
   updatedBy?: string;
+  /** Name of the user who added the item; unset for items that predate tracking. */
+  createdBy?: string;
+  /** A published article was edited after it went live; the assistant still
+   * uses the version that was published, until the changes are published. */
+  hasUnpublishedChanges?: boolean;
 
   // General knowledge
   content?: string;
@@ -148,6 +153,8 @@ export type KnowledgeCounts = {
   urls: number;
   faqs: number;
   articles: number;
+  /** Items that failed to process and need attention. */
+  failed: number;
 };
 
 /** A user who has added knowledge, for the "Added by" filter. */
@@ -204,6 +211,8 @@ type ApiKnowledgeItem = {
   file_size: number | null;
   /** Who last edited the item, from the backend's audit metadata. */
   updated_by: { name: string; username: string } | null;
+  created_by: { name: string; username: string } | null;
+  has_unpublished_changes?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -220,6 +229,8 @@ function mapApiKnowledgeItem(api: ApiKnowledgeItem): KnowledgeItem {
     createdAt: api.created_at,
     updatedAt: api.updated_at,
     updatedBy: api.updated_by?.name || api.updated_by?.username || undefined,
+    createdBy: api.created_by?.name || api.created_by?.username || undefined,
+    hasUnpublishedChanges: api.has_unpublished_changes || undefined,
     content: api.content || undefined,
     category: api.category || undefined,
     products: api.products ?? [],
@@ -246,6 +257,11 @@ type KnowledgeItemWritableInput = {
   url?: string;
   /** The raw file being uploaded — only present for `source: "file"`. */
   file?: File;
+  /** The products, categories and collections an item applies to. Left out
+   * of the request when unset, so an edit that doesn't touch them keeps them. */
+  productIds?: string[];
+  categoryIds?: string[];
+  collectionIds?: string[];
 };
 
 /** Builds a multipart body when a file is attached, otherwise a plain JSON body.
@@ -280,6 +296,9 @@ function buildKnowledgeItemPayload(
     question: input.question,
     answer: input.answer,
     url: input.url,
+    products: input.productIds,
+    categories: input.categoryIds,
+    collections: input.collectionIds,
   };
 }
 
@@ -378,6 +397,8 @@ export type BulkKnowledgeItemContent = {
   answer?: string;
   url?: string;
   title?: string;
+  /** An article's HTML body. */
+  content?: string;
 };
 
 /** How long the bulk create may take before the browser gives up. */
@@ -410,6 +431,10 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
       collectionIds?: string[];
       items?: BulkKnowledgeItemContent[];
       files?: File[];
+      /** Send the batch for processing now instead of saving it as drafts. */
+      publish?: boolean;
+      /** Skip the success toast, for a save the user didn't ask for by name. */
+      silent?: boolean;
     },
     thunkAPI,
   ) => {
@@ -422,6 +447,7 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
         productIds,
         categoryIds,
         collectionIds,
+        publish = false,
       } = input;
 
       let payload: FormData | Record<string, unknown>;
@@ -438,6 +464,7 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
         const formData = new FormData();
         formData.append("type", type);
         formData.append("source", source);
+        formData.append("publish", String(publish));
         aiScope.forEach((scope) => formData.append("ai_scope", scope));
         (productIds ?? []).forEach((id) => formData.append("products", id));
         (categoryIds ?? []).forEach((id) => formData.append("categories", id));
@@ -458,6 +485,7 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
           products: productIds ?? [],
           categories: categoryIds ?? [],
           collections: collectionIds ?? [],
+          publish,
           items: input.items ?? [],
         };
       }
@@ -468,7 +496,8 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
         requestConfig,
       );
       const data: ApiKnowledgeItem[] = response.data?.data ?? [];
-      toast.success(response?.data?.message || "Knowledge items created.");
+      if (!input.silent)
+        toast.success(response?.data?.message || "Knowledge items created.");
       return data.map(mapApiKnowledgeItem);
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -607,6 +636,25 @@ export const FetchDiscoveredPageDetails = createAsyncThunk(
   },
 );
 
+/** Loads one knowledge item, e.g. an article being opened in the editor. */
+export const FetchKnowledgeItem = createAsyncThunk(
+  "FetchKnowledgeItem",
+  async ({ id, storeCode }: { id: string; storeCode: string }, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.knowledgeItemDetail(Number(id))}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return mapApiKnowledgeItem(response.data?.data as ApiKnowledgeItem);
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't load this knowledge item.",
+      );
+    }
+  },
+);
+
 export const UpdateKnowledgeItem = createAsyncThunk(
   "UpdateKnowledgeItem",
   async (
@@ -614,10 +662,13 @@ export const UpdateKnowledgeItem = createAsyncThunk(
       id,
       storeCode,
       patch,
+      silent = false,
     }: {
       id: string;
       storeCode: string;
       patch: KnowledgeItemWritableInput;
+      /** Skip the success toast, e.g. for an autosave. */
+      silent?: boolean;
     },
     thunkAPI,
   ) => {
@@ -631,9 +682,10 @@ export const UpdateKnowledgeItem = createAsyncThunk(
           : undefined,
       );
       const data: ApiKnowledgeItem = response.data.data;
-      toast.success(
-        response?.data?.message || "Knowledge updated successfully!",
-      );
+      if (!silent)
+        toast.success(
+          response?.data?.message || "Knowledge updated successfully!",
+        );
       return mapApiKnowledgeItem(data);
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -752,6 +804,59 @@ export const PublishKnowledgeItems = createAsyncThunk(
     }
 
     return { publishedIds, failedIds };
+  },
+);
+
+/**
+ * Replaces which AI features use each of several knowledge items, in one
+ * request. It takes effect at once and nothing is processed again. Only draft
+ * and published items change; the rest come back counted in `skipped`.
+ */
+export const UpdateKnowledgeItemsScope = createAsyncThunk(
+  "UpdateKnowledgeItemsScope",
+  async (
+    {
+      ids,
+      aiScope,
+      storeCode,
+      silent = false,
+    }: {
+      ids: string[];
+      aiScope: AIScope[];
+      storeCode: string;
+      /** Skip the success toast, e.g. for a change saved as it is made. */
+      silent?: boolean;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.knowledgeItemsBulkScope()}?store_code=${storeCode}`,
+        { ids: ids.map(Number), ai_scope: aiScope },
+      );
+      const { updated, skipped } = response.data?.data as {
+        updated: number;
+        skipped: number;
+      };
+      if (!silent || skipped > 0) {
+        toast.success(
+          `Updated ${updated} knowledge ${updated === 1 ? "item" : "items"}.`,
+          skipped > 0
+            ? {
+                description: `${skipped} couldn't be changed because they are still being processed or failed.`,
+              }
+            : undefined,
+        );
+      }
+      return { updated, skipped };
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't change the AI scope.", {
+        description: data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't change the AI scope.");
+    }
   },
 );
 

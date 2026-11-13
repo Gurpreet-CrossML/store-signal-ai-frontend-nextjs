@@ -122,7 +122,7 @@ function appliesTo(item: KnowledgeItem): string {
 }
 
 /** "Just now", "12 min ago", "Yesterday", "2 weeks ago". */
-function timeAgo(value: string): string {
+export function timeAgo(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
 
@@ -327,6 +327,7 @@ export function KnowledgeList({
               <div className="mt-1.5 flex items-center gap-2">
                 <KnowledgeStatusBadge status={item.status} />
                 <span className="min-w-0 truncate text-xs text-muted-foreground">
+                  {item.hasUnpublishedChanges ? "Draft changes · " : ""}
                   {appliesTo(item)} · {timeAgo(item.updatedAt)}
                 </span>
               </div>
@@ -471,6 +472,11 @@ export function KnowledgeList({
 
                   <TableCell>
                     <KnowledgeStatusBadge status={item.status} />
+                    {item.hasUnpublishedChanges && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Draft changes
+                      </p>
+                    )}
                   </TableCell>
 
                   <TableCell className="whitespace-nowrap text-xs">

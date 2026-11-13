@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   IconMessage2,
   IconPlus,
   IconSearch,
   IconSend,
-  IconTrash,
   IconX,
   IconRefresh,
 } from "@tabler/icons-react";
@@ -37,6 +36,7 @@ import {
   FetchKnowledgeItems,
   FetchKnowledgeStats,
   PublishKnowledgeItems,
+  UpdateKnowledgeItemsScope,
   type KnowledgeItem,
 } from "@/redux/api-slice/knowledge-rag-slice";
 import {
@@ -50,8 +50,7 @@ import {
   isKnowledgeItemSelectable,
   KnowledgeList,
 } from "@/components/custom/knowledge/knowledge-list";
-import { EditKnowledgeDialog } from "@/components/custom/knowledge/edit-knowledge-dialog";
-import { KnowledgeDetailSheet } from "@/components/custom/knowledge/knowledge-detail-sheet";
+import { BulkAssistantsPopover } from "@/components/custom/knowledge/bulk-assistants-popover";
 import { KnowledgeDataTablePagination } from "@/components/custom/knowledge/knowledge-data-table-pagination";
 import { PAGE_SIZE_OPTIONS } from "@/components/custom/threads-data-table-pagination";
 import {
@@ -91,6 +90,7 @@ function splitParam(value: string) {
 
 export default function KnowledgeLibraryTabContent() {
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const canEditKnowledge = useCan("knowledge", { write: true });
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -175,10 +175,6 @@ export default function KnowledgeLibraryTabContent() {
   );
 
   const [searchInput, setSearchInput] = useState(debouncedSearch);
-  const [detailItem, setDetailItem] = useState<KnowledgeItem | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [editItem, setEditItem] = useState<KnowledgeItem | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<KnowledgeItem | null>(null);
 
   const items = FetchKnowledgeItemsListData.results;
@@ -256,16 +252,24 @@ export default function KnowledgeLibraryTabContent() {
     loadStats();
   }, [loadStats]);
 
+  // Each item opens on its own page; an article opens in its editor.
   const handleOpenItem = (item: KnowledgeItem) => {
-    setDetailItem(item);
-    setDetailOpen(true);
+    router.push(
+      item.source === "article"
+        ? `/knowledge/articles/${item.id}`
+        : `/knowledge/items/${item.id}`,
+    );
   };
 
+  // Editing happens on the item's own page: an article in its editor, the
+  // rest on the view page switched to edit mode.
   const handleEditItem = (item: KnowledgeItem) => {
     if (!isKnowledgeItemEditable(item.status)) return;
-    setDetailOpen(false);
-    setEditItem(item);
-    setEditOpen(true);
+    router.push(
+      item.source === "article"
+        ? `/knowledge/articles/${item.id}`
+        : `/knowledge/items/${item.id}?edit=1`,
+    );
   };
 
   const handleConfirmDelete = async () => {
@@ -298,6 +302,22 @@ export default function KnowledgeLibraryTabContent() {
     );
   };
 
+  /** Replaces the assistants on the selected items; resolves `true` once saved. */
+  const handleChangeScope = async (aiScope: AIScope[]) => {
+    const result = await dispatch(
+      UpdateKnowledgeItemsScope({
+        ids: selectedItems.map((item) => item.id),
+        aiScope,
+        storeCode,
+      }),
+    );
+    if (!UpdateKnowledgeItemsScope.fulfilled.match(result)) return false;
+
+    setSelectedIds(new Set());
+    loadItems();
+    return true;
+  };
+
   // Open the publish confirmation. Only drafts can be published, so anything
   // else in `targets` is left out.
   const requestPublish = (targets: KnowledgeItem[]) => {
@@ -326,10 +346,6 @@ export default function KnowledgeLibraryTabContent() {
 
   const handleConfirmPublish = async () => {
     await handlePublish(publishTargets);
-    // The sheet shows a draft that is no longer one.
-    if (publishTargets.some((item) => item.id === detailItem?.id)) {
-      setDetailOpen(false);
-    }
     setPublishTargets([]);
   };
 
@@ -506,7 +522,7 @@ export default function KnowledgeLibraryTabContent() {
         ) : (
           <>
             {selectedItems.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-4 py-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-medium">
                   {selectedItems.length} selected
                 </span>
@@ -528,6 +544,10 @@ export default function KnowledgeLibraryTabContent() {
                       : `Publish ${selectedDrafts.length} ${selectedDrafts.length === 1 ? "draft" : "drafts"}`}
                   </Button>
                 )}
+                <BulkAssistantsPopover
+                  count={selectedItems.length}
+                  onApply={handleChangeScope}
+                />
                 <Button
                   type="button"
                   variant="outline"
@@ -535,17 +555,7 @@ export default function KnowledgeLibraryTabContent() {
                   className="text-destructive hover:text-destructive"
                   onClick={() => setBulkDeleteOpen(true)}
                 >
-                  <IconTrash className="size-4" />
                   Delete
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground"
-                  onClick={() => setSelectedIds(new Set())}
-                >
-                  Clear selection
                 </Button>
               </div>
             )}
@@ -579,22 +589,6 @@ export default function KnowledgeLibraryTabContent() {
             />
           </>
         )}
-
-        <EditKnowledgeDialog
-          open={editOpen}
-          onOpenChange={setEditOpen}
-          item={editItem}
-          onSaved={loadItems}
-        />
-
-        <KnowledgeDetailSheet
-          item={detailItem}
-          open={detailOpen}
-          onOpenChange={setDetailOpen}
-          onEdit={handleEditItem}
-          onPublish={(item) => requestPublish([item])}
-          onDeleted={loadItems}
-        />
 
         <AlertDialog
           open={itemToDelete !== null}
