@@ -602,6 +602,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   );
   const threadTicket = createdThreadTicket ?? existingThreadTicket;
   const started = formatDayFirst(details?.created_at);
+  const closeReason = closeReasonLabel(details?.close_reason);
   // "11:28 AM · closed after inactivity". A chat that is still open has no end.
   const endedAtDate = details?.ended_at ? new Date(details.ended_at) : null;
   const endedNote = !details
@@ -882,6 +883,18 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               <div className="min-w-0">
                 <h1 className="truncate text-2xl font-bold">{customerName}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {closeReason ? (
+                    <Badge
+                      className={cn(
+                        "border",
+                        BADGE_TONE_STYLES[
+                          closeReasonTone(details.close_reason) ?? "neutral"
+                        ],
+                      )}
+                    >
+                      {closeReason}
+                    </Badge>
+                  ) : null}
                   {threadTagLabels.map((tag) => (
                     <Badge
                       key={tag}
