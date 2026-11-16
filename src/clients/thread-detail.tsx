@@ -595,6 +595,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const feedbackComment = feedback?.feedback_message?.trim();
   const improvements = FetchAIInsightData?.underperforming_cases ?? [];
   const successes = FetchAIInsightData?.overperforming_cases ?? [];
+  const actions = FetchAIInsightData?.next_actionable_items ?? [];
   // The customer endpoint can include tickets from other conversations. Only
   // a ticket explicitly linked to this thread replaces its Create action.
   const existingThreadTicket = (FetchFreshdeskTicketIdData ?? []).find(
@@ -636,6 +637,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const transcript = (
     <ConversationTranscript
       messages={threadMessages}
+      totalMessages={details?.total_messages}
       loading={detailsLoading}
       handlerEvents={details?.handler_events}
       customerName={customerName}
@@ -703,6 +705,29 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           )}
         </div>
       </ThreadCard>
+      {actions.length > 0 && (
+        <ThreadCard
+          title={
+            <div className="flex items-center justify-between">
+              <span>Suggested actions</span>
+              <span className="text-sm font-normal text-muted-foreground">
+                {actions.length} actions
+              </span>
+            </div>
+          }
+        >
+          <div>
+            {actions.map((action, index) => (
+              <div
+                key={index}
+                className="border-b p-5 text-sm font-semibold last:border-b-0"
+              >
+                {action}
+              </div>
+            ))}
+          </div>
+        </ThreadCard>
+      )}
     </div>
   );
   const customer = (
