@@ -1810,9 +1810,7 @@ export default function HelpDesk() {
   /** One customer's tickets, from "View all" in the customer panel. */
   const customerParam = Number(searchParams?.get("customer") ?? "");
   const customerId =
-    Number.isInteger(customerParam) && customerParam > 0
-      ? customerParam
-      : null;
+    Number.isInteger(customerParam) && customerParam > 0 ? customerParam : null;
 
   const dispatch = useAppDispatch();
   const { data: session } = useSession();

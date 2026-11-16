@@ -1326,9 +1326,7 @@ function CustomerTab({
           {customer.email ? (
             <div className="flex items-center gap-3 px-3 py-2.5">
               <IconMail className="size-4 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 truncate">
-                {customer.email}
-              </span>
+              <span className="min-w-0 flex-1 truncate">{customer.email}</span>
               <Button
                 variant="ghost"
                 size="icon-xs"
