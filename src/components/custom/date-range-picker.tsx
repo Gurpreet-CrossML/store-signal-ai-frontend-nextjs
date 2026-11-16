@@ -8,6 +8,7 @@ import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -123,6 +124,8 @@ export function DateRangePicker({
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
+      // Reopening starts from what is applied, not an abandoned draft.
+      setDraft(committed);
       setTimeDraft({
         from: toDateTimeLocalValue(from),
         to: toDateTimeLocalValue(to),
@@ -157,27 +160,27 @@ export function DateRangePicker({
     }
   };
 
-  const handleSelect = (range: DateRange | undefined) => {
-    setDraft(range);
-    // First click yields {from: day, to: day}; treat that as "start picked,
-    // still choosing the end". Commit and close only on a completed range.
-    if (
-      range?.from &&
-      range?.to &&
-      range.to.getTime() !== range.from.getTime()
-    ) {
-      onRangeChange(
-        format(range.from, "yyyy-MM-dd"),
-        format(range.to, "yyyy-MM-dd"),
-      );
-      setOpen(false);
-    }
+  // With `min={1}` on the calendar the first click leaves `to` unset, so a
+  // draft with both ends is a complete range ready to apply.
+  const canApply = !!draft?.from && !!draft?.to;
+
+  const handleApply = () => {
+    if (!draft?.from || !draft?.to) return;
+    onRangeChange(
+      format(draft.from, "yyyy-MM-dd"),
+      format(draft.to, "yyyy-MM-dd"),
+    );
+    setOpen(false);
   };
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className={cn(className)}>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn((from || to) && ACTIVE_FILTER_STYLE, className)}
+        >
           <IconCalendar />
           {label}
         </Button>
@@ -209,14 +212,29 @@ export function DateRangePicker({
             </label>
           </div>
         ) : (
-          <Calendar
-            mode="range"
-            numberOfMonths={2}
-            defaultMonth={draft?.from ?? committed?.from}
-            selected={draft}
-            onSelect={handleSelect}
-            disabled={disabled}
-          />
+          <>
+            <Calendar
+              mode="range"
+              numberOfMonths={2}
+              min={1}
+              defaultMonth={draft?.from ?? committed?.from}
+              selected={draft}
+              onSelect={setDraft}
+              disabled={disabled}
+            />
+            <div className="flex justify-end gap-2 border-t p-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleApply} disabled={!canApply}>
+                Apply
+              </Button>
+            </div>
+          </>
         )}
       </PopoverContent>
     </Popover>

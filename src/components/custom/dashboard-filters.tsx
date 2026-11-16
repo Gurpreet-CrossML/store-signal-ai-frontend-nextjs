@@ -80,11 +80,8 @@ export function DashboardRangeFilter({
           })
         }
         options={RANGE_OPTIONS}
-        activeClassName={
-          filters.range !== DEFAULT_DASHBOARD_FILTERS.range
-            ? ACTIVE_FILTER_STYLE
-            : undefined
-        }
+        // A period is always applied, including the default.
+        activeClassName={ACTIVE_FILTER_STYLE}
       />
       {filters.range === "custom" && (
         <DateRangePicker
@@ -92,7 +89,6 @@ export function DashboardRangeFilter({
           to={filters.to}
           onRangeChange={(from, to) => onChange({ ...filters, from, to })}
           disabled={{ after: new Date() }}
-          className={ACTIVE_FILTER_STYLE}
         />
       )}
     </>

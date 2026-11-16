@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Typography } from "@/components/ui/typography";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 /**
@@ -206,7 +207,11 @@ export function OrderFilterPopover({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline" aria-label="Filter Orders">
+        <Button
+          variant="outline"
+          aria-label="Filter Orders"
+          className={cn(activeCount > 0 && ACTIVE_FILTER_STYLE)}
+        >
           <IconFilter className="size-4" />
           Filters
           {activeCount > 0 ? (

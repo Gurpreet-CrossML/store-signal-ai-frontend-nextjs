@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Typography } from "@/components/ui/typography";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
+import { cn } from "@/lib/utils";
 
 /**
  * The list screen's filter state.
@@ -176,7 +178,11 @@ export function CustomerFilterPopover({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline" aria-label="Filter Customers">
+        <Button
+          variant="outline"
+          aria-label="Filter Customers"
+          className={cn(activeCount > 0 && ACTIVE_FILTER_STYLE)}
+        >
           <IconFilter className="size-4" />
           Filters
           {activeCount > 0 ? (
