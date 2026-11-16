@@ -21,7 +21,8 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
 import {
   ARTICLE_BODY_MAX_LENGTH,
-  ARTICLE_TITLE_MAX_LENGTH,
+  KNOWLEDGE_TITLE_MAX_LENGTH,
+  KNOWLEDGE_TITLE_MIN_LENGTH,
 } from "@/lib/config";
 import { richTextToPlainText } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
@@ -111,6 +112,8 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
   const savedRef = useRef<{ key: string | null }>({ key: null });
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [showErrors, setShowErrors] = useState(false);
+  // The title field was left once, so a missing title can be flagged.
+  const [titleTouched, setTitleTouched] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   // On a tablet or phone the settings panel is a drawer, opened from the header.
@@ -132,8 +135,14 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
   );
   const titleLength = title.trim().length;
   const bodyLength = richTextToPlainText(html).length;
-  const titleOver = titleLength > ARTICLE_TITLE_MAX_LENGTH;
+  const titleOver = titleLength > KNOWLEDGE_TITLE_MAX_LENGTH;
   const bodyOver = bodyLength > ARTICLE_BODY_MAX_LENGTH;
+  // Without a title of the minimum length nothing is saved or published.
+  const titleTooShort = titleLength < KNOWLEDGE_TITLE_MIN_LENGTH;
+  // Flagged under the title once it was left, something was written without
+  // one, or a save or publish was tried.
+  const showTitleError =
+    titleTooShort && (showErrors || titleTouched || bodyLength > 0);
   const overLimit = titleOver || bodyOver;
 
   // --- Loading an existing article -----------------------------------------
@@ -200,9 +209,11 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
     const scopeProblem = validateScope(current.scope);
     if (!current.html || scopeProblem.aiScope || scopeProblem.selection)
       return false;
-    // Over a limit, the backend would refuse it, so nothing is sent.
+    // Over a limit, or without a title, the backend would refuse it, so
+    // nothing is sent.
     if (
-      current.title.trim().length > ARTICLE_TITLE_MAX_LENGTH ||
+      current.title.trim().length < KNOWLEDGE_TITLE_MIN_LENGTH ||
+      current.title.trim().length > KNOWLEDGE_TITLE_MAX_LENGTH ||
       richTextToPlainText(current.html).length > ARTICLE_BODY_MAX_LENGTH
     )
       return false;
@@ -293,7 +304,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
   const requestPublish = () => {
     setShowErrors(true);
     if (hasScopeError) setSettingsOpen(true);
-    if (hasScopeError || overLimit) return;
+    if (hasScopeError || overLimit || titleTooShort) return;
     if (richTextToPlainText(html).length < MIN_PUBLISH_LENGTH) return;
     setPublishOpen(true);
   };
@@ -352,13 +363,15 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
       ? "Saving…"
       : saveState === "error"
         ? "Couldn't save"
-        : isLive && isDirty
-          ? "Unsaved changes"
-          : isLive && hasUnpublishedChanges
-            ? "Draft saved · not published yet"
-            : savedAt
-              ? `Saved ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
-              : "Not saved yet";
+        : titleTooShort && html
+          ? "Add a title to save"
+          : isLive && isDirty
+            ? "Unsaved changes"
+            : isLive && hasUnpublishedChanges
+              ? "Draft saved · not published yet"
+              : savedAt
+                ? `Saved ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+                : "Not saved yet";
 
   const settingsPanel = (
     <>
@@ -480,20 +493,28 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
                 setTitle(event.target.value);
               }}
               disabled={isLocked}
-              placeholder="Untitled article"
+              placeholder="Article title"
               aria-label="Article title"
-              maxLength={ARTICLE_TITLE_MAX_LENGTH}
-              aria-invalid={titleOver}
+              maxLength={KNOWLEDGE_TITLE_MAX_LENGTH}
+              onBlur={() => setTitleTouched(true)}
+              aria-invalid={titleOver || showTitleError}
               className="w-full bg-transparent text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/60 disabled:opacity-70"
             />
-            {titleLength >= ARTICLE_TITLE_MAX_LENGTH * 0.8 && (
+            {showTitleError && (
+              <p role="alert" className="mt-1 text-xs text-destructive">
+                {titleLength
+                  ? `The title needs at least ${KNOWLEDGE_TITLE_MIN_LENGTH} characters.`
+                  : "A title is required."}
+              </p>
+            )}
+            {titleLength >= KNOWLEDGE_TITLE_MAX_LENGTH * 0.8 && (
               <p
                 className={cn(
                   "mt-1 text-right text-xs text-muted-foreground",
                   titleOver && "text-destructive",
                 )}
               >
-                {titleLength} / {ARTICLE_TITLE_MAX_LENGTH}
+                {titleLength} / {KNOWLEDGE_TITLE_MAX_LENGTH}
                 {titleOver && " · the title is too long"}
               </p>
             )}
@@ -515,6 +536,8 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
           >
             {bodyLength.toLocaleString()} /{" "}
             {ARTICLE_BODY_MAX_LENGTH.toLocaleString()} characters
+            {bodyLength < MIN_PUBLISH_LENGTH &&
+              ` · at least ${MIN_PUBLISH_LENGTH} to publish`}
             {bodyOver &&
               " · too long to save or publish, please shorten the article"}
           </p>
