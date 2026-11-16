@@ -1,14 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { format, isSameDay } from "date-fns";
+import { format, isMatch, isSameDay, parse } from "date-fns";
 import { IconCalendar } from "@tabler/icons-react";
 import type { DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { ACTIVE_FILTER_STYLE } from "@/lib/config";
+import {
+  ACTIVE_FILTER_STYLE,
+  API_DATE_FORMAT,
+  DISPLAY_DATE_FORMAT,
+} from "@/lib/config";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -16,25 +20,35 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DISPLAY_DATE_TIME_FORMAT = `${DISPLAY_DATE_FORMAT} hh:mm a`;
+
+const isDateOnly = (value: string) => isMatch(value, API_DATE_FORMAT);
 
 const pad = (value: number) => String(value).padStart(2, "0");
 
-// Parse "yyyy-MM-dd" as a local date. `new Date("yyyy-MM-dd")` parses as UTC
-// midnight, which renders as the previous day in negative-offset timezones.
-const parseISODate = (value: string) => {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
-};
+// Parse an API_DATE_FORMAT value as a local date. `new Date("yyyy-MM-dd")`
+// parses as UTC midnight, which renders as the previous day in
+// negative-offset timezones.
+const parseISODate = (value: string) =>
+  parse(value, API_DATE_FORMAT, new Date());
 
 function parseDateTimeValue(
   value: string,
   defaultTime: "start" | "end",
 ): Date | undefined {
   if (!value) return undefined;
-  if (DATE_ONLY_RE.test(value)) {
+  if (isDateOnly(value)) {
+    // The start or end of that day in UTC.
+    const day = parseISODate(value);
+    const [year, month, date] = [
+      day.getFullYear(),
+      day.getMonth(),
+      day.getDate(),
+    ];
     return new Date(
-      `${value}T${defaultTime === "start" ? "00:00:00.000Z" : "23:59:59.999Z"}`,
+      defaultTime === "start"
+        ? Date.UTC(year, month, date)
+        : Date.UTC(year, month, date, 23, 59, 59, 999),
     );
   }
 
@@ -44,8 +58,9 @@ function parseDateTimeValue(
 
 function toDateTimeLocalValue(value: string): string {
   if (!value) return "";
-  if (DATE_ONLY_RE.test(value)) {
-    return `${value}T00:00`;
+  if (isDateOnly(value)) {
+    // The <input type="datetime-local"> value format, fixed by HTML.
+    return format(parseISODate(value), "yyyy-MM-dd'T'HH:mm");
   }
 
   const date = new Date(value);
@@ -98,19 +113,19 @@ export function DateRangePicker({
 
   const label = withTime
     ? committed?.from && committed?.to
-      ? `${format(committed.from, "MMM dd, yyyy hh:mm a")} – ${format(
+      ? `${format(committed.from, DISPLAY_DATE_TIME_FORMAT)} – ${format(
           committed.to,
-          "MMM dd, yyyy hh:mm a",
+          DISPLAY_DATE_TIME_FORMAT,
         )}`
       : committed?.from
-        ? `From ${format(committed.from, "MMM dd, yyyy hh:mm a")}`
+        ? `From ${format(committed.from, DISPLAY_DATE_TIME_FORMAT)}`
         : committed?.to
-          ? `Until ${format(committed.to, "MMM dd, yyyy hh:mm a")}`
+          ? `Until ${format(committed.to, DISPLAY_DATE_TIME_FORMAT)}`
           : "Pick a Date/Time Range"
     : committed?.from && committed?.to
-      ? `${format(committed.from, "MMM dd, yyyy")} – ${format(
+      ? `${format(committed.from, DISPLAY_DATE_FORMAT)} – ${format(
           committed.to,
-          "MMM dd, yyyy",
+          DISPLAY_DATE_FORMAT,
         )}`
       : "Pick a Date Range";
 
@@ -177,8 +192,8 @@ export function DateRangePicker({
   const handleApply = () => {
     if (!draft?.from || !draft?.to) return;
     onRangeChange(
-      format(draft.from, "yyyy-MM-dd"),
-      format(draft.to, "yyyy-MM-dd"),
+      format(draft.from, API_DATE_FORMAT),
+      format(draft.to, API_DATE_FORMAT),
     );
     setOpen(false);
   };

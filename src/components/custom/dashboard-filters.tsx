@@ -1,14 +1,18 @@
 "use client";
 
 import { IconRefresh } from "@tabler/icons-react";
-import { format, parseISO, subDays } from "date-fns";
+import { format, parse, subDays } from "date-fns";
 
 import { DateRangePicker } from "@/components/custom/date-range-picker";
 import {
   CHANNEL_OPTIONS,
   FilterSelect,
 } from "@/components/custom/thread-filteration";
-import { ACTIVE_FILTER_STYLE } from "@/lib/config";
+import {
+  ACTIVE_FILTER_STYLE,
+  API_DATE_FORMAT,
+  DISPLAY_DATE_FORMAT,
+} from "@/lib/config";
 import { Button } from "@/components/ui/button";
 
 export type DashboardFilterState = {
@@ -36,7 +40,9 @@ const RANGE_OPTIONS = [
 // Days back from today — the same window the APIs default to for 30 days.
 const PRESET_DAYS = { today: 0, "7d": 7, "30d": 30 };
 
-const toISODate = (date: Date) => format(date, "yyyy-MM-dd");
+const toISODate = (date: Date) => format(date, API_DATE_FORMAT);
+const fromISODate = (value: string) =>
+  parse(value, API_DATE_FORMAT, new Date());
 
 /** The from/to (YYYY-MM-DD) every dashboard API is called with. */
 export function resolveDashboardRange(filters: DashboardFilterState) {
@@ -53,7 +59,7 @@ export function resolveDashboardRange(filters: DashboardFilterState) {
 /** The selected period in words, e.g. "Last 7 days" or "Oct 01, 2026 – Oct 10, 2026". */
 export function dashboardRangeLabel(filters: DashboardFilterState) {
   if (filters.range === "custom") {
-    return `${format(parseISO(filters.from), "MMM dd, yyyy")} – ${format(parseISO(filters.to), "MMM dd, yyyy")}`;
+    return `${format(fromISODate(filters.from), DISPLAY_DATE_FORMAT)} – ${format(fromISODate(filters.to), DISPLAY_DATE_FORMAT)}`;
   }
   return RANGE_OPTIONS.find((option) => option.value === filters.range)!.label;
 }
