@@ -545,7 +545,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   // so every section shows its own loader rather than the last thread's
   // answer. Each section then falls back to its own request's flag.
   const detailsLoading = !isThisThread;
-  const isResolved = details?.verdict?.verdict === "resolved";
   // Breadcrumb title: the thread's own name, else what the customer first asked.
   const threadTitle =
     details?.name ||
@@ -883,11 +882,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               <div className="min-w-0">
                 <h1 className="truncate text-2xl font-bold">{customerName}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {isResolved ? (
-                    <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
-                      Resolved by AI
-                    </Badge>
-                  ) : null}
                   {threadTagLabels.map((tag) => (
                     <Badge
                       key={tag}
