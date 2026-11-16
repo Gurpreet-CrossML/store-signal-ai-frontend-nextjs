@@ -385,6 +385,8 @@ export const ENDPOINTS = {
   notifications: () => createAPIUrl("/support/notifications/", "django"),
   notificationCounts: () =>
     createAPIUrl("/support/notifications/counts/", "django"),
+  notificationsMarkAllRead: () =>
+    createAPIUrl("/support/notifications/mark/read/", "django"),
   notificationMarkRead: (notification_id: number) =>
     createAPIUrl(
       `/support/notifications/${notification_id}/mark/read/`,
@@ -866,6 +868,13 @@ export const ACTIVE_QUEUE_STYLE =
 export const ACTIVE_ASSIGNEE_STYLE =
   "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-300 dark:hover:bg-sky-950/50";
 export const ALL_FILTER_VALUE = "all" as const;
+/**
+ * date-fns format of the plain dates the date pickers emit and the APIs take
+ * as `from`/`to`. Everything that writes or reads those values uses it.
+ */
+export const API_DATE_FORMAT = "yyyy-MM-dd";
+/** date-fns format a picked day is shown in. */
+export const DISPLAY_DATE_FORMAT = "MMM dd, yyyy";
 export const ANY_FILTER_VALUE = "any" as const;
 export const DEFAULT_HELPDESK_QUEUE = "open" as const;
 export const DEFAULT_CUSTOMER_ORDERING = "-total_spent" as const;

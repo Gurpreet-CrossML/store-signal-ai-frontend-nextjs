@@ -1,6 +1,8 @@
 import type { NextApiResponse } from "next";
+import { parse } from "date-fns";
 
 import {
+  API_DATE_FORMAT,
   APIResponse,
   ErrorResponse,
   PaginationResponse,
@@ -246,9 +248,9 @@ export function formatDate(value: string): string {
   });
 }
 
-/** Midnight at the start of `value`'s day, as an ISO instant. */
+/** Midnight at the start of `value`'s day (API_DATE_FORMAT), as an ISO instant. */
 export function startOfDay(value: string) {
-  const date = new Date(value);
+  const date = parse(value, API_DATE_FORMAT, new Date());
   date.setHours(0, 0, 0, 0);
   return date.toISOString();
 }
@@ -259,7 +261,7 @@ export function startOfDay(value: string) {
  * happened today.
  */
 export function endOfDay(value: string) {
-  const date = new Date(value);
+  const date = parse(value, API_DATE_FORMAT, new Date());
   date.setHours(23, 59, 59, 999);
   return date.toISOString();
 }
