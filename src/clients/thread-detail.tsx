@@ -70,7 +70,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
 import { getDuration } from "@/lib/helpers";
-import { FEEDBACK_EMOJIS, FEEDBACK_LABELS } from "@/lib/config";
+import { FEEDBACK_RATINGS } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import {
   FetchAIInsight,
@@ -805,14 +805,9 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               <dt className="text-muted-foreground">User feedback</dt>
               <dd className="flex items-center justify-end gap-1.5 text-right">
                 <span aria-label={feedback.rating}>
-                  {FEEDBACK_EMOJIS[
-                    feedback.rating as keyof typeof FEEDBACK_EMOJIS
-                  ] ?? feedback.rating}
-                </span>
-                <span>
-                  {FEEDBACK_LABELS[
-                    feedback.rating as keyof typeof FEEDBACK_LABELS
-                  ] ?? feedback.rating}
+                  {FEEDBACK_RATINGS.find(
+                    (rating) => rating.value === feedback.rating,
+                  )?.label ?? feedback.rating}
                 </span>
                 {feedbackComment ? <InfoIcon text={feedbackComment} /> : null}
               </dd>
@@ -863,9 +858,11 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               <div className="min-w-0">
                 <h1 className="truncate text-2xl font-bold">{customerName}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
-                    {isResolved ? "Resolved by AI" : "AI review"}
-                  </Badge>
+                  {isResolved ? (
+                    <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+                      Resolved by AI
+                    </Badge>
+                  ) : null}
                   {threadTagLabels.map((tag) => (
                     <Badge
                       key={tag}

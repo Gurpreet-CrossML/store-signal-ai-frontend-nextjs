@@ -203,7 +203,7 @@ export default function ConversationMap({
       <div className="mx-5 mt-4 grid grid-cols-4 overflow-hidden rounded-lg border">
         {[
           ["Resolution score", `${rate || "—"}%`, "text-primary"],
-          ["Cart at close", `${cartCount} items`, ""],
+          ["Card", `${cartCount} items`, ""],
           ["Removed by AI", `${removedCount} items`, ""],
           ["AI issues", String(issueCount), "text-red-600"],
         ].map(([label, value, color]) => (
