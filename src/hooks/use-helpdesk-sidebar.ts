@@ -39,7 +39,7 @@ export function useHelpdeskSidebar(
     void dispatch(FetchSupportTicketFilterCounts({ storeCode }));
   }, [dispatch, isHelpdesk, storeCode]);
 
-  // `refreshKey` is not read: a change to it is the reason to fetch again
+  // `refreshKey` is not read: a change to it is the reason to fetch again.
   useEffect(() => refreshCounts(), [refreshCounts, refreshKey]);
 
   return useMemo(
