@@ -1527,6 +1527,8 @@ function ConversationPanel({
                       {chatHref ? (
                         <Link
                           href={chatHref}
+                          target="_blank"
+                          rel="noreferrer"
                           className="hidden shrink-0 text-xs font-medium text-primary underline md:inline"
                         >
                           View chat
@@ -1537,6 +1539,8 @@ function ConversationPanel({
                     {chatHref ? (
                       <Link
                         href={chatHref}
+                        target="_blank"
+                        rel="noreferrer"
                         className="mt-1 inline-block text-sm font-medium text-primary underline md:hidden"
                       >
                         View chat
@@ -1803,6 +1807,12 @@ export default function HelpDesk() {
   const activeFilter = searchParams?.get("filter") ?? "";
   /** Deep link to one ticket, e.g. from the Live Support detail panel. */
   const linkedTicketId = Number(searchParams?.get("ticket") ?? "");
+  /** One customer's tickets, from "View all" in the customer panel. */
+  const customerParam = Number(searchParams?.get("customer") ?? "");
+  const customerId =
+    Number.isInteger(customerParam) && customerParam > 0
+      ? customerParam
+      : null;
 
   const dispatch = useAppDispatch();
   const { data: session } = useSession();
@@ -1879,6 +1889,18 @@ export default function HelpDesk() {
     },
     [dispatch],
   );
+  // A ticket linked with its status (`?status=`) lands on that tab. The list
+  // waits for the switch, so its first load is on that tab and the linked
+  // ticket stays open.
+  const pendingQueueRef = useRef(
+    queues.find((queue) => queue.key === searchParams?.get("status"))?.key ??
+      null,
+  );
+  useEffect(() => {
+    if (pendingQueueRef.current) {
+      dispatch(setHelpdeskQueue(pendingQueueRef.current));
+    }
+  }, [dispatch]);
   const [supportTikcetMessages, setSupportTicketMessages] = useState<
     SupportTicketMessage[]
   >([]);
@@ -2408,6 +2430,10 @@ export default function HelpDesk() {
 
   useEffect(() => {
     if (!storeCode) return;
+    if (pendingQueueRef.current) {
+      if (pendingQueueRef.current !== activeQueue) return;
+      pendingQueueRef.current = null;
+    }
 
     const filters: SupportTicketFilters = {
       status: activeQueue,
@@ -2416,6 +2442,7 @@ export default function HelpDesk() {
       ...(appliedFilters.priorities.length
         ? { priority: appliedFilters.priorities }
         : {}),
+      ...(customerId ? { customer: customerId } : {}),
     };
 
     // The sidebar view is the narrower of the two: it replaces, rather than
@@ -2429,6 +2456,7 @@ export default function HelpDesk() {
       debouncedSearch,
       appliedFilters,
       activeQueue,
+      customerId,
     ]);
     const isFilterChange =
       lastFilterKeyRef.current !== null &&
@@ -2496,6 +2524,7 @@ export default function HelpDesk() {
     debouncedSearch,
     appliedFilters,
     sortOrder,
+    customerId,
   ]);
 
   useEffect(() => {

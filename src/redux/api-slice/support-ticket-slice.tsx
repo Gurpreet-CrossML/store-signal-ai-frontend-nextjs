@@ -74,6 +74,8 @@ export type SupportTicketFilters = {
   assigned_to_me?: boolean;
   is_assigned?: boolean;
   is_snoozed?: boolean;
+  /** One customer's tickets, e.g. from "View all" on a ticket. */
+  customer?: number;
 };
 
 type GetSupportTicketsArgs = {
