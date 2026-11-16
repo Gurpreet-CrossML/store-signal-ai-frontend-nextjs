@@ -13,16 +13,13 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Typography } from "@/components/ui/typography";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
+import {
+  KNOWLEDGE_TITLE_MAX_LENGTH,
+  KNOWLEDGE_TITLE_MIN_LENGTH,
+} from "@/lib/config";
 import { isValidUrl, normalizeUrl } from "@/lib/url";
 import { randomId } from "@/lib/utils";
 
@@ -51,17 +48,13 @@ import {
   validateScope,
   type KnowledgeScope,
 } from "@/components/custom/knowledge/knowledge-scope";
-import {
-  FAQ_ANSWER_MAX_LENGTH,
-  POLICY_TYPE_OPTIONS,
-} from "@/components/custom/knowledge/knowledge-meta";
+import { FAQ_ANSWER_MAX_LENGTH } from "@/components/custom/knowledge/knowledge-meta";
 import { WebsiteUrlDiscovery } from "@/components/custom/knowledge/website-url-discovery";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   CreateKnowledgeItemsBulk,
   FetchKnowledgeStats,
   type BulkKnowledgeItemContent,
-  type DiscoveredPage,
 } from "@/redux/api-slice/knowledge-rag-slice";
 
 const FAQ_CAP = 20;
@@ -74,18 +67,13 @@ type ContentSource = Exclude<AddableSource, "article">;
 
 type FaqRow = { localId: string; question: string; answer: string };
 /** A link typed in under "Add a link", beside the pages found by the scan. */
-type LinkRow = { localId: string; url: string; pageType: string };
+type LinkRow = { localId: string; url: string; title: string };
 
 const emptyFaqRow = (): FaqRow => ({
   localId: randomId(),
   question: "",
   answer: "",
 });
-
-/** A page type the user can tag a link with; it becomes the item's title. */
-const LINK_TYPE_OPTIONS = POLICY_TYPE_OPTIONS.filter(
-  (option) => option.value !== "generic_link",
-);
 
 const TIPS: Record<ContentSource, { title: string; body: string }> = {
   url: {
@@ -116,6 +104,10 @@ function firstErrorMessage(value: unknown): string | undefined {
   }
   return undefined;
 }
+
+/** A title long enough to be accepted (the backend checks it too). */
+const isUsableTitle = (title: string) =>
+  title.trim().length >= KNOWLEDGE_TITLE_MIN_LENGTH;
 
 const plural = (count: number, one: string, many = `${one}s`) =>
   `${count} ${count === 1 ? one : many}`;
@@ -159,6 +151,8 @@ export function NewKnowledgePage() {
 
   const [selectedPageUrls, setSelectedPageUrls] = useState<string[]>([]);
   const [linkRows, setLinkRows] = useState<LinkRow[]>([]);
+  // Titles typed for scanned pages whose own title couldn't be read.
+  const [pageTitles, setPageTitles] = useState<Record<string, string>>({});
   const [files, setFiles] = useState<File[]>([]);
   const [faqRows, setFaqRows] = useState<FaqRow[]>([emptyFaqRow()]);
 
@@ -207,10 +201,24 @@ export function NewKnowledgePage() {
   const hasScopeError = Boolean(scopeErrors.aiScope || scopeErrors.selection);
   const hasIncompleteFaq =
     source === "faq" && filledFaqs.length > completeFaqs.length;
+  // Every page needs a title: a scanned page brings its own, unless it
+  // couldn't be read, and an added link has none until it is typed.
+  const scannedTitle = (url: string) =>
+    (discoveredPages.find((page) => page.url === url)?.title ?? "")
+      .trim()
+      .slice(0, KNOWLEDGE_TITLE_MAX_LENGTH);
+  const untitledPageUrls = selectedPageUrls.filter(
+    (url) => scannedTitle(url).length < KNOWLEDGE_TITLE_MIN_LENGTH,
+  );
+  const hasMissingUrlTitle =
+    source === "url" &&
+    (linkRows.some((row) => !isUsableTitle(row.title)) ||
+      untitledPageUrls.some((url) => !isUsableTitle(pageTitles[url] ?? "")));
 
   const resetContent = () => {
     setSelectedPageUrls([]);
     setLinkRows([]);
+    setPageTitles({});
     setFiles([]);
     setFaqRows([emptyFaqRow()]);
     setShowErrors(false);
@@ -233,7 +241,13 @@ export function NewKnowledgePage() {
     setShowErrors(true);
     setBanner(null);
     setServerErrors(null);
-    if (readyCount === 0 || hasScopeError || hasIncompleteFaq) return;
+    if (
+      readyCount === 0 ||
+      hasScopeError ||
+      hasIncompleteFaq ||
+      hasMissingUrlTitle
+    )
+      return;
 
     // Which row of the form each submitted item came from, so a server error
     // for item N can be shown on the right row.
@@ -241,19 +255,16 @@ export function NewKnowledgePage() {
     let itemLabels: string[] = [];
 
     if (source === "url") {
-      const byUrl = new Map(
-        discoveredPages.map((page: DiscoveredPage) => [page.url, page]),
-      );
       items = [
         ...selectedPageUrls.map((url) => ({
           url,
-          title: byUrl.get(url)?.title || undefined,
+          title: untitledPageUrls.includes(url)
+            ? pageTitles[url].trim()
+            : scannedTitle(url),
         })),
         ...linkRows.map((row) => ({
           url: normalizeUrl(row.url),
-          title:
-            LINK_TYPE_OPTIONS.find((option) => option.value === row.pageType)
-              ?.label ?? undefined,
+          title: row.title.trim(),
         })),
       ];
       itemLabels = [...selectedPageUrls, ...linkRows.map((row) => row.url)];
@@ -437,6 +448,12 @@ export function NewKnowledgePage() {
                 onSelectedPageUrlsChange={setSelectedPageUrls}
                 linkRows={linkRows}
                 onLinkRowsChange={setLinkRows}
+                untitledPageUrls={untitledPageUrls}
+                pageTitles={pageTitles}
+                onPageTitleChange={(url, title) =>
+                  setPageTitles((current) => ({ ...current, [url]: title }))
+                }
+                showErrors={showErrors}
                 pageCap={WEBSITE_URL_CAP}
                 error={
                   showErrors && readyCount === 0
@@ -543,6 +560,10 @@ function WebsiteContent({
   onSelectedPageUrlsChange,
   linkRows,
   onLinkRowsChange,
+  untitledPageUrls,
+  pageTitles,
+  onPageTitleChange,
+  showErrors,
   pageCap,
   error,
 }: {
@@ -552,6 +573,11 @@ function WebsiteContent({
   onSelectedPageUrlsChange: (next: string[]) => void;
   linkRows: LinkRow[];
   onLinkRowsChange: (next: LinkRow[]) => void;
+  /** Selected scanned pages whose title couldn't be read. */
+  untitledPageUrls: string[];
+  pageTitles: Record<string, string>;
+  onPageTitleChange: (url: string, title: string) => void;
+  showErrors: boolean;
   pageCap: number;
   error?: string;
 }) {
@@ -581,7 +607,7 @@ function WebsiteContent({
     }
     setLinkError(null);
     setLinkInput("");
-    onLinkRowsChange([...linkRows, { localId: randomId(), url, pageType: "" }]);
+    onLinkRowsChange([...linkRows, { localId: randomId(), url, title: "" }]);
   };
 
   return (
@@ -594,6 +620,27 @@ function WebsiteContent({
         maxSelection={pageCap}
         error={error}
       />
+
+      {untitledPageUrls.length > 0 && (
+        <section className="flex flex-col gap-2 border-t pt-4">
+          <h3 className="text-sm font-semibold">Give these pages a title</h3>
+          <p className="text-xs text-muted-foreground">
+            We couldn&apos;t read a title from them, and every page needs one.
+          </p>
+          <ul className="flex flex-col divide-y rounded-lg border">
+            {untitledPageUrls.map((url) => (
+              <li key={url} className="px-3 py-2.5">
+                <TitledUrl
+                  url={url}
+                  title={pageTitles[url] ?? ""}
+                  showErrors={showErrors}
+                  onTitleChange={(title) => onPageTitleChange(url, title)}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="flex flex-col gap-2 border-t pt-4">
         <h3 className="text-sm font-semibold">Add a link</h3>
@@ -625,35 +672,20 @@ function WebsiteContent({
                 key={row.localId}
                 className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5"
               >
-                <p
-                  className="min-w-0 flex-1 basis-48 truncate text-sm"
-                  title={row.url}
-                >
-                  {row.url}
-                </p>
-                <Select
-                  value={row.pageType || undefined}
-                  onValueChange={(pageType) =>
+                <TitledUrl
+                  url={row.url}
+                  title={row.title}
+                  showErrors={showErrors}
+                  onTitleChange={(title) =>
                     onLinkRowsChange(
                       linkRows.map((entry) =>
                         entry.localId === row.localId
-                          ? { ...entry, pageType }
+                          ? { ...entry, title }
                           : entry,
                       ),
                     )
                   }
-                >
-                  <SelectTrigger size="sm" className="w-44">
-                    <SelectValue placeholder="Page type (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LINK_TYPE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
                 <Button
                   type="button"
                   variant="ghost"
@@ -676,6 +708,49 @@ function WebsiteContent({
           again&quot; in Knowledge.
         </p>
       </section>
+    </div>
+  );
+}
+
+/** A page address with the title input it needs, for the website step. */
+function TitledUrl({
+  url,
+  title,
+  showErrors,
+  onTitleChange,
+}: {
+  url: string;
+  title: string;
+  showErrors: boolean;
+  onTitleChange: (title: string) => void;
+}) {
+  const missing = showErrors && !isUsableTitle(title);
+  return (
+    <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-3 gap-y-2">
+      <p
+        className="min-w-0 flex-1 basis-48 truncate pt-1.5 text-sm"
+        title={url}
+      >
+        {url}
+      </p>
+      <div className="flex w-full flex-col gap-1 sm:w-64">
+        <Input
+          value={title}
+          maxLength={KNOWLEDGE_TITLE_MAX_LENGTH}
+          autoComplete="off"
+          placeholder={`Title (at least ${KNOWLEDGE_TITLE_MIN_LENGTH} characters)`}
+          aria-label={`Title for ${url}`}
+          aria-invalid={missing}
+          onChange={(event) => onTitleChange(event.target.value)}
+        />
+        {missing && (
+          <p className="text-xs text-destructive">
+            {title.trim()
+              ? `Title must be at least ${KNOWLEDGE_TITLE_MIN_LENGTH} characters`
+              : "Title is required"}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

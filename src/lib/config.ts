@@ -900,3 +900,10 @@ export const GMAIL_STEPS = [
 // Knowledge storage: the share of the plan's vector storage used from which
 // the library shows a warning (yellow here, red once it is full).
 export const KNOWLEDGE_STORAGE_WARNING_SHARE = 0.9;
+
+// Knowledge limits, the same as the backend's `KNOWLEDGE_TITLE_MIN_LENGTH`,
+// `KNOWLEDGE_TITLE_MAX_LENGTH` and `KNOWLEDGE_ARTICLE_MAX_LENGTH`. The title is the same for every URL and
+// article; the article body counts visible text only.
+export const KNOWLEDGE_TITLE_MIN_LENGTH = 3;
+export const KNOWLEDGE_TITLE_MAX_LENGTH = 100;
+export const ARTICLE_BODY_MAX_LENGTH = 30_000;
