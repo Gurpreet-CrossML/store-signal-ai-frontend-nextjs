@@ -9,7 +9,6 @@ type MessagePanProps = ComponentProps<typeof MessagePan>;
 
 export function ConversationTranscript({
   messages,
-  totalMessages,
   loading,
   handlerEvents,
   customerName,
@@ -17,7 +16,6 @@ export function ConversationTranscript({
   closedCartItemCount,
 }: {
   messages: ThreadMessage[];
-  totalMessages?: number;
   loading: boolean;
   handlerEvents: MessagePanProps["handlerEvents"];
   customerName: string;
@@ -25,16 +23,7 @@ export function ConversationTranscript({
   closedCartItemCount: number;
 }) {
   return (
-    <ThreadCard
-      title={
-        <div className="flex items-center justify-between gap-3">
-          <span>Conversation</span>
-          <span className="text-sm font-normal text-muted-foreground">
-            {totalMessages ?? messages.length} messages · full transcript
-          </span>
-        </div>
-      }
-    >
+    <ThreadCard title="Conversation">
       {loading ? (
         <LoadingState label="Loading conversation…" />
       ) : messages.length ? (

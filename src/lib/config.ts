@@ -577,6 +577,22 @@ export type FeedbackRatingValue = (typeof FEEDBACK_RATINGS)[number]["value"];
 export const FEEDBACK_RATING_VALUES: readonly FeedbackRatingValue[] =
   FEEDBACK_RATINGS.map((r) => r.value);
 
+export const FEEDBACK_EMOJIS: Record<FeedbackRatingValue, string> = {
+  very_bad: "😞",
+  bad: "😕",
+  neutral: "😐",
+  good: "😊",
+  excellent: "😄",
+};
+
+export const FEEDBACK_LABELS: Record<FeedbackRatingValue, string> = {
+  very_bad: "Very bad",
+  bad: "Bad",
+  neutral: "Neutral",
+  good: "Good",
+  excellent: "Excellent",
+};
+
 // Define a type for paginated API responses
 export type PaginationResponse = {
   count: number;

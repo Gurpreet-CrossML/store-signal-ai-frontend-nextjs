@@ -70,6 +70,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
 import { getDuration } from "@/lib/helpers";
+import { FEEDBACK_EMOJIS, FEEDBACK_LABELS } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import {
   FetchAIInsight,
@@ -81,6 +82,7 @@ import {
   FetchTags,
   FetchThreadDetails,
   FetchUserMetadata,
+  type ThreadTicketData,
   ThreadCustomerLink,
   type ThreadMessage,
   type ThreadTagData,
@@ -408,39 +410,6 @@ function ResolutionRing({
 // object on every call, which makes react-redux warn and re-render.
 const EMPTY_TAGS: (string | ThreadTagData)[] = [];
 
-/**
- * Header date range: "15 Oct 2026, 10:57–11:28 AM" (the year is optional).
- * AM/PM is shown once when the start and end share it, as in the design.
- */
-function formatHeaderRange(
-  start?: string | null,
-  end?: string | null,
-  withYear = true,
-) {
-  if (!start) return "—";
-  const from = new Date(start);
-  if (Number.isNaN(from.getTime())) return "—";
-
-  const month = from.toLocaleDateString("en-US", { month: "short" });
-  const date = `${from.getDate()} ${month}${withYear ? ` ${from.getFullYear()}` : ""}`;
-  const time = (value: Date) =>
-    value
-      .toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      })
-      .replace(/\s/g, " ");
-
-  const startTime = time(from);
-  const to = end ? new Date(end) : null;
-  if (!to || Number.isNaN(to.getTime())) return `${date}, ${startTime}`;
-
-  const endTime = time(to);
-  const sameMeridiem = startTime.slice(-2) === endTime.slice(-2);
-  return `${date}, ${sameMeridiem ? startTime.slice(0, -3) : startTime}–${endTime}`;
-}
-
 /** "10:57 AM" */
 function formatClock(value: Date) {
   return value
@@ -459,14 +428,6 @@ function formatDayFirst(value?: string | null) {
   if (Number.isNaN(date.getTime())) return "—";
   const month = date.toLocaleDateString("en-US", { month: "short" });
   return `${date.getDate()} ${month} ${date.getFullYear()}, ${formatClock(date)}`;
-}
-
-/** "31 min", whole minutes, for the header line. */
-function formatHeaderDuration(start?: string | null, end?: string | null) {
-  if (!start || !end) return "—";
-  const diff = new Date(end).getTime() - new Date(start).getTime();
-  if (!Number.isFinite(diff) || diff < 0) return "—";
-  return `${Math.floor(diff / 60000)} min`;
 }
 
 export default function ThreadDetail({ threadId }: { threadId: string }) {
@@ -488,6 +449,12 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const { FetchCartData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchCartDataState,
   );
+  const { FetchFeedbackSequenceData } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchFeedbackSequenceState,
+  );
+  const { FetchFreshdeskTicketIdData } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
+  );
   const { FetchOrderData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchOrderDataState,
   );
@@ -507,6 +474,10 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
   const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
+  const [createdThreadTicket, setCreatedThreadTicket] = useState<Pick<
+    ThreadTicketData,
+    "id" | "ticket_id"
+  > | null>(null);
   const canCreateTicket = useCan("conversations", { write: true });
 
   useEffect(() => {
@@ -620,9 +591,16 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     ),
   );
   const cartItems = FetchCartData?.updated_cart_data?.items ?? [];
+  const feedback = FetchFeedbackSequenceData?.feedback;
+  const feedbackComment = feedback?.feedback_message?.trim();
   const improvements = FetchAIInsightData?.underperforming_cases ?? [];
   const successes = FetchAIInsightData?.overperforming_cases ?? [];
-  const actions = FetchAIInsightData?.next_actionable_items ?? [];
+  // The customer endpoint can include tickets from other conversations. Only
+  // a ticket explicitly linked to this thread replaces its Create action.
+  const existingThreadTicket = (FetchFreshdeskTicketIdData ?? []).find(
+    (ticket) => ticket.thread_id?.toLowerCase() === threadId.toLowerCase(),
+  );
+  const threadTicket = createdThreadTicket ?? existingThreadTicket;
   const started = formatDayFirst(details?.created_at);
   // "11:28 AM · closed after inactivity". A chat that is still open has no end.
   const endedAtDate = details?.ended_at ? new Date(details.ended_at) : null;
@@ -658,7 +636,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const transcript = (
     <ConversationTranscript
       messages={threadMessages}
-      totalMessages={details?.total_messages}
       loading={detailsLoading}
       handlerEvents={details?.handler_events}
       customerName={customerName}
@@ -726,36 +703,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           )}
         </div>
       </ThreadCard>
-      {actions.length > 0 && (
-        <ThreadCard
-          title={
-            <div className="flex items-center justify-between">
-              <span>Suggested actions</span>
-              <span className="text-sm font-normal text-muted-foreground">
-                {actions.length} actions
-              </span>
-            </div>
-          }
-        >
-          <div>
-            {actions.map((action, index) => (
-              <button
-                type="button"
-                key={index}
-                className="flex w-full items-start justify-between border-b p-5 text-left last:border-b-0 hover:bg-muted/30"
-              >
-                <span>
-                  <strong className="block">{action}</strong>
-                  <small className="mt-1 block leading-5 text-muted-foreground">
-                    Open suggested action
-                  </small>
-                </span>
-                <span className="text-muted-foreground">›</span>
-              </button>
-            ))}
-          </div>
-        </ThreadCard>
-      )}
     </div>
   );
   const customer = (
@@ -764,7 +711,16 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         <ThreadCard title="Customer">
           <div className="space-y-4 p-5">
             <div>
-              <p className="font-semibold">{customerName}</p>
+              {details?.customer?.id ? (
+                <Link
+                  href={`/crm/customers/${details.customer.id}`}
+                  className="font-semibold hover:underline"
+                >
+                  {customerName}
+                </Link>
+              ) : (
+                <p className="font-semibold">{customerName}</p>
+              )}
               <CustomerContact
                 email={details?.customer_email}
                 phone={details?.customer?.phone}
@@ -783,20 +739,13 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 </p>
               </div>
             </div>
-            {details?.customer?.id && (
-              <Button variant="outline" className="w-full" asChild>
-                <Link href={`/crm/customers/${details.customer.id}`}>
-                  Open full profile
-                </Link>
-              </Button>
-            )}
           </div>
         </ThreadCard>
       )}
       <ThreadCard
         title={
           <div className="flex justify-between">
-            <span>Cart when the chat closed</span>
+            <span>Cart</span>
             <span className="text-sm font-normal text-muted-foreground">
               {cartItems.length} items
             </span>
@@ -851,6 +800,24 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           <dd className="text-right">{handledBy}</dd>
           <dt className="text-muted-foreground">Category</dt>
           <dd className="text-right">{threadTagLabels[0] ?? "—"}</dd>
+          {feedback ? (
+            <>
+              <dt className="text-muted-foreground">User feedback</dt>
+              <dd className="flex items-center justify-end gap-1.5 text-right">
+                <span aria-label={feedback.rating}>
+                  {FEEDBACK_EMOJIS[
+                    feedback.rating as keyof typeof FEEDBACK_EMOJIS
+                  ] ?? feedback.rating}
+                </span>
+                <span>
+                  {FEEDBACK_LABELS[
+                    feedback.rating as keyof typeof FEEDBACK_LABELS
+                  ] ?? feedback.rating}
+                </span>
+                {feedbackComment ? <InfoIcon text={feedbackComment} /> : null}
+              </dd>
+            </>
+          ) : null}
         </dl>
       </ThreadCard>
     </div>
@@ -894,99 +861,49 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 {getInitials(customerName) ?? "?"}
               </span>
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <h1 className="truncate text-2xl font-bold">
-                    {customerName}
-                  </h1>
-                  <div className="hidden items-center gap-2 lg:flex">
-                    <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
-                      {isResolved ? "Resolved by AI" : "AI review"}
+                <h1 className="truncate text-2xl font-bold">{customerName}</h1>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+                    {isResolved ? "Resolved by AI" : "AI review"}
+                  </Badge>
+                  {threadTagLabels.map((tag) => (
+                    <Badge
+                      key={tag}
+                      className="bg-primary/10 text-primary hover:bg-primary/10"
+                    >
+                      {tag}
                     </Badge>
-                    <Badge variant="secondary">
-                      {details?.is_active ? "Active" : "Closed"}
-                    </Badge>
-                    {threadTagLabels.slice(0, 1).map((tag) => (
-                      <Badge
-                        key={tag}
-                        className="bg-primary/10 text-primary hover:bg-primary/10"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                  <p className="flex w-full flex-wrap gap-x-5 gap-y-0 text-sm text-muted-foreground">
-                    <span className="lg:hidden">
-                      Web chat ·{" "}
-                      {formatHeaderRange(
-                        details?.created_at,
-                        details?.ended_at,
-                        false,
-                      )}
-                    </span>
-                    <span className="hidden lg:inline">Web chat</span>
-                    <span className="hidden lg:inline">
-                      {formatHeaderRange(
-                        details?.created_at,
-                        details?.ended_at,
-                      )}
-                    </span>
-                    <span className="hidden lg:inline">
-                      {formatHeaderDuration(
-                        details?.created_at,
-                        details?.ended_at,
-                      )}
-                    </span>
-                    <span className="hidden lg:inline">
-                      {details?.total_messages ?? threadMessages.length}{" "}
-                      messages
-                    </span>
-                  </p>
+                  ))}
                 </div>
               </div>
             </div>
-            <div className="mt-5 flex flex-wrap items-center gap-2 lg:hidden">
-              <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
-                {isResolved ? "Resolved by AI" : "AI review"}
-              </Badge>
-              <Badge variant="secondary">
-                {details?.is_active ? "Active" : "Closed"}
-              </Badge>
-              {threadTagLabels.slice(0, 1).map((tag) => (
-                <Badge
-                  key={tag}
-                  className="bg-primary/10 text-primary hover:bg-primary/10"
-                >
-                  {tag}
-                </Badge>
-              ))}
-            </div>
           </div>
-          {/* Desktop thread actions. The mobile Create ticket control below is
-              unchanged. mt-8 lines the buttons up with the avatar row, under
-              the breadcrumb. */}
+          {/* mt-8 lines the action up with the avatar row, under the breadcrumb. */}
           <div className="mt-8 hidden shrink-0 gap-2 lg:flex">
             {/* <Button variant="outline">Export</Button> */}
             {/* <Button variant="outline">Flag for review</Button> */}
-            <Button
-              disabled={!storeCode || !canCreateTicket}
-              onClick={() => setIsCreateTicketOpen(true)}
-            >
-              Create ticket
-            </Button>
+            {threadTicket ? (
+              <Button asChild>
+                <Link href={`/helpdesk?ticket=${threadTicket.id}`}>
+                  Open Ticket #{threadTicket.ticket_id}
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                disabled={!storeCode || !canCreateTicket}
+                onClick={() => setIsCreateTicketOpen(true)}
+              >
+                Create ticket
+              </Button>
+            )}
           </div>
         </div>
-        <div className="mx-6 mb-3 grid grid-cols-3 overflow-hidden rounded-xl border lg:hidden">
+        <div className="mx-6 mb-3 grid grid-cols-2 overflow-hidden rounded-xl border lg:hidden">
           <div className="flex flex-col items-start gap-1 border-r px-2 py-2 leading-tight">
             <small className="text-muted-foreground">Resolution</small>
             <span className="self-center">
               <ResolutionRing value={resolutionRate} compact />
             </span>
-          </div>
-          <div className="flex flex-col items-start gap-1 border-r px-2 py-2 leading-tight">
-            <small className="text-muted-foreground">Messages</small>
-            <b className="flex min-h-8 items-center whitespace-nowrap text-base">
-              {details?.total_messages ?? threadMessages.length}
-            </b>
           </div>
           <div className="flex flex-col items-start gap-1 px-2 py-2 leading-tight">
             <small className="text-muted-foreground">Duration</small>
@@ -1053,13 +970,21 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         <Button variant="outline" size="icon" aria-label="Flag for review">
           <IconFlag />
         </Button>
-        <Button
-          className="flex-1"
-          disabled={!storeCode || !canCreateTicket}
-          onClick={() => setIsCreateTicketOpen(true)}
-        >
-          Create ticket
-        </Button>
+        {threadTicket ? (
+          <Button className="flex-1" asChild>
+            <Link href={`/helpdesk?ticket=${threadTicket.id}`}>
+              Open Ticket #{threadTicket.ticket_id}
+            </Link>
+          </Button>
+        ) : (
+          <Button
+            className="flex-1"
+            disabled={!storeCode || !canCreateTicket}
+            onClick={() => setIsCreateTicketOpen(true)}
+          >
+            Create ticket
+          </Button>
+        )}
       </div>
       {storeCode && canCreateTicket ? (
         <CreateTicketDialog
@@ -1097,9 +1022,14 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             const result = await dispatch(
               CreateSupportTicket({ storeCode, threadId, payload }),
             );
-            return CreateSupportTicket.fulfilled.match(result)
-              ? { ok: true }
-              : { ok: false, payload: result.payload };
+            if (!CreateSupportTicket.fulfilled.match(result)) {
+              return { ok: false, payload: result.payload };
+            }
+            setCreatedThreadTicket({
+              id: result.payload.id,
+              ticket_id: result.payload.ticket_id,
+            });
+            return { ok: true };
           }}
         />
       ) : null}
