@@ -418,6 +418,10 @@ const queues = [
   { key: "reopen", label: "Reopen" },
   // Hidden for now: snoozing is not available from the UI yet.
   // { key: "snoozed", label: "Snoozed" },
+] as const;
+
+// Not tabs: picked in the filter popover, where they replace the tab's status.
+const statusFilterOptions = [
   { key: "resolved", label: "Resolved" },
   { key: "closed", label: "Closed" },
 ] as const;
@@ -476,10 +480,12 @@ const STATUS_CONFIRMATIONS = {
 
 type TicketFilterSelection = {
   priorities: SupportTicketPriority[];
+  status: "" | (typeof statusFilterOptions)[number]["key"];
 };
 
 const emptyTicketFilters: TicketFilterSelection = {
   priorities: [],
+  status: "",
 };
 
 /** The known values of a comma-separated param; a hand-edited URL may hold others. */
@@ -574,7 +580,8 @@ function TicketListPanel({
   const subSidebar = useSubSidebar();
   const isPhone = useIsMobile();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const activeFilterCount = filters.priorities.length;
+  const activeFilterCount =
+    filters.priorities.length + (filters.status ? 1 : 0);
   const title = helpdeskViewLabel(activeFilter, filterCounts);
   const count = viewCount(
     activeFilter,
@@ -664,6 +671,7 @@ function TicketListPanel({
                   aria-pressed={active}
                   onClick={() =>
                     onFiltersChange({
+                      ...filters,
                       priorities: active
                         ? filters.priorities.filter(
                             (value) => value !== option.value,
@@ -679,6 +687,54 @@ function TicketListPanel({
                   )}
                 >
                   {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div
+          role="group"
+          aria-labelledby="ticket-filter-status"
+          className="border-t px-4 py-3"
+        >
+          <p
+            id="ticket-filter-status"
+            className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+          >
+            Status
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {statusFilterOptions.map((option) => {
+              const active = filters.status === option.key;
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    onFiltersChange({
+                      ...filters,
+                      status: active ? "" : option.key,
+                    })
+                  }
+                  className={cn(
+                    "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors",
+                    active
+                      ? "border-primary bg-primary/10 font-medium text-primary"
+                      : "bg-background text-foreground hover:bg-muted",
+                  )}
+                >
+                  {option.label}
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 text-xs tabular-nums",
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {supportTicketStatusCount?.[option.key] ?? 0}
+                  </span>
                 </button>
               );
             })}
@@ -1961,8 +2017,12 @@ export default function HelpDesk() {
         priorityParam,
         priorityOptions.map((option) => option.value),
       ),
+      // The status picked in the popover is the list's queue.
+      status:
+        statusFilterOptions.find((option) => option.key === activeQueue)?.key ??
+        "",
     }),
-    [priorityParam],
+    [priorityParam, activeQueue],
   );
   const sortOrder: SupportTicketOrdering =
     SORT_OPTIONS.find((option) => option.key === sortParam)?.key ??
@@ -3535,6 +3595,11 @@ export default function HelpDesk() {
     updateQueryParams({
       priority: draftFilters.priorities.join(",") || null,
     });
+    // A status picked here becomes the queue; clearing it goes back to Open.
+    const nextQueue =
+      draftFilters.status ||
+      (appliedFilters.status ? DEFAULT_HELPDESK_QUEUE : activeQueue);
+    if (nextQueue !== activeQueue) handleQueueChange(nextQueue);
     setIsFilterOpen(false);
   };
 
