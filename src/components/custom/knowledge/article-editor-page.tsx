@@ -3,17 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Editor } from "@tiptap/react";
-import { toast } from "sonner";
-import {
-  IconArrowLeft,
-  IconCloud,
-  IconDotsVertical,
-  IconEye,
-  IconDeviceFloppy,
-  IconTrash,
-  IconWorld,
-} from "@tabler/icons-react";
+import { IconArrowLeft, IconCloud, IconWorld } from "@tabler/icons-react";
 
 import {
   AlertDialog,
@@ -26,26 +16,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
+import {
+  ARTICLE_BODY_MAX_LENGTH,
+  ARTICLE_TITLE_MAX_LENGTH,
+} from "@/lib/config";
 import { richTextToPlainText } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   CreateKnowledgeItemsBulk,
-  DeleteKnowledgeItem,
   FetchKnowledgeItem,
   PublishKnowledgeItems,
   UpdateKnowledgeItem,
@@ -66,6 +48,10 @@ import {
   type KnowledgeScope,
 } from "@/components/custom/knowledge/knowledge-scope";
 import { AI_SCOPE_META } from "@/components/custom/knowledge/knowledge-meta";
+import {
+  KnowledgeSettingsButton,
+  KnowledgeSettingsDrawer,
+} from "@/components/custom/knowledge/knowledge-settings-drawer";
 
 /** The fewest visible characters an article needs to be published (the
  * backend's `KNOWLEDGE_ARTICLE_MIN_LENGTH`). */
@@ -127,10 +113,9 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
   const [showErrors, setShowErrors] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
-  const [editor, setEditor] = useState<Editor | null>(null);
+  // On a tablet or phone the settings panel is a drawer, opened from the header.
+  const belowLg = useIsBelowLg();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const isLive = status !== "draft";
   // A published article edited since it went live: the assistant still uses the
@@ -145,6 +130,11 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
     () => richTextToPlainText(html).split(/\s+/).filter(Boolean).length,
     [html],
   );
+  const titleLength = title.trim().length;
+  const bodyLength = richTextToPlainText(html).length;
+  const titleOver = titleLength > ARTICLE_TITLE_MAX_LENGTH;
+  const bodyOver = bodyLength > ARTICLE_BODY_MAX_LENGTH;
+  const overLimit = titleOver || bodyOver;
 
   // --- Loading an existing article -----------------------------------------
   useEffect(() => {
@@ -209,6 +199,12 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
     if (idRef.current && savedRef.current.key === carried) return true;
     const scopeProblem = validateScope(current.scope);
     if (!current.html || scopeProblem.aiScope || scopeProblem.selection)
+      return false;
+    // Over a limit, the backend would refuse it, so nothing is sent.
+    if (
+      current.title.trim().length > ARTICLE_TITLE_MAX_LENGTH ||
+      richTextToPlainText(current.html).length > ARTICLE_BODY_MAX_LENGTH
+    )
       return false;
 
     setSaveState("saving");
@@ -296,7 +292,8 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
   // --- Publishing -----------------------------------------------------------
   const requestPublish = () => {
     setShowErrors(true);
-    if (hasScopeError) return;
+    if (hasScopeError) setSettingsOpen(true);
+    if (hasScopeError || overLimit) return;
     if (richTextToPlainText(html).length < MIN_PUBLISH_LENGTH) return;
     setPublishOpen(true);
   };
@@ -320,24 +317,6 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
     }
     setIsPublishing(false);
     setPublishOpen(false);
-  };
-
-  const handleSaveDraft = async () => {
-    setShowErrors(true);
-    if (hasScopeError) return;
-    if (await save(false)) toast.success("Draft saved");
-  };
-
-  const handleDelete = async () => {
-    if (!storeCode || !id) return;
-    setIsDeleting(true);
-    const result = await dispatch(DeleteKnowledgeItem({ id, storeCode }));
-    if (DeleteKnowledgeItem.fulfilled.match(result)) {
-      router.push("/knowledge");
-      return;
-    }
-    setIsDeleting(false);
-    setDeleteOpen(false);
   };
 
   // --- Rendering ------------------------------------------------------------
@@ -364,7 +343,6 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
     );
   }
 
-  const bodyLength = richTextToPlainText(html).length;
   const tooShort = showErrors && bodyLength < MIN_PUBLISH_LENGTH;
   const aiLabels = scope.aiScope
     .map((entry) => AI_SCOPE_META[entry].label)
@@ -382,8 +360,53 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
               ? `Saved ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
               : "Not saved yet";
 
+  const settingsPanel = (
+    <>
+      <KnowledgeScopePanel
+        value={scope}
+        onChange={(next) => {
+          setScope(next);
+        }}
+        bordered={false}
+        showErrors={showErrors}
+        description={
+          scope.scopeKind === "general"
+            ? "Applies to your whole store."
+            : `Used for ${
+                scope.products
+                  .concat(scope.categories, scope.collections)
+                  .map((entry) => entry.name.toLowerCase())
+                  .join(", ") || "the items you pick"
+              } questions only.`
+        }
+      />
+
+      {meta && (
+        <>
+          <hr />
+          <section className="flex flex-col gap-2 text-xs">
+            <h2 className="text-sm font-semibold">Details</h2>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
+              <dt className="text-muted-foreground">Created</dt>
+              <dd>
+                {formatDate(meta.createdAt)}
+                {meta.createdBy ? ` by ${meta.createdBy}` : ""}
+              </dd>
+              <dt className="text-muted-foreground">Last edited</dt>
+              <dd>
+                {formatDate(meta.updatedAt)}
+                {meta.updatedBy ? ` by ${meta.updatedBy}` : ""}
+              </dd>
+            </dl>
+          </section>
+        </>
+      )}
+    </>
+  );
+
   return (
-    <div className="flex min-h-full flex-col">
+    // The editor fills the screen and only the text scrolls.
+    <div className="flex h-app-screen min-h-0 flex-col overflow-hidden">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2.5">
         <Button asChild variant="ghost" size="sm" className="-ml-2">
           <Link href="/knowledge">
@@ -410,46 +433,22 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!editor || !html}
-            onClick={() => setPreviewHtml(editor?.getHTML() ?? "")}
-          >
-            <IconEye className="size-4" />
-            <span className="max-sm:hidden">Preview</span>
-          </Button>
-          {/* Saving does nothing until something has changed. A draft can be
-              published as it is, so Publish only needs some text; a live
-              article is published again only when it has changes to publish. */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={
-              isLocked ||
-              !isDirty ||
-              !html ||
-              saveState === "saving" ||
-              isPublishing
-            }
-            onClick={() => void handleSaveDraft()}
-          >
-            {saveState === "saving" ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <IconDeviceFloppy className="size-4" />
-            )}
-            <span className="max-sm:hidden">Save as draft</span>
-            <span className="sm:hidden">Save</span>
-          </Button>
+          {belowLg && (
+            <KnowledgeSettingsButton
+              invalid={showErrors && hasScopeError}
+              onClick={() => setSettingsOpen(true)}
+            />
+          )}
+          {/* A draft can be published as it is, so Publish only needs some text;
+              a live article is published again only when it has changes to
+              publish. Edits save themselves, so there is no Save button. */}
           <Button
             type="button"
             size="sm"
             disabled={
               isLocked ||
               !html ||
+              overLimit ||
               isPublishing ||
               (isLive && !isDirty && !hasUnpublishedChanges)
             }
@@ -458,34 +457,11 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
             <IconWorld className="size-4" />
             {isLive ? "Publish changes" : "Publish"}
           </Button>
-          {id && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="More actions"
-                >
-                  <IconDotsVertical className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  <IconTrash />
-                  Delete article
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
         </div>
       </header>
 
-      <div className="grid flex-1 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <main className="flex min-w-0 flex-col">
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] desktop:grid-cols-[minmax(0,1fr)_18rem]">
+        <main className="flex min-h-0 min-w-0 flex-col">
           {isLocked && (
             <p
               role="status"
@@ -506,19 +482,42 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
               disabled={isLocked}
               placeholder="Untitled article"
               aria-label="Article title"
-              maxLength={255}
+              maxLength={ARTICLE_TITLE_MAX_LENGTH}
+              aria-invalid={titleOver}
               className="w-full bg-transparent text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/60 disabled:opacity-70"
             />
+            {titleLength >= ARTICLE_TITLE_MAX_LENGTH * 0.8 && (
+              <p
+                className={cn(
+                  "mt-1 text-right text-xs text-muted-foreground",
+                  titleOver && "text-destructive",
+                )}
+              >
+                {titleLength} / {ARTICLE_TITLE_MAX_LENGTH}
+                {titleOver && " · the title is too long"}
+              </p>
+            )}
           </div>
 
           <ArticleEditor
             initialHtml={initialHtml}
             disabled={isLocked}
-            onReady={setEditor}
             onChange={(next) => {
               setHtml(next);
             }}
           />
+          <p
+            role={bodyOver ? "alert" : undefined}
+            className={cn(
+              "px-4 pb-2 text-right text-xs text-muted-foreground sm:px-8",
+              bodyOver && "text-destructive",
+            )}
+          >
+            {bodyLength.toLocaleString()} /{" "}
+            {ARTICLE_BODY_MAX_LENGTH.toLocaleString()} characters
+            {bodyOver &&
+              " · too long to save or publish, please shorten the article"}
+          </p>
           {tooShort && (
             <p
               role="alert"
@@ -531,48 +530,20 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
           )}
         </main>
 
-        <aside className="flex flex-col gap-5 border-t p-4 lg:border-t-0 lg:border-l">
-          <KnowledgeScopePanel
-            value={scope}
-            onChange={(next) => {
-              setScope(next);
-            }}
-            bordered={false}
-            showErrors={showErrors}
-            description={
-              scope.scopeKind === "general"
-                ? "Applies to your whole store."
-                : `Used for ${
-                    scope.products
-                      .concat(scope.categories, scope.collections)
-                      .map((entry) => entry.name.toLowerCase())
-                      .join(", ") || "the items you pick"
-                  } questions only.`
-            }
-          />
-
-          {meta && (
-            <>
-              <hr />
-              <section className="flex flex-col gap-2 text-xs">
-                <h2 className="text-sm font-semibold">Details</h2>
-                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
-                  <dt className="text-muted-foreground">Created</dt>
-                  <dd>
-                    {formatDate(meta.createdAt)}
-                    {meta.createdBy ? ` by ${meta.createdBy}` : ""}
-                  </dd>
-                  <dt className="text-muted-foreground">Last edited</dt>
-                  <dd>
-                    {formatDate(meta.updatedAt)}
-                    {meta.updatedBy ? ` by ${meta.updatedBy}` : ""}
-                  </dd>
-                </dl>
-              </section>
-            </>
-          )}
-        </aside>
+        {!belowLg && (
+          <aside className="flex min-h-0 flex-col gap-5 overflow-y-auto border-l p-4">
+            {settingsPanel}
+          </aside>
+        )}
       </div>
+
+      <KnowledgeSettingsDrawer
+        open={settingsOpen && belowLg}
+        onOpenChange={setSettingsOpen}
+        description="Which assistants use this article, where it applies, and when it was last edited."
+      >
+        {settingsPanel}
+      </KnowledgeSettingsDrawer>
 
       <AlertDialog
         open={publishOpen}
@@ -586,9 +557,24 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
               {isLive ? "Publish your changes?" : "Publish this article?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {isLive
-                ? `Your assistant switches to this version of "${title.trim() || "Untitled article"}" as soon as it's published. Until then it keeps using the version that's live now.`
-                : `Your assistant starts answering from "${title.trim() || "Untitled article"}" as soon as it's published.`}
+              {isLive ? (
+                <>
+                  Your assistant switches to this version of{" "}
+                  <strong className="font-semibold break-words text-foreground">
+                    {title.trim() || "Untitled article"}
+                  </strong>{" "}
+                  as soon as it&apos;s published. Until then it keeps using the
+                  version that&apos;s live now.
+                </>
+              ) : (
+                <>
+                  Your assistant starts answering from{" "}
+                  <strong className="font-semibold break-words text-foreground">
+                    {title.trim() || "Untitled article"}
+                  </strong>{" "}
+                  as soon as it&apos;s published.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 border-y py-3 text-sm">
@@ -625,63 +611,6 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <AlertDialog
-        open={deleteOpen}
-        onOpenChange={(open) => {
-          if (!isDeleting) setDeleteOpen(open);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this article?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove &quot;
-              {title.trim() || "Untitled article"}&quot;. This action cannot be
-              undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
-              disabled={isDeleting}
-              onClick={(event) => {
-                event.preventDefault();
-                void handleDelete();
-              }}
-            >
-              {isDeleting ? (
-                <>
-                  <Spinner data-icon="inline-start" />
-                  Deleting…
-                </>
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog
-        open={previewHtml !== null}
-        onOpenChange={(open) => {
-          if (!open) setPreviewHtml(null);
-        }}
-      >
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{title.trim() || "Untitled article"}</DialogTitle>
-          </DialogHeader>
-          {/* The editor's own output, rebuilt from its document, never raw
-              stored HTML, so only tags the editor supports can appear. */}
-          <div
-            className="rich-text-render article-content"
-            dangerouslySetInnerHTML={{ __html: previewHtml ?? "" }}
-          />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
