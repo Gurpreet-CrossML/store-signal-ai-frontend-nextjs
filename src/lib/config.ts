@@ -887,3 +887,7 @@ export const GMAIL_STEPS = [
   'Confirm it in Gmail, then select "Forward a copy of incoming mail to" the new address and Save Changes.',
   "Come back here and send the test email.",
 ];
+
+// Knowledge storage: the share of the plan's vector storage used from which
+// the library shows a warning (yellow here, red once it is full).
+export const KNOWLEDGE_STORAGE_WARNING_SHARE = 0.9;

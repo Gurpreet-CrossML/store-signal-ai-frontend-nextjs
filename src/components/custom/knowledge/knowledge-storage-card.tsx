@@ -1,5 +1,4 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatBytes } from "@/components/custom/knowledge/file-upload-dropzone";
 import type { KnowledgeVectorStorage } from "@/redux/api-slice/knowledge-rag-slice";
 
 type Segment = {
@@ -40,9 +39,20 @@ const SEGMENTS: Segment[] = [
   },
 ];
 
-/** `formatBytes` without a trailing ".0" ("100 MB", not "100.0 MB"). */
-function formatSize(bytes: number) {
-  return formatBytes(bytes).replace(".0 ", " ");
+/**
+ * A size such as "13.9 MB", without a trailing ".0" ("100 MB", not "100.0 MB").
+ * It rounds down, so a store with a little space left never reads "14 MB of
+ * 14 MB used", and it agrees with a percentage that is also rounded down.
+ */
+export function formatSize(bytes: number) {
+  if (bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const exponent = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
+  );
+  const value = Math.floor((bytes / Math.pow(1024, exponent)) * 10) / 10;
+  return `${exponent === 0 ? value.toFixed(0) : value.toFixed(1).replace(/\.0$/, "")} ${units[exponent]}`;
 }
 
 /**

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Typography } from "@/components/ui/typography";
+import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import { isValidUrl, normalizeUrl } from "@/lib/url";
 import { randomId } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ import {
   KNOWLEDGE_FILE_MAX_SIZE_BYTES,
   MultiFileUploadDropzone,
 } from "@/components/custom/knowledge/file-upload-dropzone";
+import { KnowledgeStorageNotice } from "@/components/custom/knowledge/knowledge-storage-notice";
 import { KnowledgeScopePanel } from "@/components/custom/knowledge/knowledge-scope-panel";
 import {
   DEFAULT_KNOWLEDGE_SCOPE,
@@ -166,9 +168,12 @@ export function NewKnowledgePage() {
   const [serverErrors, setServerErrors] = useState<
     Record<string, unknown>[] | null
   >(null);
-  const [added, setAdded] = useState<{ count: number; label: string } | null>(
-    null,
-  );
+  const [added, setAdded] = useState<{
+    count: number;
+    label: string;
+    /** How many were sent, so the ones declined for storage can be counted. */
+    sent: number;
+  } | null>(null);
 
   useEffect(() => {
     if (storeCode) dispatch(FetchKnowledgeStats({ storeCode }));
@@ -273,6 +278,7 @@ export function NewKnowledgePage() {
     if (CreateKnowledgeItemsBulk.fulfilled.match(result)) {
       setAdded({
         count: result.payload.length,
+        sent: readyCount,
         label:
           source === "url"
             ? plural(result.payload.length, "website page")
@@ -322,14 +328,18 @@ export function NewKnowledgePage() {
   const meta = source && source !== "article" ? SOURCE_META[source] : null;
   const tip = source && source !== "article" ? TIPS[source] : null;
 
+  // With no storage left nothing can be added, so the button is off.
+  const storage = stats?.vector_storage;
+  const isStorageFull = storage ? storage.total >= storage.limit : false;
   const primaryLabel =
     source === "url"
       ? `Add ${plural(readyCount, "page")}`
       : source === "file"
         ? `Add ${plural(readyCount, "document")}`
         : `Add ${plural(readyCount, "question")}`;
-  const footerMessage =
-    source === "url"
+  const footerMessage = isStorageFull
+    ? "Your storage is full. Free up space or upgrade your plan to add more."
+    : source === "url"
       ? `${plural(readyCount, "page")} selected${
           alreadyAdded > 0 ? ` · ${alreadyAdded} already in your knowledge` : ""
         }`
@@ -364,6 +374,8 @@ export function NewKnowledgePage() {
       </div>
 
       <AddKnowledgeStepper step={step} />
+
+      <KnowledgeStorageNotice storage={stats?.vector_storage ?? null} />
 
       {banner && (
         <div
@@ -479,7 +491,7 @@ export function NewKnowledgePage() {
             <PrimaryAction
               type="button"
               loading={isSubmitting}
-              disabled={readyCount === 0}
+              disabled={readyCount === 0 || isStorageFull}
               onClick={() => void handleSubmit()}
             >
               {primaryLabel}
@@ -494,6 +506,16 @@ export function NewKnowledgePage() {
           <Typography variant="h4" as="h2">
             {added.label} added
           </Typography>
+          {added.sent > added.count && (
+            <p
+              role="status"
+              className={`rounded-lg border px-3 py-2 text-sm ${BADGE_TONE_STYLES.warning}`}
+            >
+              {added.sent - added.count} of {added.sent} weren&apos;t added
+              because they would go over your storage limit. Free up space or
+              upgrade your plan, then add them again.
+            </p>
+          )}
           <Typography variant="muted">
             {source === "faq"
               ? "Your assistant can use them straight away."
