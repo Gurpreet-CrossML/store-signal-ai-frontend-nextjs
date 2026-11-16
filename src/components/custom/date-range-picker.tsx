@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { IconCalendar } from "@tabler/icons-react";
 import type { DateRange } from "react-day-picker";
 
@@ -164,6 +164,16 @@ export function DateRangePicker({
   // draft with both ends is a complete range ready to apply.
   const canApply = !!draft?.from && !!draft?.to;
 
+  // `min={1}` would clear the range on a second click of the start day;
+  // make that a one-day range instead.
+  const handleSelect = (range: DateRange | undefined, day: Date) => {
+    if (!range && draft?.from && !draft.to && isSameDay(day, draft.from)) {
+      setDraft({ from: day, to: day });
+      return;
+    }
+    setDraft(range);
+  };
+
   const handleApply = () => {
     if (!draft?.from || !draft?.to) return;
     onRangeChange(
@@ -219,7 +229,7 @@ export function DateRangePicker({
               min={1}
               defaultMonth={draft?.from ?? committed?.from}
               selected={draft}
-              onSelect={setDraft}
+              onSelect={handleSelect}
               disabled={disabled}
             />
             <div className="flex justify-end gap-2 border-t p-3">
