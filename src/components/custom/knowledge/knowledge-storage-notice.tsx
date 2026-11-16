@@ -1,12 +1,10 @@
 import { IconAlertTriangle, IconAlertOctagon } from "@tabler/icons-react";
 
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
+import { KNOWLEDGE_STORAGE_WARNING_SHARE } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import type { KnowledgeVectorStorage } from "@/redux/api-slice/knowledge-rag-slice";
 import { formatSize } from "@/components/custom/knowledge/knowledge-storage-card";
-
-/** Storage used, as a share of the plan's limit, from which a warning shows. */
-const WARNING_SHARE = 0.9;
 
 /**
  * A banner for a store that is running out of vector storage: yellow from 90%
@@ -22,7 +20,7 @@ export function KnowledgeStorageNotice({
   if (!storage || storage.limit <= 0) return null;
 
   const share = storage.total / storage.limit;
-  if (share < WARNING_SHARE) return null;
+  if (share < KNOWLEDGE_STORAGE_WARNING_SHARE) return null;
 
   const isFull = storage.total >= storage.limit;
   const Icon = isFull ? IconAlertOctagon : IconAlertTriangle;
