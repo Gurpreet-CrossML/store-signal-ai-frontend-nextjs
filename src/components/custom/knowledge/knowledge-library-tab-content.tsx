@@ -44,6 +44,7 @@ import {
   countActiveKnowledgeFilters,
   type KnowledgeFilterSelection,
 } from "@/components/custom/knowledge/knowledge-filters";
+import { KnowledgeStorageNotice } from "@/components/custom/knowledge/knowledge-storage-notice";
 import { KnowledgeStorageCard } from "@/components/custom/knowledge/knowledge-storage-card";
 import { KnowledgeEmptyState } from "@/components/custom/knowledge/knowledge-empty-state";
 import {
@@ -412,6 +413,7 @@ export default function KnowledgeLibraryTabContent() {
         descriptionClassName="max-sm:hidden"
       />
       <div className="flex w-full flex-col gap-4">
+        <KnowledgeStorageNotice storage={stats?.vector_storage ?? null} />
         {showStorage && (
           <KnowledgeStorageCard storage={stats?.vector_storage ?? null} />
         )}
