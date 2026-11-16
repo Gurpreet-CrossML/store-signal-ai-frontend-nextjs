@@ -7,6 +7,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { toast } from "sonner";
 import {
   IconBell,
+  IconChecks,
   IconChevronRight,
   IconHeadset,
   IconMessageDots,
@@ -40,6 +41,7 @@ import {
   FetchMoreNotifications,
   FetchNotifications,
   FetchNotificationCounts,
+  MarkAllNotificationsRead,
   MarkNotificationRead,
   type AgentNotification,
   type NotificationTab,
@@ -55,9 +57,10 @@ const TYPE_ICONS: Record<NotificationType, typeof IconBell> = {
 };
 
 const TABS: { value: NotificationTab; label: string }[] = [
-  { value: "all", label: "All" },
   { value: "unread", label: "Unread" },
+  // Help desk tickets.
   { value: "tickets", label: "Tickets" },
+  // Live support chats.
   { value: "messages", label: "Messages" },
 ];
 
@@ -227,7 +230,7 @@ function NotificationRow({
  * the backend sends them to that agent's group alone): each one raises a
  * toast, bumps the counts and, when the drawer is open, slides in at the
  * top of the list. Opening one marks it read and goes to its ticket or
- * live chat.
+ * live chat; the Unread tab can also mark them all read at once.
  */
 export function NotificationBell() {
   const dispatch = useAppDispatch();
@@ -235,7 +238,7 @@ export function NotificationBell() {
   const { status } = useSession();
   const [open, setOpen] = useState(false);
   // The open tab and the last page loaded in it.
-  const [tab, setTab] = useState<NotificationTab>("all");
+  const [tab, setTab] = useState<NotificationTab>("unread");
   const [page, setPage] = useState(1);
   // Ids pushed live this session; only these rows animate in.
   const [liveIds, setLiveIds] = useState<ReadonlySet<number>>(new Set());
@@ -252,6 +255,9 @@ export function NotificationBell() {
     );
   const { FetchMoreNotificationsIsLoading } = useAppSelector(
     (state) => state.GetNotificationReducer.FetchMoreNotificationsState,
+  );
+  const { MarkAllNotificationsReadIsLoading } = useAppSelector(
+    (state) => state.GetNotificationReducer.MarkAllNotificationsReadState,
   );
   const { next, results } = FetchNotificationsListData;
   const selectedStore = useAppSelector(
@@ -307,6 +313,16 @@ export function NotificationBell() {
         : `/support?chat=${encodeURIComponent(notification.thread ?? "")}`,
     );
     handleOpenChange(false);
+  };
+
+  const markAllRead = () => {
+    // The Unread tab empties and the badge drops once the backend has them.
+    void dispatch(MarkAllNotificationsRead({ storeCode: selectedStore })).then(
+      (result) => {
+        loadCounts();
+        if (MarkAllNotificationsRead.fulfilled.match(result)) loadTab(tab);
+      },
+    );
   };
 
   // The backend pushes only the selected store's notifications. Each one
@@ -409,7 +425,7 @@ export function NotificationBell() {
             className="min-w-0 px-3 pb-3"
           >
             {/* Tabs scroll horizontally on narrow screens instead of being
-                clipped; justify-start keeps "All" reachable (centering would
+                clipped; justify-start keeps the first tab reachable (centering would
                 push it off the left edge). */}
             <TabsList className="h-auto w-full justify-start gap-2 scrollbar-hidden overflow-x-auto bg-transparent p-1 sm:justify-between">
               {TABS.map(({ value, label }) => (
@@ -423,6 +439,26 @@ export function NotificationBell() {
               ))}
             </TabsList>
           </Tabs>
+
+          {tab === "unread" && unreadCount > 1 && (
+            <div className="flex justify-end px-3 pb-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-primary hover:text-primary"
+                disabled={MarkAllNotificationsReadIsLoading}
+                onClick={markAllRead}
+              >
+                {MarkAllNotificationsReadIsLoading ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <IconChecks data-icon="inline-start" />
+                )}
+                Mark all as read
+              </Button>
+            </div>
+          )}
 
           <div
             className="min-h-0 flex-1 overflow-y-auto px-3 pb-4"
