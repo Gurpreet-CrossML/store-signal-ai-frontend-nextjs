@@ -385,6 +385,8 @@ export const ENDPOINTS = {
   notifications: () => createAPIUrl("/support/notifications/", "django"),
   notificationCounts: () =>
     createAPIUrl("/support/notifications/counts/", "django"),
+  notificationsMarkAllRead: () =>
+    createAPIUrl("/support/notifications/mark/read/", "django"),
   notificationMarkRead: (notification_id: number) =>
     createAPIUrl(
       `/support/notifications/${notification_id}/mark/read/`,
