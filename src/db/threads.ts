@@ -1,7 +1,7 @@
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/lib/tenant-context";
 import { storeIdScope, scopedThreadFilter } from "@/db/access";
-import { FEEDBACK_RATINGS } from "@/lib/config";
+import { FEEDBACK_RATING_VALUES } from "@/lib/config";
 import {
   chatThread,
   chatCustomer,
@@ -598,7 +598,9 @@ function buildThreadConditions(
   // is the plain existence check.
   if (
     filters.feedback_rating &&
-    FEEDBACK_RATINGS.some((rating) => rating.value === filters.feedback_rating)
+    (FEEDBACK_RATING_VALUES as readonly string[]).includes(
+      filters.feedback_rating,
+    )
   ) {
     conditions.push(
       sql`EXISTS (SELECT 1 FROM ${chatbotFeedback} WHERE ${chatbotFeedback.threadId} = ${chatThread.id} AND ${chatbotFeedback.rating} = ${filters.feedback_rating})`,
