@@ -39,9 +39,8 @@ export function useHelpdeskSidebar(
     void dispatch(FetchSupportTicketFilterCounts({ storeCode }));
   }, [dispatch, isHelpdesk, storeCode]);
 
-  // `queue` and `refreshKey` are not read: a change to either is the reason
-  // to fetch again.
-  useEffect(() => refreshCounts(), [refreshCounts, queue, refreshKey]);
+  // `refreshKey` is not read: a change to it is the reason to fetch again
+  useEffect(() => refreshCounts(), [refreshCounts, refreshKey]);
 
   return useMemo(
     () =>
