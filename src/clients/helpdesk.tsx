@@ -102,7 +102,11 @@ import {
 import { LoadingState } from "@/components/custom/loading-state";
 import { SearchInput } from "@/components/custom/search-input";
 
-import { DEFAULT_HELPDESK_QUEUE, ENDPOINTS } from "@/lib/config";
+import {
+  ACTIVE_FILTER_STYLE,
+  DEFAULT_HELPDESK_QUEUE,
+  ENDPOINTS,
+} from "@/lib/config";
 import {
   SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS,
   prepareSupportAttachments,
@@ -621,7 +625,10 @@ function TicketListPanel({
         <Button
           variant="outline"
           size="icon"
-          className="relative"
+          className={cn(
+            "relative",
+            activeFilterCount > 0 && ACTIVE_FILTER_STYLE,
+          )}
           aria-label="Filter Tickets"
         >
           <IconFilter className="size-4" />
