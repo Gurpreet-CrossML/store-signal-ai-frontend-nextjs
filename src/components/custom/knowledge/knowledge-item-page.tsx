@@ -8,7 +8,6 @@ import {
   IconExternalLink,
   IconPencil,
   IconSend,
-  IconTrash,
 } from "@tabler/icons-react";
 
 import {
@@ -26,10 +25,10 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useCan } from "@/hooks/use-can";
+import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
 import { isValidUrl, normalizeUrl } from "@/lib/url";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
-  DeleteKnowledgeItem,
   FetchKnowledgeItem,
   PublishKnowledgeItems,
   UpdateKnowledgeItem,
@@ -50,6 +49,10 @@ import {
   KNOWLEDGE_SOURCE_LABEL,
 } from "@/components/custom/knowledge/knowledge-meta";
 import { KnowledgeScopePanel } from "@/components/custom/knowledge/knowledge-scope-panel";
+import {
+  KnowledgeSettingsButton,
+  KnowledgeSettingsDrawer,
+} from "@/components/custom/knowledge/knowledge-settings-drawer";
 import {
   scopeOfItem,
   validateScope,
@@ -152,8 +155,10 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
 
   const [publishOpen, setPublishOpen] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  // On a tablet or phone the usage and details panel is a drawer, opened
+  // from the header.
+  const belowLg = useIsBelowLg();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     if (!storeCode) return;
@@ -281,20 +286,6 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
     reload();
   };
 
-  const handleDelete = async () => {
-    if (!storeCode) return;
-    setIsDeleting(true);
-    const result = await dispatch(
-      DeleteKnowledgeItem({ id: itemId, storeCode }),
-    );
-    if (DeleteKnowledgeItem.fulfilled.match(result)) {
-      router.push("/knowledge");
-      return;
-    }
-    setIsDeleting(false);
-    setDeleteOpen(false);
-  };
-
   if (loadState === "loading") {
     return (
       <div className="flex flex-1 items-center justify-center gap-2 p-10 text-sm text-muted-foreground">
@@ -318,9 +309,60 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
     );
   }
 
-  const isInProgress = item.status === "processing";
   const extension = (fileExtension(item) ?? "").toUpperCase();
   const scopeErrors = showErrors ? validateScope(scope) : {};
+
+  const settingsPanel = (
+    <>
+      <KnowledgeScopePanel
+        value={scope}
+        onChange={setScope}
+        bordered={false}
+        // Where it applies is fixed once added; who uses it can be edited.
+        appliesToLocked
+        usedByLocked={!editing}
+        showErrors={Boolean(scopeErrors.aiScope)}
+        description={
+          editing
+            ? "Choose which AI use it, then save."
+            : "Press Edit to change who uses it."
+        }
+      />
+
+      <hr />
+
+      <section className="flex flex-col gap-2 text-xs">
+        <h2 className="text-sm font-semibold">Details</h2>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
+          <dt className="text-muted-foreground">Source</dt>
+          <dd>{KNOWLEDGE_SOURCE_LABEL[item.source]}</dd>
+          {item.category && (
+            <>
+              <dt className="text-muted-foreground">KB type</dt>
+              <dd>{humanize(item.category)}</dd>
+            </>
+          )}
+          <dt className="text-muted-foreground">Status</dt>
+          <dd>
+            <KnowledgeStatusBadge status={item.status} />
+          </dd>
+          {item.createdBy && (
+            <>
+              <dt className="text-muted-foreground">Added by</dt>
+              <dd>{item.createdBy}</dd>
+            </>
+          )}
+          <dt className="text-muted-foreground">Added</dt>
+          <dd>{formatDate(item.createdAt)}</dd>
+          <dt className="text-muted-foreground">Last updated</dt>
+          <dd>
+            {formatDate(item.updatedAt)}
+            {item.updatedBy ? ` by ${item.updatedBy}` : ""}
+          </dd>
+        </dl>
+      </section>
+    </>
+  );
 
   return (
     <div className="flex min-h-full flex-col">
@@ -344,6 +386,12 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          {belowLg && (
+            <KnowledgeSettingsButton
+              invalid={Boolean(scopeErrors.aiScope)}
+              onClick={() => setSettingsOpen(true)}
+            />
+          )}
           {editing ? (
             <>
               <Button
@@ -396,28 +444,10 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
               )}
             </>
           )}
-          {canEdit && !editing && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-              disabled={isInProgress}
-              title={
-                isInProgress
-                  ? "Item is in progress and cannot be deleted"
-                  : undefined
-              }
-              onClick={() => setDeleteOpen(true)}
-            >
-              <IconTrash className="size-4" />
-              <span className="max-sm:hidden">Delete</span>
-            </Button>
-          )}
         </div>
       </header>
 
-      <div className="grid flex-1 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid flex-1 desktop:grid-cols-[minmax(0,1fr)_20rem]">
         <main className="flex min-w-0 flex-col gap-5 p-4 sm:p-6">
           <dl
             className={cn(
@@ -577,56 +607,20 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
           )}
         </main>
 
-        <aside className="flex flex-col gap-5 border-t p-4 lg:border-t-0 lg:border-l">
-          <KnowledgeScopePanel
-            value={scope}
-            onChange={setScope}
-            bordered={false}
-            // Where it applies is fixed once added; who uses it can be edited.
-            appliesToLocked
-            usedByLocked={!editing}
-            showErrors={Boolean(scopeErrors.aiScope)}
-            description={
-              editing
-                ? "Choose which AI use it, then save."
-                : "Press Edit to change who uses it."
-            }
-          />
-
-          <hr />
-
-          <section className="flex flex-col gap-2 text-xs">
-            <h2 className="text-sm font-semibold">Details</h2>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
-              <dt className="text-muted-foreground">Source</dt>
-              <dd>{KNOWLEDGE_SOURCE_LABEL[item.source]}</dd>
-              {item.category && (
-                <>
-                  <dt className="text-muted-foreground">KB type</dt>
-                  <dd>{humanize(item.category)}</dd>
-                </>
-              )}
-              <dt className="text-muted-foreground">Status</dt>
-              <dd>
-                <KnowledgeStatusBadge status={item.status} />
-              </dd>
-              {item.createdBy && (
-                <>
-                  <dt className="text-muted-foreground">Added by</dt>
-                  <dd>{item.createdBy}</dd>
-                </>
-              )}
-              <dt className="text-muted-foreground">Added</dt>
-              <dd>{formatDate(item.createdAt)}</dd>
-              <dt className="text-muted-foreground">Last updated</dt>
-              <dd>
-                {formatDate(item.updatedAt)}
-                {item.updatedBy ? ` by ${item.updatedBy}` : ""}
-              </dd>
-            </dl>
-          </section>
-        </aside>
+        {!belowLg && (
+          <aside className="flex flex-col gap-5 border-l p-4">
+            {settingsPanel}
+          </aside>
+        )}
       </div>
+
+      <KnowledgeSettingsDrawer
+        open={settingsOpen && belowLg}
+        onOpenChange={setSettingsOpen}
+        description="Which assistants use this, where it applies, and when it was added."
+      >
+        {settingsPanel}
+      </KnowledgeSettingsDrawer>
 
       <AlertDialog
         open={publishOpen}
@@ -638,8 +632,10 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Publish this knowledge?</AlertDialogTitle>
             <AlertDialogDescription>
-              &quot;{item.title}&quot; is processed and goes live in your
-              assistant once that finishes.
+              <strong className="font-semibold break-words text-foreground">
+                {item.title}
+              </strong>{" "}
+              is processed and goes live in your assistant once that finishes.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -660,43 +656,6 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                 </>
               ) : (
                 "Publish"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
-        open={deleteOpen}
-        onOpenChange={(open) => {
-          if (!isDeleting) setDeleteOpen(open);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this knowledge?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove &quot;{item.title}&quot;. This action
-              cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
-              disabled={isDeleting}
-              onClick={(event) => {
-                event.preventDefault();
-                void handleDelete();
-              }}
-            >
-              {isDeleting ? (
-                <>
-                  <Spinner data-icon="inline-start" />
-                  Deleting…
-                </>
-              ) : (
-                "Delete"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
