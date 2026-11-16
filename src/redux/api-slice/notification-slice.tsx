@@ -151,6 +151,8 @@ export const MarkNotificationRead = createAsyncThunk(
         `${ENDPOINTS.notificationMarkRead(id)}?store_code=${storeCode}`,
       );
       const data: AgentNotification = response.data.data;
+      // The badge drops once the backend has it as read.
+      thunkAPI.dispatch(FetchNotificationCounts({ storeCode }));
       return data;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -174,6 +176,7 @@ export const MarkAllNotificationsRead = createAsyncThunk(
         `${ENDPOINTS.notificationsMarkAllRead()}?store_code=${storeCode}`,
       );
       const data: { marked_read: number } = response.data.data;
+      thunkAPI.dispatch(FetchNotificationCounts({ storeCode }));
       return data;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -197,6 +200,8 @@ const NotificationSlice = createSlice({
       FetchNotificationsIsLoading: false,
       FetchNotificationsIsSuccess: false,
       FetchNotificationsIsError: null as null | string | object,
+      /** The last page loaded into the list. */
+      FetchNotificationsPage: 1,
       FetchNotificationsListData: {
         count: 0,
         next: null,
@@ -243,6 +248,7 @@ const NotificationSlice = createSlice({
       .addCase(FetchNotifications.fulfilled, (state, action) => {
         state.FetchNotificationsState.FetchNotificationsIsLoading = false;
         state.FetchNotificationsState.FetchNotificationsIsSuccess = true;
+        state.FetchNotificationsState.FetchNotificationsPage = 1;
         state.FetchNotificationsState.FetchNotificationsListData =
           action.payload;
       })
@@ -260,6 +266,8 @@ const NotificationSlice = createSlice({
       .addCase(FetchMoreNotifications.fulfilled, (state, action) => {
         state.FetchMoreNotificationsState.FetchMoreNotificationsIsLoading = false;
         state.FetchMoreNotificationsState.FetchMoreNotificationsIsSuccess = true;
+        state.FetchNotificationsState.FetchNotificationsPage =
+          action.meta.arg.page;
         state.FetchNotificationsState.FetchNotificationsListData = {
           ...action.payload,
           results: [
@@ -326,6 +334,14 @@ const NotificationSlice = createSlice({
       .addCase(MarkAllNotificationsRead.fulfilled, (state) => {
         state.MarkAllNotificationsReadState.MarkAllNotificationsReadIsLoading = false;
         state.MarkAllNotificationsReadState.MarkAllNotificationsReadIsSuccess = true;
+        // Every tab lists unread ones only, so whichever is open is now empty.
+        state.FetchNotificationsState.FetchNotificationsPage = 1;
+        state.FetchNotificationsState.FetchNotificationsListData = {
+          count: 0,
+          next: null,
+          previous: null,
+          results: [],
+        };
       })
       .addCase(MarkAllNotificationsRead.rejected, (state, action) => {
         state.MarkAllNotificationsReadState.MarkAllNotificationsReadIsLoading = false;

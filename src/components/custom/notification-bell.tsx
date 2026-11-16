@@ -237,9 +237,7 @@ export function NotificationBell() {
   const router = useRouter();
   const { status } = useSession();
   const [open, setOpen] = useState(false);
-  // The open tab and the last page loaded in it.
   const [tab, setTab] = useState<NotificationTab>("unread");
-  const [page, setPage] = useState(1);
   // Ids pushed live this session; only these rows animate in.
   const [liveIds, setLiveIds] = useState<ReadonlySet<number>>(new Set());
 
@@ -249,10 +247,13 @@ export function NotificationBell() {
         .FetchNotificationCountsData,
   );
   const unreadCount = counts.unread;
-  const { FetchNotificationsIsLoading, FetchNotificationsListData } =
-    useAppSelector(
-      (state) => state.GetNotificationReducer.FetchNotificationsState,
-    );
+  const {
+    FetchNotificationsIsLoading,
+    FetchNotificationsPage,
+    FetchNotificationsListData,
+  } = useAppSelector(
+    (state) => state.GetNotificationReducer.FetchNotificationsState,
+  );
   const { FetchMoreNotificationsIsLoading } = useAppSelector(
     (state) => state.GetNotificationReducer.FetchMoreNotificationsState,
   );
@@ -283,7 +284,6 @@ export function NotificationBell() {
   const loadTab = (value: NotificationTab) => {
     if (!selectedStore) return;
     setTab(value);
-    setPage(1);
     void dispatch(FetchNotifications({ storeCode: selectedStore, tab: value }));
   };
 
@@ -302,10 +302,9 @@ export function NotificationBell() {
 
   const openNotification = (notification: AgentNotification) => {
     if (!notification.is_read) {
-      // The badge drops once the backend has it as read.
       void dispatch(
         MarkNotificationRead({ storeCode: selectedStore, id: notification.id }),
-      ).then(loadCounts);
+      );
     }
     router.push(
       notification.ticket !== null
@@ -313,16 +312,6 @@ export function NotificationBell() {
         : `/support?chat=${encodeURIComponent(notification.thread ?? "")}`,
     );
     handleOpenChange(false);
-  };
-
-  const markAllRead = () => {
-    // The Unread tab empties and the badge drops once the backend has them.
-    void dispatch(MarkAllNotificationsRead({ storeCode: selectedStore })).then(
-      (result) => {
-        loadCounts();
-        if (MarkAllNotificationsRead.fulfilled.match(result)) loadTab(tab);
-      },
-    );
   };
 
   // The backend pushes only the selected store's notifications. Each one
@@ -363,11 +352,9 @@ export function NotificationBell() {
         FetchMoreNotifications({
           storeCode: selectedStore,
           tab,
-          page: page + 1,
+          page: FetchNotificationsPage + 1,
         }),
-      ).then((result) => {
-        if (FetchMoreNotifications.fulfilled.match(result)) setPage(page + 1);
-      });
+      );
     }
   };
 
@@ -448,7 +435,11 @@ export function NotificationBell() {
                 size="sm"
                 className="text-primary hover:text-primary"
                 disabled={MarkAllNotificationsReadIsLoading}
-                onClick={markAllRead}
+                onClick={() =>
+                  void dispatch(
+                    MarkAllNotificationsRead({ storeCode: selectedStore }),
+                  )
+                }
               >
                 {MarkAllNotificationsReadIsLoading ? (
                   <Spinner data-icon="inline-start" />
