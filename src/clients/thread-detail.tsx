@@ -739,7 +739,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               {details?.customer?.id ? (
                 <Link
                   href={`/crm/customers/${details.customer.id}`}
-                  className="font-semibold hover:underline"
+                  className="font-semibold underline"
                 >
                   {customerName}
                 </Link>
