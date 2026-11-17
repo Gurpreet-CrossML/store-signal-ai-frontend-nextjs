@@ -546,7 +546,7 @@ function TicketListPanel({
   searchValue,
   onSearchChange,
   filters,
-  appliedFilterCount,
+  activeFilterCount,
   isFilterOpen,
   onFilterOpenChange,
   onFiltersChange,
@@ -575,7 +575,7 @@ function TicketListPanel({
   onSearchChange: (value: string) => void;
   filters: TicketFilterSelection;
   /** For the Filters button: what the list is filtered by, not the draft. */
-  appliedFilterCount: number;
+  activeFilterCount: number;
   isFilterOpen: boolean;
   onFilterOpenChange: (open: boolean) => void;
   onFiltersChange: (filters: TicketFilterSelection) => void;
@@ -638,9 +638,9 @@ function TicketListPanel({
           aria-label="Filter Tickets"
         >
           <IconFilter className="size-4" />
-          {appliedFilterCount > 0 ? (
+          {activeFilterCount > 0 ? (
             <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-              {appliedFilterCount}
+              {activeFilterCount}
             </span>
           ) : null}
         </Button>
@@ -3657,7 +3657,7 @@ export default function HelpDesk() {
           searchValue={searchValue}
           onSearchChange={setSearchValue}
           filters={draftFilters}
-          appliedFilterCount={
+          activeFilterCount={
             appliedFilters.priorities.length + appliedFilters.statuses.length
           }
           isFilterOpen={isFilterOpen}
