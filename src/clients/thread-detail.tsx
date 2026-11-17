@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   IconAlertTriangle,
   IconArrowLeft,
+  IconArrowUpRight,
   IconBrain,
   IconCalendarTime,
   IconCheck,
@@ -38,10 +39,7 @@ import {
 } from "@/components/custom/customer-header";
 import { TagsCell } from "@/components/custom/threads-columns";
 import { InfoIcon } from "@/components/custom/info-icon";
-import {
-  closedByLabel,
-  closeReasonLabel,
-} from "@/lib/thread-options";
+import { closedByLabel, closeReasonLabel } from "@/lib/thread-options";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import {
   CreateTicketDialog,
@@ -80,7 +78,6 @@ import {
   FetchTags,
   FetchThreadDetails,
   FetchUserMetadata,
-  type ThreadTicketData,
   ThreadCustomerLink,
   type ThreadMessage,
   type ThreadTagData,
@@ -472,10 +469,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
   const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
-  const [createdThreadTicket, setCreatedThreadTicket] = useState<Pick<
-    ThreadTicketData,
-    "id" | "ticket_id"
-  > | null>(null);
   const canCreateTicket = useCan("conversations", { write: true });
 
   useEffect(() => {
@@ -598,7 +591,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const existingThreadTicket = (FetchFreshdeskTicketIdData ?? []).find(
     (ticket) => ticket.thread_id?.toLowerCase() === threadId.toLowerCase(),
   );
-  const threadTicket = createdThreadTicket ?? existingThreadTicket;
   const started = formatDayFirst(details?.created_at);
   const closeReason = closeReasonLabel(details?.close_reason);
   // "11:28 AM · closed after inactivity". A chat that is still open has no end.
@@ -735,12 +727,18 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           <div className="space-y-4 p-5">
             <div>
               {details?.customer?.id ? (
-                <Link
-                  href={`/crm/customers/${details.customer.id}`}
-                  className="font-semibold underline"
-                >
-                  {customerName}
-                </Link>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href={`/crm/customers/${details.customer.id}`}
+                      className="inline-flex items-center gap-1 font-semibold hover:underline hover:underline-offset-2"
+                    >
+                      {customerName}
+                      <IconArrowUpRight className="size-3.5" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent>Open full profile</TooltipContent>
+                </Tooltip>
               ) : (
                 <p className="font-semibold">{customerName}</p>
               )}
@@ -903,10 +901,10 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           <div className="mt-8 hidden shrink-0 gap-2 lg:flex">
             {/* <Button variant="outline">Export</Button> */}
             {/* <Button variant="outline">Flag for review</Button> */}
-            {threadTicket ? (
+            {existingThreadTicket ? (
               <Button asChild>
-                <Link href={`/helpdesk?ticket=${threadTicket.id}`}>
-                  Open Ticket #{threadTicket.ticket_id}
+                <Link href={`/helpdesk?ticket=${existingThreadTicket.id}`}>
+                  Open Ticket #{existingThreadTicket.ticket_id}
                 </Link>
               </Button>
             ) : (
@@ -991,10 +989,10 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         <Button variant="outline" size="icon" aria-label="Flag for review">
           <IconFlag />
         </Button>
-        {threadTicket ? (
+        {existingThreadTicket ? (
           <Button className="flex-1" asChild>
-            <Link href={`/helpdesk?ticket=${threadTicket.id}`}>
-              Open Ticket #{threadTicket.ticket_id}
+            <Link href={`/helpdesk?ticket=${existingThreadTicket.id}`}>
+              Open Ticket #{existingThreadTicket.ticket_id}
             </Link>
           </Button>
         ) : (
@@ -1046,10 +1044,13 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             if (!CreateSupportTicket.fulfilled.match(result)) {
               return { ok: false, payload: result.payload };
             }
-            setCreatedThreadTicket({
-              id: result.payload.id,
-              ticket_id: result.payload.ticket_id,
-            });
+            await dispatch(
+              FetchFreshdeskTicketId({
+                threadId,
+                customerId: details?.customer?.id,
+                storeCode,
+              }),
+            );
             return { ok: true };
           }}
         />
