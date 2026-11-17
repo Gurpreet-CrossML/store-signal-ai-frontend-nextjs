@@ -318,7 +318,7 @@ export function MessagePan({
           );
           const isCustomer = message.role === "user";
           const senderLabel = isCustomer
-            ? customerName || message.messaged_by || "User"
+            ? customerName || "User"
             : message.role === "assistant" && !message.agent_name
               ? "AI Assistant"
               : message.messaged_by_email &&
@@ -911,10 +911,8 @@ export function LiveMessagePan({
           const isAgentMessage = Boolean(
             message.agent_name || message.messaged_by,
           );
-          const isCustomer = message.role === "user";
-          const senderLabel = isCustomer
-            ? customerName || message.messaged_by || "User"
-            : message.role === "assistant" && !message.agent_name
+          const senderLabel =
+            message.role === "assistant" && !message.agent_name
               ? "AI Assistant"
               : message.messaged_by_email &&
                   me &&
@@ -923,6 +921,7 @@ export function LiveMessagePan({
                 : message.messaged_by || message.role;
           const showReplyWithAI =
             isLastMessage && message.role === "user" && !!onReplyWithAI;
+          const isCustomer = message.role === "user";
           const isOutgoing = isCustomer;
           const feedbackRating = message.feedback_rating;
           const hasPositiveFeedback = ["good", "excellent"].includes(
