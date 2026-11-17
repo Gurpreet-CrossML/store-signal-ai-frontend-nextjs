@@ -62,7 +62,7 @@ export type SupportSocketPayload = {
 export type SupportTicketOrdering = "newest" | "oldest" | "last_updated";
 
 export type SupportTicketFilters = {
-  status?: SupportTicketStatus;
+  status?: SupportTicketStatus | SupportTicketStatus[];
   ordering?: SupportTicketOrdering;
   search?: string;
   channel?: SupportTicketChannel[];
