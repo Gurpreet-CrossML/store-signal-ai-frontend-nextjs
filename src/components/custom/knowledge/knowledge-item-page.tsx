@@ -32,7 +32,6 @@ import {
   FetchKnowledgeItem,
   PublishKnowledgeItems,
   UpdateKnowledgeItem,
-  UpdateKnowledgeItemsScope,
   type KnowledgeItem,
 } from "@/redux/api-slice/knowledge-rag-slice";
 
@@ -48,6 +47,10 @@ import {
   isKnowledgeItemEditable,
   KNOWLEDGE_SOURCE_LABEL,
 } from "@/components/custom/knowledge/knowledge-meta";
+import {
+  KnowledgeCategoriesField,
+  useKnowledgeCategoryOptions,
+} from "@/components/custom/knowledge/knowledge-category-picker";
 import { KnowledgeScopePanel } from "@/components/custom/knowledge/knowledge-scope-panel";
 import {
   KnowledgeSettingsButton,
@@ -55,6 +58,7 @@ import {
 } from "@/components/custom/knowledge/knowledge-settings-drawer";
 import {
   scopeOfItem,
+  scopeToPayload,
   validateScope,
   type KnowledgeScope,
 } from "@/components/custom/knowledge/knowledge-scope";
@@ -69,14 +73,22 @@ const formatDate = (value: string) =>
 
 const wordCount = (text: string) => text.split(/\s+/).filter(Boolean).length;
 
-/** `shipping_policy` as "Shipping policy". */
-const humanize = (value: string) => {
-  const text = value.replace(/[_-]+/g, " ").trim();
-  return text.charAt(0).toUpperCase() + text.slice(1);
-};
-
-const sameScope = (a: string[], b: string[]) =>
+const sameSet = (a: (string | number)[], b: (string | number)[]) =>
   a.length === b.length && a.every((entry) => b.includes(entry));
+
+const idsOf = (entries: { id: string }[] | undefined) =>
+  (entries ?? []).map((entry) => entry.id);
+
+/** Whether where an item applies (the whole store, or its products, categories
+ * or collections) differs from what it was saved with. */
+const appliesToChanged = (scope: KnowledgeScope, saved: KnowledgeItem) =>
+  scopeToPayload(scope).type !== saved.type ||
+  !sameSet(idsOf(scope.products), idsOf(saved.products)) ||
+  !sameSet(idsOf(scope.categories), idsOf(saved.categories)) ||
+  !sameSet(idsOf(scope.collections), idsOf(saved.collections));
+
+const categoryIdsOf = (item: KnowledgeItem) =>
+  (item.knowledgeCategories ?? []).map((category) => category.id);
 
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -147,6 +159,9 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
   // What is being edited, while editing; `null` otherwise.
   const [editing, setEditing] = useState(false);
   const [scope, setScope] = useState<KnowledgeScope | null>(null);
+  const [knowledgeCategories, setKnowledgeCategories] = useState<number[]>([]);
+  const { options: categoryOptions, isLoading: categoriesLoading } =
+    useKnowledgeCategoryOptions();
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [url, setUrl] = useState("");
@@ -179,6 +194,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
         }
         setItem(loaded);
         setScope(scopeOfItem(loaded));
+        setKnowledgeCategories(categoryIdsOf(loaded));
         setQuestion(loaded.question ?? "");
         setAnswer(loaded.answer ?? "");
         setUrl(loaded.url ?? "");
@@ -204,6 +220,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
   const cancelEdit = () => {
     if (!item) return;
     setScope(scopeOfItem(item));
+    setKnowledgeCategories(categoryIdsOf(item));
     setQuestion(item.question ?? "");
     setAnswer(item.answer ?? "");
     setUrl(item.url ?? "");
@@ -219,59 +236,57 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
       item.source === "faq" && (!question.trim() || !answer.trim());
     const urlInvalid =
       item.source === "url" && (!url.trim() || !isValidUrl(url));
-    if (validateScope(scope).aiScope || faqInvalid || urlInvalid) return;
+    const scopeErrors = validateScope(scope);
+    if (
+      scopeErrors.aiScope ||
+      scopeErrors.selection ||
+      faqInvalid ||
+      urlInvalid
+    )
+      return;
 
-    const scopeChanged = !sameScope(scope.aiScope, item.aiScope);
-    const contentChanged =
-      (item.source === "faq" &&
-        (question.trim() !== item.question || answer.trim() !== item.answer)) ||
-      (item.source === "url" && normalizeUrl(url) !== item.url);
-    if (!scopeChanged && !contentChanged) {
+    // Only what changed is sent. A changed website address is the one edit that
+    // sends the item through processing again; the question and answer are
+    // embedded again by the backend; everything else (categories, where it
+    // applies, which AI use it) updates the database and the stored vectors in
+    // place.
+    const scopeChanged =
+      !sameSet(scope.aiScope, item.aiScope) || appliesToChanged(scope, item);
+    const categoriesChanged = !sameSet(
+      knowledgeCategories,
+      categoryIdsOf(item),
+    );
+    const faqChanged =
+      item.source === "faq" &&
+      (question.trim() !== item.question || answer.trim() !== item.answer);
+    const urlChanged = item.source === "url" && normalizeUrl(url) !== item.url;
+    if (!scopeChanged && !categoriesChanged && !faqChanged && !urlChanged) {
       setEditing(false);
       return;
     }
 
     setIsSaving(true);
-    // Who uses it goes first, on its own: it needs no processing and reaches the
-    // stored vectors straight away. Changing the text or address afterwards
-    // sends the item through processing again, which keeps that scope.
-    if (scopeChanged) {
-      const result = await dispatch(
-        UpdateKnowledgeItemsScope({
-          ids: [item.id],
-          aiScope: scope.aiScope,
-          storeCode,
-          silent: !contentChanged,
-        }),
-      );
-      if (!UpdateKnowledgeItemsScope.fulfilled.match(result)) {
-        setIsSaving(false);
-        return;
-      }
-    }
-    if (contentChanged) {
-      const result = await dispatch(
-        UpdateKnowledgeItem({
-          id: item.id,
-          storeCode,
-          patch: {
-            type: item.type,
-            source: item.source,
-            aiScope: scope.aiScope,
-            ...(item.source === "faq"
-              ? { question: question.trim(), answer: answer.trim() }
-              : { url: normalizeUrl(url) }),
-          },
-        }),
-      );
-      if (!UpdateKnowledgeItem.fulfilled.match(result)) {
-        setIsSaving(false);
-        reload();
-        return;
-      }
+    const result = await dispatch(
+      UpdateKnowledgeItem({
+        id: item.id,
+        storeCode,
+        patch: {
+          source: item.source,
+          ...scopeToPayload(scope),
+          knowledgeCategoryIds: knowledgeCategories,
+          ...(faqChanged
+            ? { question: question.trim(), answer: answer.trim() }
+            : {}),
+          ...(urlChanged ? { url: normalizeUrl(url) } : {}),
+        },
+      }),
+    );
+    setIsSaving(false);
+    if (!UpdateKnowledgeItem.fulfilled.match(result)) {
+      reload();
+      return;
     }
 
-    setIsSaving(false);
     setShowErrors(false);
     setEditing(false);
     reload();
@@ -314,18 +329,28 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
 
   const settingsPanel = (
     <>
+      <KnowledgeCategoriesField
+        options={categoryOptions}
+        isLoading={categoriesLoading}
+        value={knowledgeCategories}
+        onChange={setKnowledgeCategories}
+        disabled={!editing}
+        hint="Helps you find and group this in Knowledge."
+      />
+
+      <hr />
+
       <KnowledgeScopePanel
         value={scope}
         onChange={setScope}
         bordered={false}
-        // Where it applies is fixed once added; who uses it can be edited.
-        appliesToLocked
+        appliesToLocked={!editing}
         usedByLocked={!editing}
-        showErrors={Boolean(scopeErrors.aiScope)}
+        showErrors={Boolean(scopeErrors.aiScope || scopeErrors.selection)}
         description={
           editing
-            ? "Choose which AI use it, then save."
-            : "Press Edit to change who uses it."
+            ? "Choose where it applies and which AI use it, then save."
+            : "Press Edit to change where it applies and who uses it."
         }
       />
 
@@ -336,12 +361,6 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
           <dt className="text-muted-foreground">Source</dt>
           <dd>{KNOWLEDGE_SOURCE_LABEL[item.source]}</dd>
-          {item.category && (
-            <>
-              <dt className="text-muted-foreground">KB type</dt>
-              <dd>{humanize(item.category)}</dd>
-            </>
-          )}
           <dt className="text-muted-foreground">Status</dt>
           <dd>
             <KnowledgeStatusBadge status={item.status} />
@@ -388,7 +407,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
         <div className="ml-auto flex items-center gap-2">
           {belowLg && (
             <KnowledgeSettingsButton
-              invalid={Boolean(scopeErrors.aiScope)}
+              invalid={Boolean(scopeErrors.aiScope || scopeErrors.selection)}
               onClick={() => setSettingsOpen(true)}
             />
           )}

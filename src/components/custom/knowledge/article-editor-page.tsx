@@ -38,6 +38,10 @@ import {
 
 import { ArticleEditor } from "@/components/custom/knowledge/article-editor";
 import { KnowledgeStatusBadge } from "@/components/custom/knowledge/knowledge-badges";
+import {
+  KnowledgeCategoriesField,
+  useKnowledgeCategoryOptions,
+} from "@/components/custom/knowledge/knowledge-category-picker";
 import { KnowledgeScopePanel } from "@/components/custom/knowledge/knowledge-scope-panel";
 import {
   DEFAULT_KNOWLEDGE_SCOPE,
@@ -63,8 +67,12 @@ const AUTOSAVE_DELAY_MS = 1500;
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 /** Identifies an article's editable content, to tell whether it changed. */
-const contentKey = (title: string, html: string, scope: KnowledgeScope) =>
-  JSON.stringify([title.trim(), html, scope]);
+const contentKey = (
+  title: string,
+  html: string,
+  scope: KnowledgeScope,
+  categories: number[],
+) => JSON.stringify([title.trim(), html, scope, categories]);
 
 const formatDate = (value: string) =>
   new Date(value).toLocaleDateString(undefined, {
@@ -96,6 +104,10 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
   const [title, setTitle] = useState("");
   const [html, setHtml] = useState("");
   const [scope, setScope] = useState<KnowledgeScope>(DEFAULT_KNOWLEDGE_SCOPE);
+  // The knowledge categories (shipping, returns, …) the article is filed under.
+  const [knowledgeCategories, setKnowledgeCategories] = useState<number[]>([]);
+  const { options: categoryOptions, isLoading: categoriesLoading } =
+    useKnowledgeCategoryOptions();
   const [meta, setMeta] = useState<Pick<
     KnowledgeItem,
     | "createdAt"
@@ -166,11 +178,16 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
         setInitialHtml(item.content ?? "");
         setHtml(item.content ?? "");
         setScope(scopeOfItem(item));
+        const itemCategories = (item.knowledgeCategories ?? []).map(
+          (category) => category.id,
+        );
+        setKnowledgeCategories(itemCategories);
         setMeta(item);
         const key = contentKey(
           item.title,
           item.content ?? "",
           scopeOfItem(item),
+          itemCategories,
         );
         savedRef.current.key = key;
         setSavedKey(key);
@@ -188,22 +205,27 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
   // never overwrites a newer edit with an old one; one with nothing new to
   // write (the same title, body and scope as the last save) does nothing.
   const idRef = useRef(id);
-  const latest = useRef({ title, html, scope });
+  const latest = useRef({ title, html, scope, knowledgeCategories });
   const queue = useRef<Promise<boolean>>(Promise.resolve(true));
   useEffect(() => {
     idRef.current = id;
-    latest.current = { title, html, scope };
+    latest.current = { title, html, scope, knowledgeCategories };
   });
 
   const currentKey = useMemo(
-    () => contentKey(title, html, scope),
-    [title, html, scope],
+    () => contentKey(title, html, scope, knowledgeCategories),
+    [title, html, scope, knowledgeCategories],
   );
   const isDirty = currentKey !== savedKey;
 
   const runSave = async (silent: boolean): Promise<boolean> => {
     const current = latest.current;
-    const carried = contentKey(current.title, current.html, current.scope);
+    const carried = contentKey(
+      current.title,
+      current.html,
+      current.scope,
+      current.knowledgeCategories,
+    );
     if (!storeCode) return false;
     if (idRef.current && savedRef.current.key === carried) return true;
     const scopeProblem = validateScope(current.scope);
@@ -228,6 +250,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
           storeCode,
           source: "article",
           ...shared,
+          knowledgeCategoryIds: current.knowledgeCategories,
           items: [{ title: current.title.trim(), content: current.html }],
           publish: false,
           silent: true,
@@ -261,6 +284,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
             productIds: shared.productIds,
             categoryIds: shared.categoryIds,
             collectionIds: shared.collectionIds,
+            knowledgeCategoryIds: current.knowledgeCategories,
           },
         }),
       );
@@ -289,8 +313,8 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
   // article that only changes its working copy; what the assistant uses stays
   // as it was until the changes are published.
   const snapshot = useMemo(
-    () => ({ title, html, scope }),
-    [title, html, scope],
+    () => ({ title, html, scope, knowledgeCategories }),
+    [title, html, scope, knowledgeCategories],
   );
   const debounced = useDebounce(snapshot, AUTOSAVE_DELAY_MS);
   useEffect(() => {
@@ -373,8 +397,26 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
                 ? `Saved ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
                 : "Not saved yet";
 
+  const categoryNames = knowledgeCategories
+    .map(
+      (id) => categoryOptions.find((option) => option.id === String(id))?.name,
+    )
+    .filter(Boolean)
+    .join(", ");
+
   const settingsPanel = (
     <>
+      <KnowledgeCategoriesField
+        options={categoryOptions}
+        isLoading={categoriesLoading}
+        value={knowledgeCategories}
+        onChange={setKnowledgeCategories}
+        disabled={isLocked}
+        hint="Helps you find and group this article in Knowledge."
+      />
+
+      <hr />
+
       <KnowledgeScopePanel
         value={scope}
         onChange={(next) => {
@@ -605,6 +647,8 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
             <dd>{aiLabels || "—"}</dd>
             <dt className="text-muted-foreground">Applies to</dt>
             <dd>{describeScope(scope)}</dd>
+            <dt className="text-muted-foreground">Categories</dt>
+            <dd>{categoryNames || "None"}</dd>
             <dt className="text-muted-foreground">Length</dt>
             <dd>{words.toLocaleString()} words</dd>
           </dl>
