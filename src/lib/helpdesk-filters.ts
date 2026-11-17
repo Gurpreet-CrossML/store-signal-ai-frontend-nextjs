@@ -141,7 +141,7 @@ const COUNT_GROUPS: {
  * menu) keep in the URL. They narrow whichever view is open, so moving to
  * another view carries them along.
  */
-export const HELPDESK_LIST_PARAMS = ["priority", "sort"] as const;
+export const HELPDESK_LIST_PARAMS = ["priority", "status", "sort"] as const;
 
 /**
  * `href`, if it is a help desk view, with the list params of `search`

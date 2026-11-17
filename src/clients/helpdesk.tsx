@@ -546,6 +546,7 @@ function TicketListPanel({
   searchValue,
   onSearchChange,
   filters,
+  appliedFilterCount,
   isFilterOpen,
   onFilterOpenChange,
   onFiltersChange,
@@ -573,6 +574,8 @@ function TicketListPanel({
   searchValue: string;
   onSearchChange: (value: string) => void;
   filters: TicketFilterSelection;
+  /** For the Filters button: what the list is filtered by, not the draft. */
+  appliedFilterCount: number;
   isFilterOpen: boolean;
   onFilterOpenChange: (open: boolean) => void;
   onFiltersChange: (filters: TicketFilterSelection) => void;
@@ -582,7 +585,6 @@ function TicketListPanel({
   const subSidebar = useSubSidebar();
   const isPhone = useIsMobile();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const activeFilterCount = filters.priorities.length + filters.statuses.length;
   const title = helpdeskViewLabel(activeFilter, filterCounts);
   const count = viewCount(
     activeFilter,
@@ -636,9 +638,9 @@ function TicketListPanel({
           aria-label="Filter Tickets"
         >
           <IconFilter className="size-4" />
-          {activeFilterCount > 0 ? (
+          {appliedFilterCount > 0 ? (
             <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-              {activeFilterCount}
+              {appliedFilterCount}
             </span>
           ) : null}
         </Button>
@@ -2008,12 +2010,15 @@ export default function HelpDesk() {
   // the objects below keep their identity until one really changes.
   const priorityParam = searchParams?.get("priority") ?? "";
   const sortParam = searchParams?.get("sort");
-  // Not in the URL: a tab click clears them, and it has to do that in the
-  // same render that switches the tab, or the list fetches the old statuses
-  // in between.
-  const [appliedStatuses, setAppliedStatuses] = useState<
-    TicketFilterSelection["statuses"]
-  >([]);
+  // The list reads them from state, not the URL: a tab click clears them, and
+  // it has to do that in the same render that switches the tab, or the list
+  // fetches the old statuses in between. The URL only keeps them over a reload.
+  const [appliedStatuses, setAppliedStatuses] = useState(() =>
+    pickParam(
+      searchParams?.get("status") ?? "",
+      statusFilterOptions.map((option) => option.key),
+    ),
+  );
 
   const appliedFilters = useMemo<TicketFilterSelection>(
     () => ({
@@ -2792,7 +2797,7 @@ export default function HelpDesk() {
   const handleQueueChange = (queue: SupportTicketStatus) => {
     // A tab shows its own status, not the ones picked in the filter.
     setAppliedStatuses([]);
-    setDraftFilters((current) => ({ ...current, statuses: [] }));
+    updateQueryParams({ status: null });
     setActiveQueue(queue);
     setPage(1);
     setActiveTicketId(null);
@@ -3611,6 +3616,7 @@ export default function HelpDesk() {
   const handleApplyFilters = () => {
     updateQueryParams({
       priority: draftFilters.priorities.join(",") || null,
+      status: draftFilters.statuses.join(",") || null,
     });
     setAppliedStatuses(draftFilters.statuses);
     setIsFilterOpen(false);
@@ -3651,6 +3657,9 @@ export default function HelpDesk() {
           searchValue={searchValue}
           onSearchChange={setSearchValue}
           filters={draftFilters}
+          appliedFilterCount={
+            appliedFilters.priorities.length + appliedFilters.statuses.length
+          }
           isFilterOpen={isFilterOpen}
           onFilterOpenChange={handleFilterOpenChange}
           onFiltersChange={setDraftFilters}
