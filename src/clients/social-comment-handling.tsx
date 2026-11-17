@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   IconAlertTriangle,
   IconDeviceFloppy,
@@ -15,15 +14,9 @@ import { toast } from "sonner";
 import { InfoIcon } from "@/components/custom/info-icon";
 import { LoadingState } from "@/components/custom/loading-state";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  UnsavedChangesDialog,
+  type UnsavedChangesDialogHandle,
+} from "@/components/custom/unsaved-changes-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,7 +54,6 @@ import {
 } from "@/components/ui/tooltip";
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
-import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import {
   ACTIONS,
@@ -236,7 +228,6 @@ function ActionPicker({
  */
 export default function SocialCommentHandling() {
   const dispatch = useAppDispatch();
-  const router = useRouter();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -264,9 +255,7 @@ export default function SocialCommentHandling() {
   const [intents, setIntents] = useState<CommentIntentRule[]>([]);
   const [topicRules, setTopicRules] = useState<CommentTopicRule[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  // What the user tried to do with edits unsaved (open another page, or
-  // switch account); it runs once they save or discard. Set = dialog open.
-  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
+  const unsavedChanges = useRef<UnsavedChangesDialogHandle>(null);
 
   useEffect(() => {
     if (storeCode) dispatch(fetchSocialAccountsSubscriptions({ storeCode }));
@@ -326,16 +315,9 @@ export default function SocialCommentHandling() {
       dirtyTopicRules.length > 0 ||
       removedTopicRules.length > 0);
 
-  // A state setter given a function calls it, so the action is wrapped.
-  useUnsavedChangesGuard(isDirty, (href) =>
-    setPendingLeave(() => () => router.push(href)),
-  );
-
   /** Switching account reloads the rules, so unsaved edits ask first. */
-  const pickAccount = (accountId: string) => {
-    if (isDirty) setPendingLeave(() => () => setSelectedAccountId(accountId));
-    else setSelectedAccountId(accountId);
-  };
+  const pickAccount = (accountId: string) =>
+    unsavedChanges.current?.confirmLeave(() => setSelectedAccountId(accountId));
 
   const ruleableTopics = (config?.topics ?? []).filter(
     (topic) => topic.value !== UNRULEABLE_TOPIC,
@@ -395,14 +377,6 @@ export default function SocialCommentHandling() {
       });
     }
     return saved;
-  };
-
-  /** Runs the blocked navigation, after saving first when asked to. */
-  const leave = async (save: boolean) => {
-    // A failed save keeps the dialog open; the thunks already toasted why.
-    if (save && !(await handleSave())) return;
-    pendingLeave?.();
-    setPendingLeave(null);
   };
 
   const patchIntent = (id: string, patch: Partial<CommentIntentRule>) =>
@@ -770,50 +744,12 @@ export default function SocialCommentHandling() {
         </>
       )}
 
-      <AlertDialog
-        open={pendingLeave !== null}
-        onOpenChange={(open) => {
-          if (!open && !isSaving) setPendingLeave(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes. Do you want to save your changes before
-              leaving?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSaving}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="outline"
-              disabled={isSaving}
-              onClick={(event) => {
-                event.preventDefault();
-                void leave(false);
-              }}
-            >
-              Discard Changes
-            </AlertDialogAction>
-            <AlertDialogAction
-              disabled={isSaving}
-              onClick={(event) => {
-                // Stays open until the save is through.
-                event.preventDefault();
-                void leave(true);
-              }}
-            >
-              {isSaving ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <IconDeviceFloppy data-icon="inline-start" />
-              )}
-              Save Changes
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <UnsavedChangesDialog
+        ref={unsavedChanges}
+        isDirty={isDirty}
+        isSaving={isSaving}
+        onSave={handleSave}
+      />
     </div>
   );
 }

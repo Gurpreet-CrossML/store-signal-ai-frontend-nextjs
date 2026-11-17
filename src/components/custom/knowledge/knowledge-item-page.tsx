@@ -43,6 +43,7 @@ import {
   KnowledgeStatusBadge,
 } from "@/components/custom/knowledge/knowledge-badges";
 import { timeAgo } from "@/components/custom/knowledge/knowledge-list";
+import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import {
   FAQ_ANSWER_MAX_LENGTH,
   isKnowledgeItemEditable,
@@ -211,24 +212,28 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
     setEditing(false);
   };
 
+  const scopeChanged =
+    item !== null && scope !== null && !sameScope(scope.aiScope, item.aiScope);
+  const contentChanged =
+    (item?.source === "faq" &&
+      (question.trim() !== item.question || answer.trim() !== item.answer)) ||
+    (item?.source === "url" && normalizeUrl(url) !== item.url);
+  const isDirty = editing && (scopeChanged || contentChanged);
+
+  /** Saves the edits; resolves true once they are saved. */
   const handleSave = async () => {
-    if (!item || !scope || !storeCode) return;
+    if (!item || !scope || !storeCode) return false;
 
     setShowErrors(true);
     const faqInvalid =
       item.source === "faq" && (!question.trim() || !answer.trim());
     const urlInvalid =
       item.source === "url" && (!url.trim() || !isValidUrl(url));
-    if (validateScope(scope).aiScope || faqInvalid || urlInvalid) return;
+    if (validateScope(scope).aiScope || faqInvalid || urlInvalid) return false;
 
-    const scopeChanged = !sameScope(scope.aiScope, item.aiScope);
-    const contentChanged =
-      (item.source === "faq" &&
-        (question.trim() !== item.question || answer.trim() !== item.answer)) ||
-      (item.source === "url" && normalizeUrl(url) !== item.url);
     if (!scopeChanged && !contentChanged) {
       setEditing(false);
-      return;
+      return true;
     }
 
     setIsSaving(true);
@@ -246,7 +251,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
       );
       if (!UpdateKnowledgeItemsScope.fulfilled.match(result)) {
         setIsSaving(false);
-        return;
+        return false;
       }
     }
     if (contentChanged) {
@@ -267,7 +272,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
       if (!UpdateKnowledgeItem.fulfilled.match(result)) {
         setIsSaving(false);
         reload();
-        return;
+        return false;
       }
     }
 
@@ -275,6 +280,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
     setShowErrors(false);
     setEditing(false);
     reload();
+    return true;
   };
 
   const handlePublish = async () => {
@@ -661,6 +667,12 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <UnsavedChangesDialog
+        isDirty={isDirty}
+        isSaving={isSaving}
+        onSave={handleSave}
+      />
     </div>
   );
 }

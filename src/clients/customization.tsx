@@ -37,6 +37,7 @@ import CustomizationBranding from "@/components/custom/customization-branding";
 import CustomizationAiInfo from "@/components/custom/customization-ai-info";
 import CustomizationQuickLinks from "@/components/custom/customization-quick-links";
 import { PreviewModalButton } from "@/components/custom/preview-modal-button";
+import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import CustomizationLivePreview from "@/components/custom/customization-live-preview";
 import type {
   ActionButton,
@@ -195,6 +196,24 @@ export default function Customization() {
   const [aiDisclaimer, setAiDisclaimer] = useState<AiDisclaimer | null>(null);
   const [hasQuickActionError, setHasQuickActionError] = useState(false);
   const [hasQuickActionChanges, setHasQuickActionChanges] = useState(false);
+
+  // Everything Save sends, to tell edits from what was loaded. Most of it
+  // lives outside formik, so formik's own `dirty` can't say.
+  const snapshot = JSON.stringify({
+    themeColor,
+    secondaryColor,
+    tertiaryColor,
+    welcomeMessage,
+    greetingMessage,
+    logoUrl,
+    actionButtons,
+    quickLinks,
+    aiDisclaimer,
+  });
+  // `populate` clears it; it is taken again once the loaded values render.
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
+  if (savedSnapshot === null) setSavedSnapshot(snapshot);
+  const isDirty = savedSnapshot !== null && snapshot !== savedSnapshot;
   const formik = useFormik<CustomizationFormValues>({
     initialValues: {
       welcome_message: DEFAULT_WELCOME,
@@ -281,6 +300,7 @@ export default function Customization() {
           applyServerFieldErrors(formik, result.payload);
           setQuickLinkRowErrors(rowErrors);
         }
+        return fulfilled;
       } finally {
         setSavingAll(false);
       }
@@ -322,6 +342,7 @@ export default function Customization() {
   const populate = (data: WidgetCustomizationDataResponse | null) => {
     revokeLogoObjectUrl();
     setLogoFile(null);
+    setSavedSnapshot(null);
 
     if (!data) {
       applyColor("primary", DEFAULT_PRIMARY);
@@ -663,6 +684,12 @@ export default function Customization() {
       <PreviewModalButton title="Widget preview">
         <CustomizationLivePreview {...previewProps} />
       </PreviewModalButton>
+
+      <UnsavedChangesDialog
+        isDirty={isDirty}
+        isSaving={savingAll}
+        onSave={async () => (await formik.submitForm()) === true}
+      />
     </div>
   );
 }
