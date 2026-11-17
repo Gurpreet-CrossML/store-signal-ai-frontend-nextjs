@@ -39,7 +39,7 @@ export function WhatsAppTemplatePreviewDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2 pr-6">
-            <span className="truncate">{template?.name}</span>
+            <span className="truncate">{template?.display_name}</span>
             {template && (
               <WhatsAppTemplateStatusBadge status={template.status} />
             )}
