@@ -1290,6 +1290,7 @@ function CustomerTab({
     "https://admin.shopify.com/",
   );
   const platform = isShopify ? "Shopify customer" : "Customer";
+  const firstName = customerName.split(" ")[0];
 
   return (
     <>
@@ -1480,7 +1481,7 @@ function CustomerTab({
                 rel="noreferrer"
                 className="self-start text-sm font-medium text-primary hover:underline"
               >
-                View all tickets
+                View all tickets from {firstName}
               </Link>
             ) : null}
           </div>
