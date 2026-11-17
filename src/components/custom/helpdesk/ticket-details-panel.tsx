@@ -14,6 +14,7 @@ import {
   IconCopy,
   IconMail,
   IconMapPin,
+  IconPencil,
   IconPhone,
   IconPlus,
   IconRefresh,
@@ -61,8 +62,10 @@ import {
   CHANNEL_META,
   DEFAULT_TICKET_LANGUAGE,
   DEFAULT_TICKET_SENTIMENT,
+  isTicketChange,
   SUPPORTED_LANGUAGES,
   TICKET_SENTIMENTS,
+  ticketChangeTitle,
   type TicketLanguage,
   type TicketSentiment,
 } from "@/lib/ticket-options";
@@ -1559,6 +1562,10 @@ function ActivityTab({
         const icon =
           item.type === "created" ? (
             <IconPlus className="size-3.5 text-primary" />
+          ) : item.type === "tag_added" || item.type === "tag_removed" ? (
+            <IconTag className="size-3.5 text-violet-600" />
+          ) : isTicketChange(item) ? (
+            <IconPencil className="size-3.5 text-amber-600" />
           ) : item.type === "assigned" ? (
             <IconArrowUpRight className="size-3.5 text-blue-600" />
           ) : (
@@ -1567,6 +1574,8 @@ function ActivityTab({
         const title =
           item.type === "created" ? (
             "Ticket created"
+          ) : isTicketChange(item) ? (
+            ticketChangeTitle(item)
           ) : item.type === "status_changed" ? (
             <span className="flex flex-wrap items-center gap-1.5">
               Status changed
