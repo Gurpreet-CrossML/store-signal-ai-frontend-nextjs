@@ -1590,6 +1590,8 @@ function ConversationPanel({
                       {chatHref ? (
                         <Link
                           href={chatHref}
+                          target="_blank"
+                          rel="noreferrer"
                           className="hidden shrink-0 text-xs font-medium text-primary underline md:inline"
                         >
                           View chat
@@ -1600,6 +1602,8 @@ function ConversationPanel({
                     {chatHref ? (
                       <Link
                         href={chatHref}
+                        target="_blank"
+                        rel="noreferrer"
                         className="mt-1 inline-block text-sm font-medium text-primary underline md:hidden"
                       >
                         View chat
@@ -1942,6 +1946,18 @@ export default function HelpDesk() {
     },
     [dispatch],
   );
+  // A ticket linked with its status (`?status=`) lands on that tab. The list
+  // waits for the switch, so its first load is on that tab and the linked
+  // ticket stays open.
+  const pendingQueueRef = useRef(
+    queues.find((queue) => queue.key === searchParams?.get("status"))?.key ??
+      null,
+  );
+  useEffect(() => {
+    if (pendingQueueRef.current) {
+      dispatch(setHelpdeskQueue(pendingQueueRef.current));
+    }
+  }, [dispatch]);
   const [supportTikcetMessages, setSupportTicketMessages] = useState<
     SupportTicketMessage[]
   >([]);
@@ -2004,8 +2020,14 @@ export default function HelpDesk() {
       : [];
 
   // Support Ticket Search Filters
-  const [searchValue, setSearchValue] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // One customer's tickets, from "View all" in the customer panel: their
+  // email arrives as `?search=` and fills the search box.
+  const [searchValue, setSearchValue] = useState(
+    () => searchParams?.get("search")?.trim() ?? "",
+  );
+  const [debouncedSearch, setDebouncedSearch] = useState(
+    () => searchParams?.get("search")?.trim() ?? "",
+  );
   const [tagPage, setTagPage] = useState(1);
   const [tagSearchInput, setTagSearchInput] = useState("");
   const [tagSearch, setTagSearch] = useState("");
@@ -2487,6 +2509,10 @@ export default function HelpDesk() {
 
   useEffect(() => {
     if (!storeCode) return;
+    if (pendingQueueRef.current) {
+      if (pendingQueueRef.current !== activeQueue) return;
+      pendingQueueRef.current = null;
+    }
 
     const filters: SupportTicketFilters = {
       status: listStatuses,
@@ -2596,6 +2622,24 @@ export default function HelpDesk() {
 
     return () => window.clearTimeout(timeout);
   }, [searchValue, debouncedSearch]);
+
+  // Keep `?search=` in step with the search box, so a refresh or a shared
+  // link shows the same results. Skipped when it already matches, so it
+  // cannot loop.
+  useEffect(() => {
+    if (!pathname) return;
+
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    if ((params.get("search") ?? "") === debouncedSearch) return;
+
+    if (debouncedSearch) params.set("search", debouncedSearch);
+    else params.delete("search");
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }, [debouncedSearch, pathname, router, searchParams]);
 
   // Debounced like the ticket search above, and back to the first page: the
   // tags already loaded say nothing about which ones match.
