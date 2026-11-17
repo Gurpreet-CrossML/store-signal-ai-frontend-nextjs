@@ -38,11 +38,9 @@ import {
 } from "@/components/custom/customer-header";
 import { TagsCell } from "@/components/custom/threads-columns";
 import { InfoIcon } from "@/components/custom/info-icon";
-import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import {
   closedByLabel,
   closeReasonLabel,
-  closeReasonTone,
 } from "@/lib/thread-options";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import {
@@ -826,18 +824,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           {closeReason ? (
             <>
               <dt className="text-muted-foreground">Close reason</dt>
-              <dd className="flex justify-end">
-                <Badge
-                  className={cn(
-                    "border",
-                    BADGE_TONE_STYLES[
-                      closeReasonTone(details?.close_reason) ?? "neutral"
-                    ],
-                  )}
-                >
-                  {closeReason}
-                </Badge>
-              </dd>
+              <dd className="text-right">{closeReason}</dd>
             </>
           ) : null}
           <dt className="text-muted-foreground">Category</dt>
