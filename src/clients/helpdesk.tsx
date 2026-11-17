@@ -550,6 +550,7 @@ function TicketListPanel({
   searchValue,
   onSearchChange,
   filters,
+  activeFilterCount,
   isFilterOpen,
   onFilterOpenChange,
   onFiltersChange,
@@ -577,6 +578,8 @@ function TicketListPanel({
   searchValue: string;
   onSearchChange: (value: string) => void;
   filters: TicketFilterSelection;
+  /** For the Filters button: what the list is filtered by, not the draft. */
+  activeFilterCount: number;
   isFilterOpen: boolean;
   onFilterOpenChange: (open: boolean) => void;
   onFiltersChange: (filters: TicketFilterSelection) => void;
@@ -586,7 +589,6 @@ function TicketListPanel({
   const subSidebar = useSubSidebar();
   const isPhone = useIsMobile();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const activeFilterCount = filters.priorities.length + filters.statuses.length;
   const title = helpdeskViewLabel(activeFilter, filterCounts);
   const count = viewCount(
     activeFilter,
@@ -2014,8 +2016,16 @@ export default function HelpDesk() {
   // view changes (its links carry them along). Read as plain strings first so
   // the objects below keep their identity until one really changes.
   const priorityParam = searchParams?.get("priority") ?? "";
-  const statusParam = searchParams?.get("status") ?? "";
   const sortParam = searchParams?.get("sort");
+  // The list reads them from state, not the URL: a tab click clears them, and
+  // it has to do that in the same render that switches the tab, or the list
+  // fetches the old statuses in between. The URL only keeps them over a reload.
+  const [appliedStatuses, setAppliedStatuses] = useState(() =>
+    pickParam(
+      searchParams?.get("status") ?? "",
+      statusFilterOptions.map((option) => option.key),
+    ),
+  );
 
   const appliedFilters = useMemo<TicketFilterSelection>(
     () => ({
@@ -2023,12 +2033,9 @@ export default function HelpDesk() {
         priorityParam,
         priorityOptions.map((option) => option.value),
       ),
-      statuses: pickParam(
-        statusParam,
-        statusFilterOptions.map((option) => option.key),
-      ),
+      statuses: appliedStatuses,
     }),
-    [priorityParam, statusParam],
+    [priorityParam, appliedStatuses],
   );
   // Statuses picked in the popover replace the tab's.
   const listStatuses = useMemo<SupportTicketStatus[]>(
@@ -2514,6 +2521,9 @@ export default function HelpDesk() {
       filters,
     };
 
+    // A newer fetch replaced this one: its answer is for a list no longer shown.
+    let isStale = false;
+
     const fetchTickets = async () => {
       const isLoadMore = page > 1;
 
@@ -2523,6 +2533,7 @@ export default function HelpDesk() {
 
       try {
         const data = await dispatch(FetchSupportTickets(fetchArgs)).unwrap();
+        if (isStale) return;
 
         setTicketRows((prev) =>
           page === 1 ? data.results : [...prev, ...data.results],
@@ -2559,6 +2570,9 @@ export default function HelpDesk() {
     };
 
     fetchTickets();
+    return () => {
+      isStale = true;
+    };
   }, [
     dispatch,
     storeCode,
@@ -2789,6 +2803,7 @@ export default function HelpDesk() {
 
   const handleQueueChange = (queue: SupportTicketStatus) => {
     // A tab shows its own status, not the ones picked in the filter.
+    setAppliedStatuses([]);
     updateQueryParams({ status: null });
     setActiveQueue(queue);
     setPage(1);
@@ -3610,6 +3625,7 @@ export default function HelpDesk() {
       priority: draftFilters.priorities.join(",") || null,
       status: draftFilters.statuses.join(",") || null,
     });
+    setAppliedStatuses(draftFilters.statuses);
     setIsFilterOpen(false);
   };
 
@@ -3648,6 +3664,9 @@ export default function HelpDesk() {
           searchValue={searchValue}
           onSearchChange={setSearchValue}
           filters={draftFilters}
+          activeFilterCount={
+            appliedFilters.priorities.length + appliedFilters.statuses.length
+          }
           isFilterOpen={isFilterOpen}
           onFilterOpenChange={handleFilterOpenChange}
           onFiltersChange={setDraftFilters}
