@@ -459,6 +459,25 @@ export default function WhatsAppTemplateCreate({
     [headerMediaFile],
   );
 
+  // Everything a save sends besides the media file.
+  const formPayload = useMemo(
+    () => ({ name: name.trim(), category, language, ...templateParts }),
+    [name, category, language, templateParts],
+  );
+
+  // Edit mode: the form as loaded, captured once the prefill lands. Save
+  // Changes stays off until the form differs from it, since an unchanged
+  // save would only put the template back in front of Meta's review.
+  const formSnapshot = JSON.stringify(formPayload);
+  const [loadedSnapshot, setLoadedSnapshot] = useState<string | null>(null);
+  if (isEditMode && !loadingTemplate && loadedSnapshot === null) {
+    setLoadedSnapshot(formSnapshot);
+  }
+  const hasChanges =
+    !isEditMode ||
+    headerMediaFile !== null ||
+    (loadedSnapshot !== null && formSnapshot !== loadedSnapshot);
+
   // What the live preview shows — a local object URL stands in for the
   // media (the real handle isn't a renderable image), and named tokens are
   // swapped for sample values (the user's override, or the registry
@@ -550,13 +569,7 @@ export default function WhatsAppTemplateCreate({
             storeCode,
             accountId: String(account.id),
             templateId: Number(templateId),
-            payload: {
-              name: name.trim(),
-              category,
-              language,
-              ...templateParts,
-              ...mediaFields,
-            },
+            payload: { ...formPayload, ...mediaFields },
           }),
         ).unwrap();
         toast.success("Template updated", {
@@ -568,13 +581,7 @@ export default function WhatsAppTemplateCreate({
           submitWhatsAppTemplate({
             storeCode,
             accountId: String(account.id),
-            payload: {
-              name: name.trim(),
-              category,
-              language,
-              ...templateParts,
-              ...mediaFields,
-            },
+            payload: { ...formPayload, ...mediaFields },
           }),
         ).unwrap();
         toast.success("Template submitted for review", {
@@ -619,7 +626,9 @@ export default function WhatsAppTemplateCreate({
         <div className="flex shrink-0 items-center gap-2">
           <Button
             onClick={handleSubmit}
-            disabled={submitting || accountLoading || loadingTemplate}
+            disabled={
+              submitting || accountLoading || loadingTemplate || !hasChanges
+            }
           >
             {submitting ? (
               <Spinner className="size-4" />

@@ -316,8 +316,10 @@ export function MessagePan({
           const isAgentMessage = Boolean(
             message.agent_name || message.messaged_by,
           );
-          const senderLabel =
-            message.role === "assistant" && !message.agent_name
+          const isCustomer = message.role === "user";
+          const senderLabel = isCustomer
+            ? customerName || "User"
+            : message.role === "assistant" && !message.agent_name
               ? "AI Assistant"
               : message.messaged_by_email &&
                   me &&
@@ -331,7 +333,6 @@ export function MessagePan({
             message.role === "assistant" && !message.agent_name;
           const showReplyWithAI =
             isLastMessage && message.role === "user" && !!onReplyWithAI;
-          const isCustomer = message.role === "user";
           const isOutgoing = isCustomer;
           const feedbackRating = message.feedback_rating;
           const hasPositiveFeedback = ["good", "excellent"].includes(

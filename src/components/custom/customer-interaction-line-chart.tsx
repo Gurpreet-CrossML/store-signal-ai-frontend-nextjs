@@ -27,6 +27,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
+import { cn } from "@/lib/utils";
 
 export type Granularity = "hourly" | "weekly" | "monthly";
 // value is null for hours that haven't happened yet; previous is the same
@@ -128,7 +130,11 @@ export function CustomerInteractionLineChart({
             value={granularity}
             onValueChange={(value) => onGranularityChange(value as Granularity)}
           >
-            <SelectTrigger className="w-[120px]" size="sm">
+            <SelectTrigger
+              className={cn("w-[120px]", ACTIVE_FILTER_STYLE)}
+              size="sm"
+              aria-label="Chart granularity"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -149,7 +155,12 @@ export function CustomerInteractionLineChart({
               disabled={{ after: new Date() }}
             />
           ) : (
-            <span className="rounded-md border bg-muted/30 px-3 py-1.5 text-sm text-muted-foreground">
+            <span
+              className={cn(
+                "rounded-md border px-3 py-1.5 text-sm",
+                ACTIVE_FILTER_STYLE,
+              )}
+            >
               {autoRangeLabel[granularity]}
             </span>
           )}

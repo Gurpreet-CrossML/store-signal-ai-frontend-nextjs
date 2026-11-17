@@ -44,6 +44,7 @@ import {
   countActiveKnowledgeFilters,
   type KnowledgeFilterSelection,
 } from "@/components/custom/knowledge/knowledge-filters";
+import { KnowledgeStorageNotice } from "@/components/custom/knowledge/knowledge-storage-notice";
 import { KnowledgeStorageCard } from "@/components/custom/knowledge/knowledge-storage-card";
 import { KnowledgeEmptyState } from "@/components/custom/knowledge/knowledge-empty-state";
 import {
@@ -412,6 +413,7 @@ export default function KnowledgeLibraryTabContent() {
         descriptionClassName="max-sm:hidden"
       />
       <div className="flex w-full flex-col gap-4">
+        <KnowledgeStorageNotice storage={stats?.vector_storage ?? null} />
         {showStorage && (
           <KnowledgeStorageCard storage={stats?.vector_storage ?? null} />
         )}
@@ -600,8 +602,11 @@ export default function KnowledgeLibraryTabContent() {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete this knowledge?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently remove &quot;{itemToDelete?.title}&quot;.
-                This action cannot be undone.
+                This will permanently remove{" "}
+                <strong className="font-semibold break-words text-foreground">
+                  {itemToDelete?.title}
+                </strong>
+                . This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -643,9 +648,16 @@ export default function KnowledgeLibraryTabContent() {
                   : `Publish ${publishTargets.length} knowledge items?`}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                {publishTargets.length === 1
-                  ? `"${publishTargets[0].title}" will be processed and added to what your AI knows.`
-                  : "They will be processed and added to what your AI knows."}{" "}
+                {publishTargets.length === 1 ? (
+                  <>
+                    <strong className="font-semibold break-words text-foreground">
+                      {publishTargets[0].title}
+                    </strong>{" "}
+                    will be processed and added to what your AI knows.
+                  </>
+                ) : (
+                  "They will be processed and added to what your AI knows."
+                )}{" "}
                 This uses your vector storage.
               </AlertDialogDescription>
             </AlertDialogHeader>
