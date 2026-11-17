@@ -1298,24 +1298,18 @@ function CustomerTab({
         <div className="flex items-start gap-3">
           <CustomerAvatar name={customerName} size="size-11" />
           <div className="min-w-0 flex-1">
-            {/* The name stands in for the old Shopify/Profile button. */}
-            {customer.admin_url ? (
-              <a
-                href={customer.admin_url}
-                target="_blank"
-                rel="noreferrer"
-                className="block truncate text-base font-semibold hover:underline"
-              >
-                {customerName}
-              </a>
-            ) : (
-              <Link
-                href={`/crm/customers/${customer.id}`}
-                className="block truncate text-base font-semibold hover:underline"
-              >
-                {customerName}
-              </Link>
-            )}
+            {/* The name stands in for the old Shopify/Profile button: store
+                admin when there is one, else our own customer page, either
+                way in a new tab so the ticket stays open here. */}
+            <Link
+              href={customer.admin_url || `/crm/customers/${customer.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex max-w-full items-center gap-1 text-base font-semibold hover:underline"
+            >
+              <span className="truncate">{customerName}</span>
+              <IconArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
+            </Link>
             <p className="text-xs text-muted-foreground">
               {platform} · {orders.length} order{orders.length === 1 ? "" : "s"}
             </p>
