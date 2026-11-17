@@ -718,23 +718,13 @@ function TicketListPanel({
                     })
                   }
                   className={cn(
-                    "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors",
+                    "h-8 rounded-full border px-3 text-sm transition-colors",
                     active
                       ? "border-primary bg-primary/10 font-medium text-primary"
                       : "bg-background text-foreground hover:bg-muted",
                   )}
                 >
                   {option.label}
-                  <span
-                    className={cn(
-                      "rounded-full px-1.5 text-xs tabular-nums",
-                      active
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {supportTicketStatusCount?.[option.key] ?? 0}
-                  </span>
                 </button>
               );
             })}
