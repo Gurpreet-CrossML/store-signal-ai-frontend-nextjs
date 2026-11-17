@@ -1870,10 +1870,6 @@ export default function HelpDesk() {
   const activeFilter = searchParams?.get("filter") ?? "";
   /** Deep link to one ticket, e.g. from the Live Support detail panel. */
   const linkedTicketId = Number(searchParams?.get("ticket") ?? "");
-  /** One customer's tickets, from "View all" in the customer panel. */
-  const customerParam = Number(searchParams?.get("customer") ?? "");
-  const customerId =
-    Number.isInteger(customerParam) && customerParam > 0 ? customerParam : null;
 
   const dispatch = useAppDispatch();
   const { data: session } = useSession();
@@ -2525,7 +2521,6 @@ export default function HelpDesk() {
       ...(appliedFilters.priorities.length
         ? { priority: appliedFilters.priorities }
         : {}),
-      ...(customerId ? { customer: customerId } : {}),
     };
 
     // The sidebar view is the narrower of the two: it replaces, rather than
@@ -2613,7 +2608,6 @@ export default function HelpDesk() {
     debouncedSearch,
     appliedFilters,
     sortOrder,
-    customerId,
   ]);
 
   useEffect(() => {
@@ -2627,6 +2621,24 @@ export default function HelpDesk() {
 
     return () => window.clearTimeout(timeout);
   }, [searchValue, debouncedSearch]);
+
+  // Keep `?search=` in step with the search box, so a refresh or a shared
+  // link shows the same results. Skipped when it already matches, so it
+  // cannot loop.
+  useEffect(() => {
+    if (!pathname) return;
+
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    if ((params.get("search") ?? "") === debouncedSearch) return;
+
+    if (debouncedSearch) params.set("search", debouncedSearch);
+    else params.delete("search");
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }, [debouncedSearch, pathname, router, searchParams]);
 
   // Debounced like the ticket search above, and back to the first page: the
   // tags already loaded say nothing about which ones match.
