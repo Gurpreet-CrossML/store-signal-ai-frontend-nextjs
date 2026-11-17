@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Typography } from "@/components/ui/typography";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 /**
@@ -160,6 +161,7 @@ function RangeRow({
         inputMode="decimal"
         value={min}
         placeholder="Min"
+        className={cn(min && ACTIVE_FILTER_STYLE)}
         aria-label={`${label} minimum`}
         onChange={(event) => onChange({ min: event.target.value, max })}
       />
@@ -170,6 +172,7 @@ function RangeRow({
         inputMode="decimal"
         value={max}
         placeholder="Max"
+        className={cn(max && ACTIVE_FILTER_STYLE)}
         aria-label={`${label} maximum`}
         onChange={(event) => onChange({ min, max: event.target.value })}
       />
@@ -206,7 +209,11 @@ export function OrderFilterPopover({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline" aria-label="Filter Orders">
+        <Button
+          variant="outline"
+          aria-label="Filter Orders"
+          className={cn(activeCount > 0 && ACTIVE_FILTER_STYLE)}
+        >
           <IconFilter className="size-4" />
           Filters
           {activeCount > 0 ? (
@@ -248,7 +255,10 @@ export function OrderFilterPopover({
                 })
               }
             >
-              <SelectTrigger aria-label="Outstanding or refunded">
+              <SelectTrigger
+                aria-label="Outstanding or refunded"
+                className={cn(filters.money !== "any" && ACTIVE_FILTER_STYLE)}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -269,7 +279,12 @@ export function OrderFilterPopover({
                 })
               }
             >
-              <SelectTrigger aria-label="Cancelled orders">
+              <SelectTrigger
+                aria-label="Cancelled orders"
+                className={cn(
+                  filters.cancelled !== "any" && ACTIVE_FILTER_STYLE,
+                )}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

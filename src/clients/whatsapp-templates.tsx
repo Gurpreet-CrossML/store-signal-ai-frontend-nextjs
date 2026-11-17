@@ -63,6 +63,8 @@ import {
   type WhatsAppTemplate,
 } from "@/redux/api-slice/social-ai-slice";
 import { toast } from "sonner";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
+import { cn } from "@/lib/utils";
 
 const ALL = "all";
 
@@ -400,7 +402,13 @@ export default function WhatsAppTemplates() {
               resetToFirstPage();
             }}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger
+              className={cn(
+                "w-[160px]",
+                categoryFilter !== ALL && ACTIVE_FILTER_STYLE,
+              )}
+              aria-label="Filter by category"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -419,7 +427,13 @@ export default function WhatsAppTemplates() {
               resetToFirstPage();
             }}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger
+              className={cn(
+                "w-[160px]",
+                statusFilter !== ALL && ACTIVE_FILTER_STYLE,
+              )}
+              aria-label="Filter by status"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -438,7 +452,13 @@ export default function WhatsAppTemplates() {
               resetToFirstPage();
             }}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger
+              className={cn(
+                "w-[160px]",
+                languageFilter !== ALL && ACTIVE_FILTER_STYLE,
+              )}
+              aria-label="Filter by language"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

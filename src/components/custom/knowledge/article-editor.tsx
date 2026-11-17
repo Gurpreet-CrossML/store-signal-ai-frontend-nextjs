@@ -420,13 +420,11 @@ function Toolbar({ editor, words }: { editor: Editor; words: number }) {
 export function ArticleEditor({
   initialHtml,
   onChange,
-  onReady,
   disabled = false,
 }: {
   /** Read once, when the editor is created. */
   initialHtml: string;
   onChange: (html: string) => void;
-  onReady?: (editor: Editor) => void;
   disabled?: boolean;
 }) {
   // Latest list and highlighted entry, for the key handler below, which the
@@ -476,12 +474,6 @@ export function ArticleEditor({
     onUpdate: ({ editor: e }) =>
       onChangeRef.current(e.isEmpty ? "" : e.getHTML()),
   });
-
-  useEffect(() => {
-    if (editor) onReady?.(editor);
-    // Handing the editor up once it exists is all this does.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor]);
 
   useEffect(() => {
     // `false`: changing editability is not an edit, so it must not emit an update.
@@ -537,7 +529,9 @@ export function ArticleEditor({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <Toolbar editor={editor} words={words ?? 0} />
-      <div className="px-4 py-6 sm:px-8">
+      {/* The page is one screen tall, so the text scrolls here while the
+          title and toolbar stay put. */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-8">
         <EditorContent editor={editor} />
       </div>
 
