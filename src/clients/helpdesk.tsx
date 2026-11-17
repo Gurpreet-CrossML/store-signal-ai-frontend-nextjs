@@ -2024,8 +2024,14 @@ export default function HelpDesk() {
       : [];
 
   // Support Ticket Search Filters
-  const [searchValue, setSearchValue] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // One customer's tickets, from "View all" in the customer panel: their
+  // email arrives as `?search=` and fills the search box.
+  const [searchValue, setSearchValue] = useState(
+    () => searchParams?.get("search")?.trim() ?? "",
+  );
+  const [debouncedSearch, setDebouncedSearch] = useState(
+    () => searchParams?.get("search")?.trim() ?? "",
+  );
   const [tagPage, setTagPage] = useState(1);
   const [tagSearchInput, setTagSearchInput] = useState("");
   const [tagSearch, setTagSearch] = useState("");

@@ -1413,7 +1413,7 @@ function CustomerTab({
             </Button>
             {others.length > VISIBLE_OTHER_ORDERS ? (
               <Link
-                href={`/crm/orders?customer=${customer.id}`}
+                href={`/crm/orders?search=${encodeURIComponent(customer.email)}`}
                 target="_blank"
                 rel="noreferrer"
                 className="text-sm font-medium text-primary hover:underline"
@@ -1476,7 +1476,7 @@ function CustomerTab({
             ))}
             {otherTickets.length > VISIBLE_OTHER_TICKETS ? (
               <Link
-                href={`/helpdesk?customer=${customer.id}`}
+                href={`/helpdesk?search=${encodeURIComponent(customer.email)}`}
                 target="_blank"
                 rel="noreferrer"
                 className="self-start text-sm font-medium text-primary hover:underline"

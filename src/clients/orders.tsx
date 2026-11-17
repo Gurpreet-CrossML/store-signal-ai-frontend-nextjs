@@ -68,8 +68,14 @@ export default function Orders() {
   );
 
   const [page, setPage] = useState(1);
-  const [searchInput, setSearchInput] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // Arriving from a customer's page fills the search with their email, so
+  // the list opens scoped to that shopper and the filter shows in the box.
+  const [searchInput, setSearchInput] = useState(
+    () => searchParams?.get("search")?.trim() ?? "",
+  );
+  const [debouncedSearch, setDebouncedSearch] = useState(
+    () => searchParams?.get("search")?.trim() ?? "",
+  );
   const [ordering, setOrdering] = useState<OrderOrdering>("-created_at");
 
   const [draftFilters, setDraftFilters] =
