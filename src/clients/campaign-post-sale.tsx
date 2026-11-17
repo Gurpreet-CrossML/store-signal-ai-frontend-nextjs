@@ -33,10 +33,6 @@ const ALL = "all";
 const IMPORTED = "imported";
 const NOT_IMPORTED = "not_imported";
 
-function titleCase(value: string) {
-  return value.charAt(0) + value.slice(1).toLowerCase();
-}
-
 export default function CampaignPostSale() {
   const dispatch = useAppDispatch();
   const { storeCode, account, loading: accountLoading } = useWhatsAppAccount();
@@ -74,7 +70,6 @@ export default function CampaignPostSale() {
   );
 
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState(ALL);
   const [importFilter, setImportFilter] = useState(ALL);
   const [previewItem, setPreviewItem] =
     useState<WhatsAppTemplateLibraryItem | null>(null);
@@ -83,24 +78,15 @@ export default function CampaignPostSale() {
     pageSize: 25,
   });
 
-  // Filter options come from what's actually in the data, so the menu never
-  // offers a category that would just filter the table to nothing.
-  const categories = useMemo(
-    () => Array.from(new Set(templates.map((t) => t.category))).sort(),
-    [templates],
-  );
-
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     return templates.filter((item) => {
-      if (categoryFilter !== ALL && item.category !== categoryFilter)
-        return false;
       if (importFilter === IMPORTED && !item.is_imported) return false;
       if (importFilter === NOT_IMPORTED && item.is_imported) return false;
       if (query && !item.name.toLowerCase().includes(query)) return false;
       return true;
     });
-  }, [templates, search, categoryFilter, importFilter]);
+  }, [templates, search, importFilter]);
 
   // The shared DataTable uses manualPagination — it renders exactly the rows
   // it's handed — so we slice the client-side-filtered list to the current
@@ -159,25 +145,6 @@ export default function CampaignPostSale() {
             className="w-full sm:w-64"
           />
           <Select
-            value={categoryFilter}
-            onValueChange={(value) => {
-              setCategoryFilter(value);
-              resetToFirstPage();
-            }}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All Categories</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {titleCase(category)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
             value={importFilter}
             onValueChange={(value) => {
               setImportFilter(value);
@@ -187,7 +154,9 @@ export default function CampaignPostSale() {
             <SelectTrigger className="w-[160px]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            {/* popper: the default "item-aligned" mode lays the selected
+                option over the trigger, hiding it while the menu is open. */}
+            <SelectContent position="popper">
               <SelectItem value={ALL}>All Status</SelectItem>
               <SelectItem value={IMPORTED}>Imported</SelectItem>
               <SelectItem value={NOT_IMPORTED}>Not Imported</SelectItem>
