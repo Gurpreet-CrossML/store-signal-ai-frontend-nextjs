@@ -823,6 +823,23 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           </dd>
           <dt className="text-muted-foreground">Handled by</dt>
           <dd className="text-right">{handledBy}</dd>
+          {closeReason ? (
+            <>
+              <dt className="text-muted-foreground">Close reason</dt>
+              <dd className="flex justify-end">
+                <Badge
+                  className={cn(
+                    "border",
+                    BADGE_TONE_STYLES[
+                      closeReasonTone(details?.close_reason) ?? "neutral"
+                    ],
+                  )}
+                >
+                  {closeReason}
+                </Badge>
+              </dd>
+            </>
+          ) : null}
           <dt className="text-muted-foreground">Category</dt>
           <dd className="text-right">{threadTagLabels[0] ?? "—"}</dd>
           {feedback ? (
@@ -883,18 +900,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               <div className="min-w-0">
                 <h1 className="truncate text-2xl font-bold">{customerName}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {closeReason ? (
-                    <Badge
-                      className={cn(
-                        "border",
-                        BADGE_TONE_STYLES[
-                          closeReasonTone(details.close_reason) ?? "neutral"
-                        ],
-                      )}
-                    >
-                      {closeReason}
-                    </Badge>
-                  ) : null}
                   {threadTagLabels.map((tag) => (
                     <Badge
                       key={tag}
