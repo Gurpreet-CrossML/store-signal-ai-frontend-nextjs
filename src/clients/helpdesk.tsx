@@ -2503,9 +2503,10 @@ export default function HelpDesk() {
 
     // Did this fetch come from changing what the list is filtered by? The
     // first fetch is not one: it must leave a deep-linked ticket alone.
+    // The search is left out on purpose: searching should only filter the
+    // list, and must not replace the ticket that is currently open.
     const filterKey = JSON.stringify([
       activeFilter,
-      debouncedSearch,
       appliedFilters,
       listStatuses,
     ]);
