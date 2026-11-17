@@ -2007,8 +2007,13 @@ export default function HelpDesk() {
   // view changes (its links carry them along). Read as plain strings first so
   // the objects below keep their identity until one really changes.
   const priorityParam = searchParams?.get("priority") ?? "";
-  const statusParam = searchParams?.get("status") ?? "";
   const sortParam = searchParams?.get("sort");
+  // Not in the URL: a tab click clears them, and it has to do that in the
+  // same render that switches the tab, or the list fetches the old statuses
+  // in between.
+  const [appliedStatuses, setAppliedStatuses] = useState<
+    TicketFilterSelection["statuses"]
+  >([]);
 
   const appliedFilters = useMemo<TicketFilterSelection>(
     () => ({
@@ -2016,12 +2021,9 @@ export default function HelpDesk() {
         priorityParam,
         priorityOptions.map((option) => option.value),
       ),
-      statuses: pickParam(
-        statusParam,
-        statusFilterOptions.map((option) => option.key),
-      ),
+      statuses: appliedStatuses,
     }),
-    [priorityParam, statusParam],
+    [priorityParam, appliedStatuses],
   );
   // Statuses picked in the popover replace the tab's.
   const listStatuses = useMemo<SupportTicketStatus[]>(
@@ -2507,6 +2509,9 @@ export default function HelpDesk() {
       filters,
     };
 
+    // A newer fetch replaced this one: its answer is for a list no longer shown.
+    let isStale = false;
+
     const fetchTickets = async () => {
       const isLoadMore = page > 1;
 
@@ -2516,6 +2521,7 @@ export default function HelpDesk() {
 
       try {
         const data = await dispatch(FetchSupportTickets(fetchArgs)).unwrap();
+        if (isStale) return;
 
         setTicketRows((prev) =>
           page === 1 ? data.results : [...prev, ...data.results],
@@ -2552,6 +2558,9 @@ export default function HelpDesk() {
     };
 
     fetchTickets();
+    return () => {
+      isStale = true;
+    };
   }, [
     dispatch,
     storeCode,
@@ -2782,7 +2791,8 @@ export default function HelpDesk() {
 
   const handleQueueChange = (queue: SupportTicketStatus) => {
     // A tab shows its own status, not the ones picked in the filter.
-    updateQueryParams({ status: null });
+    setAppliedStatuses([]);
+    setDraftFilters((current) => ({ ...current, statuses: [] }));
     setActiveQueue(queue);
     setPage(1);
     setActiveTicketId(null);
@@ -3601,8 +3611,8 @@ export default function HelpDesk() {
   const handleApplyFilters = () => {
     updateQueryParams({
       priority: draftFilters.priorities.join(",") || null,
-      status: draftFilters.statuses.join(",") || null,
     });
+    setAppliedStatuses(draftFilters.statuses);
     setIsFilterOpen(false);
   };
 
