@@ -421,6 +421,7 @@ const queues = [
 ] as const;
 
 // Not tabs: picked in the filter popover, where they replace the tab's status.
+// Any number of them, like the priorities.
 const statusFilterOptions = [
   { key: "resolved", label: "Resolved" },
   { key: "closed", label: "Closed" },
@@ -480,12 +481,12 @@ const STATUS_CONFIRMATIONS = {
 
 type TicketFilterSelection = {
   priorities: SupportTicketPriority[];
-  status: "" | (typeof statusFilterOptions)[number]["key"];
+  statuses: (typeof statusFilterOptions)[number]["key"][];
 };
 
 const emptyTicketFilters: TicketFilterSelection = {
   priorities: [],
-  status: "",
+  statuses: [],
 };
 
 /** The known values of a comma-separated param; a hand-edited URL may hold others. */
@@ -531,7 +532,7 @@ function viewCount(
 function TicketListPanel({
   rows,
   activeTicketId,
-  activeQueue,
+  listStatuses,
   activeFilter,
   filterCounts,
   onQueueChange,
@@ -556,7 +557,8 @@ function TicketListPanel({
   className?: string;
   rows: SupportTicket[];
   activeTicketId: number | null;
-  activeQueue: SupportTicketStatus;
+  /** The statuses the list shows: the tab's, or those picked in the filter. */
+  listStatuses: SupportTicketStatus[];
   /** The left panel's view (`?filter=`), which names the list. */
   activeFilter: string;
   filterCounts: SupportTicketFilterCounts | null;
@@ -580,13 +582,15 @@ function TicketListPanel({
   const subSidebar = useSubSidebar();
   const isPhone = useIsMobile();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const activeFilterCount =
-    filters.priorities.length + (filters.status ? 1 : 0);
+  const activeFilterCount = filters.priorities.length + filters.statuses.length;
   const title = helpdeskViewLabel(activeFilter, filterCounts);
   const count = viewCount(
     activeFilter,
     filterCounts,
-    supportTicketStatusCount?.[activeQueue] ?? 0,
+    listStatuses.reduce(
+      (total, status) => total + (supportTicketStatusCount?.[status] ?? 0),
+      0,
+    ),
   );
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
@@ -705,7 +709,7 @@ function TicketListPanel({
           </p>
           <div className="flex flex-wrap gap-2">
             {statusFilterOptions.map((option) => {
-              const active = filters.status === option.key;
+              const active = filters.statuses.includes(option.key);
               return (
                 <button
                   key={option.key}
@@ -714,7 +718,11 @@ function TicketListPanel({
                   onClick={() =>
                     onFiltersChange({
                       ...filters,
-                      status: active ? "" : option.key,
+                      statuses: active
+                        ? filters.statuses.filter(
+                            (value) => value !== option.key,
+                          )
+                        : [...filters.statuses, option.key],
                     })
                   }
                   className={cn(
@@ -849,7 +857,7 @@ function TicketListPanel({
       <div className="shrink-0 px-4 pb-3">
         <div className="hidden gap-0.5 rounded-lg bg-muted p-1 md:flex">
           {queues.map((queue) => {
-            const active = queue.key === activeQueue;
+            const active = listStatuses.includes(queue.key);
             return (
               <button
                 key={queue.key}
@@ -874,7 +882,7 @@ function TicketListPanel({
         </div>
         <div className="flex gap-1.5 md:hidden">
           {queues.map((queue) => {
-            const active = queue.key === activeQueue;
+            const active = listStatuses.includes(queue.key);
             return (
               <button
                 key={queue.key}
@@ -1999,6 +2007,7 @@ export default function HelpDesk() {
   // view changes (its links carry them along). Read as plain strings first so
   // the objects below keep their identity until one really changes.
   const priorityParam = searchParams?.get("priority") ?? "";
+  const statusParam = searchParams?.get("status") ?? "";
   const sortParam = searchParams?.get("sort");
 
   const appliedFilters = useMemo<TicketFilterSelection>(
@@ -2007,12 +2016,18 @@ export default function HelpDesk() {
         priorityParam,
         priorityOptions.map((option) => option.value),
       ),
-      // The status picked in the popover is the list's queue.
-      status:
-        statusFilterOptions.find((option) => option.key === activeQueue)?.key ??
-        "",
+      statuses: pickParam(
+        statusParam,
+        statusFilterOptions.map((option) => option.key),
+      ),
     }),
-    [priorityParam, activeQueue],
+    [priorityParam, statusParam],
+  );
+  // Statuses picked in the popover replace the tab's.
+  const listStatuses = useMemo<SupportTicketStatus[]>(
+    () =>
+      appliedFilters.statuses.length ? appliedFilters.statuses : [activeQueue],
+    [appliedFilters.statuses, activeQueue],
   );
   const sortOrder: SupportTicketOrdering =
     SORT_OPTIONS.find((option) => option.key === sortParam)?.key ??
@@ -2123,7 +2138,7 @@ export default function HelpDesk() {
 
           // A status that changed on its own (a customer reply reopening a
           // closed ticket) takes the ticket out of the queue being viewed.
-          if (updatedTicket.status !== activeQueue) {
+          if (!listStatuses.includes(updatedTicket.status)) {
             return currentRows.filter((row) => row.id !== incomingTicket.id);
           }
 
@@ -2132,7 +2147,7 @@ export default function HelpDesk() {
           );
         }
 
-        if (incomingTicket.status !== activeQueue) {
+        if (!listStatuses.includes(incomingTicket.status)) {
           return currentRows;
         }
 
@@ -2172,7 +2187,7 @@ export default function HelpDesk() {
         };
       });
     },
-    [activeQueue],
+    [listStatuses],
   );
 
   const appendSocketMessage = useCallback(
@@ -2356,7 +2371,7 @@ export default function HelpDesk() {
 
               // The reply may have reopened the ticket, moving it to
               // another queue.
-              if (updatedTicket.status !== activeQueue) {
+              if (!listStatuses.includes(updatedTicket.status)) {
                 return rowsWithoutTicket;
               }
 
@@ -2369,7 +2384,7 @@ export default function HelpDesk() {
               return [updatedTicket, ...rowsWithoutTicket];
             }
 
-            if (incomingTicket.status !== activeQueue) {
+            if (!listStatuses.includes(incomingTicket.status)) {
               return currentRows;
             }
 
@@ -2460,7 +2475,7 @@ export default function HelpDesk() {
     if (!storeCode) return;
 
     const filters: SupportTicketFilters = {
-      status: activeQueue,
+      status: listStatuses,
       ordering: sortOrder,
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
       ...(appliedFilters.priorities.length
@@ -2478,7 +2493,7 @@ export default function HelpDesk() {
       activeFilter,
       debouncedSearch,
       appliedFilters,
-      activeQueue,
+      listStatuses,
     ]);
     const isFilterChange =
       lastFilterKeyRef.current !== null &&
@@ -2541,7 +2556,7 @@ export default function HelpDesk() {
     dispatch,
     storeCode,
     page,
-    activeQueue,
+    listStatuses,
     activeFilter,
     debouncedSearch,
     appliedFilters,
@@ -2766,6 +2781,8 @@ export default function HelpDesk() {
   };
 
   const handleQueueChange = (queue: SupportTicketStatus) => {
+    // A tab shows its own status, not the ones picked in the filter.
+    updateQueryParams({ status: null });
     setActiveQueue(queue);
     setPage(1);
     setActiveTicketId(null);
@@ -3584,12 +3601,8 @@ export default function HelpDesk() {
   const handleApplyFilters = () => {
     updateQueryParams({
       priority: draftFilters.priorities.join(",") || null,
+      status: draftFilters.statuses.join(",") || null,
     });
-    // A status picked here becomes the queue; clearing it goes back to Open.
-    const nextQueue =
-      draftFilters.status ||
-      (appliedFilters.status ? DEFAULT_HELPDESK_QUEUE : activeQueue);
-    if (nextQueue !== activeQueue) handleQueueChange(nextQueue);
     setIsFilterOpen(false);
   };
 
@@ -3610,7 +3623,7 @@ export default function HelpDesk() {
           className={showConversationBelowLg ? "hidden" : "flex"}
           rows={ticketRows}
           activeTicketId={activeSupportTicket?.id ?? null}
-          activeQueue={activeQueue}
+          listStatuses={listStatuses}
           activeFilter={activeFilter}
           filterCounts={FetchSupportTicketFilterCountsData}
           onQueueChange={handleQueueChange}
