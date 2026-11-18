@@ -43,6 +43,11 @@ function hostOf(url: string): string {
   }
 }
 
+/** A page to add whose address matches a knowledge category. */
+function isMatched(page: DiscoveredPage): boolean {
+  return page.categoryIds.length > 0 && !isDisabledPage(page);
+}
+
 /** Pages never selectable: ones the store already has (the backend rejects a
  * whole batch containing a duplicate) and ones with too little content. */
 function isDisabledPage(page: DiscoveredPage): boolean {
@@ -74,8 +79,9 @@ type WebsiteUrlDiscoveryProps = {
   /** Instead of a site: the specific pages to check. They are checked as soon
    * as this opens, and the ones that can be read start out ticked. */
   pageUrls?: string[];
-  /** Something to show at the right of each ticked page, e.g. a field of its own. */
-  renderSelectedExtra?: (page: DiscoveredPage) => ReactNode;
+  /** Something to show with each page that can be added, ticked or not, e.g. a
+   * field of its own. */
+  renderPageExtra?: (page: DiscoveredPage) => ReactNode;
 };
 
 export function WebsiteUrlDiscovery({
@@ -86,7 +92,7 @@ export function WebsiteUrlDiscovery({
   error,
   websiteUrl = "",
   pageUrls,
-  renderSelectedExtra,
+  renderPageExtra,
 }: WebsiteUrlDiscoveryProps) {
   const checkingPages = Boolean(pageUrls);
   const pagesKey = pageUrls?.join("\n") ?? "";
@@ -208,8 +214,13 @@ export function WebsiteUrlDiscovery({
 
   // Only pages we've actually read are listed: one whose title/word count
   // couldn't be read (yet) stays out of the table instead of showing blanks.
+  // The pages that match a knowledge category and can be added come first (the
+  // sort is stable, so each group keeps the order the site listed them in).
   const readablePages = useMemo(
-    () => pages.filter((page) => page.wordCount !== null),
+    () =>
+      pages
+        .filter((page) => page.wordCount !== null)
+        .sort((a, b) => Number(isMatched(b)) - Number(isMatched(a))),
     [pages],
   );
 
@@ -360,7 +371,8 @@ export function WebsiteUrlDiscovery({
 
       {!isLoading && hasScanned && !checkingPages && pages.length === 0 && (
         <p className="rounded-lg border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
-          No pages were found on this website.
+          No help or policy pages were found in this website&apos;s sitemap. You
+          can still add specific pages by pasting their links.
         </p>
       )}
 
@@ -469,37 +481,42 @@ export function WebsiteUrlDiscovery({
                       }
                     />
                   )}
-                  <p className="flex min-w-0 flex-1 basis-48 flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
-                    {/* The title opens the page itself in a new tab. */}
-                    <a
-                      href={page.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title={page.url}
-                      className="min-w-0 truncate underline-offset-2 hover:underline focus-visible:underline"
-                    >
-                      {page.title ||
-                        `${hostOf(page.url)}${pageEndpoint(page.url)}`}
-                    </a>
-                    {page.alreadyAdded ? (
-                      <Badge variant="secondary" className="font-normal">
-                        Already added
-                      </Badge>
-                    ) : (
-                      !page.hasEnoughContent && (
-                        <Badge
-                          variant="secondary"
-                          className="font-normal"
-                          title={`Fewer than ${minWords} words — not enough content to index`}
-                        >
-                          Not enough content
+                  <div className="flex min-w-0 flex-1 basis-48 flex-col gap-0.5">
+                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
+                      {/* The title opens the page itself in a new tab. */}
+                      <a
+                        href={page.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={page.url}
+                        className="min-w-0 truncate underline-offset-2 hover:underline focus-visible:underline"
+                      >
+                        {page.title ||
+                          `${hostOf(page.url)}${pageEndpoint(page.url)}`}
+                      </a>
+                      {page.alreadyAdded ? (
+                        <Badge variant="secondary" className="font-normal">
+                          Already added
                         </Badge>
-                      )
-                    )}
-                  </p>
-                  {isSelected && renderSelectedExtra && (
+                      ) : (
+                        !page.hasEnoughContent && (
+                          <Badge
+                            variant="secondary"
+                            className="font-normal"
+                            title={`Fewer than ${minWords} words — not enough content to index`}
+                          >
+                            Not enough content
+                          </Badge>
+                        )
+                      )}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {page.url}
+                    </p>
+                  </div>
+                  {!isDisabledPage(page) && renderPageExtra && (
                     <div className="w-full pl-7 sm:w-72 sm:shrink-0 sm:pl-0">
-                      {renderSelectedExtra(page)}
+                      {renderPageExtra(page)}
                     </div>
                   )}
                 </li>

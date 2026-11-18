@@ -7,6 +7,7 @@ import {
   IconArrowLeft,
   IconArrowRight,
   IconCircleCheck,
+  IconPencil,
   IconPlus,
   IconTrash,
   IconWorldSearch,
@@ -39,7 +40,6 @@ import { randomId } from "@/lib/utils";
 import {
   AddKnowledgeStepper,
   ContentLayout,
-  ExistingKnowledge,
   PrimaryAction,
   ShopifySyncedNote,
   SOURCE_META,
@@ -443,7 +443,6 @@ export function NewKnowledgePage() {
           <div className="flex flex-col gap-5">
             <SourceCards value={source} onChange={setSource} />
             <ShopifySyncedNote />
-            <ExistingKnowledge stats={stats} />
           </div>
           <StepFooter
             message={
@@ -689,7 +688,41 @@ function WebsiteContent({
     scan && !typing && scan.kind === kind && scan.key === scanKey,
   );
 
-  // The categories field at the right of each ticked page.
+  // The field (a website, or page links) is locked while it is being scanned or
+  // checked and once its pages are listed, so the list can't be left showing
+  // another address's pages. Only "Change" unlocks it; a failed scan does too,
+  // so the address can be fixed.
+  const {
+    DiscoverWebsiteUrlsIsLoading: scanning,
+    DiscoverWebsiteUrlsIsSuccess: scanned,
+    DiscoverWebsiteUrlsIsError: scanFailed,
+    DiscoverWebsiteUrlsListData: discoveredPages,
+  } = useAppSelector(
+    (state) => state.GetKnowledgeRagReducer.DiscoverWebsiteUrlsState,
+  );
+
+  // A page whose address matches knowledge categories starts out filed under
+  // them. A page the user has already set (even to none) is left as it is.
+  useEffect(() => {
+    const unset = discoveredPages.filter(
+      (page) =>
+        page.categoryIds.length > 0 && pageCategories[page.url] === undefined,
+    );
+    if (unset.length === 0) return;
+    onPageCategoriesChange({
+      ...pageCategories,
+      ...Object.fromEntries(unset.map((page) => [page.url, page.categoryIds])),
+    });
+  }, [discoveredPages, pageCategories, onPageCategoriesChange]);
+  const locked = started && !scanFailed;
+
+  const changeAddress = () => {
+    // The pages ticked came from the address being left.
+    onSelectedPageUrlsChange([]);
+    setScan(null);
+  };
+
+  // The categories field of each page that can be added, ticked or not.
   const renderCategories = (page: DiscoveredPage) => (
     <KnowledgeCategoriesField
       compact
@@ -715,6 +748,7 @@ function WebsiteContent({
           autoComplete="off"
           spellCheck={false}
           value={text}
+          disabled={locked}
           // Addresses never hold a space: typing one does nothing, and spaces
           // in pasted text start a new line. Several addresses are one per line.
           onKeyDown={(event) => {
@@ -760,6 +794,12 @@ function WebsiteContent({
                 Use my store
               </Button>
             )}
+            {locked && scanned && !scanning && (
+              <Button type="button" variant="outline" onClick={changeAddress}>
+                <IconPencil className="size-4" />
+                Change
+              </Button>
+            )}
             {/* Once it has started, its own list takes over. */}
             {kind !== "none" && scanKey && !typing && !started && (
               <Button
@@ -800,7 +840,7 @@ function WebsiteContent({
           selectedUrls={selectedPageUrls}
           onSelectedUrlsChange={onSelectedPageUrlsChange}
           maxSelection={scan.kind === "site" ? siteCap : pageCap}
-          renderSelectedExtra={renderCategories}
+          renderPageExtra={renderCategories}
         />
       )}
 
