@@ -15,6 +15,7 @@ import {
   IconFlag,
   IconHash,
   IconListCheck,
+  IconLoader2,
   IconMessage2,
   IconMessages,
   IconSparkles,
@@ -48,6 +49,7 @@ import {
 import { LoadingState } from "@/components/custom/loading-state";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -78,6 +80,7 @@ import {
   FetchTags,
   FetchThreadDetails,
   FetchUserMetadata,
+  GenerateAIInsight,
   ThreadCustomerLink,
   type ThreadMessage,
   type ThreadTagData,
@@ -468,6 +471,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
   const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
   const canCreateTicket = useCan("conversations", { write: true });
 
@@ -496,6 +500,21 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
 
     loadData();
   }, [dispatch, storeCode, threadId]);
+
+  const handleGenerateInsights = async () => {
+    if (!threadId) return;
+    setIsGeneratingInsights(true);
+    try {
+      const result = await dispatch(GenerateAIInsight(threadId));
+      if (GenerateAIInsight.fulfilled.match(result)) {
+        // The summary and tags come from the same analysis.
+        dispatch(FetchConversationSummary(threadId));
+        dispatch(FetchTags(threadId));
+      }
+    } finally {
+      setIsGeneratingInsights(false);
+    }
+  };
 
   const handleLinkCustomer = async (customerId: string) => {
     if (!storeCode || !threadId) return;
@@ -586,6 +605,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const improvements = FetchAIInsightData?.underperforming_cases ?? [];
   const successes = FetchAIInsightData?.overperforming_cases ?? [];
   const actions = FetchAIInsightData?.next_actionable_items ?? [];
+  // The endpoint answers `{}` until the insights are generated.
+  const hasInsights = Object.keys(FetchAIInsightData ?? {}).length > 0;
   // The customer endpoint can include tickets from other conversations. Only
   // a ticket explicitly linked to this thread replaces its Create action.
   const existingThreadTicket = (FetchFreshdeskTicketIdData ?? []).find(
@@ -649,12 +670,47 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           </div>
         </div>
         <div>
-          <div className="border-b px-5 py-5">
-            <p className="text-sm leading-6 text-muted-foreground">
-              {FetchConversationSummaryData?.conversation_summary ||
-                "No summary available for this conversation."}
-            </p>
-          </div>
+          {/* Generated only when the merchant asks, once the chat has ended. */}
+          {details && !hasInsights ? (
+            <Empty className="p-8">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <IconSparkles />
+                </EmptyMedia>
+                <EmptyTitle>No AI insights yet</EmptyTitle>
+                <EmptyDescription>
+                  {details.is_active
+                    ? "Insights can be generated once the conversation ends."
+                    : "Generate a summary, score and suggestions for this conversation."}
+                </EmptyDescription>
+              </EmptyHeader>
+              {!details.is_active && (
+                <EmptyContent>
+                  <Button
+                    size="sm"
+                    disabled={isGeneratingInsights}
+                    onClick={handleGenerateInsights}
+                  >
+                    {isGeneratingInsights ? (
+                      <IconLoader2 className="size-4 animate-spin" />
+                    ) : (
+                      <IconSparkles className="size-4" />
+                    )}
+                    {isGeneratingInsights
+                      ? "Generating insights…"
+                      : "Generate AI insights"}
+                  </Button>
+                </EmptyContent>
+              )}
+            </Empty>
+          ) : (
+            <div className="border-b px-5 py-5">
+              <p className="text-sm leading-6 text-muted-foreground">
+                {FetchConversationSummaryData?.conversation_summary ||
+                  "No summary available for this conversation."}
+              </p>
+            </div>
+          )}
           {successes.length > 0 && (
             <div className="border-b px-5 py-5">
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-emerald-700">

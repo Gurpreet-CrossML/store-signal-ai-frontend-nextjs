@@ -747,6 +747,32 @@ export const FetchAIInsight = createAsyncThunk(
   },
 );
 
+export const GenerateAIInsight = createAsyncThunk(
+  "GenerateAIInsight",
+  async (threadId: string, thunkAPI) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.generateAIInsight(threadId),
+        {},
+        // Several model calls in one request.
+        { timeout: 90_000 },
+      );
+      return response.data.data as AIInsightResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't generate the AI insights.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't generate the AI insights.",
+      );
+    }
+  },
+);
+
 export const FetchCart = createAsyncThunk(
   "CartData",
   async (threadId: string, thunkAPI) => {
@@ -1187,6 +1213,11 @@ const ThreadSlice = createSlice({
         state.FetchAIInsightState.FetchAIInsightIsLoading = false;
         state.FetchAIInsightState.FetchAIInsightIsError = action.payload;
         state.FetchAIInsightState.FetchAIInsightIsSuccess = false;
+      })
+      // The generated insights are what the page shows, like a fetch.
+      .addCase(GenerateAIInsight.fulfilled, (state, action) => {
+        state.FetchAIInsightState.FetchAIInsightData = action.payload;
+        state.FetchAIInsightState.FetchAIInsightIsSuccess = true;
       })
       .addCase(FetchCart.pending, (state) => {
         state.FetchCartDataState.FetchCartDataIsLoading = true;
