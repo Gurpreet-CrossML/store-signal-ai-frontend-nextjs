@@ -1,6 +1,7 @@
 "use client";
 
-import { useImperativeHandle, useState, type Ref } from "react";
+import { useEffect, useImperativeHandle, useState, type Ref } from "react";
+import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import { IconDeviceFloppy } from "@tabler/icons-react";
 
@@ -60,6 +61,15 @@ export function UnsavedChangesDialog({
   useUnsavedChangesGuard(isDirty, (href) =>
     setPendingLeave(() => () => router.push(href)),
   );
+
+  // Closing or reloading the tab while this is open hands over to the
+  // browser's own "Leave site?" prompt, so the two never show together.
+  useEffect(() => {
+    if (pendingLeave === null) return;
+    const close = () => flushSync(() => setPendingLeave(null));
+    window.addEventListener("beforeunload", close);
+    return () => window.removeEventListener("beforeunload", close);
+  }, [pendingLeave]);
 
   /** Runs the blocked leave, after saving first when asked to. */
   const leave = async (save: boolean) => {

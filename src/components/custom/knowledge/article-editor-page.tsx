@@ -53,6 +53,7 @@ import {
   type KnowledgeScope,
 } from "@/components/custom/knowledge/knowledge-scope";
 import { AI_SCOPE_META } from "@/components/custom/knowledge/knowledge-meta";
+import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import {
   KnowledgeSettingsButton,
   KnowledgeSettingsDrawer,
@@ -217,6 +218,10 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
     [title, html, scope, knowledgeCategories],
   );
   const isDirty = currentKey !== savedKey;
+  // Edits not saved yet, a slow save still on its way included. A new article
+  // has nothing saved to compare with, so it counts once something is typed.
+  const hasUnsavedEdits =
+    isDirty && (id !== null || Boolean(title.trim() || html));
 
   const runSave = async (silent: boolean): Promise<boolean> => {
     const current = latest.current;
@@ -678,6 +683,16 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <UnsavedChangesDialog
+        isDirty={hasUnsavedEdits}
+        isSaving={saveState === "saving"}
+        onSave={() => {
+          // A save it can't make (no title, too long) shows why on the page.
+          setShowErrors(true);
+          return save();
+        }}
+      />
     </div>
   );
 }
