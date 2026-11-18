@@ -5,7 +5,13 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { IconCheck, IconX } from "@tabler/icons-react";
+import {
+  IconArrowRight,
+  IconCheck,
+  IconClock,
+  IconFileText,
+  IconX,
+} from "@tabler/icons-react";
 
 import { StoreSnippet } from "@/components/custom/go-live-card";
 import { useMetaOAuth } from "@/components/custom/settings/social-ai/use-meta-oauth";
@@ -27,6 +33,9 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import {
+  KNOWLEDGE_APPROVAL_WAITING_HREF,
+  KNOWLEDGE_SCAN_ACTIVE_STATUSES,
+  KNOWLEDGE_SCAN_POLL_MS,
   ONBOARDING_STEPS,
   SocialAIPlatformOptions,
   STORE_PLATFORMS,
@@ -35,6 +44,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   FetchDashboardChecklist,
+  type ChecklistStep,
   type ChecklistStepKey,
 } from "@/redux/api-slice/dashboard-checklist-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -95,6 +105,63 @@ const STEP_DONE_DETAIL: Record<
   knowledge: "Knowledge added to your assistant",
   social: "Social accounts connected",
 };
+
+/**
+ * What the automatic import of the store's policy pages did, under the
+ * knowledge step: still scanning, or how many pages it published and how many
+ * wait for the user's approval, with a button to review those. Nothing for a
+ * store that was never scanned.
+ */
+function KnowledgeImportNote({
+  step,
+  onNavigate,
+}: {
+  step: ChecklistStep;
+  onNavigate: () => void;
+}) {
+  const published = step.auto_published ?? 0;
+  const waiting = step.approval_waiting ?? 0;
+  const pages = (count: number) => `${count} ${count === 1 ? "page" : "pages"}`;
+
+  if (step.scan && KNOWLEDGE_SCAN_ACTIVE_STATUSES.includes(step.scan)) {
+    return (
+      <p className="mt-1 text-xs font-medium text-primary">
+        Scanning your website for policy and help pages…
+      </p>
+    );
+  }
+  if (published === 0 && waiting === 0) return null;
+
+  return (
+    <>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-primary/5 px-4 py-3 text-sm">
+        {published > 0 && (
+          <span className="flex items-center gap-2 font-bold text-primary">
+            <IconFileText className="size-4" />
+            {pages(published)} added
+          </span>
+        )}
+        {published > 0 && waiting > 0 && (
+          <span aria-hidden className="h-5 w-px bg-border" />
+        )}
+        {waiting > 0 && (
+          <span className="flex items-center gap-2 font-medium">
+            <IconClock className="size-4 text-primary" />
+            {pages(waiting)} waiting for approval
+          </span>
+        )}
+      </div>
+      {waiting > 0 && (
+        <Button type="button" size="sm" className="mt-3" asChild>
+          <Link href={KNOWLEDGE_APPROVAL_WAITING_HREF} onClick={onNavigate}>
+            Review {pages(waiting)} for approval
+            <IconArrowRight />
+          </Link>
+        </Button>
+      )}
+    </>
+  );
+}
 
 /**
  * The social step's chips and buttons. Its own component so the Meta popup
@@ -272,6 +339,19 @@ export function DashboardSetupChecklist() {
     return () => window.removeEventListener("focus", refetch);
   }, [dispatch, selectedStore]);
 
+  // The import of the store's pages runs in the background, so check again
+  // every few seconds until it is complete (queued or running).
+  const scan = checklist?.steps.knowledge.scan;
+  const scanning = !!scan && KNOWLEDGE_SCAN_ACTIVE_STATUSES.includes(scan);
+  useEffect(() => {
+    if (!selectedStore || !scanning) return;
+    const timer = window.setInterval(
+      () => void dispatch(FetchDashboardChecklist(selectedStore)),
+      KNOWLEDGE_SCAN_POLL_MS,
+    );
+    return () => window.clearInterval(timer);
+  }, [dispatch, selectedStore, scanning]);
+
   // The ring hides at all steps done, so say so when the last step is finished — only
   // on that change for the same store, not on load or a store switch.
   const previous = useRef<{ code: string; pending: number } | null>(null);
@@ -420,6 +500,12 @@ export function DashboardSetupChecklist() {
                           ? `Connect your ${platformLabel} store so the assistant can read your products, orders and customers.`
                           : STEP_DESCRIPTION[key]}
                       </p>
+                      {key === "knowledge" && (
+                        <KnowledgeImportNote
+                          step={step}
+                          onNavigate={() => setOpen(false)}
+                        />
+                      )}
                       {step.done && (
                         <p className="mt-1 text-xs font-medium text-muted-foreground">
                           {key === "connected"

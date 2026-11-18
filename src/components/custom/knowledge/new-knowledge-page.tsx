@@ -40,7 +40,6 @@ import { randomId } from "@/lib/utils";
 import {
   AddKnowledgeStepper,
   ContentLayout,
-  ExistingKnowledge,
   PrimaryAction,
   ShopifySyncedNote,
   SOURCE_META,
@@ -444,7 +443,6 @@ export function NewKnowledgePage() {
           <div className="flex flex-col gap-5">
             <SourceCards value={source} onChange={setSource} />
             <ShopifySyncedNote />
-            <ExistingKnowledge stats={stats} />
           </div>
           <StepFooter
             message={
@@ -698,9 +696,24 @@ function WebsiteContent({
     DiscoverWebsiteUrlsIsLoading: scanning,
     DiscoverWebsiteUrlsIsSuccess: scanned,
     DiscoverWebsiteUrlsIsError: scanFailed,
+    DiscoverWebsiteUrlsListData: discoveredPages,
   } = useAppSelector(
     (state) => state.GetKnowledgeRagReducer.DiscoverWebsiteUrlsState,
   );
+
+  // A page whose address matches knowledge categories starts out filed under
+  // them. A page the user has already set (even to none) is left as it is.
+  useEffect(() => {
+    const unset = discoveredPages.filter(
+      (page) =>
+        page.categoryIds.length > 0 && pageCategories[page.url] === undefined,
+    );
+    if (unset.length === 0) return;
+    onPageCategoriesChange({
+      ...pageCategories,
+      ...Object.fromEntries(unset.map((page) => [page.url, page.categoryIds])),
+    });
+  }, [discoveredPages, pageCategories, onPageCategoriesChange]);
   const locked = started && !scanFailed;
 
   const changeAddress = () => {
@@ -709,7 +722,7 @@ function WebsiteContent({
     setScan(null);
   };
 
-  // The categories field at the right of each ticked page.
+  // The categories field of each page that can be added, ticked or not.
   const renderCategories = (page: DiscoveredPage) => (
     <KnowledgeCategoriesField
       compact
@@ -827,7 +840,7 @@ function WebsiteContent({
           selectedUrls={selectedPageUrls}
           onSelectedUrlsChange={onSelectedPageUrlsChange}
           maxSelection={scan.kind === "site" ? siteCap : pageCap}
-          renderSelectedExtra={renderCategories}
+          renderPageExtra={renderCategories}
         />
       )}
 

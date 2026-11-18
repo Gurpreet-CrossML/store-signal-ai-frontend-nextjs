@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   IconArticle,
   IconBolt,
@@ -13,7 +12,6 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import type { KnowledgeStats } from "@/redux/api-slice/knowledge-rag-slice";
 import { cn } from "@/lib/utils";
 
 /** What can be added. Articles open the editor; the rest continue here. */
@@ -227,45 +225,6 @@ export function ShopifySyncedNote() {
         </p>
       </div>
     </div>
-  );
-}
-
-/** What the store already has, with a link to the whole list. */
-export function ExistingKnowledge({ stats }: { stats: KnowledgeStats | null }) {
-  const counts = stats?.counts;
-  const figures: { label: string; value: number | undefined }[] = [
-    { label: "Shopify products", value: counts?.products },
-    { label: "Articles", value: counts?.articles },
-    { label: "Documents", value: counts?.documents },
-    { label: "Website pages", value: counts?.urls },
-    { label: "Questions and answers", value: counts?.faqs },
-  ];
-
-  return (
-    <section
-      aria-label="Already in your knowledge"
-      className="flex flex-col gap-2"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold">Already in your knowledge</h2>
-        <Link
-          href="/knowledge"
-          className="text-xs font-medium text-primary hover:underline"
-        >
-          View all in Knowledge
-        </Link>
-      </div>
-      <dl className="grid grid-cols-2 divide-x divide-y rounded-xl border bg-card sm:grid-cols-3 lg:grid-cols-5 lg:divide-y-0">
-        {figures.map(({ label, value }) => (
-          <div key={label} className="flex flex-col gap-1 p-3">
-            <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="text-lg font-semibold tabular-nums">
-              {value === undefined ? "—" : value.toLocaleString()}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </section>
   );
 }
 

@@ -1,7 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { isAxiosError } from "axios";
 
-import { ENDPOINTS } from "@/lib/config";
+import { ENDPOINTS, type KnowledgeScanStatus } from "@/lib/config";
 import { axiosInstance } from "../axios-config";
 
 export type ChecklistStepKey =
@@ -17,6 +17,14 @@ export type ChecklistStep = {
   /** brand_voice's two halves — the Agent Name and the tone preset. */
   persona_done?: boolean;
   tone_done?: boolean;
+  /**
+   * knowledge only — the automatic import of the store's policy pages (see
+   * KNOWLEDGE_SCAN_STATUS), and what it left.
+   */
+  scan?: KnowledgeScanStatus;
+  auto_published?: number;
+  /** Imported pages saved as drafts that still wait for the user to publish. */
+  approval_waiting?: number;
 };
 
 export type ChecklistStore = {
