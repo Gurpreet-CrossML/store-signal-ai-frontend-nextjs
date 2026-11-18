@@ -2992,6 +2992,11 @@ export default function HelpDesk() {
           };
         });
 
+        // The change is now part of the ticket's history.
+        if (currentActiveSupportTicketIdRef.current) {
+          loadActivity(currentActiveSupportTicketIdRef.current);
+        }
+
         closeTagPicker();
 
         toast.success(`Tag assigned: ${assignedTag.name}`);
@@ -3039,6 +3044,11 @@ export default function HelpDesk() {
               }
             : current,
         );
+
+        // The change is now part of the ticket's history.
+        if (currentActiveSupportTicketIdRef.current) {
+          loadActivity(currentActiveSupportTicketIdRef.current);
+        }
 
         closeTagPicker();
 
@@ -3516,6 +3526,10 @@ export default function HelpDesk() {
 
       if (updatedPriority) {
         applyTicketRowUpdate(ticketId, { priority: updatedPriority.priority });
+        // The change is now part of the ticket's history.
+        if (currentActiveSupportTicketIdRef.current === ticketId) {
+          loadActivity(ticketId);
+        }
 
         toast.success("Ticket priority", {
           description: `Ticket priority updated to ${updatedPriority.priority}.`,
@@ -3540,6 +3554,10 @@ export default function HelpDesk() {
 
       if (updated) {
         applyTicketRowUpdate(ticketId, updated);
+        // The change is now part of the ticket's history.
+        if (currentActiveSupportTicketIdRef.current === ticketId) {
+          loadActivity(ticketId);
+        }
 
         toast.success("Ticket updated", {
           description: "Ticket language and sentiment saved.",
