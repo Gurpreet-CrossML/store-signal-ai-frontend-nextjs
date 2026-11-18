@@ -376,7 +376,7 @@ function TicketRow({
         </Tooltip>
         <div className="mt-1.5 flex min-w-0 items-center gap-1.5 overflow-hidden text-xs text-muted-foreground">
           <span className="shrink-0">
-            {ticket.order_id ? `#${ticket.order_id}` : "No order linked"}
+            {ticket.order_id ? ticket.order_id : "No order linked"}
             {orderTotal
               ? ` · ${formatMoney(orderTotal, orderCurrency).replace(/\.00$/, "")}`
               : ""}
@@ -863,8 +863,8 @@ function TicketListPanel({
           onChange={onSearchChange}
           placeholder={
             isPhone
-              ? "Search name, ticket or order #"
-              : "Search name, email, ticket or order #"
+              ? "Search name, ticket or order ID"
+              : "Search name, email, ticket or order ID"
           }
           label="Search tickets"
         />
@@ -925,7 +925,9 @@ function TicketListPanel({
         className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto border-t"
         onScroll={handleScroll}
       >
-        {isLoading && rows?.length === 0 ? (
+        {/* A fresh list (a search typed or cleared, another view) replaces the
+            old rows, so they give way to the loader; loading more keeps them. */}
+        {isLoading && (rows?.length === 0 || !isLoadingMore) ? (
           <LoadingState label="Loading tickets…" className="py-10" />
         ) : !rows || rows?.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-1 px-6 py-12 text-center">
@@ -3748,7 +3750,11 @@ export default function HelpDesk() {
           sortOrder={sortOrder}
           onSortChange={handleSortChange}
           onSelectTicket={handleSelectTicket}
-          isLoading={FetchSupportTicketsLoading}
+          // Also while a search waits out its debounce: the rows on screen are
+          // for the old search until the new one comes back.
+          isLoading={
+            FetchSupportTicketsLoading || searchValue.trim() !== debouncedSearch
+          }
           isLoadingMore={isLoadingMore}
           hasMore={Boolean(FetchSupportTicketsListData?.next)}
           onLoadMore={() => {

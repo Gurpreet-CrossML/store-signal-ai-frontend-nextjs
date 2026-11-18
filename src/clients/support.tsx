@@ -2577,7 +2577,7 @@ export default function Support() {
                 <SearchInput
                   value={threadSearch}
                   onChange={setThreadSearch}
-                  placeholder="Name, email, phone or order #"
+                  placeholder="Name, email, phone or order ID"
                   label="Search conversations"
                 />
               </div>

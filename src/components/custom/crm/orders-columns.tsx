@@ -20,7 +20,8 @@ import {
 
 /** "#1001" — the platform's own label, or the number it issued. */
 export function orderLabel(order: { name: string; order_number: string }) {
-  return order.name || `#${order.order_number}`;
+  // Shopify names orders "#1001"; IDs are shown without the "#".
+  return (order.name || order.order_number).replace(/^#/, "");
 }
 
 /**

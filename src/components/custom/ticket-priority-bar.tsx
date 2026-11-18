@@ -29,12 +29,12 @@ export const TICKET_PRIORITY_TONES: Record<TicketPriorityValue, BadgeTone> = {
 };
 
 /**
- * How a ticket is referred to in the UI: its display ticket_id behind a "#",
- * e.g. "#ABC-10001". Every place that shows a ticket ID goes through this,
+ * How a ticket is referred to in the UI: its display ticket_id as it is,
+ * e.g. "ABC-10001". Every place that shows a ticket ID goes through this,
  * so the format changes in one spot.
  */
 export function ticketRef(ticketId: string) {
-  return `#${ticketId}`;
+  return ticketId;
 }
 
 /**
