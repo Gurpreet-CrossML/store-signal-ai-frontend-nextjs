@@ -263,12 +263,16 @@ const ticketControlClass = cn(pillClass, "w-36 justify-between");
 const phoneValueClass =
   "inline-flex max-w-full min-w-0 items-center gap-2 text-[15px] disabled:cursor-default disabled:opacity-60";
 
-/** What opens a field's menu: a right chevron on the phone page. */
-function MenuChevron() {
+/**
+ * What opens a field's menu: a right chevron on the phone page. Hidden, it
+ * still takes its space, so a locked field's value stays where it was.
+ */
+function MenuChevron({ hidden = false }: { hidden?: boolean }) {
+  const className = cn("shrink-0 text-muted-foreground", hidden && "invisible");
   return useContext(PhoneLayout) ? (
-    <IconChevronRight className="size-4 shrink-0 text-muted-foreground" />
+    <IconChevronRight className={cn("size-4", className)} />
   ) : (
-    <IconChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+    <IconChevronDown className={cn("size-3.5", className)} />
   );
 }
 
@@ -921,7 +925,7 @@ function LanguagePicker({
             <IconWorld className="size-4 text-muted-foreground" />
           ) : null}
           {name}
-          {!disabled ? <MenuChevron /> : null}
+          <MenuChevron hidden={disabled} />
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64 p-0">
@@ -1043,7 +1047,7 @@ function TicketTab(props: TicketDetailsProps) {
               )}
             />
             {PRIORITY_META[ticket.priority].label}
-            {!isClosed ? <MenuChevron /> : null}
+            <MenuChevron hidden={isClosed} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
@@ -1118,7 +1122,7 @@ function TicketTab(props: TicketDetailsProps) {
             type="button"
             disabled={isClosed}
             className={cn(
-              "relative inline-flex h-8 w-36 items-center justify-center rounded-md border bg-background px-2.5 hover:bg-muted disabled:hover:bg-transparent",
+              "relative inline-flex h-8 w-36 items-center justify-center rounded-md border bg-background px-2.5 hover:bg-muted disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent",
               textClass,
             )}
           >
