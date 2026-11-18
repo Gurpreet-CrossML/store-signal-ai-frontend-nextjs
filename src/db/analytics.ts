@@ -5,7 +5,7 @@ import {
   resolveStoreScope,
 } from "@/lib/tenant-context";
 import { storeIdScope, threadIdScope } from "@/db/access";
-import { threadChannelScope } from "@/db/threads";
+import { threadChannelScope, threadEscalated } from "@/db/threads";
 import { getCached, setCached } from "@/lib/dashboard-cache";
 import {
   chatThread,
@@ -1048,10 +1048,11 @@ export async function get_operational_efficiency(params: {
     .where(threadWhere);
   const totalThreads = Number(total);
 
-  // Escalation is over every chat the AI started — all in-range threads, not
-  // only closed ones (every Thread defaults to AI-handled at creation).
+  // Escalation is over closed chats only, so the count matches the closed-only
+  // list the dashboard card links to (/threads always shows closed threads).
   const allThreadWhere = and(
     localDateRange(sql`${chatThread.createdAt}`, startDate, endDate),
+    eq(chatThread.isActive, false),
     storeIdScope(chatThread.storeId, params.store_code) ?? undefined,
     threadChannelScope(params.channel),
   )!;
@@ -1062,21 +1063,19 @@ export async function get_operational_efficiency(params: {
     .where(allThreadWhere);
   const allThreads = Number(allTotal);
 
-  // Escalated thread ids (distinct) from SupportTicket for in-range threads.
-  const escalatedRows = await db
-    .selectDistinct({ threadId: supportTicket.threadId })
-    .from(supportTicket)
-    .where(
-      sql`${supportTicket.threadId} IN (SELECT id FROM chat_thread WHERE ${allThreadWhere})`,
-    );
-  const escalatedCount = escalatedRows.length;
+  // Escalated in-range threads: own ticket, or flagged for a human.
+  const [{ escTotal }] = await db
+    .select({ escTotal: sql<number>`count(*)::int` })
+    .from(chatThread)
+    .where(and(allThreadWhere, threadEscalated));
+  const escalatedCount = Number(escTotal);
 
   // AI resolved: handled by the AI start to finish — no agent ever took it
   // over (a takeover records to_agent_id, even if later handed back to the
   // AI) and no support ticket was raised. Shared by every count below.
   const aiResolvedOnly = and(
     eq(chatThread.chatHandler, "ai"),
-    sql`NOT EXISTS (SELECT 1 FROM support_ticket st WHERE st.thread_id = ${chatThread.id})`,
+    sql`NOT ${threadEscalated}`,
     sql`NOT EXISTS (SELECT 1 FROM chat_thread_assignment cta WHERE cta.thread_id = ${chatThread.id} AND cta.to_agent_id IS NOT NULL)`,
   )!;
 
@@ -1226,8 +1225,8 @@ export async function get_operational_efficiency(params: {
     }
 
     // period_threads: in-range threads with created_at in [periodStart, periodEnd)
-    // compared in current tz local time. Escalation counts every chat in the
-    // period; AI resolution only the closed ones — same scopes as the headline.
+    // compared in current tz local time. Escalation and AI resolution both
+    // use closed chats only — same scopes as the headline.
     const periodBounds = and(
       sql`(${chatThread.createdAt} AT TIME ZONE ${APP_TZ_SQL}) >= ${periodStartDate}::timestamp`,
       sql`(${chatThread.createdAt} AT TIME ZONE ${APP_TZ_SQL}) < ${periodEndDate}::timestamp`,
@@ -1248,13 +1247,9 @@ export async function get_operational_efficiency(params: {
     const closedPeriodThreads = Number(closedPeriod);
 
     const [{ esc }] = await db
-      .select({
-        esc: sql<number>`count(distinct ${supportTicket.threadId})::int`,
-      })
-      .from(supportTicket)
-      .where(
-        sql`${supportTicket.threadId} IN (SELECT id FROM chat_thread WHERE ${periodThreadWhere})`,
-      );
+      .select({ esc: sql<number>`count(*)::int` })
+      .from(chatThread)
+      .where(and(periodThreadWhere, threadEscalated));
     const periodEscalated = Number(esc);
 
     const [{ botRes }] = await db

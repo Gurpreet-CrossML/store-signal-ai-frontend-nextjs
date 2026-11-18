@@ -448,6 +448,14 @@ export async function list_threads(
 }
 
 /**
+ * A thread counts as escalated when it has its own ticket row, or was flagged
+ * for a human (need_escalation / escalation_time). The flags cover requests the
+ * backend merged into a customer's existing ticket, which leaves the new
+ * thread without a ticket row of its own.
+ */
+export const threadEscalated = sql`(EXISTS (SELECT 1 FROM ${supportTicket} WHERE ${supportTicket.threadId} = ${chatThread.id}) OR ${chatThread.needEscalation} = true OR ${chatThread.escalationTime} IS NOT NULL)`;
+
+/**
  * The WHERE conditions for a thread list, shared by the list itself and by
  * the tag counts above it, so both always agree on which threads are in play.
  * The query must join chat_customer, auth_user (handler) and store.
@@ -561,13 +569,9 @@ function buildThreadConditions(
   // has_ticket / has_feedback are correlated EXISTS subqueries (Django uses
   // support_tickets__isnull / feedbacks__isnull with .distinct()).
   if (filters.has_ticket === "true") {
-    conditions.push(
-      sql`EXISTS (SELECT 1 FROM ${supportTicket} WHERE ${supportTicket.threadId} = ${chatThread.id})`,
-    );
+    conditions.push(threadEscalated);
   } else if (filters.has_ticket === "false") {
-    conditions.push(
-      sql`NOT EXISTS (SELECT 1 FROM ${supportTicket} WHERE ${supportTicket.threadId} = ${chatThread.id})`,
-    );
+    conditions.push(sql`NOT ${threadEscalated}`);
   }
 
   // has_order: thread has a real order attributed to it via the Thread.orders

@@ -347,12 +347,12 @@ export default function Dashboard() {
       label: "Escalation Rate",
       value: `${FetchOperationalEfficiencyData?.escalation_rate?.percentage || 0}%`,
       infoText:
-        "Shows the share of all conversations in the selected period that were escalated to a human agent through a support ticket, which can highlight where the bot needs support.",
+        "Shows the share of closed conversations in the selected period that were escalated to a human agent through a support ticket, which can highlight where the bot needs support.",
       status: `${FetchOperationalEfficiencyData?.escalation_rate?.count || 0} of ${FetchOperationalEfficiencyData?.escalation_rate?.total || 0} chats`,
       statusVariant: "info" as const,
       trend: FetchOperationalEfficiencyData?.escalation_rate?.trend,
-      href: threadsHref({ has_ticket: "true" }),
-      statusHref: threadsHref({ has_ticket: "true" }),
+      href: threadsHref({ is_active: "false", has_ticket: "true" }),
+      statusHref: threadsHref({ is_active: "false", has_ticket: "true" }),
     },
   ];
 
