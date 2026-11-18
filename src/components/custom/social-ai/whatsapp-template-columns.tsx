@@ -135,7 +135,9 @@ export function getWhatsAppTemplateColumns(
                     Resubmit
                   </DropdownMenuItem>
                 )}
+                {/* Meta can't edit a template while it's under review. */}
                 <DropdownMenuItem
+                  disabled={template.status?.toUpperCase() === "PENDING"}
                   onClick={(event) => {
                     event.stopPropagation();
                     onEdit(template);

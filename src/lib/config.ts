@@ -211,6 +211,8 @@ export const ENDPOINTS = {
     `/knowledge/knowledge-items/${id}/publish/`,
   // Vector storage (used / limit / by kind, in bytes) and item counts. Django.
   fetchKnowledgeStats: () => `/knowledge/knowledge-items/stats/`,
+  // The knowledge categories with how many items are filed under each. Django.
+  fetchKnowledgeCategories: () => `/knowledge/knowledge-items/categories/`,
   // Website URL discovery: POST a site URL, get back the pages found on it
   // (url, title, word count) so the user can pick which to index. Django.
   discoverKnowledgeUrls: () => `/knowledge/knowledge-items/discover-urls/`,
@@ -907,3 +909,30 @@ export const KNOWLEDGE_STORAGE_WARNING_SHARE = 0.9;
 export const KNOWLEDGE_TITLE_MIN_LENGTH = 3;
 export const KNOWLEDGE_TITLE_MAX_LENGTH = 100;
 export const ARTICLE_BODY_MAX_LENGTH = 30_000;
+
+// The "category" of the knowledge that is filed under no knowledge category: its
+// value in the knowledge API's `knowledge_category` filter (the backend's
+// `KNOWLEDGE_UNCATEGORIZED_FILTER`), and the name it goes by in the page URL
+// (/knowledge/categories/uncategorized).
+export const KNOWLEDGE_UNCATEGORIZED_FILTER = "none";
+export const KNOWLEDGE_UNCATEGORIZED_ROUTE = "uncategorized";
+
+// The Add knowledge screen's limits. The caps match the backend's
+// `KNOWLEDGE_MAX_FAQS_PER_REQUEST`, `KNOWLEDGE_MAX_URLS_PER_REQUEST` and
+// `KNOWLEDGE_DISCOVERY_MAX_SPECIFIC_PAGES`; the address length is its URL field's
+// `max_length`.
+export const KNOWLEDGE_FAQ_CAP = 20;
+// Pages and links that can be added in one request.
+export const KNOWLEDGE_WEBSITE_URL_CAP = 100;
+// Specific pages that can be listed in the field at once.
+export const KNOWLEDGE_SPECIFIC_PAGE_CAP = 20;
+export const KNOWLEDGE_FILE_CAP = 15;
+export const KNOWLEDGE_URL_MAX_LENGTH = 2048;
+// How long the pages field waits after typing stops before it is read.
+export const KNOWLEDGE_URL_INPUT_DELAY_MS = 500;
+
+// What knowledge filed under no knowledge category is called, and what its card
+// says about it.
+export const KNOWLEDGE_UNCATEGORIZED_NAME = "No category";
+export const KNOWLEDGE_UNCATEGORIZED_DESCRIPTION =
+  "Knowledge that isn't filed under any category yet";
